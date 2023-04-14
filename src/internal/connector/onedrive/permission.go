@@ -128,8 +128,13 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
-// isSame checks equality of two UserPermission objects
-func isSame(p1, p2 UserPermission) bool {
+// isSamePermission checks equality of two UserPermission objects
+func isSamePermission(p1, p2 UserPermission) bool {
+	// EntityID can be empty for older backups and Email can be empty
+	// for newer ones. It is not possible for both to be empty.  Also,
+	// if EntityID/Email for one is not empty then the other will also
+	// have EntityID/Email as we backup permissions for all the
+	// parents and children when we have a change in permissions.
 	if p1.EntityID != "" && p1.EntityID != p2.EntityID {
 		return false
 	}
@@ -157,7 +162,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, pp := range before {
-			if isSame(cp, pp) {
+			if isSamePermission(cp, pp) {
 				found = true
 				break
 			}
@@ -172,7 +177,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, cp := range after {
-			if isSame(cp, pp) {
+			if isSamePermission(cp, pp) {
 				found = true
 				break
 			}
