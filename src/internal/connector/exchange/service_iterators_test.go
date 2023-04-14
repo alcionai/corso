@@ -116,8 +116,7 @@ func (suite *ServiceIteratorsSuite) SetupSuite() {
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
-	ss := selectors.Selector{}
-	ss.SetDiscreteOwnerIDName("user_id", "user_id")
+	ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
 
 	var (
 		qp = graph.QueryParams{
@@ -437,8 +436,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			ss := selectors.Selector{}
-			ss.SetDiscreteOwnerIDName("user_id", "user_id")
+			ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
 
 			var (
 				qp = graph.QueryParams{
@@ -457,6 +455,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				}
 				resolver = newMockResolver(container1)
 			)
+
+			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
+			require.Equal(t, "user_id", qp.ResourceOwner.Name(), qp.ResourceOwner)
 
 			collections := map[string]data.BackupCollection{}
 
@@ -518,8 +519,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
-	ss := selectors.Selector{}
-	ss.SetDiscreteOwnerIDName("user_id", "user_id")
+	ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
 
 	var (
 		userID   = "user_id"

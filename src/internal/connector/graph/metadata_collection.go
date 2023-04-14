@@ -78,8 +78,7 @@ func MakeMetadataCollection(
 		resourceOwner,
 		service,
 		cat,
-		false,
-	)
+		false)
 	if err != nil {
 		return nil, clues.Wrap(err, "making metadata path")
 	}

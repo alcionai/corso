@@ -844,8 +844,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	// verify test data was populated, and track it for comparisons
 	for category, gen := range dataset {
-		ss := selectors.Selector{}
-		ss.SetDiscreteOwnerIDName(suite.user, suite.user)
+		ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 		qp := graph.QueryParams{
 			Category:      category,
@@ -961,8 +960,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						version.Backup,
 						gen.dbf)
 
-					ss := selectors.Selector{}
-					ss.SetDiscreteOwnerIDName(suite.user, suite.user)
+					ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 					qp := graph.QueryParams{
 						Category:      category,

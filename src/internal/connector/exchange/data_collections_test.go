@@ -239,10 +239,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
-		ss        = selectors.Selector{}
+		ss        = selectors.Selector{}.SetDiscreteOwnerIDName(userID, userID)
 	)
-
-	ss.SetDiscreteOwnerIDName(userID, userID)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -302,10 +300,8 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
-		ss        = selectors.Selector{}
+		ss        = selectors.Selector{}.SetDiscreteOwnerIDName(userID, userID)
 	)
-
-	ss.SetDiscreteOwnerIDName(userID, userID)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -409,10 +405,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		t     = suite.T()
 		wg    sync.WaitGroup
 		users = []string{suite.user}
-		ss    = selectors.Selector{}
+		ss    = selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 	)
-
-	ss.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 	acct, err := tester.NewM365Account(t).M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -473,8 +467,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	users := []string{suite.user}
-	ss := selectors.Selector{}
-	ss.SetDiscreteOwnerIDName(suite.user, suite.user)
+	ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 	tests := []struct {
 		name  string
@@ -563,8 +556,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		bdayID string
 	)
 
-	ss := selectors.Selector{}
-	ss.SetDiscreteOwnerIDName(suite.user, suite.user)
+	ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 	fn := func(gcf graph.CacheFolder) error {
 		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
