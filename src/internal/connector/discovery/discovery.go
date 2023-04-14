@@ -75,10 +75,10 @@ func UsersDetails(
 	acct account.Account,
 	userID string,
 	errs *fault.Bus,
-) (string, bool, bool, error) {
+) (string, bool, bool, string, error) {
 	client, err := apiClient(ctx, acct)
 	if err != nil {
-		return "", false, false, err
+		return "", false, false, "", err
 	}
 
 	return client.Users().GetUserInfo(ctx, userID)

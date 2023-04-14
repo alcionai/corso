@@ -29,12 +29,13 @@ type ServiceAccess struct {
 
 // User is the minimal information required to identify and display a user.
 type User struct {
-	PrincipalName string
-	ID            string
-	Name          string
-	UserPurpose   string
-	HasMailBox    bool
-	HasOnedrive   bool
+	PrincipalName      string
+	ID                 string
+	Name               string
+	UserPurpose        string
+	HasMailBox         bool
+	HasOnedrive        bool
+	ErrGettingUserInfo string
 }
 
 type UserInfo struct {
@@ -75,7 +76,12 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		pu.UserPurpose, pu.HasMailBox, pu.HasOnedrive, err = discovery.UsersDetails(ctx, acct, pu.ID, errs)
+		userpurpose, hasMailBox, hasOnedrive, errGettingUserInfo, err := discovery.UsersDetails(ctx, acct, pu.ID, errs)
+
+		pu.UserPurpose = userpurpose
+		pu.HasMailBox = hasMailBox
+		pu.HasOnedrive = hasOnedrive
+		pu.ErrGettingUserInfo = errGettingUserInfo
 
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user details")
