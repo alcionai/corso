@@ -226,12 +226,10 @@ func (c Users) GetUserInfo(ctx context.Context, userID string) (string, bool, bo
 		// added value here. Can also add another variable which specify the same if access
 		// denied
 		if graph.IsErrAccessDenied(err) {
-			userPurpose = ""
 			errGetUserPurpose = "access denied"
 		}
 
 		if graph.IsErrExchangeMailFolderNotFound(err) {
-			userPurpose = ""
 			errGetUserPurpose = "not found"
 			hasMailBox = false
 		}

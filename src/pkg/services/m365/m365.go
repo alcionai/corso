@@ -76,7 +76,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		userpurpose, hasMailBox, hasOnedrive, errGettingUserInfo, err := discovery.UsersDetails(ctx, acct, pu.ID, errs)
+		userpurpose, hasMailBox, hasOnedrive, errGettingUserInfo, err := discovery.UserDetails(ctx, acct, pu.ID, errs)
 
 		pu.UserPurpose = userpurpose
 		pu.HasMailBox = hasMailBox

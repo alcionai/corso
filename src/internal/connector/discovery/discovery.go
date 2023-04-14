@@ -69,8 +69,8 @@ func Users(
 	return users, nil
 }
 
-// UsersDetails fetches detailed info like - userPurpose for all users in the tenant.
-func UsersDetails(
+// UserDetails fetches detailed info like - userPurpose for all users in the tenant.
+func UserDetails(
 	ctx context.Context,
 	acct account.Account,
 	userID string,
