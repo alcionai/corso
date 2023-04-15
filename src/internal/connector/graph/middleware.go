@@ -1,11 +1,13 @@
 package graph
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -94,6 +96,15 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
+func getGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
+
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -106,6 +117,8 @@ func (handler *LoggingMiddleware) Intercept(
 		"request_len", req.ContentLength)
 
 	// call the next middleware
+	log1 := logger.Ctx(ctx)
+	log1.Debugw("REQUEST", "goroutine id", getGID(), "request", getReqDump(ctx, req, true))
 	resp, err := pipeline.Next(req, middlewareIndex)
 
 	if strings.Contains(req.URL.String(), "users//") {
@@ -123,7 +136,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
 		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
+			log.Debugw("2xx graph api resp", "goroutine id", getGID(), "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
 		}
 
 		return resp, err
@@ -134,7 +147,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// Otherwise, throttling cases and other non-2xx responses are logged
 	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
-		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
+		log.Errorw("non-2xx RESPONSE", "goroutine id", getGID(), "response", getRespDump(ctx, resp, true))
 		return resp, err
 	}
 
@@ -163,6 +176,15 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 	}
 
 	return string(respDump)
+}
+
+func getReqDump(ctx context.Context, req *http.Request, getBody bool) string {
+	reqDump, err := httputil.DumpRequest(req, getBody)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http request")
+	}
+
+	return string(reqDump)
 }
 
 // ---------------------------------------------------------------------------
