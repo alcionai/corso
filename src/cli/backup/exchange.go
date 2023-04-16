@@ -32,38 +32,38 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = "--user <email> | '" + utils.Wildcard + "'"
+	exchangeServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + utils.Wildcard + "'"
 	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
 	exchangeServiceCommandCreateExamples = `# Backup all Exchange data for Alice
-corso backup create exchange --user alice@example.com
+corso backup create exchange --mailbox alice@example.com
 
 # Backup only Exchange contacts for Alice and Bob
-corso backup create exchange --user alice@example.com,bob@example.com --data contacts
+corso backup create exchange --mailbox alice@example.com,bob@example.com --data contacts
 
 # Backup all Exchange data for all M365 users 
-corso backup create exchange --user '*'`
+corso backup create exchange --mailbox '*'`
 
 	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
 	exchangeServiceCommandDetailsExamples = `# Explore Alice's items in backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --mailbox alice@example.com
 
 # Explore Alice's emails with subject containing "Hello world" in folder "Inbox" from a specific backup 
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --email-subject "Hello world" --email-folder Inbox
+    --mailbox alice@example.com --email-subject "Hello world" --email-folder Inbox
 
 # Explore Bobs's events occurring after start of 2022 from a specific backup
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user bob@example.com --event-starts-after 2022-01-01T00:00:00
+    --mailbox bob@example.com --event-starts-after 2022-01-01T00:00:00
 
 # Explore Alice's contacts with name containing Andy from a specific backup
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --contact-name Andy`
+    --mailbox alice@example.com --contact-name Andy`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -78,17 +78,16 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
 		fs.SortFlags = false
 
-		options.AddFeatureToggle(cmd, options.DisableIncrementals())
-
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		utils.AddUserFlag(c)
+		utils.AddMailBoxFlag(c)
 		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		options.AddFetchParallelismFlag(c)
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
+		options.AddDisableIncrementalsFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
@@ -208,7 +207,7 @@ func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBa
 
 func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
-		return clues.New("--user requires one or more email addresses or the wildcard '*'")
+		return clues.New("--user/--mailbox requires one or more email addresses or the wildcard '*'")
 	}
 
 	for _, d := range cats {

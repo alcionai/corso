@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -85,13 +88,73 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 	return us, el.Failure()
 }
 
-func (c Sites) GetByID(ctx context.Context, id string) (models.Siteable, error) {
-	resp, err := c.stable.Client().SitesById(id).Get(ctx, nil)
+const uuidRE = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+// matches a site ID, with or without a doman name.  Ex, either one of:
+// 10rqc2.sharepoint.com,deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
+// deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
+var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRE + "," + uuidRE)
+
+const webURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s"
+
+// GetByID looks up the site matching the given identifier.  The identifier can be either a
+// canonical site id or a webURL.  Assumes the webURL is complete and well formed;
+// eg: https://10rqc2.sharepoint.com/sites/Example
+func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable, error) {
+	var (
+		resp models.Siteable
+		err  error
+	)
+
+	ctx = clues.Add(ctx, "given_site_id", identifier)
+
+	if siteIDRE.MatchString(identifier) {
+		resp, err = c.stable.Client().SitesById(identifier).Get(ctx, nil)
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "getting site by id")
+		}
+
+		return resp, err
+	}
+
+	// if the id is not a standard sharepoint ID, assume it's a url.
+	// if it has a leading slash, assume it's only a path.  If it doesn't,
+	// ensure it has a prefix https://
+	if !strings.HasPrefix(identifier, "/") {
+		identifier = strings.TrimPrefix(identifier, "https://")
+		identifier = strings.TrimPrefix(identifier, "http://")
+		identifier = "https://" + identifier
+	}
+
+	u, err := url.Parse(identifier)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting site")
+		return nil, clues.Wrap(err, "site is not parseable as a url")
+	}
+
+	// don't construct a path with double leading slashes
+	path := strings.TrimPrefix(u.Path, "/")
+	rawURL := fmt.Sprintf(webURLGetTemplate, u.Host, path)
+
+	resp, err = sites.
+		NewItemSitesSiteItemRequestBuilder(rawURL, c.stable.Adapter()).
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting site by weburl")
 	}
 
 	return resp, err
+}
+
+// GetIDAndName looks up the site matching the given ID, and returns
+// its canonical ID and the webURL as the name.  Accepts an ID or a
+// WebURL as an ID.
+func (c Sites) GetIDAndName(ctx context.Context, siteID string) (string, string, error) {
+	s, err := c.GetByID(ctx, siteID)
+	if err != nil {
+		return "", "", err
+	}
+
+	return ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -116,23 +179,23 @@ func validateSite(item any) (models.Siteable, error) {
 		return nil, clues.New("missing ID")
 	}
 
-	url := ptr.Val(m.GetWebUrl())
-	if len(url) == 0 {
+	wURL := ptr.Val(m.GetWebUrl())
+	if len(wURL) == 0 {
 		return nil, clues.New("missing webURL").With("site_id", id) // TODO: pii
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if strings.Contains(url, personalSitePath) {
+	if strings.Contains(wURL, personalSitePath) {
 		return nil, clues.Stack(errKnownSkippableCase).
-			With("site_id", id, "site_url", url) // TODO: pii
+			With("site_id", id, "site_web_url", wURL) // TODO: pii
 	}
 
 	name := ptr.Val(m.GetDisplayName())
 	if len(name) == 0 {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if strings.HasSuffix(url, "/search") {
+		if strings.HasSuffix(wURL, "/search") {
 			return nil, clues.Stack(errKnownSkippableCase).
-				With("site_id", id, "site_url", url) // TODO: pii
+				With("site_id", id, "site_web_url", wURL) // TODO: pii
 		}
 
 		return nil, clues.New("missing site display name").With("site_id", id)

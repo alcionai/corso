@@ -253,11 +253,11 @@ func runBackups(
 // genericDeleteCommand is a helper function that all services can use
 // for the removal of an entry from the repository
 func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []string) error {
-	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
+
+	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
@@ -294,7 +294,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 				return Only(ctx, clues.New("No backup exists with the id "+bID))
 			}
 
-			return Only(ctx, clues.Wrap(err, "Failed to find backup "+bID))
+			return Only(ctx, clues.Wrap(errs.Failure(), "Failed to list backup id "+bID))
 		}
 
 		b.Print(ctx)

@@ -48,7 +48,7 @@ func (c Mail) CreateMailFolder(
 	requestBody.SetDisplayName(&folder)
 	requestBody.SetIsHidden(&isHidden)
 
-	mdl, err := c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.Stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating mail folder")
 	}
@@ -91,7 +91,7 @@ func (c Mail) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := newService(c.Credentials)
+	srv, err := NewService(c.Credentials)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -133,30 +133,81 @@ func (c Mail) GetItem(
 	user, itemID string,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	mail, err := c.Stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	if ptr.Val(mail.GetHasAttachments()) || HasAttachments(mail.GetBody()) {
-		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mail.GetBody()) {
+		return mail, MailInfo(mail), nil
+	}
+
+	options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+			Expand: []string{"microsoft.graph.itemattachment/item"},
+		},
+	}
+
+	attached, err := c.LargeItem.
+		Client().
+		UsersById(user).
+		MessagesById(itemID).
+		Attachments().
+		Get(ctx, options)
+	if err == nil {
+		mail.SetAttachments(attached.GetValue())
+		return mail, MailInfo(mail), nil
+	}
+
+	// A failure can be caused by having a lot of attachments as
+	// we are trying to fetch the data within the attachments as
+	// well in the request. We instead fetch all the attachment
+	// ids and fetch each item individually.
+	// NOTE: Maybe filter for specific error:
+	// graph.IsErrTimeout(err) || graph.IsServiceUnavailable(err)
+	// TODO: Once MS Graph fixes pagination for this, we can
+	// probably paginate and fetch items.
+	// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
+	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
+
+	// Getting size just to log in case of error
+	options.QueryParameters.Select = []string{"id", "size"}
+
+	attachments, err := c.LargeItem.
+		Client().
+		UsersById(user).
+		MessagesById(itemID).
+		Attachments().
+		Get(ctx, options)
+	if err != nil {
+		return nil, nil, graph.Wrap(ctx, err, "getting mail attachment ids")
+	}
+
+	atts := []models.Attachmentable{}
+
+	for _, a := range attachments.GetValue() {
+		options := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
 		}
 
-		attached, err := c.largeItem.
+		att, err := c.Stable.
 			Client().
 			UsersById(user).
 			MessagesById(itemID).
-			Attachments().
+			AttachmentsById(ptr.Val(a.GetId())).
 			Get(ctx, options)
 		if err != nil {
-			return nil, nil, graph.Wrap(ctx, err, "mail attachment download")
+			return nil, nil,
+				graph.Wrap(ctx, err, "getting mail attachment").
+					With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
 		}
 
-		mail.SetAttachments(attached.GetValue())
+		atts = append(atts, att)
 	}
+
+	mail.SetAttachments(atts)
 
 	return mail, MailInfo(mail), nil
 }
@@ -360,7 +411,7 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	var (
-		sender     = graph.UnwrapEmailAddress(msg.GetSender())
+		sender     = UnwrapEmailAddress(msg.GetSender())
 		subject    = ptr.Val(msg.GetSubject())
 		received   = ptr.Val(msg.GetReceivedDateTime())
 		created    = ptr.Val(msg.GetCreatedDateTime())
@@ -370,7 +421,7 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	if msg.GetToRecipients() != nil {
 		ppl := msg.GetToRecipients()
 		for _, entry := range ppl {
-			temp := graph.UnwrapEmailAddress(entry)
+			temp := UnwrapEmailAddress(entry)
 			if len(temp) > 0 {
 				recipients = append(recipients, temp)
 			}
@@ -386,4 +437,13 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 		Created:   created,
 		Modified:  ptr.OrNow(msg.GetLastModifiedDateTime()),
 	}
+}
+
+func UnwrapEmailAddress(contact models.Recipientable) string {
+	var empty string
+	if contact == nil || contact.GetEmailAddress() == nil {
+		return empty
+	}
+
+	return ptr.Val(contact.GetEmailAddress().GetAddress())
 }

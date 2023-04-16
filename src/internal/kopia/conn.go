@@ -87,7 +87,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
-		return clues.Wrap(err, "initialzing repo").WithClues(ctx)
+		return clues.Wrap(err, "initializing repo").WithClues(ctx)
 	}
 
 	err = w.commonConnect(

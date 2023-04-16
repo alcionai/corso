@@ -223,6 +223,16 @@ func TestPathUnitSuite(t *testing.T) {
 	suite.Run(t, &PathUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+// set the clues hashing to mask for the span of this suite
+func (suite *PathUnitSuite) SetupSuite() {
+	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
+}
+
+// revert clues hashing to plaintext for all other tests
+func (suite *PathUnitSuite) TeardownSuite() {
+	clues.SetHasher(clues.NoHash())
+}
+
 func (suite *PathUnitSuite) TestAppend() {
 	table := append(append([]testData{}, genericCases...), basicUnescapedInputs...)
 	for _, test := range table {
@@ -253,11 +263,11 @@ func (suite *PathUnitSuite) TestEscapedFailure() {
 	target := "i_s"
 
 	for c := range charactersToEscape {
-		suite.T().Run(fmt.Sprintf("Unescaped-%c", c), func(t *testing.T) {
+		suite.Run(fmt.Sprintf("Unescaped-%c", c), func() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Errorf(t, err, "path with unescaped %s did not error", string(c))
+			assert.Errorf(suite.T(), err, "path with unescaped %s did not error", string(c))
 		})
 	}
 }
@@ -267,12 +277,12 @@ func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
 	notEscapes := []rune{'a', 'b', '#', '%'}
 
 	for _, c := range notEscapes {
-		suite.T().Run(fmt.Sprintf("Escaped-%c", c), func(t *testing.T) {
+		suite.Run(fmt.Sprintf("Escaped-%c", c), func() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
 			assert.Errorf(
-				t,
+				suite.T(),
 				err,
 				"path with bad escape sequence %c%c did not error",
 				escapeCharacter,
@@ -285,14 +295,14 @@ func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 	base := []string{"this", "is", "a", "path"}
 
 	for i := 0; i < len(base); i++ {
-		suite.T().Run(fmt.Sprintf("Element%v", i), func(t *testing.T) {
+		suite.Run(fmt.Sprintf("Element%v", i), func() {
 			path := make([]string, len(base))
 			copy(path, base)
 			path[i] = path[i] + string(escapeCharacter)
 
 			_, err := Builder{}.UnescapeAndAppend(path...)
 			assert.Error(
-				t,
+				suite.T(),
 				err,
 				"path with trailing escape character did not error")
 		})
@@ -338,7 +348,7 @@ func (suite *PathUnitSuite) TestElements() {
 			p, err := test.pathFunc(test.input)
 			require.NoError(t, err, clues.ToCore(err))
 
-			assert.Equal(t, test.output, p.Elements())
+			assert.Equal(t, Elements(test.output), p.Elements())
 		})
 	}
 }
@@ -673,9 +683,10 @@ func (suite *PathUnitSuite) TestFromString() {
 	for service, cats := range serviceCategories {
 		for cat := range cats {
 			for _, item := range isItem {
-				suite.T().Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func(t1 *testing.T) {
+				suite.Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func() {
 					for _, test := range table {
-						t1.Run(test.name, func(t *testing.T) {
+						suite.Run(test.name, func() {
+							t := suite.T()
 							testPath := fmt.Sprintf(test.unescapedPath, service, cat)
 
 							p, err := FromDataLayerPath(testPath, item.isItem)
@@ -706,5 +717,35 @@ func (suite *PathUnitSuite) TestFromString() {
 				})
 			}
 		}
+	}
+}
+
+func (suite *PathUnitSuite) TestPath_piiHandling() {
+	p, err := Build("t", "ro", ExchangeService, EventsCategory, true, "dir", "item")
+	require.NoError(suite.T(), err)
+
+	table := []struct {
+		name        string
+		p           Path
+		expect      string
+		expectPlain string
+	}{
+		{
+			name:        "standard path",
+			p:           p,
+			expect:      "***/exchange/***/events/***/***",
+			expectPlain: "t/exchange/ro/events/dir/item",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			assert.Equal(t, test.expect, test.p.Conceal(), "conceal")
+			assert.Equal(t, test.expectPlain, test.p.String(), "string")
+			assert.Equal(t, test.expect, fmt.Sprintf("%s", test.p), "fmt %%s")
+			assert.Equal(t, test.expect, fmt.Sprintf("%+v", test.p), "fmt %%+v")
+			assert.Equal(t, test.expectPlain, test.p.PlainString(), "plain")
+		})
 	}
 }

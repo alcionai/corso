@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
@@ -43,26 +44,19 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	mr manifestRestorer,
 	gb getBackuper,
-	reasons []kopia.Reason,
+	reasons, fallbackReasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
-	errs *fault.Bus,
 ) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
+		tags          = map[string]string{kopia.TagBackupCategory: ""}
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.RestoreCollection
 	)
 
-	ms, err := mr.FetchPrevSnapshotManifests(
-		ctx,
-		reasons,
-		map[string]string{kopia.TagBackupCategory: ""})
+	ms, err := mr.FetchPrevSnapshotManifests(ctx, reasons, tags)
 	if err != nil {
-		return nil, nil, false, err
-	}
-
-	if !getMetadata {
-		return ms, nil, false, nil
+		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots")
 	}
 
 	// We only need to check that we have 1:1 reason:base if we're doing an
@@ -72,10 +66,30 @@ func produceManifestsAndMetadata(
 	// TODO(ashmrtn): This may need updating if we start sourcing item backup
 	// details from previous snapshots when using kopia-assisted incrementals.
 	if err := verifyDistinctBases(ctx, ms); err != nil {
-		logger.Ctx(ctx).With("error", err).Infow(
-			"base snapshot collision, falling back to full backup",
-			clues.In(ctx).Slice()...)
+		logger.CtxErr(ctx, err).Info("base snapshot collision, falling back to full backup")
+		return ms, nil, false, nil
+	}
 
+	fbms, err := mr.FetchPrevSnapshotManifests(ctx, fallbackReasons, tags)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots under alternate id")
+	}
+
+	// Also check distinct bases for the fallback set.
+	if err := verifyDistinctBases(ctx, fbms); err != nil {
+		logger.CtxErr(ctx, err).Info("fallback snapshot collision, falling back to full backup")
+		return ms, nil, false, nil
+	}
+
+	// one of three cases can occur when retrieving backups across reason migrations:
+	// 1. the current reasons don't match any manifests, and we use the fallback to
+	// look up the previous reason version.
+	// 2. the current reasons only contain an incomplete manifest, and the fallback
+	// can find a complete manifest.
+	// 3. the current reasons contain all the necessary manifests.
+	ms = unionManifests(reasons, ms, fbms)
+
+	if !getMetadata {
 		return ms, nil, false, nil
 	}
 
@@ -123,7 +137,17 @@ func produceManifestsAndMetadata(
 			return ms, nil, false, nil
 		}
 
-		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, errs)
+		// a local fault.Bus intance is used to collect metadata files here.
+		// we avoid the global fault.Bus because all failures here are ignorable,
+		// and cascading errors up to the operation can cause a conflict that forces
+		// the operation into a failure state unnecessarily.
+		// TODO(keepers): this is not a pattern we want to
+		// spread around.  Need to find more idiomatic handling.
+		fb := fault.New(true)
+
+		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, fb)
+		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+
 		if err != nil && !errors.Is(err, data.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -134,7 +158,111 @@ func produceManifestsAndMetadata(
 		collections = append(collections, colls...)
 	}
 
-	return ms, collections, true, err
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	return ms, collections, true, nil
+}
+
+// unionManifests reduces the two manifest slices into a single slice.
+// Assumes fallback represents a prior manifest version (across some migration
+// that disrupts manifest lookup), and that mans contains the current version.
+// Also assumes the mans slice will have, at most, one complete and one incomplete
+// manifest per service+category tuple.
+//
+// Selection priority, for each reason, follows these rules:
+// 1. If the mans manifest is complete, ignore fallback manifests for that reason.
+// 2. If the mans manifest is only incomplete, look for a matching complete manifest in fallbacks.
+// 3. If mans has no entry for a reason, look for both complete and incomplete fallbacks.
+func unionManifests(
+	reasons []kopia.Reason,
+	mans []*kopia.ManifestEntry,
+	fallback []*kopia.ManifestEntry,
+) []*kopia.ManifestEntry {
+	if len(fallback) == 0 {
+		return mans
+	}
+
+	if len(mans) == 0 {
+		return fallback
+	}
+
+	type manTup struct {
+		complete   *kopia.ManifestEntry
+		incomplete *kopia.ManifestEntry
+	}
+
+	tups := map[string]manTup{}
+
+	for _, r := range reasons {
+		// no resource owner in the key.  Assume it's the same owner across all
+		// manifests, but that the identifier is different due to migration.
+		k := r.Service.String() + r.Category.String()
+		tups[k] = manTup{}
+	}
+
+	// track the manifests that were collected with the current lookup
+	for _, m := range mans {
+		for _, r := range m.Reasons {
+			k := r.Service.String() + r.Category.String()
+			t := tups[k]
+			// assume mans will have, at most, one complete and one incomplete per key
+			if len(m.IncompleteReason) > 0 {
+				t.incomplete = m
+			} else {
+				t.complete = m
+			}
+
+			tups[k] = t
+		}
+	}
+
+	// backfill from the fallback where necessary
+	for _, m := range fallback {
+		useReasons := []kopia.Reason{}
+
+		for _, r := range m.Reasons {
+			k := r.Service.String() + r.Category.String()
+			t := tups[k]
+
+			if t.complete != nil {
+				// assume fallbacks contains prior manifest versions.
+				// we don't want to stack a prior version incomplete onto
+				// a current version's complete snapshot.
+				continue
+			}
+
+			useReasons = append(useReasons, r)
+
+			if len(m.IncompleteReason) > 0 && t.incomplete == nil {
+				t.incomplete = m
+			} else if len(m.IncompleteReason) == 0 {
+				t.complete = m
+			}
+
+			tups[k] = t
+		}
+
+		if len(m.IncompleteReason) == 0 && len(useReasons) > 0 {
+			m.Reasons = useReasons
+		}
+	}
+
+	// collect the results into a single slice of manifests
+	ms := map[string]*kopia.ManifestEntry{}
+
+	for _, m := range tups {
+		if m.complete != nil {
+			ms[string(m.complete.ID)] = m.complete
+		}
+
+		if m.incomplete != nil {
+			ms[string(m.incomplete.ID)] = m.incomplete
+		}
+	}
+
+	return maps.Values(ms)
 }
 
 // verifyDistinctBases is a validation checker that ensures, for a given slice

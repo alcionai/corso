@@ -20,7 +20,7 @@ var (
 	EmailReceivedAfterInput  = "mailReceivedAfter"
 	EmailReceivedBeforeInput = "mailReceivedBefore"
 	EmailSenderInput         = "mailSender"
-	EmailSubjectInput        = "mailSubjet"
+	EmailSubjectInput        = "mailSubject"
 
 	EventInput             = []string{"event1", "event2"}
 	EventCalInput          = []string{"eventCal1", "eventCal2"}

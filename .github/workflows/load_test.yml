@@ -86,15 +86,15 @@ jobs:
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
         run: |
           go run . exchange emails \
-          --user ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --mailbox ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
           --destination lt_${{ env.NOW }} \
           --count 10
           go run . exchange contacts \
-          --user ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --mailbox ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
           --destination lt_${{ env.NOW }} \
           --count 10
           go run . exchange events \
-          --user ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --mailbox ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
           --destination lt_${{ env.NOW }} \
           --count 10
 
@@ -136,19 +136,20 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        user: ${{ fromJson(needs.setup.outputs.matrix).user }}
-        folder: [Corso_Restore_, '']
+        user: [ CORSO_M365_LOAD_TEST_USER_ID, '' ]
     steps:
       - uses: actions/checkout@v3
       - name: Set folder boundary datetime
         run: |
           echo "NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
       - name: Purge Load-Test-Produced Folders
-        uses: ./.github/actions/purge-m365-user-data
+        uses: ./.github/actions/purge-m365-data
         with:
-          older-than: ${{ env.NOW }}
-          folder-prefix: ${{ matrix.folder }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          user: ${{ matrix.user }}
+          user: ${{ secrets[matrix.user] }}
+          folder-prefix: ${{ vars.CORSO_M365_TEST_PREFIXES }}
+          older-than: ${{ env.HALF_HOUR_AGO }}
+          azure-client-id: ${{ secrets.CLIENT_ID }}
+          azure-client-secret: ${{ secrets.CLIENT_SECRET }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}

@@ -8,7 +8,9 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -34,7 +36,24 @@ func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
 	reasons []kopia.Reason,
 	tags map[string]string,
 ) ([]*kopia.ManifestEntry, error) {
-	return mmr.mans, mmr.mrErr
+	mans := map[string]*kopia.ManifestEntry{}
+
+	for _, r := range reasons {
+		for _, m := range mmr.mans {
+			for _, mr := range m.Reasons {
+				if mr.ResourceOwner == r.ResourceOwner {
+					mans[string(m.ID)] = m
+					break
+				}
+			}
+		}
+	}
+
+	if len(mans) == 0 && len(reasons) == 0 {
+		return mmr.mans, mmr.mrErr
+	}
+
+	return maps.Values(mans), mmr.mrErr
 }
 
 type mockGetBackuper struct {
@@ -461,7 +480,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "don't get metadata",
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{},
-				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "", "")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -474,7 +493,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "don't get metadata, incomplete manifest",
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{},
-				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "ir", "")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -501,8 +520,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{},
 				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "", "", ""),
-					makeMan(path.EmailCategory, "", "", ""),
+					makeMan(path.EmailCategory, "id1", "", ""),
+					makeMan(path.EmailCategory, "id2", "", ""),
 				},
 			},
 			gb:        mockGetBackuper{detailsID: did},
@@ -530,8 +549,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{},
 				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "", "ir", ""),
-					makeMan(path.ContactsCategory, "", "ir", ""),
+					makeMan(path.EmailCategory, "id1", "ir", ""),
+					makeMan(path.ContactsCategory, "id2", "ir", ""),
 				},
 			},
 			gb:        mockGetBackuper{detailsID: did},
@@ -562,7 +581,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "backup missing details id",
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{},
-				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "", "bid")},
 			},
 			gb:        mockGetBackuper{},
 			reasons:   []kopia.Reason{},
@@ -636,7 +655,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "error collecting metadata",
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{err: assert.AnError},
-				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "", "bid")},
 			},
 			gb:            mockGetBackuper{detailsID: did},
 			reasons:       []kopia.Reason{},
@@ -658,10 +677,9 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				ctx,
 				&test.mr,
 				&test.gb,
-				test.reasons,
+				test.reasons, nil,
 				tid,
-				test.getMeta,
-				fault.New(true))
+				test.getMeta)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
@@ -669,7 +687,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			if test.expectNilMans {
 				expectMans = nil
 			}
-			assert.Equal(t, expectMans, mans)
+
+			assert.ElementsMatch(t, expectMans, mans)
 
 			expect, got := []string{}, []string{}
 
@@ -705,6 +724,336 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			}
 
 			assert.ElementsMatch(t, expect, got, "expected collections are present")
+		})
+	}
+}
+
+func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallbackReasons() {
+	const (
+		ro            = "resourceowner"
+		manComplete   = "complete"
+		manIncomplete = "incmpl"
+
+		fbro         = "fb_resourceowner"
+		fbComplete   = "fb_complete"
+		fbIncomplete = "fb_incmpl"
+	)
+
+	makeMan := func(id, incmpl string, reasons []kopia.Reason) *kopia.ManifestEntry {
+		return &kopia.ManifestEntry{
+			Manifest: &snapshot.Manifest{
+				ID:               manifest.ID(id),
+				IncompleteReason: incmpl,
+				Tags:             map[string]string{},
+			},
+			Reasons: reasons,
+		}
+	}
+
+	type testInput struct {
+		id         string
+		incomplete bool
+	}
+
+	table := []struct {
+		name            string
+		man             []testInput
+		fallback        []testInput
+		reasons         []kopia.Reason
+		fallbackReasons []kopia.Reason
+		manCategories   []path.CategoryType
+		fbCategories    []path.CategoryType
+		assertErr       assert.ErrorAssertionFunc
+		expectManIDs    []string
+		expectNilMans   bool
+		expectReasons   map[string][]path.CategoryType
+	}{
+		{
+			name: "only mans, no fallbacks",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+				{
+					id:         manIncomplete,
+					incomplete: true,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete, manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete:   {path.EmailCategory},
+				manIncomplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "no mans, only fallbacks",
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+				{
+					id:         fbIncomplete,
+					incomplete: true,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{fbComplete, fbIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				fbComplete:   {path.EmailCategory},
+				fbIncomplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "complete mans and fallbacks",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "incomplete mans and fallbacks",
+			man: []testInput{
+				{
+					id:         manIncomplete,
+					incomplete: true,
+				},
+			},
+			fallback: []testInput{
+				{
+					id:         fbIncomplete,
+					incomplete: true,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				manIncomplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "complete and incomplete mans and fallbacks",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+				{
+					id:         manIncomplete,
+					incomplete: true,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+				{
+					id:         fbIncomplete,
+					incomplete: true,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete, manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete:   {path.EmailCategory},
+				manIncomplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "incomplete mans, complete fallbacks",
+			man: []testInput{
+				{
+					id:         manIncomplete,
+					incomplete: true,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{fbComplete, manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				fbComplete:    {path.EmailCategory},
+				manIncomplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "complete mans, incomplete fallbacks",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id:         fbIncomplete,
+					incomplete: true,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.EmailCategory},
+			},
+		},
+		{
+			name: "complete mans, complete fallbacks, multiple reasons",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.EmailCategory, path.ContactsCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory, path.ContactsCategory},
+			expectManIDs:  []string{manComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.EmailCategory, path.ContactsCategory},
+			},
+		},
+		{
+			name: "complete mans, complete fallbacks, distinct reasons",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.ContactsCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete, fbComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.ContactsCategory},
+				fbComplete:  {path.EmailCategory},
+			},
+		},
+		{
+			name: "fb has superset of mans reasons",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.ContactsCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory, path.ContactsCategory, path.EventsCategory},
+			expectManIDs:  []string{manComplete, fbComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.ContactsCategory},
+				fbComplete:  {path.EmailCategory, path.EventsCategory},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			mainReasons := []kopia.Reason{}
+			fbReasons := []kopia.Reason{}
+
+			for _, cat := range test.manCategories {
+				mainReasons = append(
+					mainReasons,
+					kopia.Reason{
+						ResourceOwner: ro,
+						Service:       path.ExchangeService,
+						Category:      cat,
+					})
+			}
+
+			for _, cat := range test.fbCategories {
+				fbReasons = append(
+					fbReasons,
+					kopia.Reason{
+						ResourceOwner: fbro,
+						Service:       path.ExchangeService,
+						Category:      cat,
+					})
+			}
+
+			mans := []*kopia.ManifestEntry{}
+
+			for _, m := range test.man {
+				incomplete := ""
+				if m.incomplete {
+					incomplete = "ir"
+				}
+
+				mans = append(mans, makeMan(m.id, incomplete, mainReasons))
+			}
+
+			for _, m := range test.fallback {
+				incomplete := ""
+				if m.incomplete {
+					incomplete = "ir"
+				}
+
+				mans = append(mans, makeMan(m.id, incomplete, fbReasons))
+			}
+
+			mr := mockManifestRestorer{mans: mans}
+
+			mans, _, b, err := produceManifestsAndMetadata(
+				ctx,
+				&mr,
+				nil,
+				mainReasons,
+				fbReasons,
+				"tid",
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.False(t, b, "no-metadata is forced for this test")
+
+			manIDs := []string{}
+
+			for _, m := range mans {
+				manIDs = append(manIDs, string(m.ID))
+
+				reasons := test.expectReasons[string(m.ID)]
+
+				mrs := []path.CategoryType{}
+				for _, r := range m.Reasons {
+					mrs = append(mrs, r.Category)
+				}
+
+				assert.ElementsMatch(t, reasons, mrs)
+			}
+
+			assert.ElementsMatch(t, test.expectManIDs, manIDs)
 		})
 	}
 }

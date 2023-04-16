@@ -13,8 +13,87 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// LocationIDer provides access to location information but guarantees that it
+// can also generate a unique location (among items in the same service but
+// possibly across data types within the service) that can be used as a key in
+// maps and other structures. The unique location may be different than
+// InDetails, the location used in backup details.
+type LocationIDer interface {
+	ID() *path.Builder
+	InDetails() *path.Builder
+}
+
+type uniqueLoc struct {
+	pb          *path.Builder
+	prefixElems int
+}
+
+func (ul uniqueLoc) ID() *path.Builder {
+	return ul.pb
+}
+
+func (ul uniqueLoc) InDetails() *path.Builder {
+	return path.Builder{}.Append(ul.pb.Elements()[ul.prefixElems:]...)
+}
+
+// Having service-specific constructors can be kind of clunky, but in this case
+// I think they'd be useful to ensure the proper args are used since this
+// path.Builder is used as a key in some maps.
+
+// NewExchangeLocationIDer builds a LocationIDer for the given category and
+// folder path. The path denoted by the folders should be unique within the
+// category.
+func NewExchangeLocationIDer(
+	category path.CategoryType,
+	escapedFolders ...string,
+) (uniqueLoc, error) {
+	if err := path.ValidateServiceAndCategory(path.ExchangeService, category); err != nil {
+		return uniqueLoc{}, clues.Wrap(err, "making exchange LocationIDer")
+	}
+
+	pb := path.Builder{}.Append(category.String()).Append(escapedFolders...)
+
+	return uniqueLoc{
+		pb:          pb,
+		prefixElems: 1,
+	}, nil
+}
+
+// NewOneDriveLocationIDer builds a LocationIDer for the drive and folder path.
+// The path denoted by the folders should be unique within the drive.
+func NewOneDriveLocationIDer(
+	driveID string,
+	escapedFolders ...string,
+) uniqueLoc {
+	pb := path.Builder{}.
+		Append(path.FilesCategory.String(), driveID).
+		Append(escapedFolders...)
+
+	return uniqueLoc{
+		pb:          pb,
+		prefixElems: 2,
+	}
+}
+
+// NewSharePointLocationIDer builds a LocationIDer for the drive and folder
+// path. The path denoted by the folders should be unique within the drive.
+func NewSharePointLocationIDer(
+	driveID string,
+	escapedFolders ...string,
+) uniqueLoc {
+	pb := path.Builder{}.
+		Append(path.LibrariesCategory.String(), driveID).
+		Append(escapedFolders...)
+
+	return uniqueLoc{
+		pb:          pb,
+		prefixElems: 2,
+	}
+}
 
 type folderEntry struct {
 	RepoRef     string
@@ -171,7 +250,7 @@ func (b *Builder) Details() *Details {
 // AddFoldersForItem, and unexport AddFoldersForItem.
 func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	folders := []folderEntry{}
-	lfs := locationRefOf(location)
+	lfs := location
 
 	for len(parent.Elements()) > 0 {
 		var (
@@ -211,21 +290,6 @@ func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	}
 
 	return folders
-}
-
-// assumes the pb contains a path like:
-// <tenant>/<service>/<owner>/<category>/<logical_containers>...
-// and returns a string with only <logical_containers>/...
-func locationRefOf(pb *path.Builder) *path.Builder {
-	if pb == nil {
-		return nil
-	}
-
-	for i := 0; i < 4; i++ {
-		pb = pb.PopFront()
-	}
-
-	return pb
 }
 
 // AddFoldersForItem adds entries for the given folders. It skips adding entries that
@@ -378,6 +442,52 @@ type DetailsEntry struct {
 	ItemInfo
 }
 
+// ToLocationIDer takes a backup version and produces the unique location for
+// this entry if possible. Reasons it may not be possible to produce the unique
+// location include an unsupported backup version or missing information.
+func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
+	if len(de.LocationRef) > 0 {
+		baseLoc, err := path.Builder{}.SplitUnescapeAppend(de.LocationRef)
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing base location info").
+				With("location_ref", de.LocationRef)
+		}
+
+		// Individual services may add additional info to the base and return that.
+		return de.ItemInfo.uniqueLocation(baseLoc)
+	}
+
+	if backupVersion >= version.OneDrive7LocationRef ||
+		(de.ItemInfo.infoType() != OneDriveItem &&
+			de.ItemInfo.infoType() != SharePointLibrary) {
+		return nil, clues.New("no previous location for entry")
+	}
+
+	// This is a little hacky, but we only want to try to extract the old
+	// location if it's OneDrive or SharePoint libraries and it's known to
+	// be an older backup version.
+	//
+	// TODO(ashmrtn): Remove this code once OneDrive/SharePoint libraries
+	// LocationRef code has been out long enough that all delta tokens for
+	// previous backup versions will have expired. At that point, either
+	// we'll do a full backup (token expired, no newer backups) or have a
+	// backup of a higher version with the information we need.
+	rr, err := path.FromDataLayerPath(de.RepoRef, true)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting item RepoRef")
+	}
+
+	p, err := path.ToOneDrivePath(rr)
+	if err != nil {
+		return nil, clues.New("converting RepoRef to OneDrive path")
+	}
+
+	baseLoc := path.Builder{}.Append(p.Root).Append(p.Folders...)
+
+	// Individual services may add additional info to the base and return that.
+	return de.ItemInfo.uniqueLocation(baseLoc)
+}
+
 // --------------------------------------------------------------------------------
 // CLI Output
 // --------------------------------------------------------------------------------
@@ -468,10 +578,10 @@ const (
 	FolderItem ItemType = 306
 )
 
-func UpdateItem(item *ItemInfo, repoPath path.Path, locPath *path.Builder) error {
+func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(repo path.Path, location *path.Builder) error
+	var updatePath func(newLocPath *path.Builder)
 
 	switch item.infoType() {
 	case ExchangeContact, ExchangeEvent, ExchangeMail:
@@ -481,10 +591,10 @@ func UpdateItem(item *ItemInfo, repoPath path.Path, locPath *path.Builder) error
 	case OneDriveItem:
 		updatePath = item.OneDrive.UpdateParentPath
 	default:
-		return nil
+		return
 	}
 
-	return updatePath(repoPath, locPath)
+	updatePath(newLocPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -554,6 +664,22 @@ func (i ItemInfo) Modified() time.Time {
 	}
 
 	return time.Time{}
+}
+
+func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.uniqueLocation(baseLoc)
+
+	case i.OneDrive != nil:
+		return i.OneDrive.uniqueLocation(baseLoc)
+
+	case i.SharePoint != nil:
+		return i.SharePoint.uniqueLocation(baseLoc)
+
+	default:
+		return nil, clues.New("unsupported type")
+	}
 }
 
 type FolderInfo struct {
@@ -632,15 +758,23 @@ func (i ExchangeInfo) Values() []string {
 	return []string{}
 }
 
-func (i *ExchangeInfo) UpdateParentPath(_ path.Path, locPath *path.Builder) error {
-	// Not all data types have this set yet.
-	if locPath == nil {
-		return nil
+func (i *ExchangeInfo) UpdateParentPath(newLocPath *path.Builder) {
+	i.ParentPath = newLocPath.String()
+}
+
+func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+	var category path.CategoryType
+
+	switch i.ItemType {
+	case ExchangeEvent:
+		category = path.EventsCategory
+	case ExchangeContact:
+		category = path.ContactsCategory
+	case ExchangeMail:
+		category = path.EmailCategory
 	}
 
-	i.ParentPath = locPath.String()
-
-	return nil
+	return NewExchangeLocationIDer(category, baseLoc.Elements()...)
 }
 
 // SharePointInfo describes a sharepoint item
@@ -677,15 +811,16 @@ func (i SharePointInfo) Values() []string {
 	}
 }
 
-func (i *SharePointInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) error {
-	newParent, err := path.GetDriveFolderPath(newPath)
-	if err != nil {
-		return clues.Wrap(err, "making sharePoint path").With("path", newPath)
+func (i *SharePointInfo) UpdateParentPath(newLocPath *path.Builder) {
+	i.ParentPath = newLocPath.PopFront().String()
+}
+
+func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+	if len(i.DriveID) == 0 {
+		return nil, clues.New("empty drive ID")
 	}
 
-	i.ParentPath = newParent
-
-	return nil
+	return NewSharePointLocationIDer(i.DriveID, baseLoc.Elements()...), nil
 }
 
 // OneDriveInfo describes a oneDrive item
@@ -721,13 +856,14 @@ func (i OneDriveInfo) Values() []string {
 	}
 }
 
-func (i *OneDriveInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) error {
-	newParent, err := path.GetDriveFolderPath(newPath)
-	if err != nil {
-		return clues.Wrap(err, "making oneDrive path").With("path", newPath)
+func (i *OneDriveInfo) UpdateParentPath(newLocPath *path.Builder) {
+	i.ParentPath = newLocPath.PopFront().String()
+}
+
+func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+	if len(i.DriveID) == 0 {
+		return nil, clues.New("empty drive ID")
 	}
 
-	i.ParentPath = newParent
-
-	return nil
+	return NewOneDriveLocationIDer(i.DriveID, baseLoc.Elements()...), nil
 }

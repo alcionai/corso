@@ -286,7 +286,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 		expect assert.ComparisonAssertionFunc
 	}{
 		{
-			name:   "genreate new id",
+			name:   "generate new id",
 			baseID: "",
 			expect: assert.NotEqual,
 		},

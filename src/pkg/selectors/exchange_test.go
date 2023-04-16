@@ -467,7 +467,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeBackup_Scopes() {
 
 	for _, sc := range scopes {
 		cat := sc.Category()
-		suite.T().Run(cat.String(), func(t *testing.T) {
+		suite.Run(cat.String(), func() {
+			t := suite.T()
+
 			switch sc.Category() {
 			case ExchangeContactFolder:
 				assert.True(t, sc.IsAny(ExchangeContact))
@@ -506,13 +508,13 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Category() {
 		{ExchangeUser, ExchangeCategoryUnknown, assert.NotEqual},
 	}
 	for _, test := range table {
-		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
+		suite.Run(test.is.String()+test.expect.String(), func() {
 			eb := NewExchangeBackup(Any())
 			eb.Includes = []scope{
 				{scopeKeyCategory: filters.Identity(test.is.String())},
 			}
 			scope := eb.Scopes()[0]
-			test.check(t, test.expect, scope.Category())
+			test.check(suite.T(), test.expect, scope.Category())
 		})
 	}
 }
@@ -549,13 +551,13 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_IncludesCategory() {
 		{ExchangeUser, ExchangeEventCalendar, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.is.String()+test.expect.String(), func(t *testing.T) {
+		suite.Run(test.is.String()+test.expect.String(), func() {
 			eb := NewExchangeBackup(Any())
 			eb.Includes = []scope{
 				{scopeKeyCategory: filters.Identity(test.is.String())},
 			}
 			scope := eb.Scopes()[0]
-			test.check(t, scope.IncludesCategory(test.expect))
+			test.check(suite.T(), scope.IncludesCategory(test.expect))
 		})
 	}
 }
@@ -574,7 +576,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_Get() {
 		ExchangeMailFolder,
 	}
 	for _, test := range table {
-		suite.T().Run(test.String(), func(t *testing.T) {
+		suite.Run(test.String(), func() {
+			t := suite.T()
+
 			for _, sc := range scopes {
 				switch sc.Category() {
 				case ExchangeContactFolder:
@@ -1449,8 +1453,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_leafCat() {
 		{ExchangeEvent, ExchangeEvent},
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, test.expect, test.cat.leafCat(), test.cat.String())
+		suite.Run(test.cat.String(), func() {
+			assert.Equal(suite.T(), test.expect, test.cat.leafCat(), test.cat.String())
 		})
 	}
 }
@@ -1484,7 +1488,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 		{ExchangeMail, mailPath, mailMap},
 	}
 	for _, test := range table {
-		suite.T().Run(string(test.cat), func(t *testing.T) {
+		suite.Run(string(test.cat), func() {
+			t := suite.T()
 			ent := details.DetailsEntry{
 				RepoRef:  test.path.String(),
 				ShortRef: "short",
@@ -1516,8 +1521,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathKeys() {
 		{ExchangeUser, user},
 	}
 	for _, test := range table {
-		suite.T().Run(string(test.cat), func(t *testing.T) {
-			assert.Equal(t, test.cat.pathKeys(), test.expect)
+		suite.Run(string(test.cat), func() {
+			assert.Equal(suite.T(), test.cat.pathKeys(), test.expect)
 		})
 	}
 }
@@ -1584,8 +1589,8 @@ func (suite *ExchangeSelectorSuite) TestCategory_PathType() {
 		{ExchangeInfoEventSubject, path.EventsCategory},
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, test.pathType, test.cat.PathType())
+		suite.Run(test.cat.String(), func() {
+			assert.Equal(suite.T(), test.pathType, test.cat.PathType())
 		})
 	}
 }

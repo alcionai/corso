@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -51,32 +50,19 @@ func TestNoBackupSharePointE2ESuite(t *testing.T) {
 }
 
 func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
-	t := suite.T()
 	ctx, flush := tester.NewContext()
-
 	defer flush()
 
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
+	t := suite.T()
+	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
-	ctx = config.SetViper(ctx, suite.vpr)
+	suite.acct = acct
+	suite.st = st
+	suite.repo = repo
+	suite.vpr = vpr
+	suite.recorder = recorder
+	suite.cfgFP = cfgFilePath
 	suite.m365SiteID = tester.M365SiteID(t)
-
-	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
@@ -133,36 +119,24 @@ func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
-	t := suite.T()
-
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
-
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
 	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
-
 	defer flush()
 
-	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err, clues.ToCore(err))
+	t := suite.T()
+	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
+
+	suite.acct = acct
+	suite.st = st
+	suite.repo = repo
+	suite.vpr = vpr
+	suite.recorder = recorder
+	suite.cfgFP = cfgFilePath
 
 	var (
 		m365SiteID = tester.M365SiteID(t)
 		sites      = []string{m365SiteID}
-		idToName   = map[string]string{m365SiteID: "todo-name-" + m365SiteID}
-		nameToID   = map[string]string{"todo-name-" + m365SiteID: m365SiteID}
+		idToName   = map[string]string{m365SiteID: m365SiteID}
+		nameToID   = map[string]string{m365SiteID: m365SiteID}
 		ins        = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,
@@ -173,8 +147,10 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	sel := selectors.NewSharePointBackup(sites)
 	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	suite.backupOp, err = suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	backupOp, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
+
+	suite.backupOp = backupOp
 
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))

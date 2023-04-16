@@ -43,7 +43,9 @@ func (suite *AccountSuite) TestNewAccount() {
 		{"m365 w/ error", ProviderM365, testConfig{"configVal", "", assert.AnError}, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			s, err := NewAccount(test.p, test.c)
 			test.errCheck(t, err, clues.ToCore(err))
 			// remaining tests are dependent upon error-free state

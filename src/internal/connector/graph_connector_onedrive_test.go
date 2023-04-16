@@ -2,13 +2,13 @@ package connector
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,10 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 		}
 	}
 
-	id := base64.StdEncoding.EncodeToString([]byte(perm.user + strings.Join(perm.roles, "+")))
+	// In case of permissions, the id will usually be same for same
+	// user/role combo unless deleted and readded, but we have to do
+	// this as we only have two users of which one is already taken.
+	id := uuid.NewString()
 	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
 
 	if permUseID {
@@ -183,7 +186,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 		c.items = append(c.items, metadata)
 		c.aux = append(c.aux, metadata)
 
-	case version.OneDrive6NameInMeta:
+	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -210,7 +213,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
-		version.OneDrive6NameInMeta:
+		version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
@@ -452,11 +455,11 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 
 	si.resourceOwner = tester.M365SiteID(suite.T())
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -499,11 +502,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 
 	si.resourceOwner = si.user
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -558,11 +561,11 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 
 	si.resourceOwner = si.user
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 

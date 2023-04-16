@@ -23,13 +23,31 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+// ---------------------------------------------------------------------------
+// types, consts, etc
+// ---------------------------------------------------------------------------
+
 type permissionInfo struct {
 	entityID string
 	roles    []string
 }
 
+const (
+	owner = "owner"
+)
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
+
 func main() {
-	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
+	ls := logger.Settings{
+		File:        logger.GetLogFile(""),
+		Level:       logger.LLInfo,
+		PIIHandling: logger.PIIPlainText,
+	}
+
+	ctx, log := logger.Seed(context.Background(), ls)
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
@@ -71,6 +89,10 @@ func main() {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// exchange
+// ---------------------------------------------------------------------------
+
 // checkEmailRestoration verifies that the emails count in restored folder is equivalent to
 // emails in actual m365 account
 func checkEmailRestoration(
@@ -104,7 +126,7 @@ func checkEmailRestoration(
 
 			if itemName == dataFolder || itemName == baseBackupFolder {
 				// otherwise, recursively aggregate all child folders.
-				getAllSubFolder(ctx, client, testUser, v, itemName, dataFolder, itemCount)
+				getAllMailSubFolders(ctx, client, testUser, v, itemName, dataFolder, itemCount)
 
 				itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
 			}
@@ -151,26 +173,21 @@ func checkEmailRestoration(
 }
 
 func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
-	for fldName, emailCount := range messageCount {
-		if restoreMessageCount[fldName] != emailCount {
-			logger.Ctx(ctx).Errorw(
-				"test failure: Restore item counts do not match",
-				"expected:", emailCount,
-				"actual:", restoreMessageCount[fldName])
+	for fldName, expected := range messageCount {
+		got := restoreMessageCount[fldName]
 
-			fmt.Println(
-				"test failure: Restore item counts do not match",
-				"* expected:", emailCount,
-				"* actual:", restoreMessageCount[fldName])
-
-			os.Exit(1)
-		}
+		assert(
+			ctx,
+			func() bool { return expected == got },
+			fmt.Sprintf("Restore item counts do not match: %s", fldName),
+			expected,
+			got)
 	}
 }
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
 // email count.
-func getAllSubFolder(
+func getAllMailSubFolders(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
@@ -214,7 +231,7 @@ func getAllSubFolder(
 			if childFolderCount > 0 {
 				parentFolder := fullFolderName
 
-				getAllSubFolder(ctx, client, testUser, child, parentFolder, dataFolder, messageCount)
+				getAllMailSubFolders(ctx, client, testUser, child, parentFolder, dataFolder, messageCount)
 			}
 		}
 	}
@@ -270,6 +287,10 @@ func checkAllSubFolder(
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// oneDrive
+// ---------------------------------------------------------------------------
 
 func checkOnedriveRestoration(
 	ctx context.Context,
@@ -347,71 +368,61 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
+		folderPermission[itemName] = permissionIn(ctx, client, driveID, itemID)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
 	}
 
-	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
+	getRestoredDrive(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
-		logger.Ctx(ctx).Info("checking for folder: %s \n", folderName)
-		fmt.Printf("checking for folder: %s \n", folderName)
+		logger.Ctx(ctx).Info("checking for folder: ", folderName)
+		fmt.Printf("checking for folder: %s\n", folderName)
 
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
 		if len(permissions) < 1 {
-			logger.Ctx(ctx).Info("no permissions found for folder :", folderName)
-			fmt.Println("no permissions found for folder :", folderName)
+			logger.Ctx(ctx).Info("no permissions found in:", folderName)
+			fmt.Println("no permissions found in:", folderName)
 
 			continue
 		}
 
-		if len(restoreFolderPerm) < 1 {
-			logger.Ctx(ctx).Info("permission roles are not equal for :",
-				"Item:", folderName,
-				"* Permission found: ", permissions,
-				"* blank permission found in restore.")
+		assert(
+			ctx,
+			func() bool { return len(permissions) == len(restoreFolderPerm) },
+			fmt.Sprintf("wrong number of restored permissions: %s", folderName),
+			permissions,
+			restoreFolderPerm)
 
-			fmt.Println("permission roles are not equal for:")
-			fmt.Println("Item:", folderName)
-			fmt.Println("* Permission found: ", permissions)
-			fmt.Println("blank permission found in restore.")
+		for i, perm := range permissions {
+			// permissions should be sorted, so a by-index comparison works
+			restored := restoreFolderPerm[i]
 
-			os.Exit(1)
-		}
+			assert(
+				ctx,
+				func() bool { return strings.EqualFold(perm.entityID, restored.entityID) },
+				fmt.Sprintf("non-matching entity id: %s", folderName),
+				perm.entityID,
+				restored.entityID)
 
-		for i, orginalPerm := range permissions {
-			restorePerm := restoreFolderPerm[i]
-
-			if !(orginalPerm.entityID != restorePerm.entityID) &&
-				!slices.Equal(orginalPerm.roles, restorePerm.roles) {
-				logger.Ctx(ctx).Info("permission roles are not equal for :",
-					"Item:", folderName,
-					"* Original permission: ", orginalPerm.entityID,
-					"* Restored permission: ", restorePerm.entityID)
-
-				fmt.Println("permission roles are not equal for:")
-				fmt.Println("Item:", folderName)
-				fmt.Println("* Original permission: ", orginalPerm.entityID)
-				fmt.Println("* Restored permission: ", restorePerm.entityID)
-				os.Exit(1)
-			}
+			assert(
+				ctx,
+				func() bool { return slices.Equal(perm.roles, restored.roles) },
+				fmt.Sprintf("different roles restored: %s", folderName),
+				perm.roles,
+				restored.roles)
 		}
 	}
 
-	for fileName, fileSize := range fileSizes {
-		if fileSize != restoreFile[fileName] {
-			logger.Ctx(ctx).Info("File size does not match for:",
-				"Item:", fileName,
-				"*  expected:", fileSize,
-				"*  actual:", restoreFile[fileName])
+	for fileName, expected := range fileSizes {
+		got := restoreFile[fileName]
 
-			fmt.Println("File size does not match for:")
-			fmt.Println("item:", fileName)
-			fmt.Println("*  expected:", fileSize)
-			fmt.Println("*  actual:", restoreFile[fileName])
-			os.Exit(1)
-		}
+		assert(
+			ctx,
+			func() bool { return expected == got },
+			fmt.Sprintf("different file size: %s", fileName),
+			expected,
+			got)
 	}
 
 	fmt.Println("Success")
@@ -460,53 +471,12 @@ func getOneDriveChildFolder(
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, fullName, folderPermission)
+		folderPermission[fullName] = permissionIn(ctx, client, driveID, itemID)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, fullName, fileSizes, folderPermission, startTime)
 	}
 }
 
-func permissionIn(
-	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	driveID, itemID, folderName string,
-	permMap map[string][]permissionInfo,
-) {
-	permMap[folderName] = []permissionInfo{}
-
-	pcr, err := client.
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Permissions().
-		Get(ctx, nil)
-	if err != nil {
-		fatal(ctx, "getting permission", err)
-	}
-
-	for _, perm := range pcr.GetValue() {
-		if perm.GetGrantedToV2() == nil {
-			continue
-		}
-
-		var (
-			gv2     = perm.GetGrantedToV2()
-			perInfo = permissionInfo{}
-		)
-
-		if gv2.GetUser() != nil {
-			perInfo.entityID = ptr.Val(gv2.GetUser().GetId())
-		} else if gv2.GetGroup() != nil {
-			perInfo.entityID = ptr.Val(gv2.GetGroup().GetId())
-		}
-
-		perInfo.roles = perm.GetRoles()
-
-		slices.Sort(perInfo.roles)
-
-		permMap[folderName] = append(permMap[folderName], perInfo)
-	}
-}
-
-func getRestoreData(
+func getRestoredDrive(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	driveID, restoreFolderID string,
@@ -539,9 +509,61 @@ func getRestoreData(
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
+		restoreFolder[itemName] = permissionIn(ctx, client, driveID, itemID)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder, startTime)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// permission helpers
+// ---------------------------------------------------------------------------
+
+func permissionIn(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	driveID, itemID string,
+) []permissionInfo {
+	pi := []permissionInfo{}
+
+	pcr, err := client.
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Permissions().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting permission", err)
+	}
+
+	for _, perm := range pcr.GetValue() {
+		if perm.GetGrantedToV2() == nil {
+			continue
+		}
+
+		var (
+			gv2      = perm.GetGrantedToV2()
+			permInfo = permissionInfo{}
+			entityID string
+		)
+
+		if gv2.GetUser() != nil {
+			entityID = ptr.Val(gv2.GetUser().GetId())
+		} else if gv2.GetGroup() != nil {
+			entityID = ptr.Val(gv2.GetGroup().GetId())
+		}
+
+		roles := filterSlice(perm.GetRoles(), owner)
+		for _, role := range roles {
+			permInfo.entityID = entityID
+			permInfo.roles = append(permInfo.roles, role)
+		}
+
+		if len(roles) > 0 {
+			slices.Sort(permInfo.roles)
+			pi = append(pi, permInfo)
+		}
+	}
+
+	return pi
 }
 
 // ---------------------------------------------------------------------------
@@ -575,4 +597,39 @@ func isWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool
 	}
 
 	return true
+}
+
+func filterSlice(sl []string, remove string) []string {
+	r := []string{}
+
+	for _, s := range sl {
+		if !strings.EqualFold(s, remove) {
+			r = append(r, s)
+		}
+	}
+
+	return r
+}
+
+func assert(
+	ctx context.Context,
+	passes func() bool,
+	header string,
+	expect, current any,
+) {
+	if passes() {
+		return
+	}
+
+	header = "Error: " + header
+	expected := fmt.Sprintf("* Expected: %+v", expect)
+	got := fmt.Sprintf("* Current: %+v", current)
+
+	logger.Ctx(ctx).Info(strings.Join([]string{header, expected, got}, " "))
+
+	fmt.Println(header)
+	fmt.Println(expected)
+	fmt.Println(got)
+
+	os.Exit(1)
 }
