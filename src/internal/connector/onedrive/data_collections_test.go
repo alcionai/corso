@@ -86,8 +86,15 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 				oc, ok := col.(*Collection)
 				require.True(t, ok, "casting backupCollection iface to *onedrive.Collection")
 
-				fp := oc.FullPath().String()
-				pp := oc.prevPath.String()
+				var fp, pp string
+
+				if oc.FullPath() != nil {
+					fp = oc.FullPath().String()
+				}
+
+				if oc.prevPath != nil {
+					pp = oc.prevPath.String()
+				}
 
 				t.Logf("Found migration collection:\n* full: %s\n* prev: %s\n", fp, pp)
 
