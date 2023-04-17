@@ -801,9 +801,15 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 			r, err := ServicePrefix(test.tenant, test.owner, test.service, test.category)
 			test.expectErr(t, err, clues.ToCore(err))
 
-			if r != nil {
-				assert.Equal(t, test.expect, r.String())
+			if r == nil {
+				return
 			}
+
+			assert.Equal(t, test.expect, r.String())
+			assert.NotPanics(t, func() {
+				r.Folders()
+				r.Item()
+			}, "runs Folders() and Item()")
 		})
 	}
 }

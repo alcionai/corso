@@ -62,8 +62,11 @@ func BaseCollections(
 		collKeys = map[string]struct{}{}
 	)
 
+	// won't catch deleted collections, since they have no FullPath
 	for _, c := range colls {
-		collKeys[c.FullPath().String()] = struct{}{}
+		if c.FullPath() != nil {
+			collKeys[c.FullPath().String()] = struct{}{}
+		}
 	}
 
 	for cat := range categories {
