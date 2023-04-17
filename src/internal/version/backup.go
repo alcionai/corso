@@ -36,6 +36,10 @@ const (
 	// name.
 	OneDrive6NameInMeta = 6
 
+	// All7MigrateUserPNToID marks when we migrated repo refs from the user's
+	// PrincipalName to their ID for stability.
+	All7MigrateUserPNToID = 7
+
 	// OneDriveXLocationRef provides LocationRef information for Exchange,
 	// OneDrive, and SharePoint libraries.
 	OneDrive7LocationRef = 7
