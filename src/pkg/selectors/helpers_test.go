@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -95,8 +96,8 @@ type mockScope scope
 
 var _ scoper = &mockScope{}
 
-func (ms mockScope) categorizer() categorizer {
-	switch ms[scopeKeyCategory].Identity {
+func (s mockScope) categorizer() categorizer {
+	switch s[scopeKeyCategory].Identity {
 	case rootCatStub.String():
 		return rootCatStub
 	case leafCatStub.String():
@@ -106,11 +107,11 @@ func (ms mockScope) categorizer() categorizer {
 	return unknownCatStub
 }
 
-func (ms mockScope) matchesInfo(dii details.ItemInfo) bool {
-	return ms[shouldMatch].Target == "true"
+func (s mockScope) matchesInfo(dii details.ItemInfo) bool {
+	return s[shouldMatch].Target == "true"
 }
 
-func (ms mockScope) setDefaults() {}
+func (s mockScope) setDefaults() {}
 
 const (
 	shouldMatch = "should-match-entry"
@@ -143,6 +144,15 @@ func stubInfoScope(match string) mockScope {
 
 	return sc
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s mockScope) Conceal() string             { return conceal(s) }
+func (s mockScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s mockScope) String() string              { return conceal(s) }
+func (s mockScope) PlainString() string         { return plainString(s) }
 
 // ---------------------------------------------------------------------------
 // selectors

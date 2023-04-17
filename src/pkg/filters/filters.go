@@ -1,10 +1,13 @@
 package filters
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -500,35 +503,41 @@ func pathEquals(target, input string) bool {
 }
 
 // ----------------------------------------------------------------------------------------------------
-// Helpers
+// Printers and PII control
 // ----------------------------------------------------------------------------------------------------
 
-// prefixString maps the comparators to string prefixes for printing.
-var prefixString = map[comparator]string{
-	EqualTo:            "eq:",
-	GreaterThan:        "gt:",
-	LessThan:           "lt:",
-	TargetContains:     "cont:",
-	TargetIn:           "in:",
-	TargetPrefixes:     "pfx:",
-	TargetSuffixes:     "sfx:",
-	TargetPathPrefix:   "pathPfx:",
-	TargetPathContains: "pathCont:",
-	TargetPathSuffix:   "pathSfx:",
-	TargetPathEquals:   "pathEq:",
+var _ clues.PlainConcealer = &Filter{}
+
+var safeFilterValues = map[string]struct{}{"*": {}}
+
+func (f Filter) Conceal() string {
+	fcs := f.Comparator.String()
+
+	switch f.Comparator {
+	case Passes, Fails:
+		return fcs
+	}
+
+	concealed := pii.ConcealElements(f.Targets, safeFilterValues)
+
+	return fcs + ":" + strings.Join(concealed, ",")
+}
+
+func (f Filter) Format(fs fmt.State, _ rune) {
+	fmt.Fprint(fs, f.Conceal())
 }
 
 func (f Filter) String() string {
+	return f.Conceal()
+}
+
+func (f Filter) PlainString() string {
+	fcs := f.Comparator.String()
+
 	switch f.Comparator {
-	case Passes:
-		return "pass"
-	case Fails:
-		return "fail"
+	case Passes, Fails:
+		return fcs
 	}
 
-	if len(f.Targets) > 0 {
-		return prefixString[f.Comparator] + strings.Join(f.Targets, ",")
-	}
-
-	return prefixString[f.Comparator] + f.Target
+	return fcs + ":" + strings.Join(f.Targets, ",")
 }
