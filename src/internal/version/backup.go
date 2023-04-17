@@ -1,6 +1,6 @@
 package version
 
-const Backup = 6
+const Backup = 7
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -35,6 +35,10 @@ const (
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
 	OneDrive6NameInMeta = 6
+
+	// OneDrive7MigrateUserPNToID marks when we migrated repo refs from the user's
+	// PrincipalName to their ID for stability.
+	OneDrive7MigrateUserPNToID = 7
 
 	// OneDriveXLocationRef provides LocationRef information for Exchange,
 	// OneDrive, and SharePoint libraries.

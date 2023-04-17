@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -37,6 +38,7 @@ func DataCollections(
 	selector selectors.Selector,
 	user common.IDNamer,
 	metadata []data.RestoreCollection,
+	priorVersion int,
 	tenant string,
 	itemClient *http.Client,
 	service graph.Servicer,
@@ -94,6 +96,7 @@ func DataCollections(
 
 	mcs, err := migrationCollections(
 		service,
+		priorVersion,
 		tenant,
 		user,
 		su,
@@ -127,11 +130,20 @@ func DataCollections(
 // adds data migrations to the collection set.
 func migrationCollections(
 	svc graph.Servicer,
+	priorVersion int,
 	tenant string,
 	user common.IDNamer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
+	if priorVersion < 1 {
+		return nil, nil
+	}
+
+	if priorVersion >= version.OneDrive7MigrateUserPNToID {
+		return nil, nil
+	}
+
 	// unlike exchange, which enumerates all folders on every
 	// backup, onedrive needs to force the owner PN -> ID migration
 	mc, err := path.ServicePrefix(

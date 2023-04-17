@@ -37,6 +37,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	owner common.IDNamer,
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
+	priorVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
@@ -99,6 +100,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			sels,
 			sels,
 			metadata,
+			priorVersion,
 			gc.credentials.AzureTenantID,
 			gc.itemClient,
 			gc.Service,
