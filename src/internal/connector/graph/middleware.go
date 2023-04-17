@@ -122,7 +122,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
+		if logger.DebugAPIFV || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
 			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
 		}
 
@@ -133,7 +133,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// When debugging is toggled, every non-2xx is recorded with a response dump.
 	// Otherwise, throttling cases and other non-2xx responses are logged
 	// with a slimmer reference for telemetry/supportability purposes.
-	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
+	if logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != "" {
 		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
 		return resp, err
 	}

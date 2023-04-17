@@ -416,7 +416,7 @@ func (c *Collections) Get(
 				return nil, map[string]map[string]struct{}{}, err
 			}
 
-			col := NewCollection(
+			col, err := NewCollection(
 				c.itemClient,
 				nil,
 				prevPath,
@@ -427,6 +427,9 @@ func (c *Collections) Get(
 				c.ctrl,
 				CollectionScopeUnknown,
 				true)
+			if err != nil {
+				return nil, map[string]map[string]struct{}{}, clues.Wrap(err, "making collection").WithClues(ictx)
+			}
 
 			c.CollectionMap[driveID][fldID] = col
 		}
@@ -578,7 +581,7 @@ func (c *Collections) handleDelete(
 		return nil
 	}
 
-	col := NewCollection(
+	col, err := NewCollection(
 		c.itemClient,
 		nil,
 		prevPath,
@@ -590,6 +593,12 @@ func (c *Collections) handleDelete(
 		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
 		false)
+	if err != nil {
+		return clues.Wrap(err, "making collection").With(
+			"drive_id", driveID,
+			"item_id", itemID,
+			"path_string", prevPathStr)
+	}
 
 	c.CollectionMap[driveID][itemID] = col
 
@@ -765,7 +774,7 @@ func (c *Collections) UpdateCollections(
 				colScope = CollectionScopePackage
 			}
 
-			col := NewCollection(
+			col, err := NewCollection(
 				c.itemClient,
 				collectionPath,
 				prevPath,
@@ -777,6 +786,10 @@ func (c *Collections) UpdateCollections(
 				colScope,
 				invalidPrevDelta,
 			)
+			if err != nil {
+				return clues.Stack(err).WithClues(ictx)
+			}
+
 			col.driveName = driveName
 
 			c.CollectionMap[driveID][itemID] = col

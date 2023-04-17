@@ -93,20 +93,6 @@ func produceManifestsAndMetadata(
 		return ms, nil, false, nil
 	}
 
-	// We only need to check that we have 1:1 reason:base if we're doing an
-	// incremental with associated metadata. This ensures that we're only sourcing
-	// data from a single Point-In-Time (base) for each incremental backup.
-	//
-	// TODO(ashmrtn): This may need updating if we start sourcing item backup
-	// details from previous snapshots when using kopia-assisted incrementals.
-	if err := verifyDistinctBases(ctx, ms); err != nil {
-		logger.Ctx(ctx).With("error", err).Infow(
-			"unioned snapshot collision, falling back to full backup",
-			clues.In(ctx).Slice()...)
-
-		return ms, nil, false, nil
-	}
-
 	for _, man := range ms {
 		if len(man.IncompleteReason) > 0 {
 			continue
@@ -234,6 +220,8 @@ func unionManifests(
 
 	// backfill from the fallback where necessary
 	for _, m := range fallback {
+		useReasons := []kopia.Reason{}
+
 		for _, r := range m.Reasons {
 			k := r.Service.String() + r.Category.String()
 			t := tups[k]
@@ -245,6 +233,8 @@ func unionManifests(
 				continue
 			}
 
+			useReasons = append(useReasons, r)
+
 			if len(m.IncompleteReason) > 0 && t.incomplete == nil {
 				t.incomplete = m
 			} else if len(m.IncompleteReason) == 0 {
@@ -252,6 +242,10 @@ func unionManifests(
 			}
 
 			tups[k] = t
+		}
+
+		if len(m.IncompleteReason) == 0 && len(useReasons) > 0 {
+			m.Reasons = useReasons
 		}
 	}
 

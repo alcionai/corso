@@ -1,6 +1,6 @@
 package version
 
-const Backup = 6
+const Backup = 7
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -38,5 +38,5 @@ const (
 
 	// OneDriveXLocationRef provides LocationRef information for Exchange,
 	// OneDrive, and SharePoint libraries.
-	OneDriveXLocationRef = Backup + 1
+	OneDrive7LocationRef = 7
 )
