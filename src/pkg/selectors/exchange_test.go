@@ -78,9 +78,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Contacts() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeContactFolder: folder,
-			ExchangeContact:       join(c1, c2),
+		map[categorizer][]string{
+			ExchangeContactFolder: {folder},
+			ExchangeContact:       {c1, c2},
 		},
 	)
 }
@@ -103,9 +103,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeContactFolder: folder,
-			ExchangeContact:       join(c1, c2),
+		map[categorizer][]string{
+			ExchangeContactFolder: {folder},
+			ExchangeContact:       {c1, c2},
 		},
 	)
 
@@ -129,9 +129,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_ContactFolders(
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeContactFolder: join(f1, f2),
-			ExchangeContact:       AnyTgt,
+		map[categorizer][]string{
+			ExchangeContactFolder: {f1, f2},
+			ExchangeContact:       Any(),
 		},
 	)
 }
@@ -153,9 +153,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders(
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeContactFolder: join(f1, f2),
-			ExchangeContact:       AnyTgt,
+		map[categorizer][]string{
+			ExchangeContactFolder: {f1, f2},
+			ExchangeContact:       Any(),
 		},
 	)
 
@@ -180,9 +180,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeEventCalendar: c1,
-			ExchangeEvent:         join(e1, e2),
+		map[categorizer][]string{
+			ExchangeEventCalendar: {c1},
+			ExchangeEvent:         {e1, e2},
 		},
 	)
 }
@@ -204,9 +204,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars(
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeEventCalendar: join(c1, c2),
-			ExchangeEvent:         AnyTgt,
+		map[categorizer][]string{
+			ExchangeEventCalendar: {c1, c2},
+			ExchangeEvent:         Any(),
 		},
 	)
 }
@@ -229,9 +229,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeEventCalendar: c1,
-			ExchangeEvent:         join(e1, e2),
+		map[categorizer][]string{
+			ExchangeEventCalendar: {c1},
+			ExchangeEvent:         {e1, e2},
 		},
 	)
 }
@@ -253,9 +253,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars(
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeEventCalendar: join(c1, c2),
-			ExchangeEvent:         AnyTgt,
+		map[categorizer][]string{
+			ExchangeEventCalendar: {c1, c2},
+			ExchangeEvent:         Any(),
 		},
 	)
 }
@@ -278,9 +278,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeMailFolder: folder,
-			ExchangeMail:       join(m1, m2),
+		map[categorizer][]string{
+			ExchangeMailFolder: {folder},
+			ExchangeMail:       {m1, m2},
 		},
 	)
 }
@@ -303,9 +303,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeMailFolder: folder,
-			ExchangeMail:       join(m1, m2),
+		map[categorizer][]string{
+			ExchangeMailFolder: {folder},
+			ExchangeMail:       {m1, m2},
 		},
 	)
 
@@ -329,9 +329,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_MailFolders() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeMailFolder: join(f1, f2),
-			ExchangeMail:       AnyTgt,
+		map[categorizer][]string{
+			ExchangeMailFolder: {f1, f2},
+			ExchangeMail:       Any(),
 		},
 	)
 }
@@ -353,9 +353,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
 	scopeMustHave(
 		t,
 		ExchangeScope(scopes[0]),
-		map[categorizer]string{
-			ExchangeMailFolder: join(f1, f2),
-			ExchangeMail:       AnyTgt,
+		map[categorizer][]string{
+			ExchangeMailFolder: {f1, f2},
+			ExchangeMail:       Any(),
 		},
 	)
 
@@ -380,9 +380,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_AllData() {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
-				map[categorizer]string{
-					ExchangeContact:       AnyTgt,
-					ExchangeContactFolder: AnyTgt,
+				map[categorizer][]string{
+					ExchangeContact:       Any(),
+					ExchangeContactFolder: Any(),
 				},
 			)
 		}
@@ -391,8 +391,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_AllData() {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
-				map[categorizer]string{
-					ExchangeEvent: AnyTgt,
+				map[categorizer][]string{
+					ExchangeEvent: Any(),
 				},
 			)
 		}
@@ -401,9 +401,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_AllData() {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
-				map[categorizer]string{
-					ExchangeMail:       AnyTgt,
-					ExchangeMailFolder: AnyTgt,
+				map[categorizer][]string{
+					ExchangeMail:       Any(),
+					ExchangeMailFolder: Any(),
 				},
 			)
 		}
@@ -428,9 +428,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_AllData() {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
-				map[categorizer]string{
-					ExchangeContact:       AnyTgt,
-					ExchangeContactFolder: AnyTgt,
+				map[categorizer][]string{
+					ExchangeContact:       Any(),
+					ExchangeContactFolder: Any(),
 				},
 			)
 		}
@@ -439,8 +439,8 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_AllData() {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
-				map[categorizer]string{
-					ExchangeEvent: AnyTgt,
+				map[categorizer][]string{
+					ExchangeEvent: Any(),
 				},
 			)
 		}
@@ -449,9 +449,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_AllData() {
 			scopeMustHave(
 				t,
 				ExchangeScope(sc),
-				map[categorizer]string{
-					ExchangeMail:       AnyTgt,
-					ExchangeMailFolder: AnyTgt,
+				map[categorizer][]string{
+					ExchangeMail:       Any(),
+					ExchangeMailFolder: Any(),
 				},
 			)
 		}
