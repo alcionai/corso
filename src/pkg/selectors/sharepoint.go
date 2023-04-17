@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -119,6 +120,15 @@ func (s sharePoint) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s SharePointScope) Conceal() string             { return conceal(s) }
+func (s SharePointScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s SharePointScope) String() string              { return conceal(s) }
+func (s SharePointScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories
@@ -286,7 +296,7 @@ func (s *sharePoint) Library(library string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoLibraryDrive,
 			[]string{library},
-			wrapFilter(filters.Equal)),
+			filters.Equal),
 	}
 }
 
@@ -366,7 +376,7 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -376,7 +386,7 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -386,7 +396,7 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -396,7 +406,7 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -646,12 +656,6 @@ func (s SharePointScope) setDefaults() {
 	case SharePointPageFolder:
 		s[SharePointPage.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
-// site comparison with only the provided site.
-func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
-	return discreteCopy(s, site)
 }
 
 // ---------------------------------------------------------------------------
