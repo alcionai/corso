@@ -28,6 +28,7 @@ func (gc GraphConnector) ProduceBackupCollections(
 	_ common.IDNamer,
 	_ selectors.Selector,
 	_ []data.RestoreCollection,
+	_ int,
 	_ control.Options,
 	_ *fault.Bus,
 ) (

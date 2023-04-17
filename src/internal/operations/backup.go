@@ -253,12 +253,18 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
+	_, lastBackupVersion, err := lastCompleteBackups(ctx, op.store, mans)
+	if err != nil {
+		return nil, clues.Wrap(err, "retrieving prior backups")
+	}
+
 	cs, excludes, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
 		op.Selectors,
 		mdColls,
+		lastBackupVersion,
 		op.Options,
 		op.Errors)
 	if err != nil {
@@ -336,6 +342,7 @@ func produceBackupDataCollections(
 	resourceOwner common.IDNamer,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
+	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
@@ -346,7 +353,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, lastBackupVersion, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -585,6 +592,56 @@ func getNewPathRefs(
 	return newPath, newLoc, updated, nil
 }
 
+func lastCompleteBackups(
+	ctx context.Context,
+	ms *store.Wrapper,
+	mans []*kopia.ManifestEntry,
+) (map[string]*backup.Backup, int, error) {
+	var (
+		oldestBackupVersion int
+		result              = map[string]*backup.Backup{}
+	)
+
+	if len(mans) == 0 {
+		return result, -1, nil
+	}
+
+	for _, man := range mans {
+		// For now skip snapshots that aren't complete. We will need to revisit this
+		// when we tackle restartability.
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		var (
+			mctx    = clues.Add(ctx, "base_manifest_id", man.ID)
+			reasons = man.Reasons
+		)
+
+		bID, ok := man.GetTag(kopia.TagBackupID)
+		if !ok {
+			return result, -1, clues.New("no backup ID in snapshot manifest").WithClues(mctx)
+		}
+
+		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
+
+		bup, err := getBackupFromID(mctx, model.StableID(bID), ms)
+		if err != nil {
+			return result, -1, err
+		}
+
+		for _, r := range reasons {
+			result[r.Key()] = bup
+		}
+
+		if bup.Version < oldestBackupVersion {
+			oldestBackupVersion = bup.Version
+		}
+	}
+
+	return result, oldestBackupVersion, nil
+}
+
 func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
@@ -627,7 +684,7 @@ func mergeDetails(
 			detailsStore,
 			errs)
 		if err != nil {
-			return clues.New("fetching base details for backup").WithClues(mctx)
+			return clues.New("fetching base details for backup")
 		}
 
 		for _, entry := range baseDeets.Items() {

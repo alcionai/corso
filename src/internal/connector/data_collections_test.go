@@ -208,6 +208,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				test.getSelector(t),
 				test.getSelector(t),
 				nil,
+				-1,
 				control.Defaults(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
@@ -345,6 +346,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		sel.Selector,
 		sel.Selector,
 		nil,
+		-1,
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -389,6 +391,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		sel.Selector,
 		sel.Selector,
 		nil,
+		-1,
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
