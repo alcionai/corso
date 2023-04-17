@@ -56,7 +56,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 		},
 		{
 			name:      "user pn to id",
-			version:   version.OneDrive7MigrateUserPNToID - 1,
+			version:   version.All7MigrateUserPNToID - 1,
 			expectLen: 1,
 			expectMigration: []migr{
 				{
@@ -83,17 +83,14 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 			migrs := make([]bool, len(test.expectMigration))
 
 			for _, col := range mc {
-				oc, ok := col.(*Collection)
-				require.True(t, ok, "casting backupCollection iface to *onedrive.Collection")
-
 				var fp, pp string
 
-				if oc.FullPath() != nil {
-					fp = oc.FullPath().String()
+				if col.FullPath() != nil {
+					fp = col.FullPath().String()
 				}
 
-				if oc.prevPath != nil {
-					pp = oc.prevPath.String()
+				if col.PreviousPath() != nil {
+					pp = col.PreviousPath().String()
 				}
 
 				t.Logf("Found migration collection:\n* full: %s\n* prev: %s\n", fp, pp)

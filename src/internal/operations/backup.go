@@ -250,7 +250,7 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	_, priorVersion, err := lastCompleteBackups(ctx, op.store, mans)
+	_, lastBackupVersion, err := lastCompleteBackups(ctx, op.store, mans)
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving prior backups")
 	}
@@ -261,7 +261,7 @@ func (op *BackupOperation) do(
 		op.ResourceOwner,
 		op.Selectors,
 		mdColls,
-		priorVersion,
+		lastBackupVersion,
 		op.Options,
 		op.Errors)
 	if err != nil {
@@ -339,7 +339,7 @@ func produceBackupDataCollections(
 	resourceOwner common.IDNamer,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
-	priorVersion int,
+	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
@@ -350,7 +350,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, priorVersion, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, lastBackupVersion, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------

@@ -38,7 +38,7 @@ func DataCollections(
 	selector selectors.Selector,
 	user common.IDNamer,
 	metadata []data.RestoreCollection,
-	priorVersion int,
+	lastBackupVersion int,
 	tenant string,
 	itemClient *http.Client,
 	service graph.Servicer,
@@ -96,7 +96,7 @@ func DataCollections(
 
 	mcs, err := migrationCollections(
 		service,
-		priorVersion,
+		lastBackupVersion,
 		tenant,
 		user,
 		su,
@@ -130,17 +130,18 @@ func DataCollections(
 // adds data migrations to the collection set.
 func migrationCollections(
 	svc graph.Servicer,
-	priorVersion int,
+	lastBackupVersion int,
 	tenant string,
 	user common.IDNamer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
-	if priorVersion < 1 {
+	// assume a version < 1 implies no prior backup, thus nothing to migrate.
+	if lastBackupVersion < 1 {
 		return nil, nil
 	}
 
-	if priorVersion >= version.OneDrive7MigrateUserPNToID {
+	if lastBackupVersion >= version.All7MigrateUserPNToID {
 		return nil, nil
 	}
 
