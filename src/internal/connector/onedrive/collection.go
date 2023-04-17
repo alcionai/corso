@@ -173,12 +173,69 @@ func NewCollection(
 		return nil, clues.Wrap(err, "getting previous location").With("prev_path", prevPath.String())
 	}
 
+	c := newColl(
+		itemClient,
+		folderPath,
+		prevPath,
+		driveID,
+		service,
+		statusUpdater,
+		source,
+		ctrlOpts,
+		colScope,
+		doNotMergeItems)
+
+	c.locPath = locPath
+	c.prevLocPath = prevLocPath
+
+	return c, nil
+}
+
+// NewCollectionPrefix creates a Collection prefix, without parsing a location path.
+// Should not be used unless the paths are explicitly known to be prefixes.
+func NewCollectionPrefix(
+	itemClient *http.Client,
+	folderPath path.Path,
+	prevPath path.Path,
+	driveID string,
+	service graph.Servicer,
+	statusUpdater support.StatusUpdater,
+	source driveSource,
+	ctrlOpts control.Options,
+	colScope collectionScope,
+	doNotMergeItems bool,
+) (*Collection, error) {
+	c := newColl(
+		itemClient,
+		folderPath,
+		prevPath,
+		driveID,
+		service,
+		statusUpdater,
+		source,
+		ctrlOpts,
+		colScope,
+		doNotMergeItems)
+
+	return c, nil
+}
+
+func newColl(
+	itemClient *http.Client,
+	folderPath path.Path,
+	prevPath path.Path,
+	driveID string,
+	service graph.Servicer,
+	statusUpdater support.StatusUpdater,
+	source driveSource,
+	ctrlOpts control.Options,
+	colScope collectionScope,
+	doNotMergeItems bool,
+) *Collection {
 	c := &Collection{
 		itemClient:      itemClient,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
-		locPath:         locPath,
-		prevLocPath:     prevLocPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
 		source:          source,
@@ -203,7 +260,7 @@ func NewCollection(
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
-	return c, nil
+	return c
 }
 
 // Adds an itemID to the collection.  This will make it eligible to be

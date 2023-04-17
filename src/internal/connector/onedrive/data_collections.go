@@ -165,7 +165,7 @@ func migrationCollections(
 		return nil, clues.Wrap(err, "creating user name migration path")
 	}
 
-	mgn, err := NewCollection(
+	mgn, err := NewCollectionPrefix(
 		nil,
 		mc, mpc,
 		"",
