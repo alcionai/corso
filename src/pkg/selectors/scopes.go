@@ -240,9 +240,8 @@ func getInfoCategory[T scopeT](s T) string {
 	return s[scopeKeyInfoCategory].Identity
 }
 
-// getCatValue takes the value of s[cat], split it by the standard
-// delimiter, and returns the slice.  If s[cat] is nil, returns
-// None().
+// getCatValue takes the value of s[cat] and returns the slice.
+// If s[cat] is nil, returns None().
 func getCatValue[T scopeT](s T, cat categorizer) []string {
 	filt, ok := s[cat.String()]
 	if !ok {

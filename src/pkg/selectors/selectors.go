@@ -60,9 +60,8 @@ const (
 )
 
 var (
-	delimiter = string('\x1F')
-	passAny   = filters.Pass()
-	failAny   = filters.Fail()
+	passAny = filters.Pass()
+	failAny = filters.Fail()
 )
 
 // All is the resource name that gets output when the resource is AnyTgt.
@@ -515,6 +514,10 @@ func filterize(
 
 	if defaultFilter != nil {
 		return defaultFilter(targets)
+	}
+
+	if len(targets) == 1 {
+		return filters.Equal(targets)
 	}
 
 	return filters.Contains(targets)
