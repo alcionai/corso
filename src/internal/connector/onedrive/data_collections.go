@@ -136,8 +136,8 @@ func migrationCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
-	// assume a version < 1 implies no prior backup, thus nothing to migrate.
-	if lastBackupVersion < 1 {
+	// assume a version < 0 implies no prior backup, thus nothing to migrate.
+	if lastBackupVersion < 0 {
 		return nil, nil
 	}
 
@@ -165,7 +165,7 @@ func migrationCollections(
 		return nil, clues.Wrap(err, "creating user name migration path")
 	}
 
-	mgn := NewCollection(
+	mgn, err := NewCollection(
 		nil,
 		mc, mpc,
 		"",
@@ -175,6 +175,9 @@ func migrationCollections(
 		ctrlOpts,
 		CollectionScopeUnknown,
 		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating migration collection")
+	}
 
 	return []data.BackupCollection{mgn}, nil
 }
