@@ -18,7 +18,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -1208,7 +1208,7 @@ func collectionsForInfo(
 			info.pathElements,
 			false)
 
-		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(info.items))
+		mc := exchMock.NewCollection(pth, pth, len(info.items))
 		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
 
 		baseExpected := expectedData[baseDestPath.String()]
@@ -1237,7 +1237,7 @@ func collectionsForInfo(
 		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
 
 		for _, aux := range info.auxItems {
-			c.auxItems[aux.name] = &mockconnector.MockExchangeData{
+			c.auxItems[aux.name] = &exchMock.Data{
 				ID:     aux.name,
 				Reader: io.NopCloser(bytes.NewReader(aux.data)),
 			}
