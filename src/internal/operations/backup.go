@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -598,8 +599,8 @@ func lastCompleteBackups(
 	mans []*kopia.ManifestEntry,
 ) (map[string]*backup.Backup, int, error) {
 	var (
-		oldestBackupVersion int
-		result              = map[string]*backup.Backup{}
+		oldestVersion = version.NoBackup
+		result        = map[string]*backup.Backup{}
 	)
 
 	if len(mans) == 0 {
@@ -620,26 +621,26 @@ func lastCompleteBackups(
 
 		bID, ok := man.GetTag(kopia.TagBackupID)
 		if !ok {
-			return result, -1, clues.New("no backup ID in snapshot manifest").WithClues(mctx)
+			return result, oldestVersion, clues.New("no backup ID in snapshot manifest").WithClues(mctx)
 		}
 
 		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
 
 		bup, err := getBackupFromID(mctx, model.StableID(bID), ms)
 		if err != nil {
-			return result, -1, err
+			return result, oldestVersion, err
 		}
 
 		for _, r := range reasons {
 			result[r.Key()] = bup
 		}
 
-		if bup.Version < oldestBackupVersion {
-			oldestBackupVersion = bup.Version
+		if bup.Version < oldestVersion {
+			oldestVersion = bup.Version
 		}
 	}
 
-	return result, oldestBackupVersion, nil
+	return result, oldestVersion, nil
 }
 
 func mergeDetails(

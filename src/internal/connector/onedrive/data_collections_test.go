@@ -43,8 +43,8 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 		expectMigration []migr
 	}{
 		{
-			name:            "zero version",
-			version:         0,
+			name:            "no backup version",
+			version:         version.NoBackup,
 			expectLen:       0,
 			expectMigration: []migr{},
 		},

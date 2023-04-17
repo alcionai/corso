@@ -9,6 +9,9 @@ const Backup = 7
 // Labels should state their application, the backup version number,
 // and the colloquial purpose of the label.
 const (
+	// NoBackup should be used when we cannot find, or do not supply, prior backup metadata.
+	NoBackup = -1
+
 	// OneDrive1DataAndMetaFiles is the corso backup format version
 	// in which we split from storing just the data to storing both
 	// the data and metadata in two files.
