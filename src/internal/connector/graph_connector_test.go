@@ -564,7 +564,7 @@ func runBackupAndCompare(
 		backupSel,
 		backupSel,
 		nil,
-		-1,
+		version.NoBackup,
 		config.opts,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -1105,7 +1105,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				backupSel,
 				backupSel,
 				nil,
-				-1,
+				version.NoBackup,
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
@@ -1264,7 +1264,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				backupSel,
 				backupSel,
 				nil,
-				-1,
+				version.NoBackup,
 				control.Options{
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{},

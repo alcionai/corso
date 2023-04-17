@@ -2795,11 +2795,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 		errs:    fault.New(true),
 	}
 
-	mce := mockconnector.NewMockExchangeCollection(newPrefixPathEmail, nil, 0)
+	mce := exchMock.NewCollection(newPrefixPathEmail, nil, 0)
 	mce.PrevPath = oldPrefixPathEmail
 	mce.ColState = data.MovedState
 
-	mcc := mockconnector.NewMockExchangeCollection(newPrefixPathCont, nil, 0)
+	mcc := exchMock.NewCollection(newPrefixPathCont, nil, 0)
 	mcc.PrevPath = oldPrefixPathCont
 	mcc.ColState = data.MovedState
 

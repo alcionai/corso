@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -208,7 +209,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				test.getSelector(t),
 				test.getSelector(t),
 				nil,
-				-1,
+				version.NoBackup,
 				control.Options{},
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
@@ -346,7 +347,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		sel.Selector,
 		sel.Selector,
 		nil,
-		-1,
+		version.NoBackup,
 		control.Options{},
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -391,7 +392,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		sel.Selector,
 		sel.Selector,
 		nil,
-		-1,
+		version.NoBackup,
 		control.Options{},
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
