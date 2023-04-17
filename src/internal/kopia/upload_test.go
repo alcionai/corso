@@ -195,10 +195,10 @@ func expectDirs(
 	require.NoError(t, err, clues.ToCore(err))
 
 	if exactly {
-		require.Lenf(t, entries, len(dirs), "expected %+v\ngot %+v", dd, de)
+		require.Lenf(t, entries, len(dirs), "expected at least %+v\ngot %+v", dd, de)
 	}
 
-	assert.Subsetf(t, dirs, ents, "expected %+v\ngot %+v", dd, de)
+	assert.Subsetf(t, dirs, ents, "expected at least %+v\ngot %+v", dd, de)
 }
 
 func getDirEntriesForEntry(
