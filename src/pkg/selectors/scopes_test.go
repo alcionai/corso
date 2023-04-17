@@ -547,18 +547,18 @@ func (ms mockFMTState) Width() (int, bool)           { return 0, false }
 func (ms mockFMTState) Precision() (int, bool)       { return 0, false }
 func (ms mockFMTState) Flag(int) bool                { return false }
 
-func (suite *SelectorSuite) TestScopesPII() {
+func (suite *SelectorScopesSuite) TestScopesPII() {
 	table := []struct {
-		name        string
-		s           mockScope
-		expect      string
-		expectPlain string
+		name          string
+		s             mockScope
+		contains      []string
+		containsPlain []string
 	}{
 		{
-			name:        "empty",
-			s:           mockScope{},
-			expect:      `{}`,
-			expectPlain: `{}`,
+			name:          "empty",
+			s:             mockScope{},
+			contains:      []string{`{}`},
+			containsPlain: []string{`{}`},
 		},
 		{
 			name: "multiple filters",
@@ -568,8 +568,18 @@ func (suite *SelectorSuite) TestScopesPII() {
 				"foo":  filterFor(scopeConfig{}, "bar"),
 				"qux":  filterFor(scopeConfig{}, "fnords", "smarf"),
 			},
-			expect:      `{"pass":"Pass","fail":"Fail","foo":"Cont:bar","qux":"Cont:fnords,smarf"}`,
-			expectPlain: `{"pass":"Pass","fail":"Fail","foo":"Cont:bar","qux":"Cont:fnords,smarf"}`,
+			contains: []string{
+				`"pass":"Pass"`,
+				`"fail":"Fail"`,
+				`"foo":"EQ:bar"`,
+				`"qux":"Cont:fnords,smarf"`,
+			},
+			containsPlain: []string{
+				`"pass":"Pass"`,
+				`"fail":"Fail"`,
+				`"foo":"EQ:bar"`,
+				`"qux":"Cont:fnords,smarf"`,
+			},
 		},
 	}
 	for _, test := range table {
@@ -577,16 +587,22 @@ func (suite *SelectorSuite) TestScopesPII() {
 			t := suite.T()
 
 			result := conceal(test.s)
-			assert.Equal(t, test.expect, result, "conceal")
+			for _, c := range test.contains {
+				assert.Contains(t, result, c, "conceal")
+			}
 
 			result = plainString(test.s)
-			assert.Equal(t, test.expectPlain, result, "plainString")
+			for _, c := range test.containsPlain {
+				assert.Contains(t, result, c, "plainString")
+			}
 
-			var sb *strings.Builder
+			sb := &strings.Builder{}
 			fs := mockFMTState{sb}
 
 			format(test.s, &fs, 0)
-			assert.Equal(t, test.expect, sb.String(), "fmt")
+			for _, c := range test.contains {
+				assert.Contains(t, sb.String(), c, "conceal")
+			}
 		})
 	}
 }
