@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -535,8 +536,8 @@ func (c *Collections) handleDelete(
 			return nil
 		}
 
-		excluded[itemID+DataFileSuffix] = struct{}{}
-		excluded[itemID+MetaFileSuffix] = struct{}{}
+		excluded[itemID+common.DataFileSuffix] = struct{}{}
+		excluded[itemID+common.MetaFileSuffix] = struct{}{}
 		// Exchange counts items streamed through it which includes deletions so
 		// add that here too.
 		c.NumFiles++
@@ -853,8 +854,8 @@ func (c *Collections) UpdateCollections(
 				// Always add a file to the excluded list. The file may have been
 				// renamed/moved/modified, so we still have to drop the
 				// original one and download a fresh copy.
-				excluded[itemID+DataFileSuffix] = struct{}{}
-				excluded[itemID+MetaFileSuffix] = struct{}{}
+				excluded[itemID+common.DataFileSuffix] = struct{}{}
+				excluded[itemID+common.MetaFileSuffix] = struct{}{}
 			}
 
 		default:

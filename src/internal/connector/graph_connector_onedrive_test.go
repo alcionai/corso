@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -165,22 +166,22 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name,
-			name+onedrive.DataFileSuffix,
+			name+common.DataFileSuffix,
 			fileData))
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
 		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
-			name+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
+			name+common.DataFileSuffix,
+			name+common.DataFileSuffix,
 			fileData))
 
 		metadata := onedriveMetadata(
 			c.t,
 			"",
-			name+onedrive.MetaFileSuffix,
-			name+onedrive.MetaFileSuffix,
+			name+common.MetaFileSuffix,
+			name+common.MetaFileSuffix,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
 		c.items = append(c.items, metadata)
@@ -189,14 +190,14 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
-			name+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
+			name+common.DataFileSuffix,
+			name+common.DataFileSuffix,
 			fileData))
 
 		metadata := onedriveMetadata(
 			c.t,
 			name,
-			name+onedrive.MetaFileSuffix,
+			name+common.MetaFileSuffix,
 			name,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
@@ -222,8 +223,8 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 			onedriveMetadata(
 				c.t,
 				"",
-				name+onedrive.DirMetaFileSuffix,
-				name+onedrive.DirMetaFileSuffix,
+				name+common.DirMetaFileSuffix,
+				name+common.DirMetaFileSuffix,
 				perm,
 				c.backupVersion >= versionPermissionSwitchedToID))
 
@@ -258,8 +259,8 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	metadata := onedriveMetadata(
 		c.t,
 		name,
-		metaName+onedrive.DirMetaFileSuffix,
-		metaName+onedrive.DirMetaFileSuffix,
+		metaName+common.DirMetaFileSuffix,
+		metaName+common.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
 

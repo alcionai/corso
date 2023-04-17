@@ -18,7 +18,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -390,8 +390,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					locPath,
 					3)
 				mc.Names[0] = testFileName
-				mc.Names[1] = testFileName + onedrive.MetaFileSuffix
-				mc.Names[2] = storePath.Folders()[0] + onedrive.DirMetaFileSuffix
+				mc.Names[1] = testFileName + common.MetaFileSuffix
+				mc.Names[2] = storePath.Folders()[0] + common.DirMetaFileSuffix
 
 				return []data.BackupCollection{mc}
 			},
@@ -456,7 +456,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					continue
 				}
 
-				assert.False(t, onedrive.IsMetaFile(entry.RepoRef), "metadata entry in details")
+				assert.False(t, common.IsMetaFile(entry.RepoRef), "metadata entry in details")
 			}
 
 			// Shouldn't have any items to merge because the cached files are metadata

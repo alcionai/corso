@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	odcommon "github.com/alcionai/corso/src/internal/connector/onedrive/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -471,7 +472,7 @@ func getBackupDetails(
 	if b.Version >= version.OneDrive1DataAndMetaFiles && b.Version < version.OneDrive3IsMetaMarker {
 		for _, d := range deets.Entries {
 			if d.OneDrive != nil {
-				d.OneDrive.IsMeta = onedrive.IsMetaFile(d.RepoRef)
+				d.OneDrive.IsMeta = odcommon.IsMetaFile(d.RepoRef)
 			}
 		}
 	}

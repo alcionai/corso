@@ -19,6 +19,7 @@ import (
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -147,8 +148,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGetCanonicalPath() {
 func getDelList(files ...string) map[string]struct{} {
 	delList := map[string]struct{}{}
 	for _, file := range files {
-		delList[file+DataFileSuffix] = struct{}{}
-		delList[file+MetaFileSuffix] = struct{}{}
+		delList[file+common.DataFileSuffix] = struct{}{}
+		delList[file+common.MetaFileSuffix] = struct{}{}
 	}
 
 	return delList
