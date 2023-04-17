@@ -344,8 +344,10 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	repoPath, err := path.FromDataLayerPath(tenantID+"/exchange/user-id/email/test/foo", true)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
+	loc := path.Builder{}.Append(repoPath.Folders()...)
+
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, nil, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
 
 	table := []struct {
 		name       string
@@ -421,12 +423,13 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		}
 	)
 
-	repoPath, err2 := path.FromDataLayerPath(tenantID+"exchange/user-id/email/test/foo", true)
+	repoPath, err2 := path.FromDataLayerPath(tenantID+"/exchange/user-id/email/test/foo", true)
 	require.NoError(suite.T(), err2, clues.ToCore(err2))
 
-	builder := &details.Builder{}
+	loc := path.Builder{}.Append(repoPath.Folders()...)
 
-	require.NoError(suite.T(), builder.Add(repoPath, nil, false, info))
+	builder := &details.Builder{}
+	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
 
 	table := []struct {
 		name         string

@@ -20,7 +20,9 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -331,6 +333,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	}
 }
 
+// TODO(ashmrtn): This should really be moved to an e2e test that just checks
+// details for certain things.
 func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	tmp, err := path.Build(
 		testTenant,
@@ -342,7 +346,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	storePath := tmp
-	locPath := tmp
+	locPath := path.Builder{}.Append(tmp.Folders()...)
+
+	baseOneDriveItemInfo := details.OneDriveInfo{
+		ItemType:  details.OneDriveItem,
+		DriveID:   "drive-id",
+		DriveName: "drive-name",
+		ItemName:  "item",
+	}
 
 	// tags that are supplied by the caller. This includes basic tags to support
 	// lookups and extra tags the caller may want to apply.
@@ -385,13 +396,32 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			numDeetsEntries: 3,
 			hasMetaDeets:    true,
 			cols: func() []data.BackupCollection {
-				mc := exchMock.NewCollection(
-					storePath,
-					locPath,
-					3)
-				mc.Names[0] = testFileName
-				mc.Names[1] = testFileName + metadata.MetaFileSuffix
-				mc.Names[2] = storePath.Folders()[0] + metadata.DirMetaFileSuffix
+				streams := []data.Stream{}
+				fileNames := []string{
+					testFileName,
+					testFileName + metadata.MetaFileSuffix,
+					metadata.DirMetaFileSuffix,
+				}
+
+				for _, name := range fileNames {
+					info := baseOneDriveItemInfo
+					info.ItemName = name
+
+					ms := &mock.Stream{
+						ID:       name,
+						Reader:   io.NopCloser(&bytes.Buffer{}),
+						ItemSize: 0,
+						ItemInfo: details.ItemInfo{OneDrive: &info},
+					}
+
+					streams = append(streams, ms)
+				}
+
+				mc := &mockBackupCollection{
+					path:    storePath,
+					loc:     locPath,
+					streams: streams,
+				}
 
 				return []data.BackupCollection{mc}
 			},
@@ -404,12 +434,22 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			numDeetsEntries: 1,
 			hasMetaDeets:    false,
 			cols: func() []data.BackupCollection {
-				mc := exchMock.NewCollection(
-					storePath,
-					locPath,
-					1)
-				mc.Names[0] = testFileName
-				mc.ColState = data.NotMovedState
+				info := baseOneDriveItemInfo
+				info.ItemName = testFileName
+
+				ms := &mock.Stream{
+					ID:       testFileName,
+					Reader:   io.NopCloser(&bytes.Buffer{}),
+					ItemSize: 0,
+					ItemInfo: details.ItemInfo{OneDrive: &info},
+				}
+
+				mc := &mockBackupCollection{
+					path:    storePath,
+					loc:     locPath,
+					streams: []data.Stream{ms},
+					state:   data.NotMovedState,
+				}
 
 				return []data.BackupCollection{mc}
 			},
@@ -441,12 +481,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
 
-			// 47 file and 5 folder entries.
+			// 47 file and 1 folder entries.
 			details := deets.Details().Entries
 			assert.Len(
 				t,
 				details,
-				test.numDeetsEntries+5,
+				test.numDeetsEntries+1,
 			)
 
 			for _, entry := range details {
@@ -461,7 +501,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 
 			// Shouldn't have any items to merge because the cached files are metadata
 			// files.
-			assert.Equal(t, 0, prevShortRefs.ItemsToMerge())
+			assert.Equal(t, 0, prevShortRefs.ItemsToMerge(), "merge items")
 
 			checkSnapshotTags(
 				t,
@@ -558,6 +598,7 @@ type mockBackupCollection struct {
 	path    path.Path
 	loc     *path.Builder
 	streams []data.Stream
+	state   data.CollectionState
 }
 
 func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
@@ -587,7 +628,7 @@ func (c mockBackupCollection) LocationPath() *path.Builder {
 }
 
 func (c mockBackupCollection) State() data.CollectionState {
-	return data.NewState
+	return c.state
 }
 
 func (c mockBackupCollection) DoNotMergeItems() bool {
