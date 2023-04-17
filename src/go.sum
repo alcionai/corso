@@ -55,8 +55,8 @@ github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpH
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
 github.com/alcionai/clues v0.0.0-20230406223931-f48777f4773c h1:Njdw/Nnq2DN3f8QMaHuZZHdVHTUSxFqPMMxDIInDWB4=
 github.com/alcionai/clues v0.0.0-20230406223931-f48777f4773c/go.mod h1:DeaMbAwDvYM6ZfPMR/GUl3hceqI5C8jIQ1lstjB2IW8=
-github.com/alcionai/kopia v0.12.2-0.20230417212208-26bef211c49d h1:Z0YB2WfQ6wTSqHv8R42YD0EW4VftLzrCRS2RXuc+NBY=
-github.com/alcionai/kopia v0.12.2-0.20230417212208-26bef211c49d/go.mod h1:eTgZSDaU2pDzVGC7QRubbKOeohvHzzbRXvhZMH+AGHA=
+github.com/alcionai/kopia v0.12.2-0.20230417220734-efdcd8c54f7f h1:cD7mcWVTEu83qX6Ml3aqgo8DDv+fBZt/7mQQps2TokM=
+github.com/alcionai/kopia v0.12.2-0.20230417220734-efdcd8c54f7f/go.mod h1:eTgZSDaU2pDzVGC7QRubbKOeohvHzzbRXvhZMH+AGHA=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
