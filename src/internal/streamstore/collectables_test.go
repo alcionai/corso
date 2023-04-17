@@ -90,9 +90,11 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 					locPath,
 					true,
 					details.ItemInfo{
-						Exchange: &details.ExchangeInfo{Subject: "hello world"},
+						Exchange: &details.ExchangeInfo{
+							ItemType: details.ExchangeMail,
+							Subject:  "hello world",
+						},
 					}))
-
 				return deetsBuilder.Details()
 			},
 			errs:      func() *fault.Errors { return nil },
@@ -122,7 +124,10 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 					locPath,
 					true,
 					details.ItemInfo{
-						Exchange: &details.ExchangeInfo{Subject: "hello world"},
+						Exchange: &details.ExchangeInfo{
+							ItemType: details.ExchangeMail,
+							Subject:  "hello world",
+						},
 					}))
 
 				return deetsBuilder.Details()

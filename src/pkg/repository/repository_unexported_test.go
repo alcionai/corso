@@ -336,18 +336,16 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	)
 
 	info := details.ItemInfo{
-		Folder: &details.FolderInfo{
-			DisplayName: "test",
+		Exchange: &details.ExchangeInfo{
+			ItemType: details.ExchangeMail,
 		},
 	}
 
-	repoPath, err := path.FromDataLayerPath(tenantID+"exchange/user-id/email/Inbox/test", false)
+	repoPath, err := path.FromDataLayerPath(tenantID+"/exchange/user-id/email/test/foo", true)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
-	loc := path.Builder{}.Append(repoPath.Folders()...)
-
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, nil, false, info))
 
 	table := []struct {
 		name       string
@@ -417,20 +415,18 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		item = fault.FileErr(err, "file-id", "file-name", map[string]any{"foo": "bar"})
 		skip = fault.FileSkip(fault.SkipMalware, "s-file-id", "s-file-name", map[string]any{"foo": "bar"})
 		info = details.ItemInfo{
-			Folder: &details.FolderInfo{
-				DisplayName: "test",
+			Exchange: &details.ExchangeInfo{
+				ItemType: details.ExchangeMail,
 			},
 		}
 	)
 
-	repoPath, err2 := path.FromDataLayerPath(tenantID+"exchange/user-id/email/Inbox/test", false)
+	repoPath, err2 := path.FromDataLayerPath(tenantID+"exchange/user-id/email/test/foo", true)
 	require.NoError(suite.T(), err2, clues.ToCore(err2))
-
-	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
 
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, nil, false, info))
 
 	table := []struct {
 		name         string

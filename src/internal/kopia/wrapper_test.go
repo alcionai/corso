@@ -294,12 +294,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
 
-			// 47 file and 6 folder entries.
+			// 47 file and 2 folder entries.
 			details := deets.Details().Entries
 			assert.Len(
 				t,
 				details,
-				test.expectedUploadedFiles+test.expectedCachedFiles+6,
+				test.expectedUploadedFiles+test.expectedCachedFiles+2,
 			)
 
 			for _, entry := range details {
@@ -556,6 +556,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 type mockBackupCollection struct {
 	path    path.Path
+	loc     *path.Builder
 	streams []data.Stream
 }
 
@@ -581,6 +582,10 @@ func (c mockBackupCollection) PreviousPath() path.Path {
 	return nil
 }
 
+func (c mockBackupCollection) LocationPath() *path.Builder {
+	return c.loc
+}
+
 func (c mockBackupCollection) State() data.CollectionState {
 	return data.NewState
 }
@@ -592,6 +597,8 @@ func (c mockBackupCollection) DoNotMergeItems() bool {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
+	loc1 := path.Builder{}.Append(suite.storePath1.Folders()...)
+	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
 	tags := map[string]string{}
 	reason := Reason{
 		ResourceOwner: testUser,
@@ -606,6 +613,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	collections := []data.BackupCollection{
 		&mockBackupCollection{
 			path: suite.storePath1,
+			loc:  loc1,
 			streams: []data.Stream{
 				&exchMock.Data{
 					ID:     testFileName,
@@ -619,6 +627,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 		&mockBackupCollection{
 			path: suite.storePath2,
+			loc:  loc2,
 			streams: []data.Stream{
 				&exchMock.Data{
 					ID:     testFileName3,
@@ -654,8 +663,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
-	// 5 file and 6 folder entries.
-	assert.Len(t, deets.Details().Entries, 5+6)
+	// 5 file and 2 folder entries.
+	assert.Len(t, deets.Details().Entries, 5+2)
 
 	failedPath, err := suite.storePath2.Append(testFileName4, true)
 	require.NoError(t, err, clues.ToCore(err))
@@ -836,7 +845,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	collections := []data.BackupCollection{}
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
-		collection := &mockBackupCollection{path: parent}
+		loc := path.Builder{}.Append(parent.Folders()...)
+		collection := &mockBackupCollection{path: parent, loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
 			collection.streams = append(
@@ -876,8 +886,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	// 6 file and 6 folder entries.
-	assert.Len(t, deets.Details().Entries, expectedFiles+expectedDirs)
+	// 6 file and 2 folder entries.
+	assert.Len(t, deets.Details().Entries, expectedFiles+2)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
