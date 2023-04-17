@@ -524,7 +524,8 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 func getNewPathRefs(
 	dataFromBackup kopia.DetailsMergeInfoer,
 	entry *details.DetailsEntry,
-	repoRef *path.Builder,
+	repoRef path.Path,
+	backupVersion int,
 ) (path.Path, *path.Builder, bool, error) {
 	// Right now we can't guarantee that we have an old location in the
 	// previous details entry so first try a lookup without a location to see
@@ -533,18 +534,52 @@ func getNewPathRefs(
 	// TODO(ashmrtn): In the future we can remove this first check as we'll be
 	// able to assume we always have the location in the previous entry. We'll end
 	// up doing some extra parsing, but it will simplify this code.
-	newPath, _, newLocPrefix := dataFromBackup.GetNewPathRefs(repoRef, nil)
-	if newPath == nil {
-		// This entry doesn't need merging.
+	if repoRef.Service() == path.ExchangeService {
+		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), nil)
+		if err != nil {
+			return nil, nil, false, clues.Wrap(err, "getting new paths")
+		} else if newPath == nil {
+			// This entry doesn't need merging.
+			return nil, nil, false, nil
+		} else if newLoc == nil {
+			return nil, nil, false, clues.New("unable to find new exchange location")
+		}
+
+		// This is kind of jank cause we're in a transitionary period, but even if
+		// we're consesrvative here about marking something as updated the RepoRef
+		// comparison in the caller should catch the change. Calendars is the only
+		// exception, since it uses IDs for folders, but we should already be
+		// populating the LocationRef for them.
+		//
+		// Without this, all OneDrive items will be marked as updated the first time
+		// around because OneDrive hasn't been persisting LocationRef before now.
+		updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
+
+		return newPath, newLoc, updated, nil
+	}
+
+	// We didn't have an exact entry, so retry with a location.
+	locRef, err := entry.ToLocationIDer(backupVersion)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting previous item location")
+	}
+
+	if locRef == nil {
+		return nil, nil, false, clues.New("entry with empty LocationRef")
+	}
+
+	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), locRef)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting new paths with old location")
+	} else if newPath == nil {
 		return nil, nil, false, nil
+	} else if newLoc == nil {
+		return nil, nil, false, clues.New("unable to get new paths")
 	}
 
-	// OneDrive doesn't return prefixes yet.
-	if newLocPrefix == nil {
-		newLocPrefix = &path.Builder{}
-	}
+	updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
 
-	return newPath, newLocPrefix, newLocPrefix.String() != entry.LocationRef, nil
+	return newPath, newLoc, updated, nil
 }
 
 func mergeDetails(
@@ -582,7 +617,7 @@ func mergeDetails(
 
 		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
 
-		_, baseDeets, err := getBackupAndDetailsFromID(
+		baseBackup, baseDeets, err := getBackupAndDetailsFromID(
 			mctx,
 			model.StableID(bID),
 			ms,
@@ -615,7 +650,8 @@ func mergeDetails(
 			newPath, newLoc, locUpdated, err := getNewPathRefs(
 				dataFromBackup,
 				entry,
-				rr.ToBuilder())
+				rr,
+				baseBackup.Version)
 			if err != nil {
 				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
 			}
@@ -627,9 +663,7 @@ func mergeDetails(
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
-				return clues.Wrap(err, "updating merged item info").WithClues(mctx)
-			}
+			details.UpdateItem(&item, newLoc)
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
