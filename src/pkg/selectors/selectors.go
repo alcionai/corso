@@ -559,23 +559,6 @@ func wrapSliceFilter(ff filterFunc) filterFunc {
 	}
 }
 
-// wrapFilter produces a func that filterizes the input by:
-// - cleans the input string
-// - normalizes the cleaned input (returns anyFail if empty, allFail if *)
-// - joins the string
-// - and generates a filter with the joined input.
-func wrapFilter(ff filterFunc) filterFunc {
-	return func(s []string) filters.Filter {
-		s = clean(s)
-
-		if f, ok := isAnyOrNone(s); ok {
-			return f
-		}
-
-		return ff(s)
-	}
-}
-
 // returns (<filter>, true) if s is len==1 and s[0] is
 // anyTgt or noneTgt, implying that the caller should use
 // the returned filter.  On (<filter>, false), the caller
