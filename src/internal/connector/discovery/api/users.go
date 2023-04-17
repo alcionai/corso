@@ -35,7 +35,17 @@ type Users struct {
 // ---------------------------------------------------------------------------
 
 type UserInfo struct {
-	DiscoveredServices map[path.ServiceType]struct{}
+	DiscoveredServices         map[path.ServiceType]struct{}
+	Purpose                    string
+	ArchiveFolder              string
+	Status                     string
+	DateFormat                 string
+	TimeFormat                 string
+	DelegateMeetMsgDeliveryOpt string
+	Timezone                   string
+	HasMailBox                 bool
+	HasOneDrive                bool
+	ErrGetMailBoxSetting       string
 }
 
 func newUserInfo() *UserInfo {
@@ -166,78 +176,6 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 	return resp, err
 }
 
-// GetUserInfo provide information about a user like- userPurpose/type,
-// if mailbox and onedrive is present for user.
-func (c Users) GetUserInfo(ctx context.Context, userID string) (string, bool, bool, string, error) {
-	var (
-		rawURL                         = "https://graph.microsoft.com/v1.0/users/" + userID + "/mailboxSettings"
-		apadtor                        = c.stable.Adapter()
-		builder                        = users.NewUserItemRequestBuilder(rawURL, apadtor)
-		hasMailBox, hasOneDrive, ok    bool
-		userPurpose, errGetUserPurpose string
-		err                            error
-	)
-
-	// verify mailbox enabled for user
-	_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
-	hasMailBox = true
-
-	if err != nil {
-		if !graph.IsErrExchangeMailFolderNotFound(err) {
-			return "", false, false, "", graph.Wrap(ctx, err, "error getting mail folder")
-		}
-
-		logger.Ctx(ctx).Infof("resource owner does not have a mailbox enabled")
-
-		hasMailBox = false
-	}
-
-	// verify onedrive enabled for user
-	_, err = c.stable.Client().UsersById(userID).Drives().Get(ctx, nil)
-	hasOneDrive = true
-
-	if err != nil {
-		err = graph.Stack(ctx, err)
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
-			return "", false, false, "", graph.Wrap(ctx, err, "getting onedrive")
-		}
-
-		logger.Ctx(ctx).Infof("resource owner does not have a drive")
-
-		hasOneDrive = false
-	}
-
-	// get userPurpose for user
-	newItem, err := builder.Get(ctx, nil)
-	if err == nil {
-		userPurpose, ok = ptr.ValOK(newItem.GetAdditionalData()["userPurpose"].(*string))
-		if !ok {
-			return "", false, false, "", graph.Wrap(ctx, err, "getting purpose")
-		}
-	}
-
-	if err != nil {
-		if !(graph.IsErrAccessDenied(err) || graph.IsErrExchangeMailFolderNotFound(err)) {
-			return "", false, false, "", graph.Wrap(ctx, err, "getting purpose")
-		}
-
-		// Not the best way to handle the errors. But since we don't want to break
-		// this request and just want to convey a message that access are invalid have
-		// added value here. Can also add another variable which specify the same if access
-		// denied
-		if graph.IsErrAccessDenied(err) {
-			errGetUserPurpose = "access denied"
-		}
-
-		if graph.IsErrExchangeMailFolderNotFound(err) {
-			errGetUserPurpose = "not found"
-			hasMailBox = false
-		}
-	}
-
-	return userPurpose, hasMailBox, hasOneDrive, errGetUserPurpose, nil
-}
-
 // GetIDAndName looks up the user matching the given ID, and returns
 // its canonical ID and the PrincipalName as the name.
 func (c Users) GetIDAndName(ctx context.Context, userID string) (string, string, error) {
@@ -257,17 +195,112 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		userInfo = newUserInfo()
 	)
 
-	// TODO: OneDrive
-	_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+	err = c.allowsExchange(ctx, userID, userInfo)
 	if err != nil {
-		if !graph.IsErrExchangeMailFolderNotFound(err) {
-			return nil, graph.Wrap(ctx, err, "getting user's mail folder")
-		}
+		return nil, err
+	}
 
-		delete(userInfo.DiscoveredServices, path.ExchangeService)
+	err = c.allowsOnedrive(ctx, userID, userInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.getAdditionalData(ctx, userID, userInfo)
+	if err != nil {
+		return nil, err
 	}
 
 	return userInfo, nil
+}
+
+// verify mailbox enabled for user
+func (c Users) allowsExchange(ctx context.Context, userID string, userInfo *UserInfo) error {
+	userInfo.HasMailBox = true
+
+	_, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+	if err != nil {
+		if !graph.IsErrExchangeMailFolderNotFound(err) {
+			logger.Ctx(ctx).Errorf("err getting user's mail folder: %s", err)
+			return graph.Wrap(ctx, err, "getting user's mail folder")
+		}
+
+		logger.Ctx(ctx).Infof("resource owner does not have a mailbox enabled")
+		delete(userInfo.DiscoveredServices, path.ExchangeService)
+
+		userInfo.HasMailBox = false
+	}
+
+	return nil
+}
+
+// verify onedrive enabled for user
+func (c Users) allowsOnedrive(ctx context.Context, userID string, userInfo *UserInfo) error {
+	userInfo.HasOneDrive = true
+
+	_, err := c.stable.Client().UsersById(userID).Drives().Get(ctx, nil)
+	if err != nil {
+		err = graph.Stack(ctx, err)
+
+		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+			logger.Ctx(ctx).Errorf("err getting user's onedrive's data: %s", err)
+
+			return graph.Wrap(ctx, err, "getting user's onedrive's data")
+		}
+
+		logger.Ctx(ctx).Infof("resource owner does not have a drive")
+
+		// TODO: add delete onedrive serve
+		// delete(userInfo.DiscoveredServices, path.OneDriveService)
+		userInfo.HasOneDrive = false
+	}
+
+	return nil
+}
+
+func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *UserInfo) error {
+	var (
+		rawURL  = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
+		adapter = c.stable.Adapter()
+		builder = users.NewUserItemRequestBuilder(rawURL, adapter)
+	)
+
+	newItem, err := builder.Get(ctx, nil)
+	if err != nil && !(graph.IsErrAccessDenied(err) || graph.IsErrExchangeMailFolderNotFound(err)) {
+		logger.Ctx(ctx).Errorf("err getting additional data: %s", err)
+
+		return graph.Wrap(ctx, err, "getting additional data")
+	}
+
+	if graph.IsErrAccessDenied(err) {
+		logger.Ctx(ctx).Infof("err getting additional data: access denied")
+
+		userInfo.ErrGetMailBoxSetting = "access denied"
+
+		return nil
+	}
+
+	if graph.IsErrExchangeMailFolderNotFound(err) {
+		logger.Ctx(ctx).Infof("err exchange mail folder not found")
+
+		userInfo.ErrGetMailBoxSetting = "not found"
+		userInfo.HasMailBox = false
+
+		return nil
+	}
+
+	additionalData := newItem.GetAdditionalData()
+
+	userInfo.ArchiveFolder = convertInterfaceToString(ctx, additionalData["archiveFolder"], userInfo)
+	userInfo.Timezone = convertInterfaceToString(ctx, additionalData["timeZone"], userInfo)
+	userInfo.DateFormat = convertInterfaceToString(ctx, additionalData["dateFormat"], userInfo)
+	userInfo.TimeFormat = convertInterfaceToString(ctx, additionalData["timeFormat"], userInfo)
+	userInfo.Purpose = convertInterfaceToString(ctx, additionalData["userPurpose"], userInfo)
+	userInfo.DelegateMeetMsgDeliveryOpt = convertInterfaceToString(
+		ctx,
+		additionalData["delegateMeetingMessageDeliveryOptions"],
+		userInfo)
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -292,4 +325,32 @@ func validateUser(item any) (models.Userable, error) {
 	}
 
 	return m, nil
+}
+
+func convertInterfaceToString(ctx context.Context, data interface{}, userInfo *UserInfo) string {
+	var (
+		ok          bool
+		dataPointer *string
+		value       string
+	)
+
+	dataPointer, ok = data.(*string)
+	if !ok {
+		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+
+		userInfo.ErrGetMailBoxSetting = "not found"
+
+		return ""
+	}
+
+	value, ok = ptr.ValOK(dataPointer)
+	if !ok {
+		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+
+		userInfo.ErrGetMailBoxSetting = "not found"
+
+		return ""
+	}
+
+	return value
 }

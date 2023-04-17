@@ -29,13 +29,18 @@ type ServiceAccess struct {
 
 // User is the minimal information required to identify and display a user.
 type User struct {
-	PrincipalName      string
-	ID                 string
-	Name               string
-	UserPurpose        string
-	HasMailBox         bool
-	HasOnedrive        bool
-	ErrGettingUserInfo string
+	PrincipalName                 string
+	ID                            string
+	Name                          string
+	ArchiveFolder                 string
+	Timezone                      string
+	DelegateMeetingMsgDeliveryOpt string
+	DateFormat                    string
+	TimeFormat                    string
+	UserPurpose                   string
+	HasMailBox                    bool
+	HasOnedrive                   bool
+	ErrGettingUserInfo            string
 }
 
 type UserInfo struct {
@@ -76,16 +81,27 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		userpurpose, hasMailBox, hasOnedrive, errGettingUserInfo, err := discovery.UserDetails(ctx, acct, pu.ID, errs)
-
-		pu.UserPurpose = userpurpose
-		pu.HasMailBox = hasMailBox
-		pu.HasOnedrive = hasOnedrive
-		pu.ErrGettingUserInfo = errGettingUserInfo
-
+		userInfo, err := discovery.UserDetails(ctx, acct, pu.ID, errs)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user details")
 		}
+
+		pu.HasMailBox = userInfo.HasMailBox
+		pu.HasOnedrive = userInfo.HasOneDrive
+
+		// mailbox and onedrive info is independent of mailboxSetting.
+		// so getting them and then checking if any error getting mailboxSettings
+		if userInfo.ErrGetMailBoxSetting != "" {
+			pu.ErrGettingUserInfo = userInfo.ErrGetMailBoxSetting
+			continue
+		}
+
+		pu.ArchiveFolder = userInfo.ArchiveFolder
+		pu.Timezone = userInfo.Timezone
+		pu.DelegateMeetingMsgDeliveryOpt = userInfo.DelegateMeetMsgDeliveryOpt
+		pu.DateFormat = userInfo.DateFormat
+		pu.TimeFormat = userInfo.TimeFormat
+		pu.UserPurpose = userInfo.Purpose
 
 		ret = append(ret, pu)
 	}
