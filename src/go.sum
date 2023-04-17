@@ -272,8 +272,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zk
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d h1:5PJl274Y63IEHC+7izoQE9x6ikvDFZS2mDVS3drnohI=
 github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
-github.com/microsoft/kiota-abstractions-go v0.18.0 h1:H1kQE5hAq/7Q8gENPJ1Y7DuvG9QqKCpglN8D7TJi9qY=
-github.com/microsoft/kiota-abstractions-go v0.18.0/go.mod h1:0lbPErVO6Rj3HHpntNYW/OFmHhJJ1ewPdsi1xPxYIMc=
+github.com/microsoft/kiota-abstractions-go v0.19.1 h1:ybfIK4xlTqzKW2aO6J5pd1wMjHA17huFsUaY5LOWHoM=
+github.com/microsoft/kiota-abstractions-go v0.19.1/go.mod h1:0lbPErVO6Rj3HHpntNYW/OFmHhJJ1ewPdsi1xPxYIMc=
 github.com/microsoft/kiota-authentication-azure-go v0.6.0 h1:Il9bLO34J6D8DY89xYAXoGh9muvlphayqG4eihyT6B8=
 github.com/microsoft/kiota-authentication-azure-go v0.6.0/go.mod h1:EJCHiLWLXW1/mSgX7lYReAhVO37MzRT5Xi2mcPTwCRQ=
 github.com/microsoft/kiota-http-go v0.16.1 h1:5SZbSwHs14Xve5VMQHHz00lwL/kEg3H9rgESAUrXnvw=
@@ -282,8 +282,8 @@ github.com/microsoft/kiota-serialization-form-go v0.8.2 h1:qrkJGBObZo0NjJwwbT3lU
 github.com/microsoft/kiota-serialization-form-go v0.8.2/go.mod h1:FQqYzIrGX6KUoDOlg+DhDWoGaZoB8AicBYGOsBq0Dw4=
 github.com/microsoft/kiota-serialization-json-go v0.8.2 h1:vLKZAOiMsaUxq36RDo3S/FfQbW2VQCdAIu4DS7+Qhrk=
 github.com/microsoft/kiota-serialization-json-go v0.8.2/go.mod h1:gGcLNSdIdOZ4la2qztA0vaCq/LtlA53gpP+ur8n/+oA=
-github.com/microsoft/kiota-serialization-text-go v0.7.0 h1:uayeq8fpDcZgL0zDyLkYZsH6zNnEXKgp+bRWfR5LcxA=
-github.com/microsoft/kiota-serialization-text-go v0.7.0/go.mod h1:2su1PTllHCMNkHugmvpYad+AKBXUUGoiNP3xOAJUL7w=
+github.com/microsoft/kiota-serialization-text-go v0.7.1 h1:PSBVPLboxFb03ye9jn4Q1tn18EyKFXEB9UvyVWIs/qM=
+github.com/microsoft/kiota-serialization-text-go v0.7.1/go.mod h1:BPzhQYFd2xVJffDrOH4rkHzlt+CQyeX55L913fvKvUY=
 github.com/microsoftgraph/msgraph-sdk-go v0.53.0 h1:HpQd1Nvr8yQNeqhDuiVSbqn1fkHsFbRFDmnuhhXJXOQ=
 github.com/microsoftgraph/msgraph-sdk-go v0.53.0/go.mod h1:BZLyon4n4T4EuLIAlX+kJ5JgneFTXVQDah1AJuq3FRY=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0 h1:cDL3ov/IZ2ZarUJdGGPsdR+46ALdd3CRAiDBIylLCoA=

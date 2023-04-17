@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/h2non/gock v1.2.0
 	github.com/kopia/kopia v0.12.2-0.20230327171220-747baeebdab1
-	github.com/microsoft/kiota-abstractions-go v0.18.0
+	github.com/microsoft/kiota-abstractions-go v0.19.1
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
 	github.com/microsoft/kiota-http-go v0.16.1
 	github.com/microsoft/kiota-serialization-form-go v0.8.2
@@ -88,7 +88,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.7.0
+	github.com/microsoft/kiota-serialization-text-go v0.7.1
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.52 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
