@@ -11,13 +11,13 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -56,7 +56,7 @@ type Collection struct {
 	category      DataCategory
 	service       graph.Servicer
 	ctrl          control.Options
-	betaService   *dapi.BetaService
+	betaService   *graphapi.BetaService
 	statusUpdater support.StatusUpdater
 }
 

@@ -10,8 +10,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/pkg/account"
+	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -230,15 +230,15 @@ func SitesMap(
 // helpers
 // ---------------------------------------------------------------------------
 
-func makeUserAPI(acct account.Account) (api.Users, error) {
+func makeUserAPI(acct account.Account) (graphapi.Users, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
-		return api.Users{}, clues.Wrap(err, "getting m365 account creds")
+		return graphapi.Users{}, clues.Wrap(err, "getting m365 account creds")
 	}
 
-	cli, err := api.NewClient(creds)
+	cli, err := graphapi.NewClient(creds)
 	if err != nil {
-		return api.Users{}, clues.Wrap(err, "constructing api client")
+		return graphapi.Users{}, clues.Wrap(err, "constructing api client")
 	}
 
 	return cli.Users(), nil

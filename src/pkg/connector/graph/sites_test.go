@@ -1,4 +1,4 @@
-package api
+package graphapi
 
 import (
 	"strings"

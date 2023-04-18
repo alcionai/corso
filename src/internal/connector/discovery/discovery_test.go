@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -43,7 +43,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err)
 
-	cli, err := api.NewClient(creds)
+	cli, err := graphapi.NewClient(creds)
 	require.NoError(t, err)
 
 	users, err := discovery.Users(ctx, cli.Users(), errs)
@@ -91,7 +91,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
 			creds, err := acct.M365Config()
 			require.NoError(t, err)
 
-			cli, err := api.NewClient(creds)
+			cli, err := graphapi.NewClient(creds)
 			require.NoError(t, err)
 
 			users, err := discovery.Users(ctx, cli.Users(), fault.New(true))
@@ -179,7 +179,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err)
 
-	cli, err := api.NewClient(creds)
+	cli, err := graphapi.NewClient(creds)
 	require.NoError(t, err)
 
 	uapi := cli.Users()
@@ -187,12 +187,12 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 	table := []struct {
 		name   string
 		user   string
-		expect *api.UserInfo
+		expect *graphapi.UserInfo
 	}{
 		{
 			name: "standard test user",
 			user: userID,
-			expect: &api.UserInfo{
+			expect: &graphapi.UserInfo{
 				DiscoveredServices: map[path.ServiceType]struct{}{
 					path.ExchangeService: {},
 					path.OneDriveService: {},
@@ -202,7 +202,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 		{
 			name: "user does not exist",
 			user: uuid.NewString(),
-			expect: &api.UserInfo{
+			expect: &graphapi.UserInfo{
 				DiscoveredServices: map[path.ServiceType]struct{}{
 					path.OneDriveService: {}, // currently statically populated
 				},

@@ -11,7 +11,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	betamodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	betasites "github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -26,7 +26,7 @@ import (
 // Returns error if error experienced during the call
 func GetSitePages(
 	ctx context.Context,
-	serv *dapi.BetaService,
+	serv *graphapi.BetaService,
 	siteID string,
 	pages []string,
 	errs *fault.Bus,
@@ -100,7 +100,7 @@ func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Site
 }
 
 // fetchPages utility function to return the tuple of item
-func FetchPages(ctx context.Context, bs *dapi.BetaService, siteID string) ([]NameID, error) {
+func FetchPages(ctx context.Context, bs *graphapi.BetaService, siteID string) ([]NameID, error) {
 	var (
 		builder = bs.Client().SitesById(siteID).Pages()
 		opts    = fetchPageOptions()
@@ -159,7 +159,7 @@ func fetchPageOptions() *betasites.ItemPagesRequestBuilderGetRequestConfiguratio
 // https://github.com/alcionai/corso/issues/2707
 func DeleteSitePage(
 	ctx context.Context,
-	serv *dapi.BetaService,
+	serv *graphapi.BetaService,
 	siteID, pageID string,
 ) error {
 	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
@@ -184,7 +184,7 @@ func retrieveSitePageOptions() *betasites.ItemPagesSitePageItemRequestBuilderGet
 
 func RestoreSitePage(
 	ctx context.Context,
-	service *dapi.BetaService,
+	service *graphapi.BetaService,
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {

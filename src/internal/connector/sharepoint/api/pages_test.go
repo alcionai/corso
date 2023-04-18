@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
-	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -24,7 +24,7 @@ type SharePointPageSuite struct {
 	tester.Suite
 	siteID  string
 	creds   account.M365Config
-	service *discover.BetaService
+	service *graphapi.BetaService
 }
 
 func (suite *SharePointPageSuite) SetupSuite() {

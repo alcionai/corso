@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -14,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
+	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -243,7 +243,7 @@ func collectPages(
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
-	betaService := dapi.NewBetaService(adpt)
+	betaService := graphapi.NewBetaService(adpt)
 
 	tuples, err := api.FetchPages(ctx, betaService, siteID)
 	if err != nil {
