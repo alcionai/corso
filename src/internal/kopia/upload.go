@@ -216,8 +216,8 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
-		d.repoPath.Item(),
 		locationFolders,
+		d.repoPath.Item(),
 		!d.cached,
 		*d.info)
 	if err != nil {
@@ -876,8 +876,7 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots,
-		)
+			roots)
 	})
 	if err != nil {
 		return clues.Wrap(err, "traversing base directory")

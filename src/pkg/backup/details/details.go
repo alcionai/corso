@@ -152,7 +152,14 @@ func (b *Builder) Add(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return b.d.add(repoRef, shortRef, parentRef, locationRef, updated, info)
+	return b.d.add(
+		repoRef,
+		shortRef,
+		parentRef,
+		locationRef,
+		itemRef,
+		updated,
+		info)
 }
 
 func (b *Builder) Details() *Details {
@@ -262,7 +269,7 @@ type Details struct {
 }
 
 func (d *Details) add(
-	repoRef, shortRef, parentRef, locationRef string,
+	repoRef, shortRef, parentRef, locationRef, itemRef string,
 	updated bool,
 	info ItemInfo,
 ) error {
@@ -271,6 +278,7 @@ func (d *Details) add(
 		ShortRef:    shortRef,
 		ParentRef:   parentRef,
 		LocationRef: locationRef,
+		ItemRef:     itemRef,
 		Updated:     updated,
 		ItemInfo:    info,
 	}
