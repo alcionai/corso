@@ -79,15 +79,16 @@ type Repository interface {
 type repository struct {
 	ID        string
 	CreatedAt time.Time
-	Version   string // in case of future breaking changes
+	Version   int // in case of future breaking changes
 
 	Account account.Account // the user's m365 account connection details
 	Storage storage.Storage // the storage provider details and configuration
 	Opts    control.Options
 
-	Bus        events.Eventer
-	dataLayer  *kopia.Wrapper
-	modelStore *kopia.ModelStore
+	Bus          events.Eventer
+	dataLayer    *kopia.Wrapper
+	modelStore   *kopia.ModelStore
+	Capabilities map[string]struct{}
 }
 
 func (r repository) GetID() string {
@@ -152,14 +153,15 @@ func Initialize(
 	bus.SetRepoID(repoID)
 
 	r := &repository{
-		ID:         repoID,
-		Version:    "v1",
-		Account:    acct,
-		Storage:    s,
-		Bus:        bus,
-		Opts:       opts,
-		dataLayer:  w,
-		modelStore: ms,
+		ID:           repoID,
+		Version:      version.Repo,
+		Account:      acct,
+		Storage:      s,
+		Bus:          bus,
+		Opts:         opts,
+		dataLayer:    w,
+		modelStore:   ms,
+		Capabilities: version.RepoCapabilities(version.Repo),
 	}
 
 	if err := newRepoModel(ctx, ms, r.ID); err != nil {
@@ -225,7 +227,9 @@ func Connect(
 		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
-	rm := &repositoryModel{}
+	rm := &repositoryModel{
+		Version: version.Repo,
+	}
 
 	// Do not query repo ID if metrics are disabled
 	if !opts.DisableMetrics {
@@ -241,14 +245,15 @@ func Connect(
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
-		ID:         string(rm.ID),
-		Version:    "v1",
-		Account:    acct,
-		Storage:    s,
-		Bus:        bus,
-		Opts:       opts,
-		dataLayer:  w,
-		modelStore: ms,
+		ID:           string(rm.ID),
+		Version:      rm.Version,
+		Account:      acct,
+		Storage:      s,
+		Bus:          bus,
+		Opts:         opts,
+		dataLayer:    w,
+		modelStore:   ms,
+		Capabilities: version.RepoCapabilities(rm.Version),
 	}, nil
 }
 
@@ -581,6 +586,9 @@ func deleteBackup(
 // repositoryModel identifies the current repository
 type repositoryModel struct {
 	model.BaseModel
+
+	// Version represents the version of the repository
+	Version int `json:"version"`
 }
 
 // should only be called on init.
