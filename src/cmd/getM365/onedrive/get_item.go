@@ -21,9 +21,9 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/connector/graph"
+	"github.com/alcionai/corso/src/pkg/connector/onedrive/api"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
