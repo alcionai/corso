@@ -106,11 +106,15 @@ func (c Events) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		err   error
-		event models.Eventable
+		err      error
+		event    models.Eventable
+		header   = buildPreferHeaders(false, true)
+		itemOpts = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
+			Headers: header,
+		}
 	)
 
-	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -120,6 +124,7 @@ func (c Events) GetItem(
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
+			Headers: header,
 		}
 
 		attached, err := c.LargeItem.
@@ -287,7 +292,10 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
-	pgr := &eventPager{service, builder, nil}
+	opts := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(true, true),
+	}
+	pgr := &eventPager{service, builder, opts}
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, nil)

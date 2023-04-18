@@ -81,7 +81,11 @@ func (c Contacts) GetItem(
 	user, itemID string,
 	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	cont, err := c.Stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(false, true),
+	}
+
+	cont, err := c.Stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, options)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}

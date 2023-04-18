@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -63,6 +64,8 @@ const (
 	maxPageSizeHeaderFmt = "odata.maxpagesize=%d"
 	// deltaMaxPageSize is the max page size to use for delta queries
 	deltaMaxPageSize = 200
+	idTypeFmt        = "IdType=%q"
+	immutableIDType  = "ImmutableId"
 )
 
 // -----------------------------------------------------------------------
@@ -86,7 +89,7 @@ func optionsForFolderMessagesDelta(
 
 	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-		Headers:         buildDeltaRequestHeaders(),
+		Headers:         buildPreferHeaders(true, true),
 	}
 
 	return options, nil
@@ -190,7 +193,7 @@ func optionsForContactFoldersItemDelta(
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-		Headers:         buildDeltaRequestHeaders(),
+		Headers:         buildPreferHeaders(true, true),
 	}
 
 	return options, nil
@@ -231,10 +234,21 @@ func buildOptions(fields []string, allowed map[string]struct{}) ([]string, error
 	return append(returnedOptions, fields...), nil
 }
 
-// buildDeltaRequestHeaders returns the headers we add to delta page requests
-func buildDeltaRequestHeaders() *abstractions.RequestHeaders {
+// buildPreferHeaders returns the headers we add to item delta page
+// requests.
+func buildPreferHeaders(pageSize, immutableID bool) *abstractions.RequestHeaders {
+	var allHeaders []string
+
+	if pageSize {
+		allHeaders = append(allHeaders, fmt.Sprintf(maxPageSizeHeaderFmt, deltaMaxPageSize))
+	}
+
+	if immutableID {
+		allHeaders = append(allHeaders, fmt.Sprintf(idTypeFmt, immutableIDType))
+	}
+
 	headers := abstractions.NewRequestHeaders()
-	headers.Add(headerKeyPrefer, fmt.Sprintf(maxPageSizeHeaderFmt, deltaMaxPageSize))
+	headers.Add(headerKeyPrefer, strings.Join(allHeaders, ","))
 
 	return headers
 }

@@ -133,7 +133,13 @@ func (c Mail) GetItem(
 	user, itemID string,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mail, err := c.Stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	// Will need adjusted if attachments start allowing paging.
+	headers := buildPreferHeaders(false, true)
+	itemOpts := &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
+		Headers: headers,
+	}
+
+	mail, err := c.Stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -146,6 +152,7 @@ func (c Mail) GetItem(
 		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
 		},
+		Headers: headers,
 	}
 
 	attached, err := c.LargeItem.
@@ -190,6 +197,7 @@ func (c Mail) GetItem(
 			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
+			Headers: headers,
 		}
 
 		att, err := c.Stable.
