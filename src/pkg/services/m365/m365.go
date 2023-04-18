@@ -38,6 +38,14 @@ type User struct {
 	DateFormat                    string
 	TimeFormat                    string
 	UserPurpose                   string
+	DelegateMeetMsgDeliveryOpt    string
+	DiscoveredServices            map[path.ServiceType]struct{}
+	Purpose                       string
+	HasOneDrive                   bool
+	ErrGetMailBoxSetting          string
+	AutomaticRepliesSetting       api.AutomaticRepliesSettings
+	Language                      api.Language
+	WorkingHours                  api.WorkingHours
 	HasMailBox                    bool
 	HasOnedrive                   bool
 	ErrGettingUserInfo            string
@@ -102,6 +110,9 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 		pu.DateFormat = userInfo.DateFormat
 		pu.TimeFormat = userInfo.TimeFormat
 		pu.UserPurpose = userInfo.Purpose
+		pu.AutomaticRepliesSetting = userInfo.AutomaticRepliesSetting
+		pu.Language = userInfo.Language
+		pu.WorkingHours = userInfo.WorkingHours
 
 		ret = append(ret, pu)
 	}

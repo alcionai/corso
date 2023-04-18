@@ -38,14 +38,44 @@ type UserInfo struct {
 	DiscoveredServices         map[path.ServiceType]struct{}
 	Purpose                    string
 	ArchiveFolder              string
-	Status                     string
 	DateFormat                 string
 	TimeFormat                 string
 	DelegateMeetMsgDeliveryOpt string
 	Timezone                   string
 	HasMailBox                 bool
 	HasOneDrive                bool
+	AutomaticRepliesSetting    AutomaticRepliesSettings
+	Language                   Language
+	WorkingHours               WorkingHours
 	ErrGetMailBoxSetting       string
+}
+
+type AutomaticRepliesSettings struct {
+	ExternalAudience       string
+	ExternalReplyMessage   string
+	InternalReplyMessage   string
+	ScheduledEndDateTime   timeInfo
+	ScheduledStartDateTime timeInfo
+	Status                 string
+}
+
+type timeInfo struct {
+	DateTime string
+	Timezone string
+}
+
+type Language struct {
+	Locale      string
+	DisplayName string
+}
+
+type WorkingHours struct {
+	DaysOfWeek []string
+	StartTime  string
+	EndTime    string
+	TimeZone   struct {
+		Name string
+	}
 }
 
 func newUserInfo() *UserInfo {
@@ -262,6 +292,11 @@ func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *U
 		rawURL  = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
 		adapter = c.stable.Adapter()
 		builder = users.NewUserItemRequestBuilder(rawURL, adapter)
+
+		additionalData, replySetting, startDateTime, endDateTime,
+		language, timeZone, workingHours map[string]interface{}
+
+		days []interface{}
 	)
 
 	newItem, err := builder.Get(ctx, nil)
@@ -288,7 +323,7 @@ func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *U
 		return nil
 	}
 
-	additionalData := newItem.GetAdditionalData()
+	additionalData = newItem.GetAdditionalData()
 
 	userInfo.ArchiveFolder = convertInterfaceToString(ctx, additionalData["archiveFolder"], userInfo)
 	userInfo.Timezone = convertInterfaceToString(ctx, additionalData["timeZone"], userInfo)
@@ -299,6 +334,61 @@ func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *U
 		ctx,
 		additionalData["delegateMeetingMessageDeliveryOptions"],
 		userInfo)
+
+	// decode automatic replies settings
+	replySetting = convertInterfaceToMap(ctx, additionalData["automaticRepliesSetting"], userInfo)
+	userInfo.AutomaticRepliesSetting.Status = convertInterfaceToString(ctx, replySetting["status"], userInfo)
+	userInfo.AutomaticRepliesSetting.ExternalAudience = convertInterfaceToString(
+		ctx,
+		replySetting["externalAudience"],
+		userInfo)
+	userInfo.AutomaticRepliesSetting.ExternalReplyMessage = convertInterfaceToString(
+		ctx,
+		replySetting["externalReplyMessage"],
+		userInfo)
+	userInfo.AutomaticRepliesSetting.InternalReplyMessage = convertInterfaceToString(
+		ctx,
+		replySetting["internalReplyMessage"],
+		userInfo)
+
+	// decode scheduledStartDateTime
+	startDateTime = convertInterfaceToMap(ctx, replySetting["scheduledStartDateTime"], userInfo)
+	userInfo.AutomaticRepliesSetting.ScheduledStartDateTime.DateTime = convertInterfaceToString(
+		ctx,
+		startDateTime["dateTime"],
+		userInfo)
+	userInfo.AutomaticRepliesSetting.ScheduledStartDateTime.Timezone = convertInterfaceToString(
+		ctx,
+		startDateTime["timeZone"],
+		userInfo)
+
+	endDateTime = convertInterfaceToMap(ctx, replySetting["scheduledEndDateTime"], userInfo)
+	userInfo.AutomaticRepliesSetting.ScheduledEndDateTime.DateTime = convertInterfaceToString(
+		ctx,
+		endDateTime["dateTime"],
+		userInfo)
+	userInfo.AutomaticRepliesSetting.ScheduledEndDateTime.Timezone = convertInterfaceToString(
+		ctx,
+		endDateTime["timeZone"],
+		userInfo)
+
+	// Language decode
+	language = convertInterfaceToMap(ctx, additionalData["language"], userInfo)
+	userInfo.Language.DisplayName = convertInterfaceToString(ctx, language["displayName"], userInfo)
+	userInfo.Language.Locale = convertInterfaceToString(ctx, language["locale"], userInfo)
+
+	// working hours
+	workingHours = convertInterfaceToMap(ctx, additionalData["workingHours"], userInfo)
+	userInfo.WorkingHours.StartTime = convertInterfaceToString(ctx, workingHours["startTime"], userInfo)
+	userInfo.WorkingHours.EndTime = convertInterfaceToString(ctx, workingHours["endTime"], userInfo)
+	timeZone = convertInterfaceToMap(ctx, workingHours["timeZone"], userInfo)
+	userInfo.WorkingHours.TimeZone.Name = convertInterfaceToString(ctx, timeZone["name"], userInfo)
+
+	days = convertInterfaceToArray(ctx, workingHours["daysOfWeek"], userInfo)
+	for _, day := range days {
+		userInfo.WorkingHours.DaysOfWeek = append(userInfo.WorkingHours.DaysOfWeek,
+			convertInterfaceToString(ctx, day, userInfo))
+	}
 
 	return nil
 }
@@ -350,6 +440,42 @@ func convertInterfaceToString(ctx context.Context, data interface{}, userInfo *U
 		userInfo.ErrGetMailBoxSetting = "not found"
 
 		return ""
+	}
+
+	return value
+}
+
+func convertInterfaceToMap(ctx context.Context, data interface{}, userInfo *UserInfo) map[string]interface{} {
+	var (
+		ok    bool
+		value map[string]interface{}
+	)
+
+	value, ok = data.(map[string]interface{})
+	if !ok {
+		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+
+		userInfo.ErrGetMailBoxSetting = "not found"
+
+		return value
+	}
+
+	return value
+}
+
+func convertInterfaceToArray(ctx context.Context, data interface{}, userInfo *UserInfo) []interface{} {
+	var (
+		ok    bool
+		value []interface{}
+	)
+
+	value, ok = data.([]interface{})
+	if !ok {
+		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+
+		userInfo.ErrGetMailBoxSetting = "not found"
+
+		return value
 	}
 
 	return value
