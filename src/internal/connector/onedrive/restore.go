@@ -13,7 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -305,14 +305,14 @@ func restoreItem(
 
 	// only v1+ backups from this point on
 
-	if strings.HasSuffix(itemUUID, common.MetaFileSuffix) {
+	if strings.HasSuffix(itemUUID, metadata.MetaFileSuffix) {
 		// Just skip this for the moment since we moved the code to the above
 		// item restore path. We haven't yet stopped fetching these items in
 		// RestoreOp, so we still need to handle them in some way.
 		return details.ItemInfo{}, true, nil
 	}
 
-	if strings.HasSuffix(itemUUID, common.DirMetaFileSuffix) {
+	if strings.HasSuffix(itemUUID, metadata.DirMetaFileSuffix) {
 		// Only the version.OneDrive1DataAndMetaFiles needed to deserialize the
 		// permission for child folders here. Later versions can request
 		// permissions inline when processing the collection.
@@ -328,7 +328,7 @@ func restoreItem(
 			return details.ItemInfo{}, true, clues.Wrap(err, "getting directory metadata").WithClues(ctx)
 		}
 
-		trimmedPath := strings.TrimSuffix(itemPath.String(), common.DirMetaFileSuffix)
+		trimmedPath := strings.TrimSuffix(itemPath.String(), metadata.DirMetaFileSuffix)
 		folderMetas[trimmedPath] = meta
 
 		return details.ItemInfo{}, true, nil
@@ -425,7 +425,7 @@ func restoreV1File(
 	itemPath path.Path,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
-	trimmedName := strings.TrimSuffix(itemData.UUID(), common.DataFileSuffix)
+	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
@@ -447,7 +447,7 @@ func restoreV1File(
 	}
 
 	// Fetch item permissions from the collection and restore them.
-	metaName := trimmedName + common.MetaFileSuffix
+	metaName := trimmedName + metadata.MetaFileSuffix
 
 	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
 	if err != nil {
@@ -486,10 +486,10 @@ func restoreV6File(
 	itemPath path.Path,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
-	trimmedName := strings.TrimSuffix(itemData.UUID(), common.DataFileSuffix)
+	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
 
 	// Get metadata file so we can determine the file name.
-	metaName := trimmedName + common.MetaFileSuffix
+	metaName := trimmedName + metadata.MetaFileSuffix
 
 	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
 	if err != nil {

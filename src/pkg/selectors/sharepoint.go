@@ -8,7 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
-	odcommon "github.com/alcionai/corso/src/internal/connector/onedrive/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -535,7 +535,7 @@ func (c sharePointCategory) pathValues(
 
 		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
-		itemID = strings.TrimSuffix(itemName, odcommon.DataFileSuffix)
+		itemID = strings.TrimSuffix(itemName, metadata.DataFileSuffix)
 		itemName = ent.SharePoint.ItemName
 
 	case SharePointList, SharePointListItem:

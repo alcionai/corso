@@ -8,7 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
-	odcommon "github.com/alcionai/corso/src/internal/connector/onedrive/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -402,7 +402,7 @@ func (c oneDriveCategory) pathValues(
 	// Ignore `drives/<driveID>/root:` for folder comparison
 	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 
-	itemID := strings.TrimSuffix(repo.Item(), odcommon.DataFileSuffix)
+	itemID := strings.TrimSuffix(repo.Item(), metadata.DataFileSuffix)
 
 	result := map[categorizer][]string{
 		OneDriveFolder: {rFld},

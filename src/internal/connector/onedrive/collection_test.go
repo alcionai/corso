@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -267,7 +267,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItem := readItems[0]
 			readItemInfo := readItem.(data.StreamInfo)
 
-			assert.Equal(t, testItemID+common.DataFileSuffix, readItem.UUID())
+			assert.Equal(t, testItemID+metadata.DataFileSuffix, readItem.UUID())
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)
@@ -293,7 +293,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			if test.source == OneDriveSource {
 				readItemMeta := readItems[1]
 
-				assert.Equal(t, testItemID+common.MetaFileSuffix, readItemMeta.UUID())
+				assert.Equal(t, testItemID+metadata.MetaFileSuffix, readItemMeta.UUID())
 
 				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
 				require.NoError(t, err, clues.ToCore(err))
@@ -589,7 +589,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			require.Equal(t, 1, collStatus.Metrics.Successes)
 
 			for _, i := range readItems {
-				if strings.HasSuffix(i.UUID(), common.MetaFileSuffix) {
+				if strings.HasSuffix(i.UUID(), metadata.MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
 					require.NoError(t, err, clues.ToCore(err))
 					require.Equal(t, content, []byte("{}"))

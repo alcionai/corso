@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
+	odmetadata "github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -29,12 +29,12 @@ var (
 
 	notMetaSuffixes = []string{
 		"",
-		common.DataFileSuffix,
+		odmetadata.DataFileSuffix,
 	}
 
 	metaSuffixes = []string{
-		common.MetaFileSuffix,
-		common.DirMetaFileSuffix,
+		odmetadata.MetaFileSuffix,
+		odmetadata.DirMetaFileSuffix,
 	}
 
 	cases = []testCase{

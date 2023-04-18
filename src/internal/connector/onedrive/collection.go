@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -516,12 +516,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				atomic.AddInt64(&itemsFound, 1)
 
 				metaFileName = itemID
-				metaSuffix = common.MetaFileSuffix
+				metaSuffix = metadata.MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 
 				// metaFileName not set for directories so we get just ".dirmeta"
-				metaSuffix = common.DirMetaFileSuffix
+				metaSuffix = metadata.DirMetaFileSuffix
 			}
 
 			// Fetch metadata for the file
@@ -548,7 +548,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
 
 			if isFile {
-				dataSuffix := common.DataFileSuffix
+				dataSuffix := metadata.DataFileSuffix
 
 				// Construct a new lazy readCloser to feed to the collection consumer.
 				// This ensures that downloads won't be attempted unless that consumer
