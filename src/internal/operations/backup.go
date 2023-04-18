@@ -44,6 +44,7 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
+	//SemaphoreCh chan struct{}
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -73,6 +74,7 @@ func NewBackupOperation(
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
 		bp:            bp,
+		SemaphoreCh:   make(chan struct{}, 4),
 	}
 
 	if err := op.validate(); err != nil {

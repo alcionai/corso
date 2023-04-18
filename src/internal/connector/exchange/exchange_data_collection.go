@@ -32,6 +32,8 @@ var (
 	_ data.StreamModTime    = &Stream{}
 )
 
+var semaphoreCh = make(chan struct{}, 4)
+
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
@@ -210,10 +212,11 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 	logger.Ctx(ctx).Infow("fetching data with parallelism", "fetch_parallelism", fetchParallelism)
 
-	semaphoreCh := make(chan struct{}, fetchParallelism)
-	defer close(semaphoreCh)
+	//semaphoreCh := make(chan struct{}, fetchParallelism)
+	//defer close(semaphoreCh)
 
 	// delete all removed items
+	// Do we need semaphore for removed jobs?
 	for id := range col.removed {
 		semaphoreCh <- struct{}{}
 
