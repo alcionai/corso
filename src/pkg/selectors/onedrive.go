@@ -406,7 +406,7 @@ func (c oneDriveCategory) pathValues(
 
 	result := map[categorizer][]string{
 		OneDriveFolder: {rFld},
-		OneDriveItem:   {ent.OneDrive.ItemName, itemID, ent.ShortRef},
+		OneDriveItem:   {ent.OneDrive.ItemName, ent.ShortRef, itemID},
 	}
 
 	if len(ent.LocationRef) > 0 {
