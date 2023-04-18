@@ -104,7 +104,8 @@ idea to store full backups with some frequency. This means that, if you want to
 have frequent backups ****with**** retention of older versions, you’re going to
 need a lot of storage.  
 
-Tools like Corso that use S3 object storage will be cheaper than most others.
+Intelligent tools like Corso will be cheaper than most others. First, it uses object storage which
+is orders of magnitude cheaper than reliable block or file storage.
 Further Corso not only deduplicates, packs, and compresses data, but it also has
 a ton of smarts to only capture incremental changes between backups but always
 present them as a full backup (topic for another blog post!). This ensures that
