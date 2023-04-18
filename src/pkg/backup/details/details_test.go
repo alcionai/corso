@@ -340,7 +340,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 
 	// Sleep for a little so we get a larger difference in mod times between the
 	// earlier and later entries.
-	time.Sleep(1)
+	time.Sleep(100 * time.Millisecond)
 
 	// Get fresh item IDs so we can check that folders populate with the latest
 	// mod time. Also the details API is built with the idea that duplicate items
