@@ -13,7 +13,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
@@ -59,7 +60,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	table := []struct {
 		name       string
 		owner      string
-		ins        common.IDsNames
+		ins        idname.Cache
 		rc         *resourceClient
 		expectID   string
 		expectName string
@@ -84,7 +85,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only id map with owner id",
 			owner: id,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: itn,
 				NameToID: nil,
 			},
@@ -96,7 +97,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only name map with owner id",
 			owner: id,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: nil,
 				NameToID: nti,
 			},
@@ -108,7 +109,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only name map with owner id and lookup",
 			owner: id,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: nil,
 				NameToID: nti,
 			},
@@ -120,7 +121,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only id map with owner name",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: itn,
 				NameToID: nil,
 			},
@@ -132,7 +133,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only name map with owner name",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: nil,
 				NameToID: nti,
 			},
@@ -144,7 +145,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only id map with owner name",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: itn,
 				NameToID: nil,
 			},
@@ -156,7 +157,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "only id map with owner name and lookup",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: itn,
 				NameToID: nil,
 			},
@@ -168,7 +169,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "both maps with owner id",
 			owner: id,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: itn,
 				NameToID: nti,
 			},
@@ -180,7 +181,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "both maps with owner name",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: itn,
 				NameToID: nti,
 			},
@@ -192,7 +193,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching maps with owner id",
 			owner: id,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
@@ -204,7 +205,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching with owner name",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
@@ -216,7 +217,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching maps with owner id and lookup",
 			owner: id,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
@@ -228,7 +229,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching with owner name and lookup",
 			owner: name,
-			ins: common.IDsNames{
+			ins: idname.Cache{
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
@@ -553,7 +554,7 @@ func runBackupAndCompare(
 	}
 
 	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
-	backupGC.IDNameLookup = common.IDsNames{IDToName: idToName, NameToID: nameToID}
+	backupGC.IDNameLookup = idname.Cache{IDToName: idToName, NameToID: nameToID}
 
 	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
@@ -1261,7 +1262,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
-				backupSel,
+				inMock.NewProvider(id, name),
 				backupSel,
 				nil,
 				version.NoBackup,

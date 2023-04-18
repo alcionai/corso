@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -846,11 +847,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	// verify test data was populated, and track it for comparisons
 	for category, gen := range dataset {
-		ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 		qp := graph.QueryParams{
 			Category:      category,
-			ResourceOwner: ss,
+			ResourceOwner: inMock.NewProvider(suite.user, suite.user),
 			Credentials:   m365,
 		}
 		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
@@ -962,11 +961,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						version.Backup,
 						gen.dbf)
 
-					ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 					qp := graph.QueryParams{
 						Category:      category,
-						ResourceOwner: ss,
+						ResourceOwner: inMock.NewProvider(suite.user, suite.user),
 						Credentials:   m365,
 					}
 					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))

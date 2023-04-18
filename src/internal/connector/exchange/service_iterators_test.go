@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -116,12 +117,10 @@ func (suite *ServiceIteratorsSuite) SetupSuite() {
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
-	ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
-
 	var (
 		qp = graph.QueryParams{
 			Category:      path.EmailCategory, // doesn't matter which one we use.
-			ResourceOwner: ss,
+			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -436,12 +435,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
-
 			var (
 				qp = graph.QueryParams{
 					Category:      path.EmailCategory, // doesn't matter which one we use.
-					ResourceOwner: ss,
+					ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 					Credentials:   suite.creds,
 				}
 				statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -519,15 +516,13 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
-	ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
-
 	var (
 		userID   = "user_id"
 		tenantID = suite.creds.AzureTenantID
 		cat      = path.EmailCategory // doesn't matter which one we use,
 		qp       = graph.QueryParams{
 			Category:      cat,
-			ResourceOwner: ss,
+			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}

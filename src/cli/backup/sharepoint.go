@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -203,7 +203,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 // TODO: users might specify a data type, this only supports AllData().
 func sharePointBackupCreateSelectors(
 	ctx context.Context,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 	sites, weburls, cats []string,
 ) (*selectors.SharePointBackup, error) {
 	if len(sites) == 0 && len(weburls) == 0 {
@@ -223,7 +223,7 @@ func sharePointBackupCreateSelectors(
 	return addCategories(sel, cats), nil
 }
 
-func includeAllSitesWithCategories(ins common.IDNameSwapper, categories []string) *selectors.SharePointBackup {
+func includeAllSitesWithCategories(ins idname.Cacher, categories []string) *selectors.SharePointBackup {
 	return addCategories(selectors.NewSharePointBackup(ins.IDs()), categories)
 }
 

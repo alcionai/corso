@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
@@ -299,7 +300,7 @@ func setupExchangeBackup(
 		gc,
 		acct,
 		bsel.Selector,
-		bsel.Selector,
+		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -350,7 +351,6 @@ func setupSharePointBackup(
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
 	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
-
 	spsel.SetDiscreteOwnerIDName(id, name)
 
 	bo, err := NewBackupOperation(
@@ -361,7 +361,7 @@ func setupSharePointBackup(
 		gc,
 		acct,
 		spsel.Selector,
-		spsel.Selector,
+		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 

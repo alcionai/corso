@@ -8,8 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -63,7 +64,7 @@ type Repository interface {
 	NewBackupWithLookup(
 		ctx context.Context,
 		self selectors.Selector,
-		ins common.IDNameSwapper,
+		ins idname.Cacher,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -306,7 +307,7 @@ func (r repository) NewBackup(
 func (r repository) NewBackupWithLookup(
 	ctx context.Context,
 	sel selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
 	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
 	if err != nil {
@@ -329,7 +330,7 @@ func (r repository) NewBackupWithLookup(
 		gc,
 		r.Account,
 		sel,
-		sel,
+		inMock.NewProvider(ownerID, ownerName),
 		r.Bus)
 }
 

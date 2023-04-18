@@ -10,7 +10,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -45,7 +45,7 @@ type GraphConnector struct {
 	// maps of resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
-	IDNameLookup common.IDNameSwapper
+	IDNameLookup idname.Cacher
 
 	// wg is used to track completion of GC tasks
 	wg     *sync.WaitGroup
@@ -85,7 +85,7 @@ func NewGraphConnector(
 
 	gc := GraphConnector{
 		Discovery:    discovery,
-		IDNameLookup: common.IDsNames{},
+		IDNameLookup: idname.Cache{},
 		Service:      service,
 
 		credentials: creds,
@@ -219,7 +219,7 @@ type getOwnerIDAndNamer interface {
 		ctx context.Context,
 		discovery api.Client,
 		owner string,
-		ins common.IDNameSwapper,
+		ins idname.Cacher,
 	) (
 		ownerID string,
 		ownerName string,
@@ -237,7 +237,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
 	discovery api.Client,
 	owner string,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (string, string, error) {
 	if ins != nil {
 		if n, ok := ins.NameOf(owner); ok {
@@ -281,7 +281,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (string, string, error) {
 	// move this to GC method
 	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
@@ -289,7 +289,7 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 		return "", "", clues.Wrap(err, "identifying resource owner")
 	}
 
-	gc.IDNameLookup = common.IDsNames{
+	gc.IDNameLookup = idname.Cache{
 		IDToName: map[string]string{id: name},
 		NameToID: map[string]string{name: id},
 	}

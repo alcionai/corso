@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -100,10 +100,10 @@ func UsersMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (common.IDsNames, error) {
+) (idname.Cache, error) {
 	users, err := Users(ctx, acct, errs)
 	if err != nil {
-		return common.IDsNames{}, err
+		return idname.Cache{}, err
 	}
 
 	var (
@@ -117,7 +117,7 @@ func UsersMap(
 		nameToID[name] = id
 	}
 
-	ins := common.IDsNames{
+	ins := idname.Cache{
 		IDToName: idToName,
 		NameToID: nameToID,
 	}
@@ -207,13 +207,13 @@ func SitesMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (common.IDsNames, error) {
+) (idname.Cache, error) {
 	sites, err := Sites(ctx, acct, errs)
 	if err != nil {
-		return common.IDsNames{}, err
+		return idname.Cache{}, err
 	}
 
-	ins := common.IDsNames{
+	ins := idname.Cache{
 		IDToName: make(map[string]string, len(sites)),
 		NameToID: make(map[string]string, len(sites)),
 	}

@@ -3,7 +3,7 @@ package inject
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -18,7 +18,7 @@ type (
 	BackupProducer interface {
 		ProduceBackupCollections(
 			ctx context.Context,
-			resourceOwner common.IDNamer,
+			resourceOwner idname.Provider,
 			sels selectors.Selector,
 			metadata []data.RestoreCollection,
 			lastBackupVersion int,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -89,6 +90,8 @@ type pathCategorier interface {
 // ---------------------------------------------------------------------------
 // Selector
 // ---------------------------------------------------------------------------
+
+var _ idname.Provider = &Selector{}
 
 // The core selector.  Has no api for setting or retrieving data.
 // Is only used to pass along more specific selector instances.
