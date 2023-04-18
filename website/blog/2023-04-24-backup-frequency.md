@@ -101,7 +101,7 @@ You can therefore reduce data transmission overhead, improve backup performance,
 
 With the threat of ransomware and other malicious data corruption, it’s a great
 idea to store full backups with some frequency. This means that, if you want to
-have frequent backups ****with**** retention of older versions, you’re going to
+have frequent backups **with** retention of older versions, you’re going to
 need a lot of storage.  
 
 Intelligent tools like Corso will be cheaper than most others. First, it uses object storage which
