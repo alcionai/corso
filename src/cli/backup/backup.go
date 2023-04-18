@@ -190,6 +190,9 @@ func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 // common handlers
 // ---------------------------------------------------------------------------
 
+// standard set of selector behavior that we want used in the cli
+var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
+
 func runBackups(
 	ctx context.Context,
 	r repository.Repository,
@@ -203,6 +206,8 @@ func runBackups(
 	)
 
 	for _, discSel := range selectorSet {
+		discSel.Configure(defaultSelectorConfig)
+
 		var (
 			owner = discSel.DiscreteOwner
 			ictx  = clues.Add(ctx, "resource_owner", owner)

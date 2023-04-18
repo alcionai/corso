@@ -382,6 +382,7 @@ func (c oneDriveCategory) isLeaf() bool {
 func (c oneDriveCategory) pathValues(
 	repo path.Path,
 	ent details.DetailsEntry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	if ent.OneDrive == nil {
 		return nil, clues.New("no OneDrive ItemInfo in details")
@@ -390,9 +391,18 @@ func (c oneDriveCategory) pathValues(
 	// Ignore `drives/<driveID>/root:` for folder comparison
 	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
+	if cfg.OnlyMatchItemNames {
+		item = ent.ItemInfo.OneDrive.ItemName
+	}
+
 	result := map[categorizer][]string{
 		OneDriveFolder: {rFld},
-		OneDriveItem:   {ent.OneDrive.ItemName, ent.ShortRef},
+		OneDriveItem:   {item, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {

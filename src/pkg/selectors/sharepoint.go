@@ -501,10 +501,10 @@ func (c sharePointCategory) isLeaf() bool {
 func (c sharePointCategory) pathValues(
 	repo path.Path,
 	ent details.DetailsEntry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	var (
 		folderCat, itemCat    categorizer
-		itemName              = repo.Item()
 		dropDriveFolderPrefix bool
 	)
 
@@ -516,7 +516,6 @@ func (c sharePointCategory) pathValues(
 
 		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
-		itemName = ent.SharePoint.ItemName
 
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
@@ -534,9 +533,18 @@ func (c sharePointCategory) pathValues(
 		rFld = path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 	}
 
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
+	if cfg.OnlyMatchItemNames {
+		item = ent.ItemInfo.SharePoint.ItemName
+	}
+
 	result := map[categorizer][]string{
 		folderCat: {rFld},
-		itemCat:   {itemName, ent.ShortRef},
+		itemCat:   {item, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {
