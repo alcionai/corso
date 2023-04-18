@@ -124,5 +124,5 @@ Take a look at some of our recent writing on selecting the best S3 storage tier
 
 Independent of whether it's Microsoft 365 or other systems, at least once a
 day. Probably about once every 8 hours. It will ensure your backups are
-incremental and that you don’t lose too much work in the event of an incident.
+efficient due to incremental data capture and that you don’t lose too much work in the event of an incident.
 Higher frequencies will be necessary for higher RPO goals.
