@@ -237,6 +237,8 @@ func (rp dataLayerResourcePath) Item() string {
 	return ""
 }
 
+// Dir removes the last element from the path.  If this would remove a
+// value that is part of the standard prefix structure, an error is returned.
 func (rp dataLayerResourcePath) Dir() (Path, error) {
 	if len(rp.elements) <= 4 {
 		return nil, clues.New("unable to shorten path").With("path", rp)
@@ -272,24 +274,5 @@ func (rp dataLayerResourcePath) ToBuilder() *Builder {
 }
 
 func (rp *dataLayerResourcePath) UpdateParent(prev, cur Path) bool {
-	if prev == cur || len(prev.Elements()) > len(rp.Elements()) {
-		return false
-	}
-
-	parent := true
-
-	for i, e := range prev.Elements() {
-		if rp.elements[i] != e {
-			parent = false
-			break
-		}
-	}
-
-	if !parent {
-		return false
-	}
-
-	rp.elements = append(cur.Elements(), rp.elements[len(prev.Elements()):]...)
-
-	return true
+	return rp.Builder.UpdateParent(prev.ToBuilder(), cur.ToBuilder())
 }

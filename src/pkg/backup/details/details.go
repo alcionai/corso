@@ -457,7 +457,7 @@ func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		return de.ItemInfo.uniqueLocation(baseLoc)
 	}
 
-	if backupVersion >= version.OneDriveXLocationRef ||
+	if backupVersion >= version.OneDrive7LocationRef ||
 		(de.ItemInfo.infoType() != OneDriveItem &&
 			de.ItemInfo.infoType() != SharePointLibrary) {
 		return nil, clues.New("no previous location for entry")
@@ -578,10 +578,10 @@ const (
 	FolderItem ItemType = 306
 )
 
-func UpdateItem(item *ItemInfo, repoPath path.Path, locPath *path.Builder) error {
+func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(repo path.Path, location *path.Builder) error
+	var updatePath func(newLocPath *path.Builder)
 
 	switch item.infoType() {
 	case ExchangeContact, ExchangeEvent, ExchangeMail:
@@ -591,10 +591,10 @@ func UpdateItem(item *ItemInfo, repoPath path.Path, locPath *path.Builder) error
 	case OneDriveItem:
 		updatePath = item.OneDrive.UpdateParentPath
 	default:
-		return nil
+		return
 	}
 
-	return updatePath(repoPath, locPath)
+	updatePath(newLocPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -758,15 +758,8 @@ func (i ExchangeInfo) Values() []string {
 	return []string{}
 }
 
-func (i *ExchangeInfo) UpdateParentPath(_ path.Path, locPath *path.Builder) error {
-	// Not all data types have this set yet.
-	if locPath == nil {
-		return nil
-	}
-
-	i.ParentPath = locPath.String()
-
-	return nil
+func (i *ExchangeInfo) UpdateParentPath(newLocPath *path.Builder) {
+	i.ParentPath = newLocPath.String()
 }
 
 func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
@@ -818,15 +811,8 @@ func (i SharePointInfo) Values() []string {
 	}
 }
 
-func (i *SharePointInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) error {
-	newParent, err := path.GetDriveFolderPath(newPath)
-	if err != nil {
-		return clues.Wrap(err, "making sharePoint path").With("path", newPath)
-	}
-
-	i.ParentPath = newParent
-
-	return nil
+func (i *SharePointInfo) UpdateParentPath(newLocPath *path.Builder) {
+	i.ParentPath = newLocPath.PopFront().String()
 }
 
 func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
@@ -870,15 +856,8 @@ func (i OneDriveInfo) Values() []string {
 	}
 }
 
-func (i *OneDriveInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) error {
-	newParent, err := path.GetDriveFolderPath(newPath)
-	if err != nil {
-		return clues.Wrap(err, "making oneDrive path").With("path", newPath)
-	}
-
-	i.ParentPath = newParent
-
-	return nil
+func (i *OneDriveInfo) UpdateParentPath(newLocPath *path.Builder) {
+	i.ParentPath = newLocPath.PopFront().String()
 }
 
 func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {

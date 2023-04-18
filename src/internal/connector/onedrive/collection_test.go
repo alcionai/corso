@@ -205,7 +205,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
 			require.NoError(t, err, clues.ToCore(err))
 
-			coll := NewCollection(
+			coll, err := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				nil,
@@ -216,6 +216,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
+			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
 
@@ -344,7 +345,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
 			require.NoError(t, err, clues.ToCore(err))
 
-			coll := NewCollection(
+			coll, err := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				nil,
@@ -355,6 +356,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
+			require.NoError(t, err, clues.ToCore(err))
 
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
@@ -433,7 +435,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
 			require.NoError(t, err)
 
-			coll := NewCollection(
+			coll, err := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				nil,
@@ -444,6 +446,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
+			require.NoError(t, err, clues.ToCore(err))
 
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
@@ -532,7 +535,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
 			require.NoError(t, err, clues.ToCore(err))
 
-			coll := NewCollection(
+			coll, err := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				nil,
@@ -543,6 +546,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
+			require.NoError(t, err, clues.ToCore(err))
 
 			mtime := time.Now().AddDate(0, -1, 0)
 			mockItem := models.NewDriveItem()

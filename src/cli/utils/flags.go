@@ -45,9 +45,10 @@ const (
 	BackupFN       = "backup"
 	CategoryDataFN = "data"
 
-	SiteFN   = "site"    // site only accepts WebURL values
-	SiteIDFN = "site-id" // site-id accepts actual site ids
-	UserFN   = "user"
+	SiteFN    = "site"    // site only accepts WebURL values
+	SiteIDFN  = "site-id" // site-id accepts actual site ids
+	UserFN    = "user"
+	MailBoxFN = "mailbox"
 
 	LibraryFN = "library"
 	FileFN    = "file"
@@ -122,6 +123,23 @@ func AddUserFlag(cmd *cobra.Command) {
 		UserFN, nil,
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
 	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
+}
+
+// AddMailBoxFlag adds the --user and --mailbox flag.
+func AddMailBoxFlag(cmd *cobra.Command) {
+	flags := cmd.Flags()
+
+	flags.StringSliceVar(
+		&UserFV,
+		UserFN, nil,
+		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
+
+	cobra.CheckErr(flags.MarkDeprecated(UserFN, fmt.Sprintf("use --%s instead", MailBoxFN)))
+
+	flags.StringSliceVar(
+		&UserFV,
+		MailBoxFN, nil,
+		"Backup a specific mailbox's data; accepts '"+Wildcard+"' to select all mailbox.")
 }
 
 // AddSiteIDFlag adds the --site-id flag, which accepts site ID values.

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Permissions backup for OneDrive is now out of experimental (By default, only newly backed up items will have their permissions backed up. You will have to run a full backup to ensure all items have their permissions backed up.)
+- LocationRef is now populated for all services and data types. It should be used in place of RepoRef if a location for an item is required.
 
 ### Fixed
 - Fixed permissions restore in latest backup version.

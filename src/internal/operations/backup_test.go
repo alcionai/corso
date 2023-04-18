@@ -193,18 +193,15 @@ func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Buil
 	// Items are indexed individually.
 	m.repoRefs[oldPB.ShortRef()] = newRef
 
-	if newLoc != nil {
-		// Locations are indexed by directory.
-		m.locs[oldPB.Dir().ShortRef()] = newLoc
-	}
+	// Locations are indexed by directory.
+	m.locs[oldPB.ShortRef()] = newLoc
 }
 
-func (m *mockDetailsMergeInfoer) GetNewRepoRef(oldRef *path.Builder) path.Path {
-	return m.repoRefs[oldRef.ShortRef()]
-}
-
-func (m *mockDetailsMergeInfoer) GetNewLocation(oldRef *path.Builder) *path.Builder {
-	return m.locs[oldRef.ShortRef()]
+func (m *mockDetailsMergeInfoer) GetNewPathRefs(
+	oldRef *path.Builder,
+	_ details.LocationIDer,
+) (path.Path, *path.Builder, error) {
+	return m.repoRefs[oldRef.ShortRef()], m.locs[oldRef.ShortRef()], nil
 }
 
 func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
@@ -343,13 +340,13 @@ func makeDetailsEntry(
 		}
 
 	case path.OneDriveService:
-		parent, err := path.GetDriveFolderPath(p)
-		require.NoError(t, err, clues.ToCore(err))
+		require.NotNil(t, l)
 
 		res.OneDrive = &details.OneDriveInfo{
 			ItemType:   details.OneDriveItem,
-			ParentPath: parent,
+			ParentPath: l.PopFront().String(),
 			Size:       int64(size),
+			DriveID:    "drive-id",
 		}
 
 	default:
@@ -966,39 +963,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
-			},
-		},
-		{
-			name: "ItemMergedNoLocation",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, nil)
-
-				return res
-			}(),
-			inputMans: []*kopia.ManifestEntry{
-				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
 			},
 		},
 		{

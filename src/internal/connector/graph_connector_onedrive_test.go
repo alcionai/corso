@@ -186,7 +186,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 		c.items = append(c.items, metadata)
 		c.aux = append(c.aux, metadata)
 
-	case version.OneDrive6NameInMeta:
+	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -213,7 +213,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
-		version.OneDrive6NameInMeta:
+		version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:

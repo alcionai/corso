@@ -41,7 +41,13 @@ const (
 // ---------------------------------------------------------------------------
 
 func main() {
-	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
+	ls := logger.Settings{
+		File:        logger.GetLogFile(""),
+		Level:       logger.LLInfo,
+		PIIHandling: logger.PIIPlainText,
+	}
+
+	ctx, log := logger.Seed(context.Background(), ls)
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
