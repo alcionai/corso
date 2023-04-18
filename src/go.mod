@@ -10,7 +10,7 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.245
 	github.com/aws/aws-xray-sdk-go v1.8.1
-	github.com/cenkalti/backoff/v4 v4.2.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/google/uuid v1.3.0
 	github.com/h2non/gock v1.2.0
 	github.com/kopia/kopia v0.12.2-0.20230327171220-747baeebdab1
