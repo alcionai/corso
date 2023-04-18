@@ -332,16 +332,21 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 	t := suite.T()
 
-	exchange1 := exchangeEntry(t, "foo1", 42, ExchangeMail)
+	exchangeMail1 := exchangeEntry(t, "foo1", 42, ExchangeMail)
 	oneDrive1 := oneDriveishEntry(t, "foo1", 42, OneDriveItem)
 	sharePoint1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary)
 	sharePointLegacy1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary)
 	sharePointLegacy1.SharePoint.ItemType = OneDriveItem
 
+	// Sleep for a little so we get a larger difference in mod times between the
+	// earlier and later entries.
 	time.Sleep(1)
 
-	exchange2 := exchangeEntry(t, "foo2", 43, ExchangeMail)
-	exchange3 := exchangeEntry(t, "foo2", 43, ExchangeContact)
+	// Get fresh item IDs so we can check that folders populate with the latest
+	// mod time. Also the details API is built with the idea that duplicate items
+	// aren't added (it has no checking for that).
+	exchangeMail2 := exchangeEntry(t, "foo2", 43, ExchangeMail)
+	exchangeContact1 := exchangeEntry(t, "foo3", 44, ExchangeContact)
 
 	exchangeFolders := []DetailsEntry{
 		{
@@ -428,10 +433,10 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		expectedDirs func() []DetailsEntry
 	}{
 		{
-			name: "One Not Updated Exchange Email",
+			name: "One Exchange Email None Updated",
 			entries: func() []DetailsEntry {
-				e := exchange1
-				ei := *exchange1.Exchange
+				e := exchangeMail1
+				ei := *exchangeMail1.Exchange
 				e.Exchange = &ei
 
 				return []DetailsEntry{e}
@@ -444,8 +449,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					ei := *entry.Folder
 
 					e.Folder = &ei
-					e.Folder.Size = exchange1.Exchange.Size
-					e.Folder.Modified = exchange1.Exchange.Modified
+					e.Folder.Size = exchangeMail1.Exchange.Size
+					e.Folder.Modified = exchangeMail1.Exchange.Modified
 
 					res = append(res, e)
 				}
@@ -454,10 +459,10 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One Updated Exchange Email",
+			name: "One Exchange Email Updated",
 			entries: func() []DetailsEntry {
-				e := exchange1
-				ei := *exchange1.Exchange
+				e := exchangeMail1
+				ei := *exchangeMail1.Exchange
 				e.Exchange = &ei
 				e.Updated = true
 
@@ -471,8 +476,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					ei := *entry.Folder
 
 					e.Folder = &ei
-					e.Folder.Size = exchange1.Exchange.Size
-					e.Folder.Modified = exchange1.Exchange.Modified
+					e.Folder.Size = exchangeMail1.Exchange.Size
+					e.Folder.Modified = exchangeMail1.Exchange.Modified
 					e.Updated = true
 
 					res = append(res, e)
@@ -482,11 +487,11 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "Two Not Updated Exchange Emails",
+			name: "Two Exchange Emails None Updated",
 			entries: func() []DetailsEntry {
 				res := []DetailsEntry{}
 
-				for _, entry := range []DetailsEntry{exchange1, exchange2} {
+				for _, entry := range []DetailsEntry{exchangeMail1, exchangeMail2} {
 					e := entry
 					ei := *entry.Exchange
 					e.Exchange = &ei
@@ -504,8 +509,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					ei := *entry.Folder
 
 					e.Folder = &ei
-					e.Folder.Size = exchange1.Exchange.Size + exchange2.Exchange.Size
-					e.Folder.Modified = exchange2.Exchange.Modified
+					e.Folder.Size = exchangeMail1.Exchange.Size + exchangeMail2.Exchange.Size
+					e.Folder.Modified = exchangeMail2.Exchange.Modified
 
 					res = append(res, e)
 				}
@@ -514,11 +519,11 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "Two One Updated Exchange Emails",
+			name: "Two Exchange Emails One Updated",
 			entries: func() []DetailsEntry {
 				res := []DetailsEntry{}
 
-				for i, entry := range []DetailsEntry{exchange1, exchange2} {
+				for i, entry := range []DetailsEntry{exchangeMail1, exchangeMail2} {
 					e := entry
 					ei := *entry.Exchange
 					e.Exchange = &ei
@@ -537,8 +542,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					ei := *entry.Folder
 
 					e.Folder = &ei
-					e.Folder.Size = exchange1.Exchange.Size + exchange2.Exchange.Size
-					e.Folder.Modified = exchange2.Exchange.Modified
+					e.Folder.Size = exchangeMail1.Exchange.Size + exchangeMail2.Exchange.Size
+					e.Folder.Modified = exchangeMail2.Exchange.Modified
 					e.Updated = true
 
 					res = append(res, e)
@@ -548,11 +553,11 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "Two None Updated Exchange Email And Contact",
+			name: "One Email And One Contact None Updated",
 			entries: func() []DetailsEntry {
 				res := []DetailsEntry{}
 
-				for _, entry := range []DetailsEntry{exchange1, exchange3} {
+				for _, entry := range []DetailsEntry{exchangeMail1, exchangeContact1} {
 					e := entry
 					ei := *entry.Exchange
 					e.Exchange = &ei
@@ -570,8 +575,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					ei := *entry.Folder
 
 					e.Folder = &ei
-					e.Folder.Size = exchange1.Exchange.Size
-					e.Folder.Modified = exchange1.Exchange.Modified
+					e.Folder.Size = exchangeMail1.Exchange.Size
+					e.Folder.Modified = exchangeMail1.Exchange.Modified
 
 					res = append(res, e)
 				}
@@ -581,8 +586,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					ei := *entry.Folder
 
 					e.Folder = &ei
-					e.Folder.Size = exchange3.Exchange.Size
-					e.Folder.Modified = exchange3.Exchange.Modified
+					e.Folder.Size = exchangeContact1.Exchange.Size
+					e.Folder.Modified = exchangeContact1.Exchange.Modified
 
 					res = append(res, e)
 				}
@@ -591,7 +596,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One OneDrive Item",
+			name: "One OneDrive Item None Updated",
 			entries: func() []DetailsEntry {
 				e := oneDrive1
 				ei := *oneDrive1.OneDrive
@@ -618,7 +623,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One SharePoint Item",
+			name: "One SharePoint Item None Updated",
 			entries: func() []DetailsEntry {
 				e := sharePoint1
 				ei := *sharePoint1.SharePoint
@@ -645,7 +650,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One SharePoint Legacy Item",
+			name: "One SharePoint Legacy Item None Updated",
 			entries: func() []DetailsEntry {
 				e := sharePoint1
 				ei := *sharePoint1.SharePoint

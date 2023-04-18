@@ -827,7 +827,7 @@ func (i *ExchangeInfo) updateFolder(f *FolderInfo) error {
 	switch i.ItemType {
 	case ExchangeContact, ExchangeEvent, ExchangeMail:
 	default:
-		return clues.New("unsupported SharePoint ItemType").
+		return clues.New("unsupported non-Exchange ItemType").
 			With("item_type", i.ItemType)
 	}
 
@@ -888,10 +888,10 @@ func (i *SharePointInfo) updateFolder(f *FolderInfo) error {
 	// TODO(ashmrtn): Change to just SharePointLibrary when the code that
 	// generates the item type is fixed.
 	if i.ItemType == OneDriveItem || i.ItemType == SharePointLibrary {
-		return updateOneDriveishFolder(SharePointLibrary, i.DriveName, i.DriveID, f)
+		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
 	}
 
-	return clues.New("unsupported SharePoint ItemType").With("item_type", i.ItemType)
+	return clues.New("unsupported non-SharePoint ItemType").With("item_type", i.ItemType)
 }
 
 // OneDriveInfo describes a oneDrive item
@@ -942,10 +942,10 @@ func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error)
 }
 
 func (i *OneDriveInfo) updateFolder(f *FolderInfo) error {
-	return updateOneDriveishFolder(OneDriveItem, i.DriveName, i.DriveID, f)
+	return updateFolderWithinDrive(OneDriveItem, i.DriveName, i.DriveID, f)
 }
 
-func updateOneDriveishFolder(
+func updateFolderWithinDrive(
 	t ItemType,
 	driveName, driveID string,
 	f *FolderInfo,
