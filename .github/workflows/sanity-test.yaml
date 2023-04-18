@@ -55,7 +55,7 @@ jobs:
 
       # run the tests
       - name: Version Test
-        run: |
+        run: |  
           set -euo pipefail
           if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
           then
@@ -364,4 +364,34 @@ jobs:
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
+
+      # run the tests
+      - name: SHA info
+        id: sha-info
+        if: failure()
+        run: |  
+                echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+                echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+
       
+      - name: Send Github Action failure to Slack
+        id: slack-notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "GitHub Action build result: ${{ job.status }}\n on SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub Action build result: ${{ job.status }}\n on SHA: ${{  steps.sha-info.outputs.SHA }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
