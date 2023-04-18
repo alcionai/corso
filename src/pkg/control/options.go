@@ -88,4 +88,8 @@ type Toggles struct {
 	// DisableIncrementals prevents backups from using incremental lookups,
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+	// ExchangeImmutableIDs denotes whether Corso should store items with
+	// immutable Exchange IDs. This is only safe to set if the previous backup for
+	// incremental backups used immutable IDs or if a full backup is being done.
+	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
 }
