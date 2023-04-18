@@ -445,7 +445,7 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites),
+		connector:     loadConnector(ctx, suite.T(), Sites),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
@@ -492,7 +492,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		connector:     loadConnector(ctx, suite.T(), Users),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
@@ -551,7 +551,7 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		connector:     loadConnector(ctx, suite.T(), Users),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
