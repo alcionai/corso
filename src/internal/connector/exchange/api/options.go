@@ -77,6 +77,7 @@ const (
 
 func optionsForFolderMessagesDelta(
 	moreOps []string,
+	immutableIDs bool,
 ) (*users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, fieldsForMessages)
 	if err != nil {
@@ -89,7 +90,7 @@ func optionsForFolderMessagesDelta(
 
 	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-		Headers:         buildPreferHeaders(true, true),
+		Headers:         buildPreferHeaders(true, immutableIDs),
 	}
 
 	return options, nil
@@ -181,6 +182,7 @@ func optionsForMailFoldersItem(
 
 func optionsForContactFoldersItemDelta(
 	moreOps []string,
+	immutableIDs bool,
 ) (*users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, fieldsForContacts)
 	if err != nil {
@@ -193,7 +195,7 @@ func optionsForContactFoldersItemDelta(
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-		Headers:         buildPreferHeaders(true, true),
+		Headers:         buildPreferHeaders(true, immutableIDs),
 	}
 
 	return options, nil

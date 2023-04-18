@@ -131,10 +131,11 @@ func (c Mail) GetContainerByID(
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	// Will need adjusted if attachments start allowing paging.
-	headers := buildPreferHeaders(false, true)
+	headers := buildPreferHeaders(false, immutableIDs)
 	itemOpts := &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
 		Headers: headers,
 	}
@@ -312,6 +313,7 @@ func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) 
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
+	immutableIDs bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -328,7 +330,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
+	options, err := optionsForFolderMessagesDelta([]string{"isRead"}, immutableIDs)
 	if err != nil {
 		return nil,
 			nil,
