@@ -173,6 +173,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			Entries: []details.DetailsEntry{
 				{
 					RepoRef: file,
+					ItemRef: "file",
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
@@ -182,6 +183,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 				},
 				{
 					RepoRef: file2,
+					ItemRef: "file2",
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
@@ -191,6 +193,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 				},
 				{
 					RepoRef: file3,
+					// item ref intentionally blank to assert fallback case
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
