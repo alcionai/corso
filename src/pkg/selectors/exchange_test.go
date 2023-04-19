@@ -1313,7 +1313,6 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 }
 
 func (suite *ExchangeSelectorSuite) TestPasses() {
-
 	const (
 		mid = "mailID"
 		cat = ExchangeMail

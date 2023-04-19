@@ -388,6 +388,7 @@ func (d *Details) add(
 		ShortRef:    repoRef.ShortRef(),
 		ParentRef:   repoRef.ToBuilder().Dir().ShortRef(),
 		LocationRef: locationRef.String(),
+		ItemRef:     repoRef.Item(),
 		Updated:     updated,
 		ItemInfo:    info,
 	}
