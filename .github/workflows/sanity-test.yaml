@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - slackNotificationOnFailure
   workflow_dispatch:
     inputs:
       user:
@@ -372,7 +373,9 @@ jobs:
         run: |  
                 echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
                 echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-
+                echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+                echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+               
       
       - name: Send Github Action failure to Slack
         id: slack-notification
@@ -387,7 +390,9 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "GitHub Action build result: ${{ job.status }}\n on SHA: ${{  steps.sha-info.outputs.SHA }}"
+                    "text": "GitHub Action build result: ${{ job.status }}\n on SHA: ${{  steps.sha-info.outputs.SHA }}\n
+                             Workflow Run: ${{  steps.sha-info.outputs.RUN_URL }} \n
+                             Commit SHA: ${{  steps.sha-info.outputs.COMMIT_URL }}"
                   }
                 }
               ]
