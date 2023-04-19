@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip OneNote items bigger than 2GB (Graph API prevents us from downloading them)
 - ParentPath of json output for Exchange calendar now shows names instead of IDs.
 - Fixed failure when downloading huge amount of attachments
+- Graph API requests that return an ECONNRESET error are now retried.
+
+### Known Issues
+- Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
 
 ## [v0.6.1] (beta) - 2023-03-21
 

@@ -79,9 +79,14 @@ func (c Contacts) DeleteContainer(
 func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	immutableIDs bool,
 	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	cont, err := c.Stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(false, immutableIDs),
+	}
+
+	cont, err := c.Stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, options)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -210,6 +215,7 @@ func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, erro
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
+	immutableIDs bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -223,7 +229,9 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeContact,
 		"container_id", directoryID)
 
-	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
+	options, err := optionsForContactFoldersItemDelta(
+		[]string{"parentFolderId"},
+		immutableIDs)
 	if err != nil {
 		return nil,
 			nil,
