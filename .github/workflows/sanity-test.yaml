@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - slackNotificationOnFailure
   workflow_dispatch:
     inputs:
       user:
@@ -384,15 +383,23 @@ jobs:
         with:
           payload: |
             {
-              "text": "GitHub Action build result: ${{ job.status }}\n on SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
               "blocks": [
+                  {
+                      "type": "header",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Failure in Sanity Test"
+                      }
+                 },
+                   {
+                      "type": "divider"
+                    },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "GitHub Action build result: ${{ job.status }}\n on SHA: ${{  steps.sha-info.outputs.SHA }}\n
-                             Workflow Run: ${{  steps.sha-info.outputs.RUN_URL }} \n
-                             Commit SHA: ${{  steps.sha-info.outputs.COMMIT_URL }}"
+                    "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
                   }
                 }
               ]
