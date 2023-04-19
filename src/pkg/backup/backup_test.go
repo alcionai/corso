@@ -65,21 +65,26 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 	var (
 		t        = suite.T()
 		now      = time.Now()
+		later    = now.Add(1 * time.Minute)
 		b        = stubBackup(now, "id", "name")
 		expectHs = []string{
-			"Started At",
 			"ID",
+			"Started At",
+			"Duration",
 			"Status",
 			"Resource Owner",
 		}
 		nowFmt   = common.FormatTabularDisplayTime(now)
 		expectVs = []string{
-			nowFmt,
 			"id",
+			nowFmt,
+			"1m0s",
 			"status (2 errors, 1 skipped: 1 malware)",
 			"test",
 		}
 	)
+
+	b.StartAndEndTime.CompletedAt = later
 
 	// single skipped malware
 	hs := b.Headers()
@@ -184,7 +189,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			result := test.bup.Values()
-			assert.Equal(suite.T(), test.expect, result[2], "status value")
+			assert.Equal(suite.T(), test.expect, result[3], "status value")
 		})
 	}
 }
@@ -199,11 +204,11 @@ func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	require.True(t, ok)
 
 	assert.Equal(t, b.ID, result.ID, "id")
-	assert.Equal(t, 2, result.ErrorCount, "error count")
-	assert.Equal(t, now, result.StartedAt, "started at")
+	assert.Equal(t, 2, result.Stats.ErrorCount, "error count")
+	assert.Equal(t, now, result.Stats.StartedAt, "started at")
 	assert.Equal(t, b.Status, result.Status, "status")
-	assert.Equal(t, b.BytesRead, result.BytesRead, "size")
-	assert.Equal(t, b.BytesUploaded, result.BytesUploaded, "stored size")
+	assert.Equal(t, b.BytesRead, result.Stats.BytesRead, "size")
+	assert.Equal(t, b.BytesUploaded, result.Stats.BytesUploaded, "stored size")
 	assert.Equal(t, b.Selector.DiscreteOwner, result.Owner, "owner")
 }
 
@@ -212,7 +217,7 @@ func (suite *BackupUnitSuite) TestStats() {
 		t     = suite.T()
 		start = time.Now()
 		b     = stubBackup(start, "owner", "ownername")
-		s     = b.Stats()
+		s     = b.ToPrintable().Stats
 	)
 
 	assert.Equal(t, b.BytesRead, s.BytesRead, "bytes read")
@@ -230,12 +235,11 @@ func (suite *BackupUnitSuite) TestStats_headersValues() {
 		t     = suite.T()
 		start = time.Now()
 		b     = stubBackup(start, "owner", "ownername")
-		s     = b.Stats()
+		s     = b.ToPrintable().Stats
 	)
 
 	expectHeaders := []string{
-		"Started At",
-		"Duration",
+		"ID",
 		"Bytes Uploaded",
 		"Items Uploaded",
 		"Items Skipped",
@@ -245,8 +249,7 @@ func (suite *BackupUnitSuite) TestStats_headersValues() {
 	assert.Equal(t, expectHeaders, s.Headers())
 
 	expectValues := []string{
-		common.FormatTabularDisplayTime(b.StartedAt),
-		b.CompletedAt.Sub(b.StartedAt).String(),
+		"id",
 		humanize.Bytes(uint64(b.BytesUploaded)),
 		strconv.Itoa(b.ItemsWritten),
 		strconv.Itoa(b.TotalSkippedItems),

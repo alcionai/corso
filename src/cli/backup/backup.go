@@ -225,8 +225,13 @@ func runBackups(
 		}
 
 		bIDs = append(bIDs, string(bo.Results.BackupID))
-		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
-		printBackupStats(ctx, r, string(bo.Results.BackupID))
+
+		if !DisplayJSONFormat() {
+			Infof(ctx, "Done\n")
+			printBackupStats(ctx, r, string(bo.Results.BackupID))
+		} else {
+			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+		}
 	}
 
 	bups, berrs := r.Backups(ctx, bIDs)
@@ -338,6 +343,6 @@ func printBackupStats(ctx context.Context, r repository.Repository, bid string) 
 		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
 	}
 
-	b.Stats().Print(ctx)
+	b.ToPrintable().Stats.Print(ctx)
 	Info(ctx, " ")
 }
