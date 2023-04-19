@@ -87,7 +87,7 @@ func NewGraphConnector(
 		Service:      service,
 
 		credentials: creds,
-		itemClient:  graph.NoTimeoutHTTPWrapper(),
+		itemClient:  graph.NewNoTimeoutHTTPWrapper(),
 		ownerLookup: rc,
 		tenant:      acct.ID(),
 		wg:          &sync.WaitGroup{},

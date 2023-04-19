@@ -780,7 +780,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				graph.NoTimeoutHTTPWrapper(),
+				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
 				OneDriveSource,
@@ -2231,7 +2231,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			}
 
 			c := NewCollections(
-				graph.NoTimeoutHTTPWrapper(),
+				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
 				OneDriveSource,

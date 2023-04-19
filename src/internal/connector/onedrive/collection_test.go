@@ -207,7 +207,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.NoTimeoutHTTPWrapper(),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"drive-id",
@@ -347,7 +347,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.NoTimeoutHTTPWrapper(),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"fakeDriveID",
@@ -437,7 +437,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			require.NoError(t, err)
 
 			coll, err := NewCollection(
-				graph.NoTimeoutHTTPWrapper(),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"fakeDriveID",
@@ -537,7 +537,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.NoTimeoutHTTPWrapper(),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"drive-id",

@@ -50,16 +50,18 @@ func NewHTTPWrapper(opts ...Option) *httpWrapper {
 		}
 	)
 
-	return &httpWrapper{cc.apply(hc)}
+	cc.apply(hc)
+
+	return &httpWrapper{hc}
 }
 
-// NoTimeoutHTTPWrapper constructs a http wrapper with no context timeout.
+// NewNoTimeoutHTTPWrapper constructs a http wrapper with no context timeout.
 //
 // Re-use of http clients is critical, or else we leak OS resources
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func NoTimeoutHTTPWrapper(opts ...Option) *httpWrapper {
+func NewNoTimeoutHTTPWrapper(opts ...Option) *httpWrapper {
 	opts = append(opts, NoTimeout())
 	return NewHTTPWrapper(opts...)
 }

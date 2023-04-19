@@ -112,7 +112,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	)
 
 	// Read data for the file
-	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.NoTimeoutHTTPWrapper(), driveItem)
+	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.NewNoTimeoutHTTPWrapper(), driveItem)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	require.NotNil(suite.T(), itemInfo.OneDrive)

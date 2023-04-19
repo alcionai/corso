@@ -78,7 +78,7 @@ func handleOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	svc := graph.NewService(adpt)
-	gr := graph.NoTimeoutHTTPWrapper()
+	gr := graph.NewNoTimeoutHTTPWrapper()
 
 	err = runDisplayM365JSON(ctx, svc, gr, creds, user, m365ID)
 	if err != nil {
