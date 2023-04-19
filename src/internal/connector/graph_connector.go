@@ -58,7 +58,6 @@ type GraphConnector struct {
 
 func NewGraphConnector(
 	ctx context.Context,
-	itemClient *http.Client,
 	acct account.Account,
 	r resource,
 	errs *fault.Bus,
@@ -89,7 +88,7 @@ func NewGraphConnector(
 		Service:      service,
 
 		credentials: creds,
-		itemClient:  itemClient,
+		itemClient:  graph.HTTPClient(graph.NoTimeout()),
 		ownerLookup: rc,
 		tenant:      acct.ID(),
 		wg:          &sync.WaitGroup{},

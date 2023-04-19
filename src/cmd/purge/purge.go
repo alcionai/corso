@@ -270,7 +270,7 @@ func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, err
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users, errs)
 	if err != nil {
 		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "connecting to graph api"))
 	}

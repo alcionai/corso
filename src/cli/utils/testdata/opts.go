@@ -2,12 +2,14 @@ package testdata
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -411,11 +413,13 @@ var (
 			},
 		},
 		{
-			Name:     "NoSelectRepoItemName",
-			Expected: []details.DetailsEntry{},
+			Name: "SelectRepoItemName",
+			Expected: []details.DetailsEntry{
+				testdata.OneDriveItems[0],
+			},
 			Opts: utils.OneDriveOpts{
 				FileName: []string{
-					testdata.OneDriveItemPath1.Item(),
+					strings.TrimSuffix(testdata.OneDriveItemPath1.Item(), metadata.DataFileSuffix),
 				},
 			},
 		},
@@ -530,11 +534,13 @@ var (
 			},
 		},
 		{
-			Name:     "NoSelectRepoItemName",
-			Expected: []details.DetailsEntry{},
+			Name: "SelectRepoItemName",
+			Expected: []details.DetailsEntry{
+				testdata.SharePointLibraryItems[0],
+			},
 			Opts: utils.SharePointOpts{
 				FileName: []string{
-					testdata.SharePointLibraryItemPath1.Item(),
+					strings.TrimSuffix(testdata.SharePointLibraryItemPath1.Item(), metadata.DataFileSuffix),
 				},
 			},
 		},
