@@ -239,7 +239,7 @@ func makeFolderEntry(
 		RepoRef:     pb.String(),
 		ShortRef:    pb.ShortRef(),
 		ParentRef:   pb.Dir().ShortRef(),
-		ItemRef:     pb.LastElem(),
+		ItemRef:     "",
 		LocationRef: pb.PopFront().PopFront().PopFront().PopFront().Dir().String(),
 		ItemInfo: details.ItemInfo{
 			Folder: &details.FolderInfo{

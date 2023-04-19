@@ -466,9 +466,15 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 
 					require.Len(t, cp.pending, len(ci))
 
+					foundItems := map[string]bool{}
+
 					for k, v := range ci {
 						if cachedTest.cached {
 							cp.CachedFile(k, v.totalBytes)
+						}
+
+						if v.info != nil && v.info.repoPath != nil {
+							foundItems[v.info.repoPath.Item()] = false
 						}
 
 						cp.FinishedFile(k, v.err)
@@ -481,6 +487,14 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 
 					for _, entry := range entries {
 						assert.Equal(t, !cachedTest.cached, entry.Updated)
+
+						foundItems[entry.ItemRef] = true
+					}
+
+					if test.expectedNumEntries > 0 {
+						for item, found := range foundItems {
+							assert.Truef(t, found, "details missing item: %s", item)
+						}
 					}
 				})
 			}
