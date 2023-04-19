@@ -12,9 +12,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -86,7 +86,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 
 	// Create Test Page
 	//nolint:lll
-	byteArray := mockconnector.GetMockPage("Byte Test")
+	byteArray := spMock.Page("Byte Test")
 
 	pageData := sharepoint.NewItem(
 		testName,

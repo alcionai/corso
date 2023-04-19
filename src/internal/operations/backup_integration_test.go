@@ -21,8 +21,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -114,7 +115,6 @@ func prepNewTestBackupOp(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connectorResource,
 		fault.New(true))
@@ -457,7 +457,7 @@ func buildCollections(
 			c.pathFolders,
 			false)
 
-		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(c.items))
+		mc := exchMock.NewCollection(pth, pth, len(c.items))
 
 		for i := 0; i < len(c.items); i++ {
 			mc.Names[i] = c.items[i].name
@@ -548,7 +548,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &mockconnector.GraphConnector{}
+	gc := &mock.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
@@ -749,7 +749,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))
@@ -770,7 +769,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	}
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
-		return mockconnector.GetMockMessageWith(
+		return exchMock.MessageWith(
 			suite.user, suite.user, suite.user,
 			subject, body, body,
 			now, now, now, now)
@@ -779,7 +778,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	contactDBF := func(id, timeStamp, subject, body string) []byte {
 		given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
 
-		return mockconnector.GetMockContactBytesWith(
+		return exchMock.ContactBytesWith(
 			given+" "+sur,
 			sur+", "+given,
 			given, mid, sur,
@@ -788,9 +787,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	}
 
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
-		return mockconnector.GetMockEventWith(
+		return exchMock.EventWith(
 			suite.user, subject, body, body,
-			now, now, mockconnector.NoRecurrence, mockconnector.NoAttendees, false)
+			now, now, exchMock.NoRecurrence, exchMock.NoAttendees, false)
 	}
 
 	// test data set
@@ -1202,7 +1201,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))

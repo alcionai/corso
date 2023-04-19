@@ -14,9 +14,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -97,7 +97,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, name string) *Item {
 				ow := kioser.NewJsonSerializationWriter()
-				listing := mockconnector.GetMockListDefault(name)
+				listing := spMock.ListDefault(name)
 				listing.SetDisplayName(&name)
 
 				err := ow.WriteObjectValue("", listing)
@@ -132,7 +132,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				return dir
 			},
 			getItem: func(t *testing.T, itemName string) *Item {
-				byteArray := mockconnector.GetMockPage(itemName)
+				byteArray := spMock.Page(itemName)
 				page, err := support.CreatePageFromBytes(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -182,7 +182,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	t := suite.T()
 
 	service := createTestService(t, suite.creds)
-	listing := mockconnector.GetMockListDefault("Mock List")
+	listing := spMock.ListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 	byteArray, err := service.Serialize(listing)

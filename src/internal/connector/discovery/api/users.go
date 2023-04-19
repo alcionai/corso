@@ -227,9 +227,18 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		err      error
 		userInfo = newUserInfo()
+
+		requestParameters = &users.ItemMailFoldersRequestBuilderGetQueryParameters{
+			Select: []string{"id"},
+			Top:    ptr.To[int32](1), // if we get any folders, then we have access.
+		}
+
+		options = users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: requestParameters,
+		}
 	)
 
-	err = c.allowsExchange(ctx, userID, userInfo)
+	err = c.allowsExchange(ctx, userID, userInfo, options)
 	if err != nil {
 		return nil, err
 	}
@@ -248,10 +257,15 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 }
 
 // verify mailbox enabled for user
-func (c Users) allowsExchange(ctx context.Context, userID string, userInfo *UserInfo) error {
+func (c Users) allowsExchange(
+	ctx context.Context,
+	userID string,
+	userInfo *UserInfo,
+	options users.ItemMailFoldersRequestBuilderGetRequestConfiguration,
+) error {
 	userInfo.HasMailBox = true
 
-	_, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+	_, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, &options)
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			logger.Ctx(ctx).Errorf("err getting user's mail folder: %s", err)

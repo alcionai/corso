@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -119,6 +120,15 @@ func (s oneDrive) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Includes),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s OneDriveScope) Conceal() string             { return conceal(s) }
+func (s OneDriveScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s OneDriveScope) String() string              { return conceal(s) }
+func (s OneDriveScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories
@@ -249,7 +259,7 @@ func (s *oneDrive) CreatedAfter(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -263,7 +273,7 @@ func (s *oneDrive) CreatedBefore(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -277,7 +287,7 @@ func (s *oneDrive) ModifiedAfter(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -291,7 +301,7 @@ func (s *oneDrive) ModifiedBefore(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -486,12 +496,6 @@ func (s OneDriveScope) setDefaults() {
 	case OneDriveFolder:
 		s[OneDriveItem.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a clone of the scope, then replaces the clone's user comparison
-// with only the provided user.
-func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
-	return discreteCopy(s, user)
 }
 
 // ---------------------------------------------------------------------------

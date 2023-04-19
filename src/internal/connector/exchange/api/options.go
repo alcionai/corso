@@ -155,27 +155,6 @@ func optionsForContactFolderByID(moreOps []string) (
 	return options, nil
 }
 
-// optionsForMailFolders transforms the options into a more dynamic call for MailFolders.
-// @param moreOps is a []string of options(e.g. "displayName", "isHidden")
-// @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForMailFolders(
-	moreOps []string,
-) (*users.ItemMailFoldersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForFolders)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemMailFoldersRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
 // optionsForMailFoldersItem transforms the options into a more dynamic call for MailFoldersById.
 // moreOps is a []string of options(e.g. "displayName", "isHidden")
 // Returns first call in MailFoldersById().GetWithRequestConfigurationAndResponseHandler(options, handler)
@@ -230,24 +209,6 @@ func optionsForContactChildFolders(
 		Select: selecting,
 	}
 	options := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
-// optionsForContacts transforms options into select query for MailContacts
-// @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForContacts(moreOps []string) (*users.ItemContactsRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForContacts)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemContactsRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &users.ItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 

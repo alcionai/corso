@@ -5,7 +5,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -66,7 +66,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		Tenant, User, Destination,
 		Count,
 		func(id, now, subject, body string) []byte {
-			return mockconnector.GetMockMessageWith(
+			return exchMock.MessageWith(
 				User, User, User,
 				subject, body, body,
 				now, now, now, now)
@@ -113,9 +113,9 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		Tenant, User, Destination,
 		Count,
 		func(id, now, subject, body string) []byte {
-			return mockconnector.GetMockEventWith(
+			return exchMock.EventWith(
 				User, subject, body, body,
-				now, now, mockconnector.NoRecurrence, mockconnector.NoAttendees, false)
+				now, now, exchMock.NoRecurrence, exchMock.NoAttendees, false)
 		},
 		control.Options{},
 		errs)
@@ -161,7 +161,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		func(id, now, subject, body string) []byte {
 			given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
 
-			return mockconnector.GetMockContactBytesWith(
+			return exchMock.ContactBytesWith(
 				given+" "+sur,
 				sur+", "+given,
 				given, mid, sur,

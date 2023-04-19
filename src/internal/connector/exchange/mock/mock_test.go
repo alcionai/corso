@@ -1,4 +1,4 @@
-package mockconnector_test
+package mock
 
 import (
 	"bytes"
@@ -6,32 +6,30 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
-type MockExchangeCollectionSuite struct {
+type MockSuite struct {
 	tester.Suite
 }
 
-func TestMockExchangeCollectionSuite(t *testing.T) {
-	suite.Run(t, &MockExchangeCollectionSuite{Suite: tester.NewUnitSuite(t)})
+func TestMockSuite(t *testing.T) {
+	suite.Run(t, &MockSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
+func (suite *MockSuite) TestMockExchangeCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
+	mdc := NewCollection(nil, nil, 2)
 	messagesRead := 0
 
 	for item := range mdc.Items(ctx, fault.New(true)) {
@@ -43,12 +41,12 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 	assert.Equal(suite.T(), 2, messagesRead)
 }
 
-func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
+func (suite *MockSuite) TestMockExchangeCollectionItemSize() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	t := suite.T()
-	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
+	mdc := NewCollection(nil, nil, 2)
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
 	for item := range mdc.Items(ctx, fault.New(true)) {
@@ -63,12 +61,12 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
-func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
+func (suite *MockSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	t := suite.T()
-	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 3)
+	mdc := NewCollection(nil, nil, 3)
 	buf := &bytes.Buffer{}
 
 	for stream := range mdc.Items(ctx, fault.New(true)) {
@@ -96,12 +94,12 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 
 	table := []struct {
 		name   string
-		reader *mockconnector.MockExchangeData
+		reader *Data
 		check  require.ErrorAssertionFunc
 	}{
 		{
 			name: "NoError",
-			reader: &mockconnector.MockExchangeData{
+			reader: &Data{
 				ID:     id,
 				Reader: io.NopCloser(bytes.NewReader(itemData)),
 			},
@@ -109,7 +107,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 		},
 		{
 			name: "Error",
-			reader: &mockconnector.MockExchangeData{
+			reader: &Data{
 				ID:      id,
 				ReadErr: assert.AnError,
 			},
@@ -143,7 +141,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		{
 			name: "Message Bytes",
 			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockMessageBytes(subject)
+				bytes := MessageBytes(subject)
 				_, err := support.CreateMessageFromBytes(bytes)
 				return err
 			},
@@ -151,7 +149,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		{
 			name: "Event Message Response: Regression",
 			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockEventMessageResponse(subject)
+				bytes := EventMessageResponse(subject)
 				_, err := support.CreateMessageFromBytes(bytes)
 				return err
 			},
@@ -159,7 +157,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		{
 			name: "Event Message Request: Regression",
 			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockEventMessageRequest(subject)
+				bytes := EventMessageRequest(subject)
 				_, err := support.CreateMessageFromBytes(bytes)
 				return err
 			},
@@ -167,7 +165,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		{
 			name: "Contact Bytes",
 			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockContactBytes(subject)
+				bytes := ContactBytes(subject)
 				_, err := support.CreateContactFromBytes(bytes)
 				return err
 			},
@@ -175,51 +173,8 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		{
 			name: "Event No Attendees Bytes",
 			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetDefaultMockEventBytes(subject)
+				bytes := EventBytes(subject)
 				_, err := support.CreateEventFromBytes(bytes)
-				return err
-			},
-		},
-		{
-			name: "Event w/ Attendees Bytes",
-			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockEventWithAttendeesBytes(subject)
-				_, err := support.CreateEventFromBytes(bytes)
-				return err
-			},
-		},
-		{
-			name: "SharePoint: List Empty",
-			transformation: func(t *testing.T) error {
-				emptyMap := make(map[string]string)
-				temp := mockconnector.GetMockList(subject, "Artist", emptyMap)
-				writer := kioser.NewJsonSerializationWriter()
-				err := writer.WriteObjectValue("", temp)
-				require.NoError(t, err, clues.ToCore(err))
-
-				bytes, err := writer.GetSerializedContent()
-				require.NoError(t, err, clues.ToCore(err))
-
-				_, err = support.CreateListFromBytes(bytes)
-
-				return err
-			},
-		},
-		{
-			name: "SharePoint: List 6 Items",
-			transformation: func(t *testing.T) error {
-				bytes, err := mockconnector.GetMockListBytes(subject)
-				require.NoError(t, err, clues.ToCore(err))
-				_, err = support.CreateListFromBytes(bytes)
-				return err
-			},
-		},
-		{
-			name: "SharePoint: Page",
-			transformation: func(t *testing.T) error {
-				bytes := mockconnector.GetMockPage(subject)
-				_, err := support.CreatePageFromBytes(bytes)
-
 				return err
 			},
 		},
