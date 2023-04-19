@@ -272,7 +272,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 			progress.UploadProgress = u.Progress
 			u.Progress = progress
 			u.CheckpointLabels = tags
-			//u.ParallelUploads = 3
 
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {

@@ -212,19 +212,14 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 	logger.Ctx(ctx).Infow("fetching data with parallelism", "fetch_parallelism", fetchParallelism)
 
-	//semaphoreCh := make(chan struct{}, fetchParallelism)
-	//defer close(semaphoreCh)
-
 	// delete all removed items
 	// Do we need semaphore for removed jobs?
 	for id := range col.removed {
-		//semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
 		go func(id string) {
 			defer wg.Done()
-			//defer func() { <-semaphoreCh }()
 
 			col.data <- &Stream{
 				id:      id,
@@ -247,13 +242,10 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			break
 		}
 
-		//semaphoreCh <- struct{}{}
-
 		wg.Add(1)
 
 		go func(id string) {
 			defer wg.Done()
-			//defer func() { <-semaphoreCh }()
 
 			item, info, err := col.items.GetItem(
 				ctx,

@@ -44,7 +44,6 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
-	//SemaphoreCh chan struct{}
 }
 
 // BackupResults aggregate the details of the result of the operation.
