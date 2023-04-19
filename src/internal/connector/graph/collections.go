@@ -46,6 +46,10 @@ func (c emptyCollection) DoNotMergeItems() bool {
 	return false
 }
 
+// ---------------------------------------------------------------------------
+// base collections
+// ---------------------------------------------------------------------------
+
 func BaseCollections(
 	ctx context.Context,
 	colls []data.BackupCollection,
@@ -89,4 +93,85 @@ func BaseCollections(
 	}
 
 	return res, lastErr
+}
+
+// ---------------------------------------------------------------------------
+// prefix migration
+// ---------------------------------------------------------------------------
+
+var _ data.BackupCollection = prefixCollection{}
+
+// TODO: move this out of graph.  /data would be a much better owner
+// for a generic struct like this.  However, support.StatusUpdater makes
+// it difficult to extract from this package in a generic way.
+type prefixCollection struct {
+	full, prev path.Path
+	su         support.StatusUpdater
+	state      data.CollectionState
+}
+
+func (c prefixCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Stream {
+	res := make(chan data.Stream)
+	close(res)
+
+	s := support.CreateStatus(ctx, support.Backup, 0, support.CollectionMetrics{}, "")
+	c.su(s)
+
+	return res
+}
+
+func (c prefixCollection) FullPath() path.Path {
+	return c.full
+}
+
+func (c prefixCollection) PreviousPath() path.Path {
+	return c.prev
+}
+
+func (c prefixCollection) State() data.CollectionState {
+	return c.state
+}
+
+func (c prefixCollection) DoNotMergeItems() bool {
+	return false
+}
+
+// Creates a new collection that only handles prefix pathing.
+func NewPrefixCollection(prev, full path.Path, su support.StatusUpdater) (*prefixCollection, error) {
+	if prev != nil {
+		if len(prev.Item()) > 0 {
+			return nil, clues.New("prefix collection previous path contains an item")
+		}
+
+		if len(prev.Folders()) > 0 {
+			return nil, clues.New("prefix collection previous path contains folders")
+		}
+	}
+
+	if full != nil {
+		if len(full.Item()) > 0 {
+			return nil, clues.New("prefix collection full path contains an item")
+		}
+
+		if len(full.Folders()) > 0 {
+			return nil, clues.New("prefix collection full path contains folders")
+		}
+	}
+
+	pc := &prefixCollection{
+		prev:  prev,
+		full:  full,
+		su:    su,
+		state: data.StateOf(prev, full),
+	}
+
+	if pc.state == data.DeletedState {
+		return nil, clues.New("collection attempted to delete prefix")
+	}
+
+	if pc.state == data.NewState {
+		return nil, clues.New("collection attempted to create a new prefix")
+	}
+
+	return pc, nil
 }

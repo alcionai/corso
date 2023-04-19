@@ -1712,7 +1712,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, ent := range deets.Entries {
-		assert.Contains(t, ent.RepoRef, uid)
+		// 46 is the tenant uuid + "onedrive" + two slashes
+		if len(ent.RepoRef) > 46 {
+			assert.Contains(t, ent.RepoRef, uid)
+		}
 	}
 }
 
