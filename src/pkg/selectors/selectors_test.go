@@ -439,8 +439,8 @@ func (suite *SelectorSuite) TestSelector_pii() {
 					ResourceOwners: filterFor(scopeConfig{}, "owner_1", "owner_2"),
 				}
 			},
-			expect:      `{"resourceOwners":"Cont:***,***","discreteOwner":"***"}`,
-			expectPlain: `{"resourceOwners":"Cont:owner_1,owner_2","discreteOwner":"owner"}`,
+			expect:      `{"resourceOwners":"EQ:***,***","discreteOwner":"***"}`,
+			expectPlain: `{"resourceOwners":"EQ:owner_1,owner_2","discreteOwner":"owner"}`,
 		},
 		{
 			name: "one scope each type",
@@ -456,14 +456,14 @@ func (suite *SelectorSuite) TestSelector_pii() {
 			},
 			//nolint:lll
 			expect: `{"service":1,` +
-				`"resourceOwners":"Cont:***,***",` +
+				`"resourceOwners":"EQ:***,***",` +
 				`"discreteOwner":"***",` +
 				`"exclusions":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathCont:***","category":"Identity:***","type":"Identity:***"}],` +
 				`"filters":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathSfx:***","category":"Identity:***","type":"Identity:***"}],` +
 				`"includes":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathPfx:***","category":"Identity:***","type":"Identity:***"}]}`,
 			//nolint:lll
 			expectPlain: `{"service":1,` +
-				`"resourceOwners":"Cont:owner_1,owner_2",` +
+				`"resourceOwners":"EQ:owner_1,owner_2",` +
 				`"discreteOwner":"owner",` +
 				`"exclusions":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathCont:e","category":"Identity:ExchangeMailFolder","type":"Identity:ExchangeMail"}],` +
 				`"filters":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathSfx:f","category":"Identity:ExchangeMailFolder","type":"Identity:ExchangeMail"}],` +

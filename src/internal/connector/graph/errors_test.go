@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"net/http"
+	"syscall"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -30,6 +31,35 @@ func odErr(code string) *odataerrors.ODataError {
 	odErr.SetError(&merr)
 
 	return odErr
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "matching",
+			err:    syscall.ECONNRESET,
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrConnectionReset(test.err))
+		})
+	}
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {

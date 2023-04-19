@@ -585,11 +585,7 @@ func filterize(
 		return defaultFilter(targets)
 	}
 
-	if len(targets) == 1 {
-		return filters.Equal(targets)
-	}
-
-	return filters.Contains(targets)
+	return filters.Equal(targets)
 }
 
 // pathFilterFactory returns the appropriate path filter
