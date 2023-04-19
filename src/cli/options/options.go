@@ -18,6 +18,7 @@ func Control() control.Options {
 	opt.RestorePermissions = restorePermissionsFV
 	opt.SkipReduce = skipReduceFV
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementalsFV
+	opt.ToggleFeatures.ExchangeImmutableIDs = enableImmutableID
 	opt.ItemFetchParallelism = fetchParallelismFV
 
 	return opt
@@ -34,6 +35,7 @@ const (
 	RestorePermissionsFN  = "restore-permissions"
 	SkipReduceFN          = "skip-reduce"
 	DisableIncrementalsFN = "disable-incrementals"
+	EnableImmutableIDFN   = "enable-immutable-id"
 )
 
 var (
@@ -100,4 +102,18 @@ func AddDisableIncrementalsFlag(cmd *cobra.Command) {
 		false,
 		"Disable incremental data retrieval in backups.")
 	cobra.CheckErr(fs.MarkHidden(DisableIncrementalsFN))
+}
+
+var enableImmutableID bool
+
+// Adds the hidden '--enable-immutable-id' cli flag which, when set, enables
+// immutable IDs for Exchange
+func AddEnableImmutableIDFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&enableImmutableID,
+		EnableImmutableIDFN,
+		false,
+		"Enable exchange immutable ID.")
+	cobra.CheckErr(fs.MarkHidden(EnableImmutableIDFN))
 }
