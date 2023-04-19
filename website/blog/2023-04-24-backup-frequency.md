@@ -1,7 +1,7 @@
 ---
 slug: how-often-should-you-run-microsoft-365-backups
 title: "How often should you run Microsoft 365 backups?"
-description: "On the ideal cadence for backups"
+description: "On the ideal cadence for backups. The ideal frequency of backups should be a business-level decision - what RPO are you aiming for, any technical considerations will probably be secondary."
 authors: nica
 tags: [corso, microsoft 365, backups, best practices]
 date: 2023-04-24
@@ -11,7 +11,7 @@ image: ./images/astro-clock.jpg
 ![a closeup of the Prague Astronomical Clock By EWilson (Volunteer) - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=115416822](./images/astro-clock.jpg)
 <!-- vale Vale.Spelling = YES -->
 
-I was inspired by some recent conversations with Corso users on Discord, and
+I was inspired by some recent conversations with [Corso users on Discord](https://discord.gg/63DTTSnuhT), and
 this
 [Reddit thread](https://www.reddit.com/r/Office365/comments/127rt5q/what_is_your_backup_schedule/),
 to talk about the ideal cadence for backups.
@@ -117,7 +117,7 @@ For other tools, you should evaluate if it uses storage efficiently:
 - Since there’s a per-object storage cost with most S3 tiers, backups should bundle small items together
 - Backups should include compression and de-duplication to be as small as possible
 
-Take a look at some of our recent writing on selecting the best S3 storage tier
+[Take a look at some of our recent writing on selecting the best S3 storage tier](https://corsobackup.io/blog/aws-storage-class/)
 (spoiler warning it’s probably Glacier IR) for your S3 backups.
 
 ### You still haven’t answered my question: How often should you back up?
