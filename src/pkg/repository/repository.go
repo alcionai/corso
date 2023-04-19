@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -330,7 +329,7 @@ func (r repository) NewBackupWithLookup(
 		gc,
 		r.Account,
 		sel,
-		inMock.NewProvider(ownerID, ownerName),
+		sel, // the selector acts as an IDNamer for its discrete resource owner.
 		r.Bus)
 }
 

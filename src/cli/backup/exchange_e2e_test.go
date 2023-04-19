@@ -256,13 +256,8 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
-		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
-		ins      = idname.Cache{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		users = []string{suite.m365UserID}
+		ins   = idname.NewCache(map[string]string{suite.m365UserID: suite.m365UserID})
 	)
 
 	for _, set := range []path.CategoryType{email, contacts, events} {

@@ -135,12 +135,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	var (
 		m365SiteID = tester.M365SiteID(t)
 		sites      = []string{m365SiteID}
-		idToName   = map[string]string{m365SiteID: m365SiteID}
-		nameToID   = map[string]string{m365SiteID: m365SiteID}
-		ins        = idname.Cache{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		ins        = idname.NewCache(map[string]string{m365SiteID: m365SiteID})
 	)
 
 	// some tests require an existing backup

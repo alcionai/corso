@@ -289,10 +289,7 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 		return "", "", clues.Wrap(err, "identifying resource owner")
 	}
 
-	gc.IDNameLookup = idname.Cache{
-		IDToName: map[string]string{id: name},
-		NameToID: map[string]string{name: id},
-	}
+	gc.IDNameLookup = idname.NewCache(map[string]string{id: name})
 
 	return id, name, nil
 }

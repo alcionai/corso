@@ -77,13 +77,8 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	var (
-		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
-		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
-		ins      = idname.Cache{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		users = []string{suite.m365UserID}
+		ins   = idname.NewCache(map[string]string{suite.m365UserID: suite.m365UserID})
 	)
 
 	// init the repo first

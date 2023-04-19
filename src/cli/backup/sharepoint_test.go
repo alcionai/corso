@@ -156,10 +156,7 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 	)
 
 	var (
-		ins = idname.Cache{
-			IDToName: map[string]string{id1: url1, id2: url2},
-			NameToID: map[string]string{url1: id1, url2: id2},
-		}
+		ins     = idname.NewCache(map[string]string{id1: url1, id2: url2})
 		bothIDs = []string{id1, id2}
 	)
 

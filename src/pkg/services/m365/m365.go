@@ -117,10 +117,7 @@ func UsersMap(
 		nameToID[name] = id
 	}
 
-	ins := idname.Cache{
-		IDToName: idToName,
-		NameToID: nameToID,
-	}
+	ins := idname.NewCache(idToName)
 
 	return ins, nil
 }
@@ -213,17 +210,13 @@ func SitesMap(
 		return idname.Cache{}, err
 	}
 
-	ins := idname.Cache{
-		IDToName: make(map[string]string, len(sites)),
-		NameToID: make(map[string]string, len(sites)),
-	}
+	itn := make(map[string]string, len(sites))
 
 	for _, s := range sites {
-		ins.IDToName[s.ID] = s.WebURL
-		ins.NameToID[s.WebURL] = s.ID
+		itn[s.ID] = s.WebURL
 	}
 
-	return ins, nil
+	return idname.NewCache(itn), nil
 }
 
 // ---------------------------------------------------------------------------

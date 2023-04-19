@@ -171,12 +171,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	var (
 		m365UserID = tester.M365UserID(t)
 		users      = []string{m365UserID}
-		idToName   = map[string]string{m365UserID: m365UserID}
-		nameToID   = map[string]string{m365UserID: m365UserID}
-		ins        = idname.Cache{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		ins        = idname.NewCache(map[string]string{m365UserID: m365UserID})
 	)
 
 	// some tests require an existing backup
