@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -69,10 +70,10 @@ func getCollectionMetadata(
 
 	// Root folder doesn't have a metadata file associated with it.
 	folders := collectionPath.Folders()
-	metaName := folders[len(folders)-1] + DirMetaFileSuffix
+	metaName := folders[len(folders)-1] + metadata.DirMetaFileSuffix
 
 	if backupVersion >= version.OneDrive5DirMetaNoName {
-		metaName = DirMetaFileSuffix
+		metaName = metadata.DirMetaFileSuffix
 	}
 
 	meta, err := fetchAndReadMetadata(ctx, dc, metaName)

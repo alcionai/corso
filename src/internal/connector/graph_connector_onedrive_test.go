@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -165,43 +166,43 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name,
-			name+onedrive.DataFileSuffix,
+			name+metadata.DataFileSuffix,
 			fileData))
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
 		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
-			name+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
+			name+metadata.DataFileSuffix,
+			name+metadata.DataFileSuffix,
 			fileData))
 
-		metadata := onedriveMetadata(
+		md := onedriveMetadata(
 			c.t,
 			"",
-			name+onedrive.MetaFileSuffix,
-			name+onedrive.MetaFileSuffix,
+			name+metadata.MetaFileSuffix,
+			name+metadata.MetaFileSuffix,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
-		c.items = append(c.items, metadata)
-		c.aux = append(c.aux, metadata)
+		c.items = append(c.items, md)
+		c.aux = append(c.aux, md)
 
 	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
-			name+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
+			name+metadata.DataFileSuffix,
+			name+metadata.DataFileSuffix,
 			fileData))
 
-		metadata := onedriveMetadata(
+		md := onedriveMetadata(
 			c.t,
 			name,
-			name+onedrive.MetaFileSuffix,
+			name+metadata.MetaFileSuffix,
 			name,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
-		c.items = append(c.items, metadata)
-		c.aux = append(c.aux, metadata)
+		c.items = append(c.items, md)
+		c.aux = append(c.aux, md)
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -222,8 +223,8 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 			onedriveMetadata(
 				c.t,
 				"",
-				name+onedrive.DirMetaFileSuffix,
-				name+onedrive.DirMetaFileSuffix,
+				name+metadata.DirMetaFileSuffix,
+				name+metadata.DirMetaFileSuffix,
 				perm,
 				c.backupVersion >= versionPermissionSwitchedToID))
 
@@ -255,16 +256,16 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 		return c
 	}
 
-	metadata := onedriveMetadata(
+	md := onedriveMetadata(
 		c.t,
 		name,
-		metaName+onedrive.DirMetaFileSuffix,
-		metaName+onedrive.DirMetaFileSuffix,
+		metaName+metadata.DirMetaFileSuffix,
+		metaName+metadata.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
 
-	c.items = append(c.items, metadata)
-	c.aux = append(c.aux, metadata)
+	c.items = append(c.items, md)
+	c.aux = append(c.aux, md)
 
 	return c
 }
@@ -445,7 +446,7 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites),
+		connector:     loadConnector(ctx, suite.T(), Sites),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
@@ -492,7 +493,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		connector:     loadConnector(ctx, suite.T(), Users),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
@@ -551,7 +552,7 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		connector:     loadConnector(ctx, suite.T(), Users),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
