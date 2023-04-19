@@ -20,7 +20,7 @@ ARG TARGETARCH
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /corso .
 
 ## Deploy
-FROM ubuntu:latest
+FROM ubuntu:kinetic
 
 COPY --from=build /corso /
 
