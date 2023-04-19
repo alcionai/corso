@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -267,9 +267,10 @@ func makeMetadataPath(
 
 func makeFolderEntry(
 	t *testing.T,
-	pb *path.Builder,
+	pb, loc *path.Builder,
 	size int64,
 	modTime time.Time,
+	dt details.ItemType,
 ) *details.DetailsEntry {
 	t.Helper()
 
@@ -277,13 +278,14 @@ func makeFolderEntry(
 		RepoRef:     pb.String(),
 		ShortRef:    pb.ShortRef(),
 		ParentRef:   pb.Dir().ShortRef(),
-		LocationRef: pb.PopFront().PopFront().PopFront().PopFront().Dir().String(),
+		LocationRef: loc.Dir().String(),
 		ItemInfo: details.ItemInfo{
 			Folder: &details.FolderInfo{
 				ItemType:    details.FolderItem,
-				DisplayName: pb.Elements()[len(pb.Elements())-1],
+				DisplayName: pb.LastElem(),
 				Modified:    modTime,
 				Size:        size,
+				DataType:    dt,
 			},
 		},
 	}
@@ -347,6 +349,7 @@ func makeDetailsEntry(
 			ParentPath: l.PopFront().String(),
 			Size:       int64(size),
 			DriveID:    "drive-id",
+			DriveName:  "drive-name",
 		}
 
 	default:
@@ -397,7 +400,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mockconnector.GraphConnector{}
+		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -1210,6 +1213,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			ro,
 			path.EmailCategory.String(),
 			"work",
+			"project8",
 			"item1",
 		}
 
@@ -1218,7 +1222,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			pathElems,
 			true)
 
-		locPath1 = path.Builder{}.Append(pathElems[:len(pathElems)-1]...)
+		locPath1 = path.Builder{}.Append(itemPath1.Folders()...)
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -1270,12 +1274,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	// update the details
 	itemDetails.Exchange.Modified = now
 
-	for i := 1; i < len(pathElems); i++ {
+	for i := 1; i <= len(locPath1.Elements()); i++ {
 		expectedEntries = append(expectedEntries, *makeFolderEntry(
 			t,
-			path.Builder{}.Append(pathElems[:i]...),
+			// Include prefix elements in the RepoRef calculations.
+			path.Builder{}.Append(pathElems[:4+i]...),
+			path.Builder{}.Append(locPath1.Elements()[:i]...),
 			int64(itemSize),
-			itemDetails.Exchange.Modified))
+			itemDetails.Exchange.Modified,
+			details.ExchangeMail))
 	}
 
 	ctx, flush := tester.NewContext()
@@ -1302,7 +1309,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 // compares two details slices.  Useful for tests where serializing the
 // entries can produce minor variations in the time struct, causing
 // assert.elementsMatch to fail.
-func compareDeetEntries(t *testing.T, expect, result []details.DetailsEntry) {
+func compareDeetEntries(
+	t *testing.T,
+	expect, result []details.DetailsEntry,
+) {
 	if !assert.Equal(t, len(expect), len(result), "entry slices should be equal len") {
 		require.ElementsMatch(t, expect, result)
 	}

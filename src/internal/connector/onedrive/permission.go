@@ -6,9 +6,11 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -69,10 +71,10 @@ func getCollectionMetadata(
 
 	// Root folder doesn't have a metadata file associated with it.
 	folders := collectionPath.Folders()
-	metaName := folders[len(folders)-1] + DirMetaFileSuffix
+	metaName := folders[len(folders)-1] + metadata.DirMetaFileSuffix
 
 	if backupVersion >= version.OneDrive5DirMetaNoName {
-		metaName = DirMetaFileSuffix
+		metaName = metadata.DirMetaFileSuffix
 	}
 
 	meta, err := fetchAndReadMetadata(ctx, dc, metaName)
@@ -127,6 +129,30 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
+// isSamePermission checks equality of two UserPermission objects
+func isSamePermission(p1, p2 UserPermission) bool {
+	// EntityID can be empty for older backups and Email can be empty
+	// for newer ones. It is not possible for both to be empty.  Also,
+	// if EntityID/Email for one is not empty then the other will also
+	// have EntityID/Email as we backup permissions for all the
+	// parents and children when we have a change in permissions.
+	if p1.EntityID != "" && p1.EntityID != p2.EntityID {
+		return false
+	}
+
+	if p1.Email != "" && p1.Email != p2.Email {
+		return false
+	}
+
+	p1r := p1.Roles
+	p2r := p2.Roles
+
+	slices.Sort(p1r)
+	slices.Sort(p2r)
+
+	return slices.Equal(p1r, p2r)
+}
+
 func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
 	var (
 		added   = []UserPermission{}
@@ -137,7 +163,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, pp := range before {
-			if pp.ID == cp.ID {
+			if isSamePermission(cp, pp) {
 				found = true
 				break
 			}
@@ -152,7 +178,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, cp := range after {
-			if pp.ID == cp.ID {
+			if isSamePermission(cp, pp) {
 				found = true
 				break
 			}
@@ -218,6 +244,8 @@ func UpdatePermissions(
 	permAdded, permRemoved []UserPermission,
 	permissionIDMappings map[string]string,
 ) error {
+	// The ordering of the operations is important here. We first
+	// remove all the removed permissions and then add the added ones.
 	for _, p := range permRemoved {
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707

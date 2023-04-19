@@ -1,8 +1,11 @@
 package filters_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -18,9 +21,29 @@ func TestFiltersSuite(t *testing.T) {
 	suite.Run(t, &FiltersSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+// set the clues hashing to mask for the span of this suite
+func (suite *FiltersSuite) SetupSuite() {
+	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
+}
+
+// revert clues hashing to plaintext for all other tests
+func (suite *FiltersSuite) TeardownSuite() {
+	clues.SetHasher(clues.NoHash())
+}
+
+func sl(s ...string) []string {
+	return append([]string{}, s...)
+}
+
+var (
+	foo    = sl("foo")
+	five   = sl("5")
+	smurfs = sl("smurfs")
+)
+
 func (suite *FiltersSuite) TestEquals() {
-	f := filters.Equal("foo")
-	nf := filters.NotEqual("foo")
+	f := filters.Equal(foo)
+	nf := filters.NotEqual(foo)
 
 	table := []struct {
 		input    string
@@ -41,8 +64,8 @@ func (suite *FiltersSuite) TestEquals() {
 }
 
 func (suite *FiltersSuite) TestEquals_any() {
-	f := filters.Equal("foo")
-	nf := filters.NotEqual("foo")
+	f := filters.Equal(foo)
+	nf := filters.NotEqual(foo)
 
 	table := []struct {
 		name     string
@@ -64,8 +87,8 @@ func (suite *FiltersSuite) TestEquals_any() {
 }
 
 func (suite *FiltersSuite) TestGreater() {
-	f := filters.Greater("5")
-	nf := filters.NotGreater("5")
+	f := filters.Greater(five)
+	nf := filters.NotGreater(five)
 
 	table := []struct {
 		input    string
@@ -87,8 +110,8 @@ func (suite *FiltersSuite) TestGreater() {
 }
 
 func (suite *FiltersSuite) TestLess() {
-	f := filters.Less("5")
-	nf := filters.NotLess("5")
+	f := filters.Less(five)
+	nf := filters.NotLess(five)
 
 	table := []struct {
 		input    string
@@ -110,8 +133,8 @@ func (suite *FiltersSuite) TestLess() {
 }
 
 func (suite *FiltersSuite) TestContains() {
-	f := filters.Contains("smurfs")
-	nf := filters.NotContains("smurfs")
+	f := filters.Contains(smurfs)
+	nf := filters.NotContains(smurfs)
 
 	table := []struct {
 		input    string
@@ -131,32 +154,9 @@ func (suite *FiltersSuite) TestContains() {
 	}
 }
 
-func (suite *FiltersSuite) TestContains_Joined() {
-	f := filters.Contains("smarf,userid")
-	nf := filters.NotContains("smarf,userid")
-
-	table := []struct {
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"userid", assert.True, assert.False},
-		{"f,userid", assert.True, assert.False},
-		{"fnords", assert.False, assert.True},
-	}
-	for _, test := range table {
-		suite.Run(test.input, func() {
-			t := suite.T()
-
-			test.expectF(t, f.Compare(test.input), "filter")
-			test.expectNF(t, nf.Compare(test.input), "negated filter")
-		})
-	}
-}
-
 func (suite *FiltersSuite) TestIn() {
-	f := filters.In([]string{"murf"})
-	nf := filters.NotIn([]string{"murf"})
+	f := filters.In(sl("murf"))
+	nf := filters.NotIn(sl("murf"))
 
 	table := []struct {
 		input    string
@@ -177,8 +177,8 @@ func (suite *FiltersSuite) TestIn() {
 }
 
 func (suite *FiltersSuite) TestIn_MultipleTargets() {
-	f := filters.In([]string{"murf", "foo"})
-	nf := filters.NotIn([]string{"murf", "foo"})
+	f := filters.In(sl("murf", "foo"))
+	nf := filters.NotIn(sl("murf", "foo"))
 
 	table := []struct {
 		input    string
@@ -201,8 +201,8 @@ func (suite *FiltersSuite) TestIn_MultipleTargets() {
 }
 
 func (suite *FiltersSuite) TestIn_MultipleTargets_Joined() {
-	f := filters.In([]string{"userid", "foo"})
-	nf := filters.NotIn([]string{"userid", "foo"})
+	f := filters.In(sl("userid", "foo"))
+	nf := filters.NotIn(sl("userid", "foo"))
 
 	table := []struct {
 		input    string
@@ -225,8 +225,8 @@ func (suite *FiltersSuite) TestIn_MultipleTargets_Joined() {
 }
 
 func (suite *FiltersSuite) TestIn_Joined() {
-	f := filters.In([]string{"userid"})
-	nf := filters.NotIn([]string{"userid"})
+	f := filters.In(sl("userid"))
+	nf := filters.NotIn(sl("userid"))
 
 	table := []struct {
 		input    string
@@ -247,7 +247,7 @@ func (suite *FiltersSuite) TestIn_Joined() {
 }
 
 func (suite *FiltersSuite) TestPrefixes() {
-	target := "folderA"
+	target := sl("folderA")
 	f := filters.Prefix(target)
 	nf := filters.NotPrefix(target)
 
@@ -274,7 +274,7 @@ func (suite *FiltersSuite) TestPrefixes() {
 }
 
 func (suite *FiltersSuite) TestSuffixes() {
-	target := "folderB"
+	target := sl("folderB")
 	f := filters.Suffix(target)
 	nf := filters.NotSuffix(target)
 
@@ -610,6 +610,98 @@ func (suite *FiltersSuite) TestPathEquals_NormalizedTargets() {
 
 			f := filters.PathEquals(test.targets)
 			assert.Equal(t, test.expect, f.NormalizedTargets)
+		})
+	}
+}
+
+func (suite *FiltersSuite) TestFilter_pii() {
+	targets := []string{"fnords", "smarf", "*"}
+
+	table := []struct {
+		name string
+		f    filters.Filter
+	}{
+		{"equal", filters.Equal(targets)},
+		{"contains", filters.Contains(targets)},
+		{"greater", filters.Greater(targets)},
+		{"less", filters.Less(targets)},
+		{"prefix", filters.Prefix(targets)},
+		{"suffix", filters.Suffix(targets)},
+		{"pathprefix", filters.PathPrefix(targets)},
+		{"pathsuffix", filters.PathSuffix(targets)},
+		{"pathcontains", filters.PathContains(targets)},
+		{"pathequals", filters.PathEquals(targets)},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t           = suite.T()
+				expect      = test.f.Comparator.String() + ":***,***,*"
+				expectPlain = test.f.Comparator.String() + ":" + strings.Join(targets, ",")
+			)
+
+			result := test.f.Conceal()
+			assert.Equal(t, expect, result, "conceal")
+
+			result = test.f.String()
+			assert.Equal(t, expect, result, "string")
+
+			result = test.f.PlainString()
+			assert.Equal(t, expectPlain, result, "plainString")
+
+			result = fmt.Sprintf("%s", test.f)
+			assert.Equal(t, expect, result, "fmt %%s")
+
+			result = fmt.Sprintf("%v", test.f)
+			assert.Equal(t, expect, result, "fmt %%v")
+
+			result = fmt.Sprintf("%+v", test.f)
+			assert.Equal(t, expect, result, "fmt %%+v")
+		})
+	}
+
+	table2 := []struct {
+		name        string
+		f           filters.Filter
+		expect      string
+		expectPlain string
+	}{
+		{"pass", filters.Pass(), "Pass", "Pass"},
+		{"fail", filters.Fail(), "Fail", "Fail"},
+		{
+			"identity",
+			filters.Identity("id"),
+			filters.IdentityValue.String() + ":***",
+			filters.IdentityValue.String() + ":id",
+		},
+		{
+			"identity",
+			filters.Identity("*"),
+			filters.IdentityValue.String() + ":*",
+			filters.IdentityValue.String() + ":*",
+		},
+	}
+	for _, test := range table2 {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := test.f.Conceal()
+			assert.Equal(t, test.expect, result, "conceal")
+
+			result = test.f.String()
+			assert.Equal(t, test.expect, result, "string")
+
+			result = test.f.PlainString()
+			assert.Equal(t, test.expectPlain, result, "plainString")
+
+			result = fmt.Sprintf("%s", test.f)
+			assert.Equal(t, test.expect, result, "fmt %%s")
+
+			result = fmt.Sprintf("%v", test.f)
+			assert.Equal(t, test.expect, result, "fmt %%v")
+
+			result = fmt.Sprintf("%+v", test.f)
+			assert.Equal(t, test.expect, result, "fmt %%+v")
 		})
 	}
 }

@@ -151,3 +151,134 @@ func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
 		})
 	}
 }
+
+func (suite *PermissionsUnitTestSuite) TestDiffPermissions() {
+	perm1 := UserPermission{
+		ID:       "id1",
+		Roles:    []string{"read"},
+		EntityID: "user-id1",
+	}
+
+	perm2 := UserPermission{
+		ID:       "id2",
+		Roles:    []string{"write"},
+		EntityID: "user-id2",
+	}
+
+	perm3 := UserPermission{
+		ID:       "id3",
+		Roles:    []string{"write"},
+		EntityID: "user-id3",
+	}
+
+	// The following two permissions have same id and user but
+	// different roles, this is a valid scenario for permissions.
+	sameidperm1 := UserPermission{
+		ID:       "id0",
+		Roles:    []string{"write"},
+		EntityID: "user-id0",
+	}
+	sameidperm2 := UserPermission{
+		ID:       "id0",
+		Roles:    []string{"read"},
+		EntityID: "user-id0",
+	}
+
+	emailperm1 := UserPermission{
+		ID:    "id1",
+		Roles: []string{"read"},
+		Email: "email1@provider.com",
+	}
+
+	emailperm2 := UserPermission{
+		ID:    "id1",
+		Roles: []string{"read"},
+		Email: "email2@provider.com",
+	}
+
+	table := []struct {
+		name    string
+		before  []UserPermission
+		after   []UserPermission
+		added   []UserPermission
+		removed []UserPermission
+	}{
+		{
+			name:    "single permission added",
+			before:  []UserPermission{},
+			after:   []UserPermission{perm1},
+			added:   []UserPermission{perm1},
+			removed: []UserPermission{},
+		},
+		{
+			name:    "single permission removed",
+			before:  []UserPermission{perm1},
+			after:   []UserPermission{},
+			added:   []UserPermission{},
+			removed: []UserPermission{perm1},
+		},
+		{
+			name:    "multiple permission added",
+			before:  []UserPermission{},
+			after:   []UserPermission{perm1, perm2},
+			added:   []UserPermission{perm1, perm2},
+			removed: []UserPermission{},
+		},
+		{
+			name:    "single permission removed",
+			before:  []UserPermission{perm1, perm2},
+			after:   []UserPermission{},
+			added:   []UserPermission{},
+			removed: []UserPermission{perm1, perm2},
+		},
+		{
+			name:    "extra permissions",
+			before:  []UserPermission{perm1, perm2},
+			after:   []UserPermission{perm1, perm2, perm3},
+			added:   []UserPermission{perm3},
+			removed: []UserPermission{},
+		},
+		{
+			name:    "less permissions",
+			before:  []UserPermission{perm1, perm2, perm3},
+			after:   []UserPermission{perm1, perm2},
+			added:   []UserPermission{},
+			removed: []UserPermission{perm3},
+		},
+		{
+			name:    "same id different role",
+			before:  []UserPermission{sameidperm1},
+			after:   []UserPermission{sameidperm2},
+			added:   []UserPermission{sameidperm2},
+			removed: []UserPermission{sameidperm1},
+		},
+		{
+			name:    "email based extra permissions",
+			before:  []UserPermission{emailperm1},
+			after:   []UserPermission{emailperm1, emailperm2},
+			added:   []UserPermission{emailperm2},
+			removed: []UserPermission{},
+		},
+		{
+			name:    "email based less permissions",
+			before:  []UserPermission{emailperm1, emailperm2},
+			after:   []UserPermission{emailperm1},
+			added:   []UserPermission{},
+			removed: []UserPermission{emailperm2},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			_, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			added, removed := diffPermissions(test.before, test.after)
+
+			assert.Equal(t, added, test.added, "added permissions")
+			assert.Equal(t, removed, test.removed, "removed permissions")
+		})
+	}
+}

@@ -41,6 +41,7 @@ type (
 func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
+	_ bool,
 ) (
 	[]string,
 	[]string,
