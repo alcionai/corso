@@ -11,12 +11,11 @@ import (
 // interfaces
 // ---------------------------------------------------------------------------
 
-// Client is used to fulfill the interface for discovery
-// queries that are traditionally backed by GraphAPI.  A
-// struct is used in this case, instead of deferring to
-// pure function wrappers, so that the boundary separates the
-// granular implementation of the graphAPI and kiota away
-// from the exchange package's broader intents.
+// Client is used to fulfill queries that are traditionally
+// backed by GraphAPI. A struct is used in this case, instead
+// of deferring to pure function wrappers, so that the boundary
+// separates the granular implementation of the graphAPI and
+// kiota away from the other packages.
 type Client struct {
 	Credentials account.M365Config
 
@@ -25,7 +24,7 @@ type Client struct {
 	stable graph.Servicer
 }
 
-// NewClient produces a new exchange api client.  Must be used in
+// NewClient produces a new api client.  Must be used in
 // place of creating an ad-hoc client struct.
 func NewClient(creds account.M365Config) (Client, error) {
 	s, err := newService(creds)
@@ -39,7 +38,7 @@ func NewClient(creds account.M365Config) (Client, error) {
 // service generates a new service.  Used for paged and other long-running
 // requests instead of the client's stable service, so that in-flight state
 // within the adapter doesn't get clobbered
-func (c Client) service() (*graph.Service, error) {
+func (c Client) Service() (*graph.Service, error) {
 	return newService(c.Credentials)
 }
 

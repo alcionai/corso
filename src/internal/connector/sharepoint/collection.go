@@ -11,7 +11,6 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -22,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DataCategory int
@@ -56,7 +56,7 @@ type Collection struct {
 	category      DataCategory
 	service       graph.Servicer
 	ctrl          control.Options
-	betaService   *dapi.BetaService
+	betaService   *m365api.BetaService
 	statusUpdater support.StatusUpdater
 }
 
