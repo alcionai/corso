@@ -270,7 +270,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 
 	expected := map[categorizer][]string{
 		OneDriveFolder: {"dir1/dir2"},
-		OneDriveItem:   {fileName, shortRef},
+		OneDriveItem:   {fileName, shortRef, fileName + "-id"},
 	}
 
 	ent := details.DetailsEntry{

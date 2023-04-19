@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -39,17 +39,9 @@ const (
 	// be retried
 	maxDownloadRetires = 3
 
-	MetaFileSuffix    = ".meta"
-	DirMetaFileSuffix = ".dirmeta"
-	DataFileSuffix    = ".data"
-
 	// Used to compare in case of OneNote files
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
-
-func IsMetaFile(name string) bool {
-	return strings.HasSuffix(name, MetaFileSuffix) || strings.HasSuffix(name, DirMetaFileSuffix)
-}
 
 var (
 	_ data.BackupCollection = &Collection{}
@@ -524,12 +516,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				atomic.AddInt64(&itemsFound, 1)
 
 				metaFileName = itemID
-				metaSuffix = MetaFileSuffix
+				metaSuffix = metadata.MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 
 				// metaFileName not set for directories so we get just ".dirmeta"
-				metaSuffix = DirMetaFileSuffix
+				metaSuffix = metadata.DirMetaFileSuffix
 			}
 
 			// Fetch metadata for the file
@@ -556,7 +548,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
 
 			if isFile {
-				dataSuffix := DataFileSuffix
+				dataSuffix := metadata.DataFileSuffix
 
 				// Construct a new lazy readCloser to feed to the collection consumer.
 				// This ensures that downloads won't be attempted unless that consumer
