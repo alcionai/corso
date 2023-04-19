@@ -1,4 +1,4 @@
-package mockconnector
+package mock
 
 import (
 	"fmt"
@@ -213,37 +213,37 @@ func generatePhoneNumber() string {
 	return phoneNo
 }
 
-// GetMockEventBytes returns test byte array representative of full Eventable item.
-func GetDefaultMockEventBytes(subject string) []byte {
-	return GetMockEventWithSubjectBytes(" " + subject + " Review + Lunch")
+// EventBytes returns test byte array representative of full Eventable item.
+func EventBytes(subject string) []byte {
+	return EventWithSubjectBytes(" " + subject + " Review + Lunch")
 }
 
-func GetMockEventWithSubjectBytes(subject string) []byte {
+func EventWithSubjectBytes(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
 	atTime := common.FormatTime(at)
 	endTime := common.FormatTime(at.Add(30 * time.Minute))
 
-	return GetMockEventWith(
+	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		atTime, endTime, NoRecurrence, NoAttendees, false,
 	)
 }
 
-func GetMockEventWithAttachment(subject string) []byte {
+func EventWithAttachment(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
 	atTime := common.FormatTime(at)
 
-	return GetMockEventWith(
+	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		atTime, atTime, NoRecurrence, NoAttendees, true,
 	)
 }
 
-func GetMockEventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
+func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
 	atTime := common.FormatTime(at)
@@ -255,31 +255,31 @@ func GetMockEventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte 
 		recurrenceTimeZone,
 	))
 
-	return GetMockEventWith(
+	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		atTime, atTime, recurrence, attendeesTmpl, true,
 	)
 }
 
-func GetMockEventWithAttendeesBytes(subject string) []byte {
+func EventWithAttendeesBytes(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
 	atTime := common.FormatTime(at)
 
-	return GetMockEventWith(
+	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		atTime, atTime, NoRecurrence, attendeesTmpl, true,
 	)
 }
 
-// GetMockEventWith returns bytes for an Eventable item.
+// EventWith returns bytes for an Eventable item.
 // start and end times should be in the format 2006-01-02T15:04:05.0000000Z.
 // The timezone (Z) will be automatically stripped.  A non-utc timezone may
 // produce unexpected results.
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
-func GetMockEventWith(
+func EventWith(
 	organizer, subject, body, bodyPreview,
 	startDateTime, endDateTime, recurrence, attendees string,
 	hasAttachments bool,

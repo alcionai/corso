@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -114,6 +115,10 @@ func IsErrTimeout(err error) bool {
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
 		os.IsTimeout(err)
+}
+
+func IsErrConnectionReset(err error) bool {
+	return errors.Is(err, syscall.ECONNRESET)
 }
 
 func IsErrUnauthorized(err error) bool {

@@ -10,7 +10,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -23,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 //----------------------------------------------------------------------------
@@ -264,10 +264,8 @@ func RestoreListCollection(
 			}
 
 			err = deets.Add(
-				itemPath.String(),
-				itemPath.ShortRef(),
-				"",
-				"", // TODO: implement locationRef
+				itemPath,
+				&path.Builder{}, // TODO: implement locationRef
 				true,
 				itemInfo)
 			if err != nil {
@@ -315,7 +313,7 @@ func RestorePageCollection(
 
 	var (
 		el      = errs.Local()
-		service = dapi.NewBetaService(adpt)
+		service = m365api.NewBetaService(adpt)
 		items   = dc.Items(ctx, errs)
 	)
 
@@ -354,10 +352,8 @@ func RestorePageCollection(
 			}
 
 			err = deets.Add(
-				itemPath.String(),
-				itemPath.ShortRef(),
-				"",
-				"", // TODO: implement locationRef
+				itemPath,
+				&path.Builder{}, // TODO: implement locationRef
 				true,
 				itemInfo)
 			if err != nil {

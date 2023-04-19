@@ -1,4 +1,4 @@
-package mockconnector
+package mock
 
 import (
 	"context"

@@ -11,8 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -472,7 +471,7 @@ func getBackupDetails(
 	if b.Version >= version.OneDrive1DataAndMetaFiles && b.Version < version.OneDrive3IsMetaMarker {
 		for _, d := range deets.Entries {
 			if d.OneDrive != nil {
-				d.OneDrive.IsMeta = onedrive.IsMetaFile(d.RepoRef)
+				d.OneDrive.IsMeta = metadata.HasMetaSuffix(d.RepoRef)
 			}
 		}
 	}
@@ -643,7 +642,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource, errs)
 	if err != nil {
 		return nil, err
 	}

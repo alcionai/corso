@@ -11,13 +11,13 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -58,7 +58,6 @@ type GraphConnector struct {
 
 func NewGraphConnector(
 	ctx context.Context,
-	itemClient *http.Client,
 	acct account.Account,
 	r resource,
 	errs *fault.Bus,
@@ -89,7 +88,7 @@ func NewGraphConnector(
 		Service:      service,
 
 		credentials: creds,
-		itemClient:  itemClient,
+		itemClient:  graph.HTTPClient(graph.NoTimeout()),
 		ownerLookup: rc,
 		tenant:      acct.ID(),
 		wg:          &sync.WaitGroup{},

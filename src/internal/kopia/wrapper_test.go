@@ -17,10 +17,12 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -209,11 +211,11 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	collections := []data.BackupCollection{
-		mockconnector.NewMockExchangeCollection(
+		exchMock.NewCollection(
 			suite.storePath1,
 			suite.locPath1,
 			5),
-		mockconnector.NewMockExchangeCollection(
+		exchMock.NewCollection(
 			suite.storePath2,
 			suite.locPath2,
 			42),
@@ -294,12 +296,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
 
-			// 47 file and 6 folder entries.
+			// 47 file and 2 folder entries.
 			details := deets.Details().Entries
 			assert.Len(
 				t,
 				details,
-				test.expectedUploadedFiles+test.expectedCachedFiles+6,
+				test.expectedUploadedFiles+test.expectedCachedFiles+2,
 			)
 
 			for _, entry := range details {
@@ -331,6 +333,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	}
 }
 
+// TODO(ashmrtn): This should really be moved to an e2e test that just checks
+// details for certain things.
 func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	tmp, err := path.Build(
 		testTenant,
@@ -342,7 +346,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	storePath := tmp
-	locPath := tmp
+	locPath := path.Builder{}.Append(tmp.Folders()...)
+
+	baseOneDriveItemInfo := details.OneDriveInfo{
+		ItemType:  details.OneDriveItem,
+		DriveID:   "drive-id",
+		DriveName: "drive-name",
+		ItemName:  "item",
+	}
 
 	// tags that are supplied by the caller. This includes basic tags to support
 	// lookups and extra tags the caller may want to apply.
@@ -385,13 +396,32 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			numDeetsEntries: 3,
 			hasMetaDeets:    true,
 			cols: func() []data.BackupCollection {
-				mc := mockconnector.NewMockExchangeCollection(
-					storePath,
-					locPath,
-					3)
-				mc.Names[0] = testFileName
-				mc.Names[1] = testFileName + onedrive.MetaFileSuffix
-				mc.Names[2] = storePath.Folders()[0] + onedrive.DirMetaFileSuffix
+				streams := []data.Stream{}
+				fileNames := []string{
+					testFileName,
+					testFileName + metadata.MetaFileSuffix,
+					metadata.DirMetaFileSuffix,
+				}
+
+				for _, name := range fileNames {
+					info := baseOneDriveItemInfo
+					info.ItemName = name
+
+					ms := &mock.Stream{
+						ID:       name,
+						Reader:   io.NopCloser(&bytes.Buffer{}),
+						ItemSize: 0,
+						ItemInfo: details.ItemInfo{OneDrive: &info},
+					}
+
+					streams = append(streams, ms)
+				}
+
+				mc := &mockBackupCollection{
+					path:    storePath,
+					loc:     locPath,
+					streams: streams,
+				}
 
 				return []data.BackupCollection{mc}
 			},
@@ -404,12 +434,22 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			numDeetsEntries: 1,
 			hasMetaDeets:    false,
 			cols: func() []data.BackupCollection {
-				mc := mockconnector.NewMockExchangeCollection(
-					storePath,
-					locPath,
-					1)
-				mc.Names[0] = testFileName
-				mc.ColState = data.NotMovedState
+				info := baseOneDriveItemInfo
+				info.ItemName = testFileName
+
+				ms := &mock.Stream{
+					ID:       testFileName,
+					Reader:   io.NopCloser(&bytes.Buffer{}),
+					ItemSize: 0,
+					ItemInfo: details.ItemInfo{OneDrive: &info},
+				}
+
+				mc := &mockBackupCollection{
+					path:    storePath,
+					loc:     locPath,
+					streams: []data.Stream{ms},
+					state:   data.NotMovedState,
+				}
 
 				return []data.BackupCollection{mc}
 			},
@@ -441,12 +481,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
 
-			// 47 file and 5 folder entries.
+			// 47 file and 1 folder entries.
 			details := deets.Details().Entries
 			assert.Len(
 				t,
 				details,
-				test.numDeetsEntries+5,
+				test.numDeetsEntries+1,
 			)
 
 			for _, entry := range details {
@@ -456,12 +496,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					continue
 				}
 
-				assert.False(t, onedrive.IsMetaFile(entry.RepoRef), "metadata entry in details")
+				assert.False(t, metadata.HasMetaSuffix(entry.RepoRef), "metadata entry in details")
 			}
 
 			// Shouldn't have any items to merge because the cached files are metadata
 			// files.
-			assert.Equal(t, 0, prevShortRefs.ItemsToMerge())
+			assert.Equal(t, 0, prevShortRefs.ItemsToMerge(), "merge items")
 
 			checkSnapshotTags(
 				t,
@@ -512,8 +552,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		tags[k] = ""
 	}
 
-	dc1 := mockconnector.NewMockExchangeCollection(suite.storePath1, suite.locPath1, 1)
-	dc2 := mockconnector.NewMockExchangeCollection(suite.storePath2, suite.locPath2, 1)
+	dc1 := exchMock.NewCollection(suite.storePath1, suite.locPath1, 1)
+	dc2 := exchMock.NewCollection(suite.storePath2, suite.locPath2, 1)
 
 	fp1, err := suite.storePath1.Append(dc1.Names[0], true)
 	require.NoError(t, err, clues.ToCore(err))
@@ -556,7 +596,9 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 type mockBackupCollection struct {
 	path    path.Path
+	loc     *path.Builder
 	streams []data.Stream
+	state   data.CollectionState
 }
 
 func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
@@ -581,8 +623,12 @@ func (c mockBackupCollection) PreviousPath() path.Path {
 	return nil
 }
 
+func (c mockBackupCollection) LocationPath() *path.Builder {
+	return c.loc
+}
+
 func (c mockBackupCollection) State() data.CollectionState {
-	return data.NewState
+	return c.state
 }
 
 func (c mockBackupCollection) DoNotMergeItems() bool {
@@ -592,6 +638,8 @@ func (c mockBackupCollection) DoNotMergeItems() bool {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
+	loc1 := path.Builder{}.Append(suite.storePath1.Folders()...)
+	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
 	tags := map[string]string{}
 	reason := Reason{
 		ResourceOwner: testUser,
@@ -606,12 +654,13 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	collections := []data.BackupCollection{
 		&mockBackupCollection{
 			path: suite.storePath1,
+			loc:  loc1,
 			streams: []data.Stream{
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:     testFileName,
 					Reader: io.NopCloser(bytes.NewReader(testFileData)),
 				},
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:     testFileName2,
 					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
 				},
@@ -619,20 +668,21 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 		&mockBackupCollection{
 			path: suite.storePath2,
+			loc:  loc2,
 			streams: []data.Stream{
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:     testFileName3,
 					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
 				},
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:      testFileName4,
 					ReadErr: assert.AnError,
 				},
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:     testFileName5,
 					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
 				},
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:     testFileName6,
 					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
 				},
@@ -654,8 +704,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Equal(t, 6, stats.TotalDirectoryCount)
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
-	// 5 file and 6 folder entries.
-	assert.Len(t, deets.Details().Entries, 5+6)
+	// 5 file and 2 folder entries.
+	assert.Len(t, deets.Details().Entries, 5+2)
 
 	failedPath, err := suite.storePath2.Append(testFileName4, true)
 	require.NoError(t, err, clues.ToCore(err))
@@ -836,12 +886,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	collections := []data.BackupCollection{}
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
-		collection := &mockBackupCollection{path: parent}
+		loc := path.Builder{}.Append(parent.Folders()...)
+		collection := &mockBackupCollection{path: parent, loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
 			collection.streams = append(
 				collection.streams,
-				&mockconnector.MockExchangeData{
+				&exchMock.Data{
 					ID:     item.itemPath.Item(),
 					Reader: io.NopCloser(bytes.NewReader(item.data)),
 				},
@@ -876,8 +927,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	// 6 file and 6 folder entries.
-	assert.Len(t, deets.Details().Entries, expectedFiles+expectedDirs)
+	// 6 file and 2 folder entries.
+	assert.Len(t, deets.Details().Entries, expectedFiles+2)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
@@ -978,7 +1029,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			expectedCachedItems:   len(suite.filesByPath),
 			expectedUncachedItems: 1,
 			cols: func() []data.BackupCollection {
-				c := mockconnector.NewMockExchangeCollection(
+				c := exchMock.NewCollection(
 					suite.testPath1,
 					suite.testPath1,
 					1)

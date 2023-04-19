@@ -9,8 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -44,7 +45,7 @@ func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
 		},
 		{
 			name:        "aMessage bytes",
-			byteArray:   mockconnector.GetMockMessageBytes("m365 mail support test"),
+			byteArray:   exchMock.MessageBytes("m365 mail support test"),
 			checkError:  assert.NoError,
 			checkObject: assert.NotNil,
 		},
@@ -83,7 +84,7 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 		},
 		{
 			name:       "Valid Contact",
-			byteArray:  mockconnector.GetMockContactBytes("Support Test"),
+			byteArray:  exchMock.ContactBytes("Support Test"),
 			checkError: assert.NoError,
 			isNil:      assert.NotNil,
 		},
@@ -120,7 +121,7 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 		},
 		{
 			name:       "Valid Event",
-			byteArray:  mockconnector.GetDefaultMockEventBytes("Event Test"),
+			byteArray:  exchMock.EventBytes("Event Test"),
 			checkError: assert.NoError,
 			isNil:      assert.NotNil,
 		},
@@ -137,7 +138,7 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 }
 
 func (suite *DataSupportSuite) TestCreateListFromBytes() {
-	listBytes, err := mockconnector.GetMockListBytes("DataSupportSuite")
+	listBytes, err := spMock.ListBytes("DataSupportSuite")
 	require.NoError(suite.T(), err)
 
 	tests := []struct {
