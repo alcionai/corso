@@ -63,6 +63,7 @@ func prepNewTestBackupOp(
 	bus events.Eventer,
 	sel selectors.Selector,
 	featureToggles control.Toggles,
+	backupVersion int,
 ) (
 	BackupOperation,
 	account.Account,
@@ -656,7 +657,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.Toggles{}
 			)
 
-			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -877,7 +878,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		sel.ContactFolders(containers, selectors.PrefixMatch()),
 	)
 
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1164,7 +1165,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1258,7 +1259,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	sel := selectors.NewOneDriveBackup(owners)
 	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
 
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1612,17 +1613,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
 
-		// `now` has to be formatted with SimpleDateTimeOneDrive as
-		// some onedrive cannot have `:` in file/folder names
-		now = common.FormatNow(common.SimpleTimeTesting)
-
-		owners = []string{suite.user}
-
 		categories = map[path.CategoryType][]string{
 			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
 		}
-		container = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
-		genDests  = []string{container}
 	)
 
 	creds, err := acct.M365Config()
@@ -1636,63 +1629,55 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
+	userable, err := gc.Discovery.Users().GetByID(ctx, suite.user)
+	require.NoError(t, err, clues.ToCore(err))
 
-	fileDBF := func(id, timeStamp, subject, body string) []byte {
-		return []byte(id + subject)
-	}
+	uid := ptr.Val(userable.GetId())
+	uname := ptr.Val(userable.GetUserPrincipalName())
 
-	// Populate initial test data.
-	for _, destName := range genDests {
-		generateContainerOfItems(
-			t,
-			ctx,
-			gc,
-			path.OneDriveService,
-			acct,
-			path.FilesCategory,
-			selectors.NewOneDriveRestore(owners).Selector,
-			creds.AzureTenantID, suite.user, driveID, destName,
-			2,
-			// Use an old backup version so we don't need metadata files.
-			0,
-			fileDBF)
-	}
+	oldsel := selectors.NewOneDriveBackup([]string{uname})
+	oldsel.Include(oldsel.Folders([]string{"test"}, selectors.ExactMatch()))
 
-	// container3 does not exist yet. It will get created later on
-	// during the tests.
-	containers := []string{container}
-	sel := selectors.NewOneDriveBackup(owners)
-	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
-
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
 	defer closer()
 
 	// ensure the initial owner uses name in both cases
-	sel.SetDiscreteOwnerIDName(suite.user, suite.user)
-	bo.ResourceOwner = sel
+	bo.ResourceOwner = oldsel.SetDiscreteOwnerIDName(uname, uname)
+	// required, otherwise we don't run the migration
+	bo.backupVersion = version.All7MigrateUserPNToID - 1
 
-	// TODO: ensure this equals the PN
-	require.Equal(t, bo.ResourceOwner.Name(), bo.ResourceOwner.ID(), "historical representation of user")
+	require.Equalf(
+		t,
+		bo.ResourceOwner.Name(),
+		bo.ResourceOwner.ID(),
+		"historical representation of user id [%s] should match pn [%s]",
+		bo.ResourceOwner.ID(),
+		bo.ResourceOwner.Name())
 
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
+	newsel := selectors.NewOneDriveBackup([]string{uid})
+	newsel.Include(newsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	sel := newsel.SetDiscreteOwnerIDName(uid, uname)
+
 	var (
 		incMB = evmock.NewBus()
 		// the incremental backup op should have a proper user ID for the id.
-		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel.Selector, incMB, ffs, closer)
+		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
 	)
 
-	require.NotEqual(
+	require.NotEqualf(
 		t,
 		incBO.ResourceOwner.Name(),
 		incBO.ResourceOwner.ID(),
-		"current representation of user: id should differ from PN")
+		"current representation of user: id [%s] should differ from PN [%s]",
+		incBO.ResourceOwner.ID(),
+		incBO.ResourceOwner.Name())
 
 	err = incBO.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
-	checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, suite.user, maps.Keys(categories)...)
+	checkBackupIsInManifests(t, ctx, kw, &incBO, sel, uid, maps.Keys(categories)...)
 	checkMetadataFilesExist(
 		t,
 		ctx,
@@ -1700,7 +1685,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		kw,
 		ms,
 		creds.AzureTenantID,
-		suite.user,
+		uid,
 		path.OneDriveService,
 		categories)
 
@@ -1731,7 +1716,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, ent := range deets.Entries {
-		assert.Contains(t, ent.RepoRef, incBO.ResourceOwner.ID())
+		assert.Contains(t, ent.RepoRef, uid)
 	}
 }
 
@@ -1751,7 +1736,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)

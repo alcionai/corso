@@ -36,9 +36,10 @@ type BackupOperation struct {
 
 	ResourceOwner common.IDNamer
 
-	Results   BackupResults      `json:"results"`
-	Selectors selectors.Selector `json:"selectors"`
-	Version   string             `json:"version"`
+	Results       BackupResults      `json:"results"`
+	Selectors     selectors.Selector `json:"selectors"`
+	Version       string             `json:"version"`
+	backupVersion int
 
 	account account.Account
 	bp      inject.BackupProducer
@@ -71,6 +72,7 @@ func NewBackupOperation(
 		ResourceOwner: owner,
 		Selectors:     selector,
 		Version:       "v0",
+		backupVersion: version.Backup,
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
 		bp:            bp,
@@ -211,6 +213,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
+		op.backupVersion,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
@@ -632,7 +635,7 @@ func lastCompleteBackups(
 			result[r.Key()] = bup
 		}
 
-		if bup.Version < oldestVersion {
+		if oldestVersion == -1 || bup.Version < oldestVersion {
 			oldestVersion = bup.Version
 		}
 	}
@@ -804,6 +807,7 @@ func (op *BackupOperation) createBackupModels(
 	sscw streamstore.CollectorWriter,
 	snapID string,
 	backupID model.StableID,
+	backupVersion int,
 	deets *details.Details,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
@@ -838,6 +842,7 @@ func (op *BackupOperation) createBackupModels(
 	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
+		backupVersion,
 		backupID,
 		op.Selectors,
 		op.ResourceOwner.ID(),
