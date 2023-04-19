@@ -1647,7 +1647,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	// ensure the initial owner uses name in both cases
 	bo.ResourceOwner = oldsel.SetDiscreteOwnerIDName(uname, uname)
 	// required, otherwise we don't run the migration
-	bo.BackupVersion = version.All7MigrateUserPNToID - 1
+	bo.backupVersion = version.All7MigrateUserPNToID - 1
 
 	require.Equalf(
 		t,

@@ -39,7 +39,7 @@ type BackupOperation struct {
 	Results       BackupResults      `json:"results"`
 	Selectors     selectors.Selector `json:"selectors"`
 	Version       string             `json:"version"`
-	BackupVersion int                `json:"backupVersion"`
+	backupVersion int
 
 	account account.Account
 	bp      inject.BackupProducer
@@ -72,7 +72,7 @@ func NewBackupOperation(
 		ResourceOwner: owner,
 		Selectors:     selector,
 		Version:       "v0",
-		BackupVersion: version.Backup,
+		backupVersion: version.Backup,
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
 		bp:            bp,
@@ -213,7 +213,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
-		op.BackupVersion,
+		op.backupVersion,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
