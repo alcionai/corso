@@ -12,11 +12,13 @@ func _() {
 	_ = x[BackupOpSchema-1]
 	_ = x[RestoreOpSchema-2]
 	_ = x[BackupSchema-3]
+	_ = x[BackupDetailsSchema-4]
+	_ = x[RepositorySchema-5]
 }
 
-const _Schema_name = "UnknownSchemaBackupOpSchemaRestoreOpSchemaBackupSchema"
+const _Schema_name = "UnknownSchemaBackupOpSchemaRestoreOpSchemaBackupSchemaBackupDetailsSchemaRepositorySchema"
 
-var _Schema_index = [...]uint8{0, 13, 27, 42, 54}
+var _Schema_index = [...]uint8{0, 13, 27, 42, 54, 73, 89}
 
 func (i Schema) String() string {
 	if i < 0 || i >= Schema(len(_Schema_index)-1) {

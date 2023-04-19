@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -447,7 +448,7 @@ func (c *Collections) Get(
 	}
 
 	service, category := c.source.toPathServiceCat()
-	metadata, err := graph.MakeMetadataCollection(
+	md, err := graph.MakeMetadataCollection(
 		c.tenant,
 		c.resourceOwner,
 		service,
@@ -464,7 +465,7 @@ func (c *Collections) Get(
 		// empty/missing and default to a full backup.
 		logger.CtxErr(ctx, err).Info("making metadata collection for future incremental backups")
 	} else {
-		collections = append(collections, metadata)
+		collections = append(collections, md)
 	}
 
 	// TODO(ashmrtn): Track and return the set of items to exclude.
@@ -535,8 +536,8 @@ func (c *Collections) handleDelete(
 			return nil
 		}
 
-		excluded[itemID+DataFileSuffix] = struct{}{}
-		excluded[itemID+MetaFileSuffix] = struct{}{}
+		excluded[itemID+metadata.DataFileSuffix] = struct{}{}
+		excluded[itemID+metadata.MetaFileSuffix] = struct{}{}
 		// Exchange counts items streamed through it which includes deletions so
 		// add that here too.
 		c.NumFiles++
@@ -853,8 +854,8 @@ func (c *Collections) UpdateCollections(
 				// Always add a file to the excluded list. The file may have been
 				// renamed/moved/modified, so we still have to drop the
 				// original one and download a fresh copy.
-				excluded[itemID+DataFileSuffix] = struct{}{}
-				excluded[itemID+MetaFileSuffix] = struct{}{}
+				excluded[itemID+metadata.DataFileSuffix] = struct{}{}
+				excluded[itemID+metadata.MetaFileSuffix] = struct{}{}
 			}
 
 		default:

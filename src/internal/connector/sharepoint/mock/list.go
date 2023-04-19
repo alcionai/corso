@@ -1,4 +1,4 @@
-package mockconnector
+package mock
 
 import (
 	"bytes"
@@ -17,37 +17,37 @@ import (
 )
 
 var (
-	_ data.Stream           = &MockListData{}
-	_ data.BackupCollection = &MockListCollection{}
+	_ data.Stream           = &ListData{}
+	_ data.BackupCollection = &ListCollection{}
 )
 
-type MockListCollection struct {
+type ListCollection struct {
 	fullPath path.Path
-	Data     []*MockListData
+	Data     []*ListData
 	Names    []string
 }
 
-func (mlc *MockListCollection) SetPath(p path.Path) {
+func (mlc *ListCollection) SetPath(p path.Path) {
 	mlc.fullPath = p
 }
 
-func (mlc *MockListCollection) State() data.CollectionState {
+func (mlc *ListCollection) State() data.CollectionState {
 	return data.NewState
 }
 
-func (mlc *MockListCollection) FullPath() path.Path {
+func (mlc *ListCollection) FullPath() path.Path {
 	return mlc.fullPath
 }
 
-func (mlc *MockListCollection) DoNotMergeItems() bool {
+func (mlc *ListCollection) DoNotMergeItems() bool {
 	return false
 }
 
-func (mlc *MockListCollection) PreviousPath() path.Path {
+func (mlc *ListCollection) PreviousPath() path.Path {
 	return nil
 }
 
-func (mlc *MockListCollection) Items(
+func (mlc *ListCollection) Items(
 	ctx context.Context,
 	_ *fault.Bus, // unused
 ) <-chan data.Stream {
@@ -64,7 +64,7 @@ func (mlc *MockListCollection) Items(
 	return res
 }
 
-type MockListData struct {
+type ListData struct {
 	ID      string
 	Reader  io.ReadCloser
 	ReadErr error
@@ -72,25 +72,25 @@ type MockListData struct {
 	deleted bool
 }
 
-func (mld *MockListData) UUID() string {
+func (mld *ListData) UUID() string {
 	return mld.ID
 }
 
-func (mld MockListData) Deleted() bool {
+func (mld ListData) Deleted() bool {
 	return mld.deleted
 }
 
-func (mld *MockListData) ToReader() io.ReadCloser {
+func (mld *ListData) ToReader() io.ReadCloser {
 	return mld.Reader
 }
 
-// GetMockList returns a Listable object with two columns.
+// List returns a Listable object with two columns.
 // @param: Name of the displayable list
 // @param: Column Name: Defines the 2nd Column Name of the created list the values from the map.
 // The key values of the input map are used for the `Title` column.
 // The values of the map are placed within the 2nd column.
 // Source: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=go
-func GetMockList(title, columnName string, items map[string]string) models.Listable {
+func List(title, columnName string, items map[string]string) models.Listable {
 	requestBody := models.NewList()
 	requestBody.SetDisplayName(&title)
 	requestBody.SetName(&title)
@@ -135,15 +135,15 @@ func GetMockList(title, columnName string, items map[string]string) models.Lista
 	return requestBody
 }
 
-// GetMockListDefault returns a two-list column list of
+// ListDefault returns a two-list column list of
 // Music lbums and the associated artist.
-func GetMockListDefault(title string) models.Listable {
-	return GetMockList(title, "Artist", getItems())
+func ListDefault(title string) models.Listable {
+	return List(title, "Artist", getItems())
 }
 
-// GetMockListBytes returns the byte representation of GetMockList
-func GetMockListBytes(title string) ([]byte, error) {
-	list := GetMockListDefault(title)
+// ListBytes returns the byte representation of List
+func ListBytes(title string) ([]byte, error) {
+	list := ListDefault(title)
 
 	objectWriter := kjson.NewJsonSerializationWriter()
 	defer objectWriter.Close()
@@ -156,13 +156,13 @@ func GetMockListBytes(title string) ([]byte, error) {
 	return objectWriter.GetSerializedContent()
 }
 
-// GetMockListStream returns the data.Stream representation
+// ListStream returns the data.Stream representation
 // of the Mocked SharePoint List
-func GetMockListStream(t *testing.T, title string, numOfItems int) *MockListData {
-	byteArray, err := GetMockListBytes(title)
+func ListStream(t *testing.T, title string, numOfItems int) *ListData {
+	byteArray, err := ListBytes(title)
 	require.NoError(t, err, clues.ToCore(err))
 
-	listData := &MockListData{
+	listData := &ListData{
 		ID:     title,
 		Reader: io.NopCloser(bytes.NewReader(byteArray)),
 		size:   int64(len(byteArray)),

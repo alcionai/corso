@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -168,7 +168,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 
 		noErrFileData = "foo bar baz"
 
-		errReader = &mockconnector.MockExchangeData{
+		errReader = &exchMock.Data{
 			ReadErr: assert.AnError,
 		}
 	)

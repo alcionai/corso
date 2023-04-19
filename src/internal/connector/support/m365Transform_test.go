@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -25,7 +25,7 @@ func TestSupportTestSuite(t *testing.T) {
 func (suite *SupportTestSuite) TestToMessage() {
 	t := suite.T()
 
-	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
+	bytes := exchMock.MessageBytes("m365 mail support test")
 	message, err := CreateMessageFromBytes(bytes)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -39,7 +39,7 @@ func (suite *SupportTestSuite) TestToMessage() {
 
 func (suite *SupportTestSuite) TestToEventSimplified_attendees() {
 	t := suite.T()
-	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
+	bytes := exchMock.EventWithAttendeesBytes("M365 Event Support Test")
 	event, err := CreateEventFromBytes(bytes)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -71,7 +71,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 		{
 			name: "Test recurrence: Unspecified",
 			event: func() models.Eventable {
-				bytes := mockconnector.GetMockEventWithSubjectBytes(subject)
+				bytes := exchMock.EventWithSubjectBytes(subject)
 				e, err := CreateEventFromBytes(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return e
@@ -84,7 +84,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 		{
 			name: "Test recurrenceTimeZone: Unspecified",
 			event: func() models.Eventable {
-				bytes := mockconnector.GetMockEventWithRecurrenceBytes(subject, `null`)
+				bytes := exchMock.EventWithRecurrenceBytes(subject, `null`)
 				e, err := CreateEventFromBytes(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return e
@@ -97,7 +97,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 		{
 			name: "Test recurrenceTimeZone: Empty",
 			event: func() models.Eventable {
-				bytes := mockconnector.GetMockEventWithRecurrenceBytes(subject, `""`)
+				bytes := exchMock.EventWithRecurrenceBytes(subject, `""`)
 				event, err := CreateEventFromBytes(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return event
@@ -110,7 +110,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 		{
 			name: "Test recurrenceTimeZone: Valid",
 			event: func() models.Eventable {
-				bytes := mockconnector.GetMockEventWithRecurrenceBytes(subject, `"Pacific Standard Time"`)
+				bytes := exchMock.EventWithRecurrenceBytes(subject, `"Pacific Standard Time"`)
 				event, err := CreateEventFromBytes(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return event

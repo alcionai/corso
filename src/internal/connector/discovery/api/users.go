@@ -182,10 +182,19 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		err      error
 		userInfo = newUserInfo()
+
+		requestParameters = &users.ItemMailFoldersRequestBuilderGetQueryParameters{
+			Select: []string{"id"},
+			Top:    ptr.To[int32](1), // if we get any folders, then we have access.
+		}
+
+		options = users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: requestParameters,
+		}
 	)
 
 	// TODO: OneDrive
-	_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+	_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, &options)
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			return nil, graph.Wrap(ctx, err, "getting user's mail folder")
