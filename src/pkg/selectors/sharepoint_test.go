@@ -353,7 +353,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			pathElems: driveElems,
 			expected: map[categorizer][]string{
 				SharePointLibraryFolder: {"dir1/dir2"},
-				SharePointLibraryItem:   {itemName, shortRef},
+				SharePointLibraryItem:   {itemName, shortRef, itemName + "-id"},
 			},
 		},
 		{

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -731,7 +731,7 @@ func compareOneDriveItem(
 ) bool {
 	// Skip OneDrive permissions in the folder that used to be the root. We don't
 	// have a good way to materialize these in the test right now.
-	if rootDir && item.UUID() == onedrive.DirMetaFileSuffix {
+	if rootDir && item.UUID() == metadata.DirMetaFileSuffix {
 		return false
 	}
 
@@ -743,8 +743,7 @@ func compareOneDriveItem(
 	var (
 		displayName string
 		name        = item.UUID()
-		isMeta      = strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
-			strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
+		isMeta      = metadata.HasMetaSuffix(name)
 	)
 
 	if isMeta {
@@ -781,7 +780,7 @@ func compareOneDriveItem(
 
 		key := name
 
-		if strings.HasSuffix(name, onedrive.MetaFileSuffix) {
+		if strings.HasSuffix(name, metadata.MetaFileSuffix) {
 			key = itemMeta.FileName
 		}
 
@@ -852,7 +851,7 @@ func compareOneDriveItem(
 	// Display name in ItemInfo should match the name the file was given in the
 	// test. Name used for the lookup key has a `.data` suffix to make it unique
 	// from the metadata files' lookup keys.
-	assert.Equal(t, fileData.FileName, displayName+onedrive.DataFileSuffix)
+	assert.Equal(t, fileData.FileName, displayName+metadata.DataFileSuffix)
 
 	return true
 }
@@ -1226,8 +1225,7 @@ func collectionsForInfo(
 			// We do not count metadata files against item count
 			if backupVersion > 0 &&
 				(service == path.OneDriveService || service == path.SharePointService) &&
-				(strings.HasSuffix(info.items[i].name, onedrive.MetaFileSuffix) ||
-					strings.HasSuffix(info.items[i].name, onedrive.DirMetaFileSuffix)) {
+				metadata.HasMetaSuffix(info.items[i].name) {
 				continue
 			}
 
@@ -1284,10 +1282,10 @@ func getSelectorWith(
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r resource) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
 
-	connector, err := NewGraphConnector(ctx, itemClient, a, r, fault.New(true))
+	connector, err := NewGraphConnector(ctx, a, r, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	return connector

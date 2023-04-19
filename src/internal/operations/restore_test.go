@@ -273,7 +273,6 @@ func setupExchangeBackup(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))
@@ -335,7 +334,6 @@ func setupSharePointBackup(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Sites,
 		fault.New(true))
@@ -493,7 +491,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		suite.acct,
 		connector.Users,
 		fault.New(true))
