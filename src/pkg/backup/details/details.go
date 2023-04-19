@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -419,6 +421,9 @@ func (d *Details) add(
 		elements := repoRef.Elements()
 		elements = append(elements[:len(elements)-1], filename, repoRef.Item())
 		entry.ShortRef = path.Builder{}.Append(elements...).ShortRef()
+
+		// clean metadata suffixes from item refs
+		entry.ItemRef = withoutMetadataSuffix(entry.ItemRef)
 	}
 
 	d.Entries = append(d.Entries, entry)
@@ -436,6 +441,16 @@ func UnmarshalTo(d *Details) func(io.ReadCloser) error {
 	return func(rc io.ReadCloser) error {
 		return json.NewDecoder(rc).Decode(d)
 	}
+}
+
+// remove metadata file suffixes from the string.
+// assumes only one suffix is applied to any given id.
+func withoutMetadataSuffix(id string) string {
+	id = strings.TrimSuffix(id, metadata.DirMetaFileSuffix)
+	id = strings.TrimSuffix(id, metadata.MetaFileSuffix)
+	id = strings.TrimSuffix(id, metadata.DataFileSuffix)
+
+	return id
 }
 
 // --------------------------------------------------------------------------------

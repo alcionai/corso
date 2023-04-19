@@ -362,6 +362,7 @@ func runDetailsSharePointCmd(
 
 	if !skipReduce {
 		sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}

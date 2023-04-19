@@ -317,6 +317,7 @@ func runDetailsExchangeCmd(
 
 	if !skipReduce {
 		sel := utils.IncludeExchangeRestoreDataSelectors(opts)
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 		utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}
