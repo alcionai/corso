@@ -103,14 +103,19 @@ func (c Events) GetContainerByID(
 func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		err   error
-		event models.Eventable
+		err      error
+		event    models.Eventable
+		header   = buildPreferHeaders(false, immutableIDs)
+		itemOpts = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
+			Headers: header,
+		}
 	)
 
-	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -120,6 +125,7 @@ func (c Events) GetItem(
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
+			Headers: header,
 		}
 
 		attached, err := c.LargeItem.
@@ -245,13 +251,19 @@ func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error)
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
+	immutableIDs bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var resetDelta bool
+	var (
+		resetDelta bool
+		opts       = &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
+			Headers: buildPreferHeaders(true, immutableIDs),
+		}
+	)
 
 	ctx = clues.Add(
 		ctx,
@@ -260,7 +272,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	if len(oldDelta) > 0 {
 		var (
 			builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &eventPager{service, builder, nil}
+			pgr     = &eventPager{service, builder, opts}
 		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
@@ -287,7 +299,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
-	pgr := &eventPager{service, builder, nil}
+	pgr := &eventPager{service, builder, opts}
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, nil)

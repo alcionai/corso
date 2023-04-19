@@ -45,6 +45,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		immutableIDs bool,
 		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
@@ -256,6 +257,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				ctx,
 				user,
 				id,
+				col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
 				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to

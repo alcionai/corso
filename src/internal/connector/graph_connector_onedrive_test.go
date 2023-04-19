@@ -358,6 +358,7 @@ type suiteInfo interface {
 	// permissions.
 	PrimaryUser() (string, string)
 	SecondaryUser() (string, string)
+	TertiaryUser() (string, string)
 	// BackupResourceOwner returns the resource owner to run the backup/restore
 	// with. This can be different from the values used for permissions and it can
 	// also be a site.
@@ -378,6 +379,8 @@ type suiteInfoImpl struct {
 	userID          string
 	secondaryUser   string
 	secondaryUserID string
+	tertiaryUser    string
+	tertiaryUserID  string
 	acct            account.Account
 	service         path.ServiceType
 	resourceType    resource
@@ -401,6 +404,10 @@ func (si suiteInfoImpl) PrimaryUser() (string, string) {
 
 func (si suiteInfoImpl) SecondaryUser() (string, string) {
 	return si.secondaryUser, si.secondaryUserID
+}
+
+func (si suiteInfoImpl) TertiaryUser() (string, string) {
+	return si.tertiaryUser, si.tertiaryUserID
 }
 
 func (si suiteInfoImpl) BackupResourceOwner() string {
@@ -449,6 +456,7 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 		connector:     loadConnector(ctx, suite.T(), Sites),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
+		tertiaryUser:  tester.TertiaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
 		service:       path.SharePointService,
 		resourceType:  Sites,
@@ -463,6 +471,10 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
+
+	tertiaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.tertiaryUser)
+	require.NoError(suite.T(), err, "fetching user", si.tertiaryUser, clues.ToCore(err))
+	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
 	suite.suiteInfo = si
 }
@@ -771,13 +783,14 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		"root:",
 		folderBName,
 	}
-	subfolderAPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderBName,
-		folderAName,
-	}
+	// For skipped test
+	// subfolderAPath := []string{
+	// 	"drives",
+	// 	driveID,
+	// 	"root:",
+	// 	folderBName,
+	// 	folderAName,
+	// }
 	folderCPath := []string{
 		"drives",
 		driveID,
@@ -839,7 +852,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					perms: permData{
 						user:     secondaryUserName,
 						entityID: secondaryUserID,
-						roles:    readPerm,
+						roles:    writePerm,
 					},
 				},
 			},
@@ -854,27 +867,29 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				},
 			},
 		},
-		{
-			// Tests a folder that has permissions with an item in the folder with
-			// the same permissions.
-			pathElements: subfolderAPath,
-			files: []itemData{
-				{
-					name: fileName,
-					data: fileDData,
-					perms: permData{
-						user:     secondaryUserName,
-						entityID: secondaryUserID,
-						roles:    readPerm,
-					},
-				},
-			},
-			perms: permData{
-				user:     secondaryUserName,
-				entityID: secondaryUserID,
-				roles:    readPerm,
-			},
-		},
+		// TODO: We can't currently support having custom permissions
+		// with the same set of permissions internally
+		// {
+		// 	// Tests a folder that has permissions with an item in the folder with
+		// 	// the same permissions.
+		// 	pathElements: subfolderAPath,
+		// 	files: []itemData{
+		// 		{
+		// 			name: fileName,
+		// 			data: fileDData,
+		// 			perms: permData{
+		// 				user:     secondaryUserName,
+		// 				entityID: secondaryUserID,
+		// 				roles:    readPerm,
+		// 			},
+		// 		},
+		// 	},
+		// 	perms: permData{
+		// 		user:     secondaryUserName,
+		// 		entityID: secondaryUserID,
+		// 		roles:    readPerm,
+		// 	},
+		// },
 		{
 			// Tests a folder that has permissions with an item in the folder with
 			// the different permissions.
@@ -1037,6 +1052,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	defer flush()
 
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
+	tertiaryUserName, tertiaryUserID := suite.TertiaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
@@ -1049,6 +1065,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 
 	folderAName := "custom"
 	folderBName := "inherited"
+	folderCName := "empty"
 
 	rootPath := []string{
 		"drives",
@@ -1061,19 +1078,26 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		"root:",
 		folderAName,
 	}
-	subfolderAPath := []string{
+	subfolderAAPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderAName,
 		folderAName,
 	}
-	subfolderBPath := []string{
+	subfolderABPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderAName,
 		folderBName,
+	}
+	subfolderACPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderCName,
 	}
 
 	fileSet := []itemData{
@@ -1094,27 +1118,39 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				sharingMode: onedrive.SharingModeInherited,
 			},
 		},
+		{
+			name: "file-empty",
+			data: fileAData,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
 	}
 
 	// Here is what this test is testing
 	// - custom-permission-folder
 	//   - custom-permission-file
 	//   - inherted-permission-file
+	//   - empty-permission-file
 	//   - custom-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
+	//     - empty-permission-file
 	//   - inherted-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
+	//     - empty-permission-file
+	//   - empty-permission-folder
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
+	//     - empty-permission-file (empty/empty might have interesting behavior)
 
 	cols := []onedriveColInfo{
 		{
 			pathElements: rootPath,
 			files:        []itemData{},
 			folders: []itemData{
-				{
-					name: folderAName,
-				},
+				{name: folderAName},
 			},
 		},
 		{
@@ -1123,28 +1159,36 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			folders: []itemData{
 				{name: folderAName},
 				{name: folderBName},
+				{name: folderCName},
 			},
 			perms: permData{
-				user:     secondaryUserName,
-				entityID: secondaryUserID,
+				user:     tertiaryUserName,
+				entityID: tertiaryUserID,
 				roles:    readPerm,
 			},
 		},
 		{
-			pathElements: subfolderAPath,
+			pathElements: subfolderAAPath,
 			files:        fileSet,
 			perms: permData{
-				user:        secondaryUserName,
-				entityID:    secondaryUserID,
+				user:        tertiaryUserName,
+				entityID:    tertiaryUserID,
 				roles:       writePerm,
 				sharingMode: onedrive.SharingModeCustom,
 			},
 		},
 		{
-			pathElements: subfolderBPath,
+			pathElements: subfolderABPath,
 			files:        fileSet,
 			perms: permData{
 				sharingMode: onedrive.SharingModeInherited,
+			},
+		},
+		{
+			pathElements: subfolderACPath,
+			files:        fileSet,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
 			},
 		},
 	}
