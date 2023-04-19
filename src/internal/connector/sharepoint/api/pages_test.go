@@ -16,8 +16,8 @@ import (
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	graphapi "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SharePointPageSuite struct {

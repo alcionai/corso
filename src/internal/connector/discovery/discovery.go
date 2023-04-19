@@ -8,8 +8,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -21,7 +21,7 @@ type getter interface {
 }
 
 type GetInfoer interface {
-	GetInfo(context.Context, string) (*graphapi.UserInfo, error)
+	GetInfo(context.Context, string) (*api.UserInfo, error)
 }
 
 type getWithInfoer interface {
@@ -37,15 +37,15 @@ type getAller interface {
 // helpers
 // ---------------------------------------------------------------------------
 
-func apiClient(ctx context.Context, acct account.Account) (graphapi.Client, error) {
+func apiClient(ctx context.Context, acct account.Account) (api.Client, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
-		return graphapi.Client{}, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
+		return api.Client{}, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	client, err := graphapi.NewClient(m365)
+	client, err := api.NewClient(m365)
 	if err != nil {
-		return graphapi.Client{}, clues.Wrap(err, "creating api client").WithClues(ctx)
+		return api.Client{}, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
 	return client, nil
@@ -73,7 +73,7 @@ func User(
 	ctx context.Context,
 	gwi getWithInfoer,
 	userID string,
-) (models.Userable, *graphapi.UserInfo, error) {
+) (models.Userable, *api.UserInfo, error) {
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
@@ -97,7 +97,7 @@ func UserInfo(
 	ctx context.Context,
 	gi GetInfoer,
 	userID string,
-) (*graphapi.UserInfo, error) {
+) (*api.UserInfo, error) {
 	ui, err := gi.GetInfo(ctx, userID)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting user info")

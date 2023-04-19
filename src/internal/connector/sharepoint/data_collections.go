@@ -8,17 +8,17 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	gapi "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type statusUpdater interface {
@@ -243,9 +243,9 @@ func collectPages(
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
-	betaService := graphapi.NewBetaService(adpt)
+	betaService := gapi.NewBetaService(adpt)
 
-	tuples, err := api.FetchPages(ctx, betaService, siteID)
+	tuples, err := sapi.FetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}

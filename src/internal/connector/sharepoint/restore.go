@@ -12,17 +12,17 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	gapi "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 //----------------------------------------------------------------------------
@@ -315,7 +315,7 @@ func RestorePageCollection(
 
 	var (
 		el      = errs.Local()
-		service = graphapi.NewBetaService(adpt)
+		service = gapi.NewBetaService(adpt)
 		items   = dc.Items(ctx, errs)
 	)
 
@@ -334,7 +334,7 @@ func RestorePageCollection(
 			}
 			metrics.Objects++
 
-			itemInfo, err := api.RestoreSitePage(
+			itemInfo, err := sapi.RestoreSitePage(
 				ctx,
 				service,
 				itemData,

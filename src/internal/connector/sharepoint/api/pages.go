@@ -18,15 +18,15 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
 // Returns error if error experienced during the call
 func GetSitePages(
 	ctx context.Context,
-	serv *graphapi.BetaService,
+	serv *api.BetaService,
 	siteID string,
 	pages []string,
 	errs *fault.Bus,
@@ -100,7 +100,7 @@ func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Site
 }
 
 // fetchPages utility function to return the tuple of item
-func FetchPages(ctx context.Context, bs *graphapi.BetaService, siteID string) ([]NameID, error) {
+func FetchPages(ctx context.Context, bs *api.BetaService, siteID string) ([]NameID, error) {
 	var (
 		builder = bs.Client().SitesById(siteID).Pages()
 		opts    = fetchPageOptions()
@@ -159,7 +159,7 @@ func fetchPageOptions() *betasites.ItemPagesRequestBuilderGetRequestConfiguratio
 // https://github.com/alcionai/corso/issues/2707
 func DeleteSitePage(
 	ctx context.Context,
-	serv *graphapi.BetaService,
+	serv *api.BetaService,
 	siteID, pageID string,
 ) error {
 	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
@@ -184,7 +184,7 @@ func retrieveSitePageOptions() *betasites.ItemPagesSitePageItemRequestBuilderGet
 
 func RestoreSitePage(
 	ctx context.Context,
-	service *graphapi.BetaService,
+	service *api.BetaService,
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {

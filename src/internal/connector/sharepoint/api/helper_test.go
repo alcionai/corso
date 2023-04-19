@@ -8,15 +8,15 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-func createTestBetaService(t *testing.T, credentials account.M365Config) *graphapi.BetaService {
+func createTestBetaService(t *testing.T, credentials account.M365Config) *api.BetaService {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
 		credentials.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
-	return graphapi.NewBetaService(adapter)
+	return api.NewBetaService(adapter)
 }

@@ -16,8 +16,8 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ var (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	Service    graph.Servicer
-	Discovery  graphapi.Client
+	Discovery  api.Client
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
@@ -72,7 +72,7 @@ func NewGraphConnector(
 		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
-	discovery, err := graphapi.NewClient(creds)
+	discovery, err := api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
@@ -187,7 +187,7 @@ const (
 	Sites
 )
 
-func (r resource) resourceClient(discovery graphapi.Client) (*resourceClient, error) {
+func (r resource) resourceClient(discovery api.Client) (*resourceClient, error) {
 	switch r {
 	case Users:
 		return &resourceClient{enum: r, getter: discovery.Users()}, nil
@@ -216,7 +216,7 @@ var _ getOwnerIDAndNamer = &resourceClient{}
 type getOwnerIDAndNamer interface {
 	getOwnerIDAndNameFrom(
 		ctx context.Context,
-		discovery graphapi.Client,
+		discovery api.Client,
 		owner string,
 		ins common.IDNameSwapper,
 	) (
@@ -234,7 +234,7 @@ type getOwnerIDAndNamer interface {
 // (PrincipalName for users, WebURL for sites).
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
-	discovery graphapi.Client,
+	discovery api.Client,
 	owner string,
 	ins common.IDNameSwapper,
 ) (string, string, error) {

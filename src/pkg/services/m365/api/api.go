@@ -1,4 +1,4 @@
-package graphapi
+package api
 
 import (
 	"github.com/alcionai/clues"

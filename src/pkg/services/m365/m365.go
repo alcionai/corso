@@ -11,9 +11,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/pkg/account"
-	graphapi "github.com/alcionai/corso/src/pkg/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ServiceAccess is true if a resource owner is capable of
@@ -230,15 +230,15 @@ func SitesMap(
 // helpers
 // ---------------------------------------------------------------------------
 
-func makeUserAPI(acct account.Account) (graphapi.Users, error) {
+func makeUserAPI(acct account.Account) (api.Users, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
-		return graphapi.Users{}, clues.Wrap(err, "getting m365 account creds")
+		return api.Users{}, clues.Wrap(err, "getting m365 account creds")
 	}
 
-	cli, err := graphapi.NewClient(creds)
+	cli, err := api.NewClient(creds)
 	if err != nil {
-		return graphapi.Users{}, clues.Wrap(err, "constructing api client")
+		return api.Users{}, clues.Wrap(err, "constructing api client")
 	}
 
 	return cli.Users(), nil
