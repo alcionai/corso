@@ -34,6 +34,7 @@ const (
 	errCodeMalwareDetected             = "malwareDetected"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
+	errCodeSyncStateInvalid            = "SyncStateInvalid"
 	errCodeResourceNotFound            = "ResourceNotFound"
 	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
@@ -93,7 +94,7 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) ||
+	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired, errCodeSyncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
