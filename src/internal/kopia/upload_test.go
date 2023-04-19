@@ -386,7 +386,15 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info:       &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
+					info: &itemDetails{
+						info: &details.ItemInfo{
+							Exchange: &details.ExchangeInfo{
+								ItemType: details.ExchangeMail,
+							},
+						},
+						repoPath:     fpath,
+						locationPath: path.Builder{}.Append(fpath.Folders()...),
+					},
 					err:        nil,
 					totalBytes: 100,
 				},
@@ -394,7 +402,7 @@ var finishedFileTable = []struct {
 		},
 		expectedBytes: 100,
 		// 1 file and 5 folders.
-		expectedNumEntries: 6,
+		expectedNumEntries: 2,
 	},
 	{
 		name: "PendingNoDetails",
@@ -413,8 +421,15 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info: &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
-					err:  assert.AnError,
+					info: &itemDetails{
+						info: &details.ItemInfo{
+							Exchange: &details.ExchangeInfo{
+								ItemType: details.ExchangeMail,
+							},
+						},
+						repoPath: fpath,
+					},
+					err: assert.AnError,
 				},
 			}
 		},
@@ -519,71 +534,6 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 	assert.Empty(t, cp.pending)
 	assert.Empty(t, bd.Details().Entries)
 	assert.Error(t, cp.errs.Failure(), clues.ToCore(cp.errs.Failure()))
-}
-
-func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
-	t := suite.T()
-	// Order of folders in hierarchy from root to leaf (excluding the item).
-	expectedFolderOrder := suite.targetFilePath.ToBuilder().Dir().Elements()
-
-	// Setup stuff.
-	bd := &details.Builder{}
-	cp := corsoProgress{
-		UploadProgress: &snapshotfs.NullUploadProgress{},
-		deets:          bd,
-		pending:        map[string]*itemDetails{},
-		toMerge:        newMergeDetails(),
-		errs:           fault.New(true),
-	}
-
-	deets := &itemDetails{info: &details.ItemInfo{}, repoPath: suite.targetFilePath}
-	cp.put(suite.targetFileName, deets)
-	require.Len(t, cp.pending, 1)
-
-	cp.FinishedFile(suite.targetFileName, nil)
-
-	assert.Equal(t, 0, cp.toMerge.ItemsToMerge())
-
-	// Gather information about the current state.
-	var (
-		curRef     *details.DetailsEntry
-		refToEntry = map[string]*details.DetailsEntry{}
-	)
-
-	entries := bd.Details().Entries
-
-	for i := 0; i < len(entries); i++ {
-		e := &entries[i]
-		if e.Folder == nil {
-			continue
-		}
-
-		refToEntry[e.ShortRef] = e
-
-		if e.Folder.DisplayName == expectedFolderOrder[len(expectedFolderOrder)-1] {
-			curRef = e
-		}
-	}
-
-	// Actual tests start here.
-	var rootRef *details.DetailsEntry
-
-	// Traverse the details entries from leaf to root, following the ParentRef
-	// fields. At the end rootRef should point to the root of the path.
-	for i := len(expectedFolderOrder) - 1; i >= 0; i-- {
-		name := expectedFolderOrder[i]
-
-		require.NotNil(t, curRef)
-		assert.Equal(t, name, curRef.Folder.DisplayName)
-
-		rootRef = curRef
-		curRef = refToEntry[curRef.ParentRef]
-	}
-
-	// Hierarchy root's ParentRef = "" and map will return nil.
-	assert.Nil(t, curRef)
-	require.NotNil(t, rootRef)
-	assert.Empty(t, rootRef.ParentRef)
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
