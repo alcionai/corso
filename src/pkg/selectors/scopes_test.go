@@ -572,13 +572,13 @@ func (suite *SelectorScopesSuite) TestScopesPII() {
 				`"pass":"Pass"`,
 				`"fail":"Fail"`,
 				`"foo":"EQ:bar"`,
-				`"qux":"Cont:fnords,smarf"`,
+				`"qux":"EQ:fnords,smarf"`,
 			},
 			containsPlain: []string{
 				`"pass":"Pass"`,
 				`"fail":"Fail"`,
 				`"foo":"EQ:bar"`,
-				`"qux":"Cont:fnords,smarf"`,
+				`"qux":"EQ:fnords,smarf"`,
 			},
 		},
 	}
