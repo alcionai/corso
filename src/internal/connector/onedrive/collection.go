@@ -565,7 +565,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
-						clues.Hide(itemID+dataSuffix),
+						clues.Hide(itemName+dataSuffix),
 						itemSize)
 					go closer()
 
@@ -584,7 +584,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					ctx,
 					itemMeta,
 					observe.ItemBackupMsg,
-					clues.Hide(metaFileName+metaSuffix),
+					clues.Hide(itemName+metaSuffix),
 					int64(itemMetaSize))
 				go closer()
 				return progReader, nil
