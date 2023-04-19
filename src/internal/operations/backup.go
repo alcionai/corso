@@ -74,7 +74,6 @@ func NewBackupOperation(
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
 		bp:            bp,
-		SemaphoreCh:   make(chan struct{}, 4),
 	}
 
 	if err := op.validate(); err != nil {

@@ -32,7 +32,7 @@ var (
 	_ data.StreamModTime    = &Stream{}
 )
 
-var semaphoreCh = make(chan struct{}, 4)
+//var semaphoreCh = make(chan struct{}, 4)
 
 const (
 	collectionChannelBufferSize = 1000
@@ -218,13 +218,13 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	// delete all removed items
 	// Do we need semaphore for removed jobs?
 	for id := range col.removed {
-		semaphoreCh <- struct{}{}
+		//semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
 		go func(id string) {
 			defer wg.Done()
-			defer func() { <-semaphoreCh }()
+			//defer func() { <-semaphoreCh }()
 
 			col.data <- &Stream{
 				id:      id,
@@ -247,13 +247,13 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			break
 		}
 
-		semaphoreCh <- struct{}{}
+		//semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
 		go func(id string) {
 			defer wg.Done()
-			defer func() { <-semaphoreCh }()
+			//defer func() { <-semaphoreCh }()
 
 			item, info, err := col.items.GetItem(
 				ctx,

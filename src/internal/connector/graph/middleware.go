@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -104,6 +105,11 @@ func getGID() uint64 {
 	n, _ := strconv.ParseUint(string(b), 10, 64)
 	return n
 }
+
+// var (
+// 	graphAPISemaphore chan struct{} // semaphore channel to limit concurrent requests to Graph API
+// 	graphAPILimit     = 4           // limit for concurrent requests to Graph API. NOTE: Plumb fetchparallelism here
+// )
 
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
@@ -392,4 +398,37 @@ func (handler *MetricsMiddleware) Intercept(
 	events.Since(start, events.APICall, status)
 
 	return resp, err
+}
+
+// ConcurrencyLimiterMiddleware is used to limit the number of concurrent requests.
+type ConcurrencyLimiterMiddleware struct {
+	sem chan struct{}
+}
+
+var concurrencyLimiterOnce sync.Once
+var concurrencyLimiter *ConcurrencyLimiterMiddleware
+
+func GetConcurrencyLimiterMiddleware() *ConcurrencyLimiterMiddleware {
+	concurrencyLimiterOnce.Do(func() {
+		concurrencyLimiter = &ConcurrencyLimiterMiddleware{
+			//maxConcurrentRequests: 4,
+			sem: make(chan struct{}, 4),
+		}
+	})
+	return concurrencyLimiter
+}
+
+func (handler *ConcurrencyLimiterMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	// Acquire a slot in the semaphore
+	handler.sem <- struct{}{}
+	defer func() {
+		<-handler.sem
+	}()
+
+	// Call the next middleware in the pipeline
+	return pipeline.Next(req, middlewareIndex)
 }
