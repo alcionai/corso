@@ -2,6 +2,7 @@ package m365
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -29,26 +30,10 @@ type ServiceAccess struct {
 
 // User is the minimal information required to identify and display a user.
 type User struct {
-	PrincipalName                 string
-	ID                            string
-	Name                          string
-	ArchiveFolder                 string
-	Timezone                      string
-	DelegateMeetingMsgDeliveryOpt string
-	DateFormat                    string
-	TimeFormat                    string
-	UserPurpose                   string
-	DelegateMeetMsgDeliveryOpt    string
-	DiscoveredServices            map[path.ServiceType]struct{}
-	Purpose                       string
-	HasOneDrive                   bool
-	ErrGetMailBoxSetting          string
-	AutomaticRepliesSetting       api.AutomaticRepliesSettings
-	Language                      api.Language
-	WorkingHours                  api.WorkingHours
-	HasMailBox                    bool
-	HasOnedrive                   bool
-	ErrGettingUserInfo            string
+	PrincipalName string
+	ID            string
+	Name          string
+	Info          api.UserInfo
 }
 
 type UserInfo struct {
@@ -94,25 +79,9 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "getting user details")
 		}
 
-		pu.HasMailBox = userInfo.HasMailBox
-		pu.HasOnedrive = userInfo.HasOneDrive
+		pu.Info = *userInfo
 
-		// mailbox and onedrive info is independent of mailboxSetting.
-		// so getting them and then checking if any error getting mailboxSettings
-		if userInfo.ErrGetMailBoxSetting != "" {
-			pu.ErrGettingUserInfo = userInfo.ErrGetMailBoxSetting
-			continue
-		}
-
-		pu.ArchiveFolder = userInfo.ArchiveFolder
-		pu.Timezone = userInfo.Timezone
-		pu.DelegateMeetingMsgDeliveryOpt = userInfo.DelegateMeetMsgDeliveryOpt
-		pu.DateFormat = userInfo.DateFormat
-		pu.TimeFormat = userInfo.TimeFormat
-		pu.UserPurpose = userInfo.Purpose
-		pu.AutomaticRepliesSetting = userInfo.AutomaticRepliesSetting
-		pu.Language = userInfo.Language
-		pu.WorkingHours = userInfo.WorkingHours
+		fmt.Printf("%+v\n\n", pu)
 
 		ret = append(ret, pu)
 	}

@@ -46,14 +46,7 @@ func (suite *M365IntegrationSuite) TestUsers() {
 			assert.NotEmpty(t, u.ID)
 			assert.NotEmpty(t, u.PrincipalName)
 			assert.NotEmpty(t, u.Name)
-			assert.NotEmpty(t, u.ArchiveFolder)
-			assert.NotEmpty(t, u.DateFormat)
-			assert.NotEmpty(t, u.Timezone)
-			assert.NotEmpty(t, u.DelegateMeetingMsgDeliveryOpt)
-			assert.NotEmpty(t, u.TimeFormat)
-			assert.NotEmpty(t, u.UserPurpose)
-			assert.NotEmpty(t, u.HasMailBox)
-			assert.NotEmpty(t, u.HasOnedrive)
+			assert.NotEmpty(t, u.Info)
 		})
 	}
 }

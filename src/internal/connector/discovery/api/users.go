@@ -35,19 +35,23 @@ type Users struct {
 // ---------------------------------------------------------------------------
 
 type UserInfo struct {
-	DiscoveredServices         map[path.ServiceType]struct{}
+	DiscoveredServices map[path.ServiceType]struct{}
+	HasMailBox         bool
+	HasOneDrive        bool
+	Mailbox            mailboxInfo
+}
+
+type mailboxInfo struct {
 	Purpose                    string
 	ArchiveFolder              string
 	DateFormat                 string
 	TimeFormat                 string
 	DelegateMeetMsgDeliveryOpt string
 	Timezone                   string
-	HasMailBox                 bool
-	HasOneDrive                bool
 	AutomaticRepliesSetting    AutomaticRepliesSettings
 	Language                   Language
 	WorkingHours               WorkingHours
-	ErrGetMailBoxSetting       string
+	ErrGetMailBoxSetting       clues.Err
 }
 
 type AutomaticRepliesSettings struct {
@@ -289,14 +293,11 @@ func (c Users) allowsOnedrive(ctx context.Context, userID string, userInfo *User
 
 func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *UserInfo) error {
 	var (
-		rawURL  = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
-		adapter = c.stable.Adapter()
-		builder = users.NewUserItemRequestBuilder(rawURL, adapter)
-
-		additionalData, replySetting, startDateTime, endDateTime,
-		language, timeZone, workingHours map[string]interface{}
-
-		days []interface{}
+		rawURL                     = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
+		adapter                    = c.stable.Adapter()
+		builder                    = users.NewUserItemRequestBuilder(rawURL, adapter)
+		ErrMailBoxSettingsNotFound = clues.New("mailbox settings not found")
+		mailBoundErr               clues.Err
 	)
 
 	newItem, err := builder.Get(ctx, nil)
@@ -309,7 +310,7 @@ func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *U
 	if graph.IsErrAccessDenied(err) {
 		logger.Ctx(ctx).Infof("err getting additional data: access denied")
 
-		userInfo.ErrGetMailBoxSetting = "access denied"
+		userInfo.Mailbox.ErrGetMailBoxSetting = *clues.New("access denied")
 
 		return nil
 	}
@@ -317,77 +318,99 @@ func (c Users) getAdditionalData(ctx context.Context, userID string, userInfo *U
 	if graph.IsErrExchangeMailFolderNotFound(err) {
 		logger.Ctx(ctx).Infof("err exchange mail folder not found")
 
-		userInfo.ErrGetMailBoxSetting = "not found"
+		userInfo.Mailbox.ErrGetMailBoxSetting = *ErrMailBoxSettingsNotFound
 		userInfo.HasMailBox = false
 
 		return nil
 	}
 
-	additionalData = newItem.GetAdditionalData()
+	additionalData := newItem.GetAdditionalData()
 
-	userInfo.ArchiveFolder = convertInterfaceToString(ctx, additionalData["archiveFolder"], userInfo)
-	userInfo.Timezone = convertInterfaceToString(ctx, additionalData["timeZone"], userInfo)
-	userInfo.DateFormat = convertInterfaceToString(ctx, additionalData["dateFormat"], userInfo)
-	userInfo.TimeFormat = convertInterfaceToString(ctx, additionalData["timeFormat"], userInfo)
-	userInfo.Purpose = convertInterfaceToString(ctx, additionalData["userPurpose"], userInfo)
-	userInfo.DelegateMeetMsgDeliveryOpt = convertInterfaceToString(
+	userInfo.Mailbox.ArchiveFolder = toString(ctx, additionalData["archiveFolder"], &mailBoundErr)
+
+	userInfo.Mailbox.Timezone = toString(ctx, additionalData["timeZone"], &mailBoundErr)
+
+	userInfo.Mailbox.DateFormat = toString(ctx, additionalData["dateFormat"], &mailBoundErr)
+	userInfo.Mailbox.TimeFormat = toString(ctx, additionalData["timeFormat"], &mailBoundErr)
+	userInfo.Mailbox.Purpose = toString(ctx, additionalData["userPurpose"], &mailBoundErr)
+	userInfo.Mailbox.DelegateMeetMsgDeliveryOpt = toString(
 		ctx,
 		additionalData["delegateMeetingMessageDeliveryOptions"],
-		userInfo)
+		&mailBoundErr)
 
 	// decode automatic replies settings
-	replySetting = convertInterfaceToMap(ctx, additionalData["automaticRepliesSetting"], userInfo)
-	userInfo.AutomaticRepliesSetting.Status = convertInterfaceToString(ctx, replySetting["status"], userInfo)
-	userInfo.AutomaticRepliesSetting.ExternalAudience = convertInterfaceToString(
+	replySetting := toMap(ctx, additionalData["automaticRepliesSetting"], &mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.Status = toString(
+		ctx,
+		replySetting["status"],
+		&mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.ExternalAudience = toString(
 		ctx,
 		replySetting["externalAudience"],
-		userInfo)
-	userInfo.AutomaticRepliesSetting.ExternalReplyMessage = convertInterfaceToString(
+		&mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.ExternalReplyMessage = toString(
 		ctx,
 		replySetting["externalReplyMessage"],
-		userInfo)
-	userInfo.AutomaticRepliesSetting.InternalReplyMessage = convertInterfaceToString(
+		&mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.InternalReplyMessage = toString(
 		ctx,
 		replySetting["internalReplyMessage"],
-		userInfo)
+		&mailBoundErr)
 
 	// decode scheduledStartDateTime
-	startDateTime = convertInterfaceToMap(ctx, replySetting["scheduledStartDateTime"], userInfo)
-	userInfo.AutomaticRepliesSetting.ScheduledStartDateTime.DateTime = convertInterfaceToString(
+	startDateTime := toMap(ctx, replySetting["scheduledStartDateTime"], &mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.ScheduledStartDateTime.DateTime = toString(
 		ctx,
 		startDateTime["dateTime"],
-		userInfo)
-	userInfo.AutomaticRepliesSetting.ScheduledStartDateTime.Timezone = convertInterfaceToString(
+		&mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.ScheduledStartDateTime.Timezone = toString(
 		ctx,
 		startDateTime["timeZone"],
-		userInfo)
+		&mailBoundErr)
 
-	endDateTime = convertInterfaceToMap(ctx, replySetting["scheduledEndDateTime"], userInfo)
-	userInfo.AutomaticRepliesSetting.ScheduledEndDateTime.DateTime = convertInterfaceToString(
+	endDateTime := toMap(ctx, replySetting["scheduledEndDateTime"], &mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.ScheduledEndDateTime.DateTime = toString(
 		ctx,
 		endDateTime["dateTime"],
-		userInfo)
-	userInfo.AutomaticRepliesSetting.ScheduledEndDateTime.Timezone = convertInterfaceToString(
+		&mailBoundErr)
+	userInfo.Mailbox.AutomaticRepliesSetting.ScheduledEndDateTime.Timezone = toString(
 		ctx,
 		endDateTime["timeZone"],
-		userInfo)
+		&mailBoundErr)
 
 	// Language decode
-	language = convertInterfaceToMap(ctx, additionalData["language"], userInfo)
-	userInfo.Language.DisplayName = convertInterfaceToString(ctx, language["displayName"], userInfo)
-	userInfo.Language.Locale = convertInterfaceToString(ctx, language["locale"], userInfo)
+	language := toMap(ctx, additionalData["language"], &mailBoundErr)
+	userInfo.Mailbox.Language.DisplayName = toString(
+		ctx,
+		language["displayName"],
+		&mailBoundErr)
+	userInfo.Mailbox.Language.Locale = toString(ctx, language["locale"], &mailBoundErr)
 
 	// working hours
-	workingHours = convertInterfaceToMap(ctx, additionalData["workingHours"], userInfo)
-	userInfo.WorkingHours.StartTime = convertInterfaceToString(ctx, workingHours["startTime"], userInfo)
-	userInfo.WorkingHours.EndTime = convertInterfaceToString(ctx, workingHours["endTime"], userInfo)
-	timeZone = convertInterfaceToMap(ctx, workingHours["timeZone"], userInfo)
-	userInfo.WorkingHours.TimeZone.Name = convertInterfaceToString(ctx, timeZone["name"], userInfo)
+	workingHours := toMap(ctx, additionalData["workingHours"], &mailBoundErr)
+	userInfo.Mailbox.WorkingHours.StartTime = toString(
+		ctx,
+		workingHours["startTime"],
+		&mailBoundErr)
+	userInfo.Mailbox.WorkingHours.EndTime = toString(
+		ctx,
+		workingHours["endTime"],
+		&mailBoundErr)
 
-	days = convertInterfaceToArray(ctx, workingHours["daysOfWeek"], userInfo)
+	timeZone := toMap(ctx, workingHours["timeZone"], &mailBoundErr)
+	userInfo.Mailbox.WorkingHours.TimeZone.Name = toString(
+		ctx,
+		timeZone["name"],
+		&mailBoundErr)
+
+	days := toArray(ctx, workingHours["daysOfWeek"], &mailBoundErr)
 	for _, day := range days {
-		userInfo.WorkingHours.DaysOfWeek = append(userInfo.WorkingHours.DaysOfWeek,
-			convertInterfaceToString(ctx, day, userInfo))
+		userInfo.Mailbox.WorkingHours.DaysOfWeek = append(userInfo.Mailbox.WorkingHours.DaysOfWeek,
+			toString(ctx, day, &mailBoundErr))
+	}
+
+	if mailBoundErr.Error() != "" {
+		userInfo.Mailbox.ErrGetMailBoxSetting = mailBoundErr
 	}
 
 	return nil
@@ -417,27 +440,23 @@ func validateUser(item any) (models.Userable, error) {
 	return m, nil
 }
 
-func convertInterfaceToString(ctx context.Context, data interface{}, userInfo *UserInfo) string {
-	var (
-		ok          bool
-		dataPointer *string
-		value       string
-	)
+func toString(ctx context.Context, data any, mailBoxErr *clues.Err) string {
+	ErrMailBoxSettingsNotFound := *clues.New("mailbox settings not found")
 
-	dataPointer, ok = data.(*string)
+	dataPointer, ok := data.(*string)
 	if !ok {
-		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+		logger.Ctx(ctx).Infof("error getting data from mailboxSettings")
 
-		userInfo.ErrGetMailBoxSetting = "not found"
+		*mailBoxErr = ErrMailBoxSettingsNotFound
 
 		return ""
 	}
 
-	value, ok = ptr.ValOK(dataPointer)
+	value, ok := ptr.ValOK(dataPointer)
 	if !ok {
-		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+		logger.Ctx(ctx).Infof("error getting value from pointer for mailboxSettings")
 
-		userInfo.ErrGetMailBoxSetting = "not found"
+		*mailBoxErr = ErrMailBoxSettingsNotFound
 
 		return ""
 	}
@@ -445,17 +464,12 @@ func convertInterfaceToString(ctx context.Context, data interface{}, userInfo *U
 	return value
 }
 
-func convertInterfaceToMap(ctx context.Context, data interface{}, userInfo *UserInfo) map[string]interface{} {
-	var (
-		ok    bool
-		value map[string]interface{}
-	)
-
-	value, ok = data.(map[string]interface{})
+func toMap(ctx context.Context, data any, mailBoxErr *clues.Err) map[string]interface{} {
+	value, ok := data.(map[string]interface{})
 	if !ok {
 		logger.Ctx(ctx).Infof("error getting mailboxSettings")
 
-		userInfo.ErrGetMailBoxSetting = "not found"
+		*mailBoxErr = *clues.New("mailbox settings not found")
 
 		return value
 	}
@@ -463,17 +477,12 @@ func convertInterfaceToMap(ctx context.Context, data interface{}, userInfo *User
 	return value
 }
 
-func convertInterfaceToArray(ctx context.Context, data interface{}, userInfo *UserInfo) []interface{} {
-	var (
-		ok    bool
-		value []interface{}
-	)
-
-	value, ok = data.([]interface{})
+func toArray(ctx context.Context, data any, mailBoxErr *clues.Err) []interface{} {
+	value, ok := data.([]interface{})
 	if !ok {
 		logger.Ctx(ctx).Infof("error getting mailboxSettings")
 
-		userInfo.ErrGetMailBoxSetting = "not found"
+		*mailBoxErr = *clues.New("mailbox settings not found")
 
 		return value
 	}
