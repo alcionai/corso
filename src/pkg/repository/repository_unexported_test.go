@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -315,6 +316,7 @@ func writeBackup(
 	b := backup.New(
 		snapID, ssid,
 		operations.Completed.String(),
+		version.Backup,
 		model.StableID(backupID),
 		sel,
 		ownerID, ownerName,
