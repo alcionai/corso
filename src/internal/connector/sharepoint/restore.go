@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -22,7 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	gapi "github.com/alcionai/corso/src/pkg/services/m365/api"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 //----------------------------------------------------------------------------
@@ -315,7 +315,7 @@ func RestorePageCollection(
 
 	var (
 		el      = errs.Local()
-		service = gapi.NewBetaService(adpt)
+		service = m365api.NewBetaService(adpt)
 		items   = dc.Items(ctx, errs)
 	)
 
@@ -334,7 +334,7 @@ func RestorePageCollection(
 			}
 			metrics.Objects++
 
-			itemInfo, err := sapi.RestoreSitePage(
+			itemInfo, err := api.RestoreSitePage(
 				ctx,
 				service,
 				itemData,

@@ -12,7 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -21,7 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	gapi "github.com/alcionai/corso/src/pkg/services/m365/api"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DataCategory int
@@ -56,7 +56,7 @@ type Collection struct {
 	category      DataCategory
 	service       graph.Servicer
 	ctrl          control.Options
-	betaService   *gapi.BetaService
+	betaService   *m365api.BetaService
 	statusUpdater support.StatusUpdater
 }
 
@@ -277,14 +277,14 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := sapi.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	parent, err := api.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
 	if err != nil {
 		return metrics, err
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	pages, err := api.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
 		return metrics, err
 	}

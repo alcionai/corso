@@ -17,14 +17,14 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	graphapi "github.com/alcionai/corso/src/pkg/services/m365/api"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SharePointPageSuite struct {
 	tester.Suite
 	siteID  string
 	creds   account.M365Config
-	service *graphapi.BetaService
+	service *m365api.BetaService
 }
 
 func (suite *SharePointPageSuite) SetupSuite() {
