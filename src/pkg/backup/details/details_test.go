@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -48,6 +50,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
@@ -58,6 +61,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:    ExchangeEvent,
@@ -78,6 +82,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:    ExchangeContact,
@@ -94,6 +99,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:   ExchangeMail,
@@ -114,6 +120,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemName:   "itemName",
@@ -145,6 +152,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{
 						ItemName:   "itemName",
@@ -187,6 +195,7 @@ func exchangeEntry(t *testing.T, id string, size int, it ItemType) DetailsEntry 
 		ShortRef:    rr.ShortRef(),
 		ParentRef:   rr.ToBuilder().Dir().ShortRef(),
 		LocationRef: rr.Folder(true),
+		ItemRef:     rr.Item(),
 		ItemInfo: ItemInfo{
 			Exchange: &ExchangeInfo{
 				ItemType: it,
@@ -248,11 +257,14 @@ func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) DetailsEnt
 		ShortRef:    rr.ShortRef(),
 		ParentRef:   rr.ToBuilder().Dir().ShortRef(),
 		LocationRef: loc.String(),
+		ItemRef:     rr.Item(),
 		ItemInfo:    info,
 	}
 }
 
 func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
+	itemID := "foo"
+
 	t := suite.T()
 	table := []struct {
 		name  string
@@ -266,23 +278,23 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 	}{
 		{
 			name:          "Exchange Email",
-			entry:         exchangeEntry(t, "foo", 42, ExchangeMail),
+			entry:         exchangeEntry(t, itemID, 42, ExchangeMail),
 			shortRefEqual: assert.Equal,
 		},
 		{
 			name:          "OneDrive File",
-			entry:         oneDriveishEntry(t, "foo", 42, OneDriveItem),
+			entry:         oneDriveishEntry(t, itemID, 42, OneDriveItem),
 			shortRefEqual: assert.NotEqual,
 		},
 		{
 			name:          "SharePoint File",
-			entry:         oneDriveishEntry(t, "foo", 42, SharePointLibrary),
+			entry:         oneDriveishEntry(t, itemID, 42, SharePointLibrary),
 			shortRefEqual: assert.NotEqual,
 		},
 		{
 			name: "Legacy SharePoint File",
 			entry: func() DetailsEntry {
-				res := oneDriveishEntry(t, "foo", 42, SharePointLibrary)
+				res := oneDriveishEntry(t, itemID, 42, SharePointLibrary)
 				res.SharePoint.ItemType = OneDriveItem
 
 				return res
@@ -734,6 +746,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 		},
 		expectRepoRefs:     []string{"abcde"},
@@ -745,10 +758,12 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			{
 				RepoRef:     "12345",
 				LocationRef: "locationref2",
+				ItemRef:     "itemref2",
 			},
 		},
 		expectRepoRefs:     []string{"abcde", "12345"},
@@ -760,10 +775,12 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			{
 				RepoRef:     "12345",
 				LocationRef: "locationref2",
+				ItemRef:     "itemref2",
 			},
 			{
 				RepoRef:     "deadbeef",
@@ -788,6 +805,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "foo.meta",
 				LocationRef: "locationref.dirmeta",
+				ItemRef:     "itemref.meta",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: false},
 				},
@@ -795,6 +813,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "is-meta-file",
 				LocationRef: "locationref-meta-file",
+				ItemRef:     "itemref-meta-file",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: true},
 				},
@@ -809,14 +828,17 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			{
 				RepoRef:     "12345",
 				LocationRef: "locationref2",
+				ItemRef:     "itemref2",
 			},
 			{
 				RepoRef:     "foo.meta",
 				LocationRef: "locationref.dirmeta",
+				ItemRef:     "itemref.dirmeta",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: false},
 				},
@@ -824,6 +846,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "is-meta-file",
 				LocationRef: "locationref-meta-file",
+				ItemRef:     "itemref-meta-file",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: true},
 				},
@@ -831,6 +854,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "deadbeef",
 				LocationRef: "locationref3",
+				ItemRef:     "itemref3",
 				ItemInfo: ItemInfo{
 					Folder: &FolderInfo{
 						DisplayName: "test folder",
@@ -912,7 +936,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 	assert.Len(t, d.Entries, 3)
 }
 
-func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
+func (suite *DetailsUnitSuite) TestBuilder_Add_shortRefsUniqueFromFolder() {
 	t := suite.T()
 
 	b := Builder{}
@@ -937,8 +961,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 			"root:",
 			"folder",
 			name + "-id",
-		},
-	)
+		})
 
 	otherItemPath := makeItemPath(
 		t,
@@ -952,8 +975,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 			"folder",
 			name + "-id",
 			name,
-		},
-	)
+		})
 
 	err := b.Add(
 		itemPath,
@@ -961,7 +983,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 		&path.Builder{},
 		false,
 		info)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	items := b.Details().Items()
 	require.Len(t, items, 1)
@@ -969,6 +991,45 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 	// If the ShortRefs match then it means it's possible for the user to
 	// construct folder names such that they'll generate a ShortRef collision.
 	assert.NotEqual(t, otherItemPath.ShortRef(), items[0].ShortRef, "same ShortRef as subfolder item")
+}
+
+func (suite *DetailsUnitSuite) TestBuilder_Add_cleansFileIDSuffixes() {
+	var (
+		t    = suite.T()
+		b    = Builder{}
+		svc  = path.OneDriveService
+		cat  = path.FilesCategory
+		info = ItemInfo{
+			OneDrive: &OneDriveInfo{
+				ItemType:  OneDriveItem,
+				ItemName:  "in",
+				DriveName: "dn",
+				DriveID:   "d",
+			},
+		}
+
+		dataSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DataFileSuffix})
+		dirMetaSfx = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DirMetaFileSuffix})
+		metaSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.MetaFileSuffix})
+	)
+
+	// Don't need to generate folders for this entry, we just want the itemRef
+	loc := &path.Builder{}
+
+	err := b.Add(dataSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(dirMetaSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(metaSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, ent := range b.Details().Items() {
+		assert.False(t, strings.HasSuffix(ent.ItemRef, metadata.DirMetaFileSuffix))
+		assert.False(t, strings.HasSuffix(ent.ItemRef, metadata.MetaFileSuffix))
+		assert.False(t, strings.HasSuffix(ent.ItemRef, metadata.DataFileSuffix))
+	}
 }
 
 func makeItemPath(

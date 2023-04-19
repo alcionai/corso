@@ -3,12 +3,10 @@ package selectors
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -394,6 +392,7 @@ func (c oneDriveCategory) isLeaf() bool {
 func (c oneDriveCategory) pathValues(
 	repo path.Path,
 	ent details.DetailsEntry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	if ent.OneDrive == nil {
 		return nil, clues.New("no OneDrive ItemInfo in details")
@@ -402,11 +401,18 @@ func (c oneDriveCategory) pathValues(
 	// Ignore `drives/<driveID>/root:` for folder comparison
 	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 
-	itemID := strings.TrimSuffix(repo.Item(), metadata.DataFileSuffix)
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
+	if cfg.OnlyMatchItemNames {
+		item = ent.ItemInfo.OneDrive.ItemName
+	}
 
 	result := map[categorizer][]string{
 		OneDriveFolder: {rFld},
-		OneDriveItem:   {ent.OneDrive.ItemName, ent.ShortRef, itemID},
+		OneDriveItem:   {item, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {

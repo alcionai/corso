@@ -903,8 +903,7 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots,
-		)
+			roots)
 	})
 	if err != nil {
 		return clues.Wrap(err, "traversing base directory")
