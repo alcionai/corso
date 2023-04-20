@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ParentPath of json output for Exchange calendar now shows names instead of IDs.
 - Fixed failure when downloading huge amount of attachments
 - Graph API requests that return an ECONNRESET error are now retried.
+- Fixed edge case in incremental backups where moving a subfolder, deleting and recreating the subfolder's original parent folder, and moving the subfolder back to where it started would skip backing up unchanged items in the subfolder.
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
