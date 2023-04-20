@@ -222,3 +222,58 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 		})
 	}
 }
+
+func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
+	t := suite.T()
+	acct := tester.NewM365Account(t)
+	userID := tester.M365UserID(t)
+
+	table := []struct {
+		name   string
+		user   string
+		expect *api.UserInfo
+	}{
+		{
+			name: "user without drive and exchange",
+			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", //User: testevents@10rqc2.onmicrosoft.com
+			expect: &api.UserInfo{
+				DiscoveredServices: map[path.ServiceType]struct{}{},
+				HasOneDrive:        false,
+				HasMailBox:         false,
+				Mailbox: api.MailboxInfo{
+					ErrGetMailBoxSetting: *clues.New("mailbox settings not found")},
+			},
+		},
+		{
+			name: "user with drive and exchange",
+			user: userID,
+			expect: &api.UserInfo{
+				DiscoveredServices: map[path.ServiceType]struct{}{
+					path.ExchangeService: {},
+					path.OneDriveService: {},
+				},
+				HasOneDrive: true,
+				HasMailBox:  true,
+				Mailbox: api.MailboxInfo{
+					Purpose:              "user",
+					ErrGetMailBoxSetting: clues.Err{}},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			result, err := discovery.UserDetails(ctx, acct, test.user, fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
+			assert.Equal(t, test.expect.HasOneDrive, result.HasOneDrive)
+			assert.Equal(t, test.expect.HasMailBox, result.HasMailBox)
+			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting.Error(), result.Mailbox.ErrGetMailBoxSetting.Error())
+			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
+		})
+	}
+}

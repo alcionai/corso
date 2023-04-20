@@ -38,10 +38,10 @@ type UserInfo struct {
 	DiscoveredServices map[path.ServiceType]struct{}
 	HasMailBox         bool
 	HasOneDrive        bool
-	Mailbox            mailboxInfo
+	Mailbox            MailboxInfo
 }
 
-type mailboxInfo struct {
+type MailboxInfo struct {
 	Purpose                    string
 	ArchiveFolder              string
 	DateFormat                 string
@@ -268,8 +268,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 		logger.Ctx(ctx).Infof("resource owner does not have a drive")
 
-		// TODO: add delete onedrive serve
-		// delete(userInfo.DiscoveredServices, path.OneDriveService)
+		delete(userInfo.DiscoveredServices, path.OneDriveService)
 		userInfo.HasOneDrive = false
 	}
 
@@ -305,7 +304,7 @@ func (c Users) allowsOnedrive(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (c Users) getAdditionalData(ctx context.Context, userID string, mailbox *mailboxInfo) error {
+func (c Users) getAdditionalData(ctx context.Context, userID string, mailbox *MailboxInfo) error {
 	var (
 		rawURL                     = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
 		adapter                    = c.stable.Adapter()
