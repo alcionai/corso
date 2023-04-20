@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -34,7 +34,7 @@ import (
 // prior history (ie, incrementals) and run a full backup.
 func (gc *GraphConnector) ProduceBackupCollections(
 	ctx context.Context,
-	owner common.IDNamer,
+	owner idname.Provider,
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,

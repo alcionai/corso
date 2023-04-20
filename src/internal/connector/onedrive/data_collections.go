@@ -6,7 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -35,7 +35,7 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	user common.IDNamer,
+	user idname.Provider,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	tenant string,
@@ -131,7 +131,7 @@ func migrationCollections(
 	svc graph.Servicer,
 	lastBackupVersion int,
 	tenant string,
-	user common.IDNamer,
+	user idname.Provider,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
