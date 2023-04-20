@@ -620,7 +620,7 @@ func (c mockBackupCollection) FullPath() path.Path {
 }
 
 func (c mockBackupCollection) PreviousPath() path.Path {
-	return nil
+	return c.path
 }
 
 func (c mockBackupCollection) LocationPath() *path.Builder {
