@@ -56,7 +56,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 		},
 		{
 			name:      "user pn to id",
-			version:   version.All7MigrateUserPNToID - 1,
+			version:   version.AllXMigrateUserPNToID - 1,
 			expectLen: 1,
 			expectMigration: []migr{
 				{
