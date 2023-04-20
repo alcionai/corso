@@ -34,9 +34,11 @@ const (
 	errCodeMalwareDetected             = "malwareDetected"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
+	errCodeSyncStateInvalid            = "SyncStateInvalid"
 	errCodeResourceNotFound            = "ResourceNotFound"
 	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
+	errCodeErrorAccessDenied           = "ErrorAccessDenied"
 )
 
 const (
@@ -93,7 +95,7 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) ||
+	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired, errCodeSyncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
@@ -103,6 +105,10 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 
 func IsErrUserNotFound(err error) bool {
 	return hasErrorCode(err, errCodeRequestResourceNotFound)
+}
+
+func IsErrAccessDenied(err error) bool {
+	return hasErrorCode(err, errCodeErrorAccessDenied)
 }
 
 func IsErrTimeout(err error) bool {

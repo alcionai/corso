@@ -366,7 +366,7 @@ func (suite *SelectorScopesSuite) TestPasses() {
 		}
 	)
 
-	pvs, err := cat.pathValues(pth, entry)
+	pvs, err := cat.pathValues(pth, entry, Config{})
 	require.NoError(suite.T(), err)
 
 	for _, test := range reduceTestTable {

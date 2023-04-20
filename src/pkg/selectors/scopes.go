@@ -89,7 +89,7 @@ type (
 		//   folderCat: folder,
 		//   itemCat:   itemID,
 		// }
-		pathValues(path.Path, details.DetailsEntry) (map[categorizer][]string, error)
+		pathValues(path.Path, details.DetailsEntry, Config) (map[categorizer][]string, error)
 
 		// pathKeys produces a list of categorizers that can be used as keys in the pathValues
 		// map.  The combination of the two funcs generically interprets the context of the
@@ -389,7 +389,7 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
-		pv, err := dc.pathValues(repoPath, *ent)
+		pv, err := dc.pathValues(repoPath, *ent, s.Cfg)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "getting path values").WithClues(ictx))
 			continue

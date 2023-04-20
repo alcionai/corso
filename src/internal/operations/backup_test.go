@@ -320,6 +320,7 @@ func makeDetailsEntry(
 		RepoRef:     p.String(),
 		ShortRef:    p.ShortRef(),
 		ParentRef:   p.ToBuilder().Dir().ShortRef(),
+		ItemRef:     p.Item(),
 		LocationRef: lr,
 		ItemInfo:    details.ItemInfo{},
 		Updated:     updated,
