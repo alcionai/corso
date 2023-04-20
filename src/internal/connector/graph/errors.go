@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -33,6 +34,7 @@ const (
 	errCodeMalwareDetected             = "malwareDetected"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
+	errCodeSyncStateInvalid            = "SyncStateInvalid"
 	errCodeResourceNotFound            = "ResourceNotFound"
 	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
@@ -93,7 +95,7 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) ||
+	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired, errCodeSyncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
@@ -119,6 +121,10 @@ func IsErrTimeout(err error) bool {
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
 		os.IsTimeout(err)
+}
+
+func IsErrConnectionReset(err error) bool {
+	return errors.Is(err, syscall.ECONNRESET)
 }
 
 func IsErrUnauthorized(err error) bool {

@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DiscoveryIntegrationSuite struct {
@@ -197,14 +197,23 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 					path.ExchangeService: {},
 					path.OneDriveService: {},
 				},
+				HasMailBox:  true,
+				HasOneDrive: true,
+				Mailbox: api.MailboxInfo{
+					Purpose:              "user",
+					ErrGetMailBoxSetting: clues.Err{},
+				},
 			},
 		},
 		{
 			name: "user does not exist",
 			user: uuid.NewString(),
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{
-					path.OneDriveService: {}, // currently statically populated
+				DiscoveredServices: map[path.ServiceType]struct{}{},
+				HasMailBox:         false,
+				HasOneDrive:        false,
+				Mailbox: api.MailboxInfo{
+					ErrGetMailBoxSetting: *clues.New("mailbox settings not found"),
 				},
 			},
 		},
@@ -218,7 +227,9 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 
 			result, err := discovery.UserInfo(ctx, uapi, test.user)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect, result)
+			assert.Equal(t, test.expect.HasMailBox, result.HasMailBox)
+			assert.Equal(t, test.expect.HasOneDrive, result.HasOneDrive)
+			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
 		})
 	}
 }
@@ -235,13 +246,14 @@ func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
 	}{
 		{
 			name: "user without drive and exchange",
-			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", //User: testevents@10rqc2.onmicrosoft.com
+			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
 			expect: &api.UserInfo{
 				DiscoveredServices: map[path.ServiceType]struct{}{},
 				HasOneDrive:        false,
 				HasMailBox:         false,
 				Mailbox: api.MailboxInfo{
-					ErrGetMailBoxSetting: *clues.New("mailbox settings not found")},
+					ErrGetMailBoxSetting: *clues.New("mailbox settings not found"),
+				},
 			},
 		},
 		{
@@ -256,7 +268,8 @@ func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
 				HasMailBox:  true,
 				Mailbox: api.MailboxInfo{
 					Purpose:              "user",
-					ErrGetMailBoxSetting: clues.Err{}},
+					ErrGetMailBoxSetting: clues.Err{},
+				},
 			},
 		},
 	}

@@ -594,6 +594,7 @@ func (ec exchangeCategory) isLeaf() bool {
 func (ec exchangeCategory) pathValues(
 	repo path.Path,
 	ent details.DetailsEntry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	var folderCat, itemCat categorizer
 
@@ -611,9 +612,14 @@ func (ec exchangeCategory) pathValues(
 		return nil, clues.New("bad exchanageCategory").With("category", ec)
 	}
 
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
 	result := map[categorizer][]string{
 		folderCat: {repo.Folder(false)},
-		itemCat:   {repo.Item(), ent.ShortRef},
+		itemCat:   {item, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {

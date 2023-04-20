@@ -145,7 +145,7 @@ func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
 
 // GetAll retrieves all users.
 func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, err
 	}
