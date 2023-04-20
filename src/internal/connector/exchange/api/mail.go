@@ -131,9 +131,16 @@ func (c Mail) GetContainerByID(
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mail, err := c.Stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	// Will need adjusted if attachments start allowing paging.
+	headers := buildPreferHeaders(false, immutableIDs)
+	itemOpts := &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
+		Headers: headers,
+	}
+
+	mail, err := c.Stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -146,6 +153,7 @@ func (c Mail) GetItem(
 		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
 		},
+		Headers: headers,
 	}
 
 	attached, err := c.LargeItem.
@@ -190,6 +198,7 @@ func (c Mail) GetItem(
 			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
+			Headers: headers,
 		}
 
 		att, err := c.Stable.
@@ -304,6 +313,7 @@ func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) 
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
+	immutableIDs bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -320,7 +330,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
+	options, err := optionsForFolderMessagesDelta([]string{"isRead"}, immutableIDs)
 	if err != nil {
 		return nil,
 			nil,

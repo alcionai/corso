@@ -125,6 +125,7 @@ var (
 				{
 					RepoRef:  "tID/exchange/your-user-id/email/example/itemID",
 					ShortRef: "xyz",
+					ItemRef:  "123",
 					ItemInfo: details.ItemInfo{
 						Exchange: &details.ExchangeInfo{
 							ItemType: details.ExchangeMail,

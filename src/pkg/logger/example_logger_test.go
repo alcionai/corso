@@ -14,11 +14,7 @@ import (
 // mock helpers
 // ---------------------------------------------------------------------------
 
-const (
-	loglevel = "info"
-	logfile  = logger.Stderr
-	itemID   = "item_id"
-)
+const itemID = "item_id"
 
 var (
 	err         error
@@ -35,7 +31,14 @@ func Example_seed() {
 	// the context.  Seeding only needs to be done once.  For example
 	// Corso's CLI layer seeds the logger in the cli initialization.
 	ctx := context.Background()
-	ctx, log := logger.Seed(ctx, loglevel, logfile)
+
+	ls := logger.Settings{
+		File:        logger.Stderr,
+		Level:       logger.LLInfo,
+		PIIHandling: logger.PIIPlainText,
+	}
+
+	ctx, log := logger.Seed(ctx, ls)
 
 	// SDK consumers who configure their own zap logger can Set their logger
 	// into the context directly, instead of Seeding a new one.

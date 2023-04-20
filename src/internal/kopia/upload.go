@@ -208,20 +208,9 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	var (
-		locationFolders string
-		parent          = d.repoPath.ToBuilder().Dir()
-	)
-
-	if d.locationPath != nil {
-		locationFolders = d.locationPath.String()
-	}
-
 	err = cp.deets.Add(
-		d.repoPath.String(),
-		d.repoPath.ShortRef(),
-		parent.ShortRef(),
-		locationFolders,
+		d.repoPath,
+		d.locationPath,
 		!d.cached,
 		*d.info)
 	if err != nil {
@@ -234,12 +223,6 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 		return
 	}
-
-	folders := details.FolderEntriesForPath(parent, d.locationPath)
-	cp.deets.AddFoldersForItem(
-		folders,
-		*d.info,
-		!d.cached)
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
@@ -920,8 +903,7 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots,
-		)
+			roots)
 	})
 	if err != nil {
 		return clues.Wrap(err, "traversing base directory")

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Permissions backup for OneDrive is now out of experimental (By default, only newly backed up items will have their permissions backed up. You will have to run a full backup to ensure all items have their permissions backed up.)
+- LocationRef is now populated for all services and data types. It should be used in place of RepoRef if a location for an item is required.
 
 ### Fixed
 - Fixed permissions restore in latest backup version.
@@ -22,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip OneNote items bigger than 2GB (Graph API prevents us from downloading them)
 - ParentPath of json output for Exchange calendar now shows names instead of IDs.
 - Fixed failure when downloading huge amount of attachments
+- Graph API requests that return an ECONNRESET error are now retried.
+
+### Known Issues
+- Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
 
 ## [v0.6.1] (beta) - 2023-03-21
 

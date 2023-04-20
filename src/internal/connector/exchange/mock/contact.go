@@ -1,4 +1,4 @@
-package mockconnector
+package mock
 
 import "fmt"
 
@@ -43,12 +43,12 @@ const (
 	defaultContactSurname     = "Quail"
 )
 
-// GetMockContactBytes returns bytes for Contactable item.
+// ContactBytes returns bytes for Contactable item.
 // When hydrated: contact.GetGivenName() shows differences
-func GetMockContactBytes(middleName string) []byte {
+func ContactBytes(middleName string) []byte {
 	phone := generatePhoneNumber()
 
-	return GetMockContactBytesWith(
+	return ContactBytesWith(
 		defaultContactDisplayName,
 		defaultContactFileAsName,
 		defaultContactGivenName,
@@ -58,7 +58,7 @@ func GetMockContactBytes(middleName string) []byte {
 	)
 }
 
-func GetMockContactBytesWith(
+func ContactBytesWith(
 	displayName, fileAsName,
 	givenName, middleName, surname,
 	phone string,

@@ -342,7 +342,7 @@ func (suite *MailAPIE2ESuite) TestHugeAttachmentListDownload() {
 			defer gock.Off()
 			tt.setupf()
 
-			item, _, err := suite.ac.Mail().GetItem(ctx, "user", mid, fault.New(true))
+			item, _, err := suite.ac.Mail().GetItem(ctx, "user", mid, false, fault.New(true))
 			tt.expect(suite.T(), err)
 
 			it, ok := item.(models.Messageable)

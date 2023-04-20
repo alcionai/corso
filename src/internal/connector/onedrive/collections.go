@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -16,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -72,7 +72,7 @@ type folderMatcher interface {
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
 	// configured to handle large item downloads
-	itemClient *http.Client
+	itemClient graph.Requester
 
 	tenant        string
 	resourceOwner string
@@ -108,7 +108,7 @@ type Collections struct {
 }
 
 func NewCollections(
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	tenant string,
 	resourceOwner string,
 	source driveSource,
@@ -416,7 +416,7 @@ func (c *Collections) Get(
 				return nil, map[string]map[string]struct{}{}, err
 			}
 
-			col := NewCollection(
+			col, err := NewCollection(
 				c.itemClient,
 				nil,
 				prevPath,
@@ -427,6 +427,9 @@ func (c *Collections) Get(
 				c.ctrl,
 				CollectionScopeUnknown,
 				true)
+			if err != nil {
+				return nil, map[string]map[string]struct{}{}, clues.Wrap(err, "making collection").WithClues(ictx)
+			}
 
 			c.CollectionMap[driveID][fldID] = col
 		}
@@ -444,7 +447,7 @@ func (c *Collections) Get(
 	}
 
 	service, category := c.source.toPathServiceCat()
-	metadata, err := graph.MakeMetadataCollection(
+	md, err := graph.MakeMetadataCollection(
 		c.tenant,
 		c.resourceOwner,
 		service,
@@ -461,7 +464,7 @@ func (c *Collections) Get(
 		// empty/missing and default to a full backup.
 		logger.CtxErr(ctx, err).Info("making metadata collection for future incremental backups")
 	} else {
-		collections = append(collections, metadata)
+		collections = append(collections, md)
 	}
 
 	// TODO(ashmrtn): Track and return the set of items to exclude.
@@ -532,8 +535,8 @@ func (c *Collections) handleDelete(
 			return nil
 		}
 
-		excluded[itemID+DataFileSuffix] = struct{}{}
-		excluded[itemID+MetaFileSuffix] = struct{}{}
+		excluded[itemID+metadata.DataFileSuffix] = struct{}{}
+		excluded[itemID+metadata.MetaFileSuffix] = struct{}{}
 		// Exchange counts items streamed through it which includes deletions so
 		// add that here too.
 		c.NumFiles++
@@ -578,7 +581,7 @@ func (c *Collections) handleDelete(
 		return nil
 	}
 
-	col := NewCollection(
+	col, err := NewCollection(
 		c.itemClient,
 		nil,
 		prevPath,
@@ -590,6 +593,12 @@ func (c *Collections) handleDelete(
 		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
 		false)
+	if err != nil {
+		return clues.Wrap(err, "making collection").With(
+			"drive_id", driveID,
+			"item_id", itemID,
+			"path_string", prevPathStr)
+	}
 
 	c.CollectionMap[driveID][itemID] = col
 
@@ -765,7 +774,7 @@ func (c *Collections) UpdateCollections(
 				colScope = CollectionScopePackage
 			}
 
-			col := NewCollection(
+			col, err := NewCollection(
 				c.itemClient,
 				collectionPath,
 				prevPath,
@@ -777,6 +786,10 @@ func (c *Collections) UpdateCollections(
 				colScope,
 				invalidPrevDelta,
 			)
+			if err != nil {
+				return clues.Stack(err).WithClues(ictx)
+			}
+
 			col.driveName = driveName
 
 			c.CollectionMap[driveID][itemID] = col
@@ -840,8 +853,8 @@ func (c *Collections) UpdateCollections(
 				// Always add a file to the excluded list. The file may have been
 				// renamed/moved/modified, so we still have to drop the
 				// original one and download a fresh copy.
-				excluded[itemID+DataFileSuffix] = struct{}{}
-				excluded[itemID+MetaFileSuffix] = struct{}{}
+				excluded[itemID+metadata.DataFileSuffix] = struct{}{}
+				excluded[itemID+metadata.MetaFileSuffix] = struct{}{}
 			}
 
 		default:

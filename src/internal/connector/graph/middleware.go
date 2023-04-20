@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+type nexter interface {
+	Next(req *http.Request, middlewareIndex int) (*http.Response, error)
+}
+
 // ---------------------------------------------------------------------------
 // Logging
 // ---------------------------------------------------------------------------
@@ -122,7 +126,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
+		if logger.DebugAPIFV || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
 			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
 		}
 
@@ -133,7 +137,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// When debugging is toggled, every non-2xx is recorded with a response dump.
 	// Otherwise, throttling cases and other non-2xx responses are logged
 	// with a slimmer reference for telemetry/supportability purposes.
-	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
+	if logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != "" {
 		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
 		return resp, err
 	}
@@ -213,7 +217,7 @@ func (middleware RetryHandler) retryRequest(
 		}
 
 		response, err := pipeline.Next(req, middlewareIndex)
-		if err != nil && !IsErrTimeout(err) {
+		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
 			return response, Stack(ctx, err).With("retry_count", executionCount)
 		}
 

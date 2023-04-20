@@ -81,18 +81,18 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 					scopeMustHave(
 						t,
 						spsc,
-						map[categorizer]string{
-							SharePointLibraryItem:   AnyTgt,
-							SharePointLibraryFolder: AnyTgt,
+						map[categorizer][]string{
+							SharePointLibraryItem:   Any(),
+							SharePointLibraryFolder: Any(),
 						},
 					)
 				case SharePointListItem:
 					scopeMustHave(
 						t,
 						spsc,
-						map[categorizer]string{
-							SharePointListItem: AnyTgt,
-							SharePointList:     AnyTgt,
+						map[categorizer][]string{
+							SharePointListItem: Any(),
+							SharePointList:     Any(),
 						},
 					)
 				}
@@ -109,8 +109,10 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 		s2 = "s2"
 	)
 
-	sel := NewSharePointRestore([]string{s1, s2})
-	sel.Include(sel.WebURL([]string{s1, s2}))
+	s12 := []string{s1, s2}
+
+	sel := NewSharePointRestore(s12)
+	sel.Include(sel.WebURL(s12))
 	scopes := sel.Includes
 	require.Len(t, scopes, 3)
 
@@ -118,7 +120,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 		scopeMustHave(
 			t,
 			SharePointScope(sc),
-			map[categorizer]string{SharePointWebURL: join(s1, s2)},
+			map[categorizer][]string{SharePointWebURL: s12},
 		)
 	}
 }
@@ -127,17 +129,17 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 	table := []struct {
 		name   string
 		in     []string
-		expect string
+		expect []string
 	}{
 		{
 			name:   "any",
 			in:     []string{AnyTgt},
-			expect: AnyTgt,
+			expect: Any(),
 		},
 		{
 			name:   "none",
 			in:     []string{NoneTgt},
-			expect: NoneTgt,
+			expect: None(),
 		},
 	}
 	for _, test := range table {
@@ -153,7 +155,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 				scopeMustHave(
 					t,
 					SharePointScope(sc),
-					map[categorizer]string{SharePointWebURL: test.expect},
+					map[categorizer][]string{SharePointWebURL: test.expect},
 				)
 			}
 		})
@@ -168,8 +170,10 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 		s2 = "s2"
 	)
 
-	sel := NewSharePointRestore([]string{s1, s2})
-	sel.Exclude(sel.WebURL([]string{s1, s2}))
+	s12 := []string{s1, s2}
+
+	sel := NewSharePointRestore(s12)
+	sel.Exclude(sel.WebURL(s12))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 3)
 
@@ -177,7 +181,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 		scopeMustHave(
 			t,
 			SharePointScope(sc),
-			map[categorizer]string{SharePointWebURL: join(s1, s2)},
+			map[categorizer][]string{SharePointWebURL: s12},
 		)
 	}
 }
@@ -216,6 +220,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			Entries: []details.DetailsEntry{
 				{
 					RepoRef: item,
+					ItemRef: "item",
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointLibrary,
@@ -225,6 +230,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				},
 				{
 					RepoRef: item2,
+					// ItemRef intentionally blank to test fallback case
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointLibrary,
@@ -234,6 +240,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				},
 				{
 					RepoRef: item3,
+					ItemRef: "item3",
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointLibrary,
@@ -243,6 +250,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				},
 				{
 					RepoRef: item4,
+					ItemRef: "item4",
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointPage,
@@ -252,6 +260,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				},
 				{
 					RepoRef: item5,
+					// ItemRef intentionally blank to test fallback case
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointPage,
@@ -272,6 +281,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 		deets        *details.Details
 		makeSelector func() *SharePointRestore
 		expect       []string
+		cfg          Config
 	}{
 		{
 			name:  "all",
@@ -288,10 +298,42 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore(Any())
+				odr.Include(odr.LibraryItems(Any(), []string{"item2"}))
+				return odr
+			},
+			expect: arr(item2),
+		},
+		{
+			name:  "id doesn't match name",
+			deets: deets,
+			makeSelector: func() *SharePointRestore {
+				odr := NewSharePointRestore(Any())
+				odr.Include(odr.LibraryItems(Any(), []string{"item2"}))
+				return odr
+			},
+			expect: []string{},
+			cfg:    Config{OnlyMatchItemNames: true},
+		},
+		{
+			name:  "only match item name",
+			deets: deets,
+			makeSelector: func() *SharePointRestore {
+				odr := NewSharePointRestore(Any())
 				odr.Include(odr.LibraryItems(Any(), []string{"itemName2"}))
 				return odr
 			},
 			expect: arr(item2),
+			cfg:    Config{OnlyMatchItemNames: true},
+		},
+		{
+			name:  "name doesn't match",
+			deets: deets,
+			makeSelector: func() *SharePointRestore {
+				odr := NewSharePointRestore(Any())
+				odr.Include(odr.LibraryItems(Any(), []string{"itemName2"}))
+				return odr
+			},
+			expect: []string{},
 		},
 		{
 			name:  "only match folder",
@@ -322,6 +364,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			defer flush()
 
 			sel := test.makeSelector()
+			sel.Configure(test.cfg)
 			results := sel.Reduce(ctx, test.deets, fault.New(true))
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
@@ -332,9 +375,10 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	var (
 		itemName   = "item"
+		itemID     = "item-id"
 		shortRef   = "short"
-		driveElems = []string{"drive", "drive!id", "root:", "dir1", "dir2", itemName + "-id"}
-		elems      = []string{"dir1", "dir2", itemName + "-id"}
+		driveElems = []string{"drive", "drive!id", "root:", "dir1", "dir2", itemID}
+		elems      = []string{"dir1", "dir2", itemID}
 	)
 
 	table := []struct {
@@ -342,6 +386,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 		sc        sharePointCategory
 		pathElems []string
 		expected  map[categorizer][]string
+		cfg       Config
 	}{
 		{
 			name:      "SharePoint Libraries",
@@ -349,8 +394,19 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			pathElems: driveElems,
 			expected: map[categorizer][]string{
 				SharePointLibraryFolder: {"dir1/dir2"},
+				SharePointLibraryItem:   {itemID, shortRef},
+			},
+			cfg: Config{},
+		},
+		{
+			name:      "SharePoint Libraries w/ name",
+			sc:        SharePointLibraryItem,
+			pathElems: driveElems,
+			expected: map[categorizer][]string{
+				SharePointLibraryFolder: {"dir1/dir2"},
 				SharePointLibraryItem:   {itemName, shortRef},
 			},
+			cfg: Config{OnlyMatchItemNames: true},
 		},
 		{
 			name:      "SharePoint Lists",
@@ -358,8 +414,9 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			pathElems: elems,
 			expected: map[categorizer][]string{
 				SharePointList:     {"dir1/dir2"},
-				SharePointListItem: {"item-id", shortRef},
+				SharePointListItem: {itemID, shortRef},
 			},
+			cfg: Config{},
 		},
 	}
 
@@ -379,6 +436,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			ent := details.DetailsEntry{
 				RepoRef:  itemPath.String(),
 				ShortRef: shortRef,
+				ItemRef:  itemPath.Item(),
 				ItemInfo: details.ItemInfo{
 					SharePoint: &details.SharePointInfo{
 						ItemName: itemName,
@@ -386,7 +444,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				},
 			}
 
-			pv, err := test.sc.pathValues(itemPath, ent)
+			pv, err := test.sc.pathValues(itemPath, ent, test.cfg)
 			require.NoError(t, err)
 			assert.Equal(t, test.expected, pv)
 		})

@@ -58,7 +58,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 	selUsers := []string{suite.user}
 
-	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
+	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -141,7 +141,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 
 	owners := []string{"snuffleupagus"}
 
-	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
+	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -226,7 +226,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 	selSites := []string{suite.site}
 
-	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
+	connector := loadConnector(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
 		expected    int
@@ -258,7 +258,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				sel,
 				connector.credentials,
 				connector.Service,
@@ -315,7 +315,7 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
+	suite.connector = loadConnector(ctx, suite.T(), Sites)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -328,7 +328,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	var (
 		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), Sites)
+		gc      = loadConnector(ctx, t, Sites)
 		siteIDs = []string{siteID}
 	)
 
@@ -372,7 +372,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	var (
 		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), Sites)
+		gc      = loadConnector(ctx, t, Sites)
 		siteIDs = []string{siteID}
 	)
 

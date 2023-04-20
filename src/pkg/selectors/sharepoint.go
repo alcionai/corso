@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -119,6 +120,15 @@ func (s sharePoint) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s SharePointScope) Conceal() string             { return conceal(s) }
+func (s SharePointScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s SharePointScope) String() string              { return conceal(s) }
+func (s SharePointScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories
@@ -286,7 +296,7 @@ func (s *sharePoint) Library(library string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoLibraryDrive,
 			[]string{library},
-			wrapFilter(filters.Equal)),
+			filters.Equal),
 	}
 }
 
@@ -366,7 +376,7 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -376,7 +386,7 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -386,7 +396,7 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -396,7 +406,7 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -507,11 +517,12 @@ func (c sharePointCategory) isLeaf() bool {
 func (c sharePointCategory) pathValues(
 	repo path.Path,
 	ent details.DetailsEntry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	var (
 		folderCat, itemCat    categorizer
-		itemName              = repo.Item()
 		dropDriveFolderPrefix bool
+		itemID                string
 	)
 
 	switch c {
@@ -522,7 +533,6 @@ func (c sharePointCategory) pathValues(
 
 		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
-		itemName = ent.SharePoint.ItemName
 
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
@@ -540,9 +550,22 @@ func (c sharePointCategory) pathValues(
 		rFld = path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 	}
 
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
+	if cfg.OnlyMatchItemNames {
+		item = ent.ItemInfo.SharePoint.ItemName
+	}
+
 	result := map[categorizer][]string{
 		folderCat: {rFld},
-		itemCat:   {itemName, ent.ShortRef},
+		itemCat:   {item, ent.ShortRef},
+	}
+
+	if len(itemID) > 0 {
+		result[itemCat] = append(result[itemCat], itemID)
 	}
 
 	if len(ent.LocationRef) > 0 {
@@ -646,12 +669,6 @@ func (s SharePointScope) setDefaults() {
 	case SharePointPageFolder:
 		s[SharePointPage.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
-// site comparison with only the provided site.
-func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
-	return discreteCopy(s, site)
 }
 
 // ---------------------------------------------------------------------------

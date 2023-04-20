@@ -13,8 +13,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -50,7 +51,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mockconnector.GraphConnector{}
+		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination()
@@ -72,7 +73,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				},
 				cs: []data.RestoreCollection{
 					data.NotFoundRestoreCollection{
-						Collection: &mockconnector.MockExchangeDataCollection{},
+						Collection: &exchMock.DataCollection{},
 					},
 				},
 				gc: &data.CollectionStats{
@@ -215,7 +216,7 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &mockconnector.GraphConnector{}
+	gc := &mock.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 	dest := tester.DefaultTestRestoreDestination()
 
@@ -272,7 +273,6 @@ func setupExchangeBackup(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))
@@ -334,7 +334,6 @@ func setupSharePointBackup(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Sites,
 		fault.New(true))
@@ -464,7 +463,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			require.NotEmpty(t, ro.Results, "restoreOp results")
 			require.NotNil(t, ds, "restored details")
 			assert.Equal(t, ro.Status, Completed, "restoreOp status")
-			assert.Equal(t, ro.Results.ItemsWritten, len(ds.Entries), "item write count matches len details")
+			assert.Equal(t, ro.Results.ItemsWritten, len(ds.Items()), "item write count matches len details")
 			assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
 			assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 			assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
@@ -492,7 +491,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		suite.acct,
 		connector.Users,
 		fault.New(true))

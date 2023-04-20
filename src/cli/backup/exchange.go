@@ -88,6 +88,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		options.AddFetchParallelismFlag(c)
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
+		options.AddEnableImmutableIDFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
@@ -317,6 +318,7 @@ func runDetailsExchangeCmd(
 
 	if !skipReduce {
 		sel := utils.IncludeExchangeRestoreDataSelectors(opts)
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 		utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}
