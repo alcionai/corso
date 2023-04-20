@@ -201,7 +201,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 				HasOneDrive: true,
 				Mailbox: api.MailboxInfo{
 					Purpose:              "user",
-					ErrGetMailBoxSetting: clues.Err{},
+					ErrGetMailBoxSetting: nil,
 				},
 			},
 		},
@@ -213,7 +213,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 				HasMailBox:         false,
 				HasOneDrive:        false,
 				Mailbox: api.MailboxInfo{
-					ErrGetMailBoxSetting: *clues.New("mailbox settings not found"),
+					ErrGetMailBoxSetting: api.ErrMailBoxSettingsNotFound,
 				},
 			},
 		},
@@ -252,7 +252,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
 				HasOneDrive:        false,
 				HasMailBox:         false,
 				Mailbox: api.MailboxInfo{
-					ErrGetMailBoxSetting: *clues.New("mailbox settings not found"),
+					ErrGetMailBoxSetting: api.ErrMailBoxSettingsNotFound,
 				},
 			},
 		},
@@ -268,7 +268,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
 				HasMailBox:  true,
 				Mailbox: api.MailboxInfo{
 					Purpose:              "user",
-					ErrGetMailBoxSetting: clues.Err{},
+					ErrGetMailBoxSetting: nil,
 				},
 			},
 		},
@@ -280,12 +280,12 @@ func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
 
 			t := suite.T()
 
-			result, err := discovery.UserDetails(ctx, acct, test.user, fault.New(true))
+			result, err := discovery.GetUserInfo(ctx, acct, test.user, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
 			assert.Equal(t, test.expect.HasOneDrive, result.HasOneDrive)
 			assert.Equal(t, test.expect.HasMailBox, result.HasMailBox)
-			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting.Error(), result.Mailbox.ErrGetMailBoxSetting.Error())
+			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting, result.Mailbox.ErrGetMailBoxSetting)
 			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
 		})
 	}

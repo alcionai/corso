@@ -73,7 +73,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		userInfo, err := discovery.UserDetails(ctx, acct, pu.ID, errs)
+		userInfo, err := discovery.GetUserInfo(ctx, acct, pu.ID, errs)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user details")
 		}

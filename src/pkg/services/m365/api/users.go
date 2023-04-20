@@ -17,6 +17,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// Variables
+var (
+	ErrMailBoxSettingsNotFound = clues.New("mailbox settings not found")
+)
+
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -51,7 +56,7 @@ type MailboxInfo struct {
 	AutomaticRepliesSetting    AutomaticRepliesSettings
 	Language                   Language
 	WorkingHours               WorkingHours
-	ErrGetMailBoxSetting       clues.Err
+	ErrGetMailBoxSetting       error
 }
 
 type AutomaticRepliesSettings struct {
@@ -240,7 +245,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	userInfo.HasMailBox = true
 
-	err = c.allowsExchange(ctx, userID, options)
+	err = c.GetExchange(ctx, userID, options)
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			logger.Ctx(ctx).Errorf("err getting user's mail folder: %s", err)
@@ -256,7 +261,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	userInfo.HasOneDrive = true
 
-	err = c.allowsOnedrive(ctx, userID)
+	err = c.GetOnedrive(ctx, userID)
 	if err != nil {
 		err = graph.Stack(ctx, err)
 
@@ -281,7 +286,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 }
 
 // verify mailbox enabled for user
-func (c Users) allowsExchange(
+func (c Users) GetExchange(
 	ctx context.Context,
 	userID string,
 	options users.ItemMailFoldersRequestBuilderGetRequestConfiguration,
@@ -295,7 +300,7 @@ func (c Users) allowsExchange(
 }
 
 // verify onedrive enabled for user
-func (c Users) allowsOnedrive(ctx context.Context, userID string) error {
+func (c Users) GetOnedrive(ctx context.Context, userID string) error {
 	_, err := c.stable.Client().UsersById(userID).Drives().Get(ctx, nil)
 	if err != nil {
 		return err
@@ -306,42 +311,38 @@ func (c Users) allowsOnedrive(ctx context.Context, userID string) error {
 
 func (c Users) getAdditionalData(ctx context.Context, userID string, mailbox *MailboxInfo) error {
 	var (
-		rawURL                     = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
-		adapter                    = c.stable.Adapter()
-		builder                    = users.NewUserItemRequestBuilder(rawURL, adapter)
-		ErrMailBoxSettingsNotFound = clues.New("mailbox settings not found")
-		mailBoundErr               clues.Err
+		rawURL       = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
+		adapter      = c.stable.Adapter()
+		mailBoundErr clues.Err
 	)
 
-	newItem, err := builder.Get(ctx, nil)
+	settings, err := users.NewUserItemRequestBuilder(rawURL, adapter).Get(ctx, nil)
 	if err != nil && !(graph.IsErrAccessDenied(err) || graph.IsErrExchangeMailFolderNotFound(err)) {
-		logger.Ctx(ctx).Errorf("err getting additional data: %s", err)
+		logger.CtxErr(ctx, err).Error("getting mailbox settings")
 
 		return graph.Wrap(ctx, err, "getting additional data")
 	}
 
 	if graph.IsErrAccessDenied(err) {
-		logger.Ctx(ctx).Infof("err getting additional data: access denied")
+		logger.Ctx(ctx).Info("err getting additional data: access denied")
 
-		mailbox.ErrGetMailBoxSetting = *clues.New("access denied")
+		mailbox.ErrGetMailBoxSetting = clues.New("access denied")
 
 		return nil
 	}
 
 	if graph.IsErrExchangeMailFolderNotFound(err) {
-		logger.Ctx(ctx).Infof("err exchange mail folder not found")
+		logger.Ctx(ctx).Info("err exchange mail folder not found")
 
-		mailbox.ErrGetMailBoxSetting = *ErrMailBoxSettingsNotFound
+		mailbox.ErrGetMailBoxSetting = ErrMailBoxSettingsNotFound
 
 		return nil
 	}
 
-	additionalData := newItem.GetAdditionalData()
+	additionalData := settings.GetAdditionalData()
 
 	mailbox.ArchiveFolder = toString(ctx, additionalData["archiveFolder"], &mailBoundErr)
-
 	mailbox.Timezone = toString(ctx, additionalData["timeZone"], &mailBoundErr)
-
 	mailbox.DateFormat = toString(ctx, additionalData["dateFormat"], &mailBoundErr)
 	mailbox.TimeFormat = toString(ctx, additionalData["timeFormat"], &mailBoundErr)
 	mailbox.Purpose = toString(ctx, additionalData["userPurpose"], &mailBoundErr)
@@ -421,8 +422,8 @@ func (c Users) getAdditionalData(ctx context.Context, userID string, mailbox *Ma
 			toString(ctx, day, &mailBoundErr))
 	}
 
-	if mailBoundErr.Error() != "" {
-		mailbox.ErrGetMailBoxSetting = mailBoundErr
+	if mailBoundErr.Core().Msg != "" {
+		mailbox.ErrGetMailBoxSetting = &mailBoundErr
 	}
 
 	return nil
@@ -453,22 +454,20 @@ func validateUser(item any) (models.Userable, error) {
 }
 
 func toString(ctx context.Context, data any, mailBoxErr *clues.Err) string {
-	ErrMailBoxSettingsNotFound := *clues.New("mailbox settings not found")
-
 	dataPointer, ok := data.(*string)
 	if !ok {
-		logger.Ctx(ctx).Infof("error getting data from mailboxSettings")
+		logger.Ctx(ctx).Info("error getting data from mailboxSettings")
 
-		*mailBoxErr = ErrMailBoxSettingsNotFound
+		*mailBoxErr = *ErrMailBoxSettingsNotFound
 
 		return ""
 	}
 
 	value, ok := ptr.ValOK(dataPointer)
 	if !ok {
-		logger.Ctx(ctx).Infof("error getting value from pointer for mailboxSettings")
+		logger.Ctx(ctx).Info("error getting value from pointer for mailboxSettings")
 
-		*mailBoxErr = ErrMailBoxSettingsNotFound
+		*mailBoxErr = *ErrMailBoxSettingsNotFound
 
 		return ""
 	}
@@ -479,7 +478,7 @@ func toString(ctx context.Context, data any, mailBoxErr *clues.Err) string {
 func toMap(ctx context.Context, data any, mailBoxErr *clues.Err) map[string]interface{} {
 	value, ok := data.(map[string]interface{})
 	if !ok {
-		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+		logger.Ctx(ctx).Info("error getting mailboxSettings")
 
 		*mailBoxErr = *clues.New("mailbox settings not found")
 
@@ -492,7 +491,7 @@ func toMap(ctx context.Context, data any, mailBoxErr *clues.Err) map[string]inte
 func toArray(ctx context.Context, data any, mailBoxErr *clues.Err) []interface{} {
 	value, ok := data.([]interface{})
 	if !ok {
-		logger.Ctx(ctx).Infof("error getting mailboxSettings")
+		logger.Ctx(ctx).Info("error getting mailboxSettings")
 
 		*mailBoxErr = *clues.New("mailbox settings not found")
 

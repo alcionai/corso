@@ -70,7 +70,7 @@ func Users(
 }
 
 // UserDetails fetches detailed info like - userPurpose for all users in the tenant.
-func UserDetails(
+func GetUserInfo(
 	ctx context.Context,
 	acct account.Account,
 	userID string,
