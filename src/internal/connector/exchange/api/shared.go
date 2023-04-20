@@ -109,6 +109,9 @@ func getItemsAddedAndRemovedFromContainer(
 		addedIDs   = []string{}
 		removedIDs = []string{}
 		deltaURL   string
+		items      []getIDAndAddtler
+		lastPage   bool
+		err        error
 	)
 
 	itemCount := 0
@@ -116,7 +119,7 @@ func getItemsAddedAndRemovedFromContainer(
 
 	for {
 		// get the next page of data, check for standard errors
-		items, lastPage, deltaURL, err := pager.getNextPage(ctx)
+		items, lastPage, deltaURL, err = pager.getNextPage(ctx)
 		if err != nil {
 			return nil, nil, deltaURL, graph.Stack(ctx, err)
 		}
