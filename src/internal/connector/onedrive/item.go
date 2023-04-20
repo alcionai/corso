@@ -149,7 +149,7 @@ func downloadItem(
 		return resp, nil
 	}
 
-	if graph.IsMalwareResp(context.Background(), resp) {
+	if graph.IsMalwareResp(ctx, resp) {
 		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 

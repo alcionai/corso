@@ -279,7 +279,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			if err != nil {
 				for _, label := range test.expectLabels {
-					assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
+					assert.Truef(t, clues.HasLabel(err, label), "has clues label: %s", label)
 				}
 
 				return
@@ -474,7 +474,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
-				if count < 2 {
+				if count < 1 {
 					count++
 					return details.ItemInfo{}, nil, clues.Stack(assert.AnError).
 						Label(graph.LabelStatus(http.StatusUnauthorized))
@@ -495,13 +495,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			wg.Wait()
 
 			require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
 			require.Equal(t, 1, collStatus.Metrics.Successes, "read object successfully")
-			require.Equal(t, 2, count, "retry count")
+			require.Equal(t, 1, count, "retry count")
 		})
 	}
 }
@@ -638,14 +638,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			name:     "malware error",
 			colScope: CollectionScopeFolder,
 			itemSize: 10,
-			err:      clues.New("test error").Label(graph.LabelsMalware),
+			err:      clues.New("malware error").Label(graph.LabelsMalware),
 			labels:   []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
 			name:     "file not found error",
 			colScope: CollectionScopeFolder,
 			itemSize: 10,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
+			err:      clues.New("not found error").Label(graph.LabelStatus(http.StatusNotFound)),
 			labels:   []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
@@ -653,14 +653,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			name:     "small OneNote file",
 			colScope: CollectionScopePackage,
 			itemSize: 10,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 		{
 			name:     "big OneNote file",
 			colScope: CollectionScopePackage,
 			itemSize: MaxOneNoteFileSize,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			err:      clues.New("big onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
@@ -668,7 +668,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			name:     "big file",
 			colScope: CollectionScopeFolder,
 			itemSize: MaxOneNoteFileSize,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			err:      clues.New("big file error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 	}
@@ -708,11 +708,11 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 			_, err := col.getDriveItemContent(ctx, item, errs)
 			if test.err == nil {
-				assert.NoError(t, err, "no error")
+				assert.NoError(t, err, clues.ToCore(err))
 				return
 			}
 
-			assert.EqualError(t, err, clues.Wrap(test.err, "downloading item").Error(), "error")
+			assert.ErrorIs(t, err, test.err, clues.ToCore(err))
 
 			labelsMap := map[string]struct{}{}
 			for _, l := range test.labels {

@@ -379,11 +379,6 @@ func (oc *Collection) getDriveItemContent(
 		item,
 		oc.driveID)
 	if err != nil {
-		return nil, err
-	}
-
-	// check for errors following retries
-	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
 			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
