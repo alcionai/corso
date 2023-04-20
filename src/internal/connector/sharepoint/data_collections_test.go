@@ -109,7 +109,7 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 			)
 
 			c := onedrive.NewCollections(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				site,
 				onedrive.SharePointSource,

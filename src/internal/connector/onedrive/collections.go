@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -73,7 +72,7 @@ type folderMatcher interface {
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
 	// configured to handle large item downloads
-	itemClient *http.Client
+	itemClient graph.Requester
 
 	tenant        string
 	resourceOwner string
@@ -109,7 +108,7 @@ type Collections struct {
 }
 
 func NewCollections(
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	tenant string,
 	resourceOwner string,
 	source driveSource,

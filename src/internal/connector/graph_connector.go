@@ -4,7 +4,6 @@ package connector
 
 import (
 	"context"
-	"net/http"
 	"runtime/trace"
 	"sync"
 
@@ -36,7 +35,7 @@ var (
 type GraphConnector struct {
 	Service    graph.Servicer
 	Discovery  api.Client
-	itemClient *http.Client // configured to handle large item downloads
+	itemClient graph.Requester // configured to handle large item downloads
 
 	tenant      string
 	credentials account.M365Config
@@ -88,7 +87,7 @@ func NewGraphConnector(
 		Service:      service,
 
 		credentials: creds,
-		itemClient:  graph.HTTPClient(graph.NoTimeout()),
+		itemClient:  graph.NewNoTimeoutHTTPWrapper(),
 		ownerLookup: rc,
 		tenant:      acct.ID(),
 		wg:          &sync.WaitGroup{},
