@@ -311,17 +311,21 @@ func (oc Collection) PreviousLocationPath() details.LocationIDer {
 		return nil
 	}
 
+	var ider details.LocationIDer
+
 	switch oc.source {
 	case OneDriveSource:
-		return details.NewOneDriveLocationIDer(
+		ider = details.NewOneDriveLocationIDer(
 			oc.driveID,
 			oc.prevLocPath.Elements()...)
 
 	default:
-		return details.NewSharePointLocationIDer(
+		ider = details.NewSharePointLocationIDer(
 			oc.driveID,
 			oc.prevLocPath.Elements()...)
 	}
+
+	return ider
 }
 
 func (oc Collection) State() data.CollectionState {

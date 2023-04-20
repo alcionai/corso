@@ -164,16 +164,7 @@ func migrationCollections(
 		return nil, clues.Wrap(err, "creating user name migration path")
 	}
 
-	mgn, err := NewCollectionPrefix(
-		nil,
-		mc, mpc,
-		"",
-		svc,
-		su,
-		OneDriveSource,
-		ctrlOpts,
-		CollectionScopeUnknown,
-		false)
+	mgn, err := graph.NewPrefixCollection(mpc, mc, su)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating migration collection")
 	}
