@@ -1034,6 +1034,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					suite.testPath1,
 					1)
 				c.ColState = data.NotMovedState
+				c.PrevPath = suite.testPath1
 
 				return []data.BackupCollection{c}
 			},
