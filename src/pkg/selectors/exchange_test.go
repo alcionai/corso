@@ -728,6 +728,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		ent   = details.DetailsEntry{
 			RepoRef:     repo.String(),
 			ShortRef:    short,
+			ItemRef:     mail,
 			LocationRef: loc,
 		}
 	)
@@ -769,7 +770,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			scopes := setScopesToDefault(test.scope)
 			var aMatch bool
 			for _, scope := range scopes {
-				pvs, err := ExchangeMail.pathValues(repo, ent)
+				pvs, err := ExchangeMail.pathValues(repo, ent, Config{})
 				require.NoError(t, err)
 
 				if matchesPathValues(scope, ExchangeMail, pvs) {
@@ -1312,13 +1313,16 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 }
 
 func (suite *ExchangeSelectorSuite) TestPasses() {
-	short := "thisisahashofsomekind"
-	entry := details.DetailsEntry{ShortRef: short}
-
 	const (
 		mid = "mailID"
 		cat = ExchangeMail
 	)
+
+	short := "thisisahashofsomekind"
+	entry := details.DetailsEntry{
+		ShortRef: short,
+		ItemRef:  mid,
+	}
 
 	var (
 		es        = NewExchangeRestore(Any())
@@ -1352,7 +1356,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			pvs, err := cat.pathValues(repo, ent)
+			pvs, err := cat.pathValues(repo, ent, Config{})
 			require.NoError(t, err)
 
 			result := passes(
@@ -1493,9 +1497,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 			ent := details.DetailsEntry{
 				RepoRef:  test.path.String(),
 				ShortRef: "short",
+				ItemRef:  test.path.Item(),
 			}
 
-			pvs, err := test.cat.pathValues(test.path, ent)
+			pvs, err := test.cat.pathValues(test.path, ent, Config{})
 			require.NoError(t, err)
 			assert.Equal(t, test.expect, pvs)
 		})

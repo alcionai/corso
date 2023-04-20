@@ -46,6 +46,7 @@ func (suite *M365IntegrationSuite) TestUsers() {
 			assert.NotEmpty(t, u.ID)
 			assert.NotEmpty(t, u.PrincipalName)
 			assert.NotEmpty(t, u.Name)
+			assert.NotEmpty(t, u.Info)
 		})
 	}
 }

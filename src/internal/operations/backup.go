@@ -670,18 +670,13 @@ func mergeDetails(
 			itemUpdated := newPath.String() != rr.String() || locUpdated
 
 			err = deets.Add(
-				newPath.String(),
-				newPath.ShortRef(),
-				newPath.ToBuilder().Dir().ShortRef(),
-				newLoc.String(),
+				newPath,
+				newLoc,
 				itemUpdated,
 				item)
 			if err != nil {
 				return clues.Wrap(err, "adding item to details")
 			}
-
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), newLoc)
-			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when
 			// we're done.

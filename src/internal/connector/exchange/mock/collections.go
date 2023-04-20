@@ -166,6 +166,7 @@ func (med *Data) ToReader() io.ReadCloser {
 func (med *Data) Info() details.ItemInfo {
 	return details.ItemInfo{
 		Exchange: &details.ExchangeInfo{
+			ItemType: details.ExchangeMail,
 			Sender:   "foo@bar.com",
 			Subject:  "Hello world!",
 			Received: time.Now(),

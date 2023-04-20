@@ -122,6 +122,16 @@ type Selector struct {
 	// A slice of inclusion scopes.  Comparators must match either one of these,
 	// or all filters, to be included.
 	Includes []scope `json:"includes,omitempty"`
+
+	Cfg Config `json:"cfg,omitempty"`
+}
+
+// Config defines broad-scale selector behavior.
+type Config struct {
+	// OnlyMatchItemNames tells the reducer to ignore matching on itemRef values
+	// and other item IDs in favor of matching the item name.  Normal behavior only
+	// matches on itemRefs.
+	OnlyMatchItemNames bool
 }
 
 // helper for specific selector instance constructors.
@@ -138,6 +148,11 @@ func newSelector(s service, resourceOwners []string) Selector {
 		Excludes:       []scope{},
 		Includes:       []scope{},
 	}
+}
+
+// Configure sets the selector configuration.
+func (s *Selector) Configure(cfg Config) {
+	s.Cfg = cfg
 }
 
 // DiscreteResourceOwners returns the list of individual resourceOwners used
@@ -585,11 +600,7 @@ func filterize(
 		return defaultFilter(targets)
 	}
 
-	if len(targets) == 1 {
-		return filters.Equal(targets)
-	}
-
-	return filters.Contains(targets)
+	return filters.Equal(targets)
 }
 
 // pathFilterFactory returns the appropriate path filter
