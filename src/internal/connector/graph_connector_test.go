@@ -510,7 +510,8 @@ func runRestore(
 	assert.Equal(t, numRestoreItems, status.Successes, "restored status.Successes")
 	assert.Len(
 		t,
-		deets.Entries,
+		// Don't check folders as those are now added to details.
+		deets.Items(),
 		numRestoreItems,
 		"details entries contains same item count as total successful items restored")
 
@@ -1085,8 +1086,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, totalItems, status.Objects, "status.Objects")
 				assert.Equal(t, totalItems, status.Successes, "status.Successes")
-				assert.Equal(
-					t, totalItems, len(deets.Entries),
+				assert.Len(
+					t,
+					deets.Items(),
+					totalItems,
 					"details entries contains same item count as total successful items restored")
 
 				t.Log("Restore complete")

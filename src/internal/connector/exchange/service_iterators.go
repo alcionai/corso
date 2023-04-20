@@ -22,6 +22,7 @@ type addedAndRemovedItemIDsGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
+		immutableIDs bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -108,7 +109,12 @@ func filterContainersAndFillCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ictx, qp.ResourceOwner.ID(), cID, prevDelta)
+		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(
+			ictx,
+			qp.ResourceOwner.ID(),
+			cID,
+			prevDelta,
+			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))

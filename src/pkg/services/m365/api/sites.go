@@ -37,7 +37,7 @@ type Sites struct {
 
 // GetAll retrieves all sites.
 func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, err
 	}

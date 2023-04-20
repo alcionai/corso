@@ -98,11 +98,11 @@ func runDisplayM365JSON(
 
 	switch cat {
 	case path.EmailCategory:
-		bs, err = getItem(ctx, ac.Mail(), user, itemID, errs)
+		bs, err = getItem(ctx, ac.Mail(), user, itemID, true, errs)
 	case path.EventsCategory:
-		bs, err = getItem(ctx, ac.Events(), user, itemID, errs)
+		bs, err = getItem(ctx, ac.Events(), user, itemID, true, errs)
 	case path.ContactsCategory:
-		bs, err = getItem(ctx, ac.Contacts(), user, itemID, errs)
+		bs, err = getItem(ctx, ac.Contacts(), user, itemID, true, errs)
 	default:
 		return fmt.Errorf("unable to process category: %s", cat)
 	}
@@ -132,6 +132,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		immutableID bool,
 		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
@@ -145,9 +146,10 @@ func getItem(
 	ctx context.Context,
 	itm itemer,
 	user, itemID string,
+	immutableIDs bool,
 	errs *fault.Bus,
 ) ([]byte, error) {
-	sp, _, err := itm.GetItem(ctx, user, itemID, errs)
+	sp, _, err := itm.GetItem(ctx, user, itemID, immutableIDs, errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting item")
 	}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type statusUpdater interface {
@@ -243,7 +243,7 @@ func collectPages(
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
-	betaService := dapi.NewBetaService(adpt)
+	betaService := m365api.NewBetaService(adpt)
 
 	tuples, err := api.FetchPages(ctx, betaService, siteID)
 	if err != nil {

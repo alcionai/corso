@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 	"github.com/alcionai/corso/src/pkg/store/mock"
@@ -335,13 +336,18 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	)
 
 	info := details.ItemInfo{
-		Folder: &details.FolderInfo{
-			DisplayName: "test",
+		Exchange: &details.ExchangeInfo{
+			ItemType: details.ExchangeMail,
 		},
 	}
 
+	repoPath, err := path.FromDataLayerPath(tenantID+"/exchange/user-id/email/test/foo", true)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	loc := path.Builder{}.Append(repoPath.Folders()...)
+
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
 
 	table := []struct {
 		name       string
@@ -411,15 +417,19 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		item = fault.FileErr(err, "file-id", "file-name", map[string]any{"foo": "bar"})
 		skip = fault.FileSkip(fault.SkipMalware, "s-file-id", "s-file-name", map[string]any{"foo": "bar"})
 		info = details.ItemInfo{
-			Folder: &details.FolderInfo{
-				DisplayName: "test",
+			Exchange: &details.ExchangeInfo{
+				ItemType: details.ExchangeMail,
 			},
 		}
 	)
 
-	builder := &details.Builder{}
+	repoPath, err2 := path.FromDataLayerPath(tenantID+"/exchange/user-id/email/test/foo", true)
+	require.NoError(suite.T(), err2, clues.ToCore(err2))
 
-	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", false, info))
+	loc := path.Builder{}.Append(repoPath.Folders()...)
+
+	builder := &details.Builder{}
+	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
 
 	table := []struct {
 		name         string
