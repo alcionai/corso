@@ -290,3 +290,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
 		})
 	}
 }
+
+func (suite *DiscoveryIntegrationSuite) TestTestFails() {
+	assert.FailNow(suite.T(), "test failed test")
+}
