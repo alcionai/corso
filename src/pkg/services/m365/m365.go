@@ -2,7 +2,6 @@ package m365
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -80,8 +79,6 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 		}
 
 		pu.Info = *userInfo
-
-		fmt.Printf("%+v\n\n", pu)
 
 		ret = append(ret, pu)
 	}
