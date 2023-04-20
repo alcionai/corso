@@ -108,7 +108,7 @@ func IsErrUserNotFound(err error) bool {
 }
 
 func IsErrAccessDenied(err error) bool {
-	return hasErrorCode(err, errCodeErrorAccessDenied)
+	return hasErrorCode(err, errCodeErrorAccessDenied) || clues.HasLabel(err, LabelStatus(http.StatusForbidden))
 }
 
 func IsErrTimeout(err error) bool {
