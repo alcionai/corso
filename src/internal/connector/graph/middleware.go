@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -398,37 +397,4 @@ func (handler *MetricsMiddleware) Intercept(
 	events.Since(start, events.APICall, status)
 
 	return resp, err
-}
-
-// ConcurrencyLimiterMiddleware is used to limit the number of concurrent requests.
-type ConcurrencyLimiterMiddleware struct {
-	sem chan struct{}
-}
-
-var concurrencyLimiterOnce sync.Once
-var concurrencyLimiter *ConcurrencyLimiterMiddleware
-
-func GetConcurrencyLimiterMiddleware() *ConcurrencyLimiterMiddleware {
-	concurrencyLimiterOnce.Do(func() {
-		concurrencyLimiter = &ConcurrencyLimiterMiddleware{
-			//maxConcurrentRequests: 4,
-			sem: make(chan struct{}, 4),
-		}
-	})
-	return concurrencyLimiter
-}
-
-func (handler *ConcurrencyLimiterMiddleware) Intercept(
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	req *http.Request,
-) (*http.Response, error) {
-	// Acquire a slot in the semaphore
-	handler.sem <- struct{}{}
-	defer func() {
-		<-handler.sem
-	}()
-
-	// Call the next middleware in the pipeline
-	return pipeline.Next(req, middlewareIndex)
 }

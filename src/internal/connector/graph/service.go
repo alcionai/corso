@@ -237,8 +237,9 @@ func MinimumBackoff(dur time.Duration) Option {
 
 // GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
 func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
+	cl, _ := GetConcurrencyLimiterMiddleware(4)
 	return []khttp.Middleware{
-		GetConcurrencyLimiterMiddleware(),
+		cl,
 		&RetryHandler{
 			// The maximum number of times a request can be retried
 			MaxRetries: maxRetry,
