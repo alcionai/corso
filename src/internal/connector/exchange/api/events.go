@@ -343,10 +343,6 @@ func (p *eventPager) getNextPage(ctx context.Context) ([]getIDAndAddtler, bool, 
 	return p.getNextPageDelta(ctx)
 }
 
-func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Messageable](pl)
-}
-
 func (p *eventPager) reset(nonDelta bool) {
 	if nonDelta {
 		p.nonDelta = true

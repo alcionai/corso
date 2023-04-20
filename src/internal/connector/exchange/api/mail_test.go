@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -429,10 +428,13 @@ func (suite *MailAPIE2ESuite) TestPaginationErrorConditions() {
 			require.NoError(suite.T(), err, "create pager")
 
 			_, _, _, err = api.GetAddedAndRemovedItemIDsFromPager(ctx, delta, &pgr)
-			fmt.Println("shared_test.go:118 err:", err)
 
 			// just a unique enough check
-			assert.True(suite.T(), err.Error() == "The server returned an unexpected status code with no response body: 404", "get 404")
+			assert.True(
+				suite.T(),
+				err.Error() == "The server returned an unexpected status code with no response body: 404",
+				"get 404",
+			)
 			assert.True(suite.T(), gock.IsDone(), "all mocks used")
 		})
 	}

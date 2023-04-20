@@ -295,10 +295,6 @@ func (p *contactPager) getNextPage(ctx context.Context) ([]getIDAndAddtler, bool
 	return p.getNextPageDelta(ctx)
 }
 
-func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Messageable](pl)
-}
-
 func (p *contactPager) reset(nonDelta bool) {
 	if nonDelta {
 		p.nonDelta = true

@@ -393,10 +393,6 @@ func (p *mailPager) getNextPage(ctx context.Context) ([]getIDAndAddtler, bool, s
 	return p.getNextPageDelta(ctx)
 }
 
-func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Messageable](pl)
-}
-
 func (p *mailPager) reset(nonDelta bool) {
 	if nonDelta {
 		p.nonDelta = true
