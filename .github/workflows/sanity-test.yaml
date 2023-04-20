@@ -370,7 +370,6 @@ jobs:
         id: sha-info
         if: failure()
         run: |  
-                echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
                 echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
                 echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
                 echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
