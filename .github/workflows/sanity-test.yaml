@@ -3,7 +3,12 @@ on:
   push:
     branches:
       - main
-  pull_request:
+
+  workflow_run:
+    workflows: ["CI build"]
+    types:
+      - completed
+
   workflow_dispatch:
     inputs:
       user:
