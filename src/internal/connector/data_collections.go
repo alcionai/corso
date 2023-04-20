@@ -79,7 +79,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		colls, excludes, err = exchange.DataCollections(
 			ctx,
 			sels,
-			sels,
+			owner,
 			metadata,
 			gc.credentials,
 			gc.UpdateStatus,
@@ -93,7 +93,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		colls, excludes, err = onedrive.DataCollections(
 			ctx,
 			sels,
-			sels,
+			owner,
 			metadata,
 			lastBackupVersion,
 			gc.credentials.AzureTenantID,
@@ -111,7 +111,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			ctx,
 			gc.itemClient,
 			sels,
-			sels,
+			owner,
+			metadata,
 			gc.credentials,
 			gc.Service,
 			gc,
