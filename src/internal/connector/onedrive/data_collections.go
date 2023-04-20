@@ -141,7 +141,7 @@ func migrationCollections(
 		return nil, nil
 	}
 
-	if lastBackupVersion >= version.All7MigrateUserPNToID {
+	if lastBackupVersion >= version.AllXMigrateUserPNToID {
 		return nil, nil
 	}
 
