@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -34,7 +35,7 @@ import (
 type BackupOperation struct {
 	operation
 
-	ResourceOwner common.IDNamer
+	ResourceOwner idname.Provider
 
 	Results       BackupResults      `json:"results"`
 	Selectors     selectors.Selector `json:"selectors"`
@@ -64,7 +65,7 @@ func NewBackupOperation(
 	bp inject.BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
-	owner common.IDNamer,
+	owner idname.Provider,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
@@ -340,7 +341,7 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp inject.BackupProducer,
-	resourceOwner common.IDNamer,
+	resourceOwner idname.Provider,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,

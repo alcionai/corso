@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -135,12 +135,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	var (
 		m365SiteID = tester.M365SiteID(t)
 		sites      = []string{m365SiteID}
-		idToName   = map[string]string{m365SiteID: m365SiteID}
-		nameToID   = map[string]string{m365SiteID: m365SiteID}
-		ins        = common.IDsNames{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		ins        = idname.NewCache(map[string]string{m365SiteID: m365SiteID})
 	)
 
 	// some tests require an existing backup

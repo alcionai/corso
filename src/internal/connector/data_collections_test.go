@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -344,7 +345,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		sel.Selector,
+		inMock.NewProvider(id, name),
 		sel.Selector,
 		nil,
 		version.NoBackup,
@@ -389,7 +390,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		sel.Selector,
+		inMock.NewProvider(id, name),
 		sel.Selector,
 		nil,
 		version.NoBackup,
