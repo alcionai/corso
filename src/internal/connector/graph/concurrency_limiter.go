@@ -13,12 +13,17 @@ type ConcurrencyLimiterMiddleware struct {
 	semaphoreExch chan struct{}
 }
 
+// TODO: Instead of creating a singleton and doing per graph API request
+// checks for exchange/non-exchange, associate this middleware only with
+// exchange workloads by making changes in this code path
+// https://github.com/alcionai/corso/blob/e5136ceabbe85c17d72618992c0ce2cf2fa7faf7/src/internal/connector/graph/service.go#L148
+
 var once sync.Once
 var concurrencyLimiter *ConcurrencyLimiterMiddleware
 
 func GetConcurrencyLimiterMiddleware(capacity int) (*ConcurrencyLimiterMiddleware, error) {
 	// TODO: add capacity checks
-	// Default to a capacity if invalid. Don't return an error
+	// TODO: Don't return an error. Default to a capacity if invalid.
 	once.Do(func() {
 		concurrencyLimiter = &ConcurrencyLimiterMiddleware{
 			semaphoreExch: make(chan struct{}, capacity),
@@ -27,14 +32,11 @@ func GetConcurrencyLimiterMiddleware(capacity int) (*ConcurrencyLimiterMiddlewar
 	return concurrencyLimiter, nil
 }
 
-// TODO: Probably also need a reinitialize or delete for sem?
-
 func (cl *ConcurrencyLimiterMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	// Acquire a slot in the semaphore
 	cl.semaphoreExch <- struct{}{}
 	defer func() {
 		<-cl.semaphoreExch

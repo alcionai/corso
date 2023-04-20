@@ -38,7 +38,7 @@ func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
 				<-sem
 			}()
 
-			time.Sleep(time.Duration(rand.Intn(151)+50) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(150)+50) * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
