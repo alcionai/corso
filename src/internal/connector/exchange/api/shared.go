@@ -73,6 +73,8 @@ func GetAddedAndRemovedItemIDsFromPager(
 	if graph.IsErrQuotaExceeded(err) {
 		pgr.reset(true)
 
+		logger.CtxErr(ctx, err).Info("switching to non-delta pagination")
+
 		added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		if err == nil {
 			// TODO(meain): Should we return resetDelta here? Will
@@ -86,6 +88,8 @@ func GetAddedAndRemovedItemIDsFromPager(
 	// empty, reset and retry
 	if graph.IsErrInvalidDelta(err) && len(oldDelta) != 0 {
 		pgr.reset(false)
+
+		logger.CtxErr(ctx, err).Info("resetting delta pagination")
 
 		added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		if err == nil {
