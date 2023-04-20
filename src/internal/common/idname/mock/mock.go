@@ -3,8 +3,9 @@ package mock
 import (
 	"strings"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"golang.org/x/exp/maps"
+
+	"github.com/alcionai/corso/src/internal/common/idname"
 )
 
 var _ idname.Provider = &in{}

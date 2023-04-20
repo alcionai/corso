@@ -454,7 +454,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			)
 
 			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
-			require.Equal(t, "user_id", qp.ResourceOwner.Name(), qp.ResourceOwner)
+			require.Equal(t, "user_name", qp.ResourceOwner.Name(), qp.ResourceOwner)
 
 			collections := map[string]data.BackupCollection{}
 
