@@ -3,13 +3,11 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -18,9 +16,14 @@ import (
 // ---------------------------------------------------------------------------
 
 type itemPager interface {
-	getPage(context.Context) (api.DeltaPageLinker, error)
-	setNext(string)
-	valuesIn(api.DeltaPageLinker) ([]getIDAndAddtler, error)
+	// getNextPage will fetch what is created by builder inside and
+	// sets builder to the next page.
+	// Return values are items, is-last-page, delta-url, error
+	getNextPage(context.Context) ([]getIDAndAddtler, bool, string, error)
+
+	// reset is used to reset the delta url or to switch to using
+	// non-delta fetch
+	reset(bool)
 }
 
 type getIDAndAddtler interface {
@@ -56,6 +59,43 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	return r, nil
 }
 
+func GetAddedAndRemovedItemIDsFromPager(
+	ctx context.Context,
+	oldDelta string,
+	pgr itemPager,
+) ([]string, []string, DeltaUpdate, error) {
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	if err == nil {
+		return added, removed, DeltaUpdate{deltaURL, false}, nil
+	}
+
+	// if we fail with quota exceeded error, retry with non delta
+	if graph.IsErrQuotaExceeded(err) {
+		pgr.reset(true)
+
+		added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
+		if err == nil {
+			// TODO(meain): Should we return resetDelta here? Will
+			// returning reset delta ensure we create a non
+			// incremental backup?
+			return added, removed, DeltaUpdate{deltaURL, true}, nil
+		}
+	}
+
+	// if we failed with invalidDelta error and prev delta was not
+	// empty, reset and retry
+	if graph.IsErrInvalidDelta(err) && len(oldDelta) != 0 {
+		pgr.reset(false)
+
+		added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
+		if err == nil {
+			return added, removed, DeltaUpdate{deltaURL, true}, nil
+		}
+	}
+
+	return nil, nil, DeltaUpdate{}, err
+}
+
 // generic controller for retrieving all item ids in a container.
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
@@ -72,16 +112,9 @@ func getItemsAddedAndRemovedFromContainer(
 
 	for {
 		// get the next page of data, check for standard errors
-		resp, err := pager.getPage(ctx)
+		items, lastPage, deltaURL, err := pager.getNextPage(ctx)
 		if err != nil {
 			return nil, nil, deltaURL, graph.Stack(ctx, err)
-		}
-
-		// each category type responds with a different interface, but all
-		// of them comply with GetValue, which is where we'll get our item data.
-		items, err := pager.valuesIn(resp)
-		if err != nil {
-			return nil, nil, "", graph.Stack(ctx, err)
 		}
 
 		itemCount += len(items)
@@ -104,29 +137,9 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
-		nextLink, delta := api.NextAndDeltaLink(resp)
-		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(delta) {
-				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, delta)
-			}
-		}
-
-		// the deltaLink is kind of like a cursor for overall data state.
-		// once we run through pages of nextLinks, the last query will
-		// produce a deltaLink instead (if supported), which we'll use on
-		// the next backup to only get the changes since this run.
-		if len(delta) > 0 {
-			deltaURL = delta
-		}
-
-		// the nextLink is our page cursor within this query.
-		// if we have more data to retrieve, we'll have a
-		// nextLink instead of a deltaLink.
-		if len(nextLink) == 0 {
+		if lastPage {
 			break
 		}
-
-		pager.setNext(nextLink)
 	}
 
 	logger.Ctx(ctx).Infow("completed enumeration", "count", itemCount)

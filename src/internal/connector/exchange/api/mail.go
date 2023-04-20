@@ -288,26 +288,122 @@ func (c Mail) EnumerateContainers(
 var _ itemPager = &mailPager{}
 
 type mailPager struct {
-	gs      graph.Servicer
-	builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
-	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
+	gs          graph.Servicer
+	user        string
+	directoryID string
+
+	// switch between using delta vs non-delta fetch
+	nonDelta bool
+
+	builder *users.ItemMailFoldersItemMessagesRequestBuilder
+	options *users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration
+
+	deltaBuilder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
+	deltaOptions *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	page, err := p.builder.Get(ctx, p.options)
+func NewMailPager(
+	gs graph.Servicer,
+	user, directoryID, deltaURL string,
+	nonDelta bool,
+	immutableIDs bool,
+) (mailPager, error) {
+	options, err := optionsForFolderMessages([]string{"isRead"}, immutableIDs)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return mailPager{}, err
 	}
 
-	return page, nil
+	deltaOptions, err := optionsForFolderMessagesDelta([]string{"isRead"}, immutableIDs)
+	if err != nil {
+		return mailPager{}, err
+	}
+
+	deltaBuilder := gs.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
+	if deltaURL != "" {
+		deltaBuilder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(deltaURL, gs.Adapter())
+	}
+
+	return mailPager{
+		gs:          gs,
+		user:        user,
+		directoryID: directoryID,
+		nonDelta:    nonDelta,
+
+		// for non-delta based pagination
+		builder: gs.Client().UsersById(user).MailFoldersById(directoryID).Messages(),
+		options: options,
+
+		// for delta token based pagination
+		deltaBuilder: deltaBuilder,
+		deltaOptions: deltaOptions,
+	}, nil
 }
 
-func (p *mailPager) setNext(nextLink string) {
-	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
+func (p *mailPager) getNextPageDelta(ctx context.Context) ([]getIDAndAddtler, bool, string, error) {
+	page, err := p.deltaBuilder.Get(ctx, p.deltaOptions)
+	if err != nil {
+		return nil, false, "", graph.Stack(ctx, err)
+	}
+
+	nextLink, deltaLink := api.NextAndDeltaLink(page)
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(deltaLink) {
+			logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, deltaLink)
+		}
+	}
+
+	p.deltaBuilder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
+
+	items, err := toValues[models.Messageable](page)
+	if err != nil {
+		return nil, false, "", err
+	}
+
+	return items, nextLink == "", deltaLink, nil
+}
+
+func (p *mailPager) getNextPageNonDelta(ctx context.Context) ([]getIDAndAddtler, bool, string, error) {
+	page, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, false, "", graph.Stack(ctx, err)
+	}
+
+	nextLink := api.NextLink(page)
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		if !api.IsNextLinkValid(nextLink) {
+			logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\n", nextLink)
+		}
+	}
+
+	p.builder = users.NewItemMailFoldersItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
+
+	items, err := toValues[models.Messageable](page)
+	if err != nil {
+		return nil, false, "", err
+	}
+
+	return items, nextLink == "", "", nil
+}
+
+func (p *mailPager) getNextPage(ctx context.Context) ([]getIDAndAddtler, bool, string, error) {
+	if p.nonDelta {
+		return p.getNextPageNonDelta(ctx)
+	}
+
+	return p.getNextPageDelta(ctx)
 }
 
 func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
+}
+
+func (p *mailPager) reset(nonDelta bool) {
+	if nonDelta {
+		p.nonDelta = true
+		return
+	}
+
+	p.deltaBuilder = p.gs.Client().UsersById(p.user).MailFoldersById(p.directoryID).Messages().Delta()
 }
 
 func (c Mail) GetAddedAndRemovedItemIDs(
@@ -320,63 +416,17 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var (
-		deltaURL   string
-		resetDelta bool
-	)
-
 	ctx = clues.Add(
 		ctx,
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	options, err := optionsForFolderMessagesDelta([]string{"isRead"}, immutableIDs)
-	if err != nil {
-		return nil,
-			nil,
-			DeltaUpdate{},
-			graph.Wrap(ctx, err, "setting contact folder options")
-	}
-
-	if len(oldDelta) > 0 {
-		var (
-			builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &mailPager{service, builder, options}
-		)
-
-		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
-		// note: happy path, not the error condition
-		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, err
-		}
-		// only return on error if it is NOT a delta issue.
-		// on bad deltas we retry the call with the regular builder
-		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, err
-		}
-
-		resetDelta = true
-	}
-
-	builder := service.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
-	pgr := &mailPager{service, builder, options}
-
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
-
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	pgr, err := NewMailPager(service, user, directoryID, oldDelta, false, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+	return GetAddedAndRemovedItemIDsFromPager(ctx, oldDelta, &pgr)
 }
 
 // ---------------------------------------------------------------------------

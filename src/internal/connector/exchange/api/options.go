@@ -96,6 +96,27 @@ func optionsForFolderMessagesDelta(
 	return options, nil
 }
 
+func optionsForFolderMessages(
+	moreOps []string,
+	immutableIDs bool,
+) (*users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, fieldsForMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
+	return options, nil
+}
+
 // optionsForCalendars places allowed options for exchange.Calendar object
 // @param moreOps should reflect elements from fieldsForCalendars
 // @return is first call in Calendars().GetWithRequestConfigurationAndResponseHandler
@@ -194,6 +215,27 @@ func optionsForContactFoldersItemDelta(
 	}
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
+	return options, nil
+}
+
+func optionsForContactFoldersItem(
+	moreOps []string,
+	immutableIDs bool,
+) (*users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, fieldsForContacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 		Headers:         buildPreferHeaders(true, immutableIDs),
 	}
