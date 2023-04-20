@@ -282,7 +282,7 @@ func (suite *EventAPIE2ESuite) TestPaginationErrorConditions() {
 				delta = "https://graph.microsoft.com/fakedelta"
 			}
 
-			pgr, err := api.NewEventPager(suite.ac.Stable, suite.user, did, delta, false, false)
+			pgr, err := api.NewEventPager(suite.ac.Stable, suite.user, did, delta, false)
 			require.NoError(suite.T(), err, "create pager")
 
 			_, _, _, err = api.GetAddedAndRemovedItemIDsFromPager(ctx, delta, &pgr)

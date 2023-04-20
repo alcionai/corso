@@ -259,7 +259,6 @@ func getEventDeltaBuilder(
 func NewEventPager(
 	gs graph.Servicer,
 	user, calendarID, deltaURL string,
-	nonDelta bool,
 	immutableIDs bool,
 ) (eventPager, error) {
 	var deltaBuilder *users.ItemCalendarsItemEventsDeltaRequestBuilder
@@ -273,7 +272,7 @@ func NewEventPager(
 		gs:         gs,
 		user:       user,
 		calendarID: calendarID,
-		nonDelta:   nonDelta,
+		nonDelta:   false,
 
 		// for non-delta based pagination
 		builder: gs.Client().UsersById(user).CalendarsById(calendarID).Events(),
@@ -366,7 +365,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		ctx,
 		"container_id", calendarID)
 
-	pgr, err := NewEventPager(service, user, calendarID, oldDelta, false, immutableIDs)
+	pgr, err := NewEventPager(service, user, calendarID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

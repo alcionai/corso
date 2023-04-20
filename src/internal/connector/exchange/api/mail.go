@@ -305,7 +305,6 @@ type mailPager struct {
 func NewMailPager(
 	gs graph.Servicer,
 	user, directoryID, deltaURL string,
-	nonDelta bool,
 	immutableIDs bool,
 ) (mailPager, error) {
 	options, err := optionsForFolderMessages([]string{"isRead"}, immutableIDs)
@@ -327,7 +326,7 @@ func NewMailPager(
 		gs:          gs,
 		user:        user,
 		directoryID: directoryID,
-		nonDelta:    nonDelta,
+		nonDelta:    false,
 
 		// for non-delta based pagination
 		builder: gs.Client().UsersById(user).MailFoldersById(directoryID).Messages(),
@@ -417,7 +416,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	pgr, err := NewMailPager(service, user, directoryID, oldDelta, false, immutableIDs)
+	pgr, err := NewMailPager(service, user, directoryID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

@@ -424,7 +424,7 @@ func (suite *MailAPIE2ESuite) TestPaginationErrorConditions() {
 				delta = "https://graph.microsoft.com/fakedelta"
 			}
 
-			pgr, err := api.NewMailPager(suite.ac.Stable, suite.user, did, delta, false, false)
+			pgr, err := api.NewMailPager(suite.ac.Stable, suite.user, did, delta, false)
 			require.NoError(suite.T(), err, "create pager")
 
 			_, _, _, err = api.GetAddedAndRemovedItemIDsFromPager(ctx, delta, &pgr)

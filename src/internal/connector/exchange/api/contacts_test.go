@@ -174,7 +174,7 @@ func (suite *ContactAPIE2ESuite) TestPaginationErrorConditions() {
 				delta = "https://graph.microsoft.com/fakedelta"
 			}
 
-			pgr, err := api.NewContactPager(suite.ac.Stable, suite.user, did, delta, false, false)
+			pgr, err := api.NewContactPager(suite.ac.Stable, suite.user, did, delta, false)
 			require.NoError(suite.T(), err, "create pager")
 
 			_, _, _, err = api.GetAddedAndRemovedItemIDsFromPager(ctx, delta, &pgr)

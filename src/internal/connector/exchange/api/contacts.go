@@ -207,7 +207,6 @@ type contactPager struct {
 func NewContactPager(
 	gs graph.Servicer,
 	user, directoryID, deltaURL string,
-	nonDelta bool,
 	immutableIDs bool,
 ) (contactPager, error) {
 	options, err := optionsForContactFoldersItem([]string{"parentFolderId"}, immutableIDs)
@@ -229,7 +228,7 @@ func NewContactPager(
 		gs:          gs,
 		user:        user,
 		directoryID: directoryID,
-		nonDelta:    nonDelta,
+		nonDelta:    false,
 
 		// for non-delta based pagination
 		builder: gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts(),
@@ -319,7 +318,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeContact,
 		"container_id", directoryID)
 
-	pgr, err := NewContactPager(service, user, directoryID, oldDelta, false, immutableIDs)
+	pgr, err := NewContactPager(service, user, directoryID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
