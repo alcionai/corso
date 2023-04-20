@@ -1102,6 +1102,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			name: "AddsNewItems",
 			inputCollections: func() []data.BackupCollection {
 				mc := exchMock.NewCollection(storePath, locPath, 1)
+				mc.PrevPath = storePath
 				mc.Names[0] = testFileName2
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
@@ -1137,6 +1138,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			name: "SkipsUpdatedItems",
 			inputCollections: func() []data.BackupCollection {
 				mc := exchMock.NewCollection(storePath, locPath, 1)
+				mc.PrevPath = storePath
 				mc.Names[0] = testFileName
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
