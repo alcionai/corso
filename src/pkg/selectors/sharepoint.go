@@ -3,10 +3,12 @@ package selectors
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -522,6 +524,7 @@ func (c sharePointCategory) pathValues(
 		folderCat, itemCat    categorizer
 		itemName              = repo.Item()
 		dropDriveFolderPrefix bool
+		itemID                string
 	)
 
 	switch c {
@@ -532,6 +535,7 @@ func (c sharePointCategory) pathValues(
 
 		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
+		itemID = strings.TrimSuffix(itemName, metadata.DataFileSuffix)
 		itemName = ent.SharePoint.ItemName
 
 	case SharePointList, SharePointListItem:
@@ -553,6 +557,10 @@ func (c sharePointCategory) pathValues(
 	result := map[categorizer][]string{
 		folderCat: {rFld},
 		itemCat:   {itemName, ent.ShortRef},
+	}
+
+	if len(itemID) > 0 {
+		result[itemCat] = append(result[itemCat], itemID)
 	}
 
 	if len(ent.LocationRef) > 0 {
