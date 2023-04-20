@@ -179,7 +179,7 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 				test.curr, test.prev, test.loc,
 				0,
 				&mockItemer{}, nil,
-				control.Options{},
+				control.Defaults(),
 				false)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")

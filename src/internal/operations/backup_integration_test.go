@@ -154,7 +154,7 @@ func newTestBackupOp(
 	//revive:enable:context-as-argument
 	var (
 		sw   = store.NewKopiaStore(ms)
-		opts = control.Options{}
+		opts = control.Defaults()
 	)
 
 	opts.ToggleFeatures = featureToggles
@@ -546,14 +546,16 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
-	kw := &kopia.Wrapper{}
-	sw := &store.Wrapper{}
-	gc := &mock.GraphConnector{}
-	acct := tester.NewM365Account(suite.T())
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		gc   = &mock.GraphConnector{}
+		acct = tester.NewM365Account(suite.T())
+		opts = control.Defaults()
+	)
 
 	table := []struct {
 		name     string
-		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		bp       inject.BackupProducer
@@ -561,10 +563,10 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing backup producer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"good", kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
+		{"missing backup producer", kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -575,7 +577,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 			_, err := NewBackupOperation(
 				ctx,
-				test.opts,
+				opts,
 				test.kw,
 				test.sw,
 				test.bp,

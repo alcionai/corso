@@ -19,7 +19,7 @@ func Control() control.Options {
 	opt.SkipReduce = skipReduceFV
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementalsFV
 	opt.ToggleFeatures.ExchangeImmutableIDs = enableImmutableID
-	opt.ItemFetchParallelism = fetchParallelismFV
+	opt.Parallelism.ItemFetch = fetchParallelismFV
 
 	return opt
 }

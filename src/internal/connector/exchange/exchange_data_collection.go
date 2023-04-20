@@ -192,7 +192,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		}()
 	}
 
-	semaphoreCh := make(chan struct{}, col.ctrl.ItemFetchParallelism)
+	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
 	// delete all removed items

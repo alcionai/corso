@@ -107,7 +107,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			op, err := NewRestoreOperation(
 				ctx,
-				control.Options{},
+				control.Defaults(),
 				kw,
 				sw,
 				gc,
@@ -214,15 +214,17 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
-	kw := &kopia.Wrapper{}
-	sw := &store.Wrapper{}
-	gc := &mock.GraphConnector{}
-	acct := tester.NewM365Account(suite.T())
-	dest := tester.DefaultTestRestoreDestination()
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		gc   = &mock.GraphConnector{}
+		acct = tester.NewM365Account(suite.T())
+		dest = tester.DefaultTestRestoreDestination()
+		opts = control.Defaults()
+	)
 
 	table := []struct {
 		name     string
-		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		rc       inject.RestoreConsumer
@@ -230,10 +232,10 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing restore consumer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"good", kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
+		{"missing restore consumer", kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -242,7 +244,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 
 			_, err := NewRestoreOperation(
 				ctx,
-				test.opts,
+				opts,
 				test.kw,
 				test.sw,
 				test.rc,
@@ -292,7 +294,7 @@ func setupExchangeBackup(
 
 	bo, err := NewBackupOperation(
 		ctx,
-		control.Options{},
+		control.Defaults(),
 		kw,
 		sw,
 		gc,
@@ -353,7 +355,7 @@ func setupSharePointBackup(
 
 	bo, err := NewBackupOperation(
 		ctx,
-		control.Options{},
+		control.Defaults(),
 		kw,
 		sw,
 		gc,
@@ -498,7 +500,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 
 	ro, err := NewRestoreOperation(
 		ctx,
-		control.Options{},
+		control.Defaults(),
 		suite.kw,
 		suite.sw,
 		gc,

@@ -47,8 +47,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	defer end()
 
 	// Limit the max number of active requests to graph from this collection.
-	ctrlOpts.ItemFetchParallelism = graph.Parallelism(sels.PathService()).
-		ItemOverride(ctx, ctrlOpts.ItemFetchParallelism)
+	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
+		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
 
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
