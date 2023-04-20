@@ -1599,7 +1599,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))
