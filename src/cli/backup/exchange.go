@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -146,6 +147,9 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
+
+	// TODO: Add hidden flag to disable this feature
+	graph.InitializeConcurrencyLimiter(options.Control().ItemFetchParallelism)
 
 	if err := validateExchangeBackupCreateFlags(utils.UserFV, utils.CategoryDataFV); err != nil {
 		return err

@@ -7,32 +7,37 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 )
 
-// ConcurrencyLimiterMiddleware limits the number of concurrent requests.
-// Currently we only enforce concurrency limit for exchange services
-type ConcurrencyLimiterMiddleware struct {
+// ConcurrencyLimiter middleware limits the number of concurrent requests to graph API.
+// Currently we only enforce concurrency limit for exchange
+type ConcurrencyLimiter struct {
 	semaphoreExch chan struct{}
 }
 
-// TODO: Instead of creating a singleton and doing per graph API request
-// checks for exchange/non-exchange, associate this middleware only with
-// exchange workloads by making changes in this code path
-// https://github.com/alcionai/corso/blob/e5136ceabbe85c17d72618992c0ce2cf2fa7faf7/src/internal/connector/graph/service.go#L148
+var (
+	once               sync.Once
+	concurrencyLimiter *ConcurrencyLimiter
+	// Outlooks expects max 4 concurrent requests
+	// https://learn.microsoft.com/en-us/graph/throttling-limits#outlook-service-limits
+	maxConcurrentRequestsExchange = 4
+)
 
-var once sync.Once
-var concurrencyLimiter *ConcurrencyLimiterMiddleware
-
-func GetConcurrencyLimiterMiddleware(capacity int) (*ConcurrencyLimiterMiddleware, error) {
-	// TODO: add capacity checks
-	// TODO: Don't return an error. Default to a capacity if invalid.
+func InitializeConcurrencyLimiter(capacity int) {
 	once.Do(func() {
-		concurrencyLimiter = &ConcurrencyLimiterMiddleware{
+		if capacity < 1 || capacity > maxConcurrentRequestsExchange {
+			capacity = maxConcurrentRequestsExchange
+		}
+
+		concurrencyLimiter = &ConcurrencyLimiter{
 			semaphoreExch: make(chan struct{}, capacity),
 		}
 	})
-	return concurrencyLimiter, nil
 }
 
-func (cl *ConcurrencyLimiterMiddleware) Intercept(
+func GetConcurrencyLimiter() *ConcurrencyLimiter {
+	return concurrencyLimiter
+}
+
+func (cl *ConcurrencyLimiter) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,

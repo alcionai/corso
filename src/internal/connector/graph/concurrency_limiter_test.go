@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/corso/src/internal/tester"
 	khttp "github.com/microsoft/kiota-http-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type ConcurrencyLimiterTestSuite struct {
@@ -27,7 +28,9 @@ func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
 	t := suite.T()
 	maxConcurrentRequests := 4
 
-	cl, _ := GetConcurrencyLimiterMiddleware(maxConcurrentRequests)
+	InitializeConcurrencyLimiter(maxConcurrentRequests)
+
+	cl := GetConcurrencyLimiter()
 	client := khttp.GetDefaultClient(cl)
 
 	sem := make(chan struct{}, maxConcurrentRequests)
@@ -40,6 +43,7 @@ func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
 
 			time.Sleep(time.Duration(rand.Intn(150)+50) * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
+
 			return
 		default:
 			w.WriteHeader(http.StatusTooManyRequests)
