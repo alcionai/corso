@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -351,6 +352,88 @@ func (suite *MailAPIE2ESuite) TestHugeAttachmentListDownload() {
 			assert.Equal(suite.T(), *it.GetId(), mid)
 			assert.Equal(suite.T(), tt.attachmentCount, len(it.GetAttachments()), "attachment count")
 			assert.True(suite.T(), gock.IsDone(), "made all requests")
+		})
+	}
+}
+
+func (suite *MailAPIE2ESuite) TestPaginationErrorConditions() {
+	did := "directory-id"
+
+	type errResp struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+
+	tests := []struct {
+		name      string
+		prevDelta bool
+		setupf    func()
+	}{
+		{
+			name: "direct error on dleta",
+			setupf: func() {
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/" + suite.user + "/mailFolders/" + did + "/messages/microsoft.graph.delta..$").
+					Reply(404)
+			},
+		},
+		{
+			name:      "delta reset",
+			prevDelta: true,
+			setupf: func() {
+				gock.New("https://graph.microsoft.com").
+					Get("/fakedelta").
+					Reply(403).
+					JSON(map[string]errResp{"error": {Code: "SyncStateNotFound", Message: "..."}})
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/" + suite.user + "/mailFolders/" + did + "/messages/microsoft.graph.delta..$").
+					Reply(404)
+			},
+		},
+		{
+			name:      "mailbox full",
+			prevDelta: true,
+			setupf: func() {
+				gock.New("https://graph.microsoft.com").
+					Get("/fakedelta").
+					Reply(403).
+					JSON(map[string]errResp{
+						"error": {
+							Code:    "ErrorQuotaExceeded",
+							Message: "The process failed to get the correct properties.",
+						},
+					})
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/" + suite.user + "/mailFolders/" + did + "/messages$").
+					Reply(404)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			defer gock.Off()
+			tt.setupf()
+
+			delta := ""
+			if tt.prevDelta {
+				delta = "https://graph.microsoft.com/fakedelta"
+			}
+
+			pgr, err := api.NewMailPager(suite.ac.Stable, suite.user, did, delta, false, false)
+			require.NoError(suite.T(), err, "create pager")
+
+			_, _, _, err = api.GetAddedAndRemovedItemIDsFromPager(ctx, delta, &pgr)
+			fmt.Println("shared_test.go:118 err:", err)
+
+			// just a unique enough check
+			assert.True(suite.T(), err.Error() == "The server returned an unexpected status code with no response body: 404", "get 404")
+			assert.True(suite.T(), gock.IsDone(), "all mocks used")
 		})
 	}
 }

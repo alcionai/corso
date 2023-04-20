@@ -323,7 +323,6 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeContact,
 		"container_id", directoryID)
 
-	// TODO(meain): Check if exchange if full here and start with non-delta if possible
 	pgr, err := NewContactPager(service, user, directoryID, oldDelta, false, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
