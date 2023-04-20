@@ -2054,6 +2054,150 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				},
 			),
 		},
+		{
+			// This could happen if a subfolder is moved out of the parent, the parent
+			// is deleted, a new folder at the same location as the parent is created,
+			// and then the subfolder is moved back to the same location.
+			name: "Delete Parent But Child Marked Not Moved Explicit New Parent",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				inbox := exchMock.NewCollection(nil, inboxLocPath, 0)
+				inbox.PrevPath = inboxStorePath
+				inbox.ColState = data.DeletedState
+
+				inbox2 := exchMock.NewCollection(inboxStorePath, inboxLocPath, 1)
+				inbox2.PrevPath = nil
+				inbox2.ColState = data.NewState
+				inbox2.Names[0] = workFileName1
+
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
+				personal.PrevPath = personalStorePath
+				personal.ColState = data.NotMovedState
+
+				return []data.BackupCollection{inbox, inbox2, personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name:     workFileName1,
+								children: []*expectedNode{},
+							},
+							{
+								name: personalID,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			// This could happen if a subfolder is moved out of the parent, the parent
+			// is deleted, a new folder at the same location as the parent is created,
+			// and then the subfolder is moved back to the same location.
+			name: "Delete Parent But Child Marked Not Moved Implicit New Parent",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				inbox := exchMock.NewCollection(nil, inboxLocPath, 0)
+				inbox.PrevPath = inboxStorePath
+				inbox.ColState = data.DeletedState
+
+				// New folder not explicitly listed as it may not have had new items.
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
+				personal.PrevPath = personalStorePath
+				personal.ColState = data.NotMovedState
+
+				return []data.BackupCollection{inbox, personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name: personalID,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			// This could happen if a subfolder is moved out of the parent, the parent
+			// is deleted, a new folder at the same location as the parent is created,
+			// and then the subfolder is moved back to the same location.
+			name: "Delete Parent But Child Marked Not Moved Implicit New Parent Child Do Not Merge",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				inbox := exchMock.NewCollection(nil, inboxLocPath, 0)
+				inbox.PrevPath = inboxStorePath
+				inbox.ColState = data.DeletedState
+
+				// New folder not explicitly listed as it may not have had new items.
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 1)
+				personal.PrevPath = personalStorePath
+				personal.ColState = data.NotMovedState
+				personal.DoNotMerge = true
+				personal.Names[0] = workFileName1
+
+				return []data.BackupCollection{inbox, personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name: personalID,
+								children: []*expectedNode{
+									{
+										name:     workFileName1,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
 	}
 
 	for _, test := range table {
