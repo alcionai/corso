@@ -293,7 +293,7 @@ type mailDeltaPager struct {
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *mailDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -306,7 +306,7 @@ func (p *mailDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *mailDeltaPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+func (p *mailDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 

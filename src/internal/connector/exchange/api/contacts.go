@@ -195,7 +195,7 @@ type contactDeltaPager struct {
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *contactDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *contactDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -208,7 +208,7 @@ func (p *contactDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactDeltaPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+func (p *contactDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
