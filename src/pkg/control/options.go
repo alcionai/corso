@@ -13,6 +13,7 @@ type Options struct {
 	RestorePermissions   bool            `json:"restorePermissions"`
 	SkipReduce           bool            `json:"skipReduce"`
 	ToggleFeatures       Toggles         `json:"ToggleFeatures"`
+	SkipMigrations       bool            `json:"skipMigrations"`
 }
 
 type FailureBehavior string
@@ -30,6 +31,7 @@ const (
 func Defaults() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
+		SkipMigrations:  true,
 		ToggleFeatures:  Toggles{},
 	}
 }
