@@ -4,6 +4,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -11,6 +12,10 @@ import (
 type DetailsMergeInfoer interface {
 	// ItemsToMerge returns the number of items that need to be merged.
 	ItemsToMerge() int
+	// TODO(keepers): remove once sharepoint fully supports metadata files.
+	// ItemsToMerge returns the number of items that need to be merged,
+	// excluding any item that ends in .meta or .dirmeta
+	ItemsToMergeSansMeta() int
 	// GetNewPathRefs takes the old RepoRef and old LocationRef of an item and
 	// returns the new RepoRef, a prefix of the old LocationRef to replace, and
 	// the new LocationRefPrefix of the item if the item should be merged. If the
@@ -40,6 +45,22 @@ func (m *mergeDetails) ItemsToMerge() int {
 	}
 
 	return len(m.repoRefs)
+}
+
+func (m *mergeDetails) ItemsToMergeSansMeta() int {
+	if m == nil {
+		return 0
+	}
+
+	var i int
+
+	for _, rr := range m.repoRefs {
+		if !metadata.IsMetadataFile(rr.repoRef) {
+			i++
+		}
+	}
+
+	return i
 }
 
 func (m *mergeDetails) addRepoRef(

@@ -308,6 +308,7 @@ func (op *BackupOperation) do(
 		mans,
 		toMerge,
 		deets,
+		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -653,6 +654,7 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
+	service path.ServiceType,
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.
@@ -754,12 +756,18 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	if addedEntries != dataFromBackup.ItemsToMerge() {
+	// TODO(rkeepers): remove when sharepoint supports metadata files
+	checkCount := dataFromBackup.ItemsToMerge()
+	if service == path.SharePointService {
+		checkCount = dataFromBackup.ItemsToMergeSansMeta()
+	}
+
+	if addedEntries != checkCount {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
 			With(
 				"item_count", addedEntries,
-				"expected_item_count", dataFromBackup.ItemsToMerge())
+				"expected_item_count", checkCount)
 	}
 
 	return nil

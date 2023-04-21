@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -155,16 +156,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 
 	resourceOwner := strings.ToLower(sels.DiscreteOwner)
 
-	var found bool
-
-	for _, id := range ids {
-		if strings.ToLower(id) == resourceOwner {
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	if !filters.Equal(ids).Compare(resourceOwner) {
 		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_resource_owner", sels.DiscreteOwner)
 	}
 
