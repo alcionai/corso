@@ -116,7 +116,7 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 				testFolderMatcher{test.scope},
 				&MockGraphService{},
 				nil,
-				control.Options{})
+				control.Defaults())
 
 			c.CollectionMap = collMap
 

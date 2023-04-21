@@ -25,7 +25,7 @@ func TestOperationSuite(t *testing.T) {
 
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
-	op := newOperation(control.Options{}, events.Bus{}, nil, nil)
+	op := newOperation(control.Defaults(), events.Bus{}, nil, nil)
 	assert.Greater(t, op.CreatedAt, time.Time{})
 }
 
@@ -45,7 +45,7 @@ func (suite *OperationSuite) TestOperation_Validate() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			err := newOperation(control.Options{}, events.Bus{}, test.kw, test.sw).validate()
+			err := newOperation(control.Defaults(), events.Bus{}, test.kw, test.sw).validate()
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
 	}
