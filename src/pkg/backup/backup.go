@@ -3,8 +3,11 @@ package backup
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dustin/go-humanize"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
@@ -141,6 +144,8 @@ func New(
 // CLI Output
 // --------------------------------------------------------------------------------
 
+// ----- print backups
+
 // Print writes the Backup to StdOut, in the format requested by the caller.
 func (b Backup) Print(ctx context.Context) {
 	print.Item(ctx, b)
@@ -162,36 +167,36 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID            model.StableID `json:"id"`
-	ErrorCount    int            `json:"errorCount"`
-	StartedAt     time.Time      `json:"started at"`
-	Status        string         `json:"status"`
-	Version       string         `json:"version"`
-	BytesRead     int64          `json:"bytesRead"`
-	BytesUploaded int64          `json:"bytesUploaded"`
-	Owner         string         `json:"owner"`
+	ID      model.StableID `json:"id"`
+	Status  string         `json:"status"`
+	Version string         `json:"version"`
+	Owner   string         `json:"owner"`
+	Stats   backupStats    `json:"stats"`
+}
+
+// ToPrintable reduces the Backup to its minimally printable details.
+func (b Backup) ToPrintable() Printable {
+	return Printable{
+		ID:      b.ID,
+		Status:  b.Status,
+		Version: "0",
+		Owner:   b.Selector.DiscreteOwner,
+		Stats:   b.toStats(),
+	}
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (b Backup) MinimumPrintable() any {
-	return Printable{
-		ID:            b.ID,
-		ErrorCount:    b.ErrorCount,
-		StartedAt:     b.StartedAt,
-		Status:        b.Status,
-		Version:       "0",
-		BytesRead:     b.BytesRead,
-		BytesUploaded: b.BytesUploaded,
-		Owner:         b.Selector.DiscreteOwner,
-	}
+	return b.ToPrintable()
 }
 
 // Headers returns the human-readable names of properties in a Backup
 // for printing out to a terminal in a columnar display.
 func (b Backup) Headers() []string {
 	return []string{
-		"Started At",
 		"ID",
+		"Started At",
+		"Duration",
 		"Status",
 		"Resource Owner",
 	}
@@ -255,10 +260,78 @@ func (b Backup) Values() []string {
 		name = b.Selector.DiscreteOwner
 	}
 
+	bs := b.toStats()
+
 	return []string{
-		common.FormatTabularDisplayTime(b.StartedAt),
 		string(b.ID),
+		common.FormatTabularDisplayTime(b.StartedAt),
+		bs.EndedAt.Sub(bs.StartedAt).String(),
 		status,
 		name,
+	}
+}
+
+// ----- print backup stats
+
+func (b Backup) toStats() backupStats {
+	return backupStats{
+		ID:            string(b.ID),
+		BytesRead:     b.BytesRead,
+		BytesUploaded: b.BytesUploaded,
+		EndedAt:       b.CompletedAt,
+		ErrorCount:    b.ErrorCount,
+		ItemsRead:     b.ItemsRead,
+		ItemsSkipped:  b.TotalSkippedItems,
+		ItemsWritten:  b.ItemsWritten,
+		StartedAt:     b.StartedAt,
+	}
+}
+
+// interface compliance checks
+var _ print.Printable = &backupStats{}
+
+type backupStats struct {
+	ID            string    `json:"id"`
+	BytesRead     int64     `json:"bytesRead"`
+	BytesUploaded int64     `json:"bytesUploaded"`
+	EndedAt       time.Time `json:"endedAt"`
+	ErrorCount    int       `json:"errorCount"`
+	ItemsRead     int       `json:"itemsRead"`
+	ItemsSkipped  int       `json:"itemsSkipped"`
+	ItemsWritten  int       `json:"itemsWritten"`
+	StartedAt     time.Time `json:"startedAt"`
+}
+
+// Print writes the Backup to StdOut, in the format requested by the caller.
+func (bs backupStats) Print(ctx context.Context) {
+	print.Item(ctx, bs)
+}
+
+// MinimumPrintable reduces the Backup to its minimally printable details.
+func (bs backupStats) MinimumPrintable() any {
+	return bs
+}
+
+// Headers returns the human-readable names of properties in a Backup
+// for printing out to a terminal in a columnar display.
+func (bs backupStats) Headers() []string {
+	return []string{
+		"ID",
+		"Bytes Uploaded",
+		"Items Uploaded",
+		"Items Skipped",
+		"Errors",
+	}
+}
+
+// Values returns the values matching the Headers list for printing
+// out to a terminal in a columnar display.
+func (bs backupStats) Values() []string {
+	return []string{
+		bs.ID,
+		humanize.Bytes(uint64(bs.BytesUploaded)),
+		strconv.Itoa(bs.ItemsWritten),
+		strconv.Itoa(bs.ItemsSkipped),
+		strconv.Itoa(bs.ErrorCount),
 	}
 }

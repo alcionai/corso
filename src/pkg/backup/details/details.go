@@ -139,7 +139,7 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	if print.JSONFormat() {
+	if print.DisplayJSONFormat() {
 		printJSON(ctx, dm)
 	} else {
 		printTable(ctx, dm)
