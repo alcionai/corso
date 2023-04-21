@@ -187,15 +187,15 @@ func (c Contacts) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager = &contactPager{}
+var _ itemPager = &contactDeltaPager{}
 
-type contactPager struct {
+type contactDeltaPager struct {
 	gs      graph.Servicer
 	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *contactDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -204,11 +204,11 @@ func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error)
 	return resp, nil
 }
 
-func (p *contactPager) setNext(nextLink string) {
+func (p *contactDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+func (p *contactDeltaPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
@@ -242,7 +242,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	if len(oldDelta) > 0 {
 		var (
 			builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &contactPager{service, builder, options}
+			pgr     = &contactDeltaPager{service, builder, options}
 		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
@@ -261,7 +261,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	}
 
 	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
-	pgr := &contactPager{service, builder, options}
+	pgr := &contactDeltaPager{service, builder, options}
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, options)
