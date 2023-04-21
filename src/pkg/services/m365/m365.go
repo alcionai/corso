@@ -108,10 +108,10 @@ func UsersMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (idname.Cache, error) {
+) (idname.Cacher, error) {
 	users, err := Users(ctx, acct, errs)
 	if err != nil {
-		return idname.Cache{}, err
+		return idname.NewCache(nil), err
 	}
 
 	var (
@@ -212,10 +212,10 @@ func SitesMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (idname.Cache, error) {
+) (idname.Cacher, error) {
 	sites, err := Sites(ctx, acct, errs)
 	if err != nil {
-		return idname.Cache{}, err
+		return idname.NewCache(nil), err
 	}
 
 	itn := make(map[string]string, len(sites))

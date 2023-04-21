@@ -81,7 +81,7 @@ func NewGraphConnector(
 
 	gc := GraphConnector{
 		Discovery:    ac,
-		IDNameLookup: idname.Cache{},
+		IDNameLookup: idname.NewCache(nil),
 		Service:      service,
 
 		credentials: creds,

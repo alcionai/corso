@@ -116,7 +116,7 @@ func DataCollections(
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
-			nil,
+			collections,
 			creds.AzureTenantID,
 			site,
 			path.SharePointService,

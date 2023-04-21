@@ -21,16 +21,15 @@ type Provider interface {
 	Name() string
 }
 
-var _ Provider = &Is{}
+var _ Provider = &is{}
 
-// Is provides an id-name tuple.
-type Is struct {
+type is struct {
 	id   string
 	name string
 }
 
-func (is Is) ID() string   { return is.id }
-func (is Is) Name() string { return is.name }
+func (is is) ID() string   { return is.id }
+func (is is) Name() string { return is.name }
 
 type Cacher interface {
 	IDOf(name string) (string, bool)
@@ -41,68 +40,67 @@ type Cacher interface {
 	ProviderForName(id string) Provider
 }
 
-var _ Cacher = &Cache{}
+var _ Cacher = &cache{}
 
-// Cache holds a cache of id-name mappings.
-type Cache struct {
+type cache struct {
 	idToName map[string]string
 	nameToID map[string]string
 }
 
-func NewCache(idToName map[string]string) Cache {
+func NewCache(idToName map[string]string) cache {
 	nti := make(map[string]string, len(idToName))
 
 	for id, name := range idToName {
 		nti[name] = id
 	}
 
-	return Cache{
+	return cache{
 		idToName: idToName,
 		nameToID: nti,
 	}
 }
 
 // IDOf returns the id associated with the given name.
-func (c Cache) IDOf(name string) (string, bool) {
+func (c cache) IDOf(name string) (string, bool) {
 	id, ok := c.nameToID[strings.ToLower(name)]
 	return id, ok
 }
 
 // NameOf returns the name associated with the given id.
-func (c Cache) NameOf(id string) (string, bool) {
+func (c cache) NameOf(id string) (string, bool) {
 	name, ok := c.idToName[strings.ToLower(id)]
 	return name, ok
 }
 
 // IDs returns all known ids.
-func (c Cache) IDs() []string {
+func (c cache) IDs() []string {
 	return maps.Keys(c.idToName)
 }
 
 // Names returns all known names.
-func (c Cache) Names() []string {
+func (c cache) Names() []string {
 	return maps.Keys(c.nameToID)
 }
 
-func (c Cache) ProviderForID(id string) Provider {
+func (c cache) ProviderForID(id string) Provider {
 	n, ok := c.NameOf(id)
 	if !ok {
-		return &Is{}
+		return &is{}
 	}
 
-	return &Is{
+	return &is{
 		id:   id,
 		name: n,
 	}
 }
 
-func (c Cache) ProviderForName(name string) Provider {
+func (c cache) ProviderForName(name string) Provider {
 	i, ok := c.IDOf(name)
 	if !ok {
-		return &Is{}
+		return &is{}
 	}
 
-	return &Is{
+	return &is{
 		id:   i,
 		name: name,
 	}

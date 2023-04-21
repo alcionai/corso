@@ -180,35 +180,6 @@ func NewCollection(
 	return c, nil
 }
 
-// NewCollectionPrefix creates a Collection prefix, without parsing a location path.
-// Should not be used unless the paths are explicitly known to be prefixes.
-func NewCollectionPrefix(
-	itemClient *http.Client,
-	folderPath path.Path,
-	prevPath path.Path,
-	driveID string,
-	service graph.Servicer,
-	statusUpdater support.StatusUpdater,
-	source driveSource,
-	ctrlOpts control.Options,
-	colScope collectionScope,
-	doNotMergeItems bool,
-) (*Collection, error) {
-	c := newColl(
-		itemClient,
-		folderPath,
-		prevPath,
-		driveID,
-		service,
-		statusUpdater,
-		source,
-		ctrlOpts,
-		colScope,
-		doNotMergeItems)
-
-	return c, nil
-}
-
 func newColl(
 	itemClient *http.Client,
 	folderPath path.Path,
