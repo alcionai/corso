@@ -47,3 +47,8 @@ const (
 	// PrincipalName to their ID for stability.
 	AllXMigrateUserPNToID = Backup + 1
 )
+
+// IsNoBackup returns true if the version implies that no prior backup exists.
+func IsNoBackup(version int) bool {
+	return version <= NoBackup
+}

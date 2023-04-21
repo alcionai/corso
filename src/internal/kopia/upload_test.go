@@ -195,7 +195,7 @@ func expectDirs(
 	require.NoError(t, err, clues.ToCore(err))
 
 	if exactly {
-		require.Lenf(t, entries, len(dirs), "expected at least %+v\ngot %+v", dd, de)
+		require.Lenf(t, entries, len(dirs), "expected exactly %+v\ngot %+v", dd, de)
 	}
 
 	assert.Subsetf(t, dirs, ents, "expected at least %+v\ngot %+v", dd, de)
@@ -2704,8 +2704,6 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	//   * contacts pulled from base1 unchanged even if no collections reference
 	//     it
 	//   * email pulled from base2
-	//   * new email added
-	//   * events not pulled from base2 as it's not listed as a Reason
 	//
 	// Expected output:
 	// - a-tenant
@@ -2713,11 +2711,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	//     - user1new
 	//       - email
 	//         - Inbox
-	//           - file1 <- version of data from second base
-	//           - file2
+	//           - file1
 	//       - contacts
 	//         - contacts
-	//           - file2
+	//           - file1
 	expected := expectedTreeWithChildren(
 		[]string{testTenant, service, migratedUser},
 		[]*expectedNode{
