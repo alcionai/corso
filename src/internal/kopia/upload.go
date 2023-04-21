@@ -727,7 +727,7 @@ func inflateCollectionTree(
 	toMerge *mergeDetails,
 ) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
-	// Contains the old path for collections that have been moved or renamed.
+	// Contains the old path for collections that are not new.
 	// Allows resolving what the new path should be when walking the base
 	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
 	updatedPaths := make(map[string]path.Path)
@@ -776,6 +776,14 @@ func inflateCollectionTree(
 			if err := addMergeLocation(s, toMerge); err != nil {
 				return nil, nil, clues.Wrap(err, "adding merge location").WithClues(ictx)
 			}
+		case data.NotMovedState:
+			p := s.PreviousPath().String()
+			if _, ok := updatedPaths[p]; ok {
+				return nil, nil, clues.New("multiple previous state changes to collection").
+					WithClues(ictx)
+			}
+
+			updatedPaths[p] = s.FullPath()
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
