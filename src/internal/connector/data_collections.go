@@ -46,6 +46,10 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
+	// Limit the max number of active requests to graph from this collection.
+	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
+		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
+
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx)

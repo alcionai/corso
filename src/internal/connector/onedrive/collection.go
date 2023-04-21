@@ -28,13 +28,6 @@ import (
 )
 
 const (
-	// TODO: This number needs to be tuned
-	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
-	collectionChannelBufferSize = 5
-
-	// TODO: Tune this later along with collectionChannelBufferSize
-	urlPrefetchChannelBufferSize = 5
-
 	// Used to compare in case of OneNote files
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
@@ -179,7 +172,7 @@ func NewCollection(
 		driveID:         driveID,
 		source:          source,
 		service:         service,
-		data:            make(chan data.Stream, collectionChannelBufferSize),
+		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, folderPath),
@@ -489,7 +482,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {

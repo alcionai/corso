@@ -105,7 +105,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				nil,
 				connector.credentials,
 				connector.UpdateStatus,
-				control.Options{},
+				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Empty(t, excludes)
@@ -208,7 +208,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				test.getSelector(t),
 				test.getSelector(t),
 				nil,
-				control.Options{},
+				control.Defaults(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, collections)
@@ -263,7 +263,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				connector.credentials,
 				connector.Service,
 				connector,
-				control.Options{},
+				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			// Not expecting excludes as this isn't an incremental backup.
@@ -345,7 +345,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		sel.Selector,
 		sel.Selector,
 		nil,
-		control.Options{},
+		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
@@ -389,7 +389,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		sel.Selector,
 		sel.Selector,
 		nil,
-		control.Options{},
+		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(cols))

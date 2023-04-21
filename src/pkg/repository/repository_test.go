@@ -54,7 +54,7 @@ func (suite *RepositoryUnitSuite) TestInitialize() {
 			st, err := test.storage()
 			assert.NoError(t, err, clues.ToCore(err))
 
-			_, err = repository.Initialize(ctx, test.account, st, control.Options{})
+			_, err = repository.Initialize(ctx, test.account, st, control.Defaults())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -88,7 +88,7 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 			st, err := test.storage()
 			assert.NoError(t, err, clues.ToCore(err))
 
-			_, err = repository.Connect(ctx, test.account, st, control.Options{})
+			_, err = repository.Connect(ctx, test.account, st, control.Defaults())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -131,7 +131,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			t := suite.T()
 
 			st := test.storage(t)
-			r, err := repository.Initialize(ctx, test.account, st, control.Options{})
+			r, err := repository.Initialize(ctx, test.account, st, control.Defaults())
 			if err == nil {
 				defer func() {
 					err := r.Close(ctx)
@@ -153,11 +153,11 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	_, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	_, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	_, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
+	_, err = repository.Connect(ctx, account.Account{}, st, control.Defaults())
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
@@ -170,7 +170,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	r, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	r, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	oldID := r.GetID()
@@ -179,7 +179,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	r, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
+	r, err = repository.Connect(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, oldID, r.GetID())
 }
@@ -195,7 +195,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	r, err := repository.Initialize(ctx, acct, st, control.Options{})
+	r, err := repository.Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tester.M365UserID(t)
@@ -217,7 +217,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	r, err := repository.Initialize(ctx, acct, st, control.Options{})
+	r, err := repository.Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, dest)
@@ -234,7 +234,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	_, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	_, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err)
 
 	// now re-connect

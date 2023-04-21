@@ -838,7 +838,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				test.resolver,
 				allScope,
 				test.dps,
-				control.Options{},
+				control.Defaults(),
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 

@@ -46,7 +46,7 @@ func prepM365Test(
 	vpr, cfgFP := tester.MakeTempTestConfigClone(t, force)
 	ctx = config.SetViper(ctx, vpr)
 
-	repo, err := repository.Initialize(ctx, acct, st, control.Options{})
+	repo, err := repository.Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	return acct, st, repo, vpr, recorder, cfgFP
