@@ -183,7 +183,7 @@ func DataCollections(
 	)
 
 	// TODO: Add hidden flag to disable this feature
-	graph.InitializeConcurrencyLimiter(ctrlOpts.ItemFetchParallelism)
+	graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
 	if err != nil {
