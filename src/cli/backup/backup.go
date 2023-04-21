@@ -230,7 +230,13 @@ func runBackups(
 		}
 
 		bIDs = append(bIDs, string(bo.Results.BackupID))
-		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+
+		if !DisplayJSONFormat() {
+			Infof(ctx, "Done\n")
+			printBackupStats(ctx, r, string(bo.Results.BackupID))
+		} else {
+			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+		}
 	}
 
 	bups, berrs := r.Backups(ctx, bIDs)
@@ -334,4 +340,14 @@ func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 
 func ifShow(flag string) bool {
 	return strings.ToLower(strings.TrimSpace(flag)) == "show"
+}
+
+func printBackupStats(ctx context.Context, r repository.Repository, bid string) {
+	b, err := r.Backup(ctx, bid)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
+	}
+
+	b.ToPrintable().Stats.Print(ctx)
+	Info(ctx, " ")
 }

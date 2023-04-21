@@ -234,6 +234,9 @@ func Stack(ctx context.Context, e error) *clues.Err {
 	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
 }
 
+// Checks for the following conditions and labels the error accordingly:
+// * mysiteNotFound | mysiteURLNotFound
+// * malware
 func setLabels(err *clues.Err, msg string) *clues.Err {
 	if err == nil {
 		return nil
@@ -242,6 +245,10 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 	ml := strings.ToLower(msg)
 	if strings.Contains(ml, mysiteNotFound) || strings.Contains(ml, mysiteURLNotFound) {
 		err = err.Label(LabelsMysiteNotFound)
+	}
+
+	if IsMalware(err) {
+		err = err.Label(LabelsMalware)
 	}
 
 	return err

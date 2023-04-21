@@ -115,7 +115,7 @@ type backupStats struct {
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "backup"); crErr != nil {
 			err = crErr
 		}
 	}()
