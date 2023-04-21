@@ -31,6 +31,7 @@ func (suite *ConcurrencyLimiterUnitTestSuite) TestConcurrencyLimiter() {
 	cl := generateConcurrencyLimiter(maxConcurrentRequests)
 	client := khttp.GetDefaultClient(cl)
 
+	// Server side handler to simulate 429s
 	sem := make(chan struct{}, maxConcurrentRequests)
 	reqHandler := func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -53,7 +54,7 @@ func (suite *ConcurrencyLimiterUnitTestSuite) TestConcurrencyLimiter() {
 	defer ts.Close()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		wg.Add(1)
 
 		go func() {
@@ -65,4 +66,52 @@ func (suite *ConcurrencyLimiterUnitTestSuite) TestConcurrencyLimiter() {
 		}()
 	}
 	wg.Wait()
+}
+
+func (suite *ConcurrencyLimiterUnitTestSuite) TestInitializeConcurrencyLimiter() {
+	t := suite.T()
+
+	InitializeConcurrencyLimiter(2)
+	InitializeConcurrencyLimiter(4)
+
+	assert.Equal(t, cap(concurrencyLim.semaphore), 2, "singleton semaphore capacity changed")
+}
+
+func (suite *ConcurrencyLimiterUnitTestSuite) TestGenerateConcurrencyLimiter() {
+	tests := []struct {
+		name        string
+		cap         int
+		expectedCap int
+	}{
+		{
+			name:        "valid capacity",
+			cap:         2,
+			expectedCap: 2,
+		},
+		{
+			name:        "zero capacity",
+			cap:         0,
+			expectedCap: maxConcurrentRequests,
+		},
+		{
+			name:        "negative capacity",
+			cap:         -1,
+			expectedCap: maxConcurrentRequests,
+		},
+		{
+			name:        "out of bounds capacity",
+			cap:         10,
+			expectedCap: maxConcurrentRequests,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			actual := generateConcurrencyLimiter(test.cap)
+			assert.Equal(t, cap(actual.semaphore), test.expectedCap,
+				"retrieved semaphore capacity vs expected capacity")
+		})
+	}
 }
