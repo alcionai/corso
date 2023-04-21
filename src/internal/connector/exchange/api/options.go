@@ -74,6 +74,26 @@ const (
 // Graph queries and reduce / filter the amount of data returned
 // which reduces the overall latency of complex calls
 // -----------------------------------------------------------------------
+func optionsForFolderMessages(
+	moreOps []string,
+	immutableIDs bool,
+) (*users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, fieldsForMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
+	return options, nil
+}
 
 func optionsForFolderMessagesDelta(
 	moreOps []string,
