@@ -104,10 +104,10 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
-		nextLink, delta := api.NextAndDeltaLink(resp)
+		nextLink, deltaLink := api.NextAndDeltaLink(resp)
 		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(delta) {
-				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, delta)
+			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(deltaLink) {
+				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, deltaLink)
 			}
 		}
 
@@ -115,8 +115,8 @@ func getItemsAddedAndRemovedFromContainer(
 		// once we run through pages of nextLinks, the last query will
 		// produce a deltaLink instead (if supported), which we'll use on
 		// the next backup to only get the changes since this run.
-		if len(delta) > 0 {
-			deltaURL = delta
+		if len(deltaLink) > 0 {
+			deltaURL = deltaLink
 		}
 
 		// the nextLink is our page cursor within this query.
