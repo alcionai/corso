@@ -205,9 +205,13 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 			expectErr: require.NoError,
 		},
 		{
-			name:      "user does not exist",
-			user:      uuid.NewString(),
-			expectErr: require.Error,
+			name: "user does not exist",
+			user: uuid.NewString(),
+			expect: &api.UserInfo{
+				DiscoveredServices: map[path.ServiceType]struct{}{},
+				Mailbox:            api.MailboxInfo{},
+			},
+			expectErr: require.NoError,
 		},
 	}
 	for _, test := range table {

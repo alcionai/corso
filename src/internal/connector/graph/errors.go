@@ -14,10 +14,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -25,20 +25,22 @@ import (
 // Error Interpretation Helpers
 // ---------------------------------------------------------------------------
 
+type errorCode string
+
 const (
-	errCodeActivityLimitReached        = "activityLimitReached"
-	errCodeItemNotFound                = "ErrorItemNotFound"
-	errCodeItemNotFoundShort           = "itemNotFound"
-	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
-	errCodeResyncRequired              = "ResyncRequired" // alt: resyncRequired
-	errCodeMalwareDetected             = "malwareDetected"
-	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
-	errCodeSyncStateNotFound           = "SyncStateNotFound"
-	errCodeSyncStateInvalid            = "SyncStateInvalid"
-	errCodeResourceNotFound            = "ResourceNotFound"
-	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
-	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
-	errCodeErrorAccessDenied           = "ErrorAccessDenied"
+	activityLimitReached        errorCode = "activityLimitReached"
+	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
+	errorAccessDenied           errorCode = "ErrorAccessDenied"
+	itemNotFound                errorCode = "ErrorItemNotFound"
+	itemNotFoundShort           errorCode = "itemNotFound"
+	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
+	malwareDetected             errorCode = "malwareDetected"
+	requestResourceNotFound     errorCode = "Request_ResourceNotFound"
+	resourceNotFound            errorCode = "ResourceNotFound"
+	resyncRequired              errorCode = "ResyncRequired" // alt: resyncRequired
+	syncFolderNotFound          errorCode = "ErrorSyncFolderNotFound"
+	syncStateInvalid            errorCode = "SyncStateInvalid"
+	syncStateNotFound           errorCode = "SyncStateNotFound"
 )
 
 const (
@@ -84,9 +86,9 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if hasErrorCode(
 		err,
-		errCodeItemNotFound,
-		errCodeItemNotFoundShort,
-		errCodeSyncFolderNotFound,
+		itemNotFound,
+		itemNotFoundShort,
+		syncFolderNotFound,
 	) {
 		return true
 	}
@@ -95,20 +97,24 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired, errCodeSyncStateInvalid) ||
+	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
+	return hasErrorCode(err, resourceNotFound, mailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
-	return hasErrorCode(err, errCodeRequestResourceNotFound) || hasErrorCode(err, errCodeResourceNotFound)
+	return hasErrorCode(err, requestResourceNotFound)
+}
+
+func IsErrResourceNotFound(err error) bool {
+	return hasErrorCode(err, resourceNotFound)
 }
 
 func IsErrAccessDenied(err error) bool {
-	return hasErrorCode(err, errCodeErrorAccessDenied) || clues.HasLabel(err, LabelStatus(http.StatusForbidden))
+	return hasErrorCode(err, errorAccessDenied) || clues.HasLabel(err, LabelStatus(http.StatusForbidden))
 }
 
 func IsErrTimeout(err error) bool {
@@ -143,7 +149,7 @@ func LabelStatus(statusCode int) string {
 
 // IsMalware is true if the graphAPI returns a "malware detected" error code.
 func IsMalware(err error) bool {
-	return hasErrorCode(err, errCodeMalwareDetected)
+	return hasErrorCode(err, malwareDetected)
 }
 
 func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
@@ -159,7 +165,7 @@ func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
 		return false
 	}
 
-	if strings.Contains(string(respDump), errCodeMalwareDetected) {
+	if strings.Contains(string(respDump), string(malwareDetected)) {
 		return true
 	}
 
@@ -170,7 +176,7 @@ func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
 // error parsers
 // ---------------------------------------------------------------------------
 
-func hasErrorCode(err error, codes ...string) bool {
+func hasErrorCode(err error, codes ...errorCode) bool {
 	if err == nil {
 		return false
 	}
@@ -185,12 +191,12 @@ func hasErrorCode(err error, codes ...string) bool {
 		return false
 	}
 
-	lcodes := []string{}
-	for _, c := range codes {
-		lcodes = append(lcodes, strings.ToLower(c))
+	cs := make([]string, len(codes))
+	for i, c := range codes {
+		cs[i] = string(c)
 	}
 
-	return slices.Contains(lcodes, strings.ToLower(code))
+	return filters.Equal(cs).Compare(code)
 }
 
 // Wrap is a helper function that extracts ODataError metadata from
