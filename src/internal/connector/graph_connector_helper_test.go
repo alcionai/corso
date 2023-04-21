@@ -111,7 +111,7 @@ func testElementsMatch[T any](
 type configInfo struct {
 	acct           account.Account
 	opts           control.Options
-	resource       resource
+	resource       Resource
 	service        path.ServiceType
 	tenant         string
 	resourceOwners []string
@@ -147,14 +147,14 @@ type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
 	collections []colInfo
-	resource    resource
+	resource    Resource
 }
 
 type restoreBackupInfoMultiVersion struct {
 	service             path.ServiceType
 	collectionsLatest   []colInfo
 	collectionsPrevious []colInfo
-	resource            resource
+	resource            Resource
 	backupVersion       int
 }
 
@@ -1282,10 +1282,10 @@ func getSelectorWith(
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T, r resource) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T, r Resource) *GraphConnector {
 	a := tester.NewM365Account(t)
 
-	connector, err := NewGraphConnector(ctx, a, r, fault.New(true))
+	connector, err := NewGraphConnector(ctx, a, r)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return connector

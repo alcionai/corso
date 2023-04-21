@@ -27,7 +27,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -270,27 +269,16 @@ func setupExchangeBackup(
 
 	var (
 		users = []string{owner}
-		bsel  = selectors.NewExchangeBackup(users)
+		sel   = selectors.NewExchangeBackup(users)
 	)
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Users,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
+	sel.DiscreteOwner = owner
+	sel.Include(
+		sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+		sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
+		sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	bsel.DiscreteOwner = owner
-	bsel.Include(
-		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
-	)
-
-	bsel.SetDiscreteOwnerIDName(id, name)
+	gc := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -299,8 +287,8 @@ func setupExchangeBackup(
 		sw,
 		gc,
 		acct,
-		bsel.Selector,
-		bsel.Selector,
+		sel.Selector,
+		sel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -331,27 +319,17 @@ func setupSharePointBackup(
 
 	var (
 		sites = []string{owner}
-		spsel = selectors.NewSharePointBackup(sites)
+		sel   = selectors.NewSharePointBackup(sites)
 	)
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Sites,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	spsel.DiscreteOwner = owner
 	// assume a folder name "test" exists in the drive.
 	// this is brittle, and requires us to backfill anytime
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
-	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+	sel.DiscreteOwner = owner
 
-	spsel.SetDiscreteOwnerIDName(id, name)
+	gc := GCWithSelector(t, ctx, acct, connector.Sites, sel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -360,8 +338,8 @@ func setupSharePointBackup(
 		sw,
 		gc,
 		acct,
-		spsel.Selector,
-		spsel.Selector,
+		sel.Selector,
+		sel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -494,8 +472,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		suite.acct,
-		connector.Users,
-		fault.New(true))
+		connector.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(
