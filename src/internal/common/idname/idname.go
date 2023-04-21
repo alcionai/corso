@@ -48,11 +48,6 @@ type cache struct {
 }
 
 func NewCache(idToName map[string]string) cache {
-	if len(idToName) == 0 {
-		// in case of nil
-		idToName = map[string]string{}
-	}
-
 	nti := make(map[string]string, len(idToName))
 
 	for id, name := range idToName {
