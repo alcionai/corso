@@ -258,19 +258,19 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager = &eventPager{}
+var _ itemPager = &eventDeltaPager{}
 
 const (
 	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
 )
 
-type eventPager struct {
+type eventDeltaPager struct {
 	gs      graph.Servicer
 	builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *eventDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -279,11 +279,11 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	return resp, nil
 }
 
-func (p *eventPager) setNext(nextLink string) {
+func (p *eventDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+func (p *eventDeltaPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 
@@ -311,7 +311,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	if len(oldDelta) > 0 {
 		var (
 			builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &eventPager{service, builder, opts}
+			pgr     = &eventDeltaPager{service, builder, opts}
 		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
@@ -338,7 +338,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
-	pgr := &eventPager{service, builder, opts}
+	pgr := &eventDeltaPager{service, builder, opts}
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, nil)

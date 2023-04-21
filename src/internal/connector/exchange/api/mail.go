@@ -305,15 +305,15 @@ func (c Mail) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager = &mailPager{}
+var _ itemPager = &mailDeltaPager{}
 
-type mailPager struct {
+type mailDeltaPager struct {
 	gs      graph.Servicer
 	builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -322,11 +322,11 @@ func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	return page, nil
 }
 
-func (p *mailPager) setNext(nextLink string) {
+func (p *mailDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+func (p *mailDeltaPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 
@@ -361,7 +361,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	if len(oldDelta) > 0 {
 		var (
 			builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &mailPager{service, builder, options}
+			pgr     = &mailDeltaPager{service, builder, options}
 		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
@@ -379,7 +379,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	}
 
 	builder := service.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
-	pgr := &mailPager{service, builder, options}
+	pgr := &mailDeltaPager{service, builder, options}
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, options)
