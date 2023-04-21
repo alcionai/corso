@@ -24,6 +24,12 @@ func NextLink(pl PageLinker) string {
 	return ptr.Val(pl.GetOdataNextLink())
 }
 
-func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
-	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
+func NextAndDeltaLink(pl PageLinker) (string, string) {
+	dpl, ok := pl.(DeltaPageLinker)
+	if ok {
+		// return delta link if available
+		return NextLink(pl), ptr.Val(dpl.GetOdataDeltaLink())
+	}
+
+	return NextLink(pl), ""
 }
