@@ -115,7 +115,7 @@ func Initialize(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo init"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -189,7 +189,7 @@ func Connect(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
 		}
 	}()
