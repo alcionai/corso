@@ -104,7 +104,7 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 }
 
 func IsErrUserNotFound(err error) bool {
-	return hasErrorCode(err, errCodeRequestResourceNotFound)
+	return hasErrorCode(err, errCodeRequestResourceNotFound) || hasErrorCode(err, errCodeResourceNotFound)
 }
 
 func IsErrAccessDenied(err error) bool {
@@ -180,7 +180,8 @@ func hasErrorCode(err error, codes ...string) bool {
 		return false
 	}
 
-	if oDataError.GetError().GetCode() == nil {
+	code, ok := ptr.ValOK(oDataError.GetError().GetCode())
+	if !ok {
 		return false
 	}
 
@@ -189,7 +190,7 @@ func hasErrorCode(err error, codes ...string) bool {
 		lcodes = append(lcodes, strings.ToLower(c))
 	}
 
-	return slices.Contains(lcodes, strings.ToLower(*oDataError.GetError().GetCode()))
+	return slices.Contains(lcodes, strings.ToLower(code))
 }
 
 // Wrap is a helper function that extracts ODataError metadata from

@@ -18,19 +18,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type DiscoveryIntegrationSuite struct {
+type DiscoveryIntgSuite struct {
 	tester.Suite
 }
 
-func TestDiscoveryIntegrationSuite(t *testing.T) {
-	suite.Run(t, &DiscoveryIntegrationSuite{
+func TestDiscoveryIntgSuite(t *testing.T) {
+	suite.Run(t, &DiscoveryIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUsers() {
+func (suite *DiscoveryIntgSuite) TestUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -55,7 +55,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	assert.NotEmpty(t, users)
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
+func (suite *DiscoveryIntgSuite) TestUsers_InvalidCredentials() {
 	table := []struct {
 		name string
 		acct func(t *testing.T) account.Account
@@ -101,7 +101,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
 	}
 }
 
-func (suite *DiscoveryIntegrationSuite) TestSites() {
+func (suite *DiscoveryIntgSuite) TestSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -120,7 +120,7 @@ func (suite *DiscoveryIntegrationSuite) TestSites() {
 	assert.NotEmpty(t, sites)
 }
 
-func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
+func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -171,7 +171,7 @@ func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
 	}
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
+func (suite *DiscoveryIntgSuite) TestUserInfo() {
 	t := suite.T()
 	acct := tester.NewM365Account(t)
 
@@ -229,7 +229,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 	}
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
+func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
 	t := suite.T()
 	acct := tester.NewM365Account(t)
 	userID := tester.M365UserID(t)

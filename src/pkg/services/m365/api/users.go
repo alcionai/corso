@@ -245,7 +245,8 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 			return nil, err
 		}
 
-		if !graph.IsErrExchangeMailFolderNotFound(err) || clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
+		if !graph.IsErrExchangeMailFolderNotFound(err) ||
+			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
 			return nil, err
 		}
