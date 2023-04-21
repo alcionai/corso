@@ -13,7 +13,6 @@ type Options struct {
 	RestorePermissions   bool            `json:"restorePermissions"`
 	SkipReduce           bool            `json:"skipReduce"`
 	ToggleFeatures       Toggles         `json:"ToggleFeatures"`
-	SkipMigrations       bool            `json:"skipMigrations"`
 }
 
 type FailureBehavior string
@@ -31,7 +30,6 @@ const (
 func Defaults() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
-		SkipMigrations:  true,
 		ToggleFeatures:  Toggles{},
 	}
 }
@@ -94,4 +92,6 @@ type Toggles struct {
 	// immutable Exchange IDs. This is only safe to set if the previous backup for
 	// incremental backups used immutable IDs or if a full backup is being done.
 	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
+
+	RunMigrations bool `json:"runMigrations"`
 }

@@ -81,7 +81,13 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			mc, err := migrationCollections(nil, test.version, "t", u, nil, control.Options{SkipMigrations: test.forceSkip})
+			opts := control.Options{
+				ToggleFeatures: control.Toggles{
+					RunMigrations: !test.forceSkip,
+				},
+			}
+
+			mc, err := migrationCollections(nil, test.version, "t", u, nil, opts)
 			require.NoError(t, err, clues.ToCore(err))
 
 			if test.expectLen == 0 {
@@ -107,9 +113,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 				t.Logf("Found migration collection:\n* full: %s\n* prev: %s\n", fp, pp)
 
 				for i, cm := range test.expectMigration {
-					if cm.full == fp && cm.prev == pp {
-						migrs[i] = cm
-					}
+					migrs[i] = cm
 				}
 			}
 

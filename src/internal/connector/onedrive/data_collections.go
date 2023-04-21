@@ -136,7 +136,7 @@ func migrationCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
-	if ctrlOpts.SkipMigrations {
+	if !ctrlOpts.ToggleFeatures.RunMigrations {
 		return nil, nil
 	}
 
