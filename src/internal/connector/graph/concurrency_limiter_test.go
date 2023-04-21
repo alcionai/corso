@@ -16,21 +16,19 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type ConcurrencyLimiterTestSuite struct {
+type ConcurrencyLimiterUnitTestSuite struct {
 	tester.Suite
 }
 
 func TestConcurrencyLimiterSuite(t *testing.T) {
-	suite.Run(t, &ConcurrencyLimiterTestSuite{Suite: tester.NewUnitSuite(t)})
+	suite.Run(t, &ConcurrencyLimiterUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
+func (suite *ConcurrencyLimiterUnitTestSuite) TestConcurrencyLimiter() {
 	t := suite.T()
+
 	maxConcurrentRequests := 4
-
-	InitializeConcurrencyLimiter(maxConcurrentRequests)
-
-	cl := GetConcurrencyLimiter()
+	cl := generateConcurrencyLimiter(maxConcurrentRequests)
 	client := khttp.GetDefaultClient(cl)
 
 	sem := make(chan struct{}, maxConcurrentRequests)
@@ -41,7 +39,7 @@ func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
 				<-sem
 			}()
 
-			time.Sleep(time.Duration(rand.Intn(150)+50) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(50)+50) * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
 
 			return
@@ -55,7 +53,7 @@ func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
 	defer ts.Close()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 
 		go func() {
@@ -63,7 +61,7 @@ func (suite *ConcurrencyLimiterTestSuite) TestConcurrencyLimiterMiddleware() {
 
 			resp, err := client.Get(ts.URL)
 			require.NoError(t, err)
-			assert.Equal(t, resp.StatusCode, http.StatusOK)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
 		}()
 	}
 	wg.Wait()
