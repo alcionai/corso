@@ -197,8 +197,8 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
-          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
-          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
+          CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
+          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           CORSO_LOG_FILE: ./src/testlog/testlogging.log
           LOG_GRAPH_REQUESTS: true
@@ -340,7 +340,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
-          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           CORSO_LOG_FILE: ./src/testlog/testlogging.log
         run: |
