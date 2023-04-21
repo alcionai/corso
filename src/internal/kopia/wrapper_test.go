@@ -620,7 +620,7 @@ func (c mockBackupCollection) FullPath() path.Path {
 }
 
 func (c mockBackupCollection) PreviousPath() path.Path {
-	return nil
+	return c.path
 }
 
 func (c mockBackupCollection) LocationPath() *path.Builder {
@@ -1034,6 +1034,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					suite.testPath1,
 					1)
 				c.ColState = data.NotMovedState
+				c.PrevPath = suite.testPath1
 
 				return []data.BackupCollection{c}
 			},
