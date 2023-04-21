@@ -15,7 +15,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -312,7 +311,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
+	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
 	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
@@ -490,7 +489,7 @@ func runRestore(
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	restoreGC := loadConnector(ctx, t, config.resource)
 	restoreSel := getSelectorWith(t, config.service, config.resourceOwners, true)
 	deets, err := restoreGC.ConsumeRestoreCollections(
 		ctx,
@@ -511,7 +510,8 @@ func runRestore(
 	assert.Equal(t, numRestoreItems, status.Successes, "restored status.Successes")
 	assert.Len(
 		t,
-		deets.Entries,
+		// Don't check folders as those are now added to details.
+		deets.Items(),
 		numRestoreItems,
 		"details entries contains same item count as total successful items restored")
 
@@ -552,7 +552,7 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	backupGC := loadConnector(ctx, t, config.resource)
 	backupGC.IDNameLookup = common.IDsNames{IDToName: idToName, NameToID: nameToID}
 
 	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
@@ -1066,7 +1066,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest.ContainerName,
 				)
 
-				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+				restoreGC := loadConnector(ctx, t, test.resource)
 				deets, err := restoreGC.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
@@ -1086,8 +1086,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, totalItems, status.Objects, "status.Objects")
 				assert.Equal(t, totalItems, status.Successes, "status.Successes")
-				assert.Equal(
-					t, totalItems, len(deets.Entries),
+				assert.Len(
+					t,
+					deets.Items(),
+					totalItems,
 					"details entries contains same item count as total successful items restored")
 
 				t.Log("Restore complete")
@@ -1095,7 +1097,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Run a backup and compare its output with what we put in.
 
-			backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+			backupGC := loadConnector(ctx, t, test.resource)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1246,7 +1248,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			var (
 				t         = suite.T()
-				backupGC  = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+				backupGC  = loadConnector(ctx, t, test.resource)
 				backupSel = test.selectorFunc(t)
 				errs      = fault.New(true)
 				start     = time.Now()

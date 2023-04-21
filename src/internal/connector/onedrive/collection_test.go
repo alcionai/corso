@@ -18,7 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -97,7 +99,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -113,7 +115,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -129,7 +131,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, clues.New("test malware").Label(graph.LabelsMalware)
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -145,7 +147,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
 			// Usually `Not Found` is returned from itemGetter and not itemReader
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -160,7 +162,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -176,7 +178,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -206,7 +208,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"drive-id",
@@ -266,7 +268,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItem := readItems[0]
 			readItemInfo := readItem.(data.StreamInfo)
 
-			assert.Equal(t, testItemID+DataFileSuffix, readItem.UUID())
+			assert.Equal(t, testItemID+metadata.DataFileSuffix, readItem.UUID())
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)
@@ -277,7 +279,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			if err != nil {
 				for _, label := range test.expectLabels {
-					assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
+					assert.Truef(t, clues.HasLabel(err, label), "has clues label: %s", label)
 				}
 
 				return
@@ -292,7 +294,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			if test.source == OneDriveSource {
 				readItemMeta := readItems[1]
 
-				assert.Equal(t, testItemID+MetaFileSuffix, readItemMeta.UUID())
+				assert.Equal(t, testItemID+metadata.MetaFileSuffix, readItemMeta.UUID())
 
 				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
 				require.NoError(t, err, clues.ToCore(err))
@@ -346,7 +348,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"fakeDriveID",
@@ -369,7 +371,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			coll.itemReader = func(
 				context.Context,
-				*http.Client,
+				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, assert.AnError
@@ -436,7 +438,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			require.NoError(t, err)
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"fakeDriveID",
@@ -469,10 +471,10 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 
 			coll.itemReader = func(
 				context.Context,
-				*http.Client,
+				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
-				if count < 2 {
+				if count < 1 {
 					count++
 					return details.ItemInfo{}, nil, clues.Stack(assert.AnError).
 						Label(graph.LabelStatus(http.StatusUnauthorized))
@@ -493,13 +495,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			wg.Wait()
 
 			require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
 			require.Equal(t, 1, collStatus.Metrics.Successes, "read object successfully")
-			require.Equal(t, 2, count, "retry count")
+			require.Equal(t, 1, count, "retry count")
 		})
 	}
 }
@@ -536,7 +538,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"drive-id",
@@ -560,7 +562,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 
 			coll.itemReader = func(
 				context.Context,
-				*http.Client,
+				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
@@ -588,7 +590,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			require.Equal(t, 1, collStatus.Metrics.Successes)
 
 			for _, i := range readItems {
-				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
+				if strings.HasSuffix(i.UUID(), metadata.MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
 					require.NoError(t, err, clues.ToCore(err))
 					require.Equal(t, content, []byte("{}"))
@@ -610,7 +612,7 @@ func TestGetDriveItemUnitTestSuite(t *testing.T) {
 	suite.Run(t, &GetDriveItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
+func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 	strval := "not-important"
 
 	table := []struct {
@@ -636,14 +638,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			name:     "malware error",
 			colScope: CollectionScopeFolder,
 			itemSize: 10,
-			err:      clues.New("test error").Label(graph.LabelsMalware),
+			err:      clues.New("malware error").Label(graph.LabelsMalware),
 			labels:   []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
 			name:     "file not found error",
 			colScope: CollectionScopeFolder,
 			itemSize: 10,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
+			err:      clues.New("not found error").Label(graph.LabelStatus(http.StatusNotFound)),
 			labels:   []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
@@ -651,14 +653,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			name:     "small OneNote file",
 			colScope: CollectionScopePackage,
 			itemSize: 10,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 		{
 			name:     "big OneNote file",
 			colScope: CollectionScopePackage,
 			itemSize: MaxOneNoteFileSize,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			err:      clues.New("big onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
@@ -666,7 +668,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			name:     "big file",
 			colScope: CollectionScopeFolder,
 			itemSize: MaxOneNoteFileSize,
-			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			err:      clues.New("big file error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 	}
@@ -688,9 +690,9 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			item.SetSize(&test.itemSize)
 
 			col.itemReader = func(
-				ctx context.Context,
-				hc *http.Client,
-				item models.DriveItemable,
+				_ context.Context,
+				_ graph.Requester,
+				_ models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, test.err
 			}
@@ -706,11 +708,11 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 
 			_, err := col.getDriveItemContent(ctx, item, errs)
 			if test.err == nil {
-				assert.NoError(t, err, "no error")
+				assert.NoError(t, err, clues.ToCore(err))
 				return
 			}
 
-			assert.EqualError(t, err, clues.Wrap(test.err, "downloading item").Error(), "error")
+			assert.ErrorIs(t, err, test.err, clues.ToCore(err))
 
 			labelsMap := map[string]struct{}{}
 			for _, l := range test.labels {
@@ -718,6 +720,106 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			}
 
 			assert.Equal(t, labelsMap, clues.Labels(err))
+		})
+	}
+}
+
+func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
+	var (
+		svc     graph.Servicer
+		gr      graph.Requester
+		driveID string
+		iorc    = io.NopCloser(bytes.NewReader([]byte("fnords")))
+		item    = &models.DriveItem{}
+		itemWID = &models.DriveItem{}
+	)
+
+	itemWID.SetId(ptr.To("brainhooldy"))
+
+	table := []struct {
+		name      string
+		igf       itemGetterFunc
+		irf       itemReaderFunc
+		expectErr require.ErrorAssertionFunc
+		expect    require.ValueAssertionFunc
+	}{
+		{
+			name: "good",
+			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, iorc, nil
+			},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
+		},
+		{
+			name: "expired url redownloads",
+			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+				return itemWID, nil
+			},
+			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				// a bit hacky: assume only igf returns an item with a non-zero id.
+				if len(ptr.Val(m.GetId())) == 0 {
+					return details.ItemInfo{},
+						nil,
+						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
+				}
+
+				return details.ItemInfo{}, iorc, nil
+			},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
+		},
+		{
+			name: "immediate error",
+			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, assert.AnError
+			},
+			expectErr: require.Error,
+			expect:    require.Nil,
+		},
+		{
+			name: "re-fetching the item fails",
+			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+				return nil, assert.AnError
+			},
+			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{},
+					nil,
+					clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
+			},
+			expectErr: require.Error,
+			expect:    require.Nil,
+		},
+		{
+			name: "expired url fails redownload",
+			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+				return itemWID, nil
+			},
+			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				// a bit hacky: assume only igf returns an item with a non-zero id.
+				if len(ptr.Val(m.GetId())) == 0 {
+					return details.ItemInfo{},
+						nil,
+						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
+				}
+
+				return details.ItemInfo{}, iorc, assert.AnError
+			},
+			expectErr: require.Error,
+			expect:    require.Nil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			r, err := downloadContent(ctx, svc, test.igf, test.irf, gr, item, driveID)
+
+			test.expect(t, r)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

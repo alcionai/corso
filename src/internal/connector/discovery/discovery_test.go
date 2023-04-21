@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DiscoveryIntegrationSuite struct {
@@ -197,14 +197,23 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 					path.ExchangeService: {},
 					path.OneDriveService: {},
 				},
+				HasMailBox:  true,
+				HasOneDrive: true,
+				Mailbox: api.MailboxInfo{
+					Purpose:              "user",
+					ErrGetMailBoxSetting: nil,
+				},
 			},
 		},
 		{
 			name: "user does not exist",
 			user: uuid.NewString(),
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{
-					path.OneDriveService: {}, // currently statically populated
+				DiscoveredServices: map[path.ServiceType]struct{}{},
+				HasMailBox:         false,
+				HasOneDrive:        false,
+				Mailbox: api.MailboxInfo{
+					ErrGetMailBoxSetting: api.ErrMailBoxSettingsNotFound,
 				},
 			},
 		},
@@ -218,7 +227,66 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 
 			result, err := discovery.UserInfo(ctx, uapi, test.user)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect, result)
+			assert.Equal(t, test.expect.HasMailBox, result.HasMailBox)
+			assert.Equal(t, test.expect.HasOneDrive, result.HasOneDrive)
+			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
+		})
+	}
+}
+
+func (suite *DiscoveryIntegrationSuite) TestUserWithoutDrive() {
+	t := suite.T()
+	acct := tester.NewM365Account(t)
+	userID := tester.M365UserID(t)
+
+	table := []struct {
+		name   string
+		user   string
+		expect *api.UserInfo
+	}{
+		{
+			name: "user without drive and exchange",
+			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: &api.UserInfo{
+				DiscoveredServices: map[path.ServiceType]struct{}{},
+				HasOneDrive:        false,
+				HasMailBox:         false,
+				Mailbox: api.MailboxInfo{
+					ErrGetMailBoxSetting: api.ErrMailBoxSettingsNotFound,
+				},
+			},
+		},
+		{
+			name: "user with drive and exchange",
+			user: userID,
+			expect: &api.UserInfo{
+				DiscoveredServices: map[path.ServiceType]struct{}{
+					path.ExchangeService: {},
+					path.OneDriveService: {},
+				},
+				HasOneDrive: true,
+				HasMailBox:  true,
+				Mailbox: api.MailboxInfo{
+					Purpose:              "user",
+					ErrGetMailBoxSetting: nil,
+				},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			result, err := discovery.GetUserInfo(ctx, acct, test.user, fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
+			assert.Equal(t, test.expect.HasOneDrive, result.HasOneDrive)
+			assert.Equal(t, test.expect.HasMailBox, result.HasMailBox)
+			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting, result.Mailbox.ErrGetMailBoxSetting)
+			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
 		})
 	}
 }

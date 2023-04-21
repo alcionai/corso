@@ -366,7 +366,7 @@ func (suite *SelectorScopesSuite) TestPasses() {
 		}
 	)
 
-	pvs, err := cat.pathValues(pth, entry)
+	pvs, err := cat.pathValues(pth, entry, Config{})
 	require.NoError(suite.T(), err)
 
 	for _, test := range reduceTestTable {
@@ -572,13 +572,13 @@ func (suite *SelectorScopesSuite) TestScopesPII() {
 				`"pass":"Pass"`,
 				`"fail":"Fail"`,
 				`"foo":"EQ:bar"`,
-				`"qux":"Cont:fnords,smarf"`,
+				`"qux":"EQ:fnords,smarf"`,
 			},
 			containsPlain: []string{
 				`"pass":"Pass"`,
 				`"fail":"Fail"`,
 				`"foo":"EQ:bar"`,
-				`"qux":"Cont:fnords,smarf"`,
+				`"qux":"EQ:fnords,smarf"`,
 			},
 		},
 	}

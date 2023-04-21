@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+type nexter interface {
+	Next(req *http.Request, middlewareIndex int) (*http.Response, error)
+}
+
 // ---------------------------------------------------------------------------
 // Logging
 // ---------------------------------------------------------------------------
@@ -213,7 +217,7 @@ func (middleware RetryHandler) retryRequest(
 		}
 
 		response, err := pipeline.Next(req, middlewareIndex)
-		if err != nil && !IsErrTimeout(err) {
+		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
 			return response, Stack(ctx, err).With("retry_count", executionCount)
 		}
 

@@ -6,17 +6,17 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
-	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-func createTestBetaService(t *testing.T, credentials account.M365Config) *discover.BetaService {
+func createTestBetaService(t *testing.T, credentials account.M365Config) *api.BetaService {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
 		credentials.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
-	return discover.NewBetaService(adapter)
+	return api.NewBetaService(adapter)
 }

@@ -273,7 +273,6 @@ func setupExchangeBackup(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))
@@ -335,7 +334,6 @@ func setupSharePointBackup(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Sites,
 		fault.New(true))
@@ -465,7 +463,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			require.NotEmpty(t, ro.Results, "restoreOp results")
 			require.NotNil(t, ds, "restored details")
 			assert.Equal(t, ro.Status, Completed, "restoreOp status")
-			assert.Equal(t, ro.Results.ItemsWritten, len(ds.Entries), "item write count matches len details")
+			assert.Equal(t, ro.Results.ItemsWritten, len(ds.Items()), "item write count matches len details")
 			assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
 			assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 			assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
@@ -493,7 +491,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		suite.acct,
 		connector.Users,
 		fault.New(true))

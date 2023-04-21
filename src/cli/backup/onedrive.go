@@ -278,6 +278,7 @@ func runDetailsOneDriveCmd(
 
 	if !skipReduce {
 		sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 		utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}

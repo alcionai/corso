@@ -471,8 +471,9 @@ func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category p
 		i++
 	}
 
-	// At least the prefix of the path should be encoded as folders.
-	assert.Greater(t, foundFolders, 4)
+	// We only backup the default folder for each category so there should be at
+	// least that folder (we don't make details entries for prefix folders).
+	assert.GreaterOrEqual(t, foundFolders, 1)
 }
 
 // ---------------------------------------------------------------------------

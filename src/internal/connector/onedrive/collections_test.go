@@ -19,6 +19,7 @@ import (
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -147,8 +148,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGetCanonicalPath() {
 func getDelList(files ...string) map[string]struct{} {
 	delList := map[string]struct{}{}
 	for _, file := range files {
-		delList[file+DataFileSuffix] = struct{}{}
-		delList[file+MetaFileSuffix] = struct{}{}
+		delList[file+metadata.DataFileSuffix] = struct{}{}
+		delList[file+metadata.MetaFileSuffix] = struct{}{}
 	}
 
 	return delList
@@ -779,7 +780,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
 				OneDriveSource,
@@ -2230,7 +2231,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			}
 
 			c := NewCollections(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
 				OneDriveSource,

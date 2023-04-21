@@ -2,11 +2,9 @@ package sharepoint
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/alcionai/clues"
 
-	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -19,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type statusUpdater interface {
@@ -29,7 +28,7 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	selector selectors.Selector,
 	creds account.M365Config,
 	serv graph.Servicer,
@@ -182,7 +181,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
@@ -243,7 +242,7 @@ func collectPages(
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
-	betaService := dapi.NewBetaService(adpt)
+	betaService := m365api.NewBetaService(adpt)
 
 	tuples, err := api.FetchPages(ctx, betaService, siteID)
 	if err != nil {
