@@ -18,9 +18,9 @@ import (
 // ---------------------------------------------------------------------------
 
 type itemPager interface {
-	getPage(context.Context) (api.DeltaPageLinker, error)
+	getPage(context.Context) (api.PageLinker, error)
 	setNext(string)
-	valuesIn(api.DeltaPageLinker) ([]getIDAndAddtler, error)
+	valuesIn(api.PageLinker) ([]getIDAndAddtler, error)
 }
 
 type getIDAndAddtler interface {

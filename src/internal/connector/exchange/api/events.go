@@ -270,7 +270,7 @@ type eventDeltaPager struct {
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *eventDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *eventDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -283,7 +283,7 @@ func (p *eventDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventDeltaPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+func (p *eventDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 
