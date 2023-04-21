@@ -267,17 +267,16 @@ func setupExchangeBackup(
 
 	var (
 		users = []string{owner}
-		bsel  = selectors.NewExchangeBackup(users)
+		sel   = selectors.NewExchangeBackup(users)
 	)
 
-	bsel.DiscreteOwner = owner
-	bsel.Include(
-		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
-	)
+	sel.DiscreteOwner = owner
+	sel.Include(
+		sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+		sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
+		sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-	gc := GCWithSelector(t, ctx, acct, connector.Sites, bsel.Selector, nil, nil)
+	gc := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -286,8 +285,8 @@ func setupExchangeBackup(
 		sw,
 		gc,
 		acct,
-		bsel.Selector,
-		bsel.Selector,
+		sel.Selector,
+		sel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -318,17 +317,17 @@ func setupSharePointBackup(
 
 	var (
 		sites = []string{owner}
-		spsel = selectors.NewSharePointBackup(sites)
+		sel   = selectors.NewSharePointBackup(sites)
 	)
 
 	// assume a folder name "test" exists in the drive.
 	// this is brittle, and requires us to backfill anytime
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
-	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
-	spsel.DiscreteOwner = owner
+	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+	sel.DiscreteOwner = owner
 
-	gc := GCWithSelector(t, ctx, acct, connector.Sites, spsel.Selector, nil, nil)
+	gc := GCWithSelector(t, ctx, acct, connector.Sites, sel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -337,8 +336,8 @@ func setupSharePointBackup(
 		sw,
 		gc,
 		acct,
-		spsel.Selector,
-		spsel.Selector,
+		sel.Selector,
+		sel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
