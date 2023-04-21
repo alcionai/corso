@@ -39,24 +39,28 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 	table := []struct {
 		name            string
 		version         int
+		forceSkip       bool
 		expectLen       int
 		expectMigration []migr
 	}{
 		{
 			name:            "no backup version",
 			version:         version.NoBackup,
+			forceSkip:       false,
 			expectLen:       0,
 			expectMigration: []migr{},
 		},
 		{
 			name:            "above current version",
 			version:         version.Backup + 5,
+			forceSkip:       false,
 			expectLen:       0,
 			expectMigration: []migr{},
 		},
 		{
 			name:      "user pn to id",
 			version:   version.AllXMigrateUserPNToID - 1,
+			forceSkip: false,
 			expectLen: 1,
 			expectMigration: []migr{
 				{
@@ -65,12 +69,25 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 				},
 			},
 		},
+		{
+			name:            "skipped",
+			version:         version.Backup + 5,
+			forceSkip:       true,
+			expectLen:       0,
+			expectMigration: []migr{},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			mc, err := migrationCollections(nil, test.version, "t", u, nil, control.Options{})
+			opts := control.Options{
+				ToggleFeatures: control.Toggles{
+					RunMigrations: !test.forceSkip,
+				},
+			}
+
+			mc, err := migrationCollections(nil, test.version, "t", u, nil, opts)
 			require.NoError(t, err, clues.ToCore(err))
 
 			if test.expectLen == 0 {
@@ -78,9 +95,9 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 				return
 			}
 
-			assert.LessOrEqual(t, test.expectLen, len(mc))
+			assert.Len(t, mc, test.expectLen)
 
-			migrs := make([]bool, len(test.expectMigration))
+			migrs := make([]migr, len(test.expectMigration))
 
 			for _, col := range mc {
 				var fp, pp string
@@ -96,14 +113,12 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 				t.Logf("Found migration collection:\n* full: %s\n* prev: %s\n", fp, pp)
 
 				for i, cm := range test.expectMigration {
-					if cm.full == fp && cm.prev == pp {
-						migrs[i] = true
-					}
+					migrs[i] = cm
 				}
 			}
 
 			for i, m := range migrs {
-				assert.Truef(t, m, "expected to find migration: %+v", test.expectMigration[i])
+				assert.Contains(t, migrs, m, "expected to find migration: %+v", test.expectMigration[i])
 			}
 		})
 	}

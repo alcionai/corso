@@ -135,8 +135,12 @@ func migrationCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
+	if !ctrlOpts.ToggleFeatures.RunMigrations {
+		return nil, nil
+	}
+
 	// assume a version < 0 implies no prior backup, thus nothing to migrate.
-	if lastBackupVersion < 0 {
+	if version.IsNoBackup(lastBackupVersion) {
 		return nil, nil
 	}
 

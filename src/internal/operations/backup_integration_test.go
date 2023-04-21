@@ -1620,6 +1620,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	bo.ResourceOwner = oldsel.SetDiscreteOwnerIDName(uname, uname)
 	// required, otherwise we don't run the migration
 	bo.backupVersion = version.AllXMigrateUserPNToID - 1
+	bo.Options.ToggleFeatures.RunMigrations = false
 
 	require.Equalf(
 		t,
@@ -1641,6 +1642,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		// the incremental backup op should have a proper user ID for the id.
 		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
 	)
+
+	incBO.Options.ToggleFeatures.RunMigrations = true
 
 	require.NotEqualf(
 		t,
