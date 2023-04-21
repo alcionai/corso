@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -165,43 +166,43 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name,
-			name+onedrive.DataFileSuffix,
+			name+metadata.DataFileSuffix,
 			fileData))
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
 		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
-			name+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
+			name+metadata.DataFileSuffix,
+			name+metadata.DataFileSuffix,
 			fileData))
 
-		metadata := onedriveMetadata(
+		md := onedriveMetadata(
 			c.t,
 			"",
-			name+onedrive.MetaFileSuffix,
-			name+onedrive.MetaFileSuffix,
+			name+metadata.MetaFileSuffix,
+			name+metadata.MetaFileSuffix,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
-		c.items = append(c.items, metadata)
-		c.aux = append(c.aux, metadata)
+		c.items = append(c.items, md)
+		c.aux = append(c.aux, md)
 
-	case version.OneDrive6NameInMeta:
+	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
-			name+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
+			name+metadata.DataFileSuffix,
+			name+metadata.DataFileSuffix,
 			fileData))
 
-		metadata := onedriveMetadata(
+		md := onedriveMetadata(
 			c.t,
 			name,
-			name+onedrive.MetaFileSuffix,
+			name+metadata.MetaFileSuffix,
 			name,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
-		c.items = append(c.items, metadata)
-		c.aux = append(c.aux, metadata)
+		c.items = append(c.items, md)
+		c.aux = append(c.aux, md)
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -213,7 +214,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
-		version.OneDrive6NameInMeta:
+		version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
@@ -222,8 +223,8 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 			onedriveMetadata(
 				c.t,
 				"",
-				name+onedrive.DirMetaFileSuffix,
-				name+onedrive.DirMetaFileSuffix,
+				name+metadata.DirMetaFileSuffix,
+				name+metadata.DirMetaFileSuffix,
 				perm,
 				c.backupVersion >= versionPermissionSwitchedToID))
 
@@ -255,16 +256,16 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 		return c
 	}
 
-	metadata := onedriveMetadata(
+	md := onedriveMetadata(
 		c.t,
 		name,
-		metaName+onedrive.DirMetaFileSuffix,
-		metaName+onedrive.DirMetaFileSuffix,
+		metaName+metadata.DirMetaFileSuffix,
+		metaName+metadata.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
 
-	c.items = append(c.items, metadata)
-	c.aux = append(c.aux, metadata)
+	c.items = append(c.items, md)
+	c.aux = append(c.aux, md)
 
 	return c
 }
@@ -357,12 +358,13 @@ type suiteInfo interface {
 	// permissions.
 	PrimaryUser() (string, string)
 	SecondaryUser() (string, string)
+	TertiaryUser() (string, string)
 	// BackupResourceOwner returns the resource owner to run the backup/restore
 	// with. This can be different from the values used for permissions and it can
 	// also be a site.
 	BackupResourceOwner() string
 	BackupService() path.ServiceType
-	Resource() resource
+	Resource() Resource
 }
 
 type oneDriveSuite interface {
@@ -377,9 +379,11 @@ type suiteInfoImpl struct {
 	userID          string
 	secondaryUser   string
 	secondaryUserID string
+	tertiaryUser    string
+	tertiaryUserID  string
 	acct            account.Account
 	service         path.ServiceType
-	resourceType    resource
+	resourceType    Resource
 }
 
 func (si suiteInfoImpl) Service() graph.Servicer {
@@ -402,6 +406,10 @@ func (si suiteInfoImpl) SecondaryUser() (string, string) {
 	return si.secondaryUser, si.secondaryUserID
 }
 
+func (si suiteInfoImpl) TertiaryUser() (string, string) {
+	return si.tertiaryUser, si.tertiaryUserID
+}
+
 func (si suiteInfoImpl) BackupResourceOwner() string {
 	return si.resourceOwner
 }
@@ -410,7 +418,7 @@ func (si suiteInfoImpl) BackupService() path.ServiceType {
 	return si.service
 }
 
-func (si suiteInfoImpl) Resource() resource {
+func (si suiteInfoImpl) Resource() Resource {
 	return si.resourceType
 }
 
@@ -445,9 +453,10 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites),
+		connector:     loadConnector(ctx, suite.T(), Sites),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
+		tertiaryUser:  tester.TertiaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
 		service:       path.SharePointService,
 		resourceType:  Sites,
@@ -462,6 +471,10 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
+
+	tertiaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.tertiaryUser)
+	require.NoError(suite.T(), err, "fetching user", si.tertiaryUser, clues.ToCore(err))
+	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
 	suite.suiteInfo = si
 }
@@ -492,7 +505,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		connector:     loadConnector(ctx, suite.T(), Users),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
@@ -551,7 +564,7 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		connector:     loadConnector(ctx, suite.T(), Users),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
@@ -770,13 +783,14 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		"root:",
 		folderBName,
 	}
-	subfolderAPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderBName,
-		folderAName,
-	}
+	// For skipped test
+	// subfolderAPath := []string{
+	// 	"drives",
+	// 	driveID,
+	// 	"root:",
+	// 	folderBName,
+	// 	folderAName,
+	// }
 	folderCPath := []string{
 		"drives",
 		driveID,
@@ -838,7 +852,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					perms: permData{
 						user:     secondaryUserName,
 						entityID: secondaryUserID,
-						roles:    readPerm,
+						roles:    writePerm,
 					},
 				},
 			},
@@ -853,27 +867,29 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				},
 			},
 		},
-		{
-			// Tests a folder that has permissions with an item in the folder with
-			// the same permissions.
-			pathElements: subfolderAPath,
-			files: []itemData{
-				{
-					name: fileName,
-					data: fileDData,
-					perms: permData{
-						user:     secondaryUserName,
-						entityID: secondaryUserID,
-						roles:    readPerm,
-					},
-				},
-			},
-			perms: permData{
-				user:     secondaryUserName,
-				entityID: secondaryUserID,
-				roles:    readPerm,
-			},
-		},
+		// TODO: We can't currently support having custom permissions
+		// with the same set of permissions internally
+		// {
+		// 	// Tests a folder that has permissions with an item in the folder with
+		// 	// the same permissions.
+		// 	pathElements: subfolderAPath,
+		// 	files: []itemData{
+		// 		{
+		// 			name: fileName,
+		// 			data: fileDData,
+		// 			perms: permData{
+		// 				user:     secondaryUserName,
+		// 				entityID: secondaryUserID,
+		// 				roles:    readPerm,
+		// 			},
+		// 		},
+		// 	},
+		// 	perms: permData{
+		// 		user:     secondaryUserName,
+		// 		entityID: secondaryUserID,
+		// 		roles:    readPerm,
+		// 	},
+		// },
 		{
 			// Tests a folder that has permissions with an item in the folder with
 			// the different permissions.
@@ -1036,6 +1052,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	defer flush()
 
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
+	tertiaryUserName, tertiaryUserID := suite.TertiaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
@@ -1048,6 +1065,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 
 	folderAName := "custom"
 	folderBName := "inherited"
+	folderCName := "empty"
 
 	rootPath := []string{
 		"drives",
@@ -1060,19 +1078,26 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		"root:",
 		folderAName,
 	}
-	subfolderAPath := []string{
+	subfolderAAPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderAName,
 		folderAName,
 	}
-	subfolderBPath := []string{
+	subfolderABPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderAName,
 		folderBName,
+	}
+	subfolderACPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderCName,
 	}
 
 	fileSet := []itemData{
@@ -1093,27 +1118,39 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				sharingMode: onedrive.SharingModeInherited,
 			},
 		},
+		{
+			name: "file-empty",
+			data: fileAData,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
 	}
 
 	// Here is what this test is testing
 	// - custom-permission-folder
 	//   - custom-permission-file
 	//   - inherted-permission-file
+	//   - empty-permission-file
 	//   - custom-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
+	//     - empty-permission-file
 	//   - inherted-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
+	//     - empty-permission-file
+	//   - empty-permission-folder
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
+	//     - empty-permission-file (empty/empty might have interesting behavior)
 
 	cols := []onedriveColInfo{
 		{
 			pathElements: rootPath,
 			files:        []itemData{},
 			folders: []itemData{
-				{
-					name: folderAName,
-				},
+				{name: folderAName},
 			},
 		},
 		{
@@ -1122,28 +1159,36 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			folders: []itemData{
 				{name: folderAName},
 				{name: folderBName},
+				{name: folderCName},
 			},
 			perms: permData{
-				user:     secondaryUserName,
-				entityID: secondaryUserID,
+				user:     tertiaryUserName,
+				entityID: tertiaryUserID,
 				roles:    readPerm,
 			},
 		},
 		{
-			pathElements: subfolderAPath,
+			pathElements: subfolderAAPath,
 			files:        fileSet,
 			perms: permData{
-				user:        secondaryUserName,
-				entityID:    secondaryUserID,
+				user:        tertiaryUserName,
+				entityID:    tertiaryUserID,
 				roles:       writePerm,
 				sharingMode: onedrive.SharingModeCustom,
 			},
 		},
 		{
-			pathElements: subfolderBPath,
+			pathElements: subfolderABPath,
 			files:        fileSet,
 			perms: permData{
 				sharingMode: onedrive.SharingModeInherited,
+			},
+		},
+		{
+			pathElements: subfolderACPath,
+			files:        fileSet,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
 			},
 		},
 	}

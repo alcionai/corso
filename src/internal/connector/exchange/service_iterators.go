@@ -22,6 +22,7 @@ type addedAndRemovedItemIDsGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
+		immutableIDs bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -108,7 +109,12 @@ func filterContainersAndFillCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ictx, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(
+			ictx,
+			qp.ResourceOwner.ID(),
+			cID,
+			prevDelta,
+			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -130,7 +136,7 @@ func filterContainersAndFillCollections(
 		}
 
 		edc := NewCollection(
-			qp.ResourceOwner,
+			qp.ResourceOwner.ID(),
 			currPath,
 			prevPath,
 			locPath,
@@ -189,7 +195,7 @@ func filterContainersAndFillCollections(
 		}
 
 		edc := NewCollection(
-			qp.ResourceOwner,
+			qp.ResourceOwner.ID(),
 			nil, // marks the collection as deleted
 			prevPath,
 			nil, // tombstones don't need a location
@@ -208,7 +214,7 @@ func filterContainersAndFillCollections(
 
 	col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
-		qp.ResourceOwner,
+		qp.ResourceOwner.ID(),
 		path.ExchangeService,
 		qp.Category,
 		[]graph.MetadataCollectionEntry{

@@ -442,15 +442,13 @@ func restoreCollection(
 				continue
 			}
 
-			var locationRef string
+			locationRef := &path.Builder{}
 			if category == path.ContactsCategory {
-				locationRef = itemPath.Folder(false)
+				locationRef = locationRef.Append(itemPath.Folders()...)
 			}
 
 			err = deets.Add(
-				itemPath.String(),
-				itemPath.ShortRef(),
-				"",
+				itemPath,
 				locationRef,
 				true,
 				details.ItemInfo{

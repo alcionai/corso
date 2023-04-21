@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -28,28 +28,9 @@ import (
 )
 
 const (
-	// TODO: This number needs to be tuned
-	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
-	collectionChannelBufferSize = 5
-
-	// TODO: Tune this later along with collectionChannelBufferSize
-	urlPrefetchChannelBufferSize = 5
-
-	// maxDownloadRetires specifies the number of times a file download should
-	// be retried
-	maxDownloadRetires = 3
-
-	MetaFileSuffix    = ".meta"
-	DirMetaFileSuffix = ".dirmeta"
-	DataFileSuffix    = ".data"
-
 	// Used to compare in case of OneNote files
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
-
-func IsMetaFile(name string) bool {
-	return strings.HasSuffix(name, MetaFileSuffix) || strings.HasSuffix(name, DirMetaFileSuffix)
-}
 
 var (
 	_ data.BackupCollection = &Collection{}
@@ -70,7 +51,7 @@ const (
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// configured to handle large item downloads
-	itemClient *http.Client
+	itemClient graph.Requester
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -97,6 +78,12 @@ type Collection struct {
 	// moved.  It will be empty on its first retrieval.
 	prevPath path.Path
 
+	// locPath represents the human-readable location of this collection.
+	locPath *path.Builder
+	// prevLocPath represents the human-readable location of this collection in
+	// the previous backup.
+	prevLocPath *path.Builder
+
 	// Specifies if it new, moved/rename or deleted
 	state data.CollectionState
 
@@ -112,7 +99,7 @@ type Collection struct {
 	doNotMergeItems bool
 }
 
-// itemGetterFunc gets an specified item
+// itemGetterFunc gets a specified item
 type itemGetterFunc func(
 	ctx context.Context,
 	srv graph.Servicer,
@@ -122,7 +109,7 @@ type itemGetterFunc func(
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error)
 
@@ -135,9 +122,22 @@ type itemMetaReaderFunc func(
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error)
 
+func pathToLocation(p path.Path) (*path.Builder, error) {
+	if p == nil {
+		return nil, nil
+	}
+
+	odp, err := path.ToOneDrivePath(p)
+	if err != nil {
+		return nil, err
+	}
+
+	return path.Builder{}.Append(odp.Root).Append(odp.Folders...), nil
+}
+
 // NewCollection creates a Collection
 func NewCollection(
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	folderPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -147,16 +147,32 @@ func NewCollection(
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
-) *Collection {
+) (*Collection, error) {
+	// TODO(ashmrtn): If OneDrive switches to using folder IDs then this will need
+	// to be changed as we won't be able to extract path information from the
+	// storage path. In that case, we'll need to start storing the location paths
+	// like we do the previous path.
+	locPath, err := pathToLocation(folderPath)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting location").With("folder_path", folderPath.String())
+	}
+
+	prevLocPath, err := pathToLocation(prevPath)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting previous location").With("prev_path", prevPath.String())
+	}
+
 	c := &Collection{
 		itemClient:      itemClient,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
+		locPath:         locPath,
+		prevLocPath:     prevLocPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
 		source:          source,
 		service:         service,
-		data:            make(chan data.Stream, collectionChannelBufferSize),
+		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, folderPath),
@@ -176,7 +192,7 @@ func NewCollection(
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
-	return c
+	return c, nil
 }
 
 // Adds an itemID to the collection.  This will make it eligible to be
@@ -227,6 +243,28 @@ func (oc Collection) PreviousPath() path.Path {
 func (oc *Collection) SetFullPath(curPath path.Path) {
 	oc.folderPath = curPath
 	oc.state = data.StateOf(oc.prevPath, curPath)
+}
+
+func (oc Collection) LocationPath() *path.Builder {
+	return oc.locPath
+}
+
+func (oc Collection) PreviousLocationPath() details.LocationIDer {
+	if oc.prevLocPath == nil {
+		return nil
+	}
+
+	switch oc.source {
+	case OneDriveSource:
+		return details.NewOneDriveLocationIDer(
+			oc.driveID,
+			oc.prevLocPath.Elements()...)
+
+	default:
+		return details.NewSharePointLocationIDer(
+			oc.driveID,
+			oc.prevLocPath.Elements()...)
+	}
 }
 
 func (oc Collection) State() data.CollectionState {
@@ -323,45 +361,29 @@ func (oc *Collection) getDriveItemContent(
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		el       = errs.Local()
-
-		itemData io.ReadCloser
-		err      error
 	)
 
-	// Initial try with url from delta + 2 retries
-	for i := 1; i <= maxDownloadRetires; i++ {
-		_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
-		if err == nil || !graph.IsErrUnauthorized(err) {
-			break
-		}
-
-		// Assume unauthorized requests are a sign of an expired jwt
-		// token, and that we've overrun the available window to
-		// download the actual file.  Re-downloading the item will
-		// refresh that download url.
-		di, diErr := oc.itemGetter(ctx, oc.service, oc.driveID, itemID)
-		if diErr != nil {
-			err = clues.Wrap(diErr, "retrieving expired item")
-			break
-		}
-
-		item = di
-	}
-
-	// check for errors following retries
+	itemData, err := downloadContent(
+		ctx,
+		oc.service,
+		oc.itemGetter,
+		oc.itemReader,
+		oc.itemClient,
+		item,
+		oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
 			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
 			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
 		// Skip big OneNote files as they can't be downloaded
@@ -376,7 +398,7 @@ func (oc *Collection) getDriveItemContent(
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
 			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
 		logger.CtxErr(ctx, err).Error("downloading item")
@@ -384,10 +406,46 @@ func (oc *Collection) getDriveItemContent(
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
-		return nil, clues.Wrap(err, "downloading item")
+		return nil, clues.Wrap(err, "fetching item content")
 	}
 
 	return itemData, nil
+}
+
+// downloadContent attempts to fetch the item content.  If the content url
+// is expired (ie, returns a 401), it re-fetches the item to get a new download
+// url and tries again.
+func downloadContent(
+	ctx context.Context,
+	svc graph.Servicer,
+	igf itemGetterFunc,
+	irf itemReaderFunc,
+	gr graph.Requester,
+	item models.DriveItemable,
+	driveID string,
+) (io.ReadCloser, error) {
+	_, content, err := irf(ctx, gr, item)
+	if err == nil {
+		return content, nil
+	} else if !graph.IsErrUnauthorized(err) {
+		return nil, err
+	}
+
+	// Assume unauthorized requests are a sign of an expired jwt
+	// token, and that we've overrun the available window to
+	// download the actual file.  Re-downloading the item will
+	// refresh that download url.
+	di, err := igf(ctx, svc, driveID, ptr.Val(item.GetId()))
+	if err != nil {
+		return nil, clues.Wrap(err, "retrieving expired item")
+	}
+
+	_, content, err = irf(ctx, gr, di)
+	if err != nil {
+		return nil, clues.Wrap(err, "content download retry")
+	}
+
+	return content, nil
 }
 
 // populateItems iterates through items added to the collection
@@ -424,7 +482,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {
@@ -455,9 +513,9 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			ctx = clues.Add(
 				ctx,
-				"backup_item_id", itemID,
-				"backup_item_name", itemName,
-				"backup_item_size", itemSize)
+				"item_id", itemID,
+				"item_name", itemName,
+				"item_size", itemSize)
 
 			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
@@ -467,12 +525,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				atomic.AddInt64(&itemsFound, 1)
 
 				metaFileName = itemID
-				metaSuffix = MetaFileSuffix
+				metaSuffix = metadata.MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 
 				// metaFileName not set for directories so we get just ".dirmeta"
-				metaSuffix = DirMetaFileSuffix
+				metaSuffix = metadata.DirMetaFileSuffix
 			}
 
 			// Fetch metadata for the file
@@ -496,10 +554,10 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
-			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
+			ctx = clues.Add(ctx, "item_info", itemInfo)
 
 			if isFile {
-				dataSuffix := DataFileSuffix
+				dataSuffix := metadata.DataFileSuffix
 
 				// Construct a new lazy readCloser to feed to the collection consumer.
 				// This ensures that downloads won't be attempted unless that consumer
@@ -516,7 +574,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
-						clues.Hide(itemID+dataSuffix),
+						clues.Hide(itemName+dataSuffix),
 						itemSize)
 					go closer()
 
@@ -535,7 +593,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					ctx,
 					itemMeta,
 					observe.ItemBackupMsg,
-					clues.Hide(metaFileName+metaSuffix),
+					clues.Hide(itemName+metaSuffix),
 					int64(itemMetaSize))
 				go closer()
 				return progReader, nil

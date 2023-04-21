@@ -74,9 +74,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 				scopeMustHave(
 					t,
 					OneDriveScope(scope),
-					map[categorizer]string{
-						OneDriveItem:   AnyTgt,
-						OneDriveFolder: AnyTgt,
+					map[categorizer][]string{
+						OneDriveItem:   Any(),
+						OneDriveFolder: Any(),
 					},
 				)
 			}
@@ -106,9 +106,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_AllData() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{
-				OneDriveItem:   AnyTgt,
-				OneDriveFolder: AnyTgt,
+			map[categorizer][]string{
+				OneDriveItem:   Any(),
+				OneDriveFolder: Any(),
 			},
 		)
 	}
@@ -136,9 +136,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_AllData() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{
-				OneDriveItem:   AnyTgt,
-				OneDriveFolder: AnyTgt,
+			map[categorizer][]string{
+				OneDriveItem:   Any(),
+				OneDriveFolder: Any(),
 			},
 		)
 	}
@@ -173,6 +173,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			Entries: []details.DetailsEntry{
 				{
 					RepoRef: file,
+					ItemRef: "file",
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
@@ -182,6 +183,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 				},
 				{
 					RepoRef: file2,
+					ItemRef: "file2",
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
@@ -191,6 +193,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 				},
 				{
 					RepoRef: file3,
+					// item ref intentionally blank to assert fallback case
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
@@ -211,36 +214,69 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 		deets        *details.Details
 		makeSelector func() *OneDriveRestore
 		expect       []string
+		cfg          Config
 	}{
 		{
-			"all",
-			deets,
-			func() *OneDriveRestore {
+			name:  "all",
+			deets: deets,
+			makeSelector: func() *OneDriveRestore {
 				odr := NewOneDriveRestore(Any())
 				odr.Include(odr.AllData())
 				return odr
 			},
-			arr(file, file2, file3),
+			expect: arr(file, file2, file3),
 		},
 		{
-			"only match file",
-			deets,
-			func() *OneDriveRestore {
+			name:  "only match file",
+			deets: deets,
+			makeSelector: func() *OneDriveRestore {
+				odr := NewOneDriveRestore(Any())
+				odr.Include(odr.Items(Any(), []string{"file2"}))
+				return odr
+			},
+			expect: arr(file2),
+		},
+		{
+			name:  "id doesn't match name",
+			deets: deets,
+			makeSelector: func() *OneDriveRestore {
+				odr := NewOneDriveRestore(Any())
+				odr.Include(odr.Items(Any(), []string{"file2"}))
+				return odr
+			},
+			expect: []string{},
+			cfg:    Config{OnlyMatchItemNames: true},
+		},
+		{
+			name:  "only match file name",
+			deets: deets,
+			makeSelector: func() *OneDriveRestore {
 				odr := NewOneDriveRestore(Any())
 				odr.Include(odr.Items(Any(), []string{"fileName2"}))
 				return odr
 			},
-			arr(file2),
+			expect: arr(file2),
+			cfg:    Config{OnlyMatchItemNames: true},
 		},
 		{
-			"only match folder",
-			deets,
-			func() *OneDriveRestore {
+			name:  "name doesn't match id",
+			deets: deets,
+			makeSelector: func() *OneDriveRestore {
+				odr := NewOneDriveRestore(Any())
+				odr.Include(odr.Items(Any(), []string{"fileName2"}))
+				return odr
+			},
+			expect: []string{},
+		},
+		{
+			name:  "only match folder",
+			deets: deets,
+			makeSelector: func() *OneDriveRestore {
 				odr := NewOneDriveRestore([]string{"uid"})
 				odr.Include(odr.Folders([]string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
-			arr(file, file2),
+			expect: arr(file, file2),
 		},
 	}
 	for _, test := range table {
@@ -251,6 +287,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			defer flush()
 
 			sel := test.makeSelector()
+			sel.Configure(test.cfg)
 			results := sel.Reduce(ctx, test.deets, fault.New(true))
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
@@ -262,30 +299,68 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	t := suite.T()
 
 	fileName := "file"
+	fileID := fileName + "-id"
 	shortRef := "short"
-	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileName + "-id"}
+	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileID}
 
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
 	require.NoError(t, err, clues.ToCore(err))
 
-	expected := map[categorizer][]string{
-		OneDriveFolder: {"dir1/dir2"},
-		OneDriveItem:   {fileName, shortRef},
-	}
-
-	ent := details.DetailsEntry{
-		RepoRef:  filePath.String(),
-		ShortRef: shortRef,
-		ItemInfo: details.ItemInfo{
-			OneDrive: &details.OneDriveInfo{
-				ItemName: fileName,
+	table := []struct {
+		name      string
+		pathElems []string
+		expected  map[categorizer][]string
+		cfg       Config
+	}{
+		{
+			name:      "items",
+			pathElems: elems,
+			expected: map[categorizer][]string{
+				OneDriveFolder: {"dir1/dir2"},
+				OneDriveItem:   {fileID, shortRef},
 			},
+			cfg: Config{},
+		},
+		{
+			name:      "items w/ name",
+			pathElems: elems,
+			expected: map[categorizer][]string{
+				OneDriveFolder: {"dir1/dir2"},
+				OneDriveItem:   {fileName, shortRef},
+			},
+			cfg: Config{OnlyMatchItemNames: true},
 		},
 	}
 
-	r, err := OneDriveItem.pathValues(filePath, ent)
-	require.NoError(t, err)
-	assert.Equal(t, expected, r)
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			itemPath, err := path.Build(
+				"tenant",
+				"site",
+				path.OneDriveService,
+				path.FilesCategory,
+				true,
+				test.pathElems...)
+			require.NoError(t, err, clues.ToCore(err))
+
+			ent := details.DetailsEntry{
+				RepoRef:  filePath.String(),
+				ShortRef: shortRef,
+				ItemRef:  fileID,
+				ItemInfo: details.ItemInfo{
+					OneDrive: &details.OneDriveInfo{
+						ItemName: fileName,
+					},
+				},
+			}
+
+			pv, err := OneDriveItem.pathValues(itemPath, ent, test.cfg)
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, pv)
+		})
+	}
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {

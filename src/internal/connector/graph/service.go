@@ -12,6 +12,7 @@ import (
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -38,7 +39,7 @@ func AllMetadataFileNames() []string {
 
 type QueryParams struct {
 	Category      path.CategoryType
-	ResourceOwner string
+	ResourceOwner common.IDNamer
 	Credentials   account.M365Config
 }
 
@@ -113,7 +114,7 @@ func CreateAdapter(
 		return nil, err
 	}
 
-	httpClient := HTTPClient(opts...)
+	httpClient := KiotaHTTPClient(opts...)
 
 	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
@@ -139,21 +140,24 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 	return auth, nil
 }
 
-// HTTPClient creates the httpClient with middlewares and timeout configured
+// KiotaHTTPClient creates a httpClient with middlewares and timeout configured
+// for use in the graph adapter.
 //
 // Re-use of http clients is critical, or else we leak OS resources
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func HTTPClient(opts ...Option) *http.Client {
-	clientOptions := msgraphsdkgo.GetDefaultClientOptions()
-	clientconfig := (&clientConfig{}).populate(opts...)
-	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
-	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
-	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
+func KiotaHTTPClient(opts ...Option) *http.Client {
+	var (
+		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
+		cc            = populateConfig(opts...)
+		middlewares   = kiotaMiddlewares(&clientOptions, cc)
+		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
+	)
+
 	httpClient.Timeout = defaultHTTPClientTimeout
 
-	clientconfig.apply(httpClient)
+	cc.apply(httpClient)
 
 	return httpClient
 }
@@ -174,27 +178,17 @@ type clientConfig struct {
 type Option func(*clientConfig)
 
 // populate constructs a clientConfig according to the provided options.
-func (c *clientConfig) populate(opts ...Option) *clientConfig {
+func populateConfig(opts ...Option) *clientConfig {
+	cc := clientConfig{
+		maxRetries: defaultMaxRetries,
+		minDelay:   defaultDelay,
+	}
+
 	for _, opt := range opts {
-		opt(c)
+		opt(&cc)
 	}
 
-	return c
-}
-
-// apply updates the http.Client with the expected options.
-func (c *clientConfig) applyMiddlewareConfig() (retry int, delay time.Duration) {
-	retry = defaultMaxRetries
-	if c.overrideRetryCount {
-		retry = c.maxRetries
-	}
-
-	delay = defaultDelay
-	if c.minDelay > 0 {
-		delay = c.minDelay
-	}
-
-	return
+	return &cc
 }
 
 // apply updates the http.Client with the expected options.
@@ -235,20 +229,23 @@ func MinimumBackoff(dur time.Duration) Option {
 // Middleware Control
 // ---------------------------------------------------------------------------
 
-// GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
-func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
+// kiotaMiddlewares creates a default slice of middleware for the Graph Client.
+func kiotaMiddlewares(
+	options *msgraphgocore.GraphClientOptions,
+	cc *clientConfig,
+) []khttp.Middleware {
 	mw := []khttp.Middleware{}
+
 	// Optionally add concurrency limiter middleware if it has been initialized
 	if concurrencyLim != nil {
 		mw = append(mw, concurrencyLim)
 	}
 
 	mw = append(mw, []khttp.Middleware{
+		msgraphgocore.NewGraphTelemetryHandler(options),
 		&RetryHandler{
-			// The maximum number of times a request can be retried
-			MaxRetries: maxRetry,
-			// The delay in seconds between retries
-			Delay: delay,
+			MaxRetries: cc.maxRetries,
+			Delay:      cc.minDelay,
 		},
 		khttp.NewRetryHandler(),
 		khttp.NewRedirectHandler(),
@@ -261,22 +258,4 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 	}...)
 
 	return mw
-}
-
-// GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(
-	options *msgraphgocore.GraphClientOptions,
-	maxRetry int,
-	minDelay time.Duration,
-) []khttp.Middleware {
-	kiotaMiddlewares := GetMiddlewares(maxRetry, minDelay)
-	graphMiddlewares := []khttp.Middleware{
-		msgraphgocore.NewGraphTelemetryHandler(options),
-	}
-	graphMiddlewaresLen := len(graphMiddlewares)
-	resultMiddlewares := make([]khttp.Middleware, len(kiotaMiddlewares)+graphMiddlewaresLen)
-	copy(resultMiddlewares, graphMiddlewares)
-	copy(resultMiddlewares[graphMiddlewaresLen:], kiotaMiddlewares)
-
-	return resultMiddlewares
 }

@@ -266,11 +266,7 @@ func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, err
 		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "finding m365 account details"))
 	}
 
-	// build a graph connector
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
 		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "connecting to graph api"))
 	}

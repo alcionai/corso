@@ -30,6 +30,7 @@ type mockItemer struct {
 func (mi *mockItemer) GetItem(
 	context.Context,
 	string, string,
+	bool,
 	*fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mi.getCount++
@@ -178,7 +179,7 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 				test.curr, test.prev, test.loc,
 				0,
 				&mockItemer{}, nil,
-				control.Options{},
+				control.Defaults(),
 				false)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
@@ -228,7 +229,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := test.items.GetItem(ctx, "userID", "itemID", fault.New(true))
+			_, _, err := test.items.GetItem(ctx, "userID", "itemID", false, fault.New(true))
 			test.expectErr(suite.T(), err)
 		})
 	}

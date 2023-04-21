@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -59,6 +60,7 @@ func (mc mockCategorizer) isLeaf() bool {
 func (mc mockCategorizer) pathValues(
 	repo path.Path,
 	ent details.DetailsEntry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	return map[categorizer][]string{
 		rootCatStub: {"root"},
@@ -95,8 +97,8 @@ type mockScope scope
 
 var _ scoper = &mockScope{}
 
-func (ms mockScope) categorizer() categorizer {
-	switch ms[scopeKeyCategory].Target {
+func (s mockScope) categorizer() categorizer {
+	switch s[scopeKeyCategory].Identity {
 	case rootCatStub.String():
 		return rootCatStub
 	case leafCatStub.String():
@@ -106,11 +108,11 @@ func (ms mockScope) categorizer() categorizer {
 	return unknownCatStub
 }
 
-func (ms mockScope) matchesInfo(dii details.ItemInfo) bool {
-	return ms[shouldMatch].Target == "true"
+func (s mockScope) matchesInfo(dii details.ItemInfo) bool {
+	return s[shouldMatch].Target == "true"
 }
 
-func (ms mockScope) setDefaults() {}
+func (s mockScope) setDefaults() {}
 
 const (
 	shouldMatch = "should-match-entry"
@@ -145,6 +147,15 @@ func stubInfoScope(match string) mockScope {
 }
 
 // ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s mockScope) Conceal() string             { return conceal(s) }
+func (s mockScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s mockScope) String() string              { return conceal(s) }
+func (s mockScope) PlainString() string         { return plainString(s) }
+
+// ---------------------------------------------------------------------------
 // selectors
 // ---------------------------------------------------------------------------
 
@@ -155,7 +166,7 @@ type mockSel struct {
 func stubSelector(resourceOwners []string) mockSel {
 	return mockSel{
 		Selector: Selector{
-			ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+			ResourceOwners: filterFor(scopeConfig{}, resourceOwners...),
 			Service:        ServiceExchange,
 			Excludes:       []scope{scope(stubScope(""))},
 			Filters:        []scope{scope(stubScope(""))},
@@ -177,10 +188,10 @@ func setScopesToDefault[T scopeT](ts []T) []T {
 }
 
 // calls assert.Equal(t, v, getCatValue(sc, k)[0]) on each k:v pair in the map
-func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
-	for k, v := range m {
+func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer][]string) {
+	for k, vs := range m {
 		t.Run(k.String(), func(t *testing.T) {
-			assert.Equal(t, split(v), getCatValue(sc, k), "Key: %s", k)
+			assert.Equal(t, vs, getCatValue(sc, k), "Key: %s", k)
 		})
 	}
 }

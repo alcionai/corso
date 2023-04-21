@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.10
 LABEL MAINTAINER="Niraj Tolia"
 
 ARG DEBIAN_FRONTEND=noninteractive

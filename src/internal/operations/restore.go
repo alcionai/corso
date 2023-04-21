@@ -104,7 +104,7 @@ type restoreStats struct {
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "restore"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -212,7 +212,7 @@ func (op *RestoreOperation) do(
 		})
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
-	logger.Ctx(ctx).With("selectors", op.Selectors).Info("restoring selection")
+	logger.Ctx(ctx).With("control_options", op.Options, "selectors", op.Selectors).Info("restoring selection")
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer closer()

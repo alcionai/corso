@@ -190,6 +190,9 @@ func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 // common handlers
 // ---------------------------------------------------------------------------
 
+// standard set of selector behavior that we want used in the cli
+var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
+
 func runBackups(
 	ctx context.Context,
 	r repository.Repository,
@@ -203,6 +206,8 @@ func runBackups(
 	)
 
 	for _, discSel := range selectorSet {
+		discSel.Configure(defaultSelectorConfig)
+
 		var (
 			owner = discSel.DiscreteOwner
 			ictx  = clues.Add(ctx, "resource_owner", owner)
@@ -225,7 +230,13 @@ func runBackups(
 		}
 
 		bIDs = append(bIDs, string(bo.Results.BackupID))
-		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+
+		if !DisplayJSONFormat() {
+			Infof(ctx, "Done\n")
+			printBackupStats(ctx, r, string(bo.Results.BackupID))
+		} else {
+			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+		}
 	}
 
 	bups, berrs := r.Backups(ctx, bIDs)
@@ -294,7 +305,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 				return Only(ctx, clues.New("No backup exists with the id "+bID))
 			}
 
-			return Only(ctx, clues.Wrap(err, "Failed to find backup "+bID))
+			return Only(ctx, clues.Wrap(errs.Failure(), "Failed to list backup id "+bID))
 		}
 
 		b.Print(ctx)
@@ -329,4 +340,14 @@ func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 
 func ifShow(flag string) bool {
 	return strings.ToLower(strings.TrimSpace(flag)) == "show"
+}
+
+func printBackupStats(ctx context.Context, r repository.Repository, bid string) {
+	b, err := r.Backup(ctx, bid)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
+	}
+
+	b.ToPrintable().Stats.Print(ctx)
+	Info(ctx, " ")
 }

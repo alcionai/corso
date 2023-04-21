@@ -35,16 +35,13 @@ var (
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
-
-	// Outlooks expects max 4 concurrent requests
-	// https://learn.microsoft.com/en-us/graph/throttling-limits#outlook-service-limits
-	urlPrefetchChannelBufferSize = 4
 )
 
 type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		immutableIDs bool,
 		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
@@ -195,22 +192,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		}()
 	}
 
-	// Limit the max number of active requests to GC
-	fetchParallelism := col.ctrl.ItemFetchParallelism
-	if fetchParallelism < 1 || fetchParallelism > urlPrefetchChannelBufferSize {
-		fetchParallelism = urlPrefetchChannelBufferSize
-		logger.Ctx(ctx).Infow(
-			"fetch parallelism value not set or out of bounds, using default",
-			"default_parallelism",
-			urlPrefetchChannelBufferSize,
-			"requested_parallellism",
-			col.ctrl.ItemFetchParallelism,
-		)
-	}
-
-	logger.Ctx(ctx).Infow("fetching data with parallelism", "fetch_parallelism", fetchParallelism)
-
-	semaphoreCh := make(chan struct{}, fetchParallelism)
+	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
 	// delete all removed items
@@ -256,6 +238,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				ctx,
 				user,
 				id,
+				col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
 				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to

@@ -1,4 +1,4 @@
-package mockconnector
+package mock
 
 import (
 	"encoding/base64"
@@ -103,19 +103,19 @@ const (
 	}`
 )
 
-// GetMockMessageBytes returns bytes for a Messageable item.
+// MessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
-func GetMockMessageBytes(subject string) []byte {
-	return GetMockMessageWithBodyBytes(
+func MessageBytes(subject string) []byte {
+	return MessageWithBodyBytes(
 		"TPS Report "+subject+" "+common.FormatNow(common.SimpleDateTime),
 		defaultMessageBody, defaultMessagePreview)
 }
 
-// GetMockMessageBytes returns bytes for a Messageable item.
+// MessageWithBodyBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
-func GetMockMessageWithBodyBytes(subject, body, preview string) []byte {
-	return GetMockMessageWith(
+func MessageWithBodyBytes(subject, body, preview string) []byte {
+	return MessageWith(
 		defaultMessageTo,
 		defaultMessageFrom,
 		defaultMessageSender,
@@ -129,11 +129,11 @@ func GetMockMessageWithBodyBytes(subject, body, preview string) []byte {
 	)
 }
 
-// GetMockMessageWith returns bytes for a Messageable item.
+// MessageWith returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 // created, modified, sent, and received should be in the format 2006-01-02T15:04:05Z
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
-func GetMockMessageWith(
+func MessageWith(
 	to, from, sender, // user PNs
 	subject, body, preview, // arbitrary data
 	created, modified, sent, received string, // legacy datetimes
@@ -162,10 +162,10 @@ func GetMockMessageWith(
 	return []byte(message)
 }
 
-// GetMockMessageWithDirectAttachment returns a message an attachment that contains n MB of data.
+// MessageWithDirectAttachment returns a message an attachment that contains n MB of data.
 // Max limit on N is 35 (imposed by exchange) .
 // Serialized with: kiota-serialization-json-go v0.7.1
-func GetMockMessageWithSizedAttachment(subject string, n int) []byte {
+func MessageWithSizedAttachment(subject string, n int) []byte {
 	// I know we said 35, but after base64encoding, 24mb of base content
 	// bloats up to 34mb (35 balloons to 49).  So we have to restrict n
 	// appropriately.
@@ -197,9 +197,9 @@ func GetMockMessageWithSizedAttachment(subject string, n int) []byte {
 	return []byte(fmt.Sprintf(messageFmt, attachmentSize, base64.StdEncoding.EncodeToString([]byte(attachmentBytes))))
 }
 
-// GetMockMessageWithDirectAttachment returns a message with inline attachment
+// MessageWithDirectAttachment returns a message with inline attachment
 // Serialized with: kiota-serialization-json-go v0.7.1
-func GetMockMessageWithDirectAttachment(subject string) []byte {
+func MessageWithDirectAttachment(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAA=\"," +
 		"\"@odata.type\":\"#microsoft.graph.message\",\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFQ\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\",\"categories\":[]," +
@@ -266,16 +266,16 @@ func GetMockMessageWithDirectAttachment(subject string) []byte {
 	return []byte(message)
 }
 
-// GetMockMessageWithDirectAttachment returns a message with a large attachment. This is derived from the message
-// used in GetMockMessageWithDirectAttachment
+// MessageWithDirectAttachment returns a message with a large attachment. This is derived from the message
+// used in MessageWithDirectAttachment
 // Serialized with: kiota-serialization-json-go v0.7.1
-func GetMockMessageWithLargeAttachment(subject string) []byte {
-	return GetMockMessageWithSizedAttachment(subject, 3)
+func MessageWithLargeAttachment(subject string) []byte {
+	return MessageWithSizedAttachment(subject, 3)
 }
 
 // GetMessageWithOneDriveAttachment returns a message with an OneDrive attachment represented in bytes
 // Serialized with: kiota-serialization-json-go v0.7.1
-func GetMessageWithOneDriveAttachment(subject string) []byte {
+func MessageWithOneDriveAttachment(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqfAAA=\"," +
 		"\"@odata.type\":\"#microsoft.graph.message\",\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFw\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\",\"categories\":[]," +
@@ -293,9 +293,9 @@ func GetMessageWithOneDriveAttachment(subject string) []byte {
 	return []byte(message)
 }
 
-// GetMockMessageWithTwoAttachments returns byte representation of message with two attachments
+// MessageWithTwoAttachments returns byte representation of message with two attachments
 // Serialized with: kiota-serialization-json-go v0.7.1
-func GetMockMessageWithTwoAttachments(subject string) []byte {
+func MessageWithTwoAttachments(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB6LpD0AAA=\",\"@odata.type\":\"#microsoft.graph.message\",\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB5JBpO\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\",\"categories\":[],\"changeKey\":\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB5JBpO\"," +
 		"\"createdDateTime\":\"2022-09-30T20:31:22Z\",\"lastModifiedDateTime\":\"2022-09-30T20:31:25Z\",\"attachments\":[{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB6LpD0AAABEgAQAMIBac0_D4pPgtgr9mhVWaM=\",\"@odata.type\":\"#microsoft.graph.fileAttachment\",\"@odata.mediaContentType\":\"text/plain\",\"contentType\":\"text/plain\",\"isInline\":false,\"lastModifiedDateTime\":\"2022-09-30T20:31:22Z\"," +
@@ -313,9 +313,9 @@ func GetMockMessageWithTwoAttachments(subject string) []byte {
 	return []byte(message)
 }
 
-// GetMockEventMessageResponse returns byte representation of EventMessageResponse
+// EventMessageResponse returns byte representation of EventMessageResponse
 // Special Mock to ensure that EventMessageResponse emails are transformed properly
-func GetMockEventMessageResponse(subject string) []byte {
+func EventMessageResponse(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AACL4y38AAA=\"," +
 		"\"@odata.type\":\"#microsoft.graph.eventMessageResponse\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('dustina%408qzvrj.onmicrosoft.com')/messages/$entity\"," +
@@ -329,9 +329,9 @@ func GetMockEventMessageResponse(subject string) []byte {
 	return []byte(message)
 }
 
-// GetMockEventMessageRequest returns byte representation of EventMessageRequest
+// EventMessageRequest returns byte representation of EventMessageRequest
 // Special Mock to ensure that EventMessageRequests are transformed properly
-func GetMockEventMessageRequest(subject string) []byte {
+func EventMessageRequest(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEJAAB8wYc0thTTTYl3RpEYIUq_AACL5VwSAAA=\"," +
 		"\"@odata.type\":\"#microsoft.graph.eventMessageRequest\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('dustina%408qzvrj.onmicrosoft.com')/messages/$entity\"," +
@@ -344,7 +344,7 @@ func GetMockEventMessageRequest(subject string) []byte {
 	return []byte(message)
 }
 
-func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
+func MessageWithItemAttachmentEvent(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAA=\",\"@odata.type\":\"#microsoft.graph.message\"," +
 		"\"@odata.etag\":\"W/\\\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('dustina%408qzvrj.onmicrosoft.com')/messages/$entity\",\"categories\":[]," +
@@ -367,7 +367,7 @@ func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
 	return []byte(message)
 }
 
-func GetMockMessageWithItemAttachmentMail(subject string) []byte {
+func MessageWithItemAttachmentMail(subject string) []byte {
 	//nolint:lll
 	// Order of fields:
 	// 1. subject
@@ -504,7 +504,7 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 	return []byte(message)
 }
 
-func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
+func MessageWithNestedItemAttachmentEvent(subject string) []byte {
 	//nolint:lll
 	// Order of fields:
 	// 1. subject
@@ -690,8 +690,8 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 	return []byte(message)
 }
 
-func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, subject string) []byte {
-	base := GetMockMessageBytes(subject)
+func MessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, subject string) []byte {
+	base := MessageBytes(subject)
 	message, err := hydrateMessage(base)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -710,8 +710,8 @@ func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, sub
 	return serialize(t, message)
 }
 
-func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject string) []byte {
-	base := GetMockMessageBytes(subject)
+func MessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject string) []byte {
+	base := MessageBytes(subject)
 	message, err := hydrateMessage(base)
 	require.NoError(t, err, clues.ToCore(err))
 

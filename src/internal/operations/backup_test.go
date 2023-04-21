@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -193,18 +193,15 @@ func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Buil
 	// Items are indexed individually.
 	m.repoRefs[oldPB.ShortRef()] = newRef
 
-	if newLoc != nil {
-		// Locations are indexed by directory.
-		m.locs[oldPB.Dir().ShortRef()] = newLoc
-	}
+	// Locations are indexed by directory.
+	m.locs[oldPB.ShortRef()] = newLoc
 }
 
-func (m *mockDetailsMergeInfoer) GetNewRepoRef(oldRef *path.Builder) path.Path {
-	return m.repoRefs[oldRef.ShortRef()]
-}
-
-func (m *mockDetailsMergeInfoer) GetNewLocation(oldRef *path.Builder) *path.Builder {
-	return m.locs[oldRef.ShortRef()]
+func (m *mockDetailsMergeInfoer) GetNewPathRefs(
+	oldRef *path.Builder,
+	_ details.LocationIDer,
+) (path.Path, *path.Builder, error) {
+	return m.repoRefs[oldRef.ShortRef()], m.locs[oldRef.ShortRef()], nil
 }
 
 func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
@@ -270,9 +267,10 @@ func makeMetadataPath(
 
 func makeFolderEntry(
 	t *testing.T,
-	pb *path.Builder,
+	pb, loc *path.Builder,
 	size int64,
 	modTime time.Time,
+	dt details.ItemType,
 ) *details.DetailsEntry {
 	t.Helper()
 
@@ -280,13 +278,14 @@ func makeFolderEntry(
 		RepoRef:     pb.String(),
 		ShortRef:    pb.ShortRef(),
 		ParentRef:   pb.Dir().ShortRef(),
-		LocationRef: pb.PopFront().PopFront().PopFront().PopFront().Dir().String(),
+		LocationRef: loc.Dir().String(),
 		ItemInfo: details.ItemInfo{
 			Folder: &details.FolderInfo{
 				ItemType:    details.FolderItem,
-				DisplayName: pb.Elements()[len(pb.Elements())-1],
+				DisplayName: pb.LastElem(),
 				Modified:    modTime,
 				Size:        size,
+				DataType:    dt,
 			},
 		},
 	}
@@ -321,6 +320,7 @@ func makeDetailsEntry(
 		RepoRef:     p.String(),
 		ShortRef:    p.ShortRef(),
 		ParentRef:   p.ToBuilder().Dir().ShortRef(),
+		ItemRef:     p.Item(),
 		LocationRef: lr,
 		ItemInfo:    details.ItemInfo{},
 		Updated:     updated,
@@ -343,13 +343,14 @@ func makeDetailsEntry(
 		}
 
 	case path.OneDriveService:
-		parent, err := path.GetDriveFolderPath(p)
-		require.NoError(t, err, clues.ToCore(err))
+		require.NotNil(t, l)
 
 		res.OneDrive = &details.OneDriveInfo{
 			ItemType:   details.OneDriveItem,
-			ParentPath: parent,
+			ParentPath: l.PopFront().String(),
 			Size:       int64(size),
+			DriveID:    "drive-id",
+			DriveName:  "drive-name",
 		}
 
 	default:
@@ -400,7 +401,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mockconnector.GraphConnector{}
+		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -450,7 +451,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.Options{},
+				control.Defaults(),
 				kw,
 				sw,
 				gc,
@@ -969,39 +970,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 		},
 		{
-			name: "ItemMergedNoLocation",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, nil)
-
-				return res
-			}(),
-			inputMans: []*kopia.ManifestEntry{
-				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-			},
-		},
-		{
 			name: "ItemMergedSameLocation",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
@@ -1246,6 +1214,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			ro,
 			path.EmailCategory.String(),
 			"work",
+			"project8",
 			"item1",
 		}
 
@@ -1254,7 +1223,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			pathElems,
 			true)
 
-		locPath1 = path.Builder{}.Append(pathElems[:len(pathElems)-1]...)
+		locPath1 = path.Builder{}.Append(itemPath1.Folders()...)
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -1306,12 +1275,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	// update the details
 	itemDetails.Exchange.Modified = now
 
-	for i := 1; i < len(pathElems); i++ {
+	for i := 1; i <= len(locPath1.Elements()); i++ {
 		expectedEntries = append(expectedEntries, *makeFolderEntry(
 			t,
-			path.Builder{}.Append(pathElems[:i]...),
+			// Include prefix elements in the RepoRef calculations.
+			path.Builder{}.Append(pathElems[:4+i]...),
+			path.Builder{}.Append(locPath1.Elements()[:i]...),
 			int64(itemSize),
-			itemDetails.Exchange.Modified))
+			itemDetails.Exchange.Modified,
+			details.ExchangeMail))
 	}
 
 	ctx, flush := tester.NewContext()
@@ -1338,7 +1310,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 // compares two details slices.  Useful for tests where serializing the
 // entries can produce minor variations in the time struct, causing
 // assert.elementsMatch to fail.
-func compareDeetEntries(t *testing.T, expect, result []details.DetailsEntry) {
+func compareDeetEntries(
+	t *testing.T,
+	expect, result []details.DetailsEntry,
+) {
 	if !assert.Equal(t, len(expect), len(result), "entry slices should be equal len") {
 		require.ElementsMatch(t, expect, result)
 	}

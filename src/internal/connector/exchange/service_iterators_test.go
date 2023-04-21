@@ -41,6 +41,7 @@ type (
 func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
+	_ bool,
 ) (
 	[]string,
 	[]string,
@@ -116,11 +117,12 @@ func (suite *ServiceIteratorsSuite) SetupSuite() {
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
+	ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
+
 	var (
-		userID = "user_id"
-		qp     = graph.QueryParams{
+		qp = graph.QueryParams{
 			Category:      path.EmailCategory, // doesn't matter which one we use.
-			ResourceOwner: userID,
+			ResourceOwner: ss,
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -435,11 +437,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
+
 			var (
-				userID = "user_id"
-				qp     = graph.QueryParams{
+				qp = graph.QueryParams{
 					Category:      path.EmailCategory, // doesn't matter which one we use.
-					ResourceOwner: userID,
+					ResourceOwner: ss,
 					Credentials:   suite.creds,
 				}
 				statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -453,6 +456,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				}
 				resolver = newMockResolver(container1)
 			)
+
+			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
+			require.Equal(t, "user_id", qp.ResourceOwner.Name(), qp.ResourceOwner)
 
 			collections := map[string]data.BackupCollection{}
 
@@ -514,13 +520,15 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
+	ss := selectors.Selector{}.SetDiscreteOwnerIDName("user_id", "user_id")
+
 	var (
 		userID   = "user_id"
 		tenantID = suite.creds.AzureTenantID
 		cat      = path.EmailCategory // doesn't matter which one we use,
 		qp       = graph.QueryParams{
 			Category:      cat,
-			ResourceOwner: userID,
+			ResourceOwner: ss,
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -830,7 +838,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				test.resolver,
 				allScope,
 				test.dps,
-				control.Options{},
+				control.Defaults(),
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 

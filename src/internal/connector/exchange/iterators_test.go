@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -24,7 +24,7 @@ func TestExchangeIteratorSuite(t *testing.T) {
 
 func (suite *ExchangeIteratorSuite) TestDisplayable() {
 	t := suite.T()
-	bytes := mockconnector.GetMockContactBytes("Displayable")
+	bytes := exchMock.ContactBytes("Displayable")
 	contact, err := support.CreateContactFromBytes(bytes)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -36,7 +36,7 @@ func (suite *ExchangeIteratorSuite) TestDisplayable() {
 
 func (suite *ExchangeIteratorSuite) TestDescendable() {
 	t := suite.T()
-	bytes := mockconnector.GetMockMessageBytes("Descendable")
+	bytes := exchMock.MessageBytes("Descendable")
 	message, err := support.CreateMessageFromBytes(bytes)
 	require.NoError(t, err, clues.ToCore(err))
 

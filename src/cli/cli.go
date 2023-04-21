@@ -90,9 +90,26 @@ func preRun(cc *cobra.Command, args []string) error {
 			options.Control())
 	}
 
+	// handle deprecated user flag in Backup exchange command
+	if cc.CommandPath() == "corso backup create exchange" {
+		handleMailBoxFlag(ctx, cc, flagSl)
+	}
+
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())
 
 	return nil
+}
+
+func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string) {
+	if !slices.Contains(flagNames, "user") && !slices.Contains(flagNames, "mailbox") {
+		print.Errf(ctx, "either --user or --mailbox flag is required")
+		os.Exit(1)
+	}
+
+	if slices.Contains(flagNames, "user") && slices.Contains(flagNames, "mailbox") {
+		print.Err(ctx, "cannot use both [mailbox, user] flags in the same command")
+		os.Exit(1)
+	}
 }
 
 // Handler for flat calls to `corso`.
@@ -146,6 +163,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 
@@ -153,8 +171,7 @@ func Handle() {
 
 	BuildCommandTree(corsoCmd)
 
-	loglevel, logfile := logger.PreloadLoggingFlags()
-	ctx, log := logger.Seed(ctx, loglevel, logfile)
+	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer

@@ -11,8 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -116,7 +115,7 @@ func Initialize(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo init"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -190,7 +189,7 @@ func Connect(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -309,7 +308,7 @@ func (r repository) NewBackupWithLookup(
 	sel selectors.Selector,
 	ins common.IDNameSwapper,
 ) (operations.BackupOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -346,7 +345,7 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -472,7 +471,7 @@ func getBackupDetails(
 	if b.Version >= version.OneDrive1DataAndMetaFiles && b.Version < version.OneDrive3IsMetaMarker {
 		for _, d := range deets.Entries {
 			if d.OneDrive != nil {
-				d.OneDrive.IsMeta = onedrive.IsMetaFile(d.RepoRef)
+				d.OneDrive.IsMeta = metadata.HasMetaSuffix(d.RepoRef)
 			}
 		}
 	}
@@ -515,7 +514,7 @@ func getBackupErrors(
 
 	ssid := b.StreamStoreID
 	if len(ssid) == 0 {
-		return nil, b, clues.New("no errors in backup").WithClues(ctx)
+		return nil, b, clues.New("missing streamstore id in backup").WithClues(ctx)
 	}
 
 	var (
@@ -628,7 +627,6 @@ func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-	errs *fault.Bus,
 ) (*connector.GraphConnector, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
@@ -643,7 +641,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource)
 	if err != nil {
 		return nil, err
 	}

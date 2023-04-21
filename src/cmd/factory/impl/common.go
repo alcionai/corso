@@ -12,8 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -137,10 +136,8 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
-		connector.Users,
-		errs)
+		connector.Users)
 	if err != nil {
 		return nil, account.Account{}, clues.Wrap(err, "connecting to graph api")
 	}
@@ -183,7 +180,7 @@ func buildCollections(
 			return nil, err
 		}
 
-		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(c.items))
+		mc := exchMock.NewCollection(pth, pth, len(c.items))
 
 		for i := 0; i < len(c.items); i++ {
 			mc.Names[i] = c.items[i].name

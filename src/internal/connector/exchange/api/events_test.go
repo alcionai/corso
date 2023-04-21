@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -123,7 +123,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 				var (
 					organizer    = "foobar3@8qzvrj.onmicrosoft.com"
 					subject      = " Test Mock Review + Lunch"
-					bytes        = mockconnector.GetDefaultMockEventBytes("Test Mock")
+					bytes        = exchMock.EventBytes("Test Mock")
 					future       = time.Now().UTC().AddDate(0, 0, 1)
 					eventTime    = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
 					eventEndTime = eventTime.Add(30 * time.Minute)

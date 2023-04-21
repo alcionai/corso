@@ -2,11 +2,11 @@ package onedrive
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -34,9 +34,10 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
+	user common.IDNamer,
 	metadata []data.RestoreCollection,
 	tenant string,
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
@@ -49,7 +50,6 @@ func DataCollections(
 
 	var (
 		el          = errs.Local()
-		user        = selector.DiscreteOwner
 		categories  = map[path.CategoryType]struct{}{}
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]map[string]struct{}{}
@@ -66,7 +66,7 @@ func DataCollections(
 		nc := NewCollections(
 			itemClient,
 			tenant,
-			user,
+			user.ID(),
 			OneDriveSource,
 			odFolderMatcher{scope},
 			service,
@@ -95,7 +95,7 @@ func DataCollections(
 		baseCols, err := graph.BaseCollections(
 			ctx,
 			tenant,
-			user,
+			user.ID(),
 			path.OneDriveService,
 			categories,
 			su,

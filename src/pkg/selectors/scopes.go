@@ -2,9 +2,10 @@ package selectors
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -88,7 +89,7 @@ type (
 		//   folderCat: folder,
 		//   itemCat:   itemID,
 		// }
-		pathValues(path.Path, details.DetailsEntry) (map[categorizer][]string, error)
+		pathValues(path.Path, details.DetailsEntry, Config) (map[categorizer][]string, error)
 
 		// pathKeys produces a list of categorizers that can be used as keys in the pathValues
 		// map.  The combination of the two funcs generically interprets the context of the
@@ -152,6 +153,9 @@ type (
 		// Primarily to ensure that root- or mid-tier scopes (such as folders)
 		// cascade 'Any' matching to more granular categories.
 		setDefaults()
+
+		// Scopes need to comply with PII printing controls.
+		clues.PlainConcealer
 	}
 	// scopeT is the generic type interface of a scoper.
 	scopeT interface {
@@ -163,7 +167,7 @@ type (
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
 	cat categorizer,
-	vs []string,
+	tgts []string,
 	opts ...option,
 ) T {
 	sc := &scopeConfig{}
@@ -172,7 +176,7 @@ func makeScope[T scopeT](
 	s := T{
 		scopeKeyCategory: filters.Identity(cat.String()),
 		scopeKeyDataType: filters.Identity(cat.leafCat().String()),
-		cat.String():     filterize(*sc, vs...),
+		cat.String():     filterFor(*sc, tgts...),
 	}
 
 	return s
@@ -182,15 +186,59 @@ func makeScope[T scopeT](
 // towards identifying filter-type scopes, that ensures all base values are populated.
 func makeInfoScope[T scopeT](
 	cat, infoCat categorizer,
-	vs []string,
-	f func([]string) filters.Filter,
+	tgts []string,
+	ff filterFunc,
+	opts ...option,
 ) T {
+	sc := &scopeConfig{}
+	sc.populate(opts...)
+
 	return T{
 		scopeKeyCategory:     filters.Identity(cat.String()),
 		scopeKeyDataType:     filters.Identity(cat.leafCat().String()),
 		scopeKeyInfoCategory: filters.Identity(infoCat.String()),
-		infoCat.String():     f(clean(vs)),
+		infoCat.String():     filterize(*sc, ff, tgts...),
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+// loggableMSS transforms the scope into a map by stringifying each filter.
+func loggableMSS[T scopeT](s T, plain bool) map[string]string {
+	m := map[string]string{}
+
+	for k, filt := range s {
+		if plain {
+			m[k] = filt.PlainString()
+		} else {
+			m[k] = filt.Conceal()
+		}
+	}
+
+	return m
+}
+
+func conceal[T scopeT](s T) string {
+	return marshalScope(loggableMSS(s, false))
+}
+
+func format[T scopeT](s T, fs fmt.State, _ rune) {
+	fmt.Fprint(fs, conceal(s))
+}
+
+func plainString[T scopeT](s T) string {
+	return marshalScope(loggableMSS(s, true))
+}
+
+func marshalScope(mss map[string]string) string {
+	bs, err := json.Marshal(mss)
+	if err != nil {
+		return "error-marshalling-selector"
+	}
+
+	return string(bs)
 }
 
 // ---------------------------------------------------------------------------
@@ -229,17 +277,16 @@ func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
 // getCategory returns the scope's category value.
 // if s is an info-type scope, returns the info category.
 func getCategory[T scopeT](s T) string {
-	return s[scopeKeyCategory].Target
+	return s[scopeKeyCategory].Identity
 }
 
 // getInfoCategory returns the scope's infoFilter category value.
 func getInfoCategory[T scopeT](s T) string {
-	return s[scopeKeyInfoCategory].Target
+	return s[scopeKeyInfoCategory].Identity
 }
 
-// getCatValue takes the value of s[cat], split it by the standard
-// delimiter, and returns the slice.  If s[cat] is nil, returns
-// None().
+// getCatValue takes the value of s[cat] and returns the slice.
+// If s[cat] is nil, returns None().
 func getCatValue[T scopeT](s T, cat categorizer) []string {
 	filt, ok := s[cat.String()]
 	if !ok {
@@ -250,7 +297,7 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 		return filt.Targets
 	}
 
-	return split(filt.Target)
+	return filt.Targets
 }
 
 // set sets a value by category to the scope.  Only intended for internal
@@ -259,20 +306,9 @@ func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
 	sc := &scopeConfig{}
 	sc.populate(opts...)
 
-	s[cat.String()] = filterize(*sc, v...)
+	s[cat.String()] = filterFor(*sc, v...)
 
 	return s
-}
-
-// discreteCopy makes a shallow clone of the scocpe, and sets the resource
-// owner filter target in the clone to the provided string.
-func discreteCopy[T scopeT](s T, resourceOwner string) T {
-	clone := maps.Clone(s)
-
-	return set(
-		clone,
-		clone.categorizer().rootCat(),
-		[]string{resourceOwner})
 }
 
 // returns true if the category is included in the scope's category type,
@@ -316,7 +352,7 @@ func reduce[T scopeT, C categoryT](
 	// if a DiscreteOwner is specified, only match details for that owner.
 	matchesResourceOwner := s.ResourceOwners
 	if len(s.DiscreteOwner) > 0 {
-		matchesResourceOwner = filterize(scopeConfig{}, s.DiscreteOwner)
+		matchesResourceOwner = filterFor(scopeConfig{}, s.DiscreteOwner)
 	}
 
 	// aggregate each scope type by category for easier isolation in future processing.
@@ -353,7 +389,7 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
-		pv, err := dc.pathValues(repoPath, *ent)
+		pv, err := dc.pathValues(repoPath, *ent, s.Cfg)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "getting path values").WithClues(ictx))
 			continue

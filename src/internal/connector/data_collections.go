@@ -46,6 +46,10 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
+	// Limit the max number of active requests to graph from this collection.
+	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
+		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
+
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx)
@@ -68,6 +72,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceExchange:
 		colls, excludes, err := exchange.DataCollections(
 			ctx,
+			sels,
 			sels,
 			metadata,
 			gc.credentials,
@@ -95,7 +100,9 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceOneDrive:
 		colls, excludes, err := onedrive.DataCollections(
 			ctx,
-			sels, metadata,
+			sels,
+			sels,
+			metadata,
 			gc.credentials.AzureTenantID,
 			gc.itemClient,
 			gc.Service,

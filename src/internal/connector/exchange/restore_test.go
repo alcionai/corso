@@ -13,8 +13,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -84,7 +84,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 
 	info, err := RestoreExchangeContact(
 		ctx,
-		mockconnector.GetMockContactBytes("Corso TestContact"),
+		exchMock.ContactBytes("Corso TestContact"),
 		suite.gs,
 		control.Copy,
 		folderID,
@@ -122,11 +122,11 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	}{
 		{
 			name:  "Test Event With Attendees",
-			bytes: mockconnector.GetMockEventWithAttendeesBytes(subject),
+			bytes: exchMock.EventWithAttendeesBytes(subject),
 		},
 		{
 			name:  "Test recurrenceTimeZone: Empty",
-			bytes: mockconnector.GetMockEventWithRecurrenceBytes(subject, `""`),
+			bytes: exchMock.EventWithRecurrenceBytes(subject, `""`),
 		},
 	}
 
@@ -181,7 +181,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 	}{
 		{
 			name:     "Test Mail",
-			bytes:    mockconnector.GetMockMessageBytes("Restore Exchange Object"),
+			bytes:    exchMock.MessageBytes("Restore Exchange Object"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
@@ -193,7 +193,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: One Direct Attachment",
-			bytes:    mockconnector.GetMockMessageWithDirectAttachment("Restore 1 Attachment"),
+			bytes:    exchMock.MessageWithDirectAttachment("Restore 1 Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
@@ -205,7 +205,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: Item Attachment_Event",
-			bytes:    mockconnector.GetMockMessageWithItemAttachmentEvent("Event Item Attachment"),
+			bytes:    exchMock.MessageWithItemAttachmentEvent("Event Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreEventItemAttachment: " + common.FormatSimpleDateTime(now)
@@ -217,7 +217,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: Item Attachment_Mail",
-			bytes:    mockconnector.GetMockMessageWithItemAttachmentMail("Mail Item Attachment"),
+			bytes:    exchMock.MessageWithItemAttachmentMail("Mail Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
@@ -229,8 +229,8 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name: "Test Mail: Hydrated Item Attachment Mail",
-			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentMail(t,
-				mockconnector.GetMockMessageBytes("Basic Item Attachment"),
+			bytes: exchMock.MessageWithNestedItemAttachmentMail(t,
+				exchMock.MessageBytes("Basic Item Attachment"),
 				"Mail Item Attachment",
 			),
 			category: path.EmailCategory,
@@ -244,8 +244,8 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name: "Test Mail: Hydrated Item Attachment Mail One Attach",
-			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentMail(t,
-				mockconnector.GetMockMessageWithDirectAttachment("Item Attachment Included"),
+			bytes: exchMock.MessageWithNestedItemAttachmentMail(t,
+				exchMock.MessageWithDirectAttachment("Item Attachment Included"),
 				"Mail Item Attachment",
 			),
 			category: path.EmailCategory,
@@ -259,8 +259,8 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name: "Test Mail: Item Attachment_Contact",
-			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentContact(t,
-				mockconnector.GetMockContactBytes("Victor"),
+			bytes: exchMock.MessageWithNestedItemAttachmentContact(t,
+				exchMock.ContactBytes("Victor"),
 				"Contact Item Attachment",
 			),
 			category: path.EmailCategory,
@@ -274,7 +274,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{ // Restore will upload the Message without uploading the attachment
 			name:     "Test Mail: Item Attachment_NestedEvent",
-			bytes:    mockconnector.GetMockMessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
+			bytes:    exchMock.MessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreNestedEventItemAttachment: " + common.FormatSimpleDateTime(now)
@@ -286,7 +286,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: One Large Attachment",
-			bytes:    mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
+			bytes:    exchMock.MessageWithLargeAttachment("Restore Large Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
@@ -298,7 +298,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: Two Attachments",
-			bytes:    mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
+			bytes:    exchMock.MessageWithTwoAttachments("Restore 2 Attachments"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
@@ -310,7 +310,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: Reference(OneDrive) Attachment",
-			bytes:    mockconnector.GetMessageWithOneDriveAttachment("Restore Reference(OneDrive) Attachment"),
+			bytes:    exchMock.MessageWithOneDriveAttachment("Restore Reference(OneDrive) Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
@@ -323,7 +323,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		// TODO: #884 - reinstate when able to specify root folder by name
 		{
 			name:     "Test Contact",
-			bytes:    mockconnector.GetMockContactBytes("Test_Omega"),
+			bytes:    exchMock.ContactBytes("Test_Omega"),
 			category: path.ContactsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
@@ -335,7 +335,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Events",
-			bytes:    mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
+			bytes:    exchMock.EventBytes("Restored Event Object"),
 			category: path.EventsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
@@ -347,7 +347,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Event with Attachment",
-			bytes:    mockconnector.GetMockEventWithAttachment("Restored Event Attachment"),
+			bytes:    exchMock.EventWithAttachment("Restored Event Attachment"),
 			category: path.EventsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject_" + common.FormatSimpleDateTime(now)

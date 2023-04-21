@@ -115,7 +115,7 @@ type backupStats struct {
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "backup"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -234,7 +234,10 @@ func (op *BackupOperation) do(
 		fallbackReasons = makeFallbackReasons(op.Selectors)
 	)
 
-	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
+	logger.Ctx(ctx).With(
+		"control_options", op.Options,
+		"selectors", op.Selectors).
+		Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
@@ -516,6 +519,72 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 	return false
 }
 
+// getNewPathRefs returns
+//  1. the new RepoRef for the item if it needs merged
+//  2. the new locationPath
+//  3. if the location was likely updated
+//  4. any errors encountered
+func getNewPathRefs(
+	dataFromBackup kopia.DetailsMergeInfoer,
+	entry *details.DetailsEntry,
+	repoRef path.Path,
+	backupVersion int,
+) (path.Path, *path.Builder, bool, error) {
+	// Right now we can't guarantee that we have an old location in the
+	// previous details entry so first try a lookup without a location to see
+	// if it matches so we don't need to try parsing from the old entry.
+	//
+	// TODO(ashmrtn): In the future we can remove this first check as we'll be
+	// able to assume we always have the location in the previous entry. We'll end
+	// up doing some extra parsing, but it will simplify this code.
+	if repoRef.Service() == path.ExchangeService {
+		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), nil)
+		if err != nil {
+			return nil, nil, false, clues.Wrap(err, "getting new paths")
+		} else if newPath == nil {
+			// This entry doesn't need merging.
+			return nil, nil, false, nil
+		} else if newLoc == nil {
+			return nil, nil, false, clues.New("unable to find new exchange location")
+		}
+
+		// This is kind of jank cause we're in a transitionary period, but even if
+		// we're consesrvative here about marking something as updated the RepoRef
+		// comparison in the caller should catch the change. Calendars is the only
+		// exception, since it uses IDs for folders, but we should already be
+		// populating the LocationRef for them.
+		//
+		// Without this, all OneDrive items will be marked as updated the first time
+		// around because OneDrive hasn't been persisting LocationRef before now.
+		updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
+
+		return newPath, newLoc, updated, nil
+	}
+
+	// We didn't have an exact entry, so retry with a location.
+	locRef, err := entry.ToLocationIDer(backupVersion)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting previous item location")
+	}
+
+	if locRef == nil {
+		return nil, nil, false, clues.New("entry with empty LocationRef")
+	}
+
+	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), locRef)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting new paths with old location")
+	} else if newPath == nil {
+		return nil, nil, false, nil
+	} else if newLoc == nil {
+		return nil, nil, false, clues.New("unable to get new paths")
+	}
+
+	updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
+
+	return newPath, newLoc, updated, nil
+}
+
 func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
@@ -551,7 +620,7 @@ func mergeDetails(
 
 		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
 
-		_, baseDeets, err := getBackupAndDetailsFromID(
+		baseBackup, baseDeets, err := getBackupAndDetailsFromID(
 			mctx,
 			model.StableID(bID),
 			ms,
@@ -579,48 +648,38 @@ func mergeDetails(
 				continue
 			}
 
-			pb := rr.ToBuilder()
+			mctx = clues.Add(mctx, "repo_ref", rr)
 
-			newPath := dataFromBackup.GetNewRepoRef(pb)
+			newPath, newLoc, locUpdated, err := getNewPathRefs(
+				dataFromBackup,
+				entry,
+				rr,
+				baseBackup.Version)
+			if err != nil {
+				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
+			}
+
+			// This entry isn't merged.
 			if newPath == nil {
-				// This entry was not sourced from a base snapshot or cached from a
-				// previous backup, skip it.
 				continue
 			}
 
-			newLoc := dataFromBackup.GetNewLocation(pb.Dir())
-
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
-				return clues.New("updating item details").WithClues(mctx)
-			}
+			details.UpdateItem(&item, newLoc)
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
-			var (
-				itemUpdated = newPath.String() != rr.String()
-				newLocStr   string
-			)
-
-			if newLoc != nil {
-				newLocStr = newLoc.String()
-				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
-			}
+			itemUpdated := newPath.String() != rr.String() || locUpdated
 
 			err = deets.Add(
-				newPath.String(),
-				newPath.ShortRef(),
-				newPath.ToBuilder().Dir().ShortRef(),
-				newLocStr,
+				newPath,
+				newLoc,
 				itemUpdated,
 				item)
 			if err != nil {
 				return clues.Wrap(err, "adding item to details")
 			}
-
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), newLoc)
-			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when
 			// we're done.

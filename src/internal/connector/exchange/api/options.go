@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -63,6 +64,8 @@ const (
 	maxPageSizeHeaderFmt = "odata.maxpagesize=%d"
 	// deltaMaxPageSize is the max page size to use for delta queries
 	deltaMaxPageSize = 200
+	idTypeFmt        = "IdType=%q"
+	immutableIDType  = "ImmutableId"
 )
 
 // -----------------------------------------------------------------------
@@ -74,6 +77,7 @@ const (
 
 func optionsForFolderMessagesDelta(
 	moreOps []string,
+	immutableIDs bool,
 ) (*users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, fieldsForMessages)
 	if err != nil {
@@ -86,7 +90,7 @@ func optionsForFolderMessagesDelta(
 
 	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-		Headers:         buildDeltaRequestHeaders(),
+		Headers:         buildPreferHeaders(true, immutableIDs),
 	}
 
 	return options, nil
@@ -155,27 +159,6 @@ func optionsForContactFolderByID(moreOps []string) (
 	return options, nil
 }
 
-// optionsForMailFolders transforms the options into a more dynamic call for MailFolders.
-// @param moreOps is a []string of options(e.g. "displayName", "isHidden")
-// @return is first call in MailFolders().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForMailFolders(
-	moreOps []string,
-) (*users.ItemMailFoldersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForFolders)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemMailFoldersRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
 // optionsForMailFoldersItem transforms the options into a more dynamic call for MailFoldersById.
 // moreOps is a []string of options(e.g. "displayName", "isHidden")
 // Returns first call in MailFoldersById().GetWithRequestConfigurationAndResponseHandler(options, handler)
@@ -199,6 +182,7 @@ func optionsForMailFoldersItem(
 
 func optionsForContactFoldersItemDelta(
 	moreOps []string,
+	immutableIDs bool,
 ) (*users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, fieldsForContacts)
 	if err != nil {
@@ -211,7 +195,7 @@ func optionsForContactFoldersItemDelta(
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-		Headers:         buildDeltaRequestHeaders(),
+		Headers:         buildPreferHeaders(true, immutableIDs),
 	}
 
 	return options, nil
@@ -236,24 +220,6 @@ func optionsForContactChildFolders(
 	return options, nil
 }
 
-// optionsForContacts transforms options into select query for MailContacts
-// @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
-func optionsForContacts(moreOps []string) (*users.ItemContactsRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForContacts)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemContactsRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &users.ItemContactsRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
@@ -270,10 +236,21 @@ func buildOptions(fields []string, allowed map[string]struct{}) ([]string, error
 	return append(returnedOptions, fields...), nil
 }
 
-// buildDeltaRequestHeaders returns the headers we add to delta page requests
-func buildDeltaRequestHeaders() *abstractions.RequestHeaders {
+// buildPreferHeaders returns the headers we add to item delta page
+// requests.
+func buildPreferHeaders(pageSize, immutableID bool) *abstractions.RequestHeaders {
+	var allHeaders []string
+
+	if pageSize {
+		allHeaders = append(allHeaders, fmt.Sprintf(maxPageSizeHeaderFmt, deltaMaxPageSize))
+	}
+
+	if immutableID {
+		allHeaders = append(allHeaders, fmt.Sprintf(idTypeFmt, immutableIDType))
+	}
+
 	headers := abstractions.NewRequestHeaders()
-	headers.Add(headerKeyPrefer, fmt.Sprintf(maxPageSizeHeaderFmt, deltaMaxPageSize))
+	headers.Add(headerKeyPrefer, strings.Join(allHeaders, ","))
 
 	return headers
 }

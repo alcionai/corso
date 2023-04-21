@@ -199,10 +199,10 @@ var (
 			},
 		},
 		{
-			Name:     "MailID",
+			Name:     "MailItemRef",
 			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.Item()},
+				Email: []string{testdata.ExchangeEmailItems[0].ItemRef},
 			},
 		},
 		{
@@ -411,11 +411,11 @@ var (
 			},
 		},
 		{
-			Name:     "NoSelectRepoItemName",
+			Name:     "ItemRefMatchesNothing",
 			Expected: []details.DetailsEntry{},
 			Opts: utils.OneDriveOpts{
 				FileName: []string{
-					testdata.OneDriveItemPath1.Item(),
+					testdata.OneDriveItems[0].ItemRef,
 				},
 			},
 		},
@@ -530,11 +530,11 @@ var (
 			},
 		},
 		{
-			Name:     "NoSelectRepoItemName",
+			Name:     "ItemRefMatchesNothing",
 			Expected: []details.DetailsEntry{},
 			Opts: utils.SharePointOpts{
 				FileName: []string{
-					testdata.SharePointLibraryItemPath1.Item(),
+					testdata.SharePointLibraryItems[0].ItemRef,
 				},
 			},
 		},
