@@ -174,7 +174,6 @@ func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
 func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 	t := suite.T()
 	acct := tester.NewM365Account(t)
-	userID := tester.M365UserID(t)
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err)
@@ -192,7 +191,7 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 	}{
 		{
 			name: "standard test user",
-			user: userID,
+			user: tester.M365UserID(t),
 			expect: &api.UserInfo{
 				DiscoveredServices: map[path.ServiceType]struct{}{
 					path.ExchangeService: {},

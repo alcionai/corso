@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -244,23 +245,23 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 			return nil, err
 		}
 
-		if !graph.IsErrExchangeMailFolderNotFound(err) {
+		if !graph.IsErrExchangeMailFolderNotFound(err) || clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
 			return nil, err
 		}
 
-		logger.Ctx(ctx).Infof("resource owner does not have a mailbox enabled")
+		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
 		delete(userInfo.DiscoveredServices, path.ExchangeService)
 	}
 
 	if _, err := c.GetDrives(ctx, userID); err != nil {
 		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
-			logger.Ctx(ctx).Errorf("err getting user's onedrive's data: %s", err)
+			logger.CtxErr(ctx, err).Error("getting user's drives")
 
-			return nil, graph.Wrap(ctx, err, "getting user's onedrive's data")
+			return nil, graph.Wrap(ctx, err, "getting user's drives")
 		}
 
-		logger.Ctx(ctx).Infof("resource owner does not have a drive")
+		logger.Ctx(ctx).Info("resource owner does not have a drive")
 
 		delete(userInfo.DiscoveredServices, path.OneDriveService)
 	}
