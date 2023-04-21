@@ -2,14 +2,12 @@ package testdata
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -201,10 +199,10 @@ var (
 			},
 		},
 		{
-			Name:     "MailID",
+			Name:     "MailItemRef",
 			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.Item()},
+				Email: []string{testdata.ExchangeEmailItems[0].ItemRef},
 			},
 		},
 		{
@@ -413,13 +411,11 @@ var (
 			},
 		},
 		{
-			Name: "SelectRepoItemName",
-			Expected: []details.DetailsEntry{
-				testdata.OneDriveItems[0],
-			},
+			Name:     "ItemRefMatchesNothing",
+			Expected: []details.DetailsEntry{},
 			Opts: utils.OneDriveOpts{
 				FileName: []string{
-					strings.TrimSuffix(testdata.OneDriveItemPath1.Item(), metadata.DataFileSuffix),
+					testdata.OneDriveItems[0].ItemRef,
 				},
 			},
 		},
@@ -534,13 +530,11 @@ var (
 			},
 		},
 		{
-			Name: "SelectRepoItemName",
-			Expected: []details.DetailsEntry{
-				testdata.SharePointLibraryItems[0],
-			},
+			Name:     "ItemRefMatchesNothing",
+			Expected: []details.DetailsEntry{},
 			Opts: utils.SharePointOpts{
 				FileName: []string{
-					strings.TrimSuffix(testdata.SharePointLibraryItemPath1.Item(), metadata.DataFileSuffix),
+					testdata.SharePointLibraryItems[0].ItemRef,
 				},
 			},
 		},

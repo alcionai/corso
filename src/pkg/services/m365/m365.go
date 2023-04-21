@@ -32,6 +32,7 @@ type User struct {
 	PrincipalName string
 	ID            string
 	Name          string
+	Info          api.UserInfo
 }
 
 type UserInfo struct {
@@ -71,6 +72,13 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 		if err != nil {
 			return nil, clues.Wrap(err, "formatting user data")
 		}
+
+		userInfo, err := discovery.GetUserInfo(ctx, acct, pu.ID, errs)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting user details")
+		}
+
+		pu.Info = *userInfo
 
 		ret = append(ret, pu)
 	}

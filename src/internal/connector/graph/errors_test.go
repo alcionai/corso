@@ -137,6 +137,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			err:    odErr(errCodeResyncRequired),
 			expect: assert.True,
 		},
+		{
+			name:   "sync state invalid oDataErr",
+			err:    odErr(errCodeSyncStateInvalid),
+			expect: assert.True,
+		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "resync-required oDataErr camelcase",

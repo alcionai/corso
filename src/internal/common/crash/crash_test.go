@@ -52,7 +52,7 @@ func (suite *CrashTestDummySuite) TestRecovery() {
 			ctx, flush := tester.NewContext()
 
 			defer func() {
-				err := crash.Recovery(ctx, recover())
+				err := crash.Recovery(ctx, recover(), "test")
 				test.expect(t, err, clues.ToCore(err))
 				flush()
 			}()

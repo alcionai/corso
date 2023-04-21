@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+type nexter interface {
+	Next(req *http.Request, middlewareIndex int) (*http.Response, error)
+}
+
 // ---------------------------------------------------------------------------
 // Logging
 // ---------------------------------------------------------------------------

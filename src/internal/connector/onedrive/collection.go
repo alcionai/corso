@@ -35,10 +35,6 @@ const (
 	// TODO: Tune this later along with collectionChannelBufferSize
 	urlPrefetchChannelBufferSize = 5
 
-	// maxDownloadRetires specifies the number of times a file download should
-	// be retried
-	maxDownloadRetires = 3
-
 	// Used to compare in case of OneNote files
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
@@ -62,7 +58,7 @@ const (
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// configured to handle large item downloads
-	itemClient *http.Client
+	itemClient graph.Requester
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -110,7 +106,7 @@ type Collection struct {
 	doNotMergeItems bool
 }
 
-// itemGetterFunc gets an specified item
+// itemGetterFunc gets a specified item
 type itemGetterFunc func(
 	ctx context.Context,
 	srv graph.Servicer,
@@ -120,7 +116,7 @@ type itemGetterFunc func(
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error)
 
@@ -148,7 +144,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 
 // NewCollection creates a Collection
 func NewCollection(
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	folderPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -372,45 +368,29 @@ func (oc *Collection) getDriveItemContent(
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		el       = errs.Local()
-
-		itemData io.ReadCloser
-		err      error
 	)
 
-	// Initial try with url from delta + 2 retries
-	for i := 1; i <= maxDownloadRetires; i++ {
-		_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
-		if err == nil || !graph.IsErrUnauthorized(err) {
-			break
-		}
-
-		// Assume unauthorized requests are a sign of an expired jwt
-		// token, and that we've overrun the available window to
-		// download the actual file.  Re-downloading the item will
-		// refresh that download url.
-		di, diErr := oc.itemGetter(ctx, oc.service, oc.driveID, itemID)
-		if diErr != nil {
-			err = clues.Wrap(diErr, "retrieving expired item")
-			break
-		}
-
-		item = di
-	}
-
-	// check for errors following retries
+	itemData, err := downloadContent(
+		ctx,
+		oc.service,
+		oc.itemGetter,
+		oc.itemReader,
+		oc.itemClient,
+		item,
+		oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
 			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
 			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
 		// Skip big OneNote files as they can't be downloaded
@@ -425,7 +405,7 @@ func (oc *Collection) getDriveItemContent(
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
 			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
 		logger.CtxErr(ctx, err).Error("downloading item")
@@ -433,10 +413,46 @@ func (oc *Collection) getDriveItemContent(
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
-		return nil, clues.Wrap(err, "downloading item")
+		return nil, clues.Wrap(err, "fetching item content")
 	}
 
 	return itemData, nil
+}
+
+// downloadContent attempts to fetch the item content.  If the content url
+// is expired (ie, returns a 401), it re-fetches the item to get a new download
+// url and tries again.
+func downloadContent(
+	ctx context.Context,
+	svc graph.Servicer,
+	igf itemGetterFunc,
+	irf itemReaderFunc,
+	gr graph.Requester,
+	item models.DriveItemable,
+	driveID string,
+) (io.ReadCloser, error) {
+	_, content, err := irf(ctx, gr, item)
+	if err == nil {
+		return content, nil
+	} else if !graph.IsErrUnauthorized(err) {
+		return nil, err
+	}
+
+	// Assume unauthorized requests are a sign of an expired jwt
+	// token, and that we've overrun the available window to
+	// download the actual file.  Re-downloading the item will
+	// refresh that download url.
+	di, err := igf(ctx, svc, driveID, ptr.Val(item.GetId()))
+	if err != nil {
+		return nil, clues.Wrap(err, "retrieving expired item")
+	}
+
+	_, content, err = irf(ctx, gr, di)
+	if err != nil {
+		return nil, clues.Wrap(err, "content download retry")
+	}
+
+	return content, nil
 }
 
 // populateItems iterates through items added to the collection
@@ -504,9 +520,9 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			ctx = clues.Add(
 				ctx,
-				"backup_item_id", itemID,
-				"backup_item_name", itemName,
-				"backup_item_size", itemSize)
+				"item_id", itemID,
+				"item_name", itemName,
+				"item_size", itemSize)
 
 			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
@@ -545,7 +561,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
-			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
+			ctx = clues.Add(ctx, "item_info", itemInfo)
 
 			if isFile {
 				dataSuffix := metadata.DataFileSuffix

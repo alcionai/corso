@@ -115,7 +115,7 @@ func Initialize(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo init"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -189,7 +189,7 @@ func Connect(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -308,7 +308,7 @@ func (r repository) NewBackupWithLookup(
 	sel selectors.Selector,
 	ins common.IDNameSwapper,
 ) (operations.BackupOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -345,7 +345,7 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -627,7 +627,6 @@ func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-	errs *fault.Bus,
 ) (*connector.GraphConnector, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
@@ -642,7 +641,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct, resource, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource)
 	if err != nil {
 		return nil, err
 	}
