@@ -32,6 +32,7 @@ func DataCollections(
 	itemClient graph.Requester,
 	selector selectors.Selector,
 	site idname.Provider,
+	metadata []data.RestoreCollection,
 	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
@@ -89,6 +90,7 @@ func DataCollections(
 				serv,
 				creds.AzureTenantID,
 				site,
+				metadata,
 				scope,
 				su,
 				ctrlOpts,
@@ -193,6 +195,7 @@ func collectLibraries(
 	serv graph.Servicer,
 	tenantID string,
 	site idname.Provider,
+	metadata []data.RestoreCollection,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -215,7 +218,7 @@ func collectLibraries(
 
 	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
 	// token-based incrementals.
-	odcs, excludes, err := colls.Get(ctx, nil, errs)
+	odcs, excludes, err := colls.Get(ctx, metadata, errs)
 	if err != nil {
 		return nil, nil, graph.Wrap(ctx, err, "getting library")
 	}
