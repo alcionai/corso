@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -58,7 +58,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	table := []struct {
 		name       string
 		owner      string
-		ins        common.IDsNames
+		ins        inMock.Cache
 		rc         *resourceClient
 		expectID   string
 		expectName string
@@ -81,108 +81,81 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectErr:  require.Error,
 		},
 		{
-			name:  "only id map with owner id",
-			owner: id,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nil,
-			},
+			name:       "only id map with owner id",
+			owner:      id,
+			ins:        inMock.NewCache(itn, nil),
 			rc:         noLookup,
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
-			name:  "only name map with owner id",
-			owner: id,
-			ins: common.IDsNames{
-				IDToName: nil,
-				NameToID: nti,
-			},
+			name:       "only name map with owner id",
+			owner:      id,
+			ins:        inMock.NewCache(nil, nti),
 			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
 		},
 		{
-			name:  "only name map with owner id and lookup",
-			owner: id,
-			ins: common.IDsNames{
-				IDToName: nil,
-				NameToID: nti,
-			},
+			name:       "only name map with owner id and lookup",
+			owner:      id,
+			ins:        inMock.NewCache(nil, nti),
 			rc:         lookup,
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
-			name:  "only id map with owner name",
-			owner: name,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nil,
-			},
+			name:       "only id map with owner name",
+			owner:      name,
+			ins:        inMock.NewCache(itn, nil),
 			rc:         lookup,
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
-			name:  "only name map with owner name",
-			owner: name,
-			ins: common.IDsNames{
-				IDToName: nil,
-				NameToID: nti,
-			},
+			name:       "only name map with owner name",
+			owner:      name,
+			ins:        inMock.NewCache(nil, nti),
 			rc:         noLookup,
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
-			name:  "only id map with owner name",
-			owner: name,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nil,
-			},
+			name:       "only id map with owner name",
+			owner:      name,
+			ins:        inMock.NewCache(itn, nil),
 			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
 		},
 		{
-			name:  "only id map with owner name and lookup",
-			owner: name,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nil,
-			},
+			name:       "only id map with owner name and lookup",
+			owner:      name,
+			ins:        inMock.NewCache(itn, nil),
 			rc:         lookup,
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
-			name:  "both maps with owner id",
-			owner: id,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nti,
-			},
+			name:       "both maps with owner id",
+			owner:      id,
+			ins:        inMock.NewCache(itn, nti),
 			rc:         noLookup,
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
-			name:  "both maps with owner name",
-			owner: name,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nti,
-			},
+			name:       "both maps with owner name",
+			owner:      name,
+			ins:        inMock.NewCache(itn, nti),
 			rc:         noLookup,
 			expectID:   id,
 			expectName: name,
@@ -191,10 +164,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching maps with owner id",
 			owner: id,
-			ins: common.IDsNames{
-				IDToName: map[string]string{"foo": "bar"},
-				NameToID: map[string]string{"fnords": "smarf"},
-			},
+			ins: inMock.NewCache(
+				map[string]string{"foo": "bar"},
+				map[string]string{"fnords": "smarf"}),
 			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
@@ -203,10 +175,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching with owner name",
 			owner: name,
-			ins: common.IDsNames{
-				IDToName: map[string]string{"foo": "bar"},
-				NameToID: map[string]string{"fnords": "smarf"},
-			},
+			ins: inMock.NewCache(
+				map[string]string{"foo": "bar"},
+				map[string]string{"fnords": "smarf"}),
 			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
@@ -215,10 +186,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching maps with owner id and lookup",
 			owner: id,
-			ins: common.IDsNames{
-				IDToName: map[string]string{"foo": "bar"},
-				NameToID: map[string]string{"fnords": "smarf"},
-			},
+			ins: inMock.NewCache(
+				map[string]string{"foo": "bar"},
+				map[string]string{"fnords": "smarf"}),
 			rc:         lookup,
 			expectID:   id,
 			expectName: name,
@@ -227,10 +197,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:  "non-matching with owner name and lookup",
 			owner: name,
-			ins: common.IDsNames{
-				IDToName: map[string]string{"foo": "bar"},
-				NameToID: map[string]string{"fnords": "smarf"},
-			},
+			ins: inMock.NewCache(
+				map[string]string{"foo": "bar"},
+				map[string]string{"fnords": "smarf"}),
 			rc:         lookup,
 			expectID:   id,
 			expectName: name,
@@ -553,7 +522,7 @@ func runBackupAndCompare(
 	}
 
 	backupGC := loadConnector(ctx, t, config.resource)
-	backupGC.IDNameLookup = common.IDsNames{IDToName: idToName, NameToID: nameToID}
+	backupGC.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
 	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
@@ -564,6 +533,7 @@ func runBackupAndCompare(
 		backupSel,
 		backupSel,
 		nil,
+		version.NoBackup,
 		config.opts,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -1106,6 +1076,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				backupSel,
 				backupSel,
 				nil,
+				version.NoBackup,
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
@@ -1261,9 +1232,10 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
-				backupSel,
+				inMock.NewProvider(id, name),
 				backupSel,
 				nil,
+				version.NoBackup,
 				control.Options{
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{},

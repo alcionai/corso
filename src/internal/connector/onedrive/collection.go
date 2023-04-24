@@ -162,12 +162,40 @@ func NewCollection(
 		return nil, clues.Wrap(err, "getting previous location").With("prev_path", prevPath.String())
 	}
 
+	c := newColl(
+		itemClient,
+		folderPath,
+		prevPath,
+		driveID,
+		service,
+		statusUpdater,
+		source,
+		ctrlOpts,
+		colScope,
+		doNotMergeItems)
+
+	c.locPath = locPath
+	c.prevLocPath = prevLocPath
+
+	return c, nil
+}
+
+func newColl(
+	gr graph.Requester,
+	folderPath path.Path,
+	prevPath path.Path,
+	driveID string,
+	service graph.Servicer,
+	statusUpdater support.StatusUpdater,
+	source driveSource,
+	ctrlOpts control.Options,
+	colScope collectionScope,
+	doNotMergeItems bool,
+) *Collection {
 	c := &Collection{
-		itemClient:      itemClient,
+		itemClient:      gr,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
-		locPath:         locPath,
-		prevLocPath:     prevLocPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
 		source:          source,
@@ -192,7 +220,7 @@ func NewCollection(
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
-	return c, nil
+	return c
 }
 
 // Adds an itemID to the collection.  This will make it eligible to be
@@ -254,17 +282,21 @@ func (oc Collection) PreviousLocationPath() details.LocationIDer {
 		return nil
 	}
 
+	var ider details.LocationIDer
+
 	switch oc.source {
 	case OneDriveSource:
-		return details.NewOneDriveLocationIDer(
+		ider = details.NewOneDriveLocationIDer(
 			oc.driveID,
 			oc.prevLocPath.Elements()...)
 
 	default:
-		return details.NewSharePointLocationIDer(
+		ider = details.NewSharePointLocationIDer(
 			oc.driveID,
 			oc.prevLocPath.Elements()...)
 	}
+
+	return ider
 }
 
 func (oc Collection) State() data.CollectionState {

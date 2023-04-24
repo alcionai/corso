@@ -6,10 +6,11 @@ import (
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -34,8 +35,9 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	user common.IDNamer,
+	user idname.Provider,
 	metadata []data.RestoreCollection,
+	lastBackupVersion int,
 	tenant string,
 	itemClient graph.Requester,
 	service graph.Servicer,
@@ -91,9 +93,23 @@ func DataCollections(
 		}
 	}
 
+	mcs, err := migrationCollections(
+		service,
+		lastBackupVersion,
+		tenant,
+		user,
+		su,
+		ctrlOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	collections = append(collections, mcs...)
+
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
+			collections,
 			tenant,
 			user.ID(),
 			path.OneDriveService,
@@ -108,4 +124,54 @@ func DataCollections(
 	}
 
 	return collections, allExcludes, el.Failure()
+}
+
+// adds data migrations to the collection set.
+func migrationCollections(
+	svc graph.Servicer,
+	lastBackupVersion int,
+	tenant string,
+	user idname.Provider,
+	su support.StatusUpdater,
+	ctrlOpts control.Options,
+) ([]data.BackupCollection, error) {
+	if !ctrlOpts.ToggleFeatures.RunMigrations {
+		return nil, nil
+	}
+
+	// assume a version < 0 implies no prior backup, thus nothing to migrate.
+	if version.IsNoBackup(lastBackupVersion) {
+		return nil, nil
+	}
+
+	if lastBackupVersion >= version.AllXMigrateUserPNToID {
+		return nil, nil
+	}
+
+	// unlike exchange, which enumerates all folders on every
+	// backup, onedrive needs to force the owner PN -> ID migration
+	mc, err := path.ServicePrefix(
+		tenant,
+		user.ID(),
+		path.OneDriveService,
+		path.FilesCategory)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating user id migration path")
+	}
+
+	mpc, err := path.ServicePrefix(
+		tenant,
+		user.Name(),
+		path.OneDriveService,
+		path.FilesCategory)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating user name migration path")
+	}
+
+	mgn, err := graph.NewPrefixCollection(mpc, mc, su)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating migration collection")
+	}
+
+	return []data.BackupCollection{mgn}, nil
 }

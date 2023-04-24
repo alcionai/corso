@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
@@ -288,7 +289,7 @@ func setupExchangeBackup(
 		gc,
 		acct,
 		sel.Selector,
-		sel.Selector,
+		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -339,7 +340,7 @@ func setupSharePointBackup(
 		gc,
 		acct,
 		sel.Selector,
-		sel.Selector,
+		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 

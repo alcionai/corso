@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -32,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -62,6 +64,7 @@ func prepNewTestBackupOp(
 	bus events.Eventer,
 	sel selectors.Selector,
 	featureToggles control.Toggles,
+	backupVersion int,
 ) (
 	BackupOperation,
 	account.Account,
@@ -643,7 +646,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.Toggles{}
 			)
 
-			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -836,11 +839,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	// verify test data was populated, and track it for comparisons
 	for category, gen := range dataset {
-		ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 		qp := graph.QueryParams{
 			Category:      category,
-			ResourceOwner: ss,
+			ResourceOwner: inMock.NewProvider(suite.user, suite.user),
 			Credentials:   m365,
 		}
 		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
@@ -859,7 +860,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		}
 	}
 
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -942,11 +943,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						version.Backup,
 						gen.dbf)
 
-					ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 					qp := graph.QueryParams{
 						Category:      category,
-						ResourceOwner: ss,
+						ResourceOwner: inMock.NewProvider(suite.user, suite.user),
 						Credentials:   m365,
 					}
 					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
@@ -1146,7 +1145,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1236,7 +1235,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		containerIDs[destName] = ptr.Val(resp.GetId())
 	}
 
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1580,6 +1579,127 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	}
 }
 
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		ffs  = control.Toggles{}
+		mb   = evmock.NewBus()
+
+		categories = map[path.CategoryType][]string{
+			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+		}
+	)
+
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		acct,
+		connector.Users)
+	require.NoError(t, err, clues.ToCore(err))
+
+	userable, err := gc.Discovery.Users().GetByID(ctx, suite.user)
+	require.NoError(t, err, clues.ToCore(err))
+
+	uid := ptr.Val(userable.GetId())
+	uname := ptr.Val(userable.GetUserPrincipalName())
+
+	oldsel := selectors.NewOneDriveBackup([]string{uname})
+	oldsel.Include(oldsel.Folders([]string{"test"}, selectors.ExactMatch()))
+
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
+	defer closer()
+
+	// ensure the initial owner uses name in both cases
+	bo.ResourceOwner = oldsel.SetDiscreteOwnerIDName(uname, uname)
+	// required, otherwise we don't run the migration
+	bo.backupVersion = version.AllXMigrateUserPNToID - 1
+	bo.Options.ToggleFeatures.RunMigrations = false
+
+	require.Equalf(
+		t,
+		bo.ResourceOwner.Name(),
+		bo.ResourceOwner.ID(),
+		"historical representation of user id [%s] should match pn [%s]",
+		bo.ResourceOwner.ID(),
+		bo.ResourceOwner.Name())
+
+	// run the initial backup
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	newsel := selectors.NewOneDriveBackup([]string{uid})
+	newsel.Include(newsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	sel := newsel.SetDiscreteOwnerIDName(uid, uname)
+
+	var (
+		incMB = evmock.NewBus()
+		// the incremental backup op should have a proper user ID for the id.
+		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
+	)
+
+	incBO.Options.ToggleFeatures.RunMigrations = true
+
+	require.NotEqualf(
+		t,
+		incBO.ResourceOwner.Name(),
+		incBO.ResourceOwner.ID(),
+		"current representation of user: id [%s] should differ from PN [%s]",
+		incBO.ResourceOwner.ID(),
+		incBO.ResourceOwner.Name())
+
+	err = incBO.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+	checkBackupIsInManifests(t, ctx, kw, &incBO, sel, uid, maps.Keys(categories)...)
+	checkMetadataFilesExist(
+		t,
+		ctx,
+		incBO.Results.BackupID,
+		kw,
+		ms,
+		creds.AzureTenantID,
+		uid,
+		path.OneDriveService,
+		categories)
+
+	// 2 on read/writes to account for metadata: 1 delta and 1 path.
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
+	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
+	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		incMB.CalledWith[events.BackupStart][0][events.BackupID],
+		incBO.Results.BackupID, "backupID pre-declaration")
+
+	bid := incBO.Results.BackupID
+	bup := &backup.Backup{}
+
+	err = ms.Get(ctx, model.BackupSchema, bid, bup)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		ssid  = bup.StreamStoreID
+		deets details.Details
+		ss    = streamstore.NewStreamer(kw, creds.AzureTenantID, path.OneDriveService)
+	)
+
+	err = ss.Read(ctx, ssid, streamstore.DetailsReader(details.UnmarshalTo(&deets)), fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, ent := range deets.Entries {
+		// 46 is the tenant uuid + "onedrive" + two slashes
+		if len(ent.RepoRef) > 46 {
+			assert.Contains(t, ent.RepoRef, uid)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // SharePoint
 // ---------------------------------------------------------------------------
@@ -1596,7 +1716,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)

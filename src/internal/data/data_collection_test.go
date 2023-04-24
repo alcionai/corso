@@ -25,6 +25,8 @@ func (suite *DataCollectionSuite) TestStateOf() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
 	require.NoError(suite.T(), err, clues.ToCore(err))
+	preP, err := path.Build("_t", "_u", path.ExchangeService, path.EmailCategory, false, "foo")
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name   string
@@ -47,6 +49,12 @@ func (suite *DataCollectionSuite) TestStateOf() {
 			name:   "moved",
 			prev:   fooP,
 			curr:   barP,
+			expect: MovedState,
+		},
+		{
+			name:   "moved if prefix changes",
+			prev:   fooP,
+			curr:   preP,
 			expect: MovedState,
 		},
 		{
