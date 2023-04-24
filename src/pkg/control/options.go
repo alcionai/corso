@@ -106,6 +106,7 @@ type Toggles struct {
 
 	RunMigrations bool `json:"runMigrations"`
 
-	// DisableConcurrencyLimiter disables the concurrency limiter package
+	// DisableConcurrencyLimiter removes concurrency limits when communicating with
+	// graph API. This flag is only relevant for exchange backups for now
 	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
 }
