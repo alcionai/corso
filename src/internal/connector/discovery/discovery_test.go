@@ -263,7 +263,7 @@ func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
 				},
 				Mailbox: api.MailboxInfo{
 					Purpose:              "user",
-					ErrGetMailBoxSetting: nil,
+					ErrGetMailBoxSetting: []error{},
 				},
 			},
 		},
