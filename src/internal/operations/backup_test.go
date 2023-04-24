@@ -1189,7 +1189,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				test.inputMans,
 				test.mdm,
 				&deets,
-				path.OneDriveService, // only used to check for sharepoint, so value doesn't matter
 				fault.New(true))
 			test.errCheck(t, err, clues.ToCore(err))
 
@@ -1303,7 +1302,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		inputMans,
 		mdm,
 		&deets,
-		path.ExchangeService, // only used to check for sharepoint, so value doesn't matter
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	compareDeetEntries(t, expectedEntries, deets.Details().Entries)

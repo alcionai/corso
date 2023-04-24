@@ -308,7 +308,6 @@ func (op *BackupOperation) do(
 		mans,
 		toMerge,
 		deets,
-		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -654,7 +653,6 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
-	service path.ServiceType,
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.

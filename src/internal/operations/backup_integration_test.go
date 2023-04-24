@@ -573,12 +573,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	owners := []string{suite.user}
-
 	tests := []struct {
 		name           string
 		selector       func() *selectors.ExchangeBackup
-		resourceOwner  string
 		category       path.CategoryType
 		metadataFiles  []string
 		runIncremental bool
@@ -586,13 +583,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup(owners)
+				sel := selectors.NewExchangeBackup([]string{suite.user})
 				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 
 				return sel
 			},
-			resourceOwner:  suite.user,
 			category:       path.EmailCategory,
 			metadataFiles:  exchange.MetadataFileNames(path.EmailCategory),
 			runIncremental: true,
@@ -600,11 +596,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup(owners)
+				sel := selectors.NewExchangeBackup([]string{suite.user})
 				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
 				return sel
 			},
-			resourceOwner:  suite.user,
 			category:       path.ContactsCategory,
 			metadataFiles:  exchange.MetadataFileNames(path.ContactsCategory),
 			runIncremental: true,
@@ -612,11 +607,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup(owners)
+				sel := selectors.NewExchangeBackup([]string{suite.user})
 				sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
-			resourceOwner: suite.user,
 			category:      path.EventsCategory,
 			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
 		},
@@ -633,12 +627,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			bo, acct, kw, ms, gc, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 			defer closer()
 
+			userID := sel.ID()
+
 			m365, err := acct.M365Config()
 			require.NoError(t, err, clues.ToCore(err))
 
 			// run the tests
 			runAndCheckBackup(t, ctx, &bo, mb, false)
-			checkBackupIsInManifests(t, ctx, kw, &bo, sel, test.resourceOwner, test.category)
+			checkBackupIsInManifests(t, ctx, kw, &bo, sel, userID, test.category)
 			checkMetadataFilesExist(
 				t,
 				ctx,
@@ -646,7 +642,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				kw,
 				ms,
 				m365.AzureTenantID,
-				test.resourceOwner,
+				userID,
 				path.ExchangeService,
 				map[path.CategoryType][]string{test.category: test.metadataFiles})
 
@@ -663,7 +659,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, test.resourceOwner, test.category)
+			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, userID, test.category)
 			checkMetadataFilesExist(
 				t,
 				ctx,
@@ -671,7 +667,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				kw,
 				ms,
 				m365.AzureTenantID,
-				test.resourceOwner,
+				userID,
 				path.ExchangeService,
 				map[path.CategoryType][]string{test.category: test.metadataFiles})
 
