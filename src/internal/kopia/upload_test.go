@@ -183,16 +183,22 @@ func expectDirs(
 ) {
 	t.Helper()
 
-	if exactly {
-		require.Len(t, entries, len(dirs))
-	}
-
-	names := make([]string, 0, len(entries))
+	ents := make([]string, 0, len(entries))
 	for _, e := range entries {
-		names = append(names, e.Name())
+		ents = append(ents, e.Name())
 	}
 
-	assert.Subset(t, names, dirs)
+	dd, err := decodeElements(dirs...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	de, err := decodeElements(ents...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	if exactly {
+		require.Lenf(t, entries, len(dirs), "expected exactly %+v\ngot %+v", dd, de)
+	}
+
+	assert.Subsetf(t, dirs, ents, "expected at least %+v\ngot %+v", dd, de)
 }
 
 func getDirEntriesForEntry(
@@ -922,15 +928,18 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 func mockIncrementalBase(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
-	category path.CategoryType,
+	categories ...path.CategoryType,
 ) IncrementalBase {
+	stps := []*path.Builder{}
+	for _, c := range categories {
+		stps = append(stps, path.Builder{}.Append(tenant, service.String(), resourceOwner, c.String()))
+	}
+
 	return IncrementalBase{
 		Manifest: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
-		SubtreePaths: []*path.Builder{
-			path.Builder{}.Append(tenant, service.String(), resourceOwner, category.String()),
-		},
+		SubtreePaths: stps,
 	}
 }
 
@@ -2750,6 +2759,170 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 		nil,
 		progress,
 	)
+	require.NoError(t, err, clues.ToCore(err))
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubtrees() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const (
+		contactsDir  = "contacts"
+		migratedUser = "user_migrate"
+	)
+
+	oldPrefixPathEmail, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	newPrefixPathEmail, err := path.ServicePrefix(testTenant, migratedUser, path.ExchangeService, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	oldPrefixPathCont, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.ContactsCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	newPrefixPathCont, err := path.ServicePrefix(testTenant, migratedUser, path.ExchangeService, path.ContactsCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		inboxFileName1 = testFileName
+
+		inboxFileData1 = testFileData
+		// inboxFileData1v2 = testFileData5
+
+		contactsFileName1 = testFileName3
+		contactsFileData1 = testFileData3
+	)
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file2
+	getBaseSnapshot1 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{testTenant, service, testUser},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxID)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1)))),
+							}),
+					}),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.ContactsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(contactsDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(contactsFileName1)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(contactsFileData1)))),
+							}),
+					}),
+			},
+		)
+	}
+
+	// Check the following:
+	//   * contacts pulled from base1 unchanged even if no collections reference
+	//     it
+	//   * email pulled from base2
+	//
+	// Expected output:
+	// - a-tenant
+	//   - exchange
+	//     - user1new
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file1
+	expected := expectedTreeWithChildren(
+		[]string{testTenant, service, migratedUser},
+		[]*expectedNode{
+			{
+				name: category,
+				children: []*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+								data:     inboxFileData1,
+							},
+						},
+					},
+				},
+			},
+			{
+				name: path.ContactsCategory.String(),
+				children: []*expectedNode{
+					{
+						name: contactsDir,
+						children: []*expectedNode{
+							{
+								name:     contactsFileName1,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
+		errs:    fault.New(true),
+	}
+
+	mce := exchMock.NewCollection(newPrefixPathEmail, nil, 0)
+	mce.PrevPath = oldPrefixPathEmail
+	mce.ColState = data.MovedState
+
+	mcc := exchMock.NewCollection(newPrefixPathCont, nil, 0)
+	mcc.PrevPath = oldPrefixPathCont
+	mcc.ColState = data.MovedState
+
+	msw := &mockMultiSnapshotWalker{
+		snaps: map[string]fs.Entry{"id1": getBaseSnapshot1()},
+	}
+
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]IncrementalBase{
+			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		},
+		[]data.BackupCollection{mce, mcc},
+		nil,
+		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
 	expectTree(t, ctx, expected, dirTree)

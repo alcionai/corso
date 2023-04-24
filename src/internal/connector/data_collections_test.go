@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -208,6 +210,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				test.getSelector(t),
 				test.getSelector(t),
 				nil,
+				version.NoBackup,
 				control.Defaults(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
@@ -342,9 +345,10 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		sel.Selector,
+		inMock.NewProvider(id, name),
 		sel.Selector,
 		nil,
+		version.NoBackup,
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -386,9 +390,10 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		sel.Selector,
+		inMock.NewProvider(id, name),
 		sel.Selector,
 		nil,
+		version.NoBackup,
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
