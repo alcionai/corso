@@ -10,7 +10,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type M365IntegrationSuite struct {
@@ -66,9 +68,9 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 	require.NotNil(t, info)
 	require.NotEmpty(t, info)
 
-	expect := &m365.UserInfo{
-		ServicesEnabled: m365.ServiceAccess{
-			Exchange: true,
+	expect := &api.UserInfo{
+		ServicesEnabled: map[path.ServiceType]struct{}{
+			path.ExchangeService: {},
 		},
 	}
 

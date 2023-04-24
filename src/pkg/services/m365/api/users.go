@@ -41,8 +41,8 @@ type Users struct {
 // ---------------------------------------------------------------------------
 
 type UserInfo struct {
-	DiscoveredServices map[path.ServiceType]struct{}
-	Mailbox            MailboxInfo
+	ServicesEnabled map[path.ServiceType]struct{}
+	Mailbox         MailboxInfo
 }
 
 type MailboxInfo struct {
@@ -88,7 +88,7 @@ type WorkingHours struct {
 
 func newUserInfo() *UserInfo {
 	return &UserInfo{
-		DiscoveredServices: map[path.ServiceType]struct{}{
+		ServicesEnabled: map[path.ServiceType]struct{}{
 			path.ExchangeService: {},
 			path.OneDriveService: {},
 		},
@@ -98,11 +98,11 @@ func newUserInfo() *UserInfo {
 // ServiceEnabled returns true if the UserInfo has an entry for the
 // service.  If no entry exists, the service is assumed to not be enabled.
 func (ui *UserInfo) ServiceEnabled(service path.ServiceType) bool {
-	if ui == nil || len(ui.DiscoveredServices) == 0 {
+	if ui == nil || len(ui.ServicesEnabled) == 0 {
 		return false
 	}
 
-	_, ok := ui.DiscoveredServices[service]
+	_, ok := ui.ServicesEnabled[service]
 
 	return ok
 }
@@ -252,7 +252,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
-		delete(userInfo.DiscoveredServices, path.ExchangeService)
+		delete(userInfo.ServicesEnabled, path.ExchangeService)
 	}
 
 	if _, err := c.GetDrives(ctx, userID); err != nil {
@@ -264,7 +264,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 		logger.Ctx(ctx).Info("resource owner does not have a drive")
 
-		delete(userInfo.DiscoveredServices, path.OneDriveService)
+		delete(userInfo.ServicesEnabled, path.OneDriveService)
 	}
 
 	mbxInfo, err := c.getMailboxSettings(ctx, userID)

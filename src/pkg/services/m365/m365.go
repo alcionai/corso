@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -33,10 +32,6 @@ type User struct {
 	ID            string
 	Name          string
 	Info          api.UserInfo
-}
-
-type UserInfo struct {
-	ServicesEnabled ServiceAccess
 }
 
 // UsersCompat returns a list of users in the specified M365 tenant.
@@ -135,7 +130,7 @@ func GetUserInfo(
 	ctx context.Context,
 	acct account.Account,
 	userID string,
-) (*UserInfo, error) {
+) (*api.UserInfo, error) {
 	uapi, err := makeUserAPI(acct)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting user info").WithClues(ctx)
@@ -146,13 +141,7 @@ func GetUserInfo(
 		return nil, err
 	}
 
-	info := UserInfo{
-		ServicesEnabled: ServiceAccess{
-			Exchange: ui.ServiceEnabled(path.ExchangeService),
-		},
-	}
-
-	return &info, nil
+	return ui, nil
 }
 
 // ---------------------------------------------------------------------------
