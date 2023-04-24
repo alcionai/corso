@@ -167,10 +167,6 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 	gc.wg.Add(1)
 }
 
-func (gc *GraphConnector) incrementMessagesBy(num int) {
-	gc.wg.Add(num)
-}
-
 // ---------------------------------------------------------------------------
 // Resource Lookup Handling
 // ---------------------------------------------------------------------------
