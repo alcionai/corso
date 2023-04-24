@@ -1600,8 +1600,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		acct,
-		connector.Users,
-		fault.New(true))
+		connector.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := gc.Discovery.Users().GetByID(ctx, suite.user)

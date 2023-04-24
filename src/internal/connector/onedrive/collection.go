@@ -181,7 +181,7 @@ func NewCollection(
 }
 
 func newColl(
-	itemClient *http.Client,
+	gr graph.Requester,
 	folderPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -193,7 +193,7 @@ func newColl(
 	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
-		itemClient:      itemClient,
+		itemClient:      gr,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
