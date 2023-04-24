@@ -123,8 +123,8 @@ func AddEnableImmutableIDFlag(cmd *cobra.Command) {
 var disableConcurrencyLimiterFV bool
 
 // AddDisableConcurrencyLimiterFlag adds a hidden '--disable-concurrency-limiter'
-// cli flag which, when set, disables the concurrency limiter package
-// This flag is only relevant for exchange backups for now
+// cli flag which, when set, removes concurrency limits when communicating with
+// graph API. This flag is only relevant for exchange backups for now
 func AddDisableConcurrencyLimiterFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(

@@ -69,7 +69,7 @@ func (suite *OptionsUnitSuite) TestDisableConcurrencyLimiterFlag() {
 		addFlag  bool
 	}{
 		{
-			name: "--disable-concurrency-limiter not set",
+			name: DisableConcurrencyLimiterFN + " not set",
 			args: []string{"test"},
 			assertFn: func(t *testing.T, f bool, s string) {
 				assert.False(t, f, s)
@@ -77,8 +77,8 @@ func (suite *OptionsUnitSuite) TestDisableConcurrencyLimiterFlag() {
 			addFlag: false,
 		},
 		{
-			name: "--disable-concurrency-limiter set",
-			args: []string{"test", "--disable-concurrency-limiter"},
+			name: DisableConcurrencyLimiterFN + " set",
+			args: []string{"test", "--" + DisableConcurrencyLimiterFN},
 			assertFn: func(t *testing.T, f bool, s string) {
 				assert.True(t, f, s)
 			},
