@@ -39,6 +39,11 @@ func (r Reason) TagKeys() []string {
 	}
 }
 
+// Key is the concatenation of the ResourceOwner, Service, and Category.
+func (r Reason) Key() string {
+	return r.ResourceOwner + r.Service.String() + r.Category.String()
+}
+
 type ManifestEntry struct {
 	*snapshot.Manifest
 	// Reason contains the ResourceOwners and Service/Categories that caused this

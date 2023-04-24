@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -32,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -41,7 +43,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -62,6 +64,7 @@ func prepNewTestBackupOp(
 	bus events.Eventer,
 	sel selectors.Selector,
 	featureToggles control.Toggles,
+	backupVersion int,
 ) (
 	BackupOperation,
 	account.Account,
@@ -113,21 +116,7 @@ func prepNewTestBackupOp(
 		connectorResource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connectorResource,
-		fault.New(true))
-	if !assert.NoError(t, err, clues.ToCore(err)) {
-		closer()
-		t.FailNow()
-	}
-
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	sel.SetDiscreteOwnerIDName(id, name)
-
+	gc := GCWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
 	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, gc, closer
@@ -154,7 +143,7 @@ func newTestBackupOp(
 	//revive:enable:context-as-argument
 	var (
 		sw   = store.NewKopiaStore(ms)
-		opts = control.Options{}
+		opts = control.Defaults()
 	)
 
 	opts.ToggleFeatures = featureToggles
@@ -546,14 +535,16 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
-	kw := &kopia.Wrapper{}
-	sw := &store.Wrapper{}
-	gc := &mock.GraphConnector{}
-	acct := tester.NewM365Account(suite.T())
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		gc   = &mock.GraphConnector{}
+		acct = tester.NewM365Account(suite.T())
+		opts = control.Defaults()
+	)
 
 	table := []struct {
 		name     string
-		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		bp       inject.BackupProducer
@@ -561,10 +552,10 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing backup producer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"good", kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
+		{"missing backup producer", kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -575,7 +566,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 			_, err := NewBackupOperation(
 				ctx,
-				test.opts,
+				opts,
 				test.kw,
 				test.sw,
 				test.bp,
@@ -655,7 +646,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.Toggles{}
 			)
 
-			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -742,16 +733,21 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
 		container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
 		containerRename = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 4, now)
+
+		// container3 and containerRename don't exist yet.  Those will get created
+		// later on during the tests.  Putting their identifiers into the selector
+		// at this point is harmless.
+		containers = []string{container1, container2, container3, containerRename}
+		sel        = selectors.NewExchangeBackup(owners)
+		gc         = GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
+	)
+
+	sel.Include(
+		sel.MailFolders(containers, selectors.PrefixMatch()),
+		sel.ContactFolders(containers, selectors.PrefixMatch()),
 	)
 
 	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Users,
-		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	ac, err := api.NewClient(m365)
@@ -843,11 +839,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	// verify test data was populated, and track it for comparisons
 	for category, gen := range dataset {
-		ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 		qp := graph.QueryParams{
 			Category:      category,
-			ResourceOwner: ss,
+			ResourceOwner: inMock.NewProvider(suite.user, suite.user),
 			Credentials:   m365,
 		}
 		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
@@ -866,17 +860,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		}
 	}
 
-	// container3 and containerRename don't exist yet.  Those will get created
-	// later on during the tests.  Putting their identifiers into the selector
-	// at this point is harmless.
-	containers := []string{container1, container2, container3, containerRename}
-	sel := selectors.NewExchangeBackup(owners)
-	sel.Include(
-		sel.MailFolders(containers, selectors.PrefixMatch()),
-		sel.ContactFolders(containers, selectors.PrefixMatch()),
-	)
-
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -959,11 +943,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						version.Backup,
 						gen.dbf)
 
-					ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 					qp := graph.QueryParams{
 						Category:      category,
-						ResourceOwner: ss,
+						ResourceOwner: inMock.NewProvider(suite.user, suite.user),
 						Credentials:   m365,
 					}
 					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
@@ -1163,7 +1145,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1180,11 +1162,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
 
+		owners = []string{suite.user}
+
 		// `now` has to be formatted with SimpleDateTimeOneDrive as
 		// some onedrive cannot have `:` in file/folder names
 		now = common.FormatNow(common.SimpleTimeTesting)
-
-		owners = []string{suite.user}
 
 		categories = map[path.CategoryType][]string{
 			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
@@ -1194,23 +1176,25 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		container3 = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
 
 		genDests = []string{container1, container2}
+
+		// container3 does not exist yet. It will get created later on
+		// during the tests.
+		containers = []string{container1, container2, container3}
+		sel        = selectors.NewOneDriveBackup(owners)
 	)
+
+	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Users,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
-
-	fileDBF := func(id, timeStamp, subject, body string) []byte {
-		return []byte(id + subject)
-	}
+	var (
+		gc      = GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
+		driveID = mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
+		fileDBF = func(id, timeStamp, subject, body string) []byte {
+			return []byte(id + subject)
+		}
+	)
 
 	// Populate initial test data.
 	// Generate 2 new folders with two items each. Only the first two
@@ -1251,13 +1235,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		containerIDs[destName] = ptr.Val(resp.GetId())
 	}
 
-	// container3 does not exist yet. It will get created later on
-	// during the tests.
-	containers := []string{container1, container2, container3}
-	sel := selectors.NewOneDriveBackup(owners)
-	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
-
-	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1601,6 +1579,127 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	}
 }
 
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		ffs  = control.Toggles{}
+		mb   = evmock.NewBus()
+
+		categories = map[path.CategoryType][]string{
+			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+		}
+	)
+
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		acct,
+		connector.Users)
+	require.NoError(t, err, clues.ToCore(err))
+
+	userable, err := gc.Discovery.Users().GetByID(ctx, suite.user)
+	require.NoError(t, err, clues.ToCore(err))
+
+	uid := ptr.Val(userable.GetId())
+	uname := ptr.Val(userable.GetUserPrincipalName())
+
+	oldsel := selectors.NewOneDriveBackup([]string{uname})
+	oldsel.Include(oldsel.Folders([]string{"test"}, selectors.ExactMatch()))
+
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
+	defer closer()
+
+	// ensure the initial owner uses name in both cases
+	bo.ResourceOwner = oldsel.SetDiscreteOwnerIDName(uname, uname)
+	// required, otherwise we don't run the migration
+	bo.backupVersion = version.AllXMigrateUserPNToID - 1
+	bo.Options.ToggleFeatures.RunMigrations = false
+
+	require.Equalf(
+		t,
+		bo.ResourceOwner.Name(),
+		bo.ResourceOwner.ID(),
+		"historical representation of user id [%s] should match pn [%s]",
+		bo.ResourceOwner.ID(),
+		bo.ResourceOwner.Name())
+
+	// run the initial backup
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	newsel := selectors.NewOneDriveBackup([]string{uid})
+	newsel.Include(newsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	sel := newsel.SetDiscreteOwnerIDName(uid, uname)
+
+	var (
+		incMB = evmock.NewBus()
+		// the incremental backup op should have a proper user ID for the id.
+		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
+	)
+
+	incBO.Options.ToggleFeatures.RunMigrations = true
+
+	require.NotEqualf(
+		t,
+		incBO.ResourceOwner.Name(),
+		incBO.ResourceOwner.ID(),
+		"current representation of user: id [%s] should differ from PN [%s]",
+		incBO.ResourceOwner.ID(),
+		incBO.ResourceOwner.Name())
+
+	err = incBO.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+	checkBackupIsInManifests(t, ctx, kw, &incBO, sel, uid, maps.Keys(categories)...)
+	checkMetadataFilesExist(
+		t,
+		ctx,
+		incBO.Results.BackupID,
+		kw,
+		ms,
+		creds.AzureTenantID,
+		uid,
+		path.OneDriveService,
+		categories)
+
+	// 2 on read/writes to account for metadata: 1 delta and 1 path.
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
+	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
+	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		incMB.CalledWith[events.BackupStart][0][events.BackupID],
+		incBO.Results.BackupID, "backupID pre-declaration")
+
+	bid := incBO.Results.BackupID
+	bup := &backup.Backup{}
+
+	err = ms.Get(ctx, model.BackupSchema, bid, bup)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		ssid  = bup.StreamStoreID
+		deets details.Details
+		ss    = streamstore.NewStreamer(kw, creds.AzureTenantID, path.OneDriveService)
+	)
+
+	err = ss.Read(ctx, ssid, streamstore.DetailsReader(details.UnmarshalTo(&deets)), fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, ent := range deets.Entries {
+		// 46 is the tenant uuid + "onedrive" + two slashes
+		if len(ent.RepoRef) > 46 {
+			assert.Contains(t, ent.RepoRef, uid)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // SharePoint
 // ---------------------------------------------------------------------------
@@ -1615,9 +1714,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
-	sel.Include(testdata.SharePointBackupFolderScope(sel))
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)

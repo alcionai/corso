@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -239,7 +240,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
-		ss        = selectors.Selector{}.SetDiscreteOwnerIDName(userID, userID)
 	)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -268,10 +268,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 			collections, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -300,7 +300,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
-		ss        = selectors.Selector{}.SetDiscreteOwnerIDName(userID, userID)
 	)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -339,10 +338,10 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -370,10 +369,10 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err = createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(userID, userID),
 				test.scope,
 				dps,
-				control.Options{},
+				control.Defaults(),
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -405,7 +404,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		t     = suite.T()
 		wg    sync.WaitGroup
 		users = []string{suite.user}
-		ss    = selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 	)
 
 	acct, err := tester.NewM365Account(t).M365Config()
@@ -417,10 +415,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	collections, err := createCollections(
 		ctx,
 		acct,
-		ss,
+		inMock.NewProvider(suite.user, suite.user),
 		sel.Scopes()[0],
 		DeltaPaths{},
-		control.Options{},
+		control.Defaults(),
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -467,7 +465,6 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	users := []string{suite.user}
-	ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 	tests := []struct {
 		name  string
@@ -491,10 +488,10 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 			edcs, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -556,8 +553,6 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		bdayID string
 	)
 
-	ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
-
 	fn := func(gcf graph.CacheFolder) error {
 		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
 			calID = ptr.Val(gcf.GetId())
@@ -605,10 +600,10 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			collections, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))

@@ -13,6 +13,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+func getBackupFromID(
+	ctx context.Context,
+	backupID model.StableID,
+	ms *store.Wrapper,
+) (*backup.Backup, error) {
+	bup, err := ms.GetBackup(ctx, backupID)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting backup")
+	}
+
+	return bup, nil
+}
+
 func getBackupAndDetailsFromID(
 	ctx context.Context,
 	backupID model.StableID,
@@ -22,7 +35,7 @@ func getBackupAndDetailsFromID(
 ) (*backup.Backup, *details.Details, error) {
 	bup, err := ms.GetBackup(ctx, backupID)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting backup details ID")
+		return nil, nil, clues.Wrap(err, "getting backup")
 	}
 
 	var (

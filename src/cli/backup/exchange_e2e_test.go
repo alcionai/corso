@@ -18,7 +18,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -256,13 +256,8 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
-		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
-		ins      = common.IDsNames{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		users = []string{suite.m365UserID}
+		ins   = idname.NewCache(map[string]string{suite.m365UserID: suite.m365UserID})
 	)
 
 	for _, set := range []path.CategoryType{email, contacts, events} {

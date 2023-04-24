@@ -137,8 +137,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		acct,
-		connector.Users,
-		errs)
+		connector.Users)
 	if err != nil {
 		return nil, account.Account{}, clues.Wrap(err, "connecting to graph api")
 	}

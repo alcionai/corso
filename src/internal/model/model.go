@@ -59,9 +59,9 @@ type BaseModel struct {
 	// to refer to this one. This field may change if the model is updated. This
 	// field should be treated as read-only by users.
 	ModelStoreID manifest.ID `json:"-"`
-	// Version is a version number that can help track changes across models.
+	// ModelVersion is a version number that can help track changes across models.
 	// TODO(ashmrtn): Reference version control documentation.
-	Version int `json:"-"`
+	ModelVersion int `json:"-"`
 	// Tags associated with this model in the store to facilitate lookup. Tags in
 	// the struct are not serialized directly into the stored model, but are part
 	// of the metadata for the model.

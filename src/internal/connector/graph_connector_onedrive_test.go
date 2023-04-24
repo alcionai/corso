@@ -364,7 +364,7 @@ type suiteInfo interface {
 	// also be a site.
 	BackupResourceOwner() string
 	BackupService() path.ServiceType
-	Resource() resource
+	Resource() Resource
 }
 
 type oneDriveSuite interface {
@@ -383,7 +383,7 @@ type suiteInfoImpl struct {
 	tertiaryUserID  string
 	acct            account.Account
 	service         path.ServiceType
-	resourceType    resource
+	resourceType    Resource
 }
 
 func (si suiteInfoImpl) Service() graph.Servicer {
@@ -418,7 +418,7 @@ func (si suiteInfoImpl) BackupService() path.ServiceType {
 	return si.service
 }
 
-func (si suiteInfoImpl) Resource() resource {
+func (si suiteInfoImpl) Resource() Resource {
 	return si.resourceType
 }
 

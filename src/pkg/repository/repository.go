@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -63,7 +63,7 @@ type Repository interface {
 	NewBackupWithLookup(
 		ctx context.Context,
 		self selectors.Selector,
-		ins common.IDNameSwapper,
+		ins idname.Cacher,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -306,9 +306,9 @@ func (r repository) NewBackup(
 func (r repository) NewBackupWithLookup(
 	ctx context.Context,
 	sel selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -334,7 +334,7 @@ func (r repository) NewBackupWithLookup(
 		gc,
 		r.Account,
 		sel,
-		sel,
+		sel, // the selector acts as an IDNamer for its discrete resource owner.
 		r.Bus)
 }
 
@@ -345,7 +345,7 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -627,7 +627,6 @@ func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-	errs *fault.Bus,
 ) (*connector.GraphConnector, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
@@ -642,7 +641,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct, resource, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource)
 	if err != nil {
 		return nil, err
 	}

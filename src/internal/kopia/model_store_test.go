@@ -264,7 +264,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 
 			require.NotEmpty(t, foo.ModelStoreID)
 			require.NotEmpty(t, foo.ID)
-			require.Equal(t, globalModelVersion, foo.Version)
+			require.Equal(t, globalModelVersion, foo.ModelVersion)
 
 			returned := &fooModel{}
 			err = suite.m.Get(suite.ctx, test.s, foo.ID, returned)
@@ -569,14 +569,14 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			name: "NoTags",
 			mutator: func(m *fooModel) {
 				m.Bar = "baz"
-				m.Version = 42
+				m.ModelVersion = 42
 			},
 		},
 		{
 			name: "WithTags",
 			mutator: func(m *fooModel) {
 				m.Bar = "baz"
-				m.Version = 42
+				m.ModelVersion = 42
 				m.Tags = map[string]string{
 					"a": "42",
 				}
@@ -607,7 +607,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			oldModelID := foo.ModelStoreID
 			oldStableID := foo.ID
-			oldVersion := foo.Version
+			oldVersion := foo.ModelVersion
 
 			test.mutator(foo)
 
@@ -616,7 +616,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			assert.Equal(t, oldStableID, foo.ID)
 			// The version in the model store has not changed so we get the old
 			// version back.
-			assert.Equal(t, oldVersion, foo.Version)
+			assert.Equal(t, oldVersion, foo.ModelVersion)
 
 			returned := &fooModel{}
 
@@ -627,7 +627,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			ids, err := m.GetIDsForType(ctx, theModelType, nil)
 			require.NoError(t, err, clues.ToCore(err))
 			require.Len(t, ids, 1)
-			assert.Equal(t, globalModelVersion, ids[0].Version)
+			assert.Equal(t, globalModelVersion, ids[0].ModelVersion)
 
 			if oldModelID == foo.ModelStoreID {
 				// Unlikely, but we don't control ModelStoreID generation and can't
