@@ -59,7 +59,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 		},
 		{
 			name:      "user pn to id",
-			version:   version.AllXMigrateUserPNToID - 1,
+			version:   version.All8MigrateUserPNToID - 1,
 			forceSkip: false,
 			expectLen: 1,
 			expectMigration: []migr{
@@ -82,9 +82,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 			t := suite.T()
 
 			opts := control.Options{
-				ToggleFeatures: control.Toggles{
-					RunMigrations: !test.forceSkip,
-				},
+				ToggleFeatures: control.Toggles{},
 			}
 
 			mc, err := migrationCollections(nil, test.version, "t", u, nil, opts)
