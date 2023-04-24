@@ -97,7 +97,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 
 			assert.Len(t, mc, test.expectLen)
 
-			migrs := make([]migr, len(test.expectMigration))
+			migrs := []migr{}
 
 			for _, col := range mc {
 				var fp, pp string
@@ -112,9 +112,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 
 				t.Logf("Found migration collection:\n* full: %s\n* prev: %s\n", fp, pp)
 
-				for i, cm := range test.expectMigration {
-					migrs[i] = cm
-				}
+				migrs = append(migrs, test.expectMigration...)
 			}
 
 			for i, m := range migrs {
