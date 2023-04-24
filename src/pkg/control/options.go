@@ -103,6 +103,4 @@ type Toggles struct {
 	// immutable Exchange IDs. This is only safe to set if the previous backup for
 	// incremental backups used immutable IDs or if a full backup is being done.
 	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
-
-	RunMigrations bool `json:"runMigrations"`
 }
