@@ -24,7 +24,7 @@ func TestRestoreUnitSuite(t *testing.T) {
 func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 	// Adding a simple test here so that we can be sure that this
 	// function gets updated whenever we add a new version.
-	require.LessOrEqual(suite.T(), version.Backup, version.OneDrive7LocationRef, "unsupported backup version")
+	require.LessOrEqual(suite.T(), version.Backup, version.All8MigrateUserPNToID, "unsupported backup version")
 
 	table := []struct {
 		name    string
