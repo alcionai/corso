@@ -756,11 +756,7 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	// TODO(rkeepers): remove when sharepoint supports metadata files
 	checkCount := dataFromBackup.ItemsToMerge()
-	if service == path.SharePointService {
-		checkCount = dataFromBackup.ItemsToMergeSansMeta()
-	}
 
 	if addedEntries != checkCount {
 		return clues.New("incomplete migration of backup details").

@@ -212,10 +212,6 @@ func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
 	return len(m.repoRefs)
 }
 
-func (m *mockDetailsMergeInfoer) ItemsToMergeSansMeta() int {
-	return -1
-}
-
 func newMockDetailsMergeInfoer() *mockDetailsMergeInfoer {
 	return &mockDetailsMergeInfoer{
 		repoRefs: map[string]path.Path{},

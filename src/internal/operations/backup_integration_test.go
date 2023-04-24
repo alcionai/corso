@@ -1258,7 +1258,7 @@ func runDriveIncrementalTest(
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc, sel := GCWithSelector(t, ctx, acct, connector.Users, sel, nil, nil)
+	gc, sel := GCWithSelector(t, ctx, acct, resource, sel, nil, nil)
 
 	var (
 		driveID = getTestDriveID(t, ctx, gc.Service)

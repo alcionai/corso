@@ -275,7 +275,6 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	owner string, // input value, can be either id or name
 	ins idname.Cacher,
 ) (string, string, error) {
-	// move this to GC method
 	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
 	if err != nil {
 		return "", "", clues.Wrap(err, "identifying resource owner")
