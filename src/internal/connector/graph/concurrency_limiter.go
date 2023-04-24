@@ -40,7 +40,7 @@ func (cl *concurrencyLimiter) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	if cl == nil {
+	if cl == nil || cl.semaphore == nil {
 		return nil, clues.New("nil concurrency limiter")
 	}
 

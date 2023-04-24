@@ -182,7 +182,7 @@ func DataCollections(
 		categories  = map[path.CategoryType]struct{}{}
 	)
 
-	// TODO: Add hidden flag to disable this feature
+	// TODO: Add hidden cli flag to disable this feature
 	graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
