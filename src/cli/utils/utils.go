@@ -24,18 +24,6 @@ const (
 	Wildcard = "*"
 )
 
-// RequireProps validates the existence of the properties
-// in the map.  Expects the format map[propName]propVal.
-func RequireProps(props map[string]string) error {
-	for name, val := range props {
-		if len(val) == 0 {
-			return clues.New(name + " is required to perform this command")
-		}
-	}
-
-	return nil
-}
-
 func GetAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
 	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
