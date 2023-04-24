@@ -1173,7 +1173,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		connector.Users,
 		path.OneDriveService,
 		path.FilesCategory,
-		sel.Selector,
 		ic,
 		gtdi)
 }
@@ -1211,7 +1210,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
 		connector.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
-		sel.Selector,
 		ic,
 		gtdi)
 }
@@ -1222,7 +1220,6 @@ func runDriveIncrementalTest(
 	resource connector.Resource,
 	service path.ServiceType,
 	category path.CategoryType,
-	sel selectors.Selector,
 	includeContainers func([]string) selectors.Selector,
 	getTestDriveID func(*testing.T, context.Context, graph.Servicer) string,
 ) {
@@ -1253,7 +1250,7 @@ func runDriveIncrementalTest(
 		containers = []string{container1, container2, container3}
 	)
 
-	sel = includeContainers(containers)
+	sel := includeContainers(containers)
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
