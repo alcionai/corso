@@ -163,8 +163,8 @@ func parseMetadataCollections(
 //	Add iota to this call -> mail, contacts, calendar,  etc.
 func DataCollections(
 	ctx context.Context,
-	user idname.Provider,
 	selector selectors.Selector,
+	user idname.Provider,
 	metadata []data.RestoreCollection,
 	acct account.M365Config,
 	su support.StatusUpdater,

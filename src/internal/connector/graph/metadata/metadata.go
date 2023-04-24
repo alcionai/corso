@@ -7,7 +7,7 @@ import (
 
 func IsMetadataFile(p path.Path) bool {
 	switch p.Service() {
-	case path.OneDriveService:
+	case path.OneDriveService, path.SharePointService:
 		return metadata.HasMetaSuffix(p.Item())
 
 	default:

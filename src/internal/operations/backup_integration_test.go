@@ -116,7 +116,7 @@ func prepNewTestBackupOp(
 		connectorResource = connector.Sites
 	}
 
-	gc := GCWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
+	gc, sel := GCWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
 	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, gc, closer
@@ -739,8 +739,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup(owners)
-		gc         = GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
 	)
+
+	gc, sels := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
+	sel, err := sels.ToExchangeBackup()
+	require.NoError(t, err, clues.ToCore(err))
 
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
@@ -1188,8 +1191,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
+	gc, sels := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
+	sel, err = sels.ToOneDriveBackup()
+	require.NoError(t, err, clues.ToCore(err))
+
 	var (
-		gc      = GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
 		driveID = mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)

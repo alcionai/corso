@@ -69,9 +69,14 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		return []data.BackupCollection{}, nil, nil
 	}
 
+	var (
+		colls    []data.BackupCollection
+		excludes map[string]map[string]struct{}
+	)
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, excludes, err := exchange.DataCollections(
+		colls, excludes, err = exchange.DataCollections(
 			ctx,
 			sels,
 			sels,
@@ -84,22 +89,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			return nil, nil, err
 		}
 
-		for _, c := range colls {
-			// kopia doesn't stream Items() from deleted collections,
-			// and so they never end up calling the UpdateStatus closer.
-			// This is a brittle workaround, since changes in consumer
-			// behavior (such as calling Items()) could inadvertently
-			// break the process state, putting us into deadlock or
-			// panics.
-			if c.State() != data.DeletedState {
-				gc.incrementAwaitingMessages()
-			}
-		}
-
-		return colls, excludes, nil
-
 	case selectors.ServiceOneDrive:
-		colls, excludes, err := onedrive.DataCollections(
+		colls, excludes, err = onedrive.DataCollections(
 			ctx,
 			sels,
 			sels,
@@ -115,19 +106,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			return nil, nil, err
 		}
 
-		for _, c := range colls {
-			// kopia doesn't stream Items() from deleted collections.
-			if c.State() != data.DeletedState {
-				gc.incrementAwaitingMessages()
-			}
-		}
-
-		return colls, excludes, nil
-
 	case selectors.ServiceSharePoint:
-		colls, excludes, err := sharepoint.DataCollections(
+		colls, excludes, err = sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
+			sels,
 			sels,
 			gc.credentials,
 			gc.Service,
@@ -138,13 +121,23 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			return nil, nil, err
 		}
 
-		gc.incrementMessagesBy(len(colls))
-
-		return colls, excludes, nil
-
 	default:
 		return nil, nil, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
 	}
+
+	for _, c := range colls {
+		// kopia doesn't stream Items() from deleted collections,
+		// and so they never end up calling the UpdateStatus closer.
+		// This is a brittle workaround, since changes in consumer
+		// behavior (such as calling Items()) could inadvertently
+		// break the process state, putting us into deadlock or
+		// panics.
+		if c.State() != data.DeletedState {
+			gc.incrementAwaitingMessages()
+		}
+	}
+
+	return colls, excludes, nil
 }
 
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {

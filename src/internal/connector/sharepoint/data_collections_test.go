@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -194,9 +195,11 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	a := tester.NewM365Account(t)
+	var (
+		t      = suite.T()
+		siteID = tester.M365SiteID(t)
+		a      = tester.NewM365Account(t)
+	)
 
 	account, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -205,7 +208,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ctx,
 		account,
 		nil,
-		siteID,
+		mock.NewProvider(siteID, siteID),
 		&MockGraphService{},
 		control.Defaults(),
 		fault.New(true))
