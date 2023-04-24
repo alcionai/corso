@@ -182,8 +182,11 @@ func DataCollections(
 		categories  = map[path.CategoryType]struct{}{}
 	)
 
-	// TODO: Add hidden cli flag to disable this feature
-	graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
+	// Turn on concurrency limiter middleware for exchange backups
+	// unless explicitly disabled through the --disable-concurrency-limiter cli flag
+	if !ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter {
+		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
+	}
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
 	if err != nil {

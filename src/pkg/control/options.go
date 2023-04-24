@@ -105,4 +105,7 @@ type Toggles struct {
 	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
 
 	RunMigrations bool `json:"runMigrations"`
+
+	// DisableConcurrencyLimiter disables the concurrency limiter package
+	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
 }

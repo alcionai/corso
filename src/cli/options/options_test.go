@@ -60,3 +60,50 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	err := cmd.Execute()
 	require.NoError(t, err, clues.ToCore(err))
 }
+
+func (suite *OptionsUnitSuite) TestDisableConcurrencyLimiterFlag() {
+	tests := []struct {
+		name     string
+		args     []string
+		assertFn func(*testing.T, bool, string)
+		addFlag  bool
+	}{
+		{
+			name: "--disable-concurrency-limiter not set",
+			args: []string{"test"},
+			assertFn: func(t *testing.T, f bool, s string) {
+				assert.False(t, f, s)
+			},
+			addFlag: false,
+		},
+		{
+			name: "--disable-concurrency-limiter set",
+			args: []string{"test", "--disable-concurrency-limiter"},
+			assertFn: func(t *testing.T, f bool, s string) {
+				assert.True(t, f, s)
+			},
+			addFlag: true,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			cmd := &cobra.Command{
+				Use: "test",
+				Run: func(cmd *cobra.Command, args []string) {
+					test.assertFn(t, disableConcurrencyLimiterFV, DisableConcurrencyLimiterFN)
+				},
+			}
+
+			if test.addFlag {
+				AddDisableConcurrencyLimiterFlag(cmd)
+			}
+
+			cmd.SetArgs(test.args)
+			err := cmd.Execute()
+			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
+}
