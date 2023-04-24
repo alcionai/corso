@@ -8,7 +8,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,6 +34,20 @@ func RequireProps(props map[string]string) error {
 	}
 
 	return nil
+}
+
+func GetAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
+	}
+
+	return r, &cfg.Account, nil
 }
 
 // CloseRepo handles closing a repo.
