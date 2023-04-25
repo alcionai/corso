@@ -63,6 +63,7 @@ func main() {
 	var (
 		client           = msgraphsdk.NewGraphServiceClient(adapter)
 		testUser         = tester.GetM365UserID(ctx)
+		testSite         = tester.GetM365SiteID(ctx)
 		testService      = os.Getenv("SANITY_RESTORE_SERVICE")
 		folder           = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
 		startTime, _     = mustGetTimeFromName(ctx, folder)
@@ -83,7 +84,9 @@ func main() {
 	case "exchange":
 		checkEmailRestoration(ctx, client, testUser, folder, dataFolder, baseBackupFolder, startTime)
 	case "onedrive":
-		checkOnedriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
+		checkOneDriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
+	case "sharepoint":
+		checkSharePointRestoration(ctx, client, testSite, folder, dataFolder, startTime)
 	default:
 		fatal(ctx, "no service specified", nil)
 	}
@@ -292,11 +295,72 @@ func checkAllSubFolder(
 // oneDrive
 // ---------------------------------------------------------------------------
 
-func checkOnedriveRestoration(
+func checkOneDriveRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	testUser,
-	folderName, dataFolder string,
+	userID, folderName, dataFolder string,
+	startTime time.Time,
+) {
+	drive, err := client.
+		UsersById(userID).
+		Drive().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting the drive:", err)
+	}
+
+	checkDriveRestoration(
+		ctx,
+		client,
+		userID,
+		folderName,
+		ptr.Val(drive.GetId()),
+		ptr.Val(drive.GetName()),
+		dataFolder,
+		startTime)
+}
+
+// ---------------------------------------------------------------------------
+// sharePoint
+// ---------------------------------------------------------------------------
+
+func checkSharePointRestoration(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	siteID, folderName, dataFolder string,
+	startTime time.Time,
+) {
+	drive, err := client.
+		SitesById(siteID).
+		Drive().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting the drive:", err)
+	}
+
+	checkDriveRestoration(
+		ctx,
+		client,
+		siteID,
+		folderName,
+		ptr.Val(drive.GetId()),
+		ptr.Val(drive.GetName()),
+		dataFolder,
+		startTime)
+}
+
+// ---------------------------------------------------------------------------
+// shared drive tests
+// ---------------------------------------------------------------------------
+
+func checkDriveRestoration(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	resourceOwner,
+	folderName,
+	driveID,
+	driveName,
+	dataFolder string,
 	startTime time.Time,
 ) {
 	var (
@@ -308,19 +372,7 @@ func checkOnedriveRestoration(
 		restoreFolderPermission = make(map[string][]permissionInfo)
 	)
 
-	drive, err := client.
-		UsersById(testUser).
-		Drive().
-		Get(ctx, nil)
-	if err != nil {
-		fatal(ctx, "getting the drive:", err)
-	}
-
-	var (
-		driveID         = ptr.Val(drive.GetId())
-		driveName       = ptr.Val(drive.GetName())
-		restoreFolderID string
-	)
+	var restoreFolderID string
 
 	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 
@@ -373,7 +425,7 @@ func checkOnedriveRestoration(
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
 	}
 
-	getRestoredDrive(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
+	getRestoredDrive(ctx, client, driveID, restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
 		logAndPrint(ctx, "checking for folder: %s", folderName)

@@ -52,13 +52,12 @@ jobs:
 
       - run: make build
 
-      - run: go build -o sanityCheck ./cmd/sanity_test
+      - run: go build -o sanityTest ./cmd/sanity_test
 
       - run: mkdir ${TEST_RESULT}
 
       - run: mkdir ${CORSO_LOG_DIR}
 
-      # run the tests
       - name: Version Test
         run: |  
           set -euo pipefail
@@ -90,7 +89,6 @@ jobs:
           
           echo result="$prefix" >> $GITHUB_OUTPUT 
 
-      # run the tests
       - name: Repo connect test
         run: |
           set -euo pipefail
@@ -107,6 +105,10 @@ jobs:
             exit 1
           fi
 
+##########################################################################################################################################
+
+# Exchange
+
       # generate new entries to roll into the next load test
       # only runs if the test was successful
       - name: New Data Creation
@@ -122,7 +124,6 @@ jobs:
           --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --count 4
 
-      # run the tests
       - name: Backup exchange test
         id: exchange-test
         run: |
@@ -145,7 +146,7 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
 
-      # list all exchange backups
+      # list all backups
       - name: Backup exchange list test
         run: |
           set -euo pipefail
@@ -161,7 +162,7 @@ jobs:
             exit 1
           fi
 
-      # list the previous exchange backups
+      # list the previous backups
       - name: Backup exchange list single backup test
         run: |
           set -euo pipefail
@@ -178,7 +179,7 @@ jobs:
             exit 1
           fi
 
-      # test exchange restore
+      # restore
       - name: Backup exchange restore
         id: exchange-restore-test
         run: |
@@ -199,9 +200,9 @@ jobs:
           TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
         run: |
           set -euo pipefail
-          ./sanityCheck
+          ./sanityTest
 
-      # test incremental backup exchange
+      # incremental backup
       - name: Backup exchange incremental
         id: exchange-incremental-test
         run: |
@@ -223,7 +224,7 @@ jobs:
 
           echo result=$( echo $resultjson | jq -r '.[0] | .id' ) >> $GITHUB_OUTPUT
 
-      # test exchange restore
+      # restore from incremental
       - name: Backup incremantal exchange restore
         id: exchange-incremantal-restore-test
         run: |
@@ -245,9 +246,11 @@ jobs:
           BASE_BACKUP: ${{ steps.exchange-restore-test.outputs.result }}
         run: |
           set -euo pipefail
-          ./sanityCheck
+          ./sanityTest
 
-# Onedrive test
+##########################################################################################################################################
+
+# Onedrive
 
        # generate new entries for OneDrive sanity test
       - name: New Data Creation for OneDrive
@@ -269,7 +272,6 @@ jobs:
 
           echo result="$suffix" >> $GITHUB_OUTPUT
 
-      # run the tests
       - name: Backup onedrive test
         id: onedrive-test
         run: |
@@ -292,7 +294,7 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
 
-      # list all onedrive backups
+      # list all backups
       - name: Backup onedrive list test
         run: |
           set -euo pipefail
@@ -308,8 +310,8 @@ jobs:
             exit 1
           fi
 
-      # list the previous onedrive backup
-      - name: Backup onedrive list one backup test
+      # list the previous backup
+      - name: Backup onedrive list test
         run: |
           set -euo pipefail
           echo -e "\nBackup OneDrive list one backup test\n" >> ${CORSO_LOG_FILE}
@@ -325,7 +327,7 @@ jobs:
             exit 1
           fi
 
-      # test onedrive restore
+      # restore
       - name: Backup onedrive restore
         id: onedrive-restore-test
         run: |
@@ -347,9 +349,9 @@ jobs:
           TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
-          ./sanityCheck
+          ./sanityTest
 
-       # generate some more enteries for incremental check
+      # generate some more enteries for incremental check
       - name: New Data Creation for Incremental OneDrive
         working-directory: ./src/cmd/factory
         env:
@@ -364,7 +366,7 @@ jobs:
           --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
           --count 4
 
-      # test onedrive incremental
+      # incremental
       - name: Backup onedrive incremental
         id: onedrive-incremental-test
         run: |
@@ -387,7 +389,7 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
           
-      # test onedrive restore
+      # restore from incremental
       - name: Backup onedrive restore
         id: onedrive-incremental-restore-test
         run: |
@@ -409,7 +411,129 @@ jobs:
           TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
-          ./sanityCheck
+          ./sanityTest
+
+##########################################################################################################################################
+
+ # Sharepoint test
+
+      - name: Backup sharepoint test
+        id: sharepoint-test
+        run: |
+          set -euo pipefail
+          ./corso backup create sharepoint \
+          --no-stats \
+          --hide-progress \
+          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_sharepoint.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_sharepoint.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+
+      # list all backups
+      - name: Backup sharepoint list test
+        run: |
+          set -euo pipefail
+          ./corso backup list sharepoint \
+          --no-stats \
+          --hide-progress \
+          2>&1 | tee $TEST_RESULT/backup_sharepoint_list.txt 
+
+          if ! grep -q  ${{ steps.sharepoint-test.outputs.result }} $TEST_RESULT/backup_sharepoint_list.txt 
+          then
+            echo "listing of backup was not successful"
+            exit 1
+          fi
+
+      # list the previous backup
+      - name: Backup sharepoint list test
+        run: |
+          set -euo pipefail
+          ./corso backup list sharepoint \
+          --no-stats \
+          --hide-progress \
+          --backup "${{ steps.sharepoint-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/backup_sharepoint_list_single.txt
+
+          if ! grep -q  ${{ steps.sharepoint-test.outputs.result }} $TEST_RESULT/backup_sharepoint_list.txt 
+          then
+            echo "listing of backup was not successful"
+            exit 1
+          fi
+
+      # restore
+      - name: Backup sharepoint restore
+        id: sharepoint-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore sharepoint \
+          --no-stats \
+          --restore-permissions \
+          --hide-progress \
+          --backup "${{ steps.sharepoint-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/sharepoint-restore-test.txt 
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/sharepoint-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+      - name: Restoration sharepoint check
+        env:
+          SANITY_RESTORE_FOLDER: ${{ steps.sharepoint-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "sharepoint"
+        run: |
+          set -euo pipefail
+          ./sanityTest
+
+      # incremental backup
+      - name: Backup sharepoint incremental
+        id: sharepoint-incremental-test
+        run: |
+          set -euo pipefail
+          ./corso backup create sharepoint \
+          --no-stats \
+          --hide-progress \
+          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_sharepoint_incremental.txt 
+          
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_sharepoint_incremental.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+
+      # restore from incremental
+      - name: Backup sharepoint restore
+        id: sharepoint-incremental-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore sharepoint \
+          --no-stats \
+          --restore-permissions \
+          --hide-progress \
+          --backup "${{ steps.sharepoint-incremental-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/sharepoint-incremental-restore-test.txt 
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/sharepoint-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+      - name: Restoration sharepoint check
+        env:
+          SANITY_RESTORE_FOLDER: ${{ steps.sharepoint-incremental-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "sharepoint"
+        run: |
+          set -euo pipefail
+          ./sanityTest
+
+##########################################################################################################################################
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -421,7 +545,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # run the tests
       - name: SHA info
         id: sha-info
         if: failure()
@@ -430,7 +553,6 @@ jobs:
           echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
           echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
           echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
-
       
       - name: Send Github Action failure to Slack
         id: slack-notification
