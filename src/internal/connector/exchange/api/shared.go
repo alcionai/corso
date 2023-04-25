@@ -72,9 +72,9 @@ func getAddedAndRemovedItemIDs(
 	)
 
 	// TODO(meain): this can be passed down from top
-	deltaFailure := true
+	deltaAvailable := true
 
-	if deltaFailure {
+	if deltaAvailable {
 		pgr, err = pagerGetter(ctx, service, user, directoryID, immutableIDs)
 		if err != nil {
 			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating pager")
@@ -94,7 +94,7 @@ func getAddedAndRemovedItemIDs(
 
 	// return error if invalid delta error or if there was no previous
 	// delta or if we did a non-delta fetch
-	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 || deltaFailure {
+	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 || !deltaAvailable {
 		return nil, nil, DeltaUpdate{}, err
 	}
 

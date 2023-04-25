@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+const (
+	mailFoldersBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/mailFolders"
+)
+
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -221,6 +225,89 @@ func (c Mail) GetItem(
 	return mail, MailInfo(mail), nil
 }
 
+type mailFolderDeltaPagerer interface {
+	getPage(context.Context) (api.PageLinker, error)
+	setNext(string)
+	valuesIn(api.PageLinker) ([]models.MailFolderable, error)
+}
+
+var _ mailFolderDeltaPagerer = &mailFolderDeltaPager{}
+
+type mailFolderDeltaPager struct {
+	service graph.Servicer
+	builder *users.ItemMailFoldersDeltaRequestBuilder
+}
+
+func NewMailFolderDeltaPager(service graph.Servicer, user string) mailFolderDeltaPagerer {
+	builder := service.Client().
+		UsersById(user).
+		MailFolders().
+		Delta()
+
+	return &mailFolderDeltaPager{service, builder}
+}
+
+func (p *mailFolderDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
+	page, err := p.builder.Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return page, nil
+}
+
+func (p *mailFolderDeltaPager) setNext(nextLink string) {
+	p.builder = users.NewItemMailFoldersDeltaRequestBuilder(nextLink, p.service.Adapter())
+}
+
+func (p *mailFolderDeltaPager) valuesIn(pl api.PageLinker) ([]models.MailFolderable, error) {
+	page, ok := pl.(users.ItemMailFoldersDeltaResponseable)
+	if !ok {
+		return nil, clues.New("unable to convert to ItemMailFoldersDeltaResponseable")
+	}
+
+	return page.GetValue(), nil
+}
+
+var _ mailFolderDeltaPagerer = &mailFolderPager{}
+
+type mailFolderPager struct {
+	service graph.Servicer
+	builder *users.ItemMailFoldersRequestBuilder
+}
+
+func NewMailFolderPager(service graph.Servicer, user string) mailFolderDeltaPagerer {
+	// Sable /mailFolders endpoint does not return any of the nested folders
+	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, user)
+	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
+
+	return &mailFolderPager{service, builder}
+}
+
+func (p *mailFolderPager) getPage(ctx context.Context) (api.PageLinker, error) {
+	page, err := p.builder.Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return page, nil
+}
+
+func (p *mailFolderPager) setNext(nextLink string) {
+	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.service.Adapter())
+}
+
+func (p *mailFolderPager) valuesIn(pl api.PageLinker) ([]models.MailFolderable, error) {
+	// Ideally this should be `users.ItemMailFoldersResponseable`, but
+	// that is not a thing as stable returns different result
+	page, ok := pl.(models.MailFolderCollectionResponseable)
+	if !ok {
+		return nil, clues.New("unable to convert to ItemMailFoldersResponseable")
+	}
+
+	return page.GetValue(), nil
+}
+
 // EnumerateContainers iterates through all of the users current
 // mail folders, converting each to a graph.CacheFolder, and calling
 // fn(cf) on each one.
@@ -237,23 +324,38 @@ func (c Mail) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
+	// TODO(meain): this can be passed down from top
+	deltaAvialble := true
+
 	el := errs.Local()
-	builder := service.Client().
-		UsersById(userID).
-		MailFolders().
-		Delta()
+
+	var pgr mailFolderDeltaPagerer
+	if deltaAvialble {
+		// TODO(perf): We don't currently make use of previous delta URL here
+		// As we do not use previous delta URL, we can just the
+		// non-delta beta version, but as that is beta, sticking to
+		// this for most cases.
+		pgr = NewMailFolderDeltaPager(service, userID)
+	} else {
+		pgr = NewMailFolderPager(service, userID)
+	}
 
 	for {
 		if el.Failure() != nil {
 			break
 		}
 
-		resp, err := builder.Get(ctx, nil)
+		page, err := pgr.getPage(ctx)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
 
-		for _, v := range resp.GetValue() {
+		resp, err := pgr.valuesIn(page)
+		if err != nil {
+			return graph.Stack(ctx, err)
+		}
+
+		for _, v := range resp {
 			if el.Failure() != nil {
 				break
 			}
@@ -270,12 +372,12 @@ func (c Mail) EnumerateContainers(
 			}
 		}
 
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		link, ok := ptr.ValOK(page.GetOdataNextLink())
 		if !ok {
 			break
 		}
 
-		builder = users.NewItemMailFoldersDeltaRequestBuilder(link, service.Adapter())
+		pgr.setNext(link)
 	}
 
 	return el.Failure()
