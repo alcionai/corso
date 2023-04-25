@@ -6,14 +6,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -91,14 +89,9 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)

@@ -135,7 +135,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := getAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -224,7 +224,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
