@@ -702,7 +702,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
 		now        = common.Now()
-		owners     = []string{suite.user}
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
@@ -718,12 +717,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		// later on during the tests.  Putting their identifiers into the selector
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
-		sel        = selectors.NewExchangeBackup(owners)
+		sel        = selectors.NewExchangeBackup([]string{suite.user})
 	)
 
 	gc, sels := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
 	sel, err := sels.ToExchangeBackup()
 	require.NoError(t, err, clues.ToCore(err))
+
+	uidn := inMock.NewProvider(sels.ID(), sels.Name())
 
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
@@ -760,8 +761,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			given+" "+sur,
 			sur+", "+given,
 			given, mid, sur,
-			"123-456-7890",
-		)
+			"123-456-7890")
 	}
 
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
@@ -809,8 +809,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				path.ExchangeService,
 				acct,
 				category,
-				selectors.NewExchangeRestore(owners).Selector,
-				m365.AzureTenantID, suite.user, "", destName,
+				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
+				m365.AzureTenantID, uidn.ID(), "", destName,
 				2,
 				version.Backup,
 				gen.dbf)
@@ -823,7 +823,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	for category, gen := range dataset {
 		qp := graph.QueryParams{
 			Category:      category,
-			ResourceOwner: inMock.NewProvider(suite.user, suite.user),
+			ResourceOwner: uidn,
 			Credentials:   m365,
 		}
 		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
@@ -880,7 +880,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 				_, err := gc.Service.
 					Client().
-					UsersById(suite.user).
+					UsersById(uidn.ID()).
 					MailFoldersById(fromContainer).
 					Move().
 					Post(ctx, body, nil)
@@ -897,13 +897,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						err := ac.Mail().DeleteContainer(ctx, suite.user, containerID)
+						err := ac.Mail().DeleteContainer(ctx, uidn.ID(), containerID)
 						require.NoError(t, err, "deleting an email folder", clues.ToCore(err))
 					case path.ContactsCategory:
-						err := ac.Contacts().DeleteContainer(ctx, suite.user, containerID)
+						err := ac.Contacts().DeleteContainer(ctx, uidn.ID(), containerID)
 						require.NoError(t, err, "deleting a contacts folder", clues.ToCore(err))
 					case path.EventsCategory:
-						err := ac.Events().DeleteContainer(ctx, suite.user, containerID)
+						err := ac.Events().DeleteContainer(ctx, uidn.ID(), containerID)
 						require.NoError(t, err, "deleting a calendar", clues.ToCore(err))
 					}
 				}
@@ -922,7 +922,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						path.ExchangeService,
 						acct,
 						category,
-						selectors.NewExchangeRestore(owners).Selector,
+						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
 						m365.AzureTenantID, suite.user, "", container3,
 						2,
 						version.Backup,
@@ -930,9 +930,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					qp := graph.QueryParams{
 						Category:      category,
-						ResourceOwner: inMock.NewProvider(suite.user, suite.user),
+						ResourceOwner: uidn,
 						Credentials:   m365,
 					}
+
 					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
 					require.NoError(t, err, "populating container resolver", category, clues.ToCore(err))
 
@@ -953,7 +954,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container3].containerID
-					cli := gc.Service.Client().UsersById(suite.user)
+					cli := gc.Service.Client().UsersById(uidn.ID())
 
 					// copy the container info, since both names should
 					// reference the same container by id.  Though the
@@ -1004,11 +1005,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
-					cli := gc.Service.Client().UsersById(suite.user)
+					cli := gc.Service.Client().UsersById(uidn.ID())
 
 					switch category {
 					case path.EmailCategory:
-						_, itemData := generateItemData(t, category, suite.user, mailDBF)
+						_, itemData := generateItemData(t, category, uidn.ID(), mailDBF)
 						body, err := support.CreateMessageFromBytes(itemData)
 						require.NoError(t, err, "transforming mail bytes to messageable", clues.ToCore(err))
 
@@ -1016,7 +1017,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "posting email item", clues.ToCore(err))
 
 					case path.ContactsCategory:
-						_, itemData := generateItemData(t, category, suite.user, contactDBF)
+						_, itemData := generateItemData(t, category, uidn.ID(), contactDBF)
 						body, err := support.CreateContactFromBytes(itemData)
 						require.NoError(t, err, "transforming contact bytes to contactable", clues.ToCore(err))
 
@@ -1024,7 +1025,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "posting contact item", clues.ToCore(err))
 
 					case path.EventsCategory:
-						_, itemData := generateItemData(t, category, suite.user, eventDBF)
+						_, itemData := generateItemData(t, category, uidn.ID(), eventDBF)
 						body, err := support.CreateEventFromBytes(itemData)
 						require.NoError(t, err, "transforming event bytes to eventable", clues.ToCore(err))
 
@@ -1041,11 +1042,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
-					cli := gc.Service.Client().UsersById(suite.user)
+					cli := gc.Service.Client().UsersById(uidn.ID())
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "", false)
+						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false)
 						require.NoError(t, err, "getting message ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "message ids in folder")
 
@@ -1053,7 +1054,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "deleting email item", clues.ToCore(err))
 
 					case path.ContactsCategory:
-						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "", false)
+						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false)
 						require.NoError(t, err, "getting contact ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "contact ids in folder")
 
@@ -1061,7 +1062,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "deleting contact item", clues.ToCore(err))
 
 					case path.EventsCategory:
-						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "", false)
+						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false)
 						require.NoError(t, err, "getting event ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "event ids in folder")
 
@@ -1086,7 +1087,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 			err := incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, suite.user, maps.Keys(categories)...)
+			checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, uidn.ID(), maps.Keys(categories)...)
 			checkMetadataFilesExist(
 				t,
 				ctx,
@@ -1094,7 +1095,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				kw,
 				ms,
 				m365.AzureTenantID,
-				suite.user,
+				uidn.ID(),
 				path.ExchangeService,
 				categories)
 
