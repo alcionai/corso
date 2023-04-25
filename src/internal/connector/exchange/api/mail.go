@@ -360,6 +360,7 @@ func (c Mail) EnumerateContainers(
 				pgr = NewMailFolderPager(service, userID)
 				continue
 			}
+
 			return graph.Stack(ctx, err)
 		}
 
