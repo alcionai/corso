@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
 - Fixed Exchange events progress output to show calendar names instead of IDs.
 - Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
+- Fix backup for mailboxes that has used up all their storage quota
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
