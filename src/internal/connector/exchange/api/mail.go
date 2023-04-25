@@ -324,21 +324,10 @@ func (c Mail) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
-	// TODO(meain): this can be passed down from top
-	deltaAvialble := true
-
 	el := errs.Local()
 
 	var pgr mailFolderDeltaPagerer
-	if deltaAvialble {
-		// TODO(perf): We don't currently make use of previous delta URL here
-		// As we do not use previous delta URL, we can just the
-		// non-delta beta version, but as that is beta, sticking to
-		// this for most cases.
-		pgr = NewMailFolderDeltaPager(service, userID)
-	} else {
-		pgr = NewMailFolderPager(service, userID)
-	}
+	pgr = NewMailFolderPager(service, userID)
 
 	for {
 		if el.Failure() != nil {
@@ -347,6 +336,10 @@ func (c Mail) EnumerateContainers(
 
 		page, err := pgr.getPage(ctx)
 		if err != nil {
+			if graph.IsErrQuotaExceeded(err) {
+				pgr = NewMailFolderPager(service, userID)
+				continue
+			}
 			return graph.Stack(ctx, err)
 		}
 

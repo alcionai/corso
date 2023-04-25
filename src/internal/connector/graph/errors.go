@@ -36,6 +36,7 @@ const (
 	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
 	requestResourceNotFound     errorCode = "Request_ResourceNotFound"
+	quotaExceeded               errorCode = "ErrorQuotaExceeded"
 	resourceNotFound            errorCode = "ResourceNotFound"
 	resyncRequired              errorCode = "ResyncRequired" // alt: resyncRequired
 	syncFolderNotFound          errorCode = "ErrorSyncFolderNotFound"
@@ -99,6 +100,10 @@ func IsErrDeletedInFlight(err error) bool {
 func IsErrInvalidDelta(err error) bool {
 	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
+}
+
+func IsErrQuotaExceeded(err error) bool {
+	return hasErrorCode(err, quotaExceeded)
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
