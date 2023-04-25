@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -11,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -223,6 +225,25 @@ func (c Users) GetIDAndName(ctx context.Context, userID string) (string, string,
 	}
 
 	return ptr.Val(u.GetId()), ptr.Val(u.GetUserPrincipalName()), nil
+}
+
+// GetAllIDsAndNames retrieves all users in the tenant and returns them in an idname.Cacher
+func (c Users) GetAllIDsAndNames(ctx context.Context, errs *fault.Bus) (idname.Cacher, error) {
+	all, err := c.GetAll(ctx, errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting all users")
+	}
+
+	idToName := make(map[string]string, len(all))
+
+	for _, u := range all {
+		id := strings.ToLower(ptr.Val(u.GetId()))
+		name := strings.ToLower(ptr.Val(u.GetUserPrincipalName()))
+
+		idToName[id] = name
+	}
+
+	return idname.NewCache(idToName), nil
 }
 
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
