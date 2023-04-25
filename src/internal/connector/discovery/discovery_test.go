@@ -193,7 +193,7 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 			name: "standard test user",
 			user: tester.M365UserID(t),
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{
+				ServicesEnabled: map[path.ServiceType]struct{}{
 					path.ExchangeService: {},
 					path.OneDriveService: {},
 				},
@@ -208,8 +208,8 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 			name: "user does not exist",
 			user: uuid.NewString(),
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{},
-				Mailbox:            api.MailboxInfo{},
+				ServicesEnabled: map[path.ServiceType]struct{}{},
+				Mailbox:         api.MailboxInfo{},
 			},
 			expectErr: require.NoError,
 		},
@@ -228,7 +228,7 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 				return
 			}
 
-			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
+			assert.Equal(t, test.expect.ServicesEnabled, result.ServicesEnabled)
 		})
 	}
 }
@@ -247,7 +247,7 @@ func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
 			name: "user without drive and exchange",
 			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{},
+				ServicesEnabled: map[path.ServiceType]struct{}{},
 				Mailbox: api.MailboxInfo{
 					ErrGetMailBoxSetting: []error{api.ErrMailBoxSettingsNotFound},
 				},
@@ -257,7 +257,7 @@ func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
 			name: "user with drive and exchange",
 			user: userID,
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{
+				ServicesEnabled: map[path.ServiceType]struct{}{
 					path.ExchangeService: {},
 					path.OneDriveService: {},
 				},
@@ -277,7 +277,7 @@ func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
 
 			result, err := discovery.GetUserInfo(ctx, acct, test.user, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect.DiscoveredServices, result.DiscoveredServices)
+			assert.Equal(t, test.expect.ServicesEnabled, result.ServicesEnabled)
 			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting, result.Mailbox.ErrGetMailBoxSetting)
 			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
 		})

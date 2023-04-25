@@ -2,7 +2,6 @@ package m365
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -12,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -33,10 +31,6 @@ type User struct {
 	ID            string
 	Name          string
 	Info          api.UserInfo
-}
-
-type UserInfo struct {
-	ServicesEnabled ServiceAccess
 }
 
 // UsersCompat returns a list of users in the specified M365 tenant.
@@ -102,40 +96,12 @@ func parseUser(item models.Userable) (*User, error) {
 	return u, nil
 }
 
-// UsersMap retrieves all users in the tenant, and returns two maps: one id-to-principalName,
-// and one principalName-to-id.
-func UsersMap(
-	ctx context.Context,
-	acct account.Account,
-	errs *fault.Bus,
-) (idname.Cacher, error) {
-	users, err := Users(ctx, acct, errs)
-	if err != nil {
-		return idname.NewCache(nil), err
-	}
-
-	var (
-		idToName = make(map[string]string, len(users))
-		nameToID = make(map[string]string, len(users))
-	)
-
-	for _, u := range users {
-		id, name := strings.ToLower(u.ID), strings.ToLower(u.PrincipalName)
-		idToName[id] = name
-		nameToID[name] = id
-	}
-
-	ins := idname.NewCache(idToName)
-
-	return ins, nil
-}
-
 // UserInfo returns the corso-specific set of user metadata.
 func GetUserInfo(
 	ctx context.Context,
 	acct account.Account,
 	userID string,
-) (*UserInfo, error) {
+) (*api.UserInfo, error) {
 	uapi, err := makeUserAPI(acct)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting user info").WithClues(ctx)
@@ -146,13 +112,7 @@ func GetUserInfo(
 		return nil, err
 	}
 
-	info := UserInfo{
-		ServicesEnabled: ServiceAccess{
-			Exchange: ui.ServiceEnabled(path.ExchangeService),
-		},
-	}
-
-	return &info, nil
+	return ui, nil
 }
 
 // ---------------------------------------------------------------------------

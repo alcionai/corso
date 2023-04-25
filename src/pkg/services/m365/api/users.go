@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -11,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -41,8 +43,8 @@ type Users struct {
 // ---------------------------------------------------------------------------
 
 type UserInfo struct {
-	DiscoveredServices map[path.ServiceType]struct{}
-	Mailbox            MailboxInfo
+	ServicesEnabled map[path.ServiceType]struct{}
+	Mailbox         MailboxInfo
 }
 
 type MailboxInfo struct {
@@ -88,7 +90,7 @@ type WorkingHours struct {
 
 func newUserInfo() *UserInfo {
 	return &UserInfo{
-		DiscoveredServices: map[path.ServiceType]struct{}{
+		ServicesEnabled: map[path.ServiceType]struct{}{
 			path.ExchangeService: {},
 			path.OneDriveService: {},
 		},
@@ -98,11 +100,11 @@ func newUserInfo() *UserInfo {
 // ServiceEnabled returns true if the UserInfo has an entry for the
 // service.  If no entry exists, the service is assumed to not be enabled.
 func (ui *UserInfo) ServiceEnabled(service path.ServiceType) bool {
-	if ui == nil || len(ui.DiscoveredServices) == 0 {
+	if ui == nil || len(ui.ServicesEnabled) == 0 {
 		return false
 	}
 
-	_, ok := ui.DiscoveredServices[service]
+	_, ok := ui.ServicesEnabled[service]
 
 	return ok
 }
@@ -225,6 +227,25 @@ func (c Users) GetIDAndName(ctx context.Context, userID string) (string, string,
 	return ptr.Val(u.GetId()), ptr.Val(u.GetUserPrincipalName()), nil
 }
 
+// GetAllIDsAndNames retrieves all users in the tenant and returns them in an idname.Cacher
+func (c Users) GetAllIDsAndNames(ctx context.Context, errs *fault.Bus) (idname.Cacher, error) {
+	all, err := c.GetAll(ctx, errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting all users")
+	}
+
+	idToName := make(map[string]string, len(all))
+
+	for _, u := range all {
+		id := strings.ToLower(ptr.Val(u.GetId()))
+		name := strings.ToLower(ptr.Val(u.GetUserPrincipalName()))
+
+		idToName[id] = name
+	}
+
+	return idname.NewCache(idToName), nil
+}
+
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// Assume all services are enabled
 	// then filter down to only services the user has enabled
@@ -252,7 +273,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
-		delete(userInfo.DiscoveredServices, path.ExchangeService)
+		delete(userInfo.ServicesEnabled, path.ExchangeService)
 	}
 
 	if _, err := c.GetDrives(ctx, userID); err != nil {
@@ -264,7 +285,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 		logger.Ctx(ctx).Info("resource owner does not have a drive")
 
-		delete(userInfo.DiscoveredServices, path.OneDriveService)
+		delete(userInfo.ServicesEnabled, path.OneDriveService)
 	}
 
 	mbxInfo, err := c.getMailboxSettings(ctx, userID)

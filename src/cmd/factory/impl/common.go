@@ -3,7 +3,6 @@ package impl
 import (
 	"context"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -22,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 var (
@@ -119,27 +117,16 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 		return nil, account.Account{}, clues.Wrap(err, "finding m365 account details")
 	}
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	ins, err := m365.UsersMap(ctx, acct, errs)
-	if err != nil {
-		return nil, account.Account{}, clues.Wrap(err, "getting tenant users")
-	}
-
-	_, idOK := ins.NameOf(strings.ToLower(userID))
-	_, nameOK := ins.IDOf(strings.ToLower(userID))
-
-	if !idOK && !nameOK {
-		return nil, account.Account{}, clues.New("user not found within tenant")
-	}
-
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		acct,
 		connector.Users)
 	if err != nil {
 		return nil, account.Account{}, clues.Wrap(err, "connecting to graph api")
+	}
+
+	if _, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, userID, nil); err != nil {
+		return nil, account.Account{}, clues.Wrap(err, "verifying user")
 	}
 
 	return gc, acct, nil
