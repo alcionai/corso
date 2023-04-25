@@ -66,24 +66,13 @@ func getAddedAndRemovedItemIDs(
 ) ([]string, []string, DeltaUpdate, error) {
 	var (
 		deltaURL   string
-		resetDelta bool
 		pgr        itemPager
 		err        error
 	)
 
-	// TODO(meain): this can be passed down from top
-	deltaAvailable := true
-
-	if deltaAvailable {
-		pgr, err = pagerGetter(ctx, service, user, directoryID, immutableIDs)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating pager")
-		}
-	} else {
-		pgr, err = deltaPagerGetter(ctx, service, user, directoryID, oldDelta, immutableIDs)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
-		}
+	pgr, err = deltaPagerGetter(ctx, service, user, directoryID, oldDelta, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
 
 	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
@@ -94,16 +83,21 @@ func getAddedAndRemovedItemIDs(
 
 	// return error if invalid delta error or if there was no previous
 	// delta or if we did a non-delta fetch
-	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 || !deltaAvailable {
+	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	resetDelta = true
-
-	// Create mailDeltaPager without previous delta
-	pgr, err = deltaPagerGetter(ctx, service, user, directoryID, "", immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	if graph.IsErrQuotaExceeded(err) {
+		pgr, err = pagerGetter(ctx, service, user, directoryID, immutableIDs)
+		if err != nil {
+			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating pager")
+		}
+	} else {
+		// Create mailDeltaPager without previous delta
+		pgr, err = deltaPagerGetter(ctx, service, user, directoryID, "", immutableIDs)
+		if err != nil {
+			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager without previous delta")
+		}
 	}
 
 	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
@@ -111,7 +105,7 @@ func getAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+	return added, removed, DeltaUpdate{deltaURL, true}, nil
 }
 
 // generic controller for retrieving all item ids in a container.
