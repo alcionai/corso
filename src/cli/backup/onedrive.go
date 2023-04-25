@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -144,10 +143,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	sel := oneDriveBackupCreateSelectors(utils.UserFV)
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	ins, err := m365.UsersMap(ctx, *acct, errs)
+	ins, err := utils.UsersMap(ctx, *acct, fault.New(true))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}

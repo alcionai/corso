@@ -2,7 +2,6 @@ package m365
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -95,34 +94,6 @@ func parseUser(item models.Userable) (*User, error) {
 	}
 
 	return u, nil
-}
-
-// UsersMap retrieves all users in the tenant, and returns two maps: one id-to-principalName,
-// and one principalName-to-id.
-func UsersMap(
-	ctx context.Context,
-	acct account.Account,
-	errs *fault.Bus,
-) (idname.Cacher, error) {
-	users, err := Users(ctx, acct, errs)
-	if err != nil {
-		return idname.NewCache(nil), err
-	}
-
-	var (
-		idToName = make(map[string]string, len(users))
-		nameToID = make(map[string]string, len(users))
-	)
-
-	for _, u := range users {
-		id, name := strings.ToLower(u.ID), strings.ToLower(u.PrincipalName)
-		idToName[id] = name
-		nameToID[name] = id
-	}
-
-	ins := idname.NewCache(idToName)
-
-	return ins, nil
 }
 
 // UserInfo returns the corso-specific set of user metadata.
