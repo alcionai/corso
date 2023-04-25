@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -153,7 +152,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := getAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -162,10 +161,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(utils.UserFV, utils.CategoryDataFV)
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	ins, err := m365.UsersMap(ctx, *acct, errs)
+	ins, err := utils.UsersMap(ctx, *acct, fault.New(true))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -265,7 +261,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
