@@ -83,7 +83,7 @@ func main() {
 	case "exchange":
 		checkEmailRestoration(ctx, client, testUser, folder, dataFolder, baseBackupFolder, startTime)
 	case "onedrive":
-		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
+		checkOnedriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
 	default:
 		fatal(ctx, "no service specified", nil)
 	}
@@ -296,7 +296,7 @@ func checkOnedriveRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser,
-	folderName string,
+	folderName, dataFolder string,
 	startTime time.Time,
 ) {
 	var (
@@ -337,7 +337,6 @@ func checkOnedriveRestoration(
 		var (
 			itemID   = ptr.Val(driveItem.GetId())
 			itemName = ptr.Val(driveItem.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
 		)
 
 		if itemName == folderName {
@@ -345,8 +344,9 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
-		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+		if itemName != dataFolder {
+			logger.Ctx(ctx).Infof("test data for %v folder: ", dataFolder)
+			fmt.Printf("test data for %v folder: ", dataFolder)
 			continue
 		}
 
@@ -415,6 +415,9 @@ func checkOnedriveRestoration(
 	}
 
 	for fileName, expected := range fileSizes {
+		logger.Ctx(ctx).Info("checking for file: ", fileName)
+		fmt.Printf("checking for file: %s\n", fileName)
+
 		got := restoreFile[fileName]
 
 		assert(
