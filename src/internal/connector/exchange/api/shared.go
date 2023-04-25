@@ -56,6 +56,64 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	return r, nil
 }
 
+func getAddedAndRemovedItemIDs(
+	ctx context.Context,
+	service graph.Servicer,
+	user, directoryID, oldDelta string,
+	pagerGetter func(context.Context, graph.Servicer, string, string, bool) (itemPager, error),
+	deltaPagerGetter func(context.Context, graph.Servicer, string, string, string, bool) (itemPager, error),
+	immutableIDs bool,
+) ([]string, []string, DeltaUpdate, error) {
+	var (
+		deltaURL   string
+		resetDelta bool
+		pgr        itemPager
+		err        error
+	)
+
+	// TODO(meain): this can be passed down from top
+	deltaFailure := true
+
+	if deltaFailure {
+		pgr, err = pagerGetter(ctx, service, user, directoryID, immutableIDs)
+		if err != nil {
+			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating pager")
+		}
+	} else {
+		pgr, err = deltaPagerGetter(ctx, service, user, directoryID, oldDelta, immutableIDs)
+		if err != nil {
+			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+		}
+	}
+
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	// note: happy path, not the error condition
+	if err == nil {
+		return added, removed, DeltaUpdate{deltaURL, false}, err
+	}
+
+	// return error if invalid delta error or if there was no previous
+	// delta or if we did a non-delta fetch
+	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 || deltaFailure {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
+	resetDelta = true
+
+	// Create mailDeltaPager without previous delta
+	pgr, err = deltaPagerGetter(ctx, service, user, directoryID, "", immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+}
+
 // generic controller for retrieving all item ids in a container.
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
