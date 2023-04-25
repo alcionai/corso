@@ -263,6 +263,8 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				ctx,
 				graph.NewNoTimeoutHTTPWrapper(),
 				sel,
+				sel,
+				nil,
 				connector.credentials,
 				connector.Service,
 				connector,

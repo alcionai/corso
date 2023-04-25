@@ -24,7 +24,7 @@ func GCWithSelector(
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(),
-) *connector.GraphConnector {
+) (*connector.GraphConnector, selectors.Selector) {
 	gc, err := connector.NewGraphConnector(ctx, acct, cr)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
@@ -43,7 +43,7 @@ func GCWithSelector(
 		t.FailNow()
 	}
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel = sel.SetDiscreteOwnerIDName(id, name)
 
-	return gc
+	return gc, sel
 }

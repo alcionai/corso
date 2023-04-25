@@ -332,14 +332,7 @@ func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
-	enabled := !opts.ToggleFeatures.DisableIncrementals
-
-	if sel.Service == selectors.ServiceExchange ||
-		sel.Service == selectors.ServiceOneDrive {
-		return enabled
-	}
-
-	return false
+	return !opts.ToggleFeatures.DisableIncrementals
 }
 
 // ---------------------------------------------------------------------------
@@ -761,12 +754,14 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	if addedEntries != dataFromBackup.ItemsToMerge() {
+	checkCount := dataFromBackup.ItemsToMerge()
+
+	if addedEntries != checkCount {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
 			With(
 				"item_count", addedEntries,
-				"expected_item_count", dataFromBackup.ItemsToMerge())
+				"expected_item_count", checkCount)
 	}
 
 	return nil

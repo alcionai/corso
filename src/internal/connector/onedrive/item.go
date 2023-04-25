@@ -299,7 +299,7 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 	}
 
 	return &details.SharePointInfo{
-		ItemType:  details.OneDriveItem,
+		ItemType:  details.SharePointLibrary,
 		ItemName:  ptr.Val(di.GetName()),
 		Created:   ptr.Val(di.GetCreatedDateTime()),
 		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
