@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -247,7 +248,7 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}
 }
 
-func getPermsUperms(permID, userID, entity string, scopes []string) (models.Permissionable, UserPermission) {
+func getPermsUperms(permID, userID, entity string, scopes []string) (models.Permissionable, metadata.Permission) {
 	identity := models.NewIdentity()
 	identity.SetId(&userID)
 	identity.SetAdditionalData(map[string]any{"email": &userID})
@@ -270,7 +271,7 @@ func getPermsUperms(permID, userID, entity string, scopes []string) (models.Perm
 	perm.SetRoles([]string{"read"})
 	perm.SetGrantedToV2(sharepointIdentity)
 
-	uperm := UserPermission{
+	uperm := metadata.Permission{
 		ID:       permID,
 		Roles:    []string{"read"},
 		EntityID: userID,
@@ -305,56 +306,56 @@ func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
 	cases := []struct {
 		name              string
 		graphPermissions  []models.Permissionable
-		parsedPermissions []UserPermission
+		parsedPermissions []metadata.Permission
 	}{
 		{
 			name:              "no perms",
 			graphPermissions:  []models.Permissionable{},
-			parsedPermissions: []UserPermission{},
+			parsedPermissions: []metadata.Permission{},
 		},
 		{
 			name:              "no user bound to perms",
 			graphPermissions:  []models.Permissionable{noPerm},
-			parsedPermissions: []UserPermission{},
+			parsedPermissions: []metadata.Permission{},
 		},
 
 		// user
 		{
 			name:              "user with read permissions",
 			graphPermissions:  []models.Permissionable{userReadPerm},
-			parsedPermissions: []UserPermission{userReadUperm},
+			parsedPermissions: []metadata.Permission{userReadUperm},
 		},
 		{
 			name:              "user with owner permissions",
 			graphPermissions:  []models.Permissionable{userOwnerPerm},
-			parsedPermissions: []UserPermission{userOwnerUperm},
+			parsedPermissions: []metadata.Permission{userOwnerUperm},
 		},
 		{
 			name:              "user with read and write permissions",
 			graphPermissions:  []models.Permissionable{userReadWritePerm},
-			parsedPermissions: []UserPermission{userReadWriteUperm},
+			parsedPermissions: []metadata.Permission{userReadWriteUperm},
 		},
 		{
 			name:              "multiple users with separate permissions",
 			graphPermissions:  []models.Permissionable{userReadPerm, userReadWritePerm},
-			parsedPermissions: []UserPermission{userReadUperm, userReadWriteUperm},
+			parsedPermissions: []metadata.Permission{userReadUperm, userReadWriteUperm},
 		},
 
 		// group
 		{
 			name:              "group with read permissions",
 			graphPermissions:  []models.Permissionable{groupReadPerm},
-			parsedPermissions: []UserPermission{groupReadUperm},
+			parsedPermissions: []metadata.Permission{groupReadUperm},
 		},
 		{
 			name:              "group with read and write permissions",
 			graphPermissions:  []models.Permissionable{groupReadWritePerm},
-			parsedPermissions: []UserPermission{groupReadWriteUperm},
+			parsedPermissions: []metadata.Permission{groupReadWriteUperm},
 		},
 		{
 			name:              "multiple groups with separate permissions",
 			graphPermissions:  []models.Permissionable{groupReadPerm, groupReadWritePerm},
-			parsedPermissions: []UserPermission{groupReadUperm, groupReadWriteUperm},
+			parsedPermissions: []metadata.Permission{groupReadUperm, groupReadWriteUperm},
 		},
 	}
 	for _, tc := range cases {
