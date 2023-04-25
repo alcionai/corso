@@ -403,7 +403,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:  "SharePoint_Restore",
 			owner: tester.M365SiteID(suite.T()),
-			dest:  control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
+			dest:  control.DefaultRestoreDestination(common.SimpleTimeTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
 				rsel.Include(rsel.AllData())
