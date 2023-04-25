@@ -15,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
@@ -68,8 +69,8 @@ func generateAndRestoreItems(
 
 	for i := 0; i < howMany; i++ {
 		var (
-			now       = common.Now()
-			nowLegacy = common.FormatLegacyTime(time.Now())
+			now       = dttm.Now()
+			nowLegacy = dttm.FormatToLegacy(time.Now())
 			id        = uuid.NewString()
 			subject   = "automated " + now[:16] + " - " + id[:8]
 			body      = "automated " + cat.String() + " generation for " + userID + " at " + now + " - " + id
@@ -87,7 +88,7 @@ func generateAndRestoreItems(
 		items:        items,
 	}}
 
-	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)
 	dest.ContainerName = destFldr
 	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
@@ -269,7 +270,7 @@ func generateAndRestoreOnedriveItems(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)
 	dest.ContainerName = destFldr
 	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 

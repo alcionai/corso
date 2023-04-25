@@ -7,8 +7,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -872,10 +872,10 @@ func (op *BackupOperation) createBackupModels(
 			events.BackupID:   b.ID,
 			events.DataStored: op.Results.BytesUploaded,
 			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
+			events.EndTime:    dttm.Format(op.Results.CompletedAt),
 			events.Resources:  op.Results.ResourceOwners,
 			events.Service:    op.Selectors.PathService().String(),
-			events.StartTime:  common.FormatTime(op.Results.StartedAt),
+			events.StartTime:  dttm.Format(op.Results.StartedAt),
 			events.Status:     op.Status.String(),
 		})
 

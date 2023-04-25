@@ -11,7 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 )
 
 //nolint:lll
@@ -107,7 +107,7 @@ const (
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
 func MessageBytes(subject string) []byte {
 	return MessageWithBodyBytes(
-		"TPS Report "+subject+" "+common.FormatNow(common.SimpleDateTime),
+		"TPS Report "+subject+" "+dttm.FormatNow(dttm.HumanReadable),
 		defaultMessageBody, defaultMessagePreview)
 }
 
