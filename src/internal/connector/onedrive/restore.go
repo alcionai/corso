@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -52,6 +53,8 @@ func RestoreCollections(
 		// permissionIDMappings is used to map between old and new id
 		// of permissions as we restore them
 		permissionIDMappings = map[string]string{}
+		fc                   = NewFolderCache()
+		rootIDCache          = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -90,6 +93,8 @@ func RestoreCollections(
 			dc,
 			folderMetas,
 			permissionIDMappings,
+			fc,
+			rootIDCache,
 			OneDriveSource,
 			dest.ContainerName,
 			deets,
@@ -129,6 +134,8 @@ func RestoreCollection(
 	dc data.RestoreCollection,
 	folderMetas map[string]Metadata,
 	permissionIDMappings map[string]string,
+	fc *folderCache,
+	rootIDCache map[string]string, // map of drive id -> root folder ID
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
@@ -150,12 +157,24 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
+	if rootIDCache == nil {
+		rootIDCache = map[string]string{}
+	}
+
+	if _, ok := rootIDCache[drivePath.DriveID]; !ok {
+		root, err := api.GetDriveRoot(ctx, service, drivePath.DriveID)
+		if err != nil {
+			return metrics, clues.Wrap(err, "getting drive root id")
+		}
+
+		rootIDCache[drivePath.DriveID] = ptr.Val(root.GetId())
+	}
+
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
 	// from the backup under this the restore folder instead of root)
-	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
-
-	restoreFolderElements := []string{restoreContainerName}
-	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
+	// i.e. Restore into `<restoreContainerName>/<original folder path>`
+	// the drive into which this folder gets restored is tracked separately in drivePath.
+	restoreFolderElements := path.Builder{}.Append(restoreContainerName).Append(drivePath.Folders...)
 
 	ctx = clues.Add(
 		ctx,
@@ -183,10 +202,12 @@ func RestoreCollection(
 		creds,
 		service,
 		drivePath,
+		rootIDCache[drivePath.DriveID],
 		restoreFolderElements,
 		dc.FullPath(),
 		colMeta,
 		folderMetas,
+		fc,
 		permissionIDMappings,
 		restorePerms)
 	if err != nil {
@@ -541,43 +562,112 @@ func restoreV6File(
 	return itemInfo, nil
 }
 
+// createRestoreFoldersWithPermissions creates the restore folder hierarchy in
+// the specified drive and returns the folder ID of the last folder entry in the
+// hierarchy. Permissions are only applied to the last folder in the hierarchy.
+// Passing nil for the permissions results in just creating the folder(s).
+// folderCache is mutated, as a side effect of populating the items.
+func createRestoreFoldersWithPermissions(
+	ctx context.Context,
+	creds account.M365Config,
+	service graph.Servicer,
+	drivePath *path.DrivePath,
+	driveRootID string,
+	restoreFolders *path.Builder,
+	folderPath path.Path,
+	folderMetadata Metadata,
+	folderMetas map[string]Metadata,
+	fc *folderCache,
+	permissionIDMappings map[string]string,
+	restorePerms bool,
+) (string, error) {
+	id, err := CreateRestoreFolders(
+		ctx,
+		service,
+		drivePath.DriveID,
+		driveRootID,
+		restoreFolders,
+		fc)
+	if err != nil {
+		return "", err
+	}
+
+	if len(drivePath.Folders) == 0 {
+		// No permissions for root folder
+		return id, nil
+	}
+
+	if !restorePerms {
+		return id, nil
+	}
+
+	err = RestorePermissions(
+		ctx,
+		creds,
+		service,
+		drivePath.DriveID,
+		id,
+		folderPath,
+		folderMetadata,
+		folderMetas,
+		permissionIDMappings)
+
+	return id, err
+}
+
 // CreateRestoreFolders creates the restore folder hierarchy in the specified
 // drive and returns the folder ID of the last folder entry in the hierarchy.
+// folderCache is mutated, as a side effect of populating the items.
 func CreateRestoreFolders(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
-	restoreFolders []string,
+	driveID, driveRootID string,
+	restoreFolders *path.Builder,
+	fc *folderCache,
 ) (string, error) {
-	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
-	if err != nil {
-		return "", graph.Wrap(ctx, err, "getting drive root")
-	}
+	var (
+		location       = &path.Builder{}
+		parentFolderID = driveRootID
+		folders        = restoreFolders.Elements()
+	)
 
-	parentFolderID := ptr.Val(driveRoot.GetId())
-	ctx = clues.Add(ctx, "drive_root_id", parentFolderID)
+	for _, folder := range folders {
+		location = location.Append(folder)
+		ictx := clues.Add(
+			ctx,
+			"creating_restore_folder", folder,
+			"restore_folder_location", location,
+			"parent_of_restore_folder", parentFolderID)
 
-	logger.Ctx(ctx).Debug("found drive root")
-
-	for _, folder := range restoreFolders {
-		folderItem, err := getFolder(ctx, service, driveID, parentFolderID, folder)
-		if err == nil {
-			parentFolderID = ptr.Val(folderItem.GetId())
+		if fc, ok := fc.Get(location); ok {
+			parentFolderID = ptr.Val(fc.GetId())
+			// folder was already created, move on to the child
 			continue
 		}
 
-		if !errors.Is(err, errFolderNotFound) {
-			return "", clues.Wrap(err, "folder not found").With("folder_id", folder).WithClues(ctx)
+		folderItem, err := api.GetFolderByName(ictx, service, driveID, parentFolderID, folder)
+		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
+			return "", clues.Wrap(err, "getting folder by display name").WithClues(ctx)
 		}
 
+		// folder found, moving to next child
+		if err == nil {
+			parentFolderID = ptr.Val(folderItem.GetId())
+			fc.Set(location, folderItem)
+
+			continue
+		}
+
+		// create the folder if not found
 		folderItem, err = CreateItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
 
 		parentFolderID = ptr.Val(folderItem.GetId())
+		fc.Set(location, folderItem)
 
-		logger.Ctx(ctx).Debugw("resolved restore destination", "dest_id", parentFolderID)
+		logger.Ctx(ctx).Debug("resolved restore destination")
 	}
 
 	return parentFolderID, nil

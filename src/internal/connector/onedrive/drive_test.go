@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -282,7 +283,7 @@ type OneDriveSuite struct {
 	userID string
 }
 
-func TestOneDriveDriveSuite(t *testing.T) {
+func TestOneDriveSuite(t *testing.T) {
 	suite.Run(t, &OneDriveSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
@@ -329,7 +330,12 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		}
 	}()
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, folderElements)
+	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	restoreFolders := path.Builder{}.Append(folderElements...)
+
+	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -337,7 +343,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
 	folderElements = append(folderElements, folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, folderElements)
+	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
