@@ -51,7 +51,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, _, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -98,7 +98,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, _, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -144,7 +144,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, _, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}

@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - oneDriveCustomData
   workflow_dispatch:
     inputs:
       user:
@@ -31,6 +32,7 @@ jobs:
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
       CORSO_LOG_FILE: ./src/testlog/testlogging.log
       CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      SECONDARY_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: "test_results"
 
@@ -130,7 +132,7 @@ jobs:
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -205,7 +207,7 @@ jobs:
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange_incremental.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -238,6 +240,27 @@ jobs:
         
  # Onedrive test
 
+       # generate new entries for OneDrive sanity test
+      - name: New Data Creation for OneDrive
+        id: new-data-creation-onedrive
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+        run: |
+          prefix=`date +"%Y-%m-%d-%H-%M"`
+          echo Corso_Restore_st_$prefix
+         
+          go run . onedrive files  \
+          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
+          --secondaryuser  ${{ env.SECONDARY_USER }} \
+          --tenant ${{ env.AZURE_TENANT_ID }} \
+          --destination Corso_Restore_st_$prefix \
+          --count 4
+
+          echo result="$prefix" >> $GITHUB_OUTPUT
+
       # run the tests
       - name: Backup onedrive test
         id: onedrive-test
@@ -252,7 +275,7 @@ jobs:
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -299,6 +322,7 @@ jobs:
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
+          --folder Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.onedrive-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
@@ -308,9 +332,25 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "onedrive"
+          TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityCheck
+
+       # generate some more enteries for incremental check
+      - name: New Data Creation for Incremental OneDrive
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+        run: |
+          go run . onedrive files  \
+          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
+          --secondaryuser  ${{ env.SECONDARY_USER }} \
+          --tenant ${{ env.AZURE_TENANT_ID }} \
+          --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --count 4
 
       # test onedrive incremental
       - name: Backup onedrive incremental
@@ -326,7 +366,7 @@ jobs:
           
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive_incremental.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -343,6 +383,7 @@ jobs:
           --no-stats \
           --restore-permissions \
           --hide-progress \
+          --folder Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
           --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
@@ -351,6 +392,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "onedrive"
+          TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityCheck
