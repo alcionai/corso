@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -1309,7 +1310,7 @@ func runDriveIncrementalTest(
 		newFileName = "new_file.txt"
 
 		permissionIDMappings = map[string]string{}
-		writePerm            = onedrive.UserPermission{
+		writePerm            = metadata.Permission{
 			ID:       "perm-id",
 			Roles:    []string{"write"},
 			EntityID: owner,
@@ -1326,7 +1327,6 @@ func runDriveIncrementalTest(
 		updateFiles  func(t *testing.T)
 		itemsRead    int
 		itemsWritten int
-		skip         bool
 	}{
 		{
 			name:         "clean incremental, no changes",
@@ -1354,7 +1354,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to new file",
-			skip: service == path.SharePointService,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1365,8 +1364,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					[]onedrive.UserPermission{writePerm},
-					[]onedrive.UserPermission{},
+					[]metadata.Permission{writePerm},
+					[]metadata.Permission{},
 					permissionIDMappings,
 				)
 				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
@@ -1376,7 +1375,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from new file",
-			skip: service == path.SharePointService,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1387,8 +1385,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					[]onedrive.UserPermission{},
-					[]onedrive.UserPermission{writePerm},
+					[]metadata.Permission{},
+					[]metadata.Permission{writePerm},
 					permissionIDMappings,
 				)
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
@@ -1398,7 +1396,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to container",
-			skip: service == path.SharePointService,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1410,8 +1407,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					targetContainer,
-					[]onedrive.UserPermission{writePerm},
-					[]onedrive.UserPermission{},
+					[]metadata.Permission{writePerm},
+					[]metadata.Permission{},
 					permissionIDMappings,
 				)
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
@@ -1421,7 +1418,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from container",
-			skip: service == path.SharePointService,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1433,8 +1429,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					targetContainer,
-					[]onedrive.UserPermission{},
-					[]onedrive.UserPermission{writePerm},
+					[]metadata.Permission{},
+					[]metadata.Permission{writePerm},
 					permissionIDMappings,
 				)
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
@@ -1608,11 +1604,6 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			// TODO(rkeepers): remove when sharepoint supports permission.
-			if test.skip {
-				return
-			}
-
 			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
 			require.NoError(t, err, clues.ToCore(err))
 

@@ -16,7 +16,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -29,10 +28,10 @@ import (
 // permission instead of email
 const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
-func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
+func getMetadata(fileName string, perm permData, permUseID bool) metadata.Metadata {
 	if len(perm.user) == 0 || len(perm.roles) == 0 ||
-		perm.sharingMode != onedrive.SharingModeCustom {
-		return onedrive.Metadata{
+		perm.sharingMode != metadata.SharingModeCustom {
+		return metadata.Metadata{
 			FileName:    fileName,
 			SharingMode: perm.sharingMode,
 		}
@@ -42,7 +41,7 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 	// user/role combo unless deleted and readded, but we have to do
 	// this as we only have two users of which one is already taken.
 	id := uuid.NewString()
-	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
+	uperm := metadata.Permission{ID: id, Roles: perm.roles}
 
 	if permUseID {
 		uperm.EntityID = perm.entityID
@@ -50,9 +49,9 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 		uperm.Email = perm.user
 	}
 
-	testMeta := onedrive.Metadata{
+	testMeta := metadata.Metadata{
 		FileName:    fileName,
-		Permissions: []onedrive.UserPermission{uperm},
+		Permissions: []metadata.Permission{uperm},
 	}
 
 	return testMeta
@@ -276,7 +275,7 @@ type permData struct {
 	user        string // user is only for older versions
 	entityID    string
 	roles       []string
-	sharingMode onedrive.SharingMode
+	sharingMode metadata.SharingMode
 }
 
 type itemData struct {
@@ -1110,21 +1109,21 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				user:        secondaryUserName,
 				entityID:    secondaryUserID,
 				roles:       writePerm,
-				sharingMode: onedrive.SharingModeCustom,
+				sharingMode: metadata.SharingModeCustom,
 			},
 		},
 		{
 			name: "file-inherited",
 			data: fileAData,
 			perms: permData{
-				sharingMode: onedrive.SharingModeInherited,
+				sharingMode: metadata.SharingModeInherited,
 			},
 		},
 		{
 			name: "file-empty",
 			data: fileAData,
 			perms: permData{
-				sharingMode: onedrive.SharingModeCustom,
+				sharingMode: metadata.SharingModeCustom,
 			},
 		},
 	}
@@ -1176,21 +1175,21 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				user:        tertiaryUserName,
 				entityID:    tertiaryUserID,
 				roles:       writePerm,
-				sharingMode: onedrive.SharingModeCustom,
+				sharingMode: metadata.SharingModeCustom,
 			},
 		},
 		{
 			pathElements: subfolderABPath,
 			files:        fileSet,
 			perms: permData{
-				sharingMode: onedrive.SharingModeInherited,
+				sharingMode: metadata.SharingModeInherited,
 			},
 		},
 		{
 			pathElements: subfolderACPath,
 			files:        fileSet,
 			perms: permData{
-				sharingMode: onedrive.SharingModeCustom,
+				sharingMode: metadata.SharingModeCustom,
 			},
 		},
 	}
