@@ -27,6 +27,7 @@ func (suite *ErrUnitSuite) TestIs() {
 		{RepoAlreadyExists, repository.ErrorRepoAlreadyExists},
 		{BackupNotFound, repository.ErrorBackupNotFound},
 		{ServiceNotEnabled, graph.ErrServiceNotEnabled},
+		{ResourceOwnerNotFound, graph.ErrResourceOwnerNotFound},
 	}
 	for _, test := range table {
 		suite.Run(string(test.is), func() {

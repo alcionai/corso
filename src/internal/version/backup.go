@@ -1,6 +1,6 @@
 package version
 
-const Backup = 7
+const Backup = 8
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -43,9 +43,9 @@ const (
 	// OneDrive, and SharePoint libraries.
 	OneDrive7LocationRef = 7
 
-	// AllXMigrateUserPNToID marks when we migrated repo refs from the user's
+	// All8MigrateUserPNToID marks when we migrated repo refs from the user's
 	// PrincipalName to their ID for stability.
-	AllXMigrateUserPNToID = Backup + 1
+	All8MigrateUserPNToID = 8
 )
 
 // IsNoBackup returns true if the version implies that no prior backup exists.

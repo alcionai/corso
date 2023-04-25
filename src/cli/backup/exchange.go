@@ -88,6 +88,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
 		options.AddEnableImmutableIDFlag(c)
+		options.AddDisableConcurrencyLimiterFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
@@ -151,7 +152,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := getAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -260,7 +261,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}

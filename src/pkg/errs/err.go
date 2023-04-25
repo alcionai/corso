@@ -13,18 +13,20 @@ import (
 type errEnum string
 
 const (
-	RepoAlreadyExists errEnum = "repository-already-exists"
-	BackupNotFound    errEnum = "backup-not-found"
-	ServiceNotEnabled errEnum = "service-not-enabled"
+	RepoAlreadyExists     errEnum = "repository-already-exists"
+	BackupNotFound        errEnum = "backup-not-found"
+	ServiceNotEnabled     errEnum = "service-not-enabled"
+	ResourceOwnerNotFound errEnum = "resource-owner-not-found"
 )
 
 // map of enums to errors.  We might want to re-use an enum for multiple
 // internal errors (ex: "ServiceNotEnabled" may exist in both graph and
 // non-graph producers).
 var internalToExternal = map[errEnum][]error{
-	RepoAlreadyExists: {repository.ErrorRepoAlreadyExists},
-	BackupNotFound:    {repository.ErrorBackupNotFound},
-	ServiceNotEnabled: {graph.ErrServiceNotEnabled},
+	RepoAlreadyExists:     {repository.ErrorRepoAlreadyExists},
+	BackupNotFound:        {repository.ErrorBackupNotFound},
+	ServiceNotEnabled:     {graph.ErrServiceNotEnabled},
+	ResourceOwnerNotFound: {graph.ErrResourceOwnerNotFound},
 }
 
 // Is checks if the provided error contains an internal error that matches
