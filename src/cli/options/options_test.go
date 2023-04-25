@@ -32,6 +32,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 			assert.True(t, restorePermissionsFV, RestorePermissionsFN)
 			assert.True(t, skipReduceFV, SkipReduceFN)
 			assert.Equal(t, 2, fetchParallelismFV, FetchParallelismFN)
+			assert.True(t, disableConcurrencyLimiterFV, DisableConcurrencyLimiterFN)
 		},
 	}
 
@@ -42,8 +43,8 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	AddDisableIncrementalsFlag(cmd)
 	AddRestorePermissionsFlag(cmd)
 	AddSkipReduceFlag(cmd)
-
 	AddFetchParallelismFlag(cmd)
+	AddDisableConcurrencyLimiterFlag(cmd)
 
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
@@ -53,57 +54,10 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		"--" + NoStatsFN,
 		"--" + RestorePermissionsFN,
 		"--" + SkipReduceFN,
-
 		"--" + FetchParallelismFN, "2",
+		"--" + DisableConcurrencyLimiterFN,
 	})
 
 	err := cmd.Execute()
 	require.NoError(t, err, clues.ToCore(err))
-}
-
-func (suite *OptionsUnitSuite) TestDisableConcurrencyLimiterFlag() {
-	tests := []struct {
-		name     string
-		args     []string
-		assertFn func(*testing.T, bool, string)
-		addFlag  bool
-	}{
-		{
-			name: DisableConcurrencyLimiterFN + " not set",
-			args: []string{"test"},
-			assertFn: func(t *testing.T, f bool, s string) {
-				assert.False(t, f, s)
-			},
-			addFlag: false,
-		},
-		{
-			name: DisableConcurrencyLimiterFN + " set",
-			args: []string{"test", "--" + DisableConcurrencyLimiterFN},
-			assertFn: func(t *testing.T, f bool, s string) {
-				assert.True(t, f, s)
-			},
-			addFlag: true,
-		},
-	}
-
-	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			cmd := &cobra.Command{
-				Use: "test",
-				Run: func(cmd *cobra.Command, args []string) {
-					test.assertFn(t, disableConcurrencyLimiterFV, DisableConcurrencyLimiterFN)
-				},
-			}
-
-			if test.addFlag {
-				AddDisableConcurrencyLimiterFlag(cmd)
-			}
-
-			cmd.SetArgs(test.args)
-			err := cmd.Execute()
-			require.NoError(t, err, clues.ToCore(err))
-		})
-	}
 }
