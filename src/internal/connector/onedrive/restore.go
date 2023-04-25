@@ -624,7 +624,7 @@ func restoreData(
 		ctx,
 		iReader,
 		observe.ItemRestoreMsg,
-		clues.Hide(itemName),
+		clues.Hide(name),
 		ss.Size())
 
 	go closer()
