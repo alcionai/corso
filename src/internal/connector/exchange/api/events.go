@@ -225,10 +225,97 @@ const (
 	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
 )
 
+type eventPager struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsItemEventsRequestBuilder
+	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
+}
+
+func NewEventPager(
+	ctx context.Context,
+	gs graph.Servicer,
+	user, calendarID string,
+	immutableIDs bool,
+) (itemPager, error) {
+	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(true, immutableIDs),
+	}
+
+	builder := gs.Client().UsersById(user).CalendarsById(calendarID).Events()
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := builder.ToGetRequestInformation(ctx, options)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("getting builder info")
+		} else {
+			logger.Ctx(ctx).
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+		}
+	}
+
+	return &eventPager{gs, builder, options}, nil
+}
+
+func (p *eventPager) getPage(ctx context.Context) (api.PageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
+func (p *eventPager) setNext(nextLink string) {
+	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *eventPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Eventable](pl)
+}
+
 type eventDeltaPager struct {
 	gs      graph.Servicer
 	builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func NewEventDeltaPager(
+	ctx context.Context,
+	gs graph.Servicer,
+	user, calendarID, deltaURL string,
+	immutableIDs bool,
+) (itemPager, error) {
+	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(true, immutableIDs),
+	}
+
+	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
+
+	if deltaURL == "" {
+		// Graph SDK only supports delta queries against events on the beta version, so we're
+		// manufacturing use of the beta version url to make the call instead.
+		// See: https://learn.microsoft.com/ko-kr/graph/api/event-delta?view=graph-rest-beta&tabs=http
+		// Note that the delta item body is skeletal compared to the actual event struct.  Lucky
+		// for us, we only need the item ID.  As a result, even though we hacked the version, the
+		// response body parses properly into the v1.0 structs and complies with our wanted interfaces.
+		// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
+		// works as intended (until, at least, we want to _not_ call the beta anymore).
+		rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
+
+		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+			gri, err := builder.ToGetRequestInformation(ctx, options)
+			if err != nil {
+				logger.CtxErr(ctx, err).Error("getting builder info")
+			} else {
+				logger.Ctx(ctx).
+					Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+			}
+		}
+	} else {
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(deltaURL, gs.Adapter())
+	}
+
+	return &eventDeltaPager{gs, builder, options}, nil
 }
 
 func (p *eventDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
@@ -258,66 +345,20 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var (
-		resetDelta bool
-		opts       = &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-			Headers: buildPreferHeaders(true, immutableIDs),
-		}
-	)
-
 	ctx = clues.Add(
 		ctx,
 		"container_id", calendarID)
 
-	if len(oldDelta) > 0 {
-		var (
-			builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &eventDeltaPager{service, builder, opts}
-		)
-
-		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
-		// note: happy path, not the error condition
-		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, nil
-		}
-		// only return on error if it is NOT a delta issue.
-		// on bad deltas we retry the call with the regular builder
-		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
-		}
-
-		resetDelta = true
-	}
-
-	// Graph SDK only supports delta queries against events on the beta version, so we're
-	// manufacturing use of the beta version url to make the call instead.
-	// See: https://learn.microsoft.com/ko-kr/graph/api/event-delta?view=graph-rest-beta&tabs=http
-	// Note that the delta item body is skeletal compared to the actual event struct.  Lucky
-	// for us, we only need the item ID.  As a result, even though we hacked the version, the
-	// response body parses properly into the v1.0 structs and complies with our wanted interfaces.
-	// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
-	// works as intended (until, at least, we want to _not_ call the beta anymore).
-	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
-	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
-	pgr := &eventDeltaPager{service, builder, opts}
-
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, nil)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
-
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
-	}
-
-	// Events don't have a delta endpoint so just return an empty string.
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+	return getAddedAndRemovedItemIDs(
+		ctx,
+		service,
+		user,
+		calendarID,
+		oldDelta,
+		NewEventPager,
+		NewEventDeltaPager,
+		immutableIDs,
+	)
 }
 
 // ---------------------------------------------------------------------------
