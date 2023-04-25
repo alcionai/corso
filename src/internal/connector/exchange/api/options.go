@@ -221,6 +221,27 @@ func optionsForContactFoldersItemDelta(
 	return options, nil
 }
 
+func optionsForContactFoldersItem(
+	moreOps []string,
+	immutableIDs bool,
+) (*users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration, error) {
+	selecting, err := buildOptions(moreOps, fieldsForContacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
+	return options, nil
+}
+
 // optionsForContactChildFolders builds a contacts child folders request.
 func optionsForContactChildFolders(
 	moreOps []string,
