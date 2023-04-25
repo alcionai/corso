@@ -64,13 +64,7 @@ func getAddedAndRemovedItemIDs(
 	deltaPagerGetter func(context.Context, graph.Servicer, string, string, string, bool) (itemPager, error),
 	immutableIDs bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	var (
-		deltaURL   string
-		pgr        itemPager
-		err        error
-	)
-
-	pgr, err = deltaPagerGetter(ctx, service, user, directoryID, oldDelta, immutableIDs)
+	pgr, err := deltaPagerGetter(ctx, service, user, directoryID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
@@ -78,12 +72,11 @@ func getAddedAndRemovedItemIDs(
 	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	// note: happy path, not the error condition
 	if err == nil {
-		return added, removed, DeltaUpdate{deltaURL, false}, err
+		return added, removed, DeltaUpdate{deltaURL, len(oldDelta) != 0}, err
 	}
 
-	// return error if invalid delta error or if there was no previous
-	// delta or if we did a non-delta fetch
-	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 {
+	// return error if invalid delta error or if we did a non-delta fetch
+	if !graph.IsErrInvalidDelta(err) && !graph.IsErrQuotaExceeded(err) {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
@@ -93,6 +86,11 @@ func getAddedAndRemovedItemIDs(
 			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating pager")
 		}
 	} else {
+		if len(oldDelta) == 0 {
+			// if we have already tried with empty delta, don't retry
+			return nil, nil, DeltaUpdate{}, err
+		}
+
 		// Create mailDeltaPager without previous delta
 		pgr, err = deltaPagerGetter(ctx, service, user, directoryID, "", immutableIDs)
 		if err != nil {
