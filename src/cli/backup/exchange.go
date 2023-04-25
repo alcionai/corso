@@ -89,6 +89,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
 		options.AddEnableImmutableIDFlag(c)
+		options.AddDisableConcurrencyLimiterFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
