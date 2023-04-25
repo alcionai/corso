@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type M365IntegrationSuite struct {
@@ -68,13 +67,15 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 	require.NotNil(t, info)
 	require.NotEmpty(t, info)
 
-	expect := &api.UserInfo{
-		ServicesEnabled: map[path.ServiceType]struct{}{
-			path.ExchangeService: {},
-		},
+	expectEnabled := map[path.ServiceType]struct{}{
+		path.ExchangeService: {},
+		path.OneDriveService: {},
 	}
 
-	assert.Equal(t, expect, info)
+	assert.NotEmpty(t, info.ServicesEnabled)
+	assert.NotEmpty(t, info.Mailbox)
+	assert.Equal(t, expectEnabled, info.ServicesEnabled)
+	assert.Equal(t, "user", info.Mailbox.Purpose)
 }
 
 func (suite *M365IntegrationSuite) TestSites() {
