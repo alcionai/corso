@@ -318,7 +318,7 @@ func NewMailPager(
 	gs graph.Servicer,
 	user, directoryID string,
 	immutableIDs bool,
-) (*mailPager, error) {
+) (itemPager, error) {
 	options, err := optionsForFolderMessages([]string{"isRead"}, immutableIDs)
 	if err != nil {
 		return &mailPager{}, err
@@ -369,7 +369,7 @@ func NewMailDeltaPager(
 	gs graph.Servicer,
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
-) (*mailDeltaPager, error) {
+) (itemPager, error) {
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"}, immutableIDs)
 	if err != nil {
 		return &mailDeltaPager{}, err
@@ -380,9 +380,6 @@ func NewMailDeltaPager(
 	if len(oldDelta) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	} else {
-		// TODO(meain): Should we have user and directoryID in
-		// itemPager, also Reset. These are things that OneDrive
-		// driveItemPager has
 		builder = gs.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
 
 		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
@@ -426,62 +423,21 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var (
-		deltaURL   string
-		resetDelta bool
-		pgr        itemPager
-	)
-
 	ctx = clues.Add(
 		ctx,
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	// TODO(meain): this can be passed down from top
-	deltaFailure := true
-
-	if deltaFailure {
-		fmt.Println("using non delta pager")
-
-		pgr, err = NewMailPager(ctx, service, user, directoryID, immutableIDs)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating mail pager")
-		}
-	} else {
-		fmt.Println("using delta pager")
-
-		pgr, err = NewMailDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating mail pager")
-		}
-	}
-
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
-	// note: happy path, not the error condition
-	if err == nil {
-		return added, removed, DeltaUpdate{deltaURL, false}, err
-	}
-
-	// return error if invalid delta error or if there was no previous
-	// delta or if we did a non-delta fetch
-	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 || deltaFailure {
-		return nil, nil, DeltaUpdate{}, err
-	}
-
-	resetDelta = true
-
-	// Create mailDeltaPager without previous delta
-	pgr, err = NewMailDeltaPager(ctx, service, user, directoryID, "", immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating mail pager")
-	}
-
-	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
-	}
-
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+	return getAddedAndRemovedItemIDs(
+		ctx,
+		service,
+		user,
+		directoryID,
+		oldDelta,
+		NewMailPager,
+		NewMailDeltaPager,
+		immutableIDs,
+	)
 }
 
 // ---------------------------------------------------------------------------
