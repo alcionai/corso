@@ -18,7 +18,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -281,6 +283,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 type OneDriveSuite struct {
 	tester.Suite
 	userID string
+	creds  account.M365Config
 }
 
 func TestOneDriveSuite(t *testing.T) {
@@ -292,7 +295,15 @@ func TestOneDriveSuite(t *testing.T) {
 }
 
 func (suite *OneDriveSuite) SetupSuite() {
-	suite.userID = tester.SecondaryM365UserID(suite.T())
+	t := suite.T()
+
+	suite.userID = tester.SecondaryM365UserID(t)
+
+	acct := tester.NewM365Account(t)
+	creds, err := acct.M365Config()
+	require.NoError(t, err)
+
+	suite.creds = creds
 }
 
 func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
@@ -333,17 +344,46 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	restoreFolders := path.Builder{}.Append(folderElements...)
+	restoreDir := path.Builder{}.Append(folderElements...)
+	drivePath := path.DrivePath{
+		DriveID: driveID,
+		Root:    "root:",
+		Folders: folderElements,
+	}
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	folderID, err := CreateRestoreFolders(
+		ctx,
+		suite.creds,
+		gs,
+		&drivePath,
+		ptr.Val(rootFolder.GetId()),
+		restoreDir,
+		nil, // only needed for permissions
+		metadata.Metadata{},
+		map[string]metadata.Metadata{},
+		NewFolderCache(),
+		map[string]string{},
+		false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
 	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
-	restoreFolders = restoreFolders.Append(folderName2)
+	restoreDir = restoreDir.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	folderID, err = CreateRestoreFolders(
+		ctx,
+		suite.creds,
+		gs,
+		&drivePath,
+		ptr.Val(rootFolder.GetId()),
+		restoreDir,
+		nil, // only needed for permissions
+		metadata.Metadata{},
+		map[string]metadata.Metadata{},
+		NewFolderCache(),
+		map[string]string{},
+		false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)

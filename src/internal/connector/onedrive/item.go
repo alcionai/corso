@@ -63,7 +63,6 @@ func sharePointItemMetaReader(
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
-	// TODO: include permissions
 	return baseItemMetaReader(ctx, service, driveID, item)
 }
 
@@ -250,11 +249,12 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		} else if gv2.GetGroup() != nil {
 			entityID = ptr.Val(gv2.GetGroup().GetId())
 		} else {
-			// TODO Add application permissions when adding permissions for SharePoint
-			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 			logm := logger.Ctx(ctx)
+
 			if gv2.GetApplication() != nil {
-				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
+				entityID = ptr.Val(gv2.GetApplication().GetId())
+			} else if gv2.GetDevice() != nil {
+				entityID = ptr.Val(gv2.GetDevice().GetId())
 			}
 			if gv2.GetDevice() != nil {
 				logm.With("device_id", ptr.Val(gv2.GetDevice().GetId()))

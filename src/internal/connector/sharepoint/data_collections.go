@@ -86,9 +86,7 @@ func DataCollections(
 			}
 
 		case path.LibrariesCategory:
-			var excludes map[string]map[string]struct{}
-
-			spcs, excludes, err = collectLibraries(
+			spcs, excluded, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -104,7 +102,7 @@ func DataCollections(
 				continue
 			}
 
-			for prefix, excludes := range excludes {
+			for prefix, excludes := range excluded {
 				if _, ok := excluded[prefix]; !ok {
 					excluded[prefix] = map[string]struct{}{}
 				}

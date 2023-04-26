@@ -228,10 +228,6 @@ func (m *SiteItemRequestBuilder) Patch(
 	return res.(msmodel.Siteable), nil
 }
 
-// Permissions provides operations to manage the permissions property of the microsoft.graph.site entity.
-// PermissionsById provides operations to manage the permissions property of the microsoft.graph.site entity.
-// Sites provides operations to manage the sites property of the microsoft.graph.site entity.
-// func (m *SiteItemRequestBuilder) Sites()
 // SitesById provides operations to manage the sites property of the microsoft.graph.site entity.
 //
 //nolint:revive,wsl
