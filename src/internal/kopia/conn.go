@@ -70,7 +70,7 @@ func NewConn(s storage.Storage) *conn {
 	}
 }
 
-func (w *conn) Initialize(ctx context.Context, opts control.Options) error {
+func (w *conn) Initialize(ctx context.Context, opts control.RepoOptions) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -110,7 +110,7 @@ func (w *conn) Initialize(ctx context.Context, opts control.Options) error {
 	return nil
 }
 
-func (w *conn) Connect(ctx context.Context, opts control.Options) error {
+func (w *conn) Connect(ctx context.Context, opts control.RepoOptions) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -134,7 +134,7 @@ func (w *conn) Connect(ctx context.Context, opts control.Options) error {
 
 func (w *conn) commonConnect(
 	ctx context.Context,
-	opts control.Options,
+	opts control.RepoOptions,
 	configDir string,
 	bst blob.Storage,
 	password, compressor string,

@@ -220,10 +220,10 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 
 	require.NotNil(t, k)
 
-	err = k.Initialize(ctx, control.Defaults())
+	err = k.Initialize(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Connect(ctx, control.Defaults())
+	err = k.Connect(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -270,8 +270,8 @@ func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 		k = kopia.NewConn(s)
 	)
 
-	require.NoError(t, k.Initialize(ctx, control.Defaults()))
-	require.NoError(t, k.Connect(ctx, control.Defaults()))
+	require.NoError(t, k.Initialize(ctx, control.RepoOptions{}))
+	require.NoError(t, k.Connect(ctx, control.RepoOptions{}))
 
 	defer k.Close(ctx)
 

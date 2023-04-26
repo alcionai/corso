@@ -25,7 +25,7 @@ func openKopiaRepo(
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx, control.Defaults()); err != nil {
+	if err := k.Initialize(ctx, control.RepoOptions{}); err != nil {
 		return nil, err
 	}
 
@@ -79,13 +79,13 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, control.Defaults())
+	err := k.Initialize(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Initialize(ctx, control.Defaults())
+	err = k.Initialize(ctx, control.RepoOptions{})
 	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
@@ -99,7 +99,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, control.Defaults())
+	err := k.Initialize(ctx, control.RepoOptions{})
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -111,7 +111,7 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Connect(ctx, control.Defaults())
+	err := k.Connect(ctx, control.RepoOptions{})
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -358,7 +358,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 			err = k.Close(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = k.Connect(ctx, control.Defaults())
+			err = k.Connect(ctx, control.RepoOptions{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			defer func() {
@@ -386,7 +386,7 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Re-open with Connect.
-	err = k.Connect(ctx, control.Defaults())
+	err = k.Connect(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -397,9 +397,10 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	opts := control.Defaults()
-	opts.User = "foo"
-	opts.Host = "bar"
+	opts := control.RepoOptions{
+		User: "foo",
+		Host: "bar",
+	}
 
 	t := suite.T()
 	st := tester.NewPrefixedS3Storage(t)
@@ -409,8 +410,8 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	kopiaOpts := k.ClientOptions()
-	assert.Equal(t, opts.User, kopiaOpts.Username)
-	assert.Equal(t, opts.Host, kopiaOpts.Hostname)
+	require.Equal(t, opts.User, kopiaOpts.Username)
+	require.Equal(t, opts.Host, kopiaOpts.Hostname)
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -423,11 +424,11 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	kopiaOpts = k.ClientOptions()
-	assert.Equal(t, opts.User, kopiaOpts.Username)
-	assert.Equal(t, opts.Host, kopiaOpts.Hostname)
+	require.Equal(t, opts.User, kopiaOpts.Username)
+	require.Equal(t, opts.Host, kopiaOpts.Hostname)
 
 	err = k.Close(ctx)
-	assert.NoError(t, err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	// Make sure not setting the values uses the kopia defaults.
 	opts.User = ""
