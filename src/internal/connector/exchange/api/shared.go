@@ -18,8 +18,13 @@ import (
 // ---------------------------------------------------------------------------
 
 type itemPager interface {
+	// getPage get a page with the specified options from graph
 	getPage(context.Context) (api.PageLinker, error)
+	// setNext is used to pass in the next url got from graph
 	setNext(string)
+	// reset is used to reset delta url in delta pagers
+	reset(context.Context)
+	// valuesIn gets us the values in a page
 	valuesIn(api.PageLinker) ([]getIDAndAddtler, error)
 }
 
@@ -59,17 +64,11 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 func getAddedAndRemovedItemIDs(
 	ctx context.Context,
 	service graph.Servicer,
-	user, directoryID, oldDelta string,
-	pagerGetter func(context.Context, graph.Servicer, string, string, bool) (itemPager, error),
-	deltaPagerGetter func(context.Context, graph.Servicer, string, string, string, bool) (itemPager, error),
-	immutableIDs bool,
+	pager itemPager,
+	deltaPager itemPager,
+	oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {
-	pgr, err := deltaPagerGetter(ctx, service, user, directoryID, oldDelta, immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
-	}
-
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, deltaPager)
 	// note: happy path, not the error condition
 	if err == nil {
 		return added, removed, DeltaUpdate{deltaURL, len(oldDelta) != 0}, err
@@ -80,22 +79,17 @@ func getAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
+	var pgr itemPager
 	if graph.IsErrQuotaExceeded(err) {
-		pgr, err = pagerGetter(ctx, service, user, directoryID, immutableIDs)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating pager")
-		}
+		pgr = pager
 	} else {
 		if len(oldDelta) == 0 {
 			// if we have already tried with empty delta, don't retry
 			return nil, nil, DeltaUpdate{}, err
 		}
 
-		// Create mailDeltaPager without previous delta
-		pgr, err = deltaPagerGetter(ctx, service, user, directoryID, "", immutableIDs)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager without previous delta")
-		}
+		deltaPager.reset(ctx)
+		pgr = deltaPager
 	}
 
 	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)

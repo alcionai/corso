@@ -247,6 +247,9 @@ func (p *contactPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+// non delta pagers don't need reset
+func (p *contactPager) reset(context.Context) {}
+
 func (p *contactPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
@@ -258,9 +261,11 @@ func (p *contactPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 var _ itemPager = &contactDeltaPager{}
 
 type contactDeltaPager struct {
-	gs      graph.Servicer
-	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
-	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
+	gs          graph.Servicer
+	user        string
+	directoryID string
+	builder     *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	options     *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewContactDeltaPager(
@@ -287,10 +292,11 @@ func NewContactDeltaPager(
 		return &contactDeltaPager{}, err
 	}
 
-	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
+	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
 	if deltaURL != "" {
 		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(deltaURL, gs.Adapter())
-
+	} else {
+		builder = gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
 		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 			gri, err := builder.ToGetRequestInformation(ctx, options)
 			if err != nil {
@@ -302,7 +308,7 @@ func NewContactDeltaPager(
 		}
 	}
 
-	return &contactDeltaPager{gs, builder, options}, nil
+	return &contactDeltaPager{gs, user, directoryID, builder, options}, nil
 }
 
 func (p *contactDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
@@ -316,6 +322,19 @@ func (p *contactDeltaPager) getPage(ctx context.Context) (api.PageLinker, error)
 
 func (p *contactDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *contactDeltaPager) reset(ctx context.Context) {
+	p.builder = p.gs.Client().UsersById(p.user).ContactFoldersById(p.directoryID).Contacts().Delta()
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := p.builder.ToGetRequestInformation(ctx, p.options)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("getting builder info")
+		} else {
+			logger.Ctx(ctx).
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+		}
+	}
 }
 
 func (p *contactDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
@@ -337,16 +356,17 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeContact,
 		"container_id", directoryID)
 
-	return getAddedAndRemovedItemIDs(
-		ctx,
-		service,
-		user,
-		directoryID,
-		oldDelta,
-		NewContactPager,
-		NewContactDeltaPager,
-		immutableIDs,
-	)
+	pager, err := NewContactPager(ctx, service, user, directoryID, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	deltaPager, err := NewContactDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta)
 }
 
 // ---------------------------------------------------------------------------
