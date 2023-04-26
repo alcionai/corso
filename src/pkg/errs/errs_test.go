@@ -3,12 +3,12 @@ package errs
 import (
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/repository"
 )
 
 type ErrUnitSuite struct {
@@ -24,10 +24,11 @@ func (suite *ErrUnitSuite) TestIs() {
 		is    errEnum
 		input error
 	}{
-		{RepoAlreadyExists, repository.ErrorRepoAlreadyExists},
-		{BackupNotFound, repository.ErrorBackupNotFound},
-		{ServiceNotEnabled, graph.ErrServiceNotEnabled},
-		{ResourceOwnerNotFound, graph.ErrResourceOwnerNotFound},
+		{RepoAlreadyExists, clues.New("a repository was already initialized with that configuration")},
+		{RepoAlreadyExists, errors.Wrapf(clues.New("a repository was already initialized with that configuration"), "error identifying resource owner")},
+		{BackupNotFound, clues.New("no backup exists with that id")},
+		{ServiceNotEnabled, clues.New("service is not enabled for that resource owner")},
+		{ResourceOwnerNotFound, clues.New("resource owner not found in tenant")},
 	}
 	for _, test := range table {
 		suite.Run(string(test.is), func() {
