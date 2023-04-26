@@ -70,6 +70,11 @@ type Repository interface {
 		sel selectors.Selector,
 		dest control.RestoreDestination,
 	) (operations.RestoreOperation, error)
+	NewMaintenance(
+		ctx context.Context,
+		safety control.Safety,
+		quickMaintenance, force bool,
+	) (operations.MaintenanceOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
 }
@@ -354,6 +359,21 @@ func (r repository) NewRestore(
 		model.StableID(backupID),
 		sel,
 		dest,
+		r.Bus)
+}
+
+func (r repository) NewMaintenance(
+	ctx context.Context,
+	safety control.Safety,
+	quickMaintenance, force bool,
+) (operations.MaintenanceOperation, error) {
+	return operations.NewMaintenanceOperation(
+		ctx,
+		r.Opts,
+		r.dataLayer,
+		safety,
+		quickMaintenance,
+		force,
 		r.Bus)
 }
 
