@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type fooModel struct {
@@ -803,7 +804,7 @@ func openConnAndModelStore(
 	st := tester.NewPrefixedS3Storage(t)
 	c := NewConn(st)
 
-	err := c.Initialize(ctx)
+	err := c.Initialize(ctx, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
@@ -822,7 +823,7 @@ func reconnectToModelStore(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	c *conn,
 ) *ModelStore {
-	err := c.Connect(ctx)
+	err := c.Connect(ctx, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {

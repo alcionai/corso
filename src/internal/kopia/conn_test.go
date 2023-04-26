@@ -14,16 +14,18 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-//revive:disable:context-as-argument
-func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	//revive:enable:context-as-argument
+func openKopiaRepo(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (*conn, error) {
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx); err != nil {
+	if err := k.Initialize(ctx, control.Defaults()); err != nil {
 		return nil, err
 	}
 
@@ -77,13 +79,13 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Initialize(ctx)
+	err = k.Initialize(ctx, control.Defaults())
 	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
@@ -97,7 +99,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, control.Defaults())
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -109,7 +111,7 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Connect(ctx)
+	err := k.Connect(ctx, control.Defaults())
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -356,7 +358,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 			err = k.Close(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = k.Connect(ctx)
+			err = k.Connect(ctx, control.Defaults())
 			require.NoError(t, err, clues.ToCore(err))
 
 			defer func() {
@@ -384,7 +386,7 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Re-open with Connect.
-	err = k.Connect(ctx)
+	err = k.Connect(ctx, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
