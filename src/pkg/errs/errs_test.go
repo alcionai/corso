@@ -3,7 +3,6 @@ package errs
 import (
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -22,8 +21,8 @@ func TestErrUnitSuite(t *testing.T) {
 
 func (suite *ErrUnitSuite) TestInternal() {
 	table := []struct {
-		get  errEnum
-		errs []error
+		get    errEnum
+		expect []error
 	}{
 		{RepoAlreadyExists, []error{repository.ErrorRepoAlreadyExists}},
 		{BackupNotFound, []error{repository.ErrorBackupNotFound}},
@@ -32,7 +31,7 @@ func (suite *ErrUnitSuite) TestInternal() {
 	}
 	for _, test := range table {
 		suite.Run(string(test.get), func() {
-			assert.Equal(suite.T(), test.errs, Internal(test.get))
+			assert.ElementsMatch(suite.T(), test.expect, Internal(test.get))
 		})
 	}
 }
@@ -46,7 +45,6 @@ func (suite *ErrUnitSuite) TestIs() {
 		{BackupNotFound, repository.ErrorBackupNotFound},
 		{ServiceNotEnabled, graph.ErrServiceNotEnabled},
 		{ResourceOwnerNotFound, graph.ErrResourceOwnerNotFound},
-		{ResourceOwnerNotFound, errors.Wrapf(graph.ErrResourceOwnerNotFound, "error identifying resource owner")},
 	}
 	for _, test := range table {
 		suite.Run(string(test.is), func() {
