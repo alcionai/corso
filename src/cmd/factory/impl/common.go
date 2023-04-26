@@ -243,12 +243,6 @@ var (
 	readPerm  = []string{"read"}
 )
 
-type restoreBackupInfoMultiVersion struct {
-	service       path.ServiceType
-	collections   []colInfo
-	backupVersion int
-}
-
 func generateAndRestoreOnedriveItems(
 	gc *connector.GraphConnector,
 	resourceOwner, secondaryUserID, secondaryUserName string,
@@ -274,34 +268,37 @@ func generateAndRestoreOnedriveItems(
 	d, _ := gc.Service.Client().UsersById(resourceOwner).Drive().Get(ctx, nil)
 	driveID := ptr.Val(d.GetId())
 
-	var cols []onedriveColInfo
+	var (
+		cols []onedriveColInfo
 
-	rootPath := []string{
-		"drives",
-		driveID,
-		"root:",
-	}
-	folderAPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderAName,
-	}
-	folderBPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderBName,
-	}
+		rootPath = []string{
+			"drives",
+			driveID,
+			"root:",
+		}
+		folderAPath = []string{
+			"drives",
+			driveID,
+			"root:",
+			folderAName,
+		}
+		folderBPath = []string{
+			"drives",
+			driveID,
+			"root:",
+			folderBName,
+		}
 
-	folderCPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderCName,
-	}
+		folderCPath = []string{
+			"drives",
+			driveID,
+			"root:",
+			folderCName,
+		}
 
-	currentTime := fmt.Sprintf("%d-%d", time.Now().Hour(), time.Now().Minute())
+		now         = time.Now()
+		currentTime = fmt.Sprintf("%d-%d-%d", now.Hour(), now.Minute(), now.Second())
+	)
 
 	for i := 0; i < count; i++ {
 		var col onedriveColInfo
@@ -437,24 +434,14 @@ func generateAndRestoreOnedriveItems(
 		cols = append(cols, col)
 	}
 
-	input := testDataForInfo(service, cols, version.Backup)
+	input := dataForInfo(service, cols, version.Backup)
 
-	testData := restoreBackupInfoMultiVersion{
-		service:       service,
-		backupVersion: version.Backup,
-		collections:   input,
-	}
-
-	collections := runRestoreBackupTestVersions(
-		acct,
-		testData,
+	collections := getCollections(
+		service,
 		tenantID,
 		[]string{resourceOwner},
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{},
-		},
-	)
+		input,
+		version.Backup)
 
 	opts := control.Options{
 		RestorePermissions: true,
@@ -464,52 +451,20 @@ func generateAndRestoreOnedriveItems(
 	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, collections, errs)
 }
 
-type configInfo struct {
-	acct           account.Account
-	opts           control.Options
-	service        path.ServiceType
-	tenant         string
-	resourceOwners []string
-	dest           control.RestoreDestination
-}
-
-func runRestoreBackupTestVersions(
-	acct account.Account,
-	test restoreBackupInfoMultiVersion,
+func getCollections(
+	service path.ServiceType,
 	tenant string,
 	resourceOwners []string,
-	opts control.Options,
-) []data.RestoreCollection {
-	config := configInfo{
-		acct:           acct,
-		opts:           opts,
-		service:        test.service,
-		tenant:         tenant,
-		resourceOwners: resourceOwners,
-		dest:           tester.DefaultTestRestoreDestination(),
-	}
-
-	collections := getCollections(
-		config,
-		test.collections,
-		test.backupVersion)
-
-	return collections
-}
-
-func getCollections(
-	config configInfo,
 	testCollections []colInfo,
 	backupVersion int,
 ) []data.RestoreCollection {
 	var collections []data.RestoreCollection
 
-	for _, owner := range config.resourceOwners {
+	for _, owner := range resourceOwners {
 		ownerCollections := collectionsForInfo(
-			config.service,
-			config.tenant,
+			service,
+			tenant,
 			owner,
-			config.dest,
 			testCollections,
 			backupVersion,
 		)
@@ -540,7 +495,6 @@ func (rc mockRestoreCollection) Fetch(
 func collectionsForInfo(
 	service path.ServiceType,
 	tenant, user string,
-	dest control.RestoreDestination,
 	allInfo []colInfo,
 	backupVersion int,
 ) []data.RestoreCollection {
@@ -607,8 +561,7 @@ type colInfo struct {
 	category     path.CategoryType
 	items        []itemInfo
 	// auxItems are items that can be retrieved with Fetch but won't be returned
-	// by Items(). These files do not directly participate in comparisosn at the
-	// end of a test.
+	// by Items().
 	auxItems []itemInfo
 }
 
@@ -624,7 +577,7 @@ func newOneDriveCollection(
 	}
 }
 
-func testDataForInfo(
+func dataForInfo(
 	service path.ServiceType,
 	cols []onedriveColInfo,
 	backupVersion int,
@@ -636,10 +589,6 @@ func testDataForInfo(
 
 		for _, f := range c.files {
 			onedriveCol.withFile(f.name, f.data, f.perms)
-		}
-
-		for _, d := range c.folders {
-			onedriveCol.withFolder(d.name, d.perms)
 		}
 
 		onedriveCol.withPermissions(c.perms)
@@ -662,16 +611,6 @@ func (c onedriveCollection) collection() colInfo {
 		items:        c.items,
 		auxItems:     c.aux,
 	}
-}
-
-func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
-	switch c.backupVersion {
-	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
-		version.OneDrive6NameInMeta, version.OneDrive7LocationRef:
-		return c
-	}
-
-	return c
 }
 
 func (c *onedriveCollection) withFile(name string, fileData []byte, perm permData) *onedriveCollection {
@@ -724,7 +663,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	return c
 }
 
-type testOneDriveData struct {
+type oneDriveData struct {
 	FileName string `json:"fileName,omitempty"`
 	Data     []byte `json:"data,omitempty"`
 }
@@ -733,7 +672,7 @@ func onedriveItemWithData(
 	name, lookupKey string,
 	fileData []byte,
 ) itemInfo {
-	content := testOneDriveData{
+	content := oneDriveData{
 		FileName: lookupKey,
 		Data:     fileData,
 	}
@@ -752,16 +691,16 @@ func onedriveMetadata(
 	perm permData,
 	permUseID bool,
 ) itemInfo {
-	testMeta := getMetadata(fileName, perm, permUseID)
+	meta := getMetadata(fileName, perm, permUseID)
 
-	testMetaJSON, err := json.Marshal(testMeta)
+	metaJSON, err := json.Marshal(meta)
 	if err != nil {
 		fmt.Println("marshalling metadata", clues.ToCore(err))
 	}
 
 	return itemInfo{
 		name:      itemID,
-		data:      testMetaJSON,
+		data:      metaJSON,
 		lookupKey: lookupKey,
 	}
 }
@@ -787,10 +726,10 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 		uperm.Email = perm.user
 	}
 
-	testMeta := onedrive.Metadata{
+	meta := onedrive.Metadata{
 		FileName:    fileName,
 		Permissions: []onedrive.UserPermission{uperm},
 	}
 
-	return testMeta
+	return meta
 }
