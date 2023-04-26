@@ -201,7 +201,20 @@ func NewContactPager(
 	user, directoryID string,
 	immutableIDs bool,
 ) (itemPager, error) {
-	options, err := optionsForContactFoldersItem([]string{"parentFolderId"}, immutableIDs)
+	selecting, err := buildOptions([]string{"parentFolderId"}, fieldsForContacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
 	if err != nil {
 		return &contactPager{}, err
 	}
@@ -252,7 +265,20 @@ func NewContactDeltaPager(
 	user, directoryID, deltaURL string,
 	immutableIDs bool,
 ) (itemPager, error) {
-	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"}, immutableIDs)
+	selecting, err := buildOptions([]string{"parentFolderId"}, fieldsForContacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
 	if err != nil {
 		return &contactDeltaPager{}, err
 	}
