@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -282,7 +283,7 @@ type OneDriveSuite struct {
 	userID string
 }
 
-func TestOneDriveDriveSuite(t *testing.T) {
+func TestOneDriveSuite(t *testing.T) {
 	suite.Run(t, &OneDriveSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
@@ -329,15 +330,20 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		}
 	}()
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, folderElements)
+	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	restoreFolders := path.Builder{}.Append(folderElements...)
+
+	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
 	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
-	folderElements = append(folderElements, folderName2)
+	restoreFolders = restoreFolders.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, folderElements)
+	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -390,8 +396,8 @@ func (fm testFolderMatcher) IsAny() bool {
 	return fm.scope.IsAny(selectors.OneDriveFolder)
 }
 
-func (fm testFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, path)
+func (fm testFolderMatcher) Matches(p string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, p)
 }
 
 func (suite *OneDriveSuite) TestOneDriveNewCollections() {

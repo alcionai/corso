@@ -18,8 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var errFolderNotFound = clues.New("folder not found")
-
 const (
 	maxDrivesRetries = 3
 
@@ -27,7 +25,6 @@ const (
 	// graph response
 	nextLinkKey           = "@odata.nextLink"
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode = "itemNotFound"
 )
 
@@ -193,42 +190,6 @@ func collectItems(
 	}
 
 	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil
-}
-
-// getFolder will lookup the specified folder name under `parentFolderID`
-func getFolder(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, parentFolderID, folderName string,
-) (models.DriveItemable, error) {
-	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
-	// will be sub-optimal.
-	// Instead, we leverage OneDrive path-based addressing -
-	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
-	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
-	builder := drive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
-
-	var (
-		foundItem models.DriveItemable
-		err       error
-	)
-
-	foundItem, err = builder.Get(ctx, nil)
-	if err != nil {
-		if graph.IsErrDeletedInFlight(err) {
-			return nil, graph.Stack(ctx, clues.Stack(errFolderNotFound, err))
-		}
-
-		return nil, graph.Wrap(ctx, err, "getting folder")
-	}
-
-	// Check if the item found is a folder, fail the call if not
-	if foundItem.GetFolder() == nil {
-		return nil, graph.Stack(ctx, errFolderNotFound)
-	}
-
-	return foundItem, nil
 }
 
 // Create a new item in the specified folder
