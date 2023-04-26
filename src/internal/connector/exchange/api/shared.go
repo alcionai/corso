@@ -109,6 +109,8 @@ func getItemsAddedAndRemovedFromContainer(
 		addedIDs   = []string{}
 		removedIDs = []string{}
 		deltaURL   string
+		nextLink   string
+		deltaLink  string
 	)
 
 	itemCount := 0
@@ -148,7 +150,14 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
-		nextLink, deltaLink := api.NextAndDeltaLink(resp)
+		dresp, ok := resp.(api.DeltaPageLinker)
+		if ok {
+			nextLink, deltaLink = api.NextAndDeltaLink(dresp)
+		} else {
+			nextLink = api.NextLink(dresp)
+			deltaLink = "" // to make sure we don't use an old value
+		}
+
 		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(deltaLink) {
 				logger.Ctx(ctx).
