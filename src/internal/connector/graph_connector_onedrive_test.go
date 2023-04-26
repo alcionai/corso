@@ -431,12 +431,6 @@ func (si suiteInfoImpl) Resource() Resource {
 // SharePoint shares most of its libraries implementation with OneDrive so we
 // only test simple things here and leave the more extensive testing to
 // OneDrive.
-//
-// TODO(ashmrtn): SharePoint doesn't have permissions backup/restore enabled
-// right now. Adjust the tests here when that is enabled so we have at least
-// basic assurances that it's doing the right thing. We can leave the more
-// extensive permissions tests to OneDrive as well.
-
 type GraphConnectorSharePointIntegrationSuite struct {
 	tester.Suite
 	suiteInfo
@@ -484,6 +478,18 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 
 func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
+	testPermissionsRestoreAndBackup(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+	testPermissionsBackupAndNoRestore(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
+	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
 // ---------------------------------------------------------------------------

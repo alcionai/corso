@@ -22,8 +22,12 @@ func TestPermissionsUnitTestSuite(t *testing.T) {
 	suite.Run(t, &PermissionsUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
+func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions_oneDrive() {
 	runComputeParentPermissionsTest(suite, path.OneDriveService, path.FilesCategory, "user")
+}
+
+func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions_sharePoint() {
+	runComputeParentPermissionsTest(suite, path.SharePointService, path.LibrariesCategory, "site")
 }
 
 func runComputeParentPermissionsTest(

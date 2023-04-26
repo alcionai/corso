@@ -89,8 +89,9 @@ func getCollectionMetadata(
 // permissions. folderMetas is expected to have all the parent
 // directory metas for this to work.
 func computeParentPermissions(
-	itemPath path.Path,
-	folderMetas map[string]metadata.Metadata,
+	originDir path.Path,
+	// map parent dir -> parent's metadata
+	parentMetas map[string]metadata.Metadata,
 ) (metadata.Metadata, error) {
 	var (
 		parent path.Path
@@ -100,7 +101,7 @@ func computeParentPermissions(
 		ok  bool
 	)
 
-	parent = itemPath
+	parent = originDir
 
 	for {
 		parent, err = parent.Dir()
@@ -117,7 +118,7 @@ func computeParentPermissions(
 			return metadata.Metadata{}, nil
 		}
 
-		meta, ok = folderMetas[parent.String()]
+		meta, ok = parentMetas[parent.String()]
 		if !ok {
 			return metadata.Metadata{}, clues.New("no parent meta")
 		}
@@ -137,7 +138,7 @@ func UpdatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
-	permissionIDMappings map[string]string,
+	oldPermIDToNewID map[string]string,
 ) error {
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
@@ -151,7 +152,7 @@ func UpdatePermissions(
 			return graph.Wrap(ctx, err, "creating delete client")
 		}
 
-		pid, ok := permissionIDMappings[p.ID]
+		pid, ok := oldPermIDToNewID[p.ID]
 		if !ok {
 			return clues.New("no new permission id").WithClues(ctx)
 		}
@@ -212,7 +213,7 @@ func UpdatePermissions(
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
-		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
+		oldPermIDToNewID[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil
@@ -228,23 +229,24 @@ func RestorePermissions(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-	itemPath path.Path,
-	meta metadata.Metadata,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	originDir path.Path,
+	current metadata.Metadata,
+	// map parent dir -> parent's metadata
+	parentMetas map[string]metadata.Metadata,
+	oldPermIDToNewID map[string]string,
 ) error {
-	if meta.SharingMode == metadata.SharingModeInherited {
+	if current.SharingMode == metadata.SharingModeInherited {
 		return nil
 	}
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
+	parentPermissions, err := computeParentPermissions(originDir, parentMetas)
 	if err != nil {
 		return clues.Wrap(err, "parent permissions").WithClues(ctx)
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(parentPermissions.Permissions, meta.Permissions)
 
-	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
+	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, oldPermIDToNewID)
 }
