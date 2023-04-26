@@ -29,6 +29,11 @@ var internalToExternal = map[errEnum][]error{
 	ResourceOwnerNotFound: {graph.ErrResourceOwnerNotFound},
 }
 
+// Internal returns the internal errors which match to the public error category.
+func Internal(enum errEnum) []error {
+	return internalToExternal[enum]
+}
+
 // Is checks if the provided error contains an internal error that matches
 // the public error category.
 func Is(err error, enum errEnum) bool {
