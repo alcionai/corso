@@ -120,7 +120,7 @@ func Initialize(
 	}()
 
 	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Initialize(ctx); err != nil {
+	if err := kopiaRef.Initialize(ctx, opts); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
 			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
@@ -202,7 +202,7 @@ func Connect(
 	defer close(complete)
 
 	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Connect(ctx); err != nil {
+	if err := kopiaRef.Connect(ctx, opts); err != nil {
 		return nil, clues.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
