@@ -3,6 +3,7 @@ package errs
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -38,8 +39,8 @@ func (suite *ErrUnitSuite) TestInternal() {
 
 func (suite *ErrUnitSuite) TestIs() {
 	table := []struct {
-		is    errEnum
-		input error
+		target errEnum
+		err    error
 	}{
 		{RepoAlreadyExists, repository.ErrorRepoAlreadyExists},
 		{BackupNotFound, repository.ErrorBackupNotFound},
@@ -47,9 +48,24 @@ func (suite *ErrUnitSuite) TestIs() {
 		{ResourceOwnerNotFound, graph.ErrResourceOwnerNotFound},
 	}
 	for _, test := range table {
-		suite.Run(string(test.is), func() {
-			assert.True(suite.T(), Is(test.input, test.is))
-			assert.False(suite.T(), Is(assert.AnError, test.is))
+		suite.Run(string(test.target), func() {
+			var (
+				w  = clues.Wrap(test.err, "wrap")
+				s  = clues.Stack(test.err)
+				es = clues.Stack(assert.AnError, test.err)
+				se = clues.Stack(test.err, assert.AnError)
+				sw = clues.Stack(assert.AnError, w)
+				ws = clues.Stack(w, assert.AnError)
+			)
+
+			assert.True(suite.T(), Is(test.err, test.target))
+			assert.True(suite.T(), Is(w, test.target))
+			assert.True(suite.T(), Is(s, test.target))
+			assert.True(suite.T(), Is(es, test.target))
+			assert.True(suite.T(), Is(se, test.target))
+			assert.True(suite.T(), Is(sw, test.target))
+			assert.True(suite.T(), Is(ws, test.target))
+			assert.False(suite.T(), Is(assert.AnError, test.target))
 		})
 	}
 }
