@@ -98,3 +98,51 @@ func (suite *CollectionsUnitSuite) TestNewPrefixCollection() {
 		})
 	}
 }
+
+func (suite *CollectionsUnitSuite) TestNewDeletedPrefixCollection() {
+	t := suite.T()
+	serv := path.OneDriveService
+	cat := path.FilesCategory
+
+	p1, err := path.ServicePrefix("t", "ro1", serv, cat)
+	require.NoError(t, err, clues.ToCore(err))
+
+	items, err := path.Build("t", "ro", serv, cat, true, "fld", "itm")
+	require.NoError(t, err, clues.ToCore(err))
+
+	folders, err := path.Build("t", "ro", serv, cat, false, "fld")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name      string
+		prev      path.Path
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name:      "nil",
+			prev:      nil,
+			expectErr: require.Error,
+		},
+		{
+			name:      "deleted",
+			prev:      p1,
+			expectErr: require.NoError,
+		},
+		{
+			name:      "prev has items",
+			prev:      items,
+			expectErr: require.Error,
+		},
+		{
+			name:      "prev has folders",
+			prev:      folders,
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			_, err := NewDeletedPrefixCollection(test.prev, nil)
+			test.expectErr(suite.T(), err, clues.ToCore(err))
+		})
+	}
+}

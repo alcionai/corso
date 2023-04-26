@@ -175,3 +175,35 @@ func NewPrefixCollection(prev, full path.Path, su support.StatusUpdater) (*prefi
 
 	return pc, nil
 }
+
+// NewDeletedPrefixCollection creates a new collection that only handles
+// deleting the prefix path.
+func NewDeletedPrefixCollection(
+	prev path.Path,
+	su support.StatusUpdater,
+) (*prefixCollection, error) {
+	if prev == nil {
+		return nil, clues.New("nil prefix path")
+	}
+
+	if len(prev.Item()) > 0 {
+		return nil, clues.New("prefix collection previous path contains an item")
+	}
+
+	if len(prev.Folders()) > 0 {
+		return nil, clues.New("prefix collection previous path contains folders")
+	}
+
+	pc := &prefixCollection{
+		prev:  prev,
+		full:  nil,
+		su:    su,
+		state: data.StateOf(prev, nil),
+	}
+
+	if pc.state != data.DeletedState {
+		return nil, clues.New("collection didn't attempt to delete prefix")
+	}
+
+	return pc, nil
+}
