@@ -37,8 +37,8 @@ var (
 	_ data.Stream           = &Item{}
 	_ data.StreamInfo       = &Item{}
 	_ data.StreamModTime    = &Item{}
-	_ data.Stream           = &MetadataItem{}
-	_ data.StreamModTime    = &MetadataItem{}
+	_ data.Stream           = &metadata.Item{}
+	_ data.StreamModTime    = &metadata.Item{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -306,53 +306,14 @@ type Item struct {
 	info details.ItemInfo
 }
 
-func (od *Item) UUID() string {
-	return od.id
-}
-
-func (od *Item) ToReader() io.ReadCloser {
-	return od.data
-}
-
 // Deleted implements an interface function. However, OneDrive items are marked
 // as deleted by adding them to the exclude list so this can always return
 // false.
-func (od Item) Deleted() bool {
-	return false
-}
-
-func (od *Item) Info() details.ItemInfo {
-	return od.info
-}
-
-func (od *Item) ModTime() time.Time {
-	return od.info.Modified()
-}
-
-type MetadataItem struct {
-	id      string
-	data    io.ReadCloser
-	modTime time.Time
-}
-
-func (od *MetadataItem) UUID() string {
-	return od.id
-}
-
-func (od *MetadataItem) ToReader() io.ReadCloser {
-	return od.data
-}
-
-// Deleted implements an interface function. However, OneDrive items are marked
-// as deleted by adding them to the exclude list so this can always return
-// false.
-func (od MetadataItem) Deleted() bool {
-	return false
-}
-
-func (od *MetadataItem) ModTime() time.Time {
-	return od.modTime
-}
+func (i Item) Deleted() bool            { return false }
+func (i *Item) UUID() string            { return i.id }
+func (i *Item) ToReader() io.ReadCloser { return i.data }
+func (i *Item) Info() details.ItemInfo  { return i.info }
+func (i *Item) ModTime() time.Time      { return i.info.Modified() }
 
 // getDriveItemContent fetch drive item's contents with retries
 func (oc *Collection) getDriveItemContent(
@@ -602,12 +563,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				return progReader, nil
 			})
 
-			oc.data <- &MetadataItem{
-				id:   metaFileName + metaSuffix,
-				data: metaReader,
+			oc.data <- &metadata.Item{
+				ID:   metaFileName + metaSuffix,
+				Data: metaReader,
 				// Metadata file should always use the latest time as
 				// permissions change does not update mod time.
-				modTime: time.Now(),
+				Mod: time.Now(),
 			}
 
 			// Item read successfully, add to collection
