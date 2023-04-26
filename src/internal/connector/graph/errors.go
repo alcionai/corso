@@ -317,6 +317,15 @@ func ItemInfo(item models.DriveItemable) map[string]any {
 	if parent != nil {
 		m[fault.AddtlContainerID] = ptr.Val(parent.GetId())
 		m[fault.AddtlContainerName] = ptr.Val(parent.GetName())
+		containerPath := ""
+
+		// Remove the "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:" prefix
+		splitPath := strings.SplitN(ptr.Val(parent.GetPath()), ":", 2)
+		if len(splitPath) > 1 {
+			containerPath = splitPath[1]
+		}
+
+		m[fault.AddtlContainerPath] = containerPath
 	}
 
 	malware := item.GetMalware()

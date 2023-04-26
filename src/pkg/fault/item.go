@@ -7,6 +7,7 @@ const (
 	AddtlLastModBy     = "last_modified_by"
 	AddtlContainerID   = "container_id"
 	AddtlContainerName = "container_name"
+	AddtlContainerPath = "container_path"
 	AddtlMalwareDesc   = "malware_description"
 )
 

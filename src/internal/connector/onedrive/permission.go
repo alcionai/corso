@@ -85,50 +85,6 @@ func getCollectionMetadata(
 	return meta, nil
 }
 
-// createRestoreFoldersWithPermissions creates the restore folder hierarchy in
-// the specified drive and returns the folder ID of the last folder entry in the
-// hierarchy. Permissions are only applied to the last folder in the hierarchy.
-// Passing nil for the permissions results in just creating the folder(s).
-func createRestoreFoldersWithPermissions(
-	ctx context.Context,
-	creds account.M365Config,
-	service graph.Servicer,
-	drivePath *path.DrivePath,
-	restoreFolders []string,
-	folderPath path.Path,
-	folderMetadata Metadata,
-	folderMetas map[string]Metadata,
-	permissionIDMappings map[string]string,
-	restorePerms bool,
-) (string, error) {
-	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
-	if err != nil {
-		return "", err
-	}
-
-	if len(drivePath.Folders) == 0 {
-		// No permissions for root folder
-		return id, nil
-	}
-
-	if !restorePerms {
-		return id, nil
-	}
-
-	err = RestorePermissions(
-		ctx,
-		creds,
-		service,
-		drivePath.DriveID,
-		id,
-		folderPath,
-		folderMetadata,
-		folderMetas,
-		permissionIDMappings)
-
-	return id, err
-}
-
 // isSamePermission checks equality of two UserPermission objects
 func isSamePermission(p1, p2 UserPermission) bool {
 	// EntityID can be empty for older backups and Email can be empty
