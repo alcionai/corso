@@ -57,6 +57,26 @@ func DataCollections(
 		allExcludes = map[string]map[string]struct{}{}
 	)
 
+	mcs, dropMetadata, err := migrationCollections(
+		service,
+		lastBackupVersion,
+		tenant,
+		user,
+		su,
+		ctrlOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	collections = append(collections, mcs...)
+
+	// Some migrations need to force enumeration of all items. OneDrive is a bit
+	// simpler in this since there's a delta token per drive instead of per
+	// folder.
+	if dropMetadata {
+		metadata = nil
+	}
+
 	// for each scope that includes oneDrive items, get all
 	for _, scope := range odb.Scopes() {
 		if el.Failure() != nil {
@@ -93,19 +113,6 @@ func DataCollections(
 		}
 	}
 
-	mcs, err := migrationCollections(
-		service,
-		lastBackupVersion,
-		tenant,
-		user,
-		su,
-		ctrlOpts)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	collections = append(collections, mcs...)
-
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
@@ -134,14 +141,34 @@ func migrationCollections(
 	user idname.Provider,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
-) ([]data.BackupCollection, error) {
+) ([]data.BackupCollection, bool, error) {
 	// assume a version < 0 implies no prior backup, thus nothing to migrate.
 	if version.IsNoBackup(lastBackupVersion) {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	if lastBackupVersion >= version.All8MigrateUserPNToID {
-		return nil, nil
+		return nil, false, nil
+	}
+
+	mpc, err := path.ServicePrefix(
+		tenant,
+		user.Name(),
+		path.OneDriveService,
+		path.FilesCategory)
+	if err != nil {
+		return nil, false, clues.Wrap(err, "creating user name migration path")
+	}
+
+	// File names -> file IDs requires enumerating everything again. We can
+	// accomplish this by deleting the old tree and not passing in metadata.
+	if lastBackupVersion < version.OneDrive6NameInMeta {
+		mgn, err := graph.NewDeletedPrefixCollection(mpc, su)
+		if err != nil {
+			return nil, false, clues.Wrap(err, "creating deleted migration collection")
+		}
+
+		return []data.BackupCollection{mgn}, true, nil
 	}
 
 	// unlike exchange, which enumerates all folders on every
@@ -152,22 +179,13 @@ func migrationCollections(
 		path.OneDriveService,
 		path.FilesCategory)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating user id migration path")
-	}
-
-	mpc, err := path.ServicePrefix(
-		tenant,
-		user.Name(),
-		path.OneDriveService,
-		path.FilesCategory)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating user name migration path")
+		return nil, false, clues.Wrap(err, "creating user id migration path")
 	}
 
 	mgn, err := graph.NewPrefixCollection(mpc, mc, su)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating migration collection")
+		return nil, false, clues.Wrap(err, "creating migration collection")
 	}
 
-	return []data.BackupCollection{mgn}, nil
+	return []data.BackupCollection{mgn}, false, nil
 }
