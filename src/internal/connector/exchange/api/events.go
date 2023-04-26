@@ -254,15 +254,15 @@ func (c Events) EnumerateContainers(
 	return el.Failure()
 }
 
+const (
+	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
+)
+
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager = &eventDeltaPager{}
-
-const (
-	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
-)
+var _ itemPager = &eventPager{}
 
 type eventPager struct {
 	gs      graph.Servicer
@@ -310,6 +310,12 @@ func (p *eventPager) setNext(nextLink string) {
 func (p *eventPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
+
+// ---------------------------------------------------------------------------
+// non-delta item pager
+// ---------------------------------------------------------------------------
+
+var _ itemPager = &eventDeltaPager{}
 
 type eventDeltaPager struct {
 	gs      graph.Servicer
