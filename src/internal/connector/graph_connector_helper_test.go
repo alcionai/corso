@@ -722,14 +722,14 @@ func permissionEqual(expected metadata.Permission, got metadata.Permission) bool
 	return true
 }
 
-func compareOneDriveItem(
+func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
 	restorePermissions bool,
 	rootDir bool,
 ) bool {
-	// Skip OneDrive permissions in the folder that used to be the root. We don't
+	// Skip Drive permissions in the folder that used to be the root. We don't
 	// have a good way to materialize these in the test right now.
 	if rootDir && item.UUID() == metadata.DirMetaFileSuffix {
 		return false
@@ -747,7 +747,7 @@ func compareOneDriveItem(
 	)
 
 	if isMeta {
-		var itemType *onedrive.MetadataItem
+		var itemType *metadata.Item
 
 		assert.IsType(t, itemType, item)
 	} else {
@@ -824,8 +824,7 @@ func compareOneDriveItem(
 			t,
 			expectedMeta.Permissions,
 			itemPerms,
-			permissionEqual,
-		)
+			permissionEqual)
 
 		return true
 	}
@@ -887,7 +886,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
+		return compareDriveItem(t, expected, item, restorePermissions, rootDir)
 
 	case path.SharePointService:
 		if category != path.LibrariesCategory {
@@ -895,7 +894,7 @@ func compareItem(
 		}
 
 		// SharePoint libraries reuses OneDrive code.
-		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
+		return compareDriveItem(t, expected, item, restorePermissions, rootDir)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
