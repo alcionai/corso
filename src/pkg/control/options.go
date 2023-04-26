@@ -117,3 +117,19 @@ type Toggles struct {
 	// graph API. This flag is only relevant for exchange backups for now
 	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
 }
+
+// ---------------------------------------------------------------------------
+// Repo Maintenance flags
+// ---------------------------------------------------------------------------
+
+type Safety string
+
+const (
+	FullSafety Safety = "full"
+	NoSafety   Safety = "none"
+)
+
+var SafetyValues = map[Safety]struct{}{
+	FullSafety: {},
+	NoSafety:   {},
+}
