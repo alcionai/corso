@@ -10,6 +10,8 @@ func IsMetadataFile(p path.Path) bool {
 	case path.OneDriveService:
 		return metadata.HasMetaSuffix(p.Item())
 
+	case path.SharePointService:
+		return p.Category() == path.LibrariesCategory && metadata.HasMetaSuffix(p.Item())
 	default:
 		return false
 	}

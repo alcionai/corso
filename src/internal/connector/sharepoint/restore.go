@@ -103,7 +103,7 @@ func RestoreCollections(
 				errs)
 
 		default:
-			return nil, clues.Wrap(clues.New(category.String()), "category not supported")
+			return nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)

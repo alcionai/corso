@@ -194,6 +194,7 @@ func newColl(
 ) *Collection {
 	c := &Collection{
 		itemClient:      gr,
+		itemGetter:      api.GetDriveItem,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
@@ -211,11 +212,9 @@ func newColl(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		c.itemGetter = api.GetDriveItem
 		c.itemReader = sharePointItemReader
 		c.itemMetaReader = sharePointItemMetaReader
 	default:
-		c.itemGetter = api.GetDriveItem
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
 	}

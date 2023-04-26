@@ -261,16 +261,18 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 
 func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 	var (
-		i       = models.DriveItem{}
-		cb      = models.User{}
-		cbID    = "created-by"
-		lm      = models.User{}
-		lmID    = "last-mod-by"
-		ref     = models.ItemReference{}
-		refCID  = "container-id"
-		refCN   = "container-name"
-		mal     = models.Malware{}
-		malDesc = "malware-description"
+		i        = models.DriveItem{}
+		cb       = models.User{}
+		cbID     = "created-by"
+		lm       = models.User{}
+		lmID     = "last-mod-by"
+		ref      = models.ItemReference{}
+		refCID   = "container-id"
+		refCN    = "container-name"
+		refCP    = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
+		refCPexp = "/Folder/container-name"
+		mal      = models.Malware{}
+		malDesc  = "malware-description"
 	)
 
 	cb.SetId(&cbID)
@@ -281,6 +283,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 
 	ref.SetId(&refCID)
 	ref.SetName(&refCN)
+	ref.SetPath(&refCP)
 	i.SetParentReference(&ref)
 
 	mal.SetDescription(&malDesc)
@@ -291,6 +294,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlLastModBy:     lmID,
 		fault.AddtlContainerID:   refCID,
 		fault.AddtlContainerName: refCN,
+		fault.AddtlContainerPath: refCPexp,
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
