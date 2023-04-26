@@ -7,15 +7,18 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
+	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -514,4 +517,119 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 func isErrEntryNotFound(err error) bool {
 	return strings.Contains(err.Error(), "entry not found") &&
 		!strings.Contains(err.Error(), "parent is not a directory")
+}
+
+func (w Wrapper) Maintenance(
+	ctx context.Context,
+	safety control.Safety,
+	quickMaintenance, force bool,
+) error {
+	kopiaSafety, err := translateSafety(safety)
+	if err != nil {
+		return clues.Wrap(err, "getting safety level")
+	}
+
+	mode := translateMode(quickMaintenance)
+	currentOwner := w.c.ClientOptions().UsernameAtHost()
+
+	ctx = clues.Add(
+		ctx,
+		"kopia_safety", kopiaSafety,
+		"kopia_maintenance_mode", mode,
+		"force", force,
+		"current_owner", clues.Hide(currentOwner))
+
+	dr, ok := w.c.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.New("unable to get valid handle to repo").WithClues(ctx)
+	}
+
+	// Below write session options pulled from kopia's CLI code that runs
+	// maintenance.
+	err = repo.DirectWriteSession(
+		ctx,
+		dr,
+		repo.WriteSessionOptions{
+			Purpose: "Corso maintenance",
+		},
+		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
+			params, err := maintenance.GetParams(ctx, w.c)
+			if err != nil {
+				return clues.Wrap(err, "getting maintenance user/host").WithClues(ctx)
+			}
+
+			// Need to do some fixup here as the user/host may not have been set.
+			if len(params.Owner) == 0 || (params.Owner != currentOwner && force) {
+				// TODO(ashmrtn): Print some message if the recorded owner doesn't match
+				// and we update it.
+				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
+					return clues.Wrap(err, "updating maintenance parameters").
+						WithClues(ctx)
+				}
+			}
+
+			ctx = clues.Add(ctx, "expected_owner", clues.Hide(params.Owner))
+
+			logger.Ctx(ctx).Info("running kopia maintenance")
+
+			err = snapshotmaintenance.Run(ctx, dw, mode, force, kopiaSafety)
+			if err != nil {
+				return clues.Wrap(err, "running kopia maintenance").WithClues(ctx)
+			}
+
+			return nil
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func translateSafety(s control.Safety) (maintenance.SafetyParameters, error) {
+	switch s {
+	case control.FullSafety:
+		return maintenance.SafetyFull, nil
+	case control.NoSafety:
+		return maintenance.SafetyNone, nil
+	default:
+		return maintenance.SafetyParameters{}, clues.New("bad safety value").
+			With("input_safety", s)
+	}
+}
+
+func translateMode(quick bool) maintenance.Mode {
+	if quick {
+		return maintenance.ModeQuick
+	}
+
+	return maintenance.ModeFull
+}
+
+// setMaintenanceUserHost sets the user and host for maintenance to the the
+// user and host in the kopia config.
+func (w Wrapper) setMaintenanceParams(
+	ctx context.Context,
+	drw repo.DirectRepositoryWriter,
+	p *maintenance.Params,
+	userAtHost string,
+) error {
+	// This will source user/host from the kopia config file or fallback to
+	// fetching the values from the OS.
+	p.Owner = userAtHost
+	// Disable automatic maintenance for now since it can start matching on the
+	// user/host of at least one machine now.
+	p.QuickCycle.Enabled = false
+	p.FullCycle.Enabled = false
+
+	logger.Ctx(ctx).Infow(
+		"updating maintenance owner parameter",
+		"owner", clues.Hide(p.Owner))
+
+	err := maintenance.SetParams(ctx, drw, p)
+	if err != nil {
+		return clues.Wrap(err, "setting maintenance user/host")
+	}
+
+	return nil
 }
