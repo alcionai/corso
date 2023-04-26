@@ -225,20 +225,20 @@ func (c Mail) GetItem(
 	return mail, MailInfo(mail), nil
 }
 
-type mailFolderDeltaPagerer interface {
+type mailFolderPagerer interface {
 	getPage(context.Context) (api.PageLinker, error)
 	setNext(string)
 	valuesIn(api.PageLinker) ([]models.MailFolderable, error)
 }
 
-var _ mailFolderDeltaPagerer = &mailFolderDeltaPager{}
+var _ mailFolderPagerer = &mailFolderDeltaPager{}
 
 type mailFolderDeltaPager struct {
 	service graph.Servicer
 	builder *users.ItemMailFoldersDeltaRequestBuilder
 }
 
-func NewMailFolderDeltaPager(service graph.Servicer, user string) mailFolderDeltaPagerer {
+func NewMailFolderDeltaPager(service graph.Servicer, user string) mailFolderPagerer {
 	builder := service.Client().
 		UsersById(user).
 		MailFolders().
@@ -269,15 +269,15 @@ func (p *mailFolderDeltaPager) valuesIn(pl api.PageLinker) ([]models.MailFoldera
 	return page.GetValue(), nil
 }
 
-var _ mailFolderDeltaPagerer = &mailFolderPager{}
+var _ mailFolderPagerer = &mailFolderPager{}
 
 type mailFolderPager struct {
 	service graph.Servicer
 	builder *users.ItemMailFoldersRequestBuilder
 }
 
-func NewMailFolderPager(service graph.Servicer, user string) mailFolderDeltaPagerer {
-	// Sable /mailFolders endpoint does not return any of the nested folders
+func NewMailFolderPager(service graph.Servicer, user string) mailFolderPagerer {
+	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
 	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, user)
 	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
 
@@ -302,7 +302,7 @@ func (p *mailFolderPager) valuesIn(pl api.PageLinker) ([]models.MailFolderable, 
 	// that is not a thing as stable returns different result
 	page, ok := pl.(models.MailFolderCollectionResponseable)
 	if !ok {
-		return nil, clues.New("unable to convert to ItemMailFoldersResponseable")
+		return nil, clues.New("converting to ItemMailFoldersResponseable")
 	}
 
 	return page.GetValue(), nil
@@ -326,7 +326,7 @@ func (c Mail) EnumerateContainers(
 
 	el := errs.Local()
 
-	var pgr mailFolderDeltaPagerer
+	var pgr mailFolderPagerer
 	pgr = NewMailFolderPager(service, userID)
 
 	for {
@@ -444,6 +444,10 @@ func (p *mailPager) setNext(nextLink string) {
 func (p *mailPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
+
+// ---------------------------------------------------------------------------
+// non-delta item pager
+// ---------------------------------------------------------------------------
 
 var _ itemPager = &mailDeltaPager{}
 
