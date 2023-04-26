@@ -243,7 +243,7 @@ func (op *BackupOperation) do(
 	var (
 		reasons           = selectorToReasons(op.Selectors, false)
 		fallbackReasons   = makeFallbackReasons(op.Selectors)
-		lastBackupVersion = -1
+		lastBackupVersion = version.NoBackup
 	)
 
 	logger.Ctx(ctx).With(
