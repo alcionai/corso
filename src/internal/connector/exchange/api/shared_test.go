@@ -38,9 +38,11 @@ func (p testPage) GetOdataNextLink() *string {
 var _ itemPager = &testPager{}
 
 type testPager struct {
-	errorCode string
-	added     []string
-	removed   []string
+	t          *testing.T
+	added      []string
+	removed    []string
+	errorCode  string
+	needsReset bool
 }
 
 func (p *testPager) getPage(ctx context.Context) (api.PageLinker, error) {
@@ -56,7 +58,16 @@ func (p *testPager) getPage(ctx context.Context) (api.PageLinker, error) {
 
 	return testPage{}, nil
 }
-func (p *testPager) setNext(nextLink string) {}
+func (p *testPager) setNext(string) {}
+func (p *testPager) reset(context.Context) {
+	if !p.needsReset {
+		require.Fail(p.t, "reset should not be called")
+	}
+
+	p.needsReset = false
+	p.errorCode = ""
+}
+
 func (p *testPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	items := []getIDAndAddtler{}
 
@@ -90,38 +101,6 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		delta            string
 	}{
 		{
-			name: "with prev delta",
-			pagerGetter: func(
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				immutableIDs bool,
-			) (itemPager, error) {
-				// this should not be called
-				return nil, assert.AnError
-			},
-			deltaPagerGetter: func(
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				delta string,
-				immutableIDs bool,
-			) (itemPager, error) {
-				if len(delta) == 0 {
-					return &testPager{
-						added:   []string{"uno", "dos"},
-						removed: []string{"tres", "quatro"},
-					}, nil
-				}
-
-				return nil, assert.AnError
-			},
-			added:   []string{"uno", "dos"},
-			removed: []string{"tres", "quatro"},
-		},
-		{
 			name: "no prev delta",
 			pagerGetter: func(
 				ctx context.Context,
@@ -141,14 +120,40 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				delta string,
 				immutableIDs bool,
 			) (itemPager, error) {
-				if len(delta) != 0 {
-					return &testPager{
-						added:   []string{"uno", "dos"},
-						removed: []string{"tres", "quatro"},
-					}, nil
-				}
-
+				return &testPager{
+					t:       suite.T(),
+					added:   []string{"uno", "dos"},
+					removed: []string{"tres", "quatro"},
+				}, nil
+			},
+			added:   []string{"uno", "dos"},
+			removed: []string{"tres", "quatro"},
+		},
+		{
+			name: "with prev delta",
+			pagerGetter: func(
+				ctx context.Context,
+				gs graph.Servicer,
+				user string,
+				directory string,
+				immutableIDs bool,
+			) (itemPager, error) {
+				// this should not be called
 				return nil, assert.AnError
+			},
+			deltaPagerGetter: func(
+				ctx context.Context,
+				gs graph.Servicer,
+				user string,
+				directory string,
+				delta string,
+				immutableIDs bool,
+			) (itemPager, error) {
+				return &testPager{
+					t:       suite.T(),
+					added:   []string{"uno", "dos"},
+					removed: []string{"tres", "quatro"},
+				}, nil
 			},
 			added:       []string{"uno", "dos"},
 			removed:     []string{"tres", "quatro"},
@@ -175,14 +180,13 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				delta string,
 				immutableIDs bool,
 			) (itemPager, error) {
-				if len(delta) == 0 {
-					return &testPager{
-						added:   []string{"uno", "dos"},
-						removed: []string{"tres", "quatro"},
-					}, nil
-				}
-
-				return &testPager{errorCode: "SyncStateNotFound"}, nil
+				return &testPager{
+					t:          suite.T(),
+					added:      []string{"uno", "dos"},
+					removed:    []string{"tres", "quatro"},
+					errorCode:  "SyncStateNotFound",
+					needsReset: true,
+				}, nil
 			},
 			added:       []string{"uno", "dos"},
 			removed:     []string{"tres", "quatro"},
@@ -199,6 +203,7 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				immutableIDs bool,
 			) (itemPager, error) {
 				return &testPager{
+					t:       suite.T(),
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
 				}, nil
@@ -224,15 +229,15 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			pager, _ := tt.pagerGetter(ctx, graph.Service{}, "user", "directory", false)
+			deltaPager, _ := tt.deltaPagerGetter(ctx, graph.Service{}, "user", "directory", tt.delta, false)
+
 			added, removed, deltaUpdate, err := getAddedAndRemovedItemIDs(
 				ctx,
 				graph.Service{},
-				"user",
-				"directory",
+				pager,
+				deltaPager,
 				tt.delta,
-				tt.pagerGetter,
-				tt.deltaPagerGetter,
-				false,
 			)
 
 			require.NoError(suite.T(), err, "getting added and removed item IDs")

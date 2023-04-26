@@ -461,6 +461,9 @@ func (p *mailPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+// non delta pagers don't have reset
+func (p *mailPager) reset(context.Context) {}
+
 func (p *mailPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
@@ -472,9 +475,11 @@ func (p *mailPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 var _ itemPager = &mailDeltaPager{}
 
 type mailDeltaPager struct {
-	gs      graph.Servicer
-	builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
-	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
+	gs          graph.Servicer
+	user        string
+	directoryID string
+	builder     *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
+	options     *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewMailDeltaPager(
@@ -519,7 +524,7 @@ func NewMailDeltaPager(
 		}
 	}
 
-	return &mailDeltaPager{gs, builder, options}, nil
+	return &mailDeltaPager{gs, user, directoryID, builder, options}, nil
 }
 
 func (p *mailDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
@@ -533,6 +538,20 @@ func (p *mailDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
 
 func (p *mailDeltaPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *mailDeltaPager) reset(ctx context.Context) {
+	p.builder = p.gs.Client().UsersById(p.user).MailFoldersById(p.directoryID).Messages().Delta()
+
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := p.builder.ToGetRequestInformation(ctx, p.options)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("getting builder info")
+		} else {
+			logger.Ctx(ctx).
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+		}
+	}
 }
 
 func (p *mailDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
@@ -554,16 +573,17 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	return getAddedAndRemovedItemIDs(
-		ctx,
-		service,
-		user,
-		directoryID,
-		oldDelta,
-		NewMailPager,
-		NewMailDeltaPager,
-		immutableIDs,
-	)
+	pager, err := NewMailPager(ctx, service, user, directoryID, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	deltaPager, err := NewMailDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta)
 }
 
 // ---------------------------------------------------------------------------
