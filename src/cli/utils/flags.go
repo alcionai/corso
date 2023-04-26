@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -37,6 +38,10 @@ var (
 
 	// for selection of data by category.  eg: `--data email,contacts`
 	CategoryDataFV []string
+
+	MaintenanceSafetyFV string
+	QuickMaintenanceFV  bool
+	ForceMaintenanceFV  bool
 )
 
 // common flag names (eg: FN)
@@ -59,6 +64,11 @@ const (
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
+
+	// Maintenance stuff.
+	MaintenanceSafetyFN = "safety"
+	QuickMaintenanceFN  = "quick"
+	ForceMaintenanceFN  = "force"
 )
 
 // well-known flag values
@@ -166,6 +176,36 @@ func AddSiteFlag(cmd *cobra.Command) {
 		&WebURLFV,
 		SiteFN, nil,
 		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
+}
+
+func AddMaintenanceSafetyFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(
+		&MaintenanceSafetyFV,
+		MaintenanceSafetyFN,
+		string(control.FullSafety),
+		"Disable safety measures to run maintenance faster. Improper usage can break a repository")
+	cobra.CheckErr(fs.MarkHidden(MaintenanceSafetyFN))
+}
+
+func AddQuickMaintenanceFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&QuickMaintenanceFV,
+		QuickMaintenanceFN,
+		false,
+		"Run quick maintenance that won't clean up and optimize the repo as much")
+	cobra.CheckErr(fs.MarkHidden(QuickMaintenanceFN))
+}
+
+func AddForceMaintenanceFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&ForceMaintenanceFV,
+		ForceMaintenanceFN,
+		false,
+		"Always run maintenance even if it may be unsafe")
+	cobra.CheckErr(fs.MarkHidden(ForceMaintenanceFN))
 }
 
 type PopulatedFlags map[string]struct{}
