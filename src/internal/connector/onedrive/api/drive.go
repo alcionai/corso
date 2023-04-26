@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -322,4 +323,52 @@ func GetDriveByID(
 	}
 
 	return d, nil
+}
+
+func GetDriveRoot(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID string,
+) (models.DriveItemable, error) {
+	root, err := srv.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting drive root")
+	}
+
+	return root, nil
+}
+
+const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+
+var ErrFolderNotFound = clues.New("folder not found")
+
+// GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
+func GetFolderByName(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID, parentFolderID, folder string,
+) (models.DriveItemable, error) {
+	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
+	// will be sub-optimal.
+	// Instead, we leverage OneDrive path-based addressing -
+	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
+	// - which allows us to lookup an item by its path relative to the parent ID
+	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folder)
+	builder := drive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
+
+	foundItem, err := builder.Get(ctx, nil)
+	if err != nil {
+		if graph.IsErrDeletedInFlight(err) {
+			return nil, graph.Stack(ctx, clues.Stack(ErrFolderNotFound, err))
+		}
+
+		return nil, graph.Wrap(ctx, err, "getting folder")
+	}
+
+	// Check if the item found is a folder, fail the call if not
+	if foundItem.GetFolder() == nil {
+		return nil, graph.Wrap(ctx, ErrFolderNotFound, "item is not a folder")
+	}
+
+	return foundItem, nil
 }

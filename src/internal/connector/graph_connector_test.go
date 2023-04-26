@@ -606,6 +606,43 @@ func runRestoreBackupTest(
 		test.collections)
 }
 
+// runRestoreTest restores with data using the test's backup version
+func runRestoreTestWithVerion(
+	t *testing.T,
+	acct account.Account,
+	test restoreBackupInfoMultiVersion,
+	tenant string,
+	resourceOwners []string,
+	opts control.Options,
+) {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	config := configInfo{
+		acct:           acct,
+		opts:           opts,
+		resource:       test.resource,
+		service:        test.service,
+		tenant:         tenant,
+		resourceOwners: resourceOwners,
+		dest:           tester.DefaultTestRestoreDestination(),
+	}
+
+	totalItems, _, collections, _ := getCollectionsAndExpected(
+		t,
+		config,
+		test.collectionsPrevious,
+		test.backupVersion)
+
+	runRestore(
+		t,
+		ctx,
+		config,
+		test.backupVersion,
+		collections,
+		totalItems)
+}
+
 // runRestoreBackupTestVersions restores with data from an older
 // version of the backup and check the restored data against the
 // something that would be in the form of a newer backup.
