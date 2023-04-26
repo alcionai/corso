@@ -639,8 +639,8 @@ func CreateRestoreFolders(
 			"restore_folder_location", location,
 			"parent_of_restore_folder", parentFolderID)
 
-		if fc, ok := fc.Get(location); ok {
-			parentFolderID = ptr.Val(fc.GetId())
+		if fl, ok := fc.get(location); ok {
+			parentFolderID = ptr.Val(fl.GetId())
 			// folder was already created, move on to the child
 			continue
 		}
@@ -653,7 +653,7 @@ func CreateRestoreFolders(
 		// folder found, moving to next child
 		if err == nil {
 			parentFolderID = ptr.Val(folderItem.GetId())
-			fc.Set(location, folderItem)
+			fc.set(location, folderItem)
 
 			continue
 		}
@@ -665,7 +665,7 @@ func CreateRestoreFolders(
 		}
 
 		parentFolderID = ptr.Val(folderItem.GetId())
-		fc.Set(location, folderItem)
+		fc.set(location, folderItem)
 
 		logger.Ctx(ctx).Debug("resolved restore destination")
 	}

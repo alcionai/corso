@@ -18,11 +18,11 @@ func NewFolderCache() *folderCache {
 	}
 }
 
-func (c *folderCache) Get(loc *path.Builder) (models.DriveItemable, bool) {
+func (c *folderCache) get(loc *path.Builder) (models.DriveItemable, bool) {
 	mdi, ok := c.cache[loc.String()]
 	return mdi, ok
 }
 
-func (c *folderCache) Set(loc *path.Builder, mdi models.DriveItemable) {
+func (c *folderCache) set(loc *path.Builder, mdi models.DriveItemable) {
 	c.cache[loc.String()] = mdi
 }
