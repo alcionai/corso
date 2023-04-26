@@ -390,3 +390,56 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	err = k.Close(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
 }
+
+func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	opts := control.Defaults()
+	opts.User = "foo"
+	opts.Host = "bar"
+
+	t := suite.T()
+	st := tester.NewPrefixedS3Storage(t)
+	k := NewConn(st)
+
+	err := k.Initialize(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts := k.ClientOptions()
+	assert.Equal(t, opts.User, kopiaOpts.Username)
+	assert.Equal(t, opts.Host, kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Re-open with Connect and a different user/hostname.
+	opts.User = "hello"
+	opts.Host = "world"
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts = k.ClientOptions()
+	assert.Equal(t, opts.User, kopiaOpts.Username)
+	assert.Equal(t, opts.Host, kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	// Make sure not setting the values uses the kopia defaults.
+	opts.User = ""
+	opts.Host = ""
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts = k.ClientOptions()
+	assert.NotEmpty(t, kopiaOpts.Username)
+	assert.NotEqual(t, "hello", kopiaOpts.Username)
+	assert.NotEmpty(t, kopiaOpts.Hostname)
+	assert.NotEqual(t, "world", kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+}
