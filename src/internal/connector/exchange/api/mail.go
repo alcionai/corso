@@ -395,7 +395,20 @@ func NewMailPager(
 	user, directoryID string,
 	immutableIDs bool,
 ) (itemPager, error) {
-	options, err := optionsForFolderMessages([]string{"isRead"}, immutableIDs)
+	selecting, err := buildOptions([]string{"isRead"}, fieldsForMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
 	if err != nil {
 		return &mailPager{}, err
 	}
@@ -446,7 +459,20 @@ func NewMailDeltaPager(
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
 ) (itemPager, error) {
-	options, err := optionsForFolderMessagesDelta([]string{"isRead"}, immutableIDs)
+	selecting, err := buildOptions([]string{"isRead"}, fieldsForMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
 	if err != nil {
 		return &mailDeltaPager{}, err
 	}
