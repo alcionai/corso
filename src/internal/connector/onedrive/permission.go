@@ -22,12 +22,12 @@ func getParentMetadata(
 ) (metadata.Metadata, error) {
 	parentMeta, ok := metas[parentPath.String()]
 	if !ok {
-		onedrivePath, err := path.ToOneDrivePath(parentPath)
+		drivePath, err := path.ToDrivePath(parentPath)
 		if err != nil {
 			return metadata.Metadata{}, clues.Wrap(err, "invalid restore path")
 		}
 
-		if len(onedrivePath.Folders) != 0 {
+		if len(drivePath.Folders) != 0 {
 			return metadata.Metadata{}, clues.Wrap(err, "computing item permissions")
 		}
 
@@ -132,7 +132,10 @@ func createRestoreFoldersWithPermissions(
 // traversing folderMetas and finding the first item with custom
 // permissions. folderMetas is expected to have all the parent
 // directory metas for this to work.
-func computeParentPermissions(itemPath path.Path, folderMetas map[string]metadata.Metadata) (metadata.Metadata, error) {
+func computeParentPermissions(
+	itemPath path.Path,
+	folderMetas map[string]metadata.Metadata,
+) (metadata.Metadata, error) {
 	var (
 		parent path.Path
 		meta   metadata.Metadata
@@ -149,12 +152,12 @@ func computeParentPermissions(itemPath path.Path, folderMetas map[string]metadat
 			return metadata.Metadata{}, clues.New("getting parent")
 		}
 
-		onedrivePath, err := path.ToOneDrivePath(parent)
+		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
 			return metadata.Metadata{}, clues.New("get parent path")
 		}
 
-		if len(onedrivePath.Folders) == 0 {
+		if len(drivePath.Folders) == 0 {
 			return metadata.Metadata{}, nil
 		}
 

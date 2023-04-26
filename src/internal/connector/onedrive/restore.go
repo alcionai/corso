@@ -145,7 +145,7 @@ func RestoreCollection(
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreCollection", diagnostics.Label("path", directory))
 	defer end()
 
-	drivePath, err := path.ToOneDrivePath(directory)
+	drivePath, err := path.ToDrivePath(directory)
 	if err != nil {
 		return metrics, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
@@ -701,12 +701,12 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 				return nil, err
 			}
 
-			onedrivePath, err := path.ToOneDrivePath(np)
+			drivePath, err := path.ToDrivePath(np)
 			if err != nil {
 				return nil, err
 			}
 
-			if len(onedrivePath.Folders) == 0 {
+			if len(drivePath.Folders) == 0 {
 				break
 			}
 
