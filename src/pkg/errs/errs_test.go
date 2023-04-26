@@ -20,7 +20,7 @@ func TestErrUnitSuite(t *testing.T) {
 	suite.Run(t, &ErrUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ErrUnitSuite) TestGet() {
+func (suite *ErrUnitSuite) TestInternal() {
 	table := []struct {
 		get  errEnum
 		errs []error
@@ -32,7 +32,7 @@ func (suite *ErrUnitSuite) TestGet() {
 	}
 	for _, test := range table {
 		suite.Run(string(test.get), func() {
-			assert.Equal(suite.T(), test.errs, Get(test.get))
+			assert.Equal(suite.T(), test.errs, Internal(test.get))
 		})
 	}
 }
