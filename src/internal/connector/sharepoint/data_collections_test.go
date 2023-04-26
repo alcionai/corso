@@ -1,6 +1,7 @@
 package sharepoint
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -13,8 +14,10 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -34,8 +37,8 @@ func (fm testFolderMatcher) IsAny() bool {
 	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
 }
 
-func (fm testFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.SharePointLibraryFolder, path)
+func (fm testFolderMatcher) Matches(p string) bool {
+	return fm.scope.Matches(selectors.SharePointLibraryFolder, p)
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +148,109 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 
 			for _, col := range c.CollectionMap[driveID] {
 				assert.Contains(t, test.expectedCollectionPaths, col.FullPath().String())
+			}
+		})
+	}
+}
+
+func (suite *SharePointLibrariesUnitSuite) TestMigrationLibraryCollections() {
+	u := selectors.Selector{}
+	u = u.SetDiscreteOwnerIDName("i", "n")
+
+	od := path.SharePointService.String()
+	fc := path.LibrariesCategory.String()
+
+	type migr struct {
+		full string
+		prev string
+	}
+
+	table := []struct {
+		name            string
+		version         int
+		expectLen       int
+		expectMigration []migr
+		expectDropMeta  assert.BoolAssertionFunc
+	}{
+		{
+			name:            "no backup version",
+			version:         version.NoBackup,
+			expectLen:       0,
+			expectMigration: []migr{},
+			expectDropMeta:  assert.False,
+		},
+		{
+			name:            "above current version",
+			version:         version.Backup + 5,
+			expectLen:       0,
+			expectMigration: []migr{},
+			expectDropMeta:  assert.False,
+		},
+		{
+			name:      "file name to ID",
+			version:   version.OneDrive6NameInMeta - 1,
+			expectLen: 1,
+			expectMigration: []migr{
+				{
+					full: "",
+					prev: strings.Join([]string{"t", od, "n", fc}, "/"),
+				},
+			},
+			expectDropMeta: assert.True,
+		},
+		{
+			name:            "migrated file name to ID",
+			version:         version.OneDrive6NameInMeta,
+			expectLen:       0,
+			expectMigration: []migr{},
+			expectDropMeta:  assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			mc, dropMeta, err := migrationLibraryCollections(
+				nil,
+				test.version,
+				"t",
+				u,
+				nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			test.expectDropMeta(t, dropMeta, "drop metadata")
+
+			if test.expectLen == 0 {
+				assert.Nil(t, mc)
+				return
+			}
+
+			assert.Len(t, mc, test.expectLen)
+
+			migrs := []migr{}
+
+			for _, col := range mc {
+				var fp, pp string
+
+				if col.FullPath() != nil {
+					fp = col.FullPath().String()
+				}
+
+				if col.PreviousPath() != nil {
+					pp = col.PreviousPath().String()
+				}
+
+				t.Logf(
+					"Found migration collection:\n* full: %s\n* prev: %s\n* state: %v\n",
+					fp,
+					pp,
+					col.State())
+
+				migrs = append(migrs, test.expectMigration...)
+			}
+
+			for i, m := range migrs {
+				assert.Contains(t, migrs, m, "expected to find migration: %+v", test.expectMigration[i])
 			}
 		})
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -33,6 +34,7 @@ func DataCollections(
 	selector selectors.Selector,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
+	lastBackupVersion int,
 	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
@@ -91,6 +93,7 @@ func DataCollections(
 				creds.AzureTenantID,
 				site,
 				metadata,
+				lastBackupVersion,
 				scope,
 				su,
 				ctrlOpts,
@@ -196,6 +199,7 @@ func collectLibraries(
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
+	lastBackupVersion int,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -216,8 +220,22 @@ func collectLibraries(
 			ctrlOpts)
 	)
 
-	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
-	// token-based incrementals.
+	mcs, dropMetadata, err := migrationLibraryCollections(
+		serv,
+		lastBackupVersion,
+		tenantID,
+		site,
+		updater.UpdateStatus)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	collections = append(collections, mcs...)
+
+	if dropMetadata {
+		metadata = nil
+	}
+
 	odcs, excludes, err := colls.Get(ctx, metadata, errs)
 	if err != nil {
 		return nil, nil, graph.Wrap(ctx, err, "getting library")
@@ -297,4 +315,40 @@ func (fm folderMatcher) IsAny() bool {
 
 func (fm folderMatcher) Matches(dir string) bool {
 	return fm.scope.Matches(selectors.SharePointLibraryFolder, dir)
+}
+
+// migrationLibraryCollections adds data migrations to the collection set.
+func migrationLibraryCollections(
+	svc graph.Servicer,
+	lastBackupVersion int,
+	tenant string,
+	site idname.Provider,
+	su support.StatusUpdater,
+) ([]data.BackupCollection, bool, error) {
+	// assume a version < 0 implies no prior backup, thus nothing to migrate.
+	if version.IsNoBackup(lastBackupVersion) {
+		return nil, false, nil
+	}
+
+	if lastBackupVersion >= version.OneDrive6NameInMeta {
+		return nil, false, nil
+	}
+
+	mpc, err := path.ServicePrefix(
+		tenant,
+		site.Name(),
+		path.OneDriveService,
+		path.FilesCategory)
+	if err != nil {
+		return nil, false, clues.Wrap(err, "creating user name migration path")
+	}
+
+	// File names -> file IDs requires enumerating everything again. We can
+	// accomplish this by deleting the old tree and not passing in metadata.
+	mgn, err := graph.NewDeletedPrefixCollection(mpc, su)
+	if err != nil {
+		return nil, false, clues.Wrap(err, "creating deleted migration collection")
+	}
+
+	return []data.BackupCollection{mgn}, true, nil
 }
