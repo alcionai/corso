@@ -347,6 +347,7 @@ func checkOnedriveRestoration(
 		if itemName != dataFolder {
 			logger.Ctx(ctx).Infof("test data for %v folder: ", dataFolder)
 			fmt.Printf("test data for %v folder: ", dataFolder)
+
 			continue
 		}
 
