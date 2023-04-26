@@ -106,9 +106,11 @@ func onedriveMetadata(
 }
 
 var (
-	fileName    = "test-file.txt"
-	folderAName = "folder-a"
-	folderBName = "b"
+	fileName          = "test-file.txt"
+	folderAName       = "folder-a"
+	folderBName       = "b"
+	folderNamedFolder = "folder"
+	rootFolder        = "root:"
 
 	fileAData = []byte(strings.Repeat("a", 33))
 	fileBData = []byte(strings.Repeat("b", 65))
@@ -254,7 +256,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 		metaName = ""
 	}
 
-	if name == "root:" {
+	if name == rootFolder {
 		return c
 	}
 
@@ -544,6 +546,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritanceR
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
+	// No reason why it couldn't work with previous versions, but this is when it got introduced.
+	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+}
+
 // ---------------------------------------------------------------------------
 // OneDrive regression
 // ---------------------------------------------------------------------------
@@ -600,9 +607,13 @@ func (suite *GraphConnectorOneDriveNightlySuite) TestPermissionsBackupAndNoResto
 }
 
 func (suite *GraphConnectorOneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
-	// No reason why it couldn't work with previous versions, but this is when it
-	// got introduced.
+	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testPermissionsInheritanceRestoreAndBackup(suite, version.OneDrive4DirIncludesPermissions)
+}
+
+func (suite *GraphConnectorOneDriveNightlySuite) TestRestoreFolderNamedFolderRegression() {
+	// No reason why it couldn't work with previous versions, but this is when it got introduced.
+	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
 }
 
 func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
@@ -618,31 +629,30 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
-		suite.BackupResourceOwner(),
-	)
+		suite.BackupResourceOwner())
 
 	rootPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 	}
 	folderAPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 	}
 	subfolderBPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 		folderBName,
 	}
 	subfolderAPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 		folderBName,
 		folderAName,
@@ -650,7 +660,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	folderBPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderBName,
 	}
 
@@ -744,8 +754,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				},
-			)
+				})
 		})
 	}
 }
@@ -762,8 +771,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
-		suite.BackupResourceOwner(),
-	)
+		suite.BackupResourceOwner())
 
 	fileName2 := "test-file2.txt"
 	folderCName := "folder-c"
@@ -771,32 +779,32 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	rootPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 	}
 	folderAPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 	}
 	folderBPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderBName,
 	}
 	// For skipped test
 	// subfolderAPath := []string{
 	// 	"drives",
 	// 	driveID,
-	// 	"root:",
+	// 	rootFolder,
 	// 	folderBName,
 	// 	folderAName,
 	// }
 	folderCPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderCName,
 	}
 
@@ -958,8 +966,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				},
-			)
+				})
 		})
 	}
 }
@@ -976,15 +983,14 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
-		suite.BackupResourceOwner(),
-	)
+		suite.BackupResourceOwner())
 
 	inputCols := []onedriveColInfo{
 		{
 			pathElements: []string{
 				"drives",
 				driveID,
-				"root:",
+				rootFolder,
 			},
 			files: []itemData{
 				{
@@ -1005,7 +1011,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 			pathElements: []string{
 				"drives",
 				driveID,
-				"root:",
+				rootFolder,
 			},
 			files: []itemData{
 				{
@@ -1041,8 +1047,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				control.Options{
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{},
-				},
-			)
+				})
 		})
 	}
 }
@@ -1062,8 +1067,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
-		suite.BackupResourceOwner(),
-	)
+		suite.BackupResourceOwner())
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -1072,32 +1076,32 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	rootPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 	}
 	folderAPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 	}
 	subfolderAAPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 		folderAName,
 	}
 	subfolderABPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 		folderBName,
 	}
 	subfolderACPath := []string{
 		"drives",
 		driveID,
-		"root:",
+		rootFolder,
 		folderAName,
 		folderCName,
 	}
@@ -1214,6 +1218,117 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			}
 
 			runRestoreBackupTestVersions(
+				t,
+				suite.Account(),
+				testData,
+				suite.Tenant(),
+				[]string{suite.BackupResourceOwner()},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{},
+				})
+		})
+	}
+}
+
+func testRestoreFolderNamedFolderRegression(
+	suite oneDriveSuite,
+	startVersion int,
+) {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.BackupService(),
+		suite.Service(),
+		suite.BackupResourceOwner())
+
+	rootPath := []string{
+		"drives",
+		driveID,
+		rootFolder,
+	}
+	folderFolderPath := []string{
+		"drives",
+		driveID,
+		rootFolder,
+		folderNamedFolder,
+	}
+	subfolderPath := []string{
+		"drives",
+		driveID,
+		rootFolder,
+		folderNamedFolder,
+		folderBName,
+	}
+
+	cols := []onedriveColInfo{
+		{
+			pathElements: rootPath,
+			files: []itemData{
+				{
+					name: fileName,
+					data: fileAData,
+				},
+			},
+			folders: []itemData{
+				{
+					name: folderNamedFolder,
+				},
+				{
+					name: folderBName,
+				},
+			},
+		},
+		{
+			pathElements: folderFolderPath,
+			files: []itemData{
+				{
+					name: fileName,
+					data: fileBData,
+				},
+			},
+			folders: []itemData{
+				{
+					name: folderBName,
+				},
+			},
+		},
+		{
+			pathElements: subfolderPath,
+			files: []itemData{
+				{
+					name: fileName,
+					data: fileCData,
+				},
+			},
+			folders: []itemData{
+				{
+					name: folderNamedFolder,
+				},
+			},
+		},
+	}
+
+	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+
+	for vn := startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+			t := suite.T()
+			input := testDataForInfo(t, suite.BackupService(), cols, vn)
+
+			testData := restoreBackupInfoMultiVersion{
+				service:             suite.BackupService(),
+				resource:            suite.Resource(),
+				backupVersion:       vn,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
+
+			runRestoreTestWithVerion(
 				t,
 				suite.Account(),
 				testData,
