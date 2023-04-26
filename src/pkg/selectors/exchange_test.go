@@ -721,7 +721,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	)
 
 	var (
-		repo  = stubPath(suite.T(), usr, []string{fID1, fID2, mail}, path.EmailCategory)
+		repo  = stubPath(suite.T(), usr, []string{fID1 + ".d", fID2 + ".d", mail}, path.EmailCategory)
 		loc   = strings.Join([]string{fld1, fld2, mail}, "/")
 		short = "thisisahashofsomekind"
 		es    = NewExchangeRestore(Any())
@@ -743,18 +743,18 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		{"all folders", es.MailFolders(Any()), "", assert.True},
 		{"no folders", es.MailFolders(None()), "", assert.False},
 		{"matching folder", es.MailFolders([]string{fld1}), "", assert.True},
-		{"matching folder id", es.MailFolders([]string{fID1}), "", assert.True},
+		{"matching folder id", es.MailFolders([]string{fID1}), "", assert.False},
 		{"incomplete matching folder", es.MailFolders([]string{"mail"}), "", assert.False},
 		{"incomplete matching folder ID", es.MailFolders([]string{"mf_id"}), "", assert.False},
 		{"non-matching folder", es.MailFolders([]string{"smarf"}), "", assert.False},
 		{"non-matching folder substring", es.MailFolders([]string{fld1 + "_suffix"}), "", assert.False},
 		{"non-matching folder id substring", es.MailFolders([]string{fID1 + "_suffix"}), "", assert.False},
 		{"matching folder prefix", es.MailFolders([]string{fld1}, PrefixMatch()), "", assert.True},
-		{"matching folder ID prefix", es.MailFolders([]string{fID1}, PrefixMatch()), "", assert.True},
+		{"matching folder ID prefix", es.MailFolders([]string{fID1}, PrefixMatch()), "", assert.False},
 		{"incomplete folder prefix", es.MailFolders([]string{"mail"}, PrefixMatch()), "", assert.False},
 		{"matching folder substring", es.MailFolders([]string{"Folder"}), "", assert.False},
 		{"one of multiple folders", es.MailFolders([]string{"smarf", fld2}), "", assert.True},
-		{"one of multiple folders by ID", es.MailFolders([]string{"smarf", fID2}), "", assert.True},
+		{"one of multiple folders by ID", es.MailFolders([]string{"smarf", fID2}), "", assert.False},
 		{"all mail", es.Mails(Any(), Any()), "", assert.True},
 		{"no mail", es.Mails(Any(), None()), "", assert.False},
 		{"matching mail", es.Mails(Any(), []string{mail}), "", assert.True},
@@ -777,10 +777,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 					aMatch = true
 					break
 				}
-				if matchesPathValues(scope, ExchangeMail, pvs) {
-					aMatch = true
-					break
-				}
 			}
 			test.expect(t, aMatch)
 		})
@@ -789,13 +785,41 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	var (
-		contact            = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
-		event              = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "ecld", "eid")
-		mail               = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "mfld", "mid")
-		contactInSubFolder = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld1/cfld2", "cid")
+		contact = stubPath(
+			suite.T(),
+			"uid",
+			[]string{"cfld", "cid"},
+			path.ContactsCategory)
+		event = stubPath(
+			suite.T(),
+			"uid",
+			[]string{"efld", "eid"},
+			path.EventsCategory)
+		mail = stubPath(
+			suite.T(),
+			"uid",
+			[]string{"mfld", "mid"},
+			path.EmailCategory)
+		contactInSubFolder = stubPath(
+			suite.T(),
+			"uid",
+			[]string{"cfld1/cfld2", "cid"},
+			path.ContactsCategory)
 	)
 
-	makeDeets := func(refs ...string) *details.Details {
+	toRR := func(p path.Path) string {
+		newElems := []string{}
+
+		for _, e := range p.Folders() {
+			newElems = append(newElems, e+".d")
+		}
+
+		joinedFldrs := strings.Join(newElems, "/")
+
+		return stubRepoRef(p.Service(), p.Category(), p.ResourceOwner(), joinedFldrs, p.Item())
+	}
+
+	makeDeets := func(refs ...path.Path) *details.Details {
 		deets := &details.Details{
 			DetailsModel: details.DetailsModel{
 				Entries: []details.DetailsEntry{},
@@ -815,7 +839,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			}
 
 			deets.Entries = append(deets.Entries, details.DetailsEntry{
-				RepoRef: r,
+				RepoRef: toRR(r),
+				// Don't escape because we assume nice paths.
+				LocationRef: r.Folder(false),
 				ItemInfo: details.ItemInfo{
 					Exchange: &details.ExchangeInfo{
 						ItemType: itype,
@@ -851,7 +877,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			[]string{contact},
+			[]string{toRR(contact)},
 		},
 		{
 			"event only",
@@ -861,7 +887,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			[]string{event},
+			[]string{toRR(event)},
 		},
 		{
 			"mail only",
@@ -871,7 +897,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			[]string{mail},
+			[]string{toRR(mail)},
 		},
 		{
 			"all",
@@ -881,7 +907,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			[]string{contact, event, mail},
+			[]string{toRR(contact), toRR(event), toRR(mail)},
 		},
 		{
 			"only match contact",
@@ -891,7 +917,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.Contacts([]string{"cfld"}, []string{"cid"}))
 				return er
 			},
-			[]string{contact},
+			[]string{toRR(contact)},
 		},
 		{
 			"only match contactInSubFolder",
@@ -901,7 +927,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.ContactFolders([]string{"cfld1/cfld2"}))
 				return er
 			},
-			[]string{contactInSubFolder},
+			[]string{toRR(contactInSubFolder)},
 		},
 		{
 			"only match contactInSubFolder by prefix",
@@ -911,7 +937,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.ContactFolders([]string{"cfld1/cfld2"}, PrefixMatch()))
 				return er
 			},
-			[]string{contactInSubFolder},
+			[]string{toRR(contactInSubFolder)},
 		},
 		{
 			"only match contactInSubFolder by leaf folder",
@@ -921,17 +947,17 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.ContactFolders([]string{"cfld2"}))
 				return er
 			},
-			[]string{contactInSubFolder},
+			[]string{toRR(contactInSubFolder)},
 		},
 		{
 			"only match event",
 			makeDeets(contact, event, mail),
 			func() *ExchangeRestore {
 				er := NewExchangeRestore([]string{"uid"})
-				er.Include(er.Events([]string{"ecld"}, []string{"eid"}))
+				er.Include(er.Events([]string{"efld"}, []string{"eid"}))
 				return er
 			},
-			[]string{event},
+			[]string{toRR(event)},
 		},
 		{
 			"only match mail",
@@ -941,7 +967,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.Mails([]string{"mfld"}, []string{"mid"}))
 				return er
 			},
-			[]string{mail},
+			[]string{toRR(mail)},
 		},
 		{
 			"exclude contact",
@@ -952,7 +978,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Exclude(er.Contacts([]string{"cfld"}, []string{"cid"}))
 				return er
 			},
-			[]string{event, mail},
+			[]string{toRR(event), toRR(mail)},
 		},
 		{
 			"exclude event",
@@ -960,10 +986,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 			func() *ExchangeRestore {
 				er := NewExchangeRestore(Any())
 				er.Include(er.AllData())
-				er.Exclude(er.Events([]string{"ecld"}, []string{"eid"}))
+				er.Exclude(er.Events([]string{"efld"}, []string{"eid"}))
 				return er
 			},
-			[]string{contact, mail},
+			[]string{toRR(contact), toRR(mail)},
 		},
 		{
 			"exclude mail",
@@ -974,7 +1000,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Exclude(er.Mails([]string{"mfld"}, []string{"mid"}))
 				return er
 			},
-			[]string{contact, event},
+			[]string{toRR(contact), toRR(event)},
 		},
 		{
 			"filter on mail subject",
@@ -991,7 +1017,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Filter(er.MailSubject("subj"))
 				return er
 			},
-			[]string{mail},
+			[]string{toRR(mail)},
 		},
 		{
 			"filter on mail subject multiple input categories",
@@ -1012,7 +1038,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Filter(er.MailSubject("subj"))
 				return er
 			},
-			[]string{mail},
+			[]string{toRR(mail)},
 		},
 	}
 	for _, test := range table {
@@ -1466,38 +1492,43 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_leafCat() {
 func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 	t := suite.T()
 
-	contactPath := stubPath(t, "user", []string{"cfolder", "contactitem"}, path.ContactsCategory)
+	contactPath := stubPath(t, "user", []string{"cfolder.d", "contactitem.d"}, path.ContactsCategory)
+	contactLoc := stubPath(t, "user", []string{"cfolder", "contactitem"}, path.ContactsCategory)
 	contactMap := map[categorizer][]string{
-		ExchangeContactFolder: {contactPath.Folder(false)},
+		ExchangeContactFolder: {contactLoc.Folder(false)},
 		ExchangeContact:       {contactPath.Item(), "short"},
 	}
-	eventPath := stubPath(t, "user", []string{"ecalendar", "eventitem"}, path.EventsCategory)
+	eventPath := stubPath(t, "user", []string{"ecalendar.d", "eventitem.d"}, path.EventsCategory)
+	eventLoc := stubPath(t, "user", []string{"ecalendar", "eventitem"}, path.EventsCategory)
 	eventMap := map[categorizer][]string{
-		ExchangeEventCalendar: {eventPath.Folder(false)},
+		ExchangeEventCalendar: {eventLoc.Folder(false)},
 		ExchangeEvent:         {eventPath.Item(), "short"},
 	}
-	mailPath := stubPath(t, "user", []string{"mfolder", "mailitem"}, path.EmailCategory)
+	mailPath := stubPath(t, "user", []string{"mfolder.d", "mailitem.d"}, path.EmailCategory)
+	mailLoc := stubPath(t, "user", []string{"mfolder", "mailitem"}, path.EmailCategory)
 	mailMap := map[categorizer][]string{
-		ExchangeMailFolder: {mailPath.Folder(false)},
+		ExchangeMailFolder: {mailLoc.Folder(false)},
 		ExchangeMail:       {mailPath.Item(), "short"},
 	}
 
 	table := []struct {
 		cat    exchangeCategory
 		path   path.Path
+		loc    path.Path
 		expect map[categorizer][]string
 	}{
-		{ExchangeContact, contactPath, contactMap},
-		{ExchangeEvent, eventPath, eventMap},
-		{ExchangeMail, mailPath, mailMap},
+		{ExchangeContact, contactPath, contactLoc, contactMap},
+		{ExchangeEvent, eventPath, eventLoc, eventMap},
+		{ExchangeMail, mailPath, mailLoc, mailMap},
 	}
 	for _, test := range table {
 		suite.Run(string(test.cat), func() {
 			t := suite.T()
 			ent := details.DetailsEntry{
-				RepoRef:  test.path.String(),
-				ShortRef: "short",
-				ItemRef:  test.path.Item(),
+				RepoRef:     test.path.String(),
+				ShortRef:    "short",
+				LocationRef: test.loc.Folder(true),
+				ItemRef:     test.path.Item(),
 			}
 
 			pvs, err := test.cat.pathValues(test.path, ent, Config{})
