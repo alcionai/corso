@@ -68,7 +68,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 		t          = suite.T()
 		userID     = tester.M365UserID(t)
 		now        = time.Now()
-		folderName = "TestRestoreContact: " + common.FormatSimpleDateTime(now)
+		folderName = "TestRestoreContact: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 	)
 
 	aFolder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
@@ -102,7 +102,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	var (
 		t       = suite.T()
 		userID  = tester.M365UserID(t)
-		subject = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
+		subject = "TestRestoreEvent: " + common.FormatNow(common.SimpleTimeTesting)
 	)
 
 	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, subject)
@@ -184,7 +184,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageBytes("Restore Exchange Object"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailObject: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -196,7 +196,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithDirectAttachment("Restore 1 Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailwithAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -208,7 +208,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithItemAttachmentEvent("Event Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreEventItemAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreEventItemAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -220,7 +220,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithItemAttachmentMail("Mail Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailItemAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -235,7 +235,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailBasicItemAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailBasicItemAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -250,7 +250,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "ItemMailAttachmentwAttachment " + common.FormatSimpleDateTime(now)
+				folderName := "ItemMailAttachmentwAttachment " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -265,7 +265,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "ItemMailAttachment_Contact " + common.FormatSimpleDateTime(now)
+				folderName := "ItemMailAttachment_Contact " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -277,7 +277,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreNestedEventItemAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreNestedEventItemAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -289,7 +289,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithLargeAttachment("Restore Large Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -301,7 +301,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithTwoAttachments("Restore 2 Attachments"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailwithAttachments: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -313,7 +313,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithOneDriveAttachment("Restore Reference(OneDrive) Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -326,7 +326,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.ContactBytes("Test_Omega"),
 			category: path.ContactsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreContactObject: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				folder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -338,7 +338,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.EventBytes("Restored Event Object"),
 			category: path.EventsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
+				calendarName := "TestRestoreEventObject: " + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -350,7 +350,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.EventWithAttachment("Restored Event Attachment"),
 			category: path.EventsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				calendarName := "TestRestoreEventObject_" + common.FormatSimpleDateTime(now)
+				calendarName := "TestRestoreEventObject_" + common.FormatTimeWith(now, common.SimpleTimeTesting)
 				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
 				require.NoError(t, err, clues.ToCore(err))
 

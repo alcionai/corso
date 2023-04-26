@@ -727,7 +727,7 @@ func inflateCollectionTree(
 	toMerge *mergeDetails,
 ) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
-	// Contains the old path for collections that have been moved or renamed.
+	// Contains the old path for collections that are not new.
 	// Allows resolving what the new path should be when walking the base
 	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
 	updatedPaths := make(map[string]path.Path)
@@ -776,6 +776,14 @@ func inflateCollectionTree(
 			if err := addMergeLocation(s, toMerge); err != nil {
 				return nil, nil, clues.Wrap(err, "adding merge location").WithClues(ictx)
 			}
+		case data.NotMovedState:
+			p := s.PreviousPath().String()
+			if _, ok := updatedPaths[p]; ok {
+				return nil, nil, clues.New("multiple previous state changes to collection").
+					WithClues(ictx)
+			}
+
+			updatedPaths[p] = s.FullPath()
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
@@ -1003,15 +1011,20 @@ func inflateBaseTree(
 			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
 		}
 
-		// We're assuming here that the prefix for the path has not changed (i.e.
-		// all of tenant, service, resource owner, and category are the same in the
-		// old snapshot (snap) and the snapshot we're currently trying to make.
+		// This ensures that a migration on the directory prefix can complete.
+		// The prefix is the tenant/service/owner/category set, which remains
+		// otherwise unchecked in tree inflation below this point.
+		newSubtreePath := subtreePath
+		if p, ok := updatedPaths[subtreePath.String()]; ok {
+			newSubtreePath = p.ToBuilder()
+		}
+
 		if err = traverseBaseDir(
 			ictx,
 			0,
 			updatedPaths,
 			subtreePath.Dir(),
-			subtreePath.Dir(),
+			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
 		); err != nil {

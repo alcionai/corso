@@ -286,8 +286,7 @@ func TestOneDriveDriveSuite(t *testing.T) {
 	suite.Run(t, &OneDriveSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 

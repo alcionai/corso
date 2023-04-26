@@ -26,23 +26,23 @@ func AddOneDriveCommands(cmd *cobra.Command) {
 
 func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 	var (
-		ctx      = cmd.Context()
-		service  = path.OneDriveService
-		category = path.FilesCategory
-		errs     = fault.New(false)
+		ctx             = cmd.Context()
+		service         = path.OneDriveService
+		category        = path.FilesCategory
+		errs            = fault.New(false)
+		secondaryUserID string
 	)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	gc, acct, ins, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	secondaryUserID, idOK := ins.IDOf(strings.ToLower(SecondaryUser))
-	if !idOK {
+	if secondaryUserID, _, err = gc.PopulateOwnerIDAndNamesFrom(ctx, strings.ToLower(SecondaryUser), nil); err != nil {
 		err = clues.New("no secondary user found")
 		return Only(ctx, err)
 	}

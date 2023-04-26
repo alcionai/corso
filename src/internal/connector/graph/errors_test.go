@@ -90,12 +90,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(errCodeItemNotFound),
+			err:    odErr(string(itemNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync-not-found oDataErr",
-			err:    odErr(errCodeSyncFolderNotFound),
+			err:    odErr(string(syncFolderNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -134,12 +134,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		},
 		{
 			name:   "resync-required oDataErr",
-			err:    odErr(errCodeResyncRequired),
+			err:    odErr(string(resyncRequired)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync state invalid oDataErr",
-			err:    odErr(errCodeSyncStateInvalid),
+			err:    odErr(string(syncStateInvalid)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
@@ -184,7 +184,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		},
 		{
 			name:   "request resource not found oDataErr",
-			err:    odErr(errCodeRequestResourceNotFound),
+			err:    odErr(string(requestResourceNotFound)),
 			expect: assert.True,
 		},
 	}

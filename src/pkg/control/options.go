@@ -6,16 +6,23 @@ import (
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision            CollisionPolicy `json:"-"`
-	DisableMetrics       bool            `json:"disableMetrics"`
-	FailureHandling      FailureBehavior `json:"failureHandling"`
-	ItemFetchParallelism int             `json:"itemFetchParallelism"`
-	RestorePermissions   bool            `json:"restorePermissions"`
-	SkipReduce           bool            `json:"skipReduce"`
-	ToggleFeatures       Toggles         `json:"ToggleFeatures"`
+	Collision          CollisionPolicy `json:"-"`
+	DisableMetrics     bool            `json:"disableMetrics"`
+	FailureHandling    FailureBehavior `json:"failureHandling"`
+	RestorePermissions bool            `json:"restorePermissions"`
+	SkipReduce         bool            `json:"skipReduce"`
+	ToggleFeatures     Toggles         `json:"toggleFeatures"`
+	Parallelism        Parallelism     `json:"parallelism"`
 }
 
 type FailureBehavior string
+
+type Parallelism struct {
+	// sets the collection buffer size before blocking.
+	CollectionBuffer int
+	// sets the parallelism of item population within a collection.
+	ItemFetch int
+}
 
 const (
 	// fails and exits the run immediately
@@ -31,6 +38,10 @@ func Defaults() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
 		ToggleFeatures:  Toggles{},
+		Parallelism: Parallelism{
+			CollectionBuffer: 4,
+			ItemFetch:        4,
+		},
 	}
 }
 
@@ -92,4 +103,10 @@ type Toggles struct {
 	// immutable Exchange IDs. This is only safe to set if the previous backup for
 	// incremental backups used immutable IDs or if a full backup is being done.
 	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
+
+	RunMigrations bool `json:"runMigrations"`
+
+	// DisableConcurrencyLimiter removes concurrency limits when communicating with
+	// graph API. This flag is only relevant for exchange backups for now
+	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -30,6 +31,8 @@ func DataCollections(
 	ctx context.Context,
 	itemClient graph.Requester,
 	selector selectors.Selector,
+	site idname.Provider,
+	metadata []data.RestoreCollection,
 	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
@@ -41,9 +44,13 @@ func DataCollections(
 		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
+	ctx = clues.Add(
+		ctx,
+		"site_id", clues.Hide(site.ID()),
+		"site_url", clues.Hide(site.Name()))
+
 	var (
 		el          = errs.Local()
-		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
 	)
@@ -83,6 +90,7 @@ func DataCollections(
 				serv,
 				creds.AzureTenantID,
 				site,
+				metadata,
 				scope,
 				su,
 				ctrlOpts,
@@ -116,8 +124,9 @@ func DataCollections(
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
+			collections,
 			creds.AzureTenantID,
-			site,
+			site.ID(),
 			path.SharePointService,
 			categories,
 			su.UpdateStatus,
@@ -135,19 +144,20 @@ func DataCollections(
 func collectLists(
 	ctx context.Context,
 	serv graph.Servicer,
-	tenantID, siteID string,
+	tenantID string,
+	site idname.Provider,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
-	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
+	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
 		el   = errs.Local()
 		spcs = make([]data.BackupCollection, 0)
 	)
 
-	lists, err := preFetchLists(ctx, serv, siteID)
+	lists, err := preFetchLists(ctx, serv, site.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +169,7 @@ func collectLists(
 
 		dir, err := path.Build(
 			tenantID,
-			siteID,
+			site.ID(),
 			path.SharePointService,
 			path.ListsCategory,
 			false,
@@ -183,7 +193,9 @@ func collectLibraries(
 	ctx context.Context,
 	itemClient graph.Requester,
 	serv graph.Servicer,
-	tenantID, siteID string,
+	tenantID string,
+	site idname.Provider,
+	metadata []data.RestoreCollection,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -196,7 +208,7 @@ func collectLibraries(
 		colls       = onedrive.NewCollections(
 			itemClient,
 			tenantID,
-			siteID,
+			site.ID(),
 			onedrive.SharePointSource,
 			folderMatcher{scope},
 			serv,
@@ -206,7 +218,7 @@ func collectLibraries(
 
 	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
 	// token-based incrementals.
-	odcs, excludes, err := colls.Get(ctx, nil, errs)
+	odcs, excludes, err := colls.Get(ctx, metadata, errs)
 	if err != nil {
 		return nil, nil, graph.Wrap(ctx, err, "getting library")
 	}
@@ -220,7 +232,7 @@ func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
 	serv graph.Servicer,
-	siteID string,
+	site idname.Provider,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -244,7 +256,7 @@ func collectPages(
 
 	betaService := m365api.NewBetaService(adpt)
 
-	tuples, err := api.FetchPages(ctx, betaService, siteID)
+	tuples, err := api.FetchPages(ctx, betaService, site.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +268,7 @@ func collectPages(
 
 		dir, err := path.Build(
 			creds.AzureTenantID,
-			siteID,
+			site.ID(),
 			path.SharePointService,
 			path.PagesCategory,
 			false,

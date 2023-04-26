@@ -32,6 +32,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 			assert.True(t, restorePermissionsFV, RestorePermissionsFN)
 			assert.True(t, skipReduceFV, SkipReduceFN)
 			assert.Equal(t, 2, fetchParallelismFV, FetchParallelismFN)
+			assert.True(t, disableConcurrencyLimiterFV, DisableConcurrencyLimiterFN)
 		},
 	}
 
@@ -42,8 +43,8 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	AddDisableIncrementalsFlag(cmd)
 	AddRestorePermissionsFlag(cmd)
 	AddSkipReduceFlag(cmd)
-
 	AddFetchParallelismFlag(cmd)
+	AddDisableConcurrencyLimiterFlag(cmd)
 
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
@@ -53,8 +54,8 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		"--" + NoStatsFN,
 		"--" + RestorePermissionsFN,
 		"--" + SkipReduceFN,
-
 		"--" + FetchParallelismFN, "2",
+		"--" + DisableConcurrencyLimiterFN,
 	})
 
 	err := cmd.Execute()

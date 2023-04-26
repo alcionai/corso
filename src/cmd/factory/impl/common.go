@@ -30,7 +30,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 var (
@@ -110,7 +109,7 @@ func generateAndRestoreItems(
 // Common Helpers
 // ------------------------------------------------------------------------------------------
 
-func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, account.Account, common.IDsNames, error) {
+func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, account.Account, error) {
 	tid := common.First(Tenant, os.Getenv(account.AzureTenantID))
 
 	if len(Tenant) == 0 {
@@ -125,34 +124,22 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, account.Account{}, common.IDsNames{}, clues.Wrap(err, "finding m365 account details")
-	}
-
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	ins, err := m365.UsersMap(ctx, acct, errs)
-	if err != nil {
-		return nil, account.Account{}, common.IDsNames{}, clues.Wrap(err, "getting tenant users")
-	}
-
-	_, idOK := ins.NameOf(strings.ToLower(userID))
-	_, nameOK := ins.IDOf(strings.ToLower(userID))
-
-	if !idOK && !nameOK {
-		return nil, account.Account{}, common.IDsNames{}, clues.New("user not found within tenant")
+		return nil, account.Account{}, clues.Wrap(err, "finding m365 account details")
 	}
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		acct,
-		connector.Users,
-		errs)
+		connector.Users)
 	if err != nil {
-		return nil, account.Account{}, common.IDsNames{}, clues.Wrap(err, "connecting to graph api")
+		return nil, account.Account{}, clues.Wrap(err, "connecting to graph api")
 	}
 
-	return gc, acct, ins, nil
+	if _, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, userID, nil); err != nil {
+		return nil, account.Account{}, clues.Wrap(err, "verifying user")
+	}
+
+	return gc, acct, nil
 }
 
 type item struct {

@@ -1,6 +1,6 @@
 package version
 
-const Backup = 7
+const Backup = 8
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -9,6 +9,9 @@ const Backup = 7
 // Labels should state their application, the backup version number,
 // and the colloquial purpose of the label.
 const (
+	// NoBackup should be used when we cannot find, or do not supply, prior backup metadata.
+	NoBackup = -1
+
 	// OneDrive1DataAndMetaFiles is the corso backup format version
 	// in which we split from storing just the data to storing both
 	// the data and metadata in two files.
@@ -39,4 +42,13 @@ const (
 	// OneDriveXLocationRef provides LocationRef information for Exchange,
 	// OneDrive, and SharePoint libraries.
 	OneDrive7LocationRef = 7
+
+	// All8MigrateUserPNToID marks when we migrated repo refs from the user's
+	// PrincipalName to their ID for stability.
+	All8MigrateUserPNToID = 8
 )
+
+// IsNoBackup returns true if the version implies that no prior backup exists.
+func IsNoBackup(version int) bool {
+	return version <= NoBackup
+}

@@ -9,14 +9,13 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -34,7 +33,7 @@ var (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	Service    graph.Servicer
-	Discovery  api.Client
+	Discovery  m365api.Client
 	itemClient graph.Requester // configured to handle large item downloads
 
 	tenant      string
@@ -44,7 +43,7 @@ type GraphConnector struct {
 	// maps of resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
-	IDNameLookup common.IDNameSwapper
+	IDNameLookup idname.Cacher
 
 	// wg is used to track completion of GC tasks
 	wg     *sync.WaitGroup
@@ -58,8 +57,7 @@ type GraphConnector struct {
 func NewGraphConnector(
 	ctx context.Context,
 	acct account.Account,
-	r resource,
-	errs *fault.Bus,
+	r Resource,
 ) (*GraphConnector, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
@@ -71,19 +69,19 @@ func NewGraphConnector(
 		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
-	discovery, err := api.NewClient(creds)
+	ac, err := m365api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
-	rc, err := r.resourceClient(discovery)
+	rc, err := r.resourceClient(ac)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
 	}
 
 	gc := GraphConnector{
-		Discovery:    discovery,
-		IDNameLookup: common.IDsNames{},
+		Discovery:    ac,
+		IDNameLookup: idname.NewCache(nil),
 		Service:      service,
 
 		credentials: creds,
@@ -169,36 +167,32 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 	gc.wg.Add(1)
 }
 
-func (gc *GraphConnector) incrementMessagesBy(num int) {
-	gc.wg.Add(num)
-}
-
 // ---------------------------------------------------------------------------
 // Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
-type resource int
+type Resource int
 
 const (
-	UnknownResource resource = iota
+	UnknownResource Resource = iota
 	AllResources             // unused
 	Users
 	Sites
 )
 
-func (r resource) resourceClient(discovery api.Client) (*resourceClient, error) {
+func (r Resource) resourceClient(ac m365api.Client) (*resourceClient, error) {
 	switch r {
 	case Users:
-		return &resourceClient{enum: r, getter: discovery.Users()}, nil
+		return &resourceClient{enum: r, getter: ac.Users()}, nil
 	case Sites:
-		return &resourceClient{enum: r, getter: discovery.Sites()}, nil
+		return &resourceClient{enum: r, getter: ac.Sites()}, nil
 	default:
 		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", r)
 	}
 }
 
 type resourceClient struct {
-	enum   resource
+	enum   Resource
 	getter getIDAndNamer
 }
 
@@ -215,9 +209,9 @@ var _ getOwnerIDAndNamer = &resourceClient{}
 type getOwnerIDAndNamer interface {
 	getOwnerIDAndNameFrom(
 		ctx context.Context,
-		discovery api.Client,
+		discovery m365api.Client,
 		owner string,
-		ins common.IDNameSwapper,
+		ins idname.Cacher,
 	) (
 		ownerID string,
 		ownerName string,
@@ -233,9 +227,9 @@ type getOwnerIDAndNamer interface {
 // (PrincipalName for users, WebURL for sites).
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
-	discovery api.Client,
+	discovery m365api.Client,
 	owner string,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (string, string, error) {
 	if ins != nil {
 		if n, ok := ins.NameOf(owner); ok {
@@ -279,18 +273,14 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (string, string, error) {
-	// move this to GC method
 	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
 	if err != nil {
 		return "", "", clues.Wrap(err, "identifying resource owner")
 	}
 
-	gc.IDNameLookup = common.IDsNames{
-		IDToName: map[string]string{id: name},
-		NameToID: map[string]string{name: id},
-	}
+	gc.IDNameLookup = idname.NewCache(map[string]string{id: name})
 
 	return id, name, nil
 }

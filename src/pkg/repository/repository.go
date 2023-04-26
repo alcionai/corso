@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -26,7 +26,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -63,7 +62,7 @@ type Repository interface {
 	NewBackupWithLookup(
 		ctx context.Context,
 		self selectors.Selector,
-		ins common.IDNameSwapper,
+		ins idname.Cacher,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -115,7 +114,7 @@ func Initialize(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo init"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -189,7 +188,7 @@ func Connect(
 		"storage_provider", s.Provider.String())
 
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -306,9 +305,9 @@ func (r repository) NewBackup(
 func (r repository) NewBackupWithLookup(
 	ctx context.Context,
 	sel selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -316,11 +315,6 @@ func (r repository) NewBackupWithLookup(
 	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
-	}
-
-	// Exchange and OneDrive need to maintain the user PN as the ID until we're ready to migrate
-	if sel.PathService() != path.SharePointService {
-		ownerID = ownerName
 	}
 
 	// TODO: retrieve display name from gc
@@ -334,7 +328,7 @@ func (r repository) NewBackupWithLookup(
 		gc,
 		r.Account,
 		sel,
-		sel,
+		sel, // the selector acts as an IDNamer for its discrete resource owner.
 		r.Bus)
 }
 
@@ -345,7 +339,7 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -627,7 +621,6 @@ func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-	errs *fault.Bus,
 ) (*connector.GraphConnector, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
@@ -642,7 +635,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct, resource, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource)
 	if err != nil {
 		return nil, err
 	}
