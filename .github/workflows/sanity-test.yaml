@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - oneDriveCustomData
   workflow_dispatch:
     inputs:
       user:
@@ -259,17 +258,16 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
-          prefix=`date +"%Y-%m-%d-%H-%M"`
-          echo Corso_Restore_st_$prefix
+          sufix=`date +"%Y-%m-%d-%H-%M"`
          
           go run . onedrive files  \
           --user ${{ env.TEST_USER }} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_$prefix \
+          --destination Corso_Restore_st_$sufix \
           --count 4
 
-          echo result="$prefix" >> $GITHUB_OUTPUT
+          echo result="$sufix" >> $GITHUB_OUTPUT
 
       # run the tests
       - name: Backup onedrive test
