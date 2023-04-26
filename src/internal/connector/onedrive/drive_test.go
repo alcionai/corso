@@ -335,15 +335,15 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	restoreFolders := path.Builder{}.Append(folderElements...)
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, nil)
+	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
 	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
-	folderElements = append(folderElements, folderName2)
+	restoreFolders = restoreFolders.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, nil)
+	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -396,8 +396,8 @@ func (fm testFolderMatcher) IsAny() bool {
 	return fm.scope.IsAny(selectors.OneDriveFolder)
 }
 
-func (fm testFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, path)
+func (fm testFolderMatcher) Matches(p string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, p)
 }
 
 func (suite *OneDriveSuite) TestOneDriveNewCollections() {
