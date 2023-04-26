@@ -114,6 +114,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			sels,
 			owner,
 			metadata,
+			lastBackupVersion,
 			gc.credentials,
 			gc.Service,
 			gc,

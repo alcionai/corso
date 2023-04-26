@@ -265,6 +265,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				sel,
 				sel,
 				nil,
+				version.NoBackup,
 				connector.credentials,
 				connector.Service,
 				connector,
