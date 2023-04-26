@@ -13,6 +13,8 @@ type Options struct {
 	SkipReduce         bool            `json:"skipReduce"`
 	ToggleFeatures     Toggles         `json:"toggleFeatures"`
 	Parallelism        Parallelism     `json:"parallelism"`
+	User               string          `json:"user"`
+	Host               string          `json:"host"`
 }
 
 type FailureBehavior string
