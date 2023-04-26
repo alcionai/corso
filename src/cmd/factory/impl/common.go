@@ -258,7 +258,11 @@ func generateAndRestoreOnedriveItems(
 	sel selectors.Selector,
 	tenantID, destFldr string,
 	count int,
-	errs *fault.Bus) (*details.Details, error) {
+	errs *fault.Bus,
+) (
+	*details.Details,
+	error,
+) {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -348,6 +352,7 @@ func generateAndRestoreOnedriveItems(
 			}
 
 			cols = append(cols, col)
+
 			continue
 		}
 
@@ -375,6 +380,7 @@ func generateAndRestoreOnedriveItems(
 			}
 
 			cols = append(cols, col)
+
 			continue
 		}
 
@@ -397,6 +403,7 @@ func generateAndRestoreOnedriveItems(
 			}
 
 			cols = append(cols, col)
+
 			continue
 		}
 
@@ -453,8 +460,8 @@ func generateAndRestoreOnedriveItems(
 		RestorePermissions: true,
 		ToggleFeatures:     control.Toggles{},
 	}
-	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, collections, errs)
 
+	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, collections, errs)
 }
 
 type configInfo struct {
@@ -495,9 +502,7 @@ func getCollections(
 	testCollections []colInfo,
 	backupVersion int,
 ) []data.RestoreCollection {
-	var (
-		collections []data.RestoreCollection
-	)
+	var collections []data.RestoreCollection
 
 	for _, owner := range config.resourceOwners {
 		ownerCollections := collectionsForInfo(
@@ -539,9 +544,7 @@ func collectionsForInfo(
 	allInfo []colInfo,
 	backupVersion int,
 ) []data.RestoreCollection {
-	var (
-		collections = make([]data.RestoreCollection, 0, len(allInfo))
-	)
+	collections := make([]data.RestoreCollection, 0, len(allInfo))
 
 	for _, info := range allInfo {
 		pth := mustToDataLayerPath(
@@ -563,7 +566,6 @@ func collectionsForInfo(
 				(service == path.OneDriveService || service == path.SharePointService) {
 				continue
 			}
-
 		}
 
 		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
@@ -673,7 +675,6 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 }
 
 func (c *onedriveCollection) withFile(name string, fileData []byte, perm permData) *onedriveCollection {
-
 	c.items = append(c.items, onedriveItemWithData(
 		name+metadata.DataFileSuffix,
 		name+metadata.DataFileSuffix,
@@ -732,7 +733,6 @@ func onedriveItemWithData(
 	name, lookupKey string,
 	fileData []byte,
 ) itemInfo {
-
 	content := testOneDriveData{
 		FileName: lookupKey,
 		Data:     fileData,
@@ -758,6 +758,7 @@ func onedriveMetadata(
 	if err != nil {
 		fmt.Println("marshalling metadata", clues.ToCore(err))
 	}
+
 	return itemInfo{
 		name:      itemID,
 		data:      testMetaJSON,

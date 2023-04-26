@@ -3,9 +3,9 @@ package impl
 import (
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/clues"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -60,7 +60,6 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 		Destination,
 		Count,
 		errs)
-
 	if err != nil {
 		return Only(ctx, err)
 	}
