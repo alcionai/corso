@@ -43,6 +43,7 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
 	_ bool,
+	_ bool,
 ) (
 	[]string,
 	[]string,
@@ -311,6 +312,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				test.scope,
 				dps,
 				control.Options{FailureHandling: test.failFast},
+				true,
 				fault.New(test.failFast == control.FailFast))
 			test.expectErr(t, err, clues.ToCore(err))
 
@@ -469,6 +471,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				allScope,
 				dps,
 				control.Options{FailureHandling: control.FailFast},
+				true,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -834,6 +837,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				allScope,
 				test.dps,
 				control.Defaults(),
+				true,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 

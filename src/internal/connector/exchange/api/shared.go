@@ -67,30 +67,39 @@ func getAddedAndRemovedItemIDs(
 	pager itemPager,
 	deltaPager itemPager,
 	oldDelta string,
+	deltaAvailable bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, deltaPager)
-	// note: happy path, not the error condition
-	if err == nil {
-		return added, removed, DeltaUpdate{deltaURL, len(oldDelta) != 0}, err
+	var (
+		pgr        itemPager
+		resetDelta bool
+	)
+
+	if deltaAvailable {
+		pgr = deltaPager
+		resetDelta = len(oldDelta) == 0
+	} else {
+		pgr = pager
+		resetDelta = true
 	}
 
-	// return error if invalid delta error or if we did a non-delta fetch
-	if !graph.IsErrInvalidDelta(err) && !graph.IsErrQuotaExceeded(err) {
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	// note: happy path, not the error condition
+	if err == nil {
+		return added, removed, DeltaUpdate{deltaURL, resetDelta}, err
+	}
+
+	// If we already tried with a non-delta url, we can return
+	if !deltaAvailable {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var pgr itemPager
-	if graph.IsErrQuotaExceeded(err) {
-		pgr = pager
-	} else {
-		if len(oldDelta) == 0 {
-			// if we have already tried with empty delta, don't retry
-			return nil, nil, DeltaUpdate{}, err
-		}
-
-		deltaPager.reset(ctx)
-		pgr = deltaPager
+	// return error if invalid delta error or oldDelta was empty
+	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 {
+		return nil, nil, DeltaUpdate{}, err
 	}
+
+	// reset deltaPager
+	pgr.reset(ctx)
 
 	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
@@ -154,7 +163,7 @@ func getItemsAddedAndRemovedFromContainer(
 		if ok {
 			nextLink, deltaLink = api.NextAndDeltaLink(dresp)
 		} else {
-			nextLink = api.NextLink(dresp)
+			nextLink = api.NextLink(resp)
 			deltaLink = "" // to make sure we don't use an old value
 		}
 

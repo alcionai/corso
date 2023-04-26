@@ -169,6 +169,7 @@ func DataCollections(
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
+	deltaAvailable bool,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	eb, err := selector.ToExchangeBackup()
@@ -205,6 +206,7 @@ func DataCollections(
 			scope,
 			cdps[scope.Category().PathType()],
 			ctrlOpts,
+			deltaAvailable,
 			su,
 			errs)
 		if err != nil {
@@ -260,6 +262,7 @@ func createCollections(
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
+	deltaAvailable bool,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -306,7 +309,9 @@ func createCollections(
 		scope,
 		dps,
 		ctrlOpts,
-		errs)
+		deltaAvailable,
+		errs,
+	)
 	if err != nil {
 		return nil, clues.Wrap(err, "filling collections")
 	}

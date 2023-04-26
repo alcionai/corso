@@ -231,6 +231,7 @@ type mailFolderPagerer interface {
 	valuesIn(api.PageLinker) ([]models.MailFolderable, error)
 }
 
+// TODO(meain): This is unused
 var _ mailFolderPagerer = &mailFolderDeltaPager{}
 
 type mailFolderDeltaPager struct {
@@ -326,8 +327,7 @@ func (c Mail) EnumerateContainers(
 
 	el := errs.Local()
 
-	var pgr mailFolderPagerer
-	pgr = NewMailFolderPager(service, userID)
+	pgr := NewMailFolderPager(service, userID)
 
 	for {
 		if el.Failure() != nil {
@@ -336,11 +336,6 @@ func (c Mail) EnumerateContainers(
 
 		page, err := pgr.getPage(ctx)
 		if err != nil {
-			if graph.IsErrQuotaExceeded(err) {
-				pgr = NewMailFolderPager(service, userID)
-				continue
-			}
-
 			return graph.Stack(ctx, err)
 		}
 
@@ -554,6 +549,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
+	deltaAvailable bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -575,7 +571,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
 
-	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta)
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, deltaAvailable)
 }
 
 // ---------------------------------------------------------------------------

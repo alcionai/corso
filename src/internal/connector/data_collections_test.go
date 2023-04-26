@@ -108,6 +108,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				connector.credentials,
 				connector.UpdateStatus,
 				control.Defaults(),
+				true,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Empty(t, excludes)

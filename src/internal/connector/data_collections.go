@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -57,7 +58,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, err := checkServiceEnabled(
+	serviceEnabled, deltaAvailable, err := checkServiceEnabled(
 		ctx,
 		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
@@ -75,6 +76,10 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		excludes map[string]map[string]struct{}
 	)
 
+	if !deltaAvailable {
+		logger.Ctx(ctx).Info("delta requests not available")
+	}
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
 		colls, excludes, err = exchange.DataCollections(
@@ -85,6 +90,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			gc.credentials,
 			gc.UpdateStatus,
 			ctrlOpts,
+			deltaAvailable,
 			errs)
 		if err != nil {
 			return nil, nil, err
@@ -168,22 +174,22 @@ func checkServiceEnabled(
 	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
-) (bool, error) {
+) (bool, bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
-		return true, nil
+		return true, true, nil
 	}
 
 	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
-	return true, nil
+	return true, info.Mailbox.DeltaAvailable, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections

@@ -58,6 +58,7 @@ type MailboxInfo struct {
 	Language                   Language
 	WorkingHours               WorkingHours
 	ErrGetMailBoxSetting       []error
+	DeltaAvailable             bool
 }
 
 type AutomaticRepliesSettings struct {
@@ -260,7 +261,8 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		QueryParameters: &requestParameters,
 	}
 
-	if _, err := c.GetMailFolders(ctx, userID, options); err != nil {
+	mfs, err := c.GetMailFolders(ctx, userID, options)
+	if err != nil {
 		if graph.IsErrUserNotFound(err) {
 			logger.CtxErr(ctx, err).Error("user not found")
 			return nil, err
@@ -294,6 +296,27 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	}
 
 	userInfo.Mailbox = mbxInfo
+
+	if mfs != nil {
+		mf := mfs.GetValue()[0] // we will always have one
+		options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
+				Top: ptr.To[int32](1), // just one item is enough
+			},
+		}
+		_, err = c.stable.Client().
+			UsersById(userID).
+			MailFoldersById(ptr.Val(mf.GetId())).
+			Messages().
+			Delta().
+			Get(ctx, options)
+
+		if err != nil && !graph.IsErrQuotaExceeded(err) {
+			return nil, err
+		}
+
+		userInfo.Mailbox.DeltaAvailable = !graph.IsErrQuotaExceeded(err)
+	}
 
 	return userInfo, nil
 }

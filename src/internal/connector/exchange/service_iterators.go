@@ -23,6 +23,7 @@ type addedAndRemovedItemIDsGetter interface {
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
 		immutableIDs bool,
+		deltaAvailable bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -41,6 +42,7 @@ func filterContainersAndFillCollections(
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
+	deltaAvailable bool,
 	errs *fault.Bus,
 ) error {
 	var (
@@ -114,7 +116,9 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner.ID(),
 			cID,
 			prevDelta,
-			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs)
+			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+			deltaAvailable,
+		)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
