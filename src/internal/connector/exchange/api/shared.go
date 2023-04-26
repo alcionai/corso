@@ -157,7 +157,10 @@ func getItemsAddedAndRemovedFromContainer(
 		nextLink, deltaLink := api.NextAndDeltaLink(resp)
 		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(deltaLink) {
-				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, deltaLink)
+				logger.Ctx(ctx).
+					With("next_link", graph.LoggableURL(nextLink)).
+					With("delta_link", graph.LoggableURL(deltaLink)).
+					Info("invalid link from M365")
 			}
 		}
 

@@ -251,6 +251,10 @@ func (p *contactPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
+// ---------------------------------------------------------------------------
+// non-delta item pager
+// ---------------------------------------------------------------------------
+
 var _ itemPager = &contactDeltaPager{}
 
 type contactDeltaPager struct {
