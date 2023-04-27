@@ -58,7 +58,7 @@ type MailboxInfo struct {
 	Language                   Language
 	WorkingHours               WorkingHours
 	ErrGetMailBoxSetting       []error
-	DeltaAvailable             bool
+	QuotaExceeded              bool
 }
 
 type AutomaticRepliesSettings struct {
@@ -108,6 +108,12 @@ func (ui *UserInfo) ServiceEnabled(service path.ServiceType) bool {
 	_, ok := ui.ServicesEnabled[service]
 
 	return ok
+}
+
+// Returns if we can run delta queries on a mailbox. We cannot run
+// them if the mailbox is full which is indicated by QuotaExceeded.
+func (ui *UserInfo) CanMakeDeltaQueries() bool {
+	return !ui.Mailbox.QuotaExceeded
 }
 
 // ---------------------------------------------------------------------------
@@ -315,7 +321,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 			return nil, err
 		}
 
-		userInfo.Mailbox.DeltaAvailable = !graph.IsErrQuotaExceeded(err)
+		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
 	}
 
 	return userInfo, nil
