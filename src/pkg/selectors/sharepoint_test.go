@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -234,29 +235,17 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 		item       = toRR(
 			path.LibrariesCategory,
 			"sid",
-			append(
-				append(
-					[]string{},
-					prefixElems...),
-				itemElems1...),
+			append(slices.Clone(prefixElems), itemElems1...),
 			"item")
 		item2 = toRR(
 			path.LibrariesCategory,
 			"sid",
-			append(
-				append(
-					[]string{},
-					prefixElems...),
-				itemElems2...),
+			append(slices.Clone(prefixElems), itemElems2...),
 			"item2")
 		item3 = toRR(
 			path.LibrariesCategory,
 			"sid",
-			append(
-				append(
-					[]string{},
-					prefixElems...),
-				itemElems3...),
+			append(slices.Clone(prefixElems), itemElems3...),
 			"item3")
 		item4 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item4")
 		item5 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item5")

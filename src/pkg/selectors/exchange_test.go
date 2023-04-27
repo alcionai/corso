@@ -713,15 +713,15 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	const (
 		usr  = "userID"
-		fID1 = "mf_id_1"
+		fID1 = "mf_id_1.d"
 		fld1 = "mailFolder"
-		fID2 = "mf_id_2"
+		fID2 = "mf_id_2.d"
 		fld2 = "subFolder"
 		mail = "mailID"
 	)
 
 	var (
-		repo  = stubPath(suite.T(), usr, []string{fID1 + ".d", fID2 + ".d", mail}, path.EmailCategory)
+		repo  = stubPath(suite.T(), usr, []string{fID1, fID2, mail}, path.EmailCategory)
 		loc   = strings.Join([]string{fld1, fld2, mail}, "/")
 		short = "thisisahashofsomekind"
 		es    = NewExchangeRestore(Any())
