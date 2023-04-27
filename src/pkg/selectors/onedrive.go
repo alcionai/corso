@@ -399,7 +399,7 @@ func (c oneDriveCategory) pathValues(
 	}
 
 	// Ignore `drives/<driveID>/root:` for folder comparison
-	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
+	rFld := ent.OneDrive.ParentPath
 
 	item := ent.ItemRef
 	if len(item) == 0 {

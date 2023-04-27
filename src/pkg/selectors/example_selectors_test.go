@@ -123,9 +123,10 @@ var (
 		DetailsModel: details.DetailsModel{
 			Entries: []details.DetailsEntry{
 				{
-					RepoRef:  "tID/exchange/your-user-id/email/example/itemID",
-					ShortRef: "xyz",
-					ItemRef:  "123",
+					RepoRef:     "tID/exchange/your-user-id/email/example/itemID",
+					LocationRef: "example",
+					ShortRef:    "xyz",
+					ItemRef:     "123",
 					ItemInfo: details.ItemInfo{
 						Exchange: &details.ExchangeInfo{
 							ItemType: details.ExchangeMail,

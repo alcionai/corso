@@ -520,9 +520,9 @@ func (c sharePointCategory) pathValues(
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	var (
-		folderCat, itemCat    categorizer
-		dropDriveFolderPrefix bool
-		itemID                string
+		folderCat, itemCat categorizer
+		itemID             string
+		rFld               string
 	)
 
 	switch c {
@@ -531,23 +531,19 @@ func (c sharePointCategory) pathValues(
 			return nil, clues.New("no SharePoint ItemInfo in details")
 		}
 
-		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
+		rFld = ent.SharePoint.ParentPath
 
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+		rFld = ent.LocationRef
 
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
+		rFld = ent.LocationRef
 
 	default:
 		return nil, clues.New("unrecognized sharePointCategory").With("category", c)
-	}
-
-	rFld := repo.Folder(false)
-	if dropDriveFolderPrefix {
-		// like onedrive, ignore `drives/<driveID>/root:` for library folder comparison
-		rFld = path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 	}
 
 	item := ent.ItemRef
@@ -566,10 +562,6 @@ func (c sharePointCategory) pathValues(
 
 	if len(itemID) > 0 {
 		result[itemCat] = append(result[itemCat], itemID)
-	}
-
-	if len(ent.LocationRef) > 0 {
-		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
 	return result, nil
