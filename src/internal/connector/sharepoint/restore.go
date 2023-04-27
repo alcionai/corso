@@ -63,6 +63,7 @@ func RestoreCollections(
 				"category", category,
 				"destination", clues.Hide(dest.ContainerName),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
+			driveFolderCache = onedrive.NewFolderCache()
 		)
 
 		switch dc.FullPath().Category() {
@@ -75,11 +76,14 @@ func RestoreCollections(
 				dc,
 				map[string]onedrive.Metadata{}, // Currently permission data is not stored for sharepoint
 				map[string]string{},
+				driveFolderCache,
+				nil,
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
 				false,
 				errs)
+
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(
 				ictx,
@@ -88,6 +92,7 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errs)
+
 		case path.PagesCategory:
 			metrics, err = RestorePageCollection(
 				ictx,
@@ -96,6 +101,7 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errs)
+
 		default:
 			return nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
 		}
@@ -115,23 +121,6 @@ func RestoreCollections(
 		dest.ContainerName)
 
 	return status, err
-}
-
-// createRestoreFolders creates the restore folder hierarchy in the specified drive and returns the folder ID
-// of the last folder entry given in the hierarchy
-func createRestoreFolders(
-	ctx context.Context,
-	service graph.Servicer,
-	siteID string,
-	restoreFolders []string,
-) (string, error) {
-	// Get Main Drive for Site, Documents
-	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
-	if err != nil {
-		return "", graph.Wrap(ctx, err, "getting site drive root")
-	}
-
-	return onedrive.CreateRestoreFolders(ctx, service, ptr.Val(mainDrive.GetId()), restoreFolders)
 }
 
 // restoreListItem utility function restores a List to the siteID.

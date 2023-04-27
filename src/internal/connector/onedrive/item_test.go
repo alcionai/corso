@@ -155,7 +155,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Test Requirement 2: "Test Folder" should exist
-			folder, err := getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
+			folder, err := api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
@@ -184,8 +184,8 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
-			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(newFolder.GetId()), newItemName)
-			require.ErrorIs(t, err, errFolderNotFound, clues.ToCore(err))
+			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(newFolder.GetId()), newItemName)
+			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
@@ -237,11 +237,11 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist
-			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "FolderDoesNotExist")
-			require.ErrorIs(t, err, errFolderNotFound, clues.ToCore(err))
+			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "FolderDoesNotExist")
+			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Lookup a folder that does exist
-			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "")
+			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "")
 			require.NoError(t, err, clues.ToCore(err))
 		})
 	}

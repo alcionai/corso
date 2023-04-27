@@ -263,7 +263,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	if _, err := c.GetMailFolders(ctx, userID, options); err != nil {
 		if graph.IsErrUserNotFound(err) {
 			logger.CtxErr(ctx, err).Error("user not found")
-			return nil, err
+			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceOwnerNotFound, err))
 		}
 
 		if !graph.IsErrExchangeMailFolderNotFound(err) ||

@@ -241,8 +241,9 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	var (
-		reasons         = selectorToReasons(op.Selectors, false)
-		fallbackReasons = makeFallbackReasons(op.Selectors)
+		reasons           = selectorToReasons(op.Selectors, false)
+		fallbackReasons   = makeFallbackReasons(op.Selectors)
+		lastBackupVersion = version.NoBackup
 	)
 
 	logger.Ctx(ctx).With(
@@ -264,9 +265,11 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	_, lastBackupVersion, err := lastCompleteBackups(ctx, op.store, mans)
-	if err != nil {
-		return nil, clues.Wrap(err, "retrieving prior backups")
+	if canUseMetaData {
+		_, lastBackupVersion, err = lastCompleteBackups(ctx, op.store, mans)
+		if err != nil {
+			return nil, clues.Wrap(err, "retrieving prior backups")
+		}
 	}
 
 	cs, excludes, err := produceBackupDataCollections(

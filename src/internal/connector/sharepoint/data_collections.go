@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -53,6 +54,7 @@ func DataCollections(
 		el          = errs.Local()
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
+		excluded    = map[string]map[string]struct{}{}
 	)
 
 	for _, scope := range b.Scopes() {
@@ -84,7 +86,9 @@ func DataCollections(
 			}
 
 		case path.LibrariesCategory:
-			spcs, _, err = collectLibraries(
+			var excludes map[string]map[string]struct{}
+
+			spcs, excludes, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -98,6 +102,14 @@ func DataCollections(
 			if err != nil {
 				el.AddRecoverable(err)
 				continue
+			}
+
+			for prefix, excludes := range excludes {
+				if _, ok := excluded[prefix]; !ok {
+					excluded[prefix] = map[string]struct{}{}
+				}
+
+				maps.Copy(excluded[prefix], excludes)
 			}
 
 		case path.PagesCategory:
@@ -138,7 +150,7 @@ func DataCollections(
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, nil, el.Failure()
+	return collections, excluded, el.Failure()
 }
 
 func collectLists(
@@ -216,8 +228,6 @@ func collectLibraries(
 			ctrlOpts)
 	)
 
-	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
-	// token-based incrementals.
 	odcs, excludes, err := colls.Get(ctx, metadata, errs)
 	if err != nil {
 		return nil, nil, graph.Wrap(ctx, err, "getting library")
