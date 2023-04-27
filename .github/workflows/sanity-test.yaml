@@ -123,10 +123,10 @@ jobs:
           ./corso backup create exchange \
           --no-stats \
           --mailbox "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress \
-           --data 'email' \
-            --json \
-            2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+          --hide-progress \
+          --data 'email' \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 
@@ -235,8 +235,7 @@ jobs:
           set -euo pipefail
           ./sanityCheck
 
-        
- # Onedrive test
+# Onedrive test
 
       # run the tests
       - name: Backup onedrive test
@@ -372,11 +371,11 @@ jobs:
         id: sha-info
         if: failure()
         run: |  
-                echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
-                echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-                echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
-                echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
-               
+          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+
       
       - name: Send Github Action failure to Slack
         id: slack-notification
@@ -387,16 +386,16 @@ jobs:
             {
               "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
               "blocks": [
-                  {
-                      "type": "header",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "Failure in Sanity Test"
-                      }
-                 },
-                   {
-                      "type": "divider"
-                    },
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Failure in Sanity Test"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
                 {
                   "type": "section",
                   "text": {
