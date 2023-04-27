@@ -67,14 +67,14 @@ func getAddedAndRemovedItemIDs(
 	pager itemPager,
 	deltaPager itemPager,
 	oldDelta string,
-	deltaAvailable bool,
+	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	var (
 		pgr        itemPager
 		resetDelta bool
 	)
 
-	if deltaAvailable {
+	if canMakeDeltaQueries {
 		pgr = deltaPager
 		resetDelta = len(oldDelta) == 0
 	} else {
@@ -89,7 +89,7 @@ func getAddedAndRemovedItemIDs(
 	}
 
 	// If we already tried with a non-delta url, we can return
-	if !deltaAvailable {
+	if !canMakeDeltaQueries {
 		return nil, nil, DeltaUpdate{}, err
 	}
 

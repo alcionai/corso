@@ -77,8 +77,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		excludes map[string]map[string]struct{}
 	)
 
-	deltaAvailable := info.CanMakeDeltaQueries()
-	if !deltaAvailable {
+	canMakeDeltaQueries := info.CanMakeDeltaQueries()
+	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
 	}
 
@@ -92,7 +92,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			gc.credentials,
 			gc.UpdateStatus,
 			ctrlOpts,
-			deltaAvailable,
+			canMakeDeltaQueries,
 			errs)
 		if err != nil {
 			return nil, nil, err

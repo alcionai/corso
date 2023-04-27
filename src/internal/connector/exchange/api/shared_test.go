@@ -92,14 +92,14 @@ func TestSharedAPIUnitSuite(t *testing.T) {
 
 func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	tests := []struct {
-		name             string
-		pagerGetter      func(context.Context, graph.Servicer, string, string, bool) (itemPager, error)
-		deltaPagerGetter func(context.Context, graph.Servicer, string, string, string, bool) (itemPager, error)
-		added            []string
-		removed          []string
-		deltaUpdate      DeltaUpdate
-		delta            string
-		deltaAvailable   bool
+		name                string
+		pagerGetter         func(context.Context, graph.Servicer, string, string, bool) (itemPager, error)
+		deltaPagerGetter    func(context.Context, graph.Servicer, string, string, string, bool) (itemPager, error)
+		added               []string
+		removed             []string
+		deltaUpdate         DeltaUpdate
+		delta               string
+		canMakeDeltaQueries bool
 	}{
 		{
 			name: "no prev delta",
@@ -127,10 +127,10 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					removed: []string{"tres", "quatro"},
 				}, nil
 			},
-			added:          []string{"uno", "dos"},
-			removed:        []string{"tres", "quatro"},
-			deltaUpdate:    DeltaUpdate{Reset: true},
-			deltaAvailable: true,
+			added:               []string{"uno", "dos"},
+			removed:             []string{"tres", "quatro"},
+			deltaUpdate:         DeltaUpdate{Reset: true},
+			canMakeDeltaQueries: true,
 		},
 		{
 			name: "with prev delta",
@@ -158,11 +158,11 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					removed: []string{"tres", "quatro"},
 				}, nil
 			},
-			added:          []string{"uno", "dos"},
-			removed:        []string{"tres", "quatro"},
-			delta:          "delta",
-			deltaUpdate:    DeltaUpdate{Reset: false},
-			deltaAvailable: true,
+			added:               []string{"uno", "dos"},
+			removed:             []string{"tres", "quatro"},
+			delta:               "delta",
+			deltaUpdate:         DeltaUpdate{Reset: false},
+			canMakeDeltaQueries: true,
 		},
 		{
 			name: "delta expired",
@@ -192,11 +192,11 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					needsReset: true,
 				}, nil
 			},
-			added:          []string{"uno", "dos"},
-			removed:        []string{"tres", "quatro"},
-			delta:          "delta",
-			deltaUpdate:    DeltaUpdate{Reset: true},
-			deltaAvailable: true,
+			added:               []string{"uno", "dos"},
+			removed:             []string{"tres", "quatro"},
+			delta:               "delta",
+			deltaUpdate:         DeltaUpdate{Reset: true},
+			canMakeDeltaQueries: true,
 		},
 		{
 			name: "quota exceeded",
@@ -223,10 +223,10 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			) (itemPager, error) {
 				return &testPager{errorCode: "ErrorQuotaExceeded"}, nil
 			},
-			added:          []string{"uno", "dos"},
-			removed:        []string{"tres", "quatro"},
-			deltaUpdate:    DeltaUpdate{Reset: true},
-			deltaAvailable: false,
+			added:               []string{"uno", "dos"},
+			removed:             []string{"tres", "quatro"},
+			deltaUpdate:         DeltaUpdate{Reset: true},
+			canMakeDeltaQueries: false,
 		},
 	}
 
@@ -244,7 +244,7 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				pager,
 				deltaPager,
 				tt.delta,
-				tt.deltaAvailable,
+				tt.canMakeDeltaQueries,
 			)
 
 			require.NoError(suite.T(), err, "getting added and removed item IDs")

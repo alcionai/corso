@@ -23,7 +23,7 @@ type addedAndRemovedItemIDsGetter interface {
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
 		immutableIDs bool,
-		deltaAvailable bool,
+		canMakeDeltaQueries bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -42,7 +42,7 @@ func filterContainersAndFillCollections(
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
-	deltaAvailable bool,
+	canMakeDeltaQueries bool,
 	errs *fault.Bus,
 ) error {
 	var (
@@ -117,7 +117,7 @@ func filterContainersAndFillCollections(
 			cID,
 			prevDelta,
 			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-			deltaAvailable,
+			canMakeDeltaQueries,
 		)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {

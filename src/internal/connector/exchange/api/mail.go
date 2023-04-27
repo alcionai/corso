@@ -502,7 +502,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
-	deltaAvailable bool,
+	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -524,7 +524,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
 
-	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, deltaAvailable)
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------
