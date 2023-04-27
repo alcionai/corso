@@ -618,12 +618,8 @@ func (ec exchangeCategory) pathValues(
 	}
 
 	result := map[categorizer][]string{
-		folderCat: {repo.Folder(false)},
+		folderCat: {ent.LocationRef},
 		itemCat:   {item, ent.ShortRef},
-	}
-
-	if len(ent.LocationRef) > 0 {
-		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
 	return result, nil
