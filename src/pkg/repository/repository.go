@@ -549,10 +549,6 @@ func deleteBackup(
 		return errWrapper(err)
 	}
 
-	if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
-		return err
-	}
-
 	if len(b.SnapshotID) > 0 {
 		if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
 			return err

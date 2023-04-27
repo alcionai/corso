@@ -113,6 +113,10 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 		},
 	}
 
+	bupNoSnapshot := &backup.Backup{
+		BaseModel: model.BaseModel{},
+	}
+
 	table := []struct {
 		name      string
 		sw        mock.BackupWrapper
@@ -173,6 +177,19 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 			},
 			expectID: bup.ID,
 		},
+		{
+			name: "no snapshot present",
+			sw: mock.BackupWrapper{
+				Backup:    bupNoSnapshot,
+				GetErr:    nil,
+				DeleteErr: nil,
+			},
+			kw: mockSSDeleter{assert.AnError},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+			expectID: bupNoSnapshot.ID,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -181,7 +198,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 
 			t := suite.T()
 
-			err := deleteBackup(ctx, string(bup.ID), test.kw, test.sw)
+			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.kw, test.sw)
 			test.expectErr(t, err)
 		})
 	}
