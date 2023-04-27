@@ -93,7 +93,7 @@ func User(
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			return nil, nil, clues.Stack(graph.ErrResourceOwnerNotFound).With("user_id", userID)
+			return nil, nil, clues.Stack(graph.ErrResourceOwnerNotFound, err).With("user_id", userID)
 		}
 
 		return nil, nil, clues.Wrap(err, "getting user")
