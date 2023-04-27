@@ -51,7 +51,6 @@ func DataCollections(
 		"site_url", clues.Hide(site.Name()))
 
 	var (
-		excluded    map[string]map[string]struct{}
 		el          = errs.Local()
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
