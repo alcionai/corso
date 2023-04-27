@@ -22,7 +22,7 @@ type itemPager interface {
 	getPage(context.Context) (api.PageLinker, error)
 	// setNext is used to pass in the next url got from graph
 	setNext(string)
-	// reset is used to reset delta url in delta pagers
+	// reset is used to clear delta url in delta pagers
 	reset(context.Context)
 	// valuesIn gets us the values in a page
 	valuesIn(api.PageLinker) ([]getIDAndAddtler, error)

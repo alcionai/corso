@@ -315,7 +315,7 @@ func (p *eventPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 }
 
 // ---------------------------------------------------------------------------
-// non-delta item pager
+// delta item pager
 // ---------------------------------------------------------------------------
 
 var _ itemPager = &eventDeltaPager{}
@@ -417,7 +417,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 
 	pager, err := NewEventPager(ctx, service, user, calendarID, immutableIDs)
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
 	}
 
 	deltaPager, err := NewEventDeltaPager(ctx, service, user, calendarID, oldDelta, immutableIDs)
