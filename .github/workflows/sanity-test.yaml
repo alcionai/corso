@@ -29,14 +29,18 @@ jobs:
       AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
-      CORSO_LOG_FILE: ./src/testlog/testlogging.log
+      CORSO_LOG_DIR: testlog
+      CORSO_LOG_FILE: ${{ env.CORSO_LOG_DIR }}/testlogging.log
       CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-      TEST_RESULT: "test_results"
+      TEST_RESULT: test_results
+      # The default working directory doesn't seem to apply to things without
+      # the 'run' directive. https://stackoverflow.com/a/67845456
+      WORKING_DIR: src
 
     defaults:
       run:
-        working-directory: src
+        working-directory: ${{ env.WORKING_DIR }}
     steps:
       - uses: actions/checkout@v3
 
@@ -49,9 +53,9 @@ jobs:
 
       - run: go build -o sanityCheck ./cmd/sanity_test
 
-      - run: mkdir test_results
+      - run: mkdir ${TEST_RESULT}
 
-      - run: mkdir testlog
+      - run: mkdir ${CORSO_LOG_DIR}
 
       # run the tests
       - name: Version Test
@@ -70,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail 
           prefix=`date +"%Y-%m-%d-%T"`
-
+          echo "Repo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
           --no-stats \
           --hide-progress \
@@ -89,6 +93,7 @@ jobs:
       - name: Repo connect test
         run: |
           set -euo pipefail
+          echo "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
           ./corso repo connect s3 \
           --no-stats \
           --hide-progress \
@@ -120,6 +125,7 @@ jobs:
       - name: Backup exchange test
         id: exchange-test
         run: |
+          echo "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
           --mailbox "${CORSO_M365_TEST_USER_ID}" \
@@ -142,6 +148,7 @@ jobs:
       - name: Backup exchange list test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange list test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list exchange \
           --no-stats \
           --hide-progress \
@@ -157,6 +164,7 @@ jobs:
       - name: Backup exchange list single backup test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange list single backup test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list exchange \
           --no-stats \
           --hide-progress \
@@ -174,6 +182,7 @@ jobs:
         id: exchange-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
@@ -196,6 +205,7 @@ jobs:
         id: exchange-incremental-test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange incremental test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
           --hide-progress \
@@ -217,6 +227,7 @@ jobs:
         id: exchange-incremantal-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange incremental restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --hide-progress \
@@ -242,6 +253,7 @@ jobs:
         id: onedrive-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
@@ -263,6 +275,7 @@ jobs:
       - name: Backup onedrive list test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive list test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list onedrive \
           --no-stats \
           --hide-progress \
@@ -275,9 +288,10 @@ jobs:
           fi
 
       # list the previous onedrive backup
-      - name: Backup onedrive list test
+      - name: Backup onedrive list one backup test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive list one backup test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list onedrive \
           --no-stats \
           --hide-progress \
@@ -295,6 +309,7 @@ jobs:
         id: onedrive-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
@@ -317,6 +332,7 @@ jobs:
         id: onedrive-incremental-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive incremental test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
@@ -339,6 +355,7 @@ jobs:
         id: onedrive-incremental-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive incremental restore test\n" >> $CORSO_LOG_FILE
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
@@ -358,11 +375,10 @@ jobs:
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
-          path: src/testlog/*
+          name: test-logs
+          path: ${{ env.WORKING_DIR }}/${{ env.CORSO_LOG_DIR }}/
           if-no-files-found: error
           retention-days: 14
 
