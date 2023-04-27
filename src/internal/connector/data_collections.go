@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -22,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -58,12 +58,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	info, err := gc.Discovery.Users().GetInfo(ctx, sels.DiscreteOwner)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	serviceEnabled, err := checkServiceEnabled(info, path.ServiceType(sels.Service))
+	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
+		ctx,
+		gc.Discovery.Users(),
+		path.ServiceType(sels.Service),
+		sels.DiscreteOwner,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,7 +77,6 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		excludes map[string]map[string]struct{}
 	)
 
-	canMakeDeltaQueries := info.CanMakeDeltaQueries()
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
 	}
@@ -172,19 +171,32 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 }
 
 func checkServiceEnabled(
-	info *api.UserInfo,
+	ctx context.Context,
+	gi discovery.GetInfoer,
 	service path.ServiceType,
-) (bool, error) {
+	resource string,
+) (bool, bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
-		return true, nil
+		return true, true, nil
+	}
+
+	info, err := gi.GetInfo(ctx, resource)
+	if err != nil {
+		return false, false, err
 	}
 
 	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
-	return true, nil
+	canMakeDeltaQueries := true
+	if service == path.ExchangeService {
+		// we currently can only check quota exceeded for exchange
+		canMakeDeltaQueries = info.CanMakeDeltaQueries()
+	}
+
+	return true, canMakeDeltaQueries, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections
