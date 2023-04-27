@@ -482,6 +482,28 @@ type mailDeltaPager struct {
 	options     *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
+func getMailDeltaBuilder(
+	ctx context.Context,
+	gs graph.Servicer,
+	user string,
+	directoryID string,
+	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration,
+) *users.ItemMailFoldersItemMessagesDeltaRequestBuilder {
+	builder := gs.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
+
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := builder.ToGetRequestInformation(ctx, options)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("getting builder info")
+		} else {
+			logger.Ctx(ctx).
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+		}
+	}
+
+	return builder
+}
+
 func NewMailDeltaPager(
 	ctx context.Context,
 	gs graph.Servicer,
@@ -511,17 +533,7 @@ func NewMailDeltaPager(
 	if len(oldDelta) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	} else {
-		builder = gs.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
-
-		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			gri, err := builder.ToGetRequestInformation(ctx, options)
-			if err != nil {
-				logger.CtxErr(ctx, err).Error("getting builder info")
-			} else {
-				logger.Ctx(ctx).
-					Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-			}
-		}
+		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, options)
 	}
 
 	return &mailDeltaPager{gs, user, directoryID, builder, options}, nil
