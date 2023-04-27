@@ -449,7 +449,7 @@ func (p *mailPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 }
 
 // ---------------------------------------------------------------------------
-// non-delta item pager
+// delta item pager
 // ---------------------------------------------------------------------------
 
 var _ itemPager = &mailDeltaPager{}

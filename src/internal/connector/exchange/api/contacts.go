@@ -255,7 +255,7 @@ func (p *contactPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 }
 
 // ---------------------------------------------------------------------------
-// non-delta item pager
+// delta item pager
 // ---------------------------------------------------------------------------
 
 var _ itemPager = &contactDeltaPager{}
@@ -358,7 +358,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 
 	pager, err := NewContactPager(ctx, service, user, directoryID, immutableIDs)
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
 	}
 
 	deltaPager, err := NewContactDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
