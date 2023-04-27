@@ -268,6 +268,27 @@ type contactDeltaPager struct {
 	options     *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
+func getContactDeltaBuilder(
+	ctx context.Context,
+	gs graph.Servicer,
+	user string,
+	directoryID string,
+	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
+) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
+	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := builder.ToGetRequestInformation(ctx, options)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("getting builder info")
+		} else {
+			logger.Ctx(ctx).
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+		}
+	}
+
+	return builder
+}
+
 func NewContactDeltaPager(
 	ctx context.Context,
 	gs graph.Servicer,
@@ -296,16 +317,7 @@ func NewContactDeltaPager(
 	if deltaURL != "" {
 		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(deltaURL, gs.Adapter())
 	} else {
-		builder = gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
-		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			gri, err := builder.ToGetRequestInformation(ctx, options)
-			if err != nil {
-				logger.CtxErr(ctx, err).Error("getting builder info")
-			} else {
-				logger.Ctx(ctx).
-					Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-			}
-		}
+		builder = getContactDeltaBuilder(ctx, gs, user, directoryID, options)
 	}
 
 	return &contactDeltaPager{gs, user, directoryID, builder, options}, nil
@@ -325,16 +337,7 @@ func (p *contactDeltaPager) setNext(nextLink string) {
 }
 
 func (p *contactDeltaPager) reset(ctx context.Context) {
-	p.builder = p.gs.Client().UsersById(p.user).ContactFoldersById(p.directoryID).Contacts().Delta()
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := p.builder.ToGetRequestInformation(ctx, p.options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
+	p.builder = getContactDeltaBuilder(ctx, p.gs, p.user, p.directoryID, p.options)
 }
 
 func (p *contactDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
