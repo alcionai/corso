@@ -45,12 +45,12 @@ func Recovery(ctx context.Context, r any, namespace string) error {
 	for i := 1; i < 10; i++ {
 		_, file, line, ok := runtime.Caller(i)
 		if j > 0 {
-			if strings.Contains(file, "panic.go") {
-				j = 0
-			} else {
+			if !strings.Contains(file, "panic.go") {
 				inFile = fmt.Sprintf(": file %s - line %d", file, line)
 				break
 			}
+
+			j = 0
 		}
 
 		// skip the location where Recovery() gets called.
