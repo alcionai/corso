@@ -58,6 +58,7 @@ type MailboxInfo struct {
 	Language                   Language
 	WorkingHours               WorkingHours
 	ErrGetMailBoxSetting       []error
+	QuotaExceeded              bool
 }
 
 type AutomaticRepliesSettings struct {
@@ -107,6 +108,12 @@ func (ui *UserInfo) ServiceEnabled(service path.ServiceType) bool {
 	_, ok := ui.ServicesEnabled[service]
 
 	return ok
+}
+
+// Returns if we can run delta queries on a mailbox. We cannot run
+// them if the mailbox is full which is indicated by QuotaExceeded.
+func (ui *UserInfo) CanMakeDeltaQueries() bool {
+	return !ui.Mailbox.QuotaExceeded
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +267,8 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		QueryParameters: &requestParameters,
 	}
 
-	if _, err := c.GetMailFolders(ctx, userID, options); err != nil {
+	mfs, err := c.GetMailFolders(ctx, userID, options)
+	if err != nil {
 		if graph.IsErrUserNotFound(err) {
 			logger.CtxErr(ctx, err).Error("user not found")
 			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceOwnerNotFound, err))
@@ -294,6 +302,27 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	}
 
 	userInfo.Mailbox = mbxInfo
+
+	if mfs != nil {
+		mf := mfs.GetValue()[0] // we will always have one
+		options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
+				Top: ptr.To[int32](1), // just one item is enough
+			},
+		}
+		_, err = c.stable.Client().
+			UsersById(userID).
+			MailFoldersById(ptr.Val(mf.GetId())).
+			Messages().
+			Delta().
+			Get(ctx, options)
+
+		if err != nil && !graph.IsErrQuotaExceeded(err) {
+			return nil, err
+		}
+
+		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
+	}
 
 	return userInfo, nil
 }

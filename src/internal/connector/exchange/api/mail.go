@@ -245,63 +245,17 @@ func (c Mail) GetItem(
 	return mail, MailInfo(mail, size), nil
 }
 
-type mailFolderPagerer interface {
-	getPage(context.Context) (api.PageLinker, error)
-	setNext(string)
-	valuesIn(api.PageLinker) ([]models.MailFolderable, error)
-}
-
-var _ mailFolderPagerer = &mailFolderDeltaPager{}
-
-type mailFolderDeltaPager struct {
-	service graph.Servicer
-	builder *users.ItemMailFoldersDeltaRequestBuilder
-}
-
-func NewMailFolderDeltaPager(service graph.Servicer, user string) mailFolderPagerer {
-	builder := service.Client().
-		UsersById(user).
-		MailFolders().
-		Delta()
-
-	return &mailFolderDeltaPager{service, builder}
-}
-
-func (p *mailFolderDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
-	page, err := p.builder.Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return page, nil
-}
-
-func (p *mailFolderDeltaPager) setNext(nextLink string) {
-	p.builder = users.NewItemMailFoldersDeltaRequestBuilder(nextLink, p.service.Adapter())
-}
-
-func (p *mailFolderDeltaPager) valuesIn(pl api.PageLinker) ([]models.MailFolderable, error) {
-	page, ok := pl.(users.ItemMailFoldersDeltaResponseable)
-	if !ok {
-		return nil, clues.New("unable to convert to ItemMailFoldersDeltaResponseable")
-	}
-
-	return page.GetValue(), nil
-}
-
-var _ mailFolderPagerer = &mailFolderPager{}
-
 type mailFolderPager struct {
 	service graph.Servicer
 	builder *users.ItemMailFoldersRequestBuilder
 }
 
-func NewMailFolderPager(service graph.Servicer, user string) mailFolderPagerer {
+func NewMailFolderPager(service graph.Servicer, user string) mailFolderPager {
 	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
 	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, user)
 	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
 
-	return &mailFolderPager{service, builder}
+	return mailFolderPager{service, builder}
 }
 
 func (p *mailFolderPager) getPage(ctx context.Context) (api.PageLinker, error) {
@@ -346,8 +300,7 @@ func (c Mail) EnumerateContainers(
 
 	el := errs.Local()
 
-	var pgr mailFolderPagerer
-	pgr = NewMailFolderPager(service, userID)
+	pgr := NewMailFolderPager(service, userID)
 
 	for {
 		if el.Failure() != nil {
@@ -356,11 +309,6 @@ func (c Mail) EnumerateContainers(
 
 		page, err := pgr.getPage(ctx)
 		if err != nil {
-			if graph.IsErrQuotaExceeded(err) {
-				pgr = NewMailFolderPager(service, userID)
-				continue
-			}
-
 			return graph.Stack(ctx, err)
 		}
 
@@ -574,6 +522,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
+	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -595,7 +544,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
 
-	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta)
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------

@@ -405,6 +405,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
 	immutableIDs bool,
+	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
@@ -425,7 +426,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
 
-	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta)
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------

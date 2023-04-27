@@ -255,9 +255,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
-		name        string
-		scope       selectors.ExchangeScope
-		folderNames map[string]struct{}
+		name                string
+		scope               selectors.ExchangeScope
+		folderNames         map[string]struct{}
+		canMakeDeltaQueries bool
 	}{
 		{
 			name: "Folder Iterative Check Mail",
@@ -268,6 +269,18 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
 			},
+			canMakeDeltaQueries: true,
+		},
+		{
+			name: "Folder Iterative Check Mail Non-Delta",
+			scope: selectors.NewExchangeBackup(users).MailFolders(
+				[]string{DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+			folderNames: map[string]struct{}{
+				DefaultMailFolder: {},
+			},
+			canMakeDeltaQueries: false,
 		},
 	}
 
@@ -282,6 +295,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
+				test.canMakeDeltaQueries,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -352,6 +366,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
+				true,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -383,6 +398,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				dps,
 				control.Defaults(),
+				true,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -429,6 +445,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		sel.Scopes()[0],
 		DeltaPaths{},
 		control.Defaults(),
+		true,
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -502,6 +519,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
+				true,
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -614,6 +632,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
+				true,
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
