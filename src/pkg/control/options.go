@@ -13,6 +13,7 @@ type Options struct {
 	SkipReduce         bool            `json:"skipReduce"`
 	ToggleFeatures     Toggles         `json:"toggleFeatures"`
 	Parallelism        Parallelism     `json:"parallelism"`
+	Repo               RepoOptions     `json:"repo"`
 }
 
 type FailureBehavior string
@@ -32,6 +33,12 @@ const (
 	// recovers whenever possible, does not report recovery as failure
 	BestEffort FailureBehavior = "best-effort"
 )
+
+// Repo represents options that are specific to the repo storing backed up data.
+type RepoOptions struct {
+	User string `json:"user"`
+	Host string `json:"host"`
+}
 
 // Defaults provides an Options with the default values set.
 func Defaults() Options {
