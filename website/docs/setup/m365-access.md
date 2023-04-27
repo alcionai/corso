@@ -57,6 +57,7 @@ then click **Add permissions**.
 | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
 | User.Read.All | Application | Read all users' full profiles |
 | Sites.FullControl.All | Application | Have full control of all site collections |
+| MailboxSettings.Read | Application | Read all user mailbox settings |
 
 <!-- vale Microsoft.Spacing = YES -->
 
