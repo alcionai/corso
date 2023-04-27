@@ -294,81 +294,91 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 	}
 	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
+		for _, canMakeDeltaQueries := range []bool{true, false} {
+			name := test.name
 
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
-				ctx,
-				qp,
-				test.getter,
-				collections,
-				statusUpdater,
-				test.resolver,
-				test.scope,
-				dps,
-				control.Options{FailureHandling: test.failFast},
-				true,
-				fault.New(test.failFast == control.FailFast))
-			test.expectErr(t, err, clues.ToCore(err))
-
-			// collection assertions
-
-			deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
-			for _, c := range collections {
-				if c.FullPath().Service() == path.ExchangeMetadataService {
-					metadatas++
-					continue
-				}
-
-				if c.State() == data.DeletedState {
-					deleteds++
-				}
-
-				if c.State() == data.NewState {
-					news++
-				}
-
-				if c.DoNotMergeItems() {
-					doNotMerges++
-				}
+			if canMakeDeltaQueries {
+				name += "-delta"
+			} else {
+				name += "-non-delta"
 			}
 
-			assert.Zero(t, deleteds, "deleted collections")
-			assert.Equal(t, test.expectNewColls, news, "new collections")
-			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
-			assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
+			suite.Run(name, func() {
+				t := suite.T()
 
-			// items in collections assertions
-			for k, expect := range test.getter {
-				coll := collections[k]
+				ctx, flush := tester.NewContext()
+				defer flush()
 
-				if coll == nil {
-					continue
-				}
+				collections := map[string]data.BackupCollection{}
 
-				exColl, ok := coll.(*Collection)
-				require.True(t, ok, "collection is an *exchange.Collection")
+				err := filterContainersAndFillCollections(
+					ctx,
+					qp,
+					test.getter,
+					collections,
+					statusUpdater,
+					test.resolver,
+					test.scope,
+					dps,
+					control.Options{FailureHandling: test.failFast},
+					canMakeDeltaQueries,
+					fault.New(test.failFast == control.FailFast))
+				test.expectErr(t, err, clues.ToCore(err))
 
-				ids := [][]string{
-					make([]string, 0, len(exColl.added)),
-					make([]string, 0, len(exColl.removed)),
-				}
+				// collection assertions
 
-				for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
-					for id := range cIDs {
-						ids[i] = append(ids[i], id)
+				deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
+				for _, c := range collections {
+					if c.FullPath().Service() == path.ExchangeMetadataService {
+						metadatas++
+						continue
+					}
+
+					if c.State() == data.DeletedState {
+						deleteds++
+					}
+
+					if c.State() == data.NewState {
+						news++
+					}
+
+					if c.DoNotMergeItems() {
+						doNotMerges++
 					}
 				}
 
-				assert.ElementsMatch(t, expect.added, ids[0], "added items")
-				assert.ElementsMatch(t, expect.removed, ids[1], "removed items")
-			}
-		})
+				assert.Zero(t, deleteds, "deleted collections")
+				assert.Equal(t, test.expectNewColls, news, "new collections")
+				assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
+				assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
+
+				// items in collections assertions
+				for k, expect := range test.getter {
+					coll := collections[k]
+
+					if coll == nil {
+						continue
+					}
+
+					exColl, ok := coll.(*Collection)
+					require.True(t, ok, "collection is an *exchange.Collection")
+
+					ids := [][]string{
+						make([]string, 0, len(exColl.added)),
+						make([]string, 0, len(exColl.removed)),
+					}
+
+					for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
+						for id := range cIDs {
+							ids[i] = append(ids[i], id)
+						}
+					}
+
+					assert.ElementsMatch(t, expect.added, ids[0], "added items")
+					assert.ElementsMatch(t, expect.removed, ids[1], "removed items")
+				}
+			})
+		}
 	}
 }
 
