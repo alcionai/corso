@@ -68,7 +68,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			data: []fileValues{
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect: map[string]DeltaPath{
+				"key": {
+					delta: "delta-link",
+					path:  "prev-path",
+				},
+			},
 			expectError: assert.NoError,
 		},
 		{
@@ -108,7 +113,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, ""},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect: map[string]DeltaPath{
+				"key": {
+					delta: "delta-link",
+					path:  "prev-path",
+				},
+			},
 			expectError: assert.NoError,
 		},
 		{

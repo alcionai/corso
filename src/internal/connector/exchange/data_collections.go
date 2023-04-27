@@ -148,7 +148,7 @@ func parseMetadataCollections(
 	// complete backup on the next run.
 	for _, dps := range cdp {
 		for k, dp := range dps {
-			if len(dp.delta) == 0 || len(dp.path) == 0 {
+			if len(dp.path) == 0 {
 				delete(dps, k)
 			}
 		}
