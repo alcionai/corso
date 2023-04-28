@@ -593,7 +593,7 @@ func (ec exchangeCategory) isLeaf() bool {
 // => {exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	var folderCat, itemCat categorizer

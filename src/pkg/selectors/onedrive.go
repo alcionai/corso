@@ -391,7 +391,7 @@ func (c oneDriveCategory) isLeaf() bool {
 // => {odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	if ent.OneDrive == nil {
