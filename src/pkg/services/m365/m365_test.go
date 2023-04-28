@@ -52,6 +52,30 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	}
 }
 
+func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(suite.T())
+	)
+
+	users, err := m365.UsersCompatNoInfo(ctx, acct)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, users)
+
+	for _, u := range users {
+		suite.Run("user_"+u.ID, func() {
+			t := suite.T()
+
+			assert.NotEmpty(t, u.ID)
+			assert.NotEmpty(t, u.PrincipalName)
+			assert.NotEmpty(t, u.Name)
+		})
+	}
+}
+
 func (suite *M365IntegrationSuite) TestGetUserInfo() {
 	ctx, flush := tester.NewContext()
 	defer flush()

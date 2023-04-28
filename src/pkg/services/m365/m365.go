@@ -33,6 +33,14 @@ type User struct {
 	Info          api.UserInfo
 }
 
+// UserNoInfo is the minimal information required to identify and display a user.
+// TODO: Remove this once `UsersCompatNoInfo` is removed
+type UserNoInfo struct {
+	PrincipalName string
+	ID            string
+	Name          string
+}
+
 // UsersCompat returns a list of users in the specified M365 tenant.
 // TODO(ashmrtn): Remove when upstream consumers of the SDK support the fault
 // package.
@@ -45,6 +53,54 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 	}
 
 	return users, errs.Failure()
+}
+
+// UsersCompatNoInfo returns a list of users in the specified M365 tenant.
+// TODO: Remove this once `Info` is removed from the `User` struct and callers
+// have switched over
+func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo, error) {
+	errs := fault.New(true)
+
+	users, err := usersNoInfo(ctx, acct, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, errs.Failure()
+}
+
+// usersNoInfo returns a list of users in the specified M365 tenant - with no info
+// TODO: Remove this once we remove `Info` from `Users` and instead rely on the `GetUserInfo` API
+// to get user information
+func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
+	uapi, err := makeUserAPI(acct)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
+	}
+
+	users, err := discovery.Users(ctx, uapi, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]*UserNoInfo, 0, len(users))
+
+	for _, u := range users {
+		pu, err := parseUser(u)
+		if err != nil {
+			return nil, clues.Wrap(err, "formatting user data")
+		}
+
+		puNoInfo := &UserNoInfo{
+			PrincipalName: pu.PrincipalName,
+			ID:            pu.ID,
+			Name:          pu.Name,
+		}
+
+		ret = append(ret, puNoInfo)
+	}
+
+	return ret, nil
 }
 
 // Users returns a list of users in the specified M365 tenant
