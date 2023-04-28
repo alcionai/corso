@@ -85,7 +85,7 @@ type Path interface {
 	Category() CategoryType
 	Tenant() string
 	ResourceOwner() string
-	Folder(bool) string
+	Folder(escaped bool) string
 	Folders() Elements
 	Item() string
 	// UpdateParent updates parent from old to new if the item/folder was

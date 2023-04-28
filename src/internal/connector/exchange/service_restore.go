@@ -442,10 +442,7 @@ func restoreCollection(
 				continue
 			}
 
-			locationRef := &path.Builder{}
-			if category == path.ContactsCategory {
-				locationRef = locationRef.Append(itemPath.Folders()...)
-			}
+			locationRef := path.Builder{}.Append(itemPath.Folders()...)
 
 			err = deets.Add(
 				itemPath,
