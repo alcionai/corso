@@ -51,7 +51,7 @@ then getting another token a2 at time t2 would give distinct tokens. Requesting
 the changes from token a1 would always give the changes made after time t1
 including those after time t2. Requesting changes from token a2 would give only
 the changes made after time t2. Tokens eventually expire though, so waiting a
-long time between backups (e.x. weeks) may cause all items to be enumerated
+long time between backups (e.g., a few days) may cause all items to be enumerated
 again.
 
 ## Corso full backups, incremental backups, and backup layout
