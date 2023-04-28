@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -54,7 +54,7 @@ func DataCollections(
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
 		collections = []data.BackupCollection{}
-		allExcludes = map[string]map[string]struct{}{}
+		epi         = excludes.NewParentsItems()
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -75,7 +75,7 @@ func DataCollections(
 			su,
 			ctrlOpts)
 
-		odcs, excludes, err := nc.Get(ctx, metadata, errs)
+		odcs, err := nc.Get(ctx, metadata, epi, errs)
 		if err != nil {
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
@@ -83,14 +83,6 @@ func DataCollections(
 		categories[scope.Category().PathType()] = struct{}{}
 
 		collections = append(collections, odcs...)
-
-		for k, ex := range excludes {
-			if _, ok := allExcludes[k]; !ok {
-				allExcludes[k] = map[string]struct{}{}
-			}
-
-			maps.Copy(allExcludes[k], ex)
-		}
 	}
 
 	mcs, err := migrationCollections(
@@ -123,7 +115,7 @@ func DataCollections(
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, allExcludes, el.Failure()
+	return collections, epi, el.Failure()
 }
 
 // adds data migrations to the collection set.

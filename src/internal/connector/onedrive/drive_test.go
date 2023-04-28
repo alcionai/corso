@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -442,10 +443,12 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 					ToggleFeatures: control.Toggles{},
 				})
 
-			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))
+			epi := excludes.NewParentsItems()
+
+			odcs, err := colls.Get(ctx, nil, epi, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			// Don't expect excludes as this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.Empty(t, epi)
 
 			for _, entry := range odcs {
 				assert.NotEmpty(t, entry.FullPath())

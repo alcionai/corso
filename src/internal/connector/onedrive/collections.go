@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -271,11 +272,12 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
+	epi excludes.ParentsItems,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, error) {
 	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
@@ -285,12 +287,12 @@ func (c *Collections) Get(
 	// Enumerate drives for the specified resourceOwner
 	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var (
@@ -298,9 +300,6 @@ func (c *Collections) Get(
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
-		// Items that should be excluded when sourcing data from the base backup.
-		// Parent Path -> item ID -> {}
-		excludedItems = map[string]map[string]struct{}{}
 	)
 
 	for _, d := range drives {
@@ -336,7 +335,7 @@ func (c *Collections) Get(
 			prevDelta,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		// Used for logging below.
@@ -376,19 +375,10 @@ func (c *Collections) Get(
 				c.resourceOwner,
 				c.source)
 			if err != nil {
-				return nil, nil,
-					clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+				return nil, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
 
-			pstr := p.String()
-
-			eidi, ok := excludedItems[pstr]
-			if !ok {
-				eidi = map[string]struct{}{}
-			}
-
-			maps.Copy(eidi, excluded)
-			excludedItems[pstr] = eidi
+			epi.Add(p.String(), excluded)
 
 			continue
 		}
@@ -413,7 +403,7 @@ func (c *Collections) Get(
 			prevPath, err := path.FromDataLayerPath(p, false)
 			if err != nil {
 				err = clues.Wrap(err, "invalid previous path").WithClues(ictx).With("deleted_path", p)
-				return nil, map[string]map[string]struct{}{}, err
+				return nil, err
 			}
 
 			col, err := NewCollection(
@@ -428,7 +418,7 @@ func (c *Collections) Get(
 				CollectionScopeUnknown,
 				true)
 			if err != nil {
-				return nil, map[string]map[string]struct{}{}, clues.Wrap(err, "making collection").WithClues(ictx)
+				return nil, clues.Wrap(err, "making collection").WithClues(ictx)
 			}
 
 			c.CollectionMap[driveID][fldID] = col
@@ -468,7 +458,7 @@ func (c *Collections) Get(
 	}
 
 	// TODO(ashmrtn): Track and return the set of items to exclude.
-	return collections, excludedItems, nil
+	return collections, nil
 }
 
 func updateCollectionPaths(

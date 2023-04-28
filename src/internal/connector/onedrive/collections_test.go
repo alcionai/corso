@@ -19,6 +19,7 @@ import (
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -2269,7 +2270,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
 			errs := fault.New(true)
 
-			cols, delList, err := c.Get(ctx, prevMetadata, errs)
+			delList := excludes.NewParentsItems()
+
+			cols, err := c.Get(ctx, prevMetadata, delList, errs)
 			test.errCheck(t, err)
 			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()))
 
