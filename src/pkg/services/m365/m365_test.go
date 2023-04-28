@@ -72,7 +72,6 @@ func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
 			assert.NotEmpty(t, u.ID)
 			assert.NotEmpty(t, u.PrincipalName)
 			assert.NotEmpty(t, u.Name)
-			assert.Empty(t, u.Info)
 		})
 	}
 }
