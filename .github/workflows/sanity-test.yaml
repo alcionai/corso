@@ -30,7 +30,7 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
       CORSO_LOG_DIR: testlog
-      CORSO_LOG_FILE: ${{ env.CORSO_LOG_DIR }}/testlogging.log
+      CORSO_LOG_FILE: testlog/testlogging.log
       CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: test_results
