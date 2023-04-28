@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -563,8 +564,13 @@ func (w Wrapper) Maintenance(
 
 			// Need to do some fixup here as the user/host may not have been set.
 			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
-				// TODO(ashmrtn): Print some message if the recorded owner doesn't match
-				// and we update it.
+				observe.MessageWithStructure(
+					ctx,
+					"updating maintenance user/host to "+currentOwner,
+					"updating maintenance user/host",
+					"new_maintenance_owner",
+					clues.Hide(currentOwner))
+
 				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
 					return clues.Wrap(err, "updating maintenance parameters").
 						WithClues(ctx)
@@ -632,10 +638,6 @@ func (w Wrapper) setMaintenanceParams(
 	// user/host of at least one machine now.
 	p.QuickCycle.Enabled = false
 	p.FullCycle.Enabled = false
-
-	logger.Ctx(ctx).Infow(
-		"updating maintenance owner parameter",
-		"owner", clues.Hide(p.Owner))
 
 	err := maintenance.SetParams(ctx, drw, p)
 	if err != nil {
