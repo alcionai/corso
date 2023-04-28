@@ -16,7 +16,7 @@ In [Part 1](https://corsobackup.io/blog/incremental-backups-pt1/) we discussed h
 one way to run backups, and how full and incremental backups differ.
 
 With all the background information out of the way, it’s time to see how
-incremental backups actually come together in Corso. To do this, we’ll discuss
+incremental backups are implemented in Corso. To do this, we’ll discuss
 things in the context of a running example.
 <!-- truncate -->
 ## Part 1: Starting state
