@@ -1013,9 +1013,13 @@ func inflateBaseTree(
 
 		// This ensures that a migration on the directory prefix can complete.
 		// The prefix is the tenant/service/owner/category set, which remains
-		// otherwise unchecked in tree inflation below this point.
+		// otherwise unchecked in tree inflation below this point. If p is nil then
+		// the prefix was deleted. The call to traverseBaseDir will handle that
+		// properly, we just need to avoid an NPE here. Since we're still calling
+		// traverseBaseDir instead of just continuing with the loop the usual
+		// merging rules for subfolders still applies.
 		newSubtreePath := subtreePath
-		if p, ok := updatedPaths[subtreePath.String()]; ok {
+		if p, ok := updatedPaths[subtreePath.String()]; ok && p != nil {
 			newSubtreePath = p.ToBuilder()
 		}
 

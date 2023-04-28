@@ -2792,7 +2792,6 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 		inboxFileName1 = testFileName
 
 		inboxFileData1 = testFileData
-		// inboxFileData1v2 = testFileData5
 
 		contactsFileName1 = testFileName3
 		contactsFileData1 = testFileData3
@@ -2921,6 +2920,177 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
 		},
 		[]data.BackupCollection{mce, mcc},
+		nil,
+		progress)
+	require.NoError(t, err, clues.ToCore(err))
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_DeletesPrefix() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const (
+		contactsDir = "contacts"
+		workDirID   = "work-id"
+	)
+
+	prefixPathEmail, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		inboxFileName1 = testFileName
+
+		inboxFileData1 = testFileData
+		inboxFileData2 = testFileData2
+
+		workFileName = testFileName2
+		workFileData = testFileData4
+
+		contactsFileName1 = testFileName3
+		contactsFileData1 = testFileData3
+	)
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1
+	//         - work
+	//           - file2
+	//       - contacts
+	//         - contacts
+	//           - file3
+	getBaseSnapshot1 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{testTenant, service, testUser},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxID)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1)))),
+							}),
+						virtualfs.NewStaticDirectory(
+							encodeElements(workDirID)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(workFileName)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(workFileData)))),
+							}),
+					}),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.ContactsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(contactsDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(contactsFileName1)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(contactsFileData1)))),
+							}),
+					}),
+			},
+		)
+	}
+
+	// Check the following:
+	//   * contacts pulled from base1 unchanged even if no collections reference
+	//     it
+	//   * old email subtree deleted
+	//   * new version of file1 in email added
+	//
+	// Expected output:
+	// - a-tenant
+	//   - exchange
+	//     - user1new
+	//       - email
+	//         - Inbox
+	//           - file1v2
+	//       - contacts
+	//         - contacts
+	//           - file3
+	expected := expectedTreeWithChildren(
+		[]string{testTenant, service, testUser},
+		[]*expectedNode{
+			{
+				name: category,
+				children: []*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+						},
+					},
+				},
+			},
+			{
+				name: path.ContactsCategory.String(),
+				children: []*expectedNode{
+					{
+						name: contactsDir,
+						children: []*expectedNode{
+							{
+								name:     contactsFileName1,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
+		errs:    fault.New(true),
+	}
+
+	mce := exchMock.NewCollection(nil, nil, 0)
+	mce.PrevPath = prefixPathEmail
+	mce.ColState = data.DeletedState
+
+	mcei := exchMock.NewCollection(suite.testStoragePath, nil, 1)
+	mcei.Names[0] = inboxFileName1
+	mcei.Data[0] = inboxFileData2
+
+	msw := &mockMultiSnapshotWalker{
+		snaps: map[string]fs.Entry{"id1": getBaseSnapshot1()},
+	}
+
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]IncrementalBase{
+			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		},
+		[]data.BackupCollection{mce, mcei},
 		nil,
 		progress)
 	require.NoError(t, err, clues.ToCore(err))
