@@ -41,6 +41,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -83,7 +84,7 @@ func prepNewTestBackupOp(
 		k  = kopia.NewConn(st)
 	)
 
-	err := k.Initialize(ctx, control.RepoOptions{})
+	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
