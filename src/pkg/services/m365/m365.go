@@ -2,17 +2,15 @@ package m365
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -35,8 +33,12 @@ type User struct {
 	Info          api.UserInfo
 }
 
-type UserInfo struct {
-	ServicesEnabled ServiceAccess
+// UserNoInfo is the minimal information required to identify and display a user.
+// TODO: Remove this once `UsersCompatNoInfo` is removed
+type UserNoInfo struct {
+	PrincipalName string
+	ID            string
+	Name          string
 }
 
 // UsersCompat returns a list of users in the specified M365 tenant.
@@ -51,6 +53,54 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 	}
 
 	return users, errs.Failure()
+}
+
+// UsersCompatNoInfo returns a list of users in the specified M365 tenant.
+// TODO: Remove this once `Info` is removed from the `User` struct and callers
+// have switched over
+func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo, error) {
+	errs := fault.New(true)
+
+	users, err := usersNoInfo(ctx, acct, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, errs.Failure()
+}
+
+// usersNoInfo returns a list of users in the specified M365 tenant - with no info
+// TODO: Remove this once we remove `Info` from `Users` and instead rely on the `GetUserInfo` API
+// to get user information
+func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
+	uapi, err := makeUserAPI(acct)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
+	}
+
+	users, err := discovery.Users(ctx, uapi, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]*UserNoInfo, 0, len(users))
+
+	for _, u := range users {
+		pu, err := parseUser(u)
+		if err != nil {
+			return nil, clues.Wrap(err, "formatting user data")
+		}
+
+		puNoInfo := &UserNoInfo{
+			PrincipalName: pu.PrincipalName,
+			ID:            pu.ID,
+			Name:          pu.Name,
+		}
+
+		ret = append(ret, puNoInfo)
+	}
+
+	return ret, nil
 }
 
 // Users returns a list of users in the specified M365 tenant
@@ -102,43 +152,12 @@ func parseUser(item models.Userable) (*User, error) {
 	return u, nil
 }
 
-// UsersMap retrieves all users in the tenant, and returns two maps: one id-to-principalName,
-// and one principalName-to-id.
-func UsersMap(
-	ctx context.Context,
-	acct account.Account,
-	errs *fault.Bus,
-) (common.IDsNames, error) {
-	users, err := Users(ctx, acct, errs)
-	if err != nil {
-		return common.IDsNames{}, err
-	}
-
-	var (
-		idToName = make(map[string]string, len(users))
-		nameToID = make(map[string]string, len(users))
-	)
-
-	for _, u := range users {
-		id, name := strings.ToLower(u.ID), strings.ToLower(u.PrincipalName)
-		idToName[id] = name
-		nameToID[name] = id
-	}
-
-	ins := common.IDsNames{
-		IDToName: idToName,
-		NameToID: nameToID,
-	}
-
-	return ins, nil
-}
-
 // UserInfo returns the corso-specific set of user metadata.
 func GetUserInfo(
 	ctx context.Context,
 	acct account.Account,
 	userID string,
-) (*UserInfo, error) {
+) (*api.UserInfo, error) {
 	uapi, err := makeUserAPI(acct)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting user info").WithClues(ctx)
@@ -149,13 +168,7 @@ func GetUserInfo(
 		return nil, err
 	}
 
-	info := UserInfo{
-		ServicesEnabled: ServiceAccess{
-			Exchange: ui.ServiceEnabled(path.ExchangeService),
-		},
-	}
-
-	return &info, nil
+	return ui, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -215,23 +228,19 @@ func SitesMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (common.IDsNames, error) {
+) (idname.Cacher, error) {
 	sites, err := Sites(ctx, acct, errs)
 	if err != nil {
-		return common.IDsNames{}, err
+		return idname.NewCache(nil), err
 	}
 
-	ins := common.IDsNames{
-		IDToName: make(map[string]string, len(sites)),
-		NameToID: make(map[string]string, len(sites)),
-	}
+	itn := make(map[string]string, len(sites))
 
 	for _, s := range sites {
-		ins.IDToName[s.ID] = s.WebURL
-		ins.NameToID[s.WebURL] = s.ID
+		itn[s.ID] = s.WebURL
 	}
 
-	return ins, nil
+	return idname.NewCache(itn), nil
 }
 
 // ---------------------------------------------------------------------------

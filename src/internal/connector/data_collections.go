@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -34,9 +35,10 @@ import (
 // prior history (ie, incrementals) and run a full backup.
 func (gc *GraphConnector) ProduceBackupCollections(
 	ctx context.Context,
-	owner common.IDNamer,
+	owner idname.Provider,
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
+	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
@@ -45,6 +47,10 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		"gc:produceBackupCollections",
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
+
+	// Limit the max number of active requests to graph from this collection.
+	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
+		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
 
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
@@ -64,12 +70,17 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		return []data.BackupCollection{}, nil, nil
 	}
 
+	var (
+		colls    []data.BackupCollection
+		excludes map[string]map[string]struct{}
+	)
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, excludes, err := exchange.DataCollections(
+		colls, excludes, err = exchange.DataCollections(
 			ctx,
 			sels,
-			sels,
+			owner,
 			metadata,
 			gc.credentials,
 			gc.UpdateStatus,
@@ -79,26 +90,13 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			return nil, nil, err
 		}
 
-		for _, c := range colls {
-			// kopia doesn't stream Items() from deleted collections,
-			// and so they never end up calling the UpdateStatus closer.
-			// This is a brittle workaround, since changes in consumer
-			// behavior (such as calling Items()) could inadvertently
-			// break the process state, putting us into deadlock or
-			// panics.
-			if c.State() != data.DeletedState {
-				gc.incrementAwaitingMessages()
-			}
-		}
-
-		return colls, excludes, nil
-
 	case selectors.ServiceOneDrive:
-		colls, excludes, err := onedrive.DataCollections(
+		colls, excludes, err = onedrive.DataCollections(
 			ctx,
 			sels,
-			sels,
+			owner,
 			metadata,
+			lastBackupVersion,
 			gc.credentials.AzureTenantID,
 			gc.itemClient,
 			gc.Service,
@@ -109,20 +107,13 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			return nil, nil, err
 		}
 
-		for _, c := range colls {
-			// kopia doesn't stream Items() from deleted collections.
-			if c.State() != data.DeletedState {
-				gc.incrementAwaitingMessages()
-			}
-		}
-
-		return colls, excludes, nil
-
 	case selectors.ServiceSharePoint:
-		colls, excludes, err := sharepoint.DataCollections(
+		colls, excludes, err = sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
+			owner,
+			metadata,
 			gc.credentials,
 			gc.Service,
 			gc,
@@ -132,13 +123,23 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			return nil, nil, err
 		}
 
-		gc.incrementMessagesBy(len(colls))
-
-		return colls, excludes, nil
-
 	default:
 		return nil, nil, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
 	}
+
+	for _, c := range colls {
+		// kopia doesn't stream Items() from deleted collections,
+		// and so they never end up calling the UpdateStatus closer.
+		// This is a brittle workaround, since changes in consumer
+		// behavior (such as calling Items()) could inadvertently
+		// break the process state, putting us into deadlock or
+		// panics.
+		if c.State() != data.DeletedState {
+			gc.incrementAwaitingMessages()
+		}
+	}
+
+	return colls, excludes, nil
 }
 
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
@@ -155,16 +156,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 
 	resourceOwner := strings.ToLower(sels.DiscreteOwner)
 
-	var found bool
-
-	for _, id := range ids {
-		if strings.ToLower(id) == resourceOwner {
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	if !filters.Equal(ids).Compare(resourceOwner) {
 		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_resource_owner", sels.DiscreteOwner)
 	}
 

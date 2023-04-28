@@ -28,13 +28,6 @@ import (
 )
 
 const (
-	// TODO: This number needs to be tuned
-	// Consider max open file limit `ulimit -n`, usually 1024 when setting this value
-	collectionChannelBufferSize = 5
-
-	// TODO: Tune this later along with collectionChannelBufferSize
-	urlPrefetchChannelBufferSize = 5
-
 	// Used to compare in case of OneNote files
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
@@ -169,17 +162,46 @@ func NewCollection(
 		return nil, clues.Wrap(err, "getting previous location").With("prev_path", prevPath.String())
 	}
 
+	c := newColl(
+		itemClient,
+		folderPath,
+		prevPath,
+		driveID,
+		service,
+		statusUpdater,
+		source,
+		ctrlOpts,
+		colScope,
+		doNotMergeItems)
+
+	c.locPath = locPath
+	c.prevLocPath = prevLocPath
+
+	return c, nil
+}
+
+func newColl(
+	gr graph.Requester,
+	folderPath path.Path,
+	prevPath path.Path,
+	driveID string,
+	service graph.Servicer,
+	statusUpdater support.StatusUpdater,
+	source driveSource,
+	ctrlOpts control.Options,
+	colScope collectionScope,
+	doNotMergeItems bool,
+) *Collection {
 	c := &Collection{
-		itemClient:      itemClient,
+		itemClient:      gr,
+		itemGetter:      api.GetDriveItem,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
-		locPath:         locPath,
-		prevLocPath:     prevLocPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
 		source:          source,
 		service:         service,
-		data:            make(chan data.Stream, collectionChannelBufferSize),
+		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, folderPath),
@@ -190,16 +212,14 @@ func NewCollection(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		c.itemGetter = api.GetDriveItem
 		c.itemReader = sharePointItemReader
 		c.itemMetaReader = sharePointItemMetaReader
 	default:
-		c.itemGetter = api.GetDriveItem
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
-	return c, nil
+	return c
 }
 
 // Adds an itemID to the collection.  This will make it eligible to be
@@ -261,17 +281,21 @@ func (oc Collection) PreviousLocationPath() details.LocationIDer {
 		return nil
 	}
 
+	var ider details.LocationIDer
+
 	switch oc.source {
 	case OneDriveSource:
-		return details.NewOneDriveLocationIDer(
+		ider = details.NewOneDriveLocationIDer(
 			oc.driveID,
 			oc.prevLocPath.Elements()...)
 
 	default:
-		return details.NewSharePointLocationIDer(
+		ider = details.NewSharePointLocationIDer(
 			oc.driveID,
 			oc.prevLocPath.Elements()...)
 	}
+
+	return ider
 }
 
 func (oc Collection) State() data.CollectionState {
@@ -489,7 +513,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {

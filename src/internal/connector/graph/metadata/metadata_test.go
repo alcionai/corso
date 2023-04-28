@@ -61,7 +61,7 @@ var (
 		{
 			service:  path.SharePointService,
 			category: path.LibrariesCategory,
-			expected: assert.Falsef,
+			expected: assert.Truef,
 		},
 		{
 			service:  path.SharePointService,

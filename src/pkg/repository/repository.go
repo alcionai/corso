@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -26,7 +26,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -63,7 +62,7 @@ type Repository interface {
 	NewBackupWithLookup(
 		ctx context.Context,
 		self selectors.Selector,
-		ins common.IDNameSwapper,
+		ins idname.Cacher,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -121,7 +120,7 @@ func Initialize(
 	}()
 
 	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Initialize(ctx); err != nil {
+	if err := kopiaRef.Initialize(ctx, opts.Repo); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
 			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
@@ -203,7 +202,7 @@ func Connect(
 	defer close(complete)
 
 	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Connect(ctx); err != nil {
+	if err := kopiaRef.Connect(ctx, opts.Repo); err != nil {
 		return nil, clues.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
@@ -306,7 +305,7 @@ func (r repository) NewBackup(
 func (r repository) NewBackupWithLookup(
 	ctx context.Context,
 	sel selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
 	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
@@ -316,11 +315,6 @@ func (r repository) NewBackupWithLookup(
 	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
-	}
-
-	// Exchange and OneDrive need to maintain the user PN as the ID until we're ready to migrate
-	if sel.PathService() != path.SharePointService {
-		ownerID = ownerName
 	}
 
 	// TODO: retrieve display name from gc
@@ -334,7 +328,7 @@ func (r repository) NewBackupWithLookup(
 		gc,
 		r.Account,
 		sel,
-		sel,
+		sel, // the selector acts as an IDNamer for its discrete resource owner.
 		r.Bus)
 }
 
@@ -553,10 +547,6 @@ func deleteBackup(
 	b, err := sw.GetBackup(ctx, model.StableID(id))
 	if err != nil {
 		return errWrapper(err)
-	}
-
-	if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
-		return err
 	}
 
 	if len(b.SnapshotID) > 0 {

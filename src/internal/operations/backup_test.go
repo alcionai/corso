@@ -451,7 +451,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.Options{},
+				control.Defaults(),
 				kw,
 				sw,
 				gc,

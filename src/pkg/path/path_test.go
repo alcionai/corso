@@ -749,3 +749,67 @@ func (suite *PathUnitSuite) TestPath_piiHandling() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) TestToServicePrefix() {
+	table := []struct {
+		name      string
+		service   ServiceType
+		category  CategoryType
+		tenant    string
+		owner     string
+		expect    string
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name:      "ok",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String()}),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "bad category",
+			service:   ExchangeService,
+			category:  FilesCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad tenant",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad owner",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "",
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := ServicePrefix(test.tenant, test.owner, test.service, test.category)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if r == nil {
+				return
+			}
+
+			assert.Equal(t, test.expect, r.String())
+			assert.NotPanics(t, func() {
+				r.Folders()
+				r.Item()
+			}, "runs Folders() and Item()")
+		})
+	}
+}

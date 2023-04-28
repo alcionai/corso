@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -67,6 +66,7 @@ var _ print.Printable = &Backup{}
 
 func New(
 	snapshotID, streamStoreID, status string,
+	version int,
 	id model.StableID,
 	selector selectors.Selector,
 	ownerID, ownerName string,
@@ -116,7 +116,7 @@ func New(
 		ResourceOwnerID:   ownerID,
 		ResourceOwnerName: ownerName,
 
-		Version:       version.Backup,
+		Version:       version,
 		SnapshotID:    snapshotID,
 		StreamStoreID: streamStoreID,
 

@@ -12,7 +12,7 @@ import (
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -39,7 +39,7 @@ func AllMetadataFileNames() []string {
 
 type QueryParams struct {
 	Category      path.CategoryType
-	ResourceOwner common.IDNamer
+	ResourceOwner idname.Provider
 	Credentials   account.M365Config
 }
 
@@ -234,7 +234,14 @@ func kiotaMiddlewares(
 	options *msgraphgocore.GraphClientOptions,
 	cc *clientConfig,
 ) []khttp.Middleware {
-	return []khttp.Middleware{
+	mw := []khttp.Middleware{}
+
+	// Optionally add concurrency limiter middleware if it has been initialized
+	if concurrencyLim != nil {
+		mw = append(mw, concurrencyLim)
+	}
+
+	mw = append(mw, []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
 		&RetryHandler{
 			MaxRetries: cc.maxRetries,
@@ -248,5 +255,7 @@ func kiotaMiddlewares(
 		&LoggingMiddleware{},
 		&ThrottleControlMiddleware{},
 		&MetricsMiddleware{},
-	}
+	}...)
+
+	return mw
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -22,9 +22,9 @@ func GCWithSelector(
 	acct account.Account,
 	cr connector.Resource,
 	sel selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 	onFail func(),
-) *connector.GraphConnector {
+) (*connector.GraphConnector, selectors.Selector) {
 	gc, err := connector.NewGraphConnector(ctx, acct, cr)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
@@ -43,7 +43,7 @@ func GCWithSelector(
 		t.FailNow()
 	}
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel = sel.SetDiscreteOwnerIDName(id, name)
 
-	return gc
+	return gc, sel
 }

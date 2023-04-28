@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -171,12 +171,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	var (
 		m365UserID = tester.M365UserID(t)
 		users      = []string{m365UserID}
-		idToName   = map[string]string{m365UserID: m365UserID}
-		nameToID   = map[string]string{m365UserID: m365UserID}
-		ins        = common.IDsNames{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		ins        = idname.NewCache(map[string]string{m365UserID: m365UserID})
 	)
 
 	// some tests require an existing backup

@@ -9,13 +9,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -198,7 +195,7 @@ func runBackups(
 	r repository.Repository,
 	serviceName, resourceOwnerType string,
 	selectorSet []selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) error {
 	var (
 		bIDs []string
@@ -270,7 +267,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -291,7 +288,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType, args []string) error {
 	ctx := cmd.Context()
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -322,20 +319,6 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 	backup.PrintAll(ctx, bs)
 
 	return nil
-}
-
-func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
-	}
-
-	return r, &cfg.Account, nil
 }
 
 func ifShow(flag string) bool {

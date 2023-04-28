@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -25,9 +25,10 @@ type GraphConnector struct {
 
 func (gc GraphConnector) ProduceBackupCollections(
 	_ context.Context,
-	_ common.IDNamer,
+	_ idname.Provider,
 	_ selectors.Selector,
 	_ []data.RestoreCollection,
+	_ int,
 	_ control.Options,
 	_ *fault.Bus,
 ) (

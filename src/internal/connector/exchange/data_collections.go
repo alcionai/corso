@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -163,8 +163,8 @@ func parseMetadataCollections(
 //	Add iota to this call -> mail, contacts, calendar,  etc.
 func DataCollections(
 	ctx context.Context,
-	user common.IDNamer,
 	selector selectors.Selector,
+	user idname.Provider,
 	metadata []data.RestoreCollection,
 	acct account.M365Config,
 	su support.StatusUpdater,
@@ -181,6 +181,12 @@ func DataCollections(
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
 	)
+
+	// Turn on concurrency limiter middleware for exchange backups
+	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
+	if !ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter {
+		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
+	}
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
 	if err != nil {
@@ -214,6 +220,7 @@ func DataCollections(
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
+			collections,
 			acct.AzureTenantID,
 			user.ID(),
 			path.ExchangeService,
@@ -249,7 +256,7 @@ func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedIte
 func createCollections(
 	ctx context.Context,
 	creds account.M365Config,
-	user common.IDNamer,
+	user idname.Provider,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,

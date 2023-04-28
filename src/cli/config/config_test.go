@@ -39,6 +39,27 @@ func TestConfigSuite(t *testing.T) {
 	suite.Run(t, &ConfigSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *ConfigSuite) TestRequireProps() {
+	table := []struct {
+		name     string
+		props    map[string]string
+		errCheck assert.ErrorAssertionFunc
+	}{
+		{
+			props:    map[string]string{"exists": "I have seen the fnords!"},
+			errCheck: assert.NoError,
+		},
+		{
+			props:    map[string]string{"not-exists": ""},
+			errCheck: assert.Error,
+		},
+	}
+	for _, test := range table {
+		err := requireProps(test.props)
+		test.errCheck(suite.T(), err, clues.ToCore(err))
+	}
+}
+
 func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	var (
 		t   = suite.T()

@@ -90,12 +90,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(errCodeItemNotFound),
+			err:    odErr(string(itemNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync-not-found oDataErr",
-			err:    odErr(errCodeSyncFolderNotFound),
+			err:    odErr(string(syncFolderNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -134,12 +134,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		},
 		{
 			name:   "resync-required oDataErr",
-			err:    odErr(errCodeResyncRequired),
+			err:    odErr(string(resyncRequired)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync state invalid oDataErr",
-			err:    odErr(errCodeSyncStateInvalid),
+			err:    odErr(string(syncStateInvalid)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
@@ -184,7 +184,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		},
 		{
 			name:   "request resource not found oDataErr",
-			err:    odErr(errCodeRequestResourceNotFound),
+			err:    odErr(string(requestResourceNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -261,16 +261,18 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 
 func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 	var (
-		i       = models.DriveItem{}
-		cb      = models.User{}
-		cbID    = "created-by"
-		lm      = models.User{}
-		lmID    = "last-mod-by"
-		ref     = models.ItemReference{}
-		refCID  = "container-id"
-		refCN   = "container-name"
-		mal     = models.Malware{}
-		malDesc = "malware-description"
+		i        = models.DriveItem{}
+		cb       = models.User{}
+		cbID     = "created-by"
+		lm       = models.User{}
+		lmID     = "last-mod-by"
+		ref      = models.ItemReference{}
+		refCID   = "container-id"
+		refCN    = "container-name"
+		refCP    = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
+		refCPexp = "/Folder/container-name"
+		mal      = models.Malware{}
+		malDesc  = "malware-description"
 	)
 
 	cb.SetId(&cbID)
@@ -281,6 +283,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 
 	ref.SetId(&refCID)
 	ref.SetName(&refCN)
+	ref.SetPath(&refCP)
 	i.SetParentReference(&ref)
 
 	mal.SetDescription(&malDesc)
@@ -291,6 +294,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlLastModBy:     lmID,
 		fault.AddtlContainerID:   refCID,
 		fault.AddtlContainerName: refCN,
+		fault.AddtlContainerPath: refCPexp,
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
