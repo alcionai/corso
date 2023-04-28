@@ -90,6 +90,7 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 		if err != nil {
 			return nil, clues.Wrap(err, "formatting user data")
 		}
+
 		puNoInfo := &UserNoInfo{
 			PrincipalName: pu.PrincipalName,
 			ID:            pu.ID,
