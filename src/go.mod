@@ -14,9 +14,9 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/h2non/gock v1.2.0
 	github.com/kopia/kopia v0.12.2-0.20230327171220-747baeebdab1
-	github.com/microsoft/kiota-abstractions-go v0.18.0
+	github.com/microsoft/kiota-abstractions-go v0.20.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
-	github.com/microsoft/kiota-http-go v0.16.1
+	github.com/microsoft/kiota-http-go v0.17.0
 	github.com/microsoft/kiota-serialization-form-go v0.8.2
 	github.com/microsoft/kiota-serialization-json-go v0.8.2
 	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
