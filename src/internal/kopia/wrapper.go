@@ -521,22 +521,25 @@ func isErrEntryNotFound(err error) bool {
 
 func (w Wrapper) Maintenance(
 	ctx context.Context,
-	safety control.Safety,
-	quickMaintenance, force bool,
+	opts repository.Maintenance,
 ) error {
-	kopiaSafety, err := translateSafety(safety)
+	kopiaSafety, err := translateSafety(opts.Safety)
 	if err != nil {
-		return clues.Wrap(err, "getting safety level")
+		return clues.Wrap(err, "identifying safety level")
 	}
 
-	mode := translateMode(quickMaintenance)
+	mode, err := translateMode(opts.Type)
+	if err != nil {
+		return clues.Wrap(err, "identifying maintenance mode")
+	}
+
 	currentOwner := w.c.ClientOptions().UsernameAtHost()
 
 	ctx = clues.Add(
 		ctx,
 		"kopia_safety", kopiaSafety,
 		"kopia_maintenance_mode", mode,
-		"force", force,
+		"force", opts.Force,
 		"current_owner", clues.Hide(currentOwner))
 
 	dr, ok := w.c.Repository.(repo.DirectRepository)
@@ -559,7 +562,7 @@ func (w Wrapper) Maintenance(
 			}
 
 			// Need to do some fixup here as the user/host may not have been set.
-			if len(params.Owner) == 0 || (params.Owner != currentOwner && force) {
+			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
 				// TODO(ashmrtn): Print some message if the recorded owner doesn't match
 				// and we update it.
 				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
@@ -572,7 +575,7 @@ func (w Wrapper) Maintenance(
 
 			logger.Ctx(ctx).Info("running kopia maintenance")
 
-			err = snapshotmaintenance.Run(ctx, dw, mode, force, kopiaSafety)
+			err = snapshotmaintenance.Run(ctx, dw, mode, opts.Force, kopiaSafety)
 			if err != nil {
 				return clues.Wrap(err, "running kopia maintenance").WithClues(ctx)
 			}
@@ -586,24 +589,32 @@ func (w Wrapper) Maintenance(
 	return nil
 }
 
-func translateSafety(s control.Safety) (maintenance.SafetyParameters, error) {
+func translateSafety(
+	s repository.MaintenanceSafety,
+) (maintenance.SafetyParameters, error) {
 	switch s {
-	case control.FullSafety:
+	case repository.FullMaintenanceSafety:
 		return maintenance.SafetyFull, nil
-	case control.NoSafety:
+	case repository.NoMaintenanceSafety:
 		return maintenance.SafetyNone, nil
 	default:
 		return maintenance.SafetyParameters{}, clues.New("bad safety value").
-			With("input_safety", s)
+			With("input_safety", s.String())
 	}
 }
 
-func translateMode(quick bool) maintenance.Mode {
-	if quick {
-		return maintenance.ModeQuick
-	}
+func translateMode(t repository.MaintenanceType) (maintenance.Mode, error) {
+	switch t {
+	case repository.CompleteMaintenance:
+		return maintenance.ModeFull, nil
 
-	return maintenance.ModeFull
+	case repository.MetadataMaintenance:
+		return maintenance.ModeQuick, nil
+
+	default:
+		return maintenance.ModeNone, clues.New("bad maintenance type").
+			With("input_maintenance_type", t.String())
+	}
 }
 
 // setMaintenanceUserHost sets the user and host for maintenance to the the

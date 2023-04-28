@@ -24,7 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -172,10 +172,14 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	safety := control.FullSafety
 	w := &Wrapper{k}
 
-	err = w.Maintenance(ctx, safety, true, false)
+	opts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	err = w.Maintenance(ctx, opts)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -188,26 +192,31 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	safety := control.FullSafety
 	w := &Wrapper{k}
 
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
 	// This will set the user.
-	err = w.Maintenance(ctx, safety, true, false)
+	err = w.Maintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	opts := control.Defaults()
-	opts.User = "foo"
-	opts.Host = "bar"
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
 
 	err = k.Connect(ctx, opts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var notOwnedErr maintenance.NotOwnedError
 
-	err = w.Maintenance(ctx, safety, true, false)
+	err = w.Maintenance(ctx, mOpts)
 	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
 }
 
@@ -220,29 +229,38 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	safety := control.FullSafety
 	w := &Wrapper{k}
 
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
 	// This will set the user.
-	err = w.Maintenance(ctx, safety, true, false)
+	err = w.Maintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	opts := control.Defaults()
-	opts.User = "foo"
-	opts.Host = "bar"
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
 
 	err = k.Connect(ctx, opts)
 	require.NoError(t, err, clues.ToCore(err))
 
+	mOpts.Force = true
+
 	// This will set the user.
-	err = w.Maintenance(ctx, safety, true, true)
+	err = w.Maintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
+	mOpts.Force = false
+
 	// Running without force should succeed now.
-	err = w.Maintenance(ctx, safety, true, false)
+	err = w.Maintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
