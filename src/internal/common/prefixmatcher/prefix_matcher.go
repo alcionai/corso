@@ -2,22 +2,38 @@ package prefixmatcher
 
 import (
 	"strings"
+
+	"golang.org/x/exp/maps"
 )
 
-type View[T any] interface {
+type MapReader interface {
+	Reader[map[string]struct{}]
+}
+
+type MapBuilder interface {
+	Builder[map[string]struct{}]
+}
+
+type Reader[T any] interface {
 	Get(key string) (T, bool)
 	LongestPrefix(key string) (string, T, bool)
 	Empty() bool
+	Keys() []string
 }
 
-type Matcher[T any] interface {
+type Builder[T any] interface {
 	// Add adds or updates the item with key to have value value.
 	Add(key string, value T)
-	View[T]
+	Reader[T]
 }
 
+// prefixMatcher implements Builder
 type prefixMatcher[T any] struct {
 	data map[string]T
+}
+
+func NewBuilder[T any]() *prefixMatcher[T] {
+	return &prefixMatcher[T]{data: make(map[string]T)}
 }
 
 func (m *prefixMatcher[T]) Add(key string, value T) {
@@ -63,6 +79,10 @@ func (m prefixMatcher[T]) Empty() bool {
 	return len(m.data) == 0
 }
 
-func NewMatcher[T any]() Matcher[T] {
+func (m prefixMatcher[T]) Keys() []string {
+	return maps.Keys(m.data)
+}
+
+func NewMatcher[T any]() Builder[T] {
 	return &prefixMatcher[T]{data: map[string]T{}}
 }

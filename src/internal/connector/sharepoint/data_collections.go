@@ -39,7 +39,7 @@ func DataCollections(
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, *excludes.ParentsItems, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
@@ -199,7 +199,7 @@ func collectLibraries(
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
-	epi excludes.ParentsItems,
+	epi *excludes.ParentsItems,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,

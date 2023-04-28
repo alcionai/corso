@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -1056,14 +1057,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				prefix = itemPath.ToBuilder().Dir().Dir().String()
 			}
 
-			var excluded map[string]map[string]struct{}
+			excluded := pmMock.NewPrefixMap(nil)
 			if test.excludeItem {
-				excluded = map[string]map[string]struct{}{
+				excluded = pmMock.NewPrefixMap(map[string]map[string]struct{}{
 					// Add a prefix if needed.
 					prefix: {
 						itemPath.Item(): {},
 					},
-				}
+				})
 			}
 
 			stats, _, _, err := suite.w.ConsumeBackupCollections(

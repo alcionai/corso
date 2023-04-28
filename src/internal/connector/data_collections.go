@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -41,7 +42,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, *excludes.ParentsItems, error) {
 	ctx, end := diagnostics.Span(
 		ctx,
 		"gc:produceBackupCollections",
@@ -71,13 +72,13 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	}
 
 	var (
-		colls    []data.BackupCollection
-		excludes map[string]map[string]struct{}
+		colls []data.BackupCollection
+		epi   *excludes.ParentsItems
 	)
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, excludes, err = exchange.DataCollections(
+		colls, epi, err = exchange.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -91,7 +92,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 
 	case selectors.ServiceOneDrive:
-		colls, excludes, err = onedrive.DataCollections(
+		colls, epi, err = onedrive.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -108,7 +109,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 
 	case selectors.ServiceSharePoint:
-		colls, excludes, err = sharepoint.DataCollections(
+		colls, epi, err = sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
@@ -139,7 +140,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 	}
 
-	return colls, excludes, nil
+	return colls, epi, nil
 }
 
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {

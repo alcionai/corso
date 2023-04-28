@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -12,9 +14,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+var _ inject.BackupProducer = &GraphConnector{}
+
 type GraphConnector struct {
 	Collections []data.BackupCollection
-	Exclude     map[string]map[string]struct{}
+	Exclude     *excludes.ParentsItems
 
 	Deets *details.Details
 
@@ -33,7 +37,7 @@ func (gc GraphConnector) ProduceBackupCollections(
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
-	map[string]map[string]struct{},
+	*excludes.ParentsItems,
 	error,
 ) {
 	return gc.Collections, gc.Exclude, gc.Err

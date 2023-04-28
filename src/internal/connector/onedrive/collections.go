@@ -272,7 +272,7 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
-	epi excludes.ParentsItems,
+	epi *excludes.ParentsItems,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)

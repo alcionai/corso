@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -1433,7 +1434,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	table := []struct {
 		name             string
 		inputCollections func(t *testing.T) []data.BackupCollection
-		inputExcludes    map[string]map[string]struct{}
+		inputExcludes    *pmMock.PrefixMap
 		expected         *expectedNode
 	}{
 		{
@@ -1441,11 +1442,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			inputCollections: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
-			inputExcludes: map[string]map[string]struct{}{
+			inputExcludes: pmMock.NewPrefixMap(map[string]map[string]struct{}{
 				"": {
 					inboxFileName1: {},
 				},
-			},
+			}),
 			expected: expectedTreeWithChildren(
 				[]string{
 					testTenant,
@@ -2229,6 +2230,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				snapshotRoot: getBaseSnapshot(),
 			}
 
+			ie := pmMock.NewPrefixMap(nil)
+			if test.inputExcludes != nil {
+				ie = test.inputExcludes
+			}
+
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
@@ -2236,7 +2242,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
-				test.inputExcludes,
+				ie,
 				progress)
 			require.NoError(t, err, clues.ToCore(err))
 

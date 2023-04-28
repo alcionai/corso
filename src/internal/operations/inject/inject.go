@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -24,7 +26,7 @@ type (
 			lastBackupVersion int,
 			ctrlOpts control.Options,
 			errs *fault.Bus,
-		) ([]data.BackupCollection, map[string]map[string]struct{}, error)
+		) ([]data.BackupCollection, *excludes.ParentsItems, error)
 
 		Wait() *data.CollectionStats
 	}
@@ -34,7 +36,7 @@ type (
 			ctx context.Context,
 			bases []kopia.IncrementalBase,
 			cs []data.BackupCollection,
-			excluded map[string]map[string]struct{},
+			pmr prefixmatcher.MapReader,
 			tags map[string]string,
 			buildTreeWithBase bool,
 			errs *fault.Bus,

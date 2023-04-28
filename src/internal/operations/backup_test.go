@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -98,7 +99,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
-	excluded map[string]map[string]struct{},
+	excluded prefixmatcher.MapReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,

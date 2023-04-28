@@ -44,7 +44,7 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, *excludes.ParentsItems, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)

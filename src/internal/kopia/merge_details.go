@@ -114,7 +114,7 @@ type locRefs struct {
 }
 
 type locationPrefixMatcher struct {
-	m prefixmatcher.Matcher[locRefs]
+	m prefixmatcher.Builder[locRefs]
 }
 
 func (m *locationPrefixMatcher) add(
