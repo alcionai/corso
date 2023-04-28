@@ -151,7 +151,17 @@ func Message(ctx context.Context, msgs ...any) {
 	plain := strings.Join(plainSl, " ")
 	loggable := strings.Join(loggableSl, " ")
 
-	logger.Ctx(ctx).Info(loggable)
+	MessageWithStructure(ctx, plain, loggable)
+}
+
+// MessageWithStructure is used to display a progress message as well as a
+// structured log.
+func MessageWithStructure(
+	ctx context.Context,
+	msg, logMsg string,
+	logArgs ...any,
+) {
+	logger.Ctx(ctx).Infow(logMsg, logArgs...)
 
 	if cfg.hidden() {
 		return
@@ -163,9 +173,9 @@ func Message(ctx context.Context, msgs ...any) {
 		-1,
 		mpb.NopStyle(),
 		mpb.PrependDecorators(decor.Name(
-			plain,
+			msg,
 			decor.WC{
-				W: len(plain) + 1,
+				W: len(msg) + 1,
 				C: decor.DidentRight,
 			})))
 
