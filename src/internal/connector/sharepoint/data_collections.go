@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -54,7 +54,7 @@ func DataCollections(
 		el          = errs.Local()
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
-		excluded    = map[string]map[string]struct{}{}
+		epi         = excludes.NewParentsItems()
 	)
 
 	for _, scope := range b.Scopes() {
@@ -86,15 +86,14 @@ func DataCollections(
 			}
 
 		case path.LibrariesCategory:
-			var excludes map[string]map[string]struct{}
-
-			spcs, excludes, err = collectLibraries(
+			spcs, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
 				creds.AzureTenantID,
 				site,
 				metadata,
+				epi,
 				scope,
 				su,
 				ctrlOpts,
@@ -102,14 +101,6 @@ func DataCollections(
 			if err != nil {
 				el.AddRecoverable(err)
 				continue
-			}
-
-			for prefix, excludes := range excludes {
-				if _, ok := excluded[prefix]; !ok {
-					excluded[prefix] = map[string]struct{}{}
-				}
-
-				maps.Copy(excluded[prefix], excludes)
 			}
 
 		case path.PagesCategory:
@@ -150,7 +141,7 @@ func DataCollections(
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, excluded, el.Failure()
+	return collections, epi, el.Failure()
 }
 
 func collectLists(
@@ -208,11 +199,12 @@ func collectLibraries(
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
+	epi excludes.ParentsItems,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
 	var (
@@ -228,12 +220,12 @@ func collectLibraries(
 			ctrlOpts)
 	)
 
-	odcs, excludes, err := colls.Get(ctx, metadata, errs)
+	odcs, err := colls.Get(ctx, metadata, epi, errs)
 	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "getting library")
+		return nil, graph.Wrap(ctx, err, "getting library")
 	}
 
-	return append(collections, odcs...), excludes, nil
+	return append(collections, odcs...), nil
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
