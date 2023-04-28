@@ -3,7 +3,6 @@ package impl
 import (
 	"strings"
 
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
@@ -36,21 +35,15 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, ins, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, inp, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
-		return Only(ctx, err)
-	}
-
-	secondaryUserID, idOK := ins.IDOf(strings.ToLower(SecondaryUser))
-	if !idOK {
-		err = clues.New("no secondary user found")
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreOnedriveItems(
 		gc,
 		User,
-		secondaryUserID,
+		inp.ID(),
 		strings.ToLower(SecondaryUser),
 		acct,
 		service,
