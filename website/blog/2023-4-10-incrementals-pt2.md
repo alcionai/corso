@@ -230,7 +230,7 @@ all it’s items was deleted and a new folder with the same path was created wit
 a new item. From the user’s perspective and if potential differences in
 permissions are ignored, there’s not really a difference between the old and new
 `folder2`s. The items they have may be different, but the user generally doesn’t
-inspect the M365 IDs of folders, so the fact that they reside at the same
+inspect the Microsoft 365 IDs of folders, so the fact that they reside at the same
 location and have the same name makes them the “same” in some sense.
 
 However, Corso shouldn’t treat the old and new folders as the same as it could
@@ -256,7 +256,7 @@ Since deleted and moved files don’t denote where they used to reside, every it
 is also added to a list of item names to “exclude” from the previous backup
 later on. Tracking this list ensures Corso doesn’t duplicate items or create
 *zombie items:* items that stick around in the backup even after the user
-deletes them in M365. If the old location of the item is known, then Corso can
+deletes them in Microsoft 365. If the old location of the item is known, then Corso can
 just add an entry in the corresponding Collection saying the item was deleted
 (this is how Exchange works as it has a delta endpoint per folder).
 
@@ -459,7 +459,7 @@ items* (if the item was deleted). Items from the base backup that are actually
 included in the current backup are tracked so Corso can also retrieve their
 indexing information in the next part.
 
-Data for items is pulled from M365 using the Graph API when kopia actually needs
+Data for items is pulled from Microsoft 365 using the Graph API when kopia actually needs
 to upload the data to S3. By lazily fetching data, Corso avoids making Graph API
 requests if kopia already has a copy of that item’s data. It also reduces the
 memory footprint of Corso because only a few items’ data needs to be in memory
@@ -527,6 +527,15 @@ to the index information and the item data snapshot so they can be found later.
 The model itself is also stored in kopia so it’s data is encrypted as well. Once
 the BackupModel is added to kopia the Corso backup is considered complete and
 can be used for future restores.
+
+## The Journey of Incremental Backups
+
+Incremental backups are a key component of a high-performance backup strategy.
+In this piece (and
+[in part 1](https://corsobackup.io/blog/incremental-backups-pt1/)), we've
+covered how we tackled the challenge using the Microsoft Graph API. If you have
+feedback, questions, or want more information, please join us on the
+[Corso Discord](https://discord.gg/63DTTSnuhT).
 
 ---
 

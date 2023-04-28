@@ -51,8 +51,10 @@ then getting another token a2 at time t2 would give distinct tokens. Requesting
 the changes from token a1 would always give the changes made after time t1
 including those after time t2. Requesting changes from token a2 would give only
 the changes made after time t2. Tokens eventually expire though, so waiting a
-long time between backups (e.g., a few days) may cause all items to be enumerated
-again.
+long time between backups (for example, a few days) may cause all items to be
+enumerated again. See Nica's
+[previous blog post on how backup frequency](https://corsobackup.io/blog/how-often-should-you-run-microsoft-365-backups)
+can affect performance.
 
 ## Corso full backups, incremental backups, and backup layout
 
@@ -60,30 +62,36 @@ Before we get into the nuts and bolts of how Corso uses the Microsoft delta
 query API, it’s important to first define what’s in a backup and the terminology
 we’ll be using throughout this post.
 
+### Kopia
+
+Corso makes extensive use of [Kopia](https://github.com/kopia/kopia) to
+implement our Microsoft 365 backup functionality. Kopia is a fast and secure
+open-source backup/restore tool that allows you to create encrypted snapshots of
+your data and save the snapshots to remote or cloud storage of your choice.
+
 ### Backup layout
 
 Internally, a single Corso backup consists of three main parts: a kopia manifest
-that Corso uses as the root object of the backup (BackupModel), a kopia snapshot
-of indexing information for Corso, and a kopia snapshot of the item data in the
-backup. The BackupModel contains summary information about the status of the
-backup (did it have errors, how many items did it backup, etc) and pointers to
-the two snapshots that contain information.
+that Corso uses as the root object of the backup (BackupModel), a kopia index
+for Corso, and a kopia data backup. The BackupModel contains summary information
+about the status of the backup (did it have errors, how many items did it
+backup, etc) and pointers to the two snapshots that contain information.
 
-The snapshot with indexing information contains the data output during a
+The kopia index contains the data output during a
 `corso backup details` command and is used to filter the set of restored items
-during restore commands. The snapshot contains one entry for every backed up
-M365 item in the backup.
+during restore commands. The index contains one entry for every backed up
+Microsoft 365 item in the backup.
 
-The snapshot of item data contains the raw bytes that Corso backed up from M365.
+The data backup contains the raw bytes that Corso backed up from Microsoft 365.
 Internally, Corso uses a file hierarchy in kopia that closely mirrors the layout
-of the data in M365. For example, if the user has a file in the OneDrive folder
+of the data in Microsoft 365. For example, if the user has a file in the OneDrive folder
 `work/important` then Corso creates a kopia path
 `<tenant ID>/onedrive/<user ID>/files/<drive ID>/root/work/important` for that
 file.
 
 Corso also stores a few extra bits of metadata to help with incremental backups.
 Most importantly, it stores the Graph API’s delta tokens retrieved during the
-backup process as well as a mapping relating the current M365 folder IDs to
+backup process as well as a mapping relating the current Microsoft 365 folder IDs to
 their paths. This information is stored with different path prefixes (ex. uses
 `onedriveMetadata` instead of `onedrive`) to make it straightforward to separate out from
 backed up item data.
@@ -91,14 +99,14 @@ backed up item data.
 ### Terminology
 
 *Full backups* are backups where all of the data being backed up is fetched from
-M365 with the Graph API. These backups may take a long time to complete (we’ve
+Microsoft 365 with the Graph API. These backups may take a long time to complete (we’ve
 seen backups that run for 20+ hours) due to throttling imposed by Microsoft 365.
 For the purposes of this blog, *incremental backups* are backups where Corso
-fetches only a subset of items from M365. Ideally Corso would fetch only the
+fetches only a subset of items from Microsoft 365. Ideally Corso would fetch only the
 items that change, though there may be reasons it needs to fetch more data.
 
 Whether Corso does a full backup or an incremental backup, the resulting Corso
-backup has a listing of all items stored in M365 (what we refer to as *indexing
+backup has a listing of all items stored in Microsoft 365 (what we refer to as *indexing
 information*). This means there’s no “chaining” between backups and restoring an
 item from a backup requires only accessing information contained in or
 referenced directly by the backup passed in to the restore command. This makes
