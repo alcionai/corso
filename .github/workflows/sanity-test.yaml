@@ -2,7 +2,7 @@ name: Sanity Testing
 on: 
   push:
     branches:
-      - main
+      - sanity-artifact3
   workflow_dispatch:
     inputs:
       user:
