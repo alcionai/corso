@@ -541,7 +541,7 @@ func (w Wrapper) Maintenance(
 		"kopia_safety", kopiaSafety,
 		"kopia_maintenance_mode", mode,
 		"force", opts.Force,
-		"current_owner", clues.Hide(currentOwner))
+		"current_local_owner", clues.Hide(currentOwner))
 
 	dr, ok := w.c.Repository.(repo.DirectRepository)
 	if !ok {
