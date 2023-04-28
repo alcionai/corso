@@ -709,7 +709,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, pmMock.NewPrefixMap(nil), progress)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -806,7 +806,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 				errs:    fault.New(true),
 			}
 
-			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, pmMock.NewPrefixMap(nil), progress)
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -912,7 +912,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 				errs:    fault.New(true),
 			}
 
-			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, pmMock.NewPrefixMap(nil), progress)
 			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -1028,7 +1028,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 				cols = append(cols, mc)
 			}
 
-			_, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
+			_, err := inflateDirTree(ctx, nil, nil, cols, pmMock.NewPrefixMap(nil), progress)
 			require.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -1313,9 +1313,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
-				nil,
-				progress,
-			)
+				pmMock.NewPrefixMap(nil),
+				progress)
 			require.NoError(t, err, clues.ToCore(err))
 
 			expectTree(t, ctx, test.expected, dirTree)
@@ -2406,7 +2405,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
-		nil,
+		pmMock.NewPrefixMap(nil),
 		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -2511,7 +2510,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
-		nil,
+		pmMock.NewPrefixMap(nil),
 		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -2762,9 +2761,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 			mockIncrementalBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
-		nil,
-		progress,
-	)
+		pmMock.NewPrefixMap(nil),
+		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
 	expectTree(t, ctx, expected, dirTree)
@@ -2927,7 +2925,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
 		},
 		[]data.BackupCollection{mce, mcc},
-		nil,
+		pmMock.NewPrefixMap(nil),
 		progress)
 	require.NoError(t, err, clues.ToCore(err))
 

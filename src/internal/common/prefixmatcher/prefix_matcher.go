@@ -36,6 +36,10 @@ func NewBuilder[T any]() *prefixMatcher[T] {
 	return &prefixMatcher[T]{data: make(map[string]T)}
 }
 
+func NopReader[T any]() *prefixMatcher[T] {
+	return &prefixMatcher[T]{data: make(map[string]T)}
+}
+
 func (m *prefixMatcher[T]) Add(key string, value T) {
 	m.data[key] = value
 }

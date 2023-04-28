@@ -448,7 +448,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			odcs, err := colls.Get(ctx, nil, epi, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			// Don't expect excludes as this isn't an incremental backup.
-			assert.Empty(t, epi)
+			assert.True(t, epi.Empty())
 
 			for _, entry := range odcs {
 				assert.NotEmpty(t, entry.FullPath())

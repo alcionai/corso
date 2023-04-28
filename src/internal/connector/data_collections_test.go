@@ -272,7 +272,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			// Not expecting excludes as this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, excludes.Empty())
 
 			for range collections {
 				connector.incrementAwaitingMessages()
