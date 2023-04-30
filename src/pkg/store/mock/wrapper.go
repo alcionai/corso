@@ -20,6 +20,8 @@ func (bw BackupWrapper) GetBackup(
 	ctx context.Context,
 	backupID model.StableID,
 ) (*backup.Backup, error) {
+	bw.Backup.SnapshotID = bw.Backup.ID.String()
+
 	return bw.Backup, bw.GetErr
 }
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
@@ -108,7 +109,15 @@ func generateAndRestoreItems(
 // Common Helpers
 // ------------------------------------------------------------------------------------------
 
-func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, account.Account, error) {
+func getGCAndVerifyUser(
+	ctx context.Context,
+	userID string,
+) (
+	*connector.GraphConnector,
+	account.Account,
+	idname.Provider,
+	error,
+) {
 	tid := common.First(Tenant, os.Getenv(account.AzureTenantID))
 
 	if len(Tenant) == 0 {
@@ -123,7 +132,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, account.Account{}, clues.Wrap(err, "finding m365 account details")
+		return nil, account.Account{}, nil, clues.Wrap(err, "finding m365 account details")
 	}
 
 	gc, err := connector.NewGraphConnector(
@@ -131,14 +140,15 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 		acct,
 		connector.Users)
 	if err != nil {
-		return nil, account.Account{}, clues.Wrap(err, "connecting to graph api")
+		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
 
-	if _, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, userID, nil); err != nil {
-		return nil, account.Account{}, clues.Wrap(err, "verifying user")
+	id, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, userID, nil)
+	if err != nil {
+		return nil, account.Account{}, nil, clues.Wrap(err, "verifying user")
 	}
 
-	return gc, acct, nil
+	return gc, acct, gc.IDNameLookup.ProviderForID(id), nil
 }
 
 type item struct {

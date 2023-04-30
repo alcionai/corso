@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -112,6 +113,10 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 		},
 	}
 
+	bupNoSnapshot := &backup.Backup{
+		BaseModel: model.BaseModel{},
+	}
+
 	table := []struct {
 		name      string
 		sw        mock.BackupWrapper
@@ -172,6 +177,19 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 			},
 			expectID: bup.ID,
 		},
+		{
+			name: "no snapshot present",
+			sw: mock.BackupWrapper{
+				Backup:    bupNoSnapshot,
+				GetErr:    nil,
+				DeleteErr: nil,
+			},
+			kw: mockSSDeleter{assert.AnError},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+			expectID: bupNoSnapshot.ID,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -180,7 +198,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 
 			t := suite.T()
 
-			err := deleteBackup(ctx, string(bup.ID), test.kw, test.sw)
+			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.kw, test.sw)
 			test.expectErr(t, err)
 		})
 	}
@@ -219,10 +237,10 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 
 	require.NotNil(t, k)
 
-	err = k.Initialize(ctx)
+	err = k.Initialize(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Connect(ctx)
+	err = k.Connect(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -269,8 +287,8 @@ func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 		k = kopia.NewConn(s)
 	)
 
-	require.NoError(t, k.Initialize(ctx))
-	require.NoError(t, k.Connect(ctx))
+	require.NoError(t, k.Initialize(ctx, control.RepoOptions{}))
+	require.NoError(t, k.Connect(ctx, control.RepoOptions{}))
 
 	defer k.Close(ctx)
 

@@ -376,8 +376,7 @@ func checkOnedriveRestoration(
 	getRestoredDrive(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
-		logger.Ctx(ctx).Info("checking for folder: ", folderName)
-		fmt.Printf("checking for folder: %s\n", folderName)
+		logAndPrint(ctx, "checking for folder: %s", folderName)
 
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
@@ -469,8 +468,7 @@ func getOneDriveChildFolder(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			logger.Ctx(ctx).Info("skipped empty folder: ", fullName)
-			fmt.Println("skipped empty folder: ", fullName)
+			logAndPrint(ctx, "skipped empty folder: %s", fullName)
 
 			continue
 		}
@@ -636,4 +634,9 @@ func assert(
 	fmt.Println(got)
 
 	os.Exit(1)
+}
+
+func logAndPrint(ctx context.Context, tmpl string, vs ...any) {
+	logger.Ctx(ctx).Infof(tmpl, vs...)
+	fmt.Printf(tmpl+"\n", vs...)
 }

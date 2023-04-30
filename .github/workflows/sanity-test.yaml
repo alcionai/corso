@@ -30,15 +30,19 @@ jobs:
       AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
-      CORSO_LOG_FILE: ./src/testlog/testlogging.log
-      CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
-      SECONDARY_USER : ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
+      CORSO_LOG_DIR: testlog
+      CORSO_LOG_FILE: testlog/testlogging.log
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      SECONDARY_TEST_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-      TEST_RESULT: "test_results"
+      TEST_RESULT: test_results
+      # The default working directory doesn't seem to apply to things without
+      # the 'run' directive. https://stackoverflow.com/a/67845456
+      WORKING_DIR: src
 
     defaults:
       run:
-        working-directory: src
+        working-directory: ${{ env.WORKING_DIR }}
     steps:
       - uses: actions/checkout@v3
 
@@ -51,9 +55,9 @@ jobs:
 
       - run: go build -o sanityCheck ./cmd/sanity_test
 
-      - run: mkdir test_results
+      - run: mkdir ${TEST_RESULT}
 
-      - run: mkdir testlog
+      - run: mkdir ${CORSO_LOG_DIR}
 
       # run the tests
       - name: Version Test
@@ -72,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail 
           prefix=`date +"%Y-%m-%d-%T"`
-
+          echo "Repo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
           --no-stats \
           --hide-progress \
@@ -91,6 +95,7 @@ jobs:
       - name: Repo connect test
         run: |
           set -euo pipefail
+          echo "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
           ./corso repo connect s3 \
           --no-stats \
           --hide-progress \
@@ -113,7 +118,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . exchange emails \
-          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
+          --user ${{ env.TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --count 4
@@ -122,13 +127,14 @@ jobs:
       - name: Backup exchange test
         id: exchange-test
         run: |
+          echo "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
-          --mailbox "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress \
-           --data 'email' \
-            --json \
-            2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+          --mailbox "${TEST_USER}" \
+          --hide-progress \
+          --data 'email' \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 
@@ -144,6 +150,7 @@ jobs:
       - name: Backup exchange list test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange list test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list exchange \
           --no-stats \
           --hide-progress \
@@ -159,6 +166,7 @@ jobs:
       - name: Backup exchange list single backup test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange list single backup test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list exchange \
           --no-stats \
           --hide-progress \
@@ -176,6 +184,7 @@ jobs:
         id: exchange-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
@@ -198,10 +207,11 @@ jobs:
         id: exchange-incremental-test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange incremental test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
           --hide-progress \
-          --mailbox "${CORSO_M365_TEST_USER_ID}" \
+          --mailbox "${TEST_USER}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
 
@@ -219,6 +229,7 @@ jobs:
         id: exchange-incremantal-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup Exchange incremental restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --hide-progress \
@@ -237,8 +248,27 @@ jobs:
           set -euo pipefail
           ./sanityCheck
 
-        
- # Onedrive test
+# Onedrive test
+
+       # generate new entries for OneDrive sanity test
+      - name: New Data Creation for OneDrive
+        id: new-data-creation-onedrive
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+        run: |
+          suffix=`date +"%Y-%m-%d_%H-%M"`
+
+          go run . onedrive files  \
+          --user ${{ env.TEST_USER }} \
+          --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
+          --tenant ${{ env.AZURE_TENANT_ID }} \
+          --destination Corso_Restore_st_$suffix \
+          --count 4
+
+          echo result="$suffix" >> $GITHUB_OUTPUT
 
        # generate new entries for OneDrive sanity test
       - name: New Data Creation for OneDrive
@@ -265,10 +295,11 @@ jobs:
         id: onedrive-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
+          --user "${TEST_USER}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
@@ -286,6 +317,7 @@ jobs:
       - name: Backup onedrive list test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive list test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list onedrive \
           --no-stats \
           --hide-progress \
@@ -298,9 +330,10 @@ jobs:
           fi
 
       # list the previous onedrive backup
-      - name: Backup onedrive list test
+      - name: Backup onedrive list one backup test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive list one backup test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list onedrive \
           --no-stats \
           --hide-progress \
@@ -318,6 +351,7 @@ jobs:
         id: onedrive-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
@@ -345,8 +379,8 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
-          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
-          --secondaryuser  ${{ env.SECONDARY_USER }} \
+          --user ${{ env.TEST_USER }} \
+          --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
           --count 4
@@ -356,10 +390,11 @@ jobs:
         id: onedrive-incremental-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive incremental test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
+          --user "${TEST_USER}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
@@ -378,6 +413,7 @@ jobs:
         id: onedrive-incremental-restore-test
         run: |
           set -euo pipefail
+          echo "\nBackup OneDrive incremental restore test\n" >> $CORSO_LOG_FILE
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
@@ -398,53 +434,52 @@ jobs:
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
-          path: src/testlog/*
+          name: test-logs
+          path: ${{ env.WORKING_DIR }}/${{ env.CORSO_LOG_DIR }}/
           if-no-files-found: error
           retention-days: 14
 
-      # # run the tests
-      # - name: SHA info
-      #   id: sha-info
-      #   if: failure()
-      #   run: |  
-      #           echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
-      #           echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-      #           echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
-      #           echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
-               
+      # run the tests
+      - name: SHA info
+        id: sha-info
+        if: failure()
+        run: |  
+          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+
       
-      # - name: Send Github Action failure to Slack
-      #   id: slack-notification
-      #   if: failure()
-      #   uses: slackapi/slack-github-action@v1.23.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
-      #         "blocks": [
-      #             {
-      #                 "type": "header",
-      #                 "text": {
-      #                   "type": "plain_text",
-      #                   "text": "Failure in Sanity Test"
-      #                 }
-      #            },
-      #              {
-      #                 "type": "divider"
-      #               },
-      #           {
-      #             "type": "section",
-      #             "text": {
-      #               "type": "mrkdwn",
-      #               "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-      #             }
-      #           }
-      #         ]
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      - name: Send Github Action failure to Slack
+        id: slack-notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Failure in Sanity Test"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

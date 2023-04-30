@@ -83,7 +83,7 @@ func prepNewTestBackupOp(
 		k  = kopia.NewConn(st)
 	)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, control.RepoOptions{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe

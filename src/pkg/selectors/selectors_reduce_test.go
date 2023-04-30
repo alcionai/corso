@@ -48,7 +48,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailInboxPath.Folder(false)},
+					[]string{testdata.ExchangeEmailInboxPath.FolderLocation()},
 				))
 
 				return sel
@@ -72,7 +72,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 				sel.Filter(sel.MailSender("a-person"))
 				sel.Exclude(sel.Mails(
 					selectors.Any(),
-					[]string{testdata.ExchangeEmailItemPath2.ShortRef()},
+					[]string{testdata.ExchangeEmailItemPath2.RR.ShortRef()},
 				))
 
 				return sel
@@ -110,7 +110,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Mails(
 					selectors.Any(),
-					[]string{testdata.ExchangeEmailItemPath1.Item()},
+					[]string{testdata.ExchangeEmailItemPath1.ItemLocation()},
 				))
 
 				return sel
@@ -123,7 +123,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Mails(
 					selectors.Any(),
-					[]string{testdata.ExchangeEmailItemPath1.ShortRef()},
+					[]string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
 				))
 
 				return sel
@@ -177,7 +177,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailBasePath.Folder(false)},
+					[]string{testdata.ExchangeEmailBasePath.FolderLocation()},
 				))
 
 				return sel
@@ -192,7 +192,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailBasePath.Folder(false)},
+					[]string{testdata.ExchangeEmailBasePath.FolderLocation()},
 					selectors.PrefixMatch(), // force prefix matching
 				))
 
@@ -205,7 +205,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailInboxPath.Folder(false)},
+					[]string{testdata.ExchangeEmailInboxPath.FolderLocation()},
 				))
 
 				return sel
@@ -217,7 +217,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.ContactFolders(
-					[]string{testdata.ExchangeContactsBasePath.Folder(false)},
+					[]string{testdata.ExchangeContactsBasePath.FolderLocation()},
 				))
 
 				return sel
@@ -229,7 +229,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.ContactFolders(
-					[]string{testdata.ExchangeContactsRootPath.Folder(false)},
+					[]string{testdata.ExchangeContactsRootPath.FolderLocation()},
 				))
 
 				return sel
@@ -242,7 +242,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.EventCalendars(
-					[]string{testdata.ExchangeEventsBasePath.Folder(false)},
+					[]string{testdata.ExchangeEventsBasePath.FolderLocation()},
 				))
 
 				return sel
@@ -254,7 +254,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.EventCalendars(
-					[]string{testdata.ExchangeEventsRootPath.Folder(false)},
+					[]string{testdata.ExchangeEventsRootPath.FolderLocation()},
 				))
 
 				return sel

@@ -126,16 +126,15 @@ type Settings struct {
 // AddLogLevelFlag() and AddLogFileFlag() ensures the flags are
 // displayed as part of the help/usage output.
 func PreloadLoggingFlags(args []string) Settings {
-	dlf := defaultLogLocation()
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
-	addFlags(fs, dlf)
+	addFlags(fs, "")
 
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
 	ls := Settings{
-		File:        dlf,
+		File:        "",
 		Level:       LogLevelFV,
 		PIIHandling: SensitiveInfoFV,
 	}
@@ -184,6 +183,11 @@ func GetLogFile(logFileFlagVal string) string {
 	// if not specified, attempt to fall back to env declaration.
 	if len(r) == 0 {
 		r = os.Getenv("CORSO_LOG_FILE")
+	}
+
+	// if no flag or env is specified, fall back to the default
+	if len(r) == 0 {
+		r = defaultLogLocation()
 	}
 
 	if r == "-" {

@@ -14,7 +14,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -232,31 +231,4 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		err := DeleteList(ctx, service, suite.siteID, deleteID)
 		assert.NoError(t, err, clues.ToCore(err))
 	}
-}
-
-// TestRestoreLocation temporary test for greater restore operation
-// TODO delete after full functionality tested in GraphConnector
-func (suite *SharePointCollectionSuite) TestRestoreLocation() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-
-	service := createTestService(t, suite.creds)
-	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
-	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
-	require.NoError(t, err, clues.ToCore(err))
-	t.Log("FolderID: " + folderID)
-
-	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
-	require.NoError(t, err, clues.ToCore(err))
-
-	// CleanUp
-	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	driveID := ptr.Val(siteDrive.GetId())
-
-	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
-	assert.NoError(t, err, clues.ToCore(err))
 }

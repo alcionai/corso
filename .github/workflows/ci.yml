@@ -416,7 +416,7 @@ jobs:
         with:
           # Keep pinned to a verson as sometimes updates will add new lint
           # failures in unchanged code.
-          version: v1.50.1
+          version: v1.52.2
           working-directory: src
           skip-pkg-cache: true
           skip-build-cache: true

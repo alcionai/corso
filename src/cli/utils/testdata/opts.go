@@ -138,14 +138,14 @@ var (
 			Name:     "EmailsFolderPrefixMatch",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder(false)},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation()},
 			},
 		},
 		{
 			Name:     "EmailsFolderPrefixMatchTrailingSlash",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder(false) + "/"},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation() + "/"},
 			},
 		},
 		{
@@ -155,7 +155,7 @@ var (
 				testdata.ExchangeEmailItems[2],
 			},
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder(false)},
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation()},
 			},
 		},
 		{
@@ -165,7 +165,7 @@ var (
 				testdata.ExchangeEmailItems[2],
 			},
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder(false) + "/"},
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation() + "/"},
 			},
 		},
 		{
@@ -209,7 +209,7 @@ var (
 			Name:     "MailShortRef",
 			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
+				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
 			},
 		},
 		{
@@ -220,8 +220,8 @@ var (
 			},
 			Opts: utils.ExchangeOpts{
 				Email: []string{
-					testdata.ExchangeEmailItemPath1.ShortRef(),
-					testdata.ExchangeEmailItemPath2.ShortRef(),
+					testdata.ExchangeEmailItemPath1.RR.ShortRef(),
+					testdata.ExchangeEmailItemPath2.RR.ShortRef(),
 				},
 			},
 		},
@@ -248,8 +248,8 @@ var (
 				testdata.ExchangeEventsItems[0],
 			},
 			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
-				Event: []string{testdata.ExchangeEventsItemPath1.ShortRef()},
+				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
+				Event: []string{testdata.ExchangeEventsItemPath1.RR.ShortRef()},
 			},
 		},
 	}
@@ -376,6 +376,13 @@ var (
 			},
 		},
 		{
+			Name:     "FolderRepoRefMatchesNothing",
+			Expected: []details.DetailsEntry{},
+			Opts: utils.OneDriveOpts{
+				FolderPath: []string{testdata.OneDriveFolderPath.RR.Folder(true)},
+			},
+		},
+		{
 			Name: "ShortRef",
 			Expected: []details.DetailsEntry{
 				testdata.OneDriveItems[0],
@@ -492,6 +499,13 @@ var (
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
 				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
+			},
+		},
+		{
+			Name:     "FolderRepoRefMatchesNothing",
+			Expected: []details.DetailsEntry{},
+			Opts: utils.SharePointOpts{
+				FolderPath: []string{testdata.SharePointLibraryPath.RR.Folder(true)},
 			},
 		},
 		{
