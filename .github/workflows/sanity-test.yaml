@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - oneDriveCustomData
   workflow_dispatch:
     inputs:
       user:
@@ -405,45 +406,45 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # run the tests
-      - name: SHA info
-        id: sha-info
-        if: failure()
-        run: |  
-                echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
-                echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-                echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
-                echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+      # # run the tests
+      # - name: SHA info
+      #   id: sha-info
+      #   if: failure()
+      #   run: |  
+      #           echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+      #           echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+      #           echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+      #           echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
                
       
-      - name: Send Github Action failure to Slack
-        id: slack-notification
-        if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
-        with:
-          payload: |
-            {
-              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
-              "blocks": [
-                  {
-                      "type": "header",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "Failure in Sanity Test"
-                      }
-                 },
-                   {
-                      "type": "divider"
-                    },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      # - name: Send Github Action failure to Slack
+      #   id: slack-notification
+      #   if: failure()
+      #   uses: slackapi/slack-github-action@v1.23.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+      #         "blocks": [
+      #             {
+      #                 "type": "header",
+      #                 "text": {
+      #                   "type": "plain_text",
+      #                   "text": "Failure in Sanity Test"
+      #                 }
+      #            },
+      #              {
+      #                 "type": "divider"
+      #               },
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+      #             }
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

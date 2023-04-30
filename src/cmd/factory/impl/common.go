@@ -86,7 +86,6 @@ func generateAndRestoreItems(
 		items:        items,
 	}}
 
-	// TODO: fit the destination to the containers
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
@@ -260,7 +259,6 @@ func generateAndRestoreOnedriveItems(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	// TODO: fit the destination to the containers
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
@@ -271,46 +269,25 @@ func generateAndRestoreOnedriveItems(
 	var (
 		cols []onedriveColInfo
 
-		rootPath = []string{
-			"drives",
-			driveID,
-			"root:",
-		}
-		folderAPath = []string{
-			"drives",
-			driveID,
-			"root:",
-			folderAName,
-		}
-		folderBPath = []string{
-			"drives",
-			driveID,
-			"root:",
-			folderBName,
-		}
+		rootPath    = []string{"drives", driveID, "root:"}
+		folderAPath = []string{"drives", driveID, "root:", folderAName}
+		folderBPath = []string{"drives", driveID, "root:", folderBName}
+		folderCPath = []string{"drives", driveID, "root:", folderCName}
 
-		folderCPath = []string{
-			"drives",
-			driveID,
-			"root:",
-			folderCName,
-		}
-
-		now         = time.Now()
-		currentTime = fmt.Sprintf("%d-%d-%d", now.Hour(), now.Minute(), now.Second())
+		now              = time.Now()
+		year, mnth, date = now.Date()
+		hour, min, sec   = now.Clock()
+		currentTime      = fmt.Sprintf("%d-%v-%d-%d-%d-%d", year, mnth, date, hour, min, sec)
 	)
 
 	for i := 0; i < count; i++ {
-		var col onedriveColInfo
-
-		// basic folder and file creation
-		if i == 0 {
-			col = onedriveColInfo{
+		col := []onedriveColInfo{
+			// basic folder and file creation
+			{
 				pathElements: rootPath,
 				files: []itemData{
 					{
-						// Test restoring a file that doesn't inherit permissions.
-						name: fmt.Sprintf("testFile-%s-1-%d", currentTime, i),
+						name: fmt.Sprintf("file-1st-count-%d-at-%s", i, currentTime),
 						data: fileAData,
 						perms: permData{
 							user:     secondaryUserName,
@@ -319,9 +296,7 @@ func generateAndRestoreOnedriveItems(
 						},
 					},
 					{
-						// Test restoring a file that doesn't inherit permissions and has
-						// no permissions.
-						name: fmt.Sprintf("testFile-%s-2-%d", currentTime, i),
+						name: fmt.Sprintf("file-2nd-count-%d-at-%s", i, currentTime),
 						data: fileBData,
 					},
 				},
@@ -346,21 +321,14 @@ func generateAndRestoreOnedriveItems(
 						},
 					},
 				},
-			}
-
-			cols = append(cols, col)
-
-			continue
-		}
-
-		if i%2 == 0 {
-			col = onedriveColInfo{
-				// Tests a folder that has permissions with an item in the folder with
+			},
+			{
+				// a folder that has permissions with an item in the folder with
 				// the different permissions.
 				pathElements: folderAPath,
 				files: []itemData{
 					{
-						name: fmt.Sprintf("testFile-%s-1-%d", currentTime, i),
+						name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						data: fileEData,
 						perms: permData{
 							user:     secondaryUserName,
@@ -374,21 +342,14 @@ func generateAndRestoreOnedriveItems(
 					entityID: secondaryUserID,
 					roles:    readPerm,
 				},
-			}
-
-			cols = append(cols, col)
-
-			continue
-		}
-
-		if i%3 == 0 {
-			col = onedriveColInfo{
-				// Tests a folder that has permissions with an item in the folder with
+			},
+			{
+				// a folder that has permissions with an item in the folder with
 				// no permissions.
 				pathElements: folderCPath,
 				files: []itemData{
 					{
-						name: fmt.Sprintf("testFile-%s-1-%d", currentTime, i),
+						name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						data: fileAData,
 					},
 				},
@@ -397,41 +358,36 @@ func generateAndRestoreOnedriveItems(
 					entityID: secondaryUserID,
 					roles:    readPerm,
 				},
-			}
-
-			cols = append(cols, col)
-
-			continue
-		}
-
-		col = onedriveColInfo{
-			pathElements: folderBPath,
-			files: []itemData{
-				{
-					// Test restoring a file in a non-root folder that doesn't inherit
-					// permissions.
-					name: fmt.Sprintf("testFile-%s-1-%d", currentTime, i),
-					data: fileBData,
-					perms: permData{
-						user:     secondaryUserName,
-						entityID: secondaryUserID,
-						roles:    writePerm,
+			},
+			{
+				pathElements: folderBPath,
+				files: []itemData{
+					{
+						// restoring a file in a non-root folder that doesn't inherit
+						// permissions.
+						name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
+						data: fileBData,
+						perms: permData{
+							user:     secondaryUserName,
+							entityID: secondaryUserID,
+							roles:    writePerm,
+						},
 					},
 				},
-			},
-			folders: []itemData{
-				{
-					name: folderAName,
-					perms: permData{
-						user:     secondaryUserName,
-						entityID: secondaryUserID,
-						roles:    readPerm,
+				folders: []itemData{
+					{
+						name: folderAName,
+						perms: permData{
+							user:     secondaryUserName,
+							entityID: secondaryUserID,
+							roles:    readPerm,
+						},
 					},
 				},
 			},
 		}
 
-		cols = append(cols, col)
+		cols = append(cols, col...)
 	}
 
 	input := dataForInfo(service, cols, version.Backup)
