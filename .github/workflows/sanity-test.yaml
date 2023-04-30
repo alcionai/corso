@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail 
           prefix=`date +"%Y-%m-%d-%T"`
-          echo "Repo init test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRepo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
           --no-stats \
           --hide-progress \
@@ -95,7 +95,7 @@ jobs:
       - name: Repo connect test
         run: |
           set -euo pipefail
-          echo "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
           ./corso repo connect s3 \
           --no-stats \
           --hide-progress \
@@ -127,7 +127,7 @@ jobs:
       - name: Backup exchange test
         id: exchange-test
         run: |
-          echo "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
           --mailbox "${TEST_USER}" \
@@ -150,7 +150,7 @@ jobs:
       - name: Backup exchange list test
         run: |
           set -euo pipefail
-          echo "\nBackup Exchange list test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange list test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list exchange \
           --no-stats \
           --hide-progress \
@@ -166,7 +166,7 @@ jobs:
       - name: Backup exchange list single backup test
         run: |
           set -euo pipefail
-          echo "\nBackup Exchange list single backup test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange list single backup test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list exchange \
           --no-stats \
           --hide-progress \
@@ -184,7 +184,7 @@ jobs:
         id: exchange-restore-test
         run: |
           set -euo pipefail
-          echo "\nBackup Exchange restore test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
@@ -207,7 +207,7 @@ jobs:
         id: exchange-incremental-test
         run: |
           set -euo pipefail
-          echo "\nBackup Exchange incremental test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange incremental test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
           --hide-progress \
@@ -229,7 +229,7 @@ jobs:
         id: exchange-incremantal-restore-test
         run: |
           set -euo pipefail
-          echo "\nBackup Exchange incremental restore test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange incremental restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --hide-progress \
@@ -295,7 +295,7 @@ jobs:
         id: onedrive-test
         run: |
           set -euo pipefail
-          echo "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
@@ -317,7 +317,7 @@ jobs:
       - name: Backup onedrive list test
         run: |
           set -euo pipefail
-          echo "\nBackup OneDrive list test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup OneDrive list test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list onedrive \
           --no-stats \
           --hide-progress \
@@ -333,7 +333,7 @@ jobs:
       - name: Backup onedrive list one backup test
         run: |
           set -euo pipefail
-          echo "\nBackup OneDrive list one backup test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup OneDrive list one backup test\n" >> ${CORSO_LOG_FILE}
           ./corso backup list onedrive \
           --no-stats \
           --hide-progress \
@@ -351,7 +351,7 @@ jobs:
         id: onedrive-restore-test
         run: |
           set -euo pipefail
-          echo "\nBackup OneDrive restore test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup OneDrive restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
@@ -390,7 +390,7 @@ jobs:
         id: onedrive-incremental-test
         run: |
           set -euo pipefail
-          echo "\nBackup OneDrive incremental test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup OneDrive incremental test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
@@ -413,7 +413,7 @@ jobs:
         id: onedrive-incremental-restore-test
         run: |
           set -euo pipefail
-          echo "\nBackup OneDrive incremental restore test\n" >> $CORSO_LOG_FILE
+          echo -e "\nBackup OneDrive incremental restore test\n" >> $CORSO_LOG_FILE
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
@@ -434,6 +434,7 @@ jobs:
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: test-logs
