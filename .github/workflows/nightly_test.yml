@@ -6,10 +6,6 @@ on:
     # Run every day at 0 minutes and 0 hours (midnight GMT)
     - cron: "0 0 * * *"
 
-  push:
-    branches: [main]
-    tags: ["v*.*.*"]
-
 permissions:
   # required to retrieve AWS credentials
   id-token: write
