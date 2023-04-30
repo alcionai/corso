@@ -270,26 +270,6 @@ jobs:
 
           echo result="$suffix" >> $GITHUB_OUTPUT
 
-       # generate new entries for OneDrive sanity test
-      - name: New Data Creation for OneDrive
-        id: new-data-creation-onedrive
-        working-directory: ./src/cmd/factory
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-        run: |
-          sufix=`date +"%Y-%m-%d-%H-%M"`
-         
-          go run . onedrive files  \
-          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
-          --secondaryuser  ${{ env.SECONDARY_USER }} \
-          --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_$sufix \
-          --count 4
-
-          echo result="$sufix" >> $GITHUB_OUTPUT
-
       # run the tests
       - name: Backup onedrive test
         id: onedrive-test
@@ -452,34 +432,34 @@ jobs:
           echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
 
       
-      - name: Send Github Action failure to Slack
-        id: slack-notification
-        if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
-        with:
-          payload: |
-            {
-              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "Failure in Sanity Test"
-                  }
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      # - name: Send Github Action failure to Slack
+      #   id: slack-notification
+      #   if: failure()
+      #   uses: slackapi/slack-github-action@v1.23.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+      #         "blocks": [
+      #           {
+      #             "type": "header",
+      #             "text": {
+      #               "type": "plain_text",
+      #               "text": "Failure in Sanity Test"
+      #             }
+      #           },
+      #           {
+      #             "type": "divider"
+      #           },
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+      #             }
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
