@@ -83,7 +83,7 @@ func main() {
 	case "exchange":
 		checkEmailRestoration(ctx, client, testUser, folder, dataFolder, baseBackupFolder, startTime)
 	case "onedrive":
-		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
+		checkOnedriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
 	default:
 		fatal(ctx, "no service specified", nil)
 	}
@@ -296,7 +296,7 @@ func checkOnedriveRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser,
-	folderName string,
+	folderName, dataFolder string,
 	startTime time.Time,
 ) {
 	var (
@@ -337,7 +337,6 @@ func checkOnedriveRestoration(
 		var (
 			itemID   = ptr.Val(driveItem.GetId())
 			itemName = ptr.Val(driveItem.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
 		)
 
 		if itemName == folderName {
@@ -345,8 +344,10 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
-		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+		if itemName != dataFolder {
+			logger.Ctx(ctx).Infof("test data for %v folder: ", dataFolder)
+			fmt.Printf("test data for %v folder: ", dataFolder)
+
 			continue
 		}
 
@@ -375,8 +376,7 @@ func checkOnedriveRestoration(
 	getRestoredDrive(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
-		logger.Ctx(ctx).Info("checking for folder: ", folderName)
-		fmt.Printf("checking for folder: %s\n", folderName)
+		logAndPrint(ctx, "checking for folder: %s", folderName)
 
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
@@ -415,6 +415,9 @@ func checkOnedriveRestoration(
 	}
 
 	for fileName, expected := range fileSizes {
+		logger.Ctx(ctx).Info("checking for file: ", fileName)
+		fmt.Printf("checking for file: %s\n", fileName)
+
 		got := restoreFile[fileName]
 
 		assert(
@@ -465,8 +468,7 @@ func getOneDriveChildFolder(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			logger.Ctx(ctx).Info("skipped empty folder: ", fullName)
-			fmt.Println("skipped empty folder: ", fullName)
+			logAndPrint(ctx, "skipped empty folder: %s", fullName)
 
 			continue
 		}
@@ -632,4 +634,9 @@ func assert(
 	fmt.Println(got)
 
 	os.Exit(1)
+}
+
+func logAndPrint(ctx context.Context, tmpl string, vs ...any) {
+	logger.Ctx(ctx).Infof(tmpl, vs...)
+	fmt.Printf(tmpl+"\n", vs...)
 }
