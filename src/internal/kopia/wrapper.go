@@ -559,16 +559,14 @@ func (w Wrapper) Maintenance(
 		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
 			params, err := maintenance.GetParams(ctx, w.c)
 			if err != nil {
-				return clues.Wrap(err, "getting maintenance user/host").WithClues(ctx)
+				return clues.Wrap(err, "getting maintenance user@host").WithClues(ctx)
 			}
 
 			// Need to do some fixup here as the user/host may not have been set.
 			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
-				observe.MessageWithStructure(
+				observe.Message(
 					ctx,
-					"updating maintenance user/host to "+currentOwner,
-					"updating maintenance user/host",
-					"new_maintenance_owner",
+					"updating maintenance user@host to ",
 					clues.Hide(currentOwner))
 
 				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
