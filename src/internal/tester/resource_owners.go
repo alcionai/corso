@@ -184,3 +184,16 @@ func M365SiteURL(t *testing.T) string {
 
 	return strings.ToLower(cfg[TestCfgSiteURL])
 }
+
+// GetM365SiteID returns a siteID string representing the m365SitteID described
+// by either the env var CORSO_M365_TEST_SITE_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func GetM365SiteID(ctx context.Context) string {
+	cfg, err := readTestConfig()
+	if err != nil {
+		logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
+	}
+
+	return strings.ToLower(cfg[TestCfgSiteID])
+}
