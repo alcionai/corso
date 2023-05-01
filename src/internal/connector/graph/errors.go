@@ -43,6 +43,12 @@ const (
 	syncStateNotFound           errorCode = "SyncStateNotFound"
 )
 
+type errorMessage string
+
+const (
+	IOErrDuringRead errorMessage = "IO error during request payload read"
+)
+
 const (
 	mysiteURLNotFound = "unable to retrieve user's mysite url"
 	mysiteNotFound    = "user's mysite not found"
