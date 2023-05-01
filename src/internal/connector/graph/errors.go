@@ -241,6 +241,26 @@ func Stack(ctx context.Context, e error) *clues.Err {
 	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
 }
 
+// stackReq is a helper function that extracts ODataError metadata from
+// the error, plus http req/resp data.  If the error is not an ODataError
+// type, returns the error with only the req/resp values.
+func stackReq(
+	ctx context.Context,
+	req *http.Request,
+	resp *http.Response,
+	e error,
+) *clues.Err {
+	if e == nil {
+		return nil
+	}
+
+	se := Stack(ctx, e).
+		WithMap(reqData(req)).
+		WithMap(respData(resp))
+
+	return se
+}
+
 // Checks for the following conditions and labels the error accordingly:
 // * mysiteNotFound | mysiteURLNotFound
 // * malware
@@ -288,6 +308,33 @@ func errData(err odataerrors.ODataErrorable) (string, []any, string) {
 	}
 
 	return mainMsg, data, strings.ToLower(msgConcat)
+}
+
+func reqData(req *http.Request) map[string]any {
+	if req == nil {
+		return nil
+	}
+
+	r := map[string]any{}
+	r["req_method"] = req.Method
+	r["req_len"] = req.ContentLength
+	if req.URL != nil {
+		r["req_url"] = LoggableURL(req.URL.String())
+	}
+
+	return r
+}
+
+func respData(resp *http.Response) map[string]any {
+	if resp == nil {
+		return nil
+	}
+
+	r := map[string]any{}
+	r["resp_status"] = resp.Status
+	r["resp_len"] = resp.ContentLength
+
+	return r
 }
 
 func appendIf(a []any, k string, v *string) []any {

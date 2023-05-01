@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
+	"golang.org/x/exp/slices"
 	"golang.org/x/time/rate"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
@@ -181,6 +182,40 @@ type RetryHandler struct {
 	Delay time.Duration
 }
 
+// Intercept implements the interface and evaluates whether to retry a failed request.
+func (middleware RetryHandler) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	ctx := req.Context()
+
+	response, err := pipeline.Next(req, middlewareIndex)
+	if err != nil && !IsErrTimeout(err) {
+		return response, stackReq(ctx, req, response, err)
+	}
+
+	exponentialBackOff := backoff.NewExponentialBackOff()
+	exponentialBackOff.InitialInterval = middleware.Delay
+	exponentialBackOff.Reset()
+
+	response, err = middleware.retryRequest(
+		ctx,
+		pipeline,
+		middlewareIndex,
+		req,
+		response,
+		0,
+		0,
+		exponentialBackOff,
+		err)
+	if err != nil {
+		return nil, stackReq(ctx, req, response, err)
+	}
+
+	return response, nil
+}
+
 func (middleware RetryHandler) retryRequest(
 	ctx context.Context,
 	pipeline khttp.Pipeline,
@@ -190,9 +225,14 @@ func (middleware RetryHandler) retryRequest(
 	executionCount int,
 	cumulativeDelay time.Duration,
 	exponentialBackoff *backoff.ExponentialBackOff,
-	respErr error,
+	initialErr error,
 ) (*http.Response, error) {
-	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
+	ctx = clues.Add(
+		ctx,
+		"retry_count", executionCount,
+		"prev_resp_status", resp.Status)
+
+	if (initialErr != nil || middleware.isRetriableRespCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
 		executionCount < middleware.MaxRetries {
 		executionCount++
@@ -211,14 +251,12 @@ func (middleware RetryHandler) retryRequest(
 			// when we attempt to send the retry anyway.
 			return resp, ctx.Err()
 
-		// Will exit switch-block so the remainder of the code doesn't need to be
-		// indented.
 		case <-timer.C:
 		}
 
 		response, err := pipeline.Next(req, middlewareIndex)
 		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-			return response, Stack(ctx, err).With("retry_count", executionCount)
+			return response, stackReq(ctx, req, response, err)
 		}
 
 		return middleware.retryRequest(ctx,
@@ -232,15 +270,22 @@ func (middleware RetryHandler) retryRequest(
 			err)
 	}
 
-	if respErr != nil {
-		return nil, Stack(ctx, respErr).With("retry_count", executionCount)
+	if initialErr != nil {
+		return nil, stackReq(ctx, req, nil, initialErr)
 	}
 
 	return resp, nil
 }
 
-func (middleware RetryHandler) isRetriableErrorCode(req *http.Request, code int) bool {
-	return code == http.StatusInternalServerError || code == http.StatusServiceUnavailable
+var retryableRespCodes = []int{
+	http.StatusInternalServerError,
+	http.StatusServiceUnavailable,
+	http.StatusBadGateway,
+	http.StatusGatewayTimeout,
+}
+
+func (middleware RetryHandler) isRetriableRespCode(req *http.Request, code int) bool {
+	return slices.Contains(retryableRespCodes, code)
 }
 
 func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
@@ -270,40 +315,6 @@ func (middleware RetryHandler) getRetryDelay(
 	} // TODO parse the header if it's a date
 
 	return exponentialBackoff.NextBackOff()
-}
-
-// Intercept implements the interface and evaluates whether to retry a failed request.
-func (middleware RetryHandler) Intercept(
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	req *http.Request,
-) (*http.Response, error) {
-	ctx := req.Context()
-
-	response, err := pipeline.Next(req, middlewareIndex)
-	if err != nil && !IsErrTimeout(err) {
-		return response, Stack(ctx, err)
-	}
-
-	exponentialBackOff := backoff.NewExponentialBackOff()
-	exponentialBackOff.InitialInterval = middleware.Delay
-	exponentialBackOff.Reset()
-
-	response, err = middleware.retryRequest(
-		ctx,
-		pipeline,
-		middlewareIndex,
-		req,
-		response,
-		0,
-		0,
-		exponentialBackOff,
-		err)
-	if err != nil {
-		return nil, Stack(ctx, err)
-	}
-
-	return response, nil
 }
 
 // We're trying to keep calls below the 10k-per-10-minute threshold.
