@@ -20,11 +20,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-const (
-	// downloadUrlKey is used to find the download URL in a
-	// DriveItem response
-	downloadURLKey = "@microsoft.graph.downloadUrl"
-)
+// downloadUrlKeys is used to find the download URL in a DriveItem response.
+var downloadURLKeys = []string{
+	"@microsoft.graph.downloadUrl",
+	"@content.downloadUrl",
+}
 
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
@@ -135,12 +135,21 @@ func downloadItem(
 	client graph.Requester,
 	item models.DriveItemable,
 ) (*http.Response, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
+	var url string
+
+	for _, key := range downloadURLKeys {
+		tmp, ok := item.GetAdditionalData()[key].(*string)
+		if ok {
+			url = ptr.Val(tmp)
+			break
+		}
+	}
+
+	if len(url) == 0 {
 		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
 	}
 
-	resp, err := client.Request(ctx, http.MethodGet, ptr.Val(url), nil, nil)
+	resp, err := client.Request(ctx, http.MethodGet, url, nil, nil)
 	if err != nil {
 		return nil, err
 	}

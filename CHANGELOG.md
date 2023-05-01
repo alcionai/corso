@@ -30,9 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SharePoint now correctly displays site urls on `backup list`, instead of the site id.
 - Drives with a directory containing a folder named 'folder' will now restore without error.
 - The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
+- Fixed Exchange events progress output to show calendar names instead of IDs.
+- Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
+- Exchange event restores will display calendar IDs instead of names in the progress output.
 
 ## [v0.6.1] (beta) - 2023-03-21
 

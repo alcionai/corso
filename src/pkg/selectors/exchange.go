@@ -617,8 +617,15 @@ func (ec exchangeCategory) pathValues(
 		item = repo.Item()
 	}
 
+	// Will hit the if-condition when we're at a top-level folder, but we'll get
+	// the same result when we extract from the RepoRef.
+	folder := ent.LocationRef
+	if len(folder) == 0 {
+		folder = repo.Folder(true)
+	}
+
 	result := map[categorizer][]string{
-		folderCat: {ent.LocationRef},
+		folderCat: {folder},
 		itemCat:   {item, ent.ShortRef},
 	}
 
