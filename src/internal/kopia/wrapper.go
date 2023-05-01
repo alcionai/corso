@@ -135,7 +135,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet prefixmatcher.MapReader,
+	globalExcludeSet prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,

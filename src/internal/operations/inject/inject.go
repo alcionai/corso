@@ -36,7 +36,7 @@ type (
 			ctx context.Context,
 			bases []kopia.IncrementalBase,
 			cs []data.BackupCollection,
-			pmr prefixmatcher.MapReader,
+			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,
 			buildTreeWithBase bool,
 			errs *fault.Bus,

@@ -9,14 +9,14 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 )
 
-var _ prefixmatcher.MapReader = &PrefixMap{}
+var _ prefixmatcher.StringSetReader = &PrefixMap{}
 
 type PrefixMap struct {
-	prefixmatcher.MapBuilder
+	prefixmatcher.StringSetBuilder
 }
 
 func NewPrefixMap(m map[string]map[string]struct{}) *PrefixMap {
-	r := PrefixMap{MapBuilder: prefixmatcher.NewBuilder[map[string]struct{}]()}
+	r := PrefixMap{StringSetBuilder: prefixmatcher.NewMatcher[map[string]struct{}]()}
 
 	for k, v := range m {
 		r.Add(k, v)
@@ -25,7 +25,7 @@ func NewPrefixMap(m map[string]map[string]struct{}) *PrefixMap {
 	return &r
 }
 
-func (pm PrefixMap) AssertEqual(t *testing.T, r prefixmatcher.MapReader) {
+func (pm PrefixMap) AssertEqual(t *testing.T, r prefixmatcher.StringSetReader) {
 	if pm.Empty() {
 		require.True(t, r.Empty(), "both prefix maps are empty")
 		return

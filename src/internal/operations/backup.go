@@ -426,7 +426,7 @@ func consumeBackupCollections(
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.BackupCollection,
-	pmr prefixmatcher.MapReader,
+	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,

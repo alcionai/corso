@@ -99,7 +99,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
-	excluded prefixmatcher.MapReader,
+	excluded prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,

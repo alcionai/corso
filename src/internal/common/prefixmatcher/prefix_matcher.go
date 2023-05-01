@@ -6,11 +6,17 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type MapReader interface {
+// StringSetReader is a reader designed specifially to contain a set
+// of string values (ie: Reader[map[string]struct{}]).
+// This is a quality-of-life typecast for the generic Reader.
+type StringSetReader interface {
 	Reader[map[string]struct{}]
 }
 
-type MapBuilder interface {
+// StringSetReader is a builder designed specifially to contain a set
+// of string values (ie: Builder[map[string]struct{}]).
+// This is a quality-of-life typecast for the generic Builder.
+type StringSetBuilder interface {
 	Builder[map[string]struct{}]
 }
 
@@ -27,22 +33,30 @@ type Builder[T any] interface {
 	Reader[T]
 }
 
+// ---------------------------------------------------------------------------
+// Implementation
+// ---------------------------------------------------------------------------
+
 // prefixMatcher implements Builder
 type prefixMatcher[T any] struct {
 	data map[string]T
 }
 
-func NewBuilder[T any]() *prefixMatcher[T] {
-	return &prefixMatcher[T]{data: make(map[string]T)}
+func NewMatcher[T any]() Builder[T] {
+	return &prefixMatcher[T]{
+		data: map[string]T{},
+	}
 }
 
 func NopReader[T any]() *prefixMatcher[T] {
-	return &prefixMatcher[T]{data: make(map[string]T)}
+	return &prefixMatcher[T]{
+		data: make(map[string]T),
+	}
 }
 
-func (m *prefixMatcher[T]) Add(key string, value T) {
-	m.data[key] = value
-}
+func (m *prefixMatcher[T]) Add(key string, value T) { m.data[key] = value }
+func (m prefixMatcher[T]) Empty() bool              { return len(m.data) == 0 }
+func (m prefixMatcher[T]) Keys() []string           { return maps.Keys(m.data) }
 
 func (m *prefixMatcher[T]) Get(key string) (T, bool) {
 	if m == nil {
@@ -77,16 +91,4 @@ func (m *prefixMatcher[T]) LongestPrefix(key string) (string, T, bool) {
 	}
 
 	return rk, rv, found
-}
-
-func (m prefixMatcher[T]) Empty() bool {
-	return len(m.data) == 0
-}
-
-func (m prefixMatcher[T]) Keys() []string {
-	return maps.Keys(m.data)
-}
-
-func NewMatcher[T any]() Builder[T] {
-	return &prefixMatcher[T]{data: map[string]T{}}
 }
