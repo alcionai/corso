@@ -43,6 +43,12 @@ const (
 	syncStateNotFound           errorCode = "SyncStateNotFound"
 )
 
+type errorMessage string
+
+const (
+	IOErrDuringRead errorMessage = "IO error during request payload read"
+)
+
 const (
 	mysiteURLNotFound = "unable to retrieve user's mysite url"
 	mysiteNotFound    = "user's mysite not found"
@@ -318,6 +324,7 @@ func reqData(req *http.Request) map[string]any {
 	r := map[string]any{}
 	r["req_method"] = req.Method
 	r["req_len"] = req.ContentLength
+
 	if req.URL != nil {
 		r["req_url"] = LoggableURL(req.URL.String())
 	}

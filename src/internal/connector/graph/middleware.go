@@ -99,7 +99,7 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
-func (handler *LoggingMiddleware) Intercept(
+func (mw *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
@@ -174,8 +174,8 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 // Retry & Backoff
 // ---------------------------------------------------------------------------
 
-// RetryHandler handles transient HTTP responses and retries the request given the retry options
-type RetryHandler struct {
+// RetryMiddleware handles transient HTTP responses and retries the request given the retry options
+type RetryMiddleware struct {
 	// The maximum number of times a request can be retried
 	MaxRetries int
 	// The delay in seconds between retries
@@ -183,7 +183,7 @@ type RetryHandler struct {
 }
 
 // Intercept implements the interface and evaluates whether to retry a failed request.
-func (middleware RetryHandler) Intercept(
+func (mw RetryMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
@@ -196,10 +196,10 @@ func (middleware RetryHandler) Intercept(
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
-	exponentialBackOff.InitialInterval = middleware.Delay
+	exponentialBackOff.InitialInterval = mw.Delay
 	exponentialBackOff.Reset()
 
-	response, err = middleware.retryRequest(
+	response, err = mw.retryRequest(
 		ctx,
 		pipeline,
 		middlewareIndex,
@@ -216,7 +216,7 @@ func (middleware RetryHandler) Intercept(
 	return response, nil
 }
 
-func (middleware RetryHandler) retryRequest(
+func (mw RetryMiddleware) retryRequest(
 	ctx context.Context,
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -236,12 +236,12 @@ func (middleware RetryHandler) retryRequest(
 	// 1, we have an error.  2, the resp and/or status code match retriable conditions.
 	// 3, the request is retriable.
 	// 4, we haven't hit our max retries already.
-	if (initialErr != nil || middleware.isRetriableRespCode(req, resp.StatusCode)) &&
-		middleware.isRetriableRequest(req) &&
-		executionCount < middleware.MaxRetries {
+	if (initialErr != nil || mw.isRetriableRespCode(ctx, resp, resp.StatusCode)) &&
+		mw.isRetriableRequest(req) &&
+		executionCount < mw.MaxRetries {
 		executionCount++
 
-		delay := middleware.getRetryDelay(req, resp, exponentialBackoff)
+		delay := mw.getRetryDelay(req, resp, exponentialBackoff)
 
 		cumulativeDelay += delay
 
@@ -263,7 +263,7 @@ func (middleware RetryHandler) retryRequest(
 			return response, stackReq(ctx, req, response, err)
 		}
 
-		return middleware.retryRequest(ctx,
+		return mw.retryRequest(ctx,
 			pipeline,
 			middlewareIndex,
 			req,
@@ -288,11 +288,19 @@ var retryableRespCodes = []int{
 	http.StatusGatewayTimeout,
 }
 
-func (middleware RetryHandler) isRetriableRespCode(req *http.Request, code int) bool {
-	return slices.Contains(retryableRespCodes, code)
+func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
+	if slices.Contains(retryableRespCodes, code) {
+		return true
+	}
+
+	// not a status code, but the message itself might indicate a connectivity issue that
+	// can be retried independent of the status code.
+	return strings.Contains(
+		strings.ToLower(getRespDump(ctx, resp, true)),
+		strings.ToLower(string(IOErrDuringRead)))
 }
 
-func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
+func (mw RetryMiddleware) isRetriableRequest(req *http.Request) bool {
 	isBodiedMethod := req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH"
 	if isBodiedMethod && req.Body != nil {
 		return req.ContentLength != -1
@@ -301,7 +309,7 @@ func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
 	return true
 }
 
-func (middleware RetryHandler) getRetryDelay(
+func (mw RetryMiddleware) getRetryDelay(
 	req *http.Request,
 	resp *http.Response,
 	exponentialBackoff *backoff.ExponentialBackOff,
@@ -356,7 +364,7 @@ func QueueRequest(ctx context.Context) {
 // request limits.
 type ThrottleControlMiddleware struct{}
 
-func (handler *ThrottleControlMiddleware) Intercept(
+func (mw *ThrottleControlMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
@@ -368,7 +376,7 @@ func (handler *ThrottleControlMiddleware) Intercept(
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}
 
-func (handler *MetricsMiddleware) Intercept(
+func (mw *MetricsMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
