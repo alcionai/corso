@@ -37,7 +37,7 @@ func (gc GraphConnector) ProduceBackupCollections(
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
-	*prefixmatcher.StringSetMatcher,
+	prefixmatcher.StringSetReader,
 	error,
 ) {
 	return gc.Collections, gc.Exclude, gc.Err

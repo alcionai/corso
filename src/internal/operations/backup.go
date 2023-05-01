@@ -353,7 +353,7 @@ func produceBackupDataCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}

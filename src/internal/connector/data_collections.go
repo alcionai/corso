@@ -42,7 +42,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	ctx, end := diagnostics.Span(
 		ctx,
 		"gc:produceBackupCollections",
