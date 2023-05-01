@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -26,7 +25,7 @@ type (
 			lastBackupVersion int,
 			ctrlOpts control.Options,
 			errs *fault.Bus,
-		) ([]data.BackupCollection, *excludes.ParentsItems, error)
+		) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error)
 
 		Wait() *data.CollectionStats
 	}

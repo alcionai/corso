@@ -1,4 +1,4 @@
-package excludes_test
+package prefixmatcher_test
 
 import (
 	"testing"
@@ -7,26 +7,38 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type ParentsItemsUnitSuite struct {
+type StringSetUnitSuite struct {
 	tester.Suite
 }
 
-func TestParentsItemsUnitSuite(t *testing.T) {
-	suite.Run(t, &ParentsItemsUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestSTringSetUnitSuite(t *testing.T) {
+	suite.Run(t, &StringSetUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ParentsItemsUnitSuite) TestEmpty() {
-	pm := excludes.NewParentsItems()
+func (suite *StringSetUnitSuite) TestEmpty() {
+	pm := prefixmatcher.NewStringSetBuilder()
 	assert.True(suite.T(), pm.Empty())
 }
 
-func (suite *ParentsItemsUnitSuite) TestAdd_Get() {
+func (suite *StringSetUnitSuite) TestToReader() {
+	var (
+		pr prefixmatcher.StringSetReader
+		t  = suite.T()
+		pm = prefixmatcher.NewStringSetBuilder()
+	)
+
+	pr = pm.ToReader()
+	_, ok := pr.(prefixmatcher.StringSetBuilder)
+	assert.False(t, ok, "cannot cast to builder")
+}
+
+func (suite *StringSetUnitSuite) TestAdd_Get() {
 	t := suite.T()
-	pm := excludes.NewParentsItems()
+	pm := prefixmatcher.NewStringSetBuilder()
 	kvs := map[string]map[string]struct{}{
 		"hello": {"world": {}},
 		"hola":  {"mundo": {}},
@@ -46,9 +58,9 @@ func (suite *ParentsItemsUnitSuite) TestAdd_Get() {
 	assert.ElementsMatch(t, maps.Keys(kvs), pm.Keys())
 }
 
-func (suite *ParentsItemsUnitSuite) TestAdd_Union() {
+func (suite *StringSetUnitSuite) TestAdd_Union() {
 	t := suite.T()
-	pm := excludes.NewParentsItems()
+	pm := prefixmatcher.NewStringSetBuilder()
 	pm.Add("hello", map[string]struct{}{
 		"world": {},
 		"mundo": {},
@@ -70,7 +82,7 @@ func (suite *ParentsItemsUnitSuite) TestAdd_Union() {
 	assert.ElementsMatch(t, []string{"hello"}, pm.Keys())
 }
 
-func (suite *ParentsItemsUnitSuite) TestLongestPrefix() {
+func (suite *StringSetUnitSuite) TestLongestPrefix() {
 	key := "hello"
 	value := "world"
 
@@ -139,7 +151,7 @@ func (suite *ParentsItemsUnitSuite) TestLongestPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			pm := excludes.NewParentsItems()
+			pm := prefixmatcher.NewStringSetBuilder()
 
 			for k, v := range test.inputKVs {
 				pm.Add(k, v)

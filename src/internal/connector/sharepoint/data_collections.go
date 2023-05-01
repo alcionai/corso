@@ -6,9 +6,9 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -39,7 +39,7 @@ func DataCollections(
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *excludes.ParentsItems, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
@@ -54,7 +54,7 @@ func DataCollections(
 		el          = errs.Local()
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
-		epi         = excludes.NewParentsItems()
+		ssmb        = prefixmatcher.NewStringSetBuilder()
 	)
 
 	for _, scope := range b.Scopes() {
@@ -93,7 +93,7 @@ func DataCollections(
 				creds.AzureTenantID,
 				site,
 				metadata,
-				epi,
+				ssmb,
 				scope,
 				su,
 				ctrlOpts,
@@ -141,7 +141,7 @@ func DataCollections(
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, epi, el.Failure()
+	return collections, ssmb.ToReader(), el.Failure()
 }
 
 func collectLists(
@@ -199,7 +199,7 @@ func collectLibraries(
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
-	epi *excludes.ParentsItems,
+	ssmb *prefixmatcher.StringSetMatchBuilder,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -220,7 +220,7 @@ func collectLibraries(
 			ctrlOpts)
 	)
 
-	odcs, err := colls.Get(ctx, metadata, epi, errs)
+	odcs, err := colls.Get(ctx, metadata, ssmb, errs)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting library")
 	}

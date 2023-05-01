@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -274,7 +273,7 @@ func (op *BackupOperation) do(
 		}
 	}
 
-	cs, epi, err := produceBackupDataCollections(
+	cs, ssmb, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
@@ -296,7 +295,7 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
-		epi,
+		ssmb,
 		backupID,
 		op.incremental && canUseMetaData,
 		op.Errors)
@@ -354,7 +353,7 @@ func produceBackupDataCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *excludes.ParentsItems, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}

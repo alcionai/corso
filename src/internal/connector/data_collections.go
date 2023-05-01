@@ -7,11 +7,11 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -42,7 +42,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *excludes.ParentsItems, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	ctx, end := diagnostics.Span(
 		ctx,
 		"gc:produceBackupCollections",
@@ -73,12 +73,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	var (
 		colls []data.BackupCollection
-		epi   *excludes.ParentsItems
+		ssmb  *prefixmatcher.StringSetMatcher
 	)
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, epi, err = exchange.DataCollections(
+		colls, ssmb, err = exchange.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -92,7 +92,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 
 	case selectors.ServiceOneDrive:
-		colls, epi, err = onedrive.DataCollections(
+		colls, ssmb, err = onedrive.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -109,7 +109,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 
 	case selectors.ServiceSharePoint:
-		colls, epi, err = sharepoint.DataCollections(
+		colls, ssmb, err = sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
@@ -140,7 +140,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 	}
 
-	return colls, epi, nil
+	return colls, ssmb, nil
 }
 
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {

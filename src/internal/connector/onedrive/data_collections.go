@@ -6,8 +6,8 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/excludes"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -44,7 +44,7 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *excludes.ParentsItems, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)
@@ -54,7 +54,7 @@ func DataCollections(
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
 		collections = []data.BackupCollection{}
-		epi         = excludes.NewParentsItems()
+		ssmb        = prefixmatcher.NewStringSetBuilder()
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -75,7 +75,7 @@ func DataCollections(
 			su,
 			ctrlOpts)
 
-		odcs, err := nc.Get(ctx, metadata, epi, errs)
+		odcs, err := nc.Get(ctx, metadata, ssmb, errs)
 		if err != nil {
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
@@ -115,7 +115,7 @@ func DataCollections(
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, epi, el.Failure()
+	return collections, ssmb.ToReader(), el.Failure()
 }
 
 // adds data migrations to the collection set.

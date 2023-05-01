@@ -6,20 +6,6 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-// StringSetReader is a reader designed specifially to contain a set
-// of string values (ie: Reader[map[string]struct{}]).
-// This is a quality-of-life typecast for the generic Reader.
-type StringSetReader interface {
-	Reader[map[string]struct{}]
-}
-
-// StringSetReader is a builder designed specifially to contain a set
-// of string values (ie: Builder[map[string]struct{}]).
-// This is a quality-of-life typecast for the generic Builder.
-type StringSetBuilder interface {
-	Builder[map[string]struct{}]
-}
-
 type Reader[T any] interface {
 	Get(key string) (T, bool)
 	LongestPrefix(key string) (string, T, bool)
