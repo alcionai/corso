@@ -12,9 +12,9 @@ func _() {
 	_ = x[MetadataMaintenance-1]
 }
 
-const _MaintenanceType_name = "CompleteMaintenanceMetadataMaintenance"
+const _MaintenanceType_name = "completemetadata"
 
-var _MaintenanceType_index = [...]uint8{0, 19, 38}
+var _MaintenanceType_index = [...]uint8{0, 8, 16}
 
 func (i MaintenanceType) String() string {
 	if i < 0 || i >= MaintenanceType(len(_MaintenanceType_index)-1) {

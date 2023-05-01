@@ -22,8 +22,8 @@ type MaintenanceType int
 //
 //go:generate stringer -type=MaintenanceType -linecomment
 const (
-	CompleteMaintenance MaintenanceType = iota
-	MetadataMaintenance
+	CompleteMaintenance MaintenanceType = iota // complete
+	MetadataMaintenance // metadata
 )
 
 type MaintenanceSafety int
