@@ -516,7 +516,7 @@ func (c sharePointCategory) isLeaf() bool {
 // => {spFolder: folder, spItemID: itemID}
 func (c sharePointCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	var (

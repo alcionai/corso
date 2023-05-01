@@ -121,7 +121,7 @@ var (
 	ctxBG          = context.Background()
 	exampleDetails = &details.Details{
 		DetailsModel: details.DetailsModel{
-			Entries: []details.DetailsEntry{
+			Entries: []details.Entry{
 				{
 					RepoRef:     "tID/exchange/your-user-id/email/example/itemID",
 					LocationRef: "example",
