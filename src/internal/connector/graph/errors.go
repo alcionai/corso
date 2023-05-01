@@ -324,6 +324,7 @@ func reqData(req *http.Request) map[string]any {
 	r := map[string]any{}
 	r["req_method"] = req.Method
 	r["req_len"] = req.ContentLength
+
 	if req.URL != nil {
 		r["req_url"] = LoggableURL(req.URL.String())
 	}
