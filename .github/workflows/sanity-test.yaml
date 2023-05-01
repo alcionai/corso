@@ -252,7 +252,7 @@ jobs:
 
 # Onedrive
 
-       # generate new entries for OneDrive sanity test
+      # generate new entries for test
       - name: New Data Creation for OneDrive
         id: new-data-creation-onedrive
         working-directory: ./src/cmd/factory
@@ -366,7 +366,7 @@ jobs:
           --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
           --count 4
 
-      # incremental
+      # incremental backup
       - name: Backup onedrive incremental
         id: onedrive-incremental-test
         run: |
@@ -415,7 +415,9 @@ jobs:
 
 ##########################################################################################################################################
 
- # Sharepoint test
+# Sharepoint test
+
+      # TODO(keepers): generate new entries for test
 
       - name: Backup sharepoint test
         id: sharepoint-test
@@ -476,11 +478,13 @@ jobs:
           set -euo pipefail
           ./corso restore sharepoint \
           --no-stats \
-          --restore-permissions \
           --hide-progress \
           --backup "${{ steps.sharepoint-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/sharepoint-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/sharepoint-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+    # TODO: Add when supported      
+    # --restore-permissions \
 
       - name: Restoration sharepoint check
         env:
@@ -489,6 +493,8 @@ jobs:
         run: |
           set -euo pipefail
           ./sanityTest
+
+      # TODO(rkeepers): generate some more enteries for incremental check
 
       # incremental backup
       - name: Backup sharepoint incremental
@@ -519,11 +525,13 @@ jobs:
           set -euo pipefail
           ./corso restore sharepoint \
           --no-stats \
-          --restore-permissions \
           --hide-progress \
           --backup "${{ steps.sharepoint-incremental-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/sharepoint-incremental-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/sharepoint-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+    # TODO: Add when supported      
+    # --restore-permissions \
 
       - name: Restoration sharepoint check
         env:
