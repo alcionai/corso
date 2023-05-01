@@ -191,7 +191,7 @@ func (middleware RetryHandler) Intercept(
 	ctx := req.Context()
 
 	response, err := pipeline.Next(req, middlewareIndex)
-	if err != nil && !IsErrTimeout(err) {
+	if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
 		return response, stackReq(ctx, req, response, err)
 	}
 
@@ -232,6 +232,10 @@ func (middleware RetryHandler) retryRequest(
 		"retry_count", executionCount,
 		"prev_resp_status", resp.Status)
 
+	// only retry under certain conditions:
+	// 1, we have an error.  2, the resp and/or status code match retriable conditions.
+	// 3, the request is retriable.
+	// 4, we haven't hit our max retries already.
 	if (initialErr != nil || middleware.isRetriableRespCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
 		executionCount < middleware.MaxRetries {
