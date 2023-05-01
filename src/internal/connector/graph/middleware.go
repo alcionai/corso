@@ -295,7 +295,9 @@ func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Re
 
 	// not a status code, but the message itself might indicate a connectivity issue that
 	// can be retried independent of the status code.
-	return strings.Contains(getRespDump(ctx, resp, true), string(IOErrDuringRead))
+	return strings.Contains(
+		strings.ToLower(getRespDump(ctx, resp, true)),
+		strings.ToLower(string(IOErrDuringRead)))
 }
 
 func (mw RetryMiddleware) isRetriableRequest(req *http.Request) bool {
