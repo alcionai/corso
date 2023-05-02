@@ -421,7 +421,14 @@ func streamBaseEntries(
 		return nil
 	}
 
-	longest, excludeSet, _ := globalExcludeSet.LongestPrefix(curPath.String())
+	var (
+		longest    string
+		excludeSet map[string]struct{}
+	)
+
+	if globalExcludeSet != nil {
+		longest, excludeSet, _ = globalExcludeSet.LongestPrefix(curPath.String())
+	}
 
 	ctx = clues.Add(
 		ctx,

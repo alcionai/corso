@@ -151,7 +151,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	ctx, end := diagnostics.Span(ctx, "kopia:consumeBackupCollections")
 	defer end()
 
-	if len(collections) == 0 && globalExcludeSet.Empty() {
+	if len(collections) == 0 && (globalExcludeSet == nil || globalExcludeSet.Empty()) {
 		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
