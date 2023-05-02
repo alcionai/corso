@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -223,6 +224,25 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, dest)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, ro)
+}
+
+func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	acct := tester.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	r, err := repository.Initialize(ctx, acct, st, control.Defaults())
+	require.NoError(t, err, clues.ToCore(err))
+
+	mo, err := r.NewMaintenance(ctx, rep.Maintenance{})
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, mo)
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {

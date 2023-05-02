@@ -520,7 +520,7 @@ func isErrEntryNotFound(err error) bool {
 		!strings.Contains(err.Error(), "parent is not a directory")
 }
 
-func (w Wrapper) Maintenance(
+func (w Wrapper) RepoMaintenance(
 	ctx context.Context,
 	opts repository.Maintenance,
 ) error {
