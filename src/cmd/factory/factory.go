@@ -44,6 +44,7 @@ func main() {
 	fs.StringVar(&impl.Tenant, "tenant", "", "m365 tenant containing the user")
 	fs.StringVar(&impl.User, "user", "", "m365 user owning the new data")
 	cobra.CheckErr(factoryCmd.MarkPersistentFlagRequired("user"))
+	fs.StringVar(&impl.SecondaryUser, "secondaryuser", "", "m365 secondary user owning the new data")
 	fs.IntVar(&impl.Count, "count", 0, "count of items to produce")
 	cobra.CheckErr(factoryCmd.MarkPersistentFlagRequired("count"))
 	fs.StringVar(&impl.Destination, "destination", "", "destination of the new data (will create as needed)")

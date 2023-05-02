@@ -188,7 +188,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 
 	deets := &details.Details{
 		DetailsModel: details.DetailsModel{
-			Entries: []details.DetailsEntry{
+			Entries: []details.Entry{
 				{
 					RepoRef: file,
 					ItemRef: "file",
@@ -361,7 +361,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 				test.pathElems...)
 			require.NoError(t, err, clues.ToCore(err))
 
-			ent := details.DetailsEntry{
+			ent := details.Entry{
 				RepoRef:  filePath.String(),
 				ShortRef: shortRef,
 				ItemRef:  fileID,

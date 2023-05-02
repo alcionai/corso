@@ -725,7 +725,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		loc   = strings.Join([]string{fld1, fld2, mail}, "/")
 		short = "thisisahashofsomekind"
 		es    = NewExchangeRestore(Any())
-		ent   = details.DetailsEntry{
+		ent   = details.Entry{
 			RepoRef:     repo.String(),
 			ShortRef:    short,
 			ItemRef:     mail,
@@ -822,7 +822,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	makeDeets := func(refs ...path.Path) *details.Details {
 		deets := &details.Details{
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{},
+				Entries: []details.Entry{},
 			},
 		}
 
@@ -838,7 +838,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				itype = details.ExchangeMail
 			}
 
-			deets.Entries = append(deets.Entries, details.DetailsEntry{
+			deets.Entries = append(deets.Entries, details.Entry{
 				RepoRef: toRR(r),
 				// Don't escape because we assume nice paths.
 				LocationRef: r.Folder(false),
@@ -1069,7 +1069,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 	makeDeets := func(refs ...string) *details.Details {
 		deets := &details.Details{
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{},
+				Entries: []details.Entry{},
 			},
 		}
 
@@ -1091,7 +1091,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				location = mailLocation
 			}
 
-			deets.Entries = append(deets.Entries, details.DetailsEntry{
+			deets.Entries = append(deets.Entries, details.Entry{
 				RepoRef:     r,
 				LocationRef: location,
 				ItemInfo: details.ItemInfo{
@@ -1345,7 +1345,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 	)
 
 	short := "thisisahashofsomekind"
-	entry := details.DetailsEntry{
+	entry := details.Entry{
 		ShortRef: short,
 		ItemRef:  mid,
 	}
@@ -1357,7 +1357,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		noMail    = setScopesToDefault(es.Mails(Any(), None()))
 		allMail   = setScopesToDefault(es.Mails(Any(), Any()))
 		repo      = stubPath(suite.T(), "user", []string{"folder", mid}, path.EmailCategory)
-		ent       = details.DetailsEntry{
+		ent       = details.Entry{
 			RepoRef: repo.String(),
 		}
 	)
@@ -1524,7 +1524,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 	for _, test := range table {
 		suite.Run(string(test.cat), func() {
 			t := suite.T()
-			ent := details.DetailsEntry{
+			ent := details.Entry{
 				RepoRef:     test.path.String(),
 				ShortRef:    "short",
 				LocationRef: test.loc.Folder(true),
