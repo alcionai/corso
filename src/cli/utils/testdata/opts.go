@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -195,7 +195,7 @@ var (
 			Name:     "MailReceivedTime",
 			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				EmailReceivedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+				EmailReceivedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
 			},
 		},
 		{
@@ -430,7 +430,7 @@ var (
 			Name:     "CreatedBefore",
 			Expected: []details.Entry{testdata.OneDriveItems[1]},
 			Opts: utils.OneDriveOpts{
-				FileCreatedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+				FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
 			},
 		},
 	}
@@ -556,7 +556,7 @@ var (
 		// 	Name:     "CreatedBefore",
 		// 	Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[1]},
 		// 	Opts: utils.SharePointOpts{
-		// 		FileCreatedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+		// 		FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
 		// 	},
 		// },
 	}

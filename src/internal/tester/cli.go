@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -17,7 +17,7 @@ import (
 // the root command for integration testing on the CLI
 func StubRootCmd(args ...string) *cobra.Command {
 	id := uuid.NewString()
-	now := common.FormatTime(time.Now())
+	now := dttm.Format(time.Now())
 	cmdArg := "testing-corso"
 	c := &cobra.Command{
 		Use:   cmdArg,

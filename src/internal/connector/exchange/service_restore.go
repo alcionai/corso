@@ -10,7 +10,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -194,7 +194,7 @@ func RestoreMailMessage(
 
 	if clone.GetSentDateTime() != nil {
 		sv2 := models.NewSingleValueLegacyExtendedProperty()
-		sendPropertyValue := common.FormatLegacyTime(ptr.Val(clone.GetSentDateTime()))
+		sendPropertyValue := dttm.FormatToLegacy(ptr.Val(clone.GetSentDateTime()))
 		sendPropertyTag := MailSendDateTimeOverrideProperty
 		sv2.SetId(&sendPropertyTag)
 		sv2.SetValue(&sendPropertyValue)
@@ -204,7 +204,7 @@ func RestoreMailMessage(
 
 	if clone.GetReceivedDateTime() != nil {
 		sv3 := models.NewSingleValueLegacyExtendedProperty()
-		recvPropertyValue := common.FormatLegacyTime(ptr.Val(clone.GetReceivedDateTime()))
+		recvPropertyValue := dttm.FormatToLegacy(ptr.Val(clone.GetReceivedDateTime()))
 		recvPropertyTag := MailReceiveDateTimeOverriveProperty
 		sv3.SetId(&recvPropertyTag)
 		sv3.SetValue(&recvPropertyValue)

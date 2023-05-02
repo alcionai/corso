@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -34,8 +34,8 @@ func TestDetailsUnitSuite(t *testing.T) {
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	initial := time.Now()
-	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
-	now, err := common.ParseTime(nowStr)
+	nowStr := dttm.FormatTo(initial, dttm.TabularOutput)
+	now, err := dttm.ParseTime(nowStr)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {

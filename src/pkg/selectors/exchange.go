@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -776,7 +776,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoEventRecurs:
 		i = strconv.FormatBool(info.EventRecurs)
 	case ExchangeInfoEventStartsAfter, ExchangeInfoEventStartsBefore:
-		i = common.FormatTime(info.EventStart)
+		i = dttm.Format(info.EventStart)
 	case ExchangeInfoEventSubject:
 		i = info.Subject
 	case ExchangeInfoMailSender:
@@ -784,7 +784,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoMailSubject:
 		i = info.Subject
 	case ExchangeInfoMailReceivedAfter, ExchangeInfoMailReceivedBefore:
-		i = common.FormatTime(info.Received)
+		i = dttm.Format(info.Received)
 	}
 
 	return s.Matches(infoCat, i)
