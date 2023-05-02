@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -64,5 +65,9 @@ type (
 		) (*details.Details, error)
 
 		Wait() *data.CollectionStats
+	}
+
+	RepoMaintenancer interface {
+		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
 	}
 )
