@@ -44,6 +44,7 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/dnaeon/go-vcr v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
