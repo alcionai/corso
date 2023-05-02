@@ -257,7 +257,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	deets := func() details.Details {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{
+				Entries: []details.Entry{
 					{
 						RepoRef: stubRepoRef(
 							pathServiceStub,
@@ -302,7 +302,7 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 	deets := func() details.Details {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{
+				Entries: []details.Entry{
 					{
 						RepoRef: stubRepoRef(
 							pathServiceStub,
@@ -361,7 +361,7 @@ func (suite *SelectorScopesSuite) TestPasses() {
 	var (
 		cat   = rootCatStub
 		pth   = stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
-		entry = details.DetailsEntry{
+		entry = details.Entry{
 			RepoRef: pth.String(),
 		}
 	)

@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -42,7 +42,7 @@ func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx, control.RepoOptions{}))
+	require.NoError(t, k.Initialize(ctx, repository.Options{}))
 
 	suite.kcloser = func() { k.Close(ctx) }
 

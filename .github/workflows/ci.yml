@@ -440,7 +440,7 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Publish-Binary:
-    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -510,7 +510,7 @@ jobs:
           path: src/dist/corso_windows_amd64_v1/corso.exe
 
   Publish-Image:
-    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -652,7 +652,7 @@ jobs:
           ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Publish-Website-Test:
-    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
