@@ -145,7 +145,7 @@ of Corso's ability to provide fast, high-performance backups that still
 accurately reflect all updates. If you have feedback, questions, or want more information, please join us on the [Corso Discord](https://discord.gg/63DTTSnuhT).
 
 > 💡 In
-> [part 2 of our series](../incremental-backups-pt2/),
+> [part 2 of our series](2023-4-29-incrementals-pt2.md),
 > we’ll cover Incremental backups in action, and how Corso manages state and
 > merges updates to the hierarchy.
 
@@ -155,4 +155,4 @@ accurately reflect all updates. If you have feedback, questions, or want more in
 
 Corso implements compression, deduplication *and* incremental backups to give
 you the best backup performance. Check
-[our quickstart guide](../../docs/quickstart/) to see how to get started.
+[our quickstart guide](http://localhost:3000/docs/quickstart/) to see how to get started.

@@ -12,7 +12,7 @@ image: ./images/incremental-scale.png
 ![diagram of an incremental scale encoder By Lambtron - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=81494644](./images/incremental-scale.png)
 <!-- vale Vale.Spelling = YES -->
 
-In [Part 1](../incremental-backups-pt1/) we discussed how there’s more than
+In [Part 1](2023-4-28-incrementals-pt1.md) we discussed how there’s more than
 one way to run backups, and how full and incremental backups differ.
 
 With all the background information out of the way, it’s time to see how
@@ -532,7 +532,7 @@ can be used for future restores.
 
 Incremental backups are a key component of a high-performance backup strategy.
 In this piece (and
-[in part 1](../incremental-backups-pt1/)), we've
+[in part 1](2023-4-28-incrementals-pt1.md)), we've
 covered how we tackled the challenge using the Microsoft Graph API. If you have
 feedback, questions, or want more information, please join us on the
 [Corso Discord](https://discord.gg/63DTTSnuhT).
