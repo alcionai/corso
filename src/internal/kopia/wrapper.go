@@ -466,6 +466,8 @@ func (w Wrapper) ProduceRestoreCollections(
 		res = append(res, c)
 	}
 
+	logger.Ctx(ctx).Infow("done loading items from kopia", "loaded_count", loadCount)
+
 	return res, el.Failure()
 }
 
