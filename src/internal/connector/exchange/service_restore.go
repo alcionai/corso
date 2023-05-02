@@ -649,10 +649,18 @@ func establishContactsRestoreLocation(
 		return cached, nil
 	}
 
+	folders[0] = "Corso_Restore_02-May-2023_00:06:19"
 	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
+	// This is where destination folder gets created by corso in graph
+	// This is the POST operation which may fail if the folder exists
 	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
 	if err != nil {
+		// TODO:: Add status code check too
+		if graph.IsErrFolderExists(err) {
+			result, _ := ac.Contacts().GetContactFolders(ctx, user)
+			//fmt.Println(result.GetValue())
+		}
 		return "", err
 	}
 

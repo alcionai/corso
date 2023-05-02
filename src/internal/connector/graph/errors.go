@@ -41,6 +41,7 @@ const (
 	syncFolderNotFound          errorCode = "ErrorSyncFolderNotFound"
 	syncStateInvalid            errorCode = "SyncStateInvalid"
 	syncStateNotFound           errorCode = "SyncStateNotFound"
+	folderExists                errorCode = "ErrorFolderExists"
 )
 
 const (
@@ -170,6 +171,10 @@ func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
 	}
 
 	return false
+}
+
+func IsErrFolderExists(err error) bool {
+	return hasErrorCode(err, folderExists)
 }
 
 // ---------------------------------------------------------------------------
