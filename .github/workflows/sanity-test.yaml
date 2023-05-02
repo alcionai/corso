@@ -423,6 +423,8 @@ jobs:
         id: sharepoint-test
         run: |
           set -euo pipefail
+        echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
+
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
@@ -444,6 +446,8 @@ jobs:
       - name: Backup sharepoint list test
         run: |
           set -euo pipefail
+        echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
+
           ./corso backup list sharepoint \
           --no-stats \
           --hide-progress \
@@ -456,9 +460,11 @@ jobs:
           fi
 
       # list the previous backup
-      - name: Backup sharepoint list test
+      - name: Backup sharepoint list single backup test
         run: |
           set -euo pipefail
+        echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+
           ./corso backup list sharepoint \
           --no-stats \
           --hide-progress \
@@ -476,6 +482,8 @@ jobs:
         id: sharepoint-restore-test
         run: |
           set -euo pipefail
+        echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
+
           ./corso restore sharepoint \
           --no-stats \
           --hide-progress \
@@ -494,13 +502,15 @@ jobs:
           set -euo pipefail
           ./sanityTest
 
-      # TODO(rkeepers): generate some more enteries for incremental check
+      # TODO(rkeepers): generate some more entries for incremental check
 
       # incremental backup
       - name: Backup sharepoint incremental
         id: sharepoint-incremental-test
         run: |
           set -euo pipefail
+        echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
@@ -523,6 +533,8 @@ jobs:
         id: sharepoint-incremental-restore-test
         run: |
           set -euo pipefail
+        echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
+
           ./corso restore sharepoint \
           --no-stats \
           --hide-progress \
