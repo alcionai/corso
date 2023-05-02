@@ -540,7 +540,7 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 //  4. any errors encountered
 func getNewPathRefs(
 	dataFromBackup kopia.DetailsMergeInfoer,
-	entry *details.DetailsEntry,
+	entry *details.Entry,
 	repoRef path.Path,
 	backupVersion int,
 ) (path.Path, *path.Builder, bool, error) {

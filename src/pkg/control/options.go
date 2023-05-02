@@ -2,18 +2,19 @@ package control
 
 import (
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision          CollisionPolicy `json:"-"`
-	DisableMetrics     bool            `json:"disableMetrics"`
-	FailureHandling    FailureBehavior `json:"failureHandling"`
-	RestorePermissions bool            `json:"restorePermissions"`
-	SkipReduce         bool            `json:"skipReduce"`
-	ToggleFeatures     Toggles         `json:"toggleFeatures"`
-	Parallelism        Parallelism     `json:"parallelism"`
-	Repo               RepoOptions     `json:"repo"`
+	Collision          CollisionPolicy    `json:"-"`
+	DisableMetrics     bool               `json:"disableMetrics"`
+	FailureHandling    FailureBehavior    `json:"failureHandling"`
+	RestorePermissions bool               `json:"restorePermissions"`
+	SkipReduce         bool               `json:"skipReduce"`
+	ToggleFeatures     Toggles            `json:"toggleFeatures"`
+	Parallelism        Parallelism        `json:"parallelism"`
+	Repo               repository.Options `json:"repo"`
 }
 
 type FailureBehavior string
@@ -33,12 +34,6 @@ const (
 	// recovers whenever possible, does not report recovery as failure
 	BestEffort FailureBehavior = "best-effort"
 )
-
-// Repo represents options that are specific to the repo storing backed up data.
-type RepoOptions struct {
-	User string `json:"user"`
-	Host string `json:"host"`
-}
 
 // Defaults provides an Options with the default values set.
 func Defaults() Options {

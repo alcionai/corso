@@ -59,7 +59,7 @@ func (mc mockCategorizer) isLeaf() bool {
 
 func (mc mockCategorizer) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	return map[categorizer][]string{

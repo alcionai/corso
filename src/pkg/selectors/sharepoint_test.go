@@ -253,7 +253,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 
 	deets := &details.Details{
 		DetailsModel: details.DetailsModel{
-			Entries: []details.DetailsEntry{
+			Entries: []details.Entry{
 				{
 					RepoRef:     item,
 					ItemRef:     "item",
@@ -478,7 +478,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				test.pathElems...)
 			require.NoError(t, err, clues.ToCore(err))
 
-			ent := details.DetailsEntry{
+			ent := details.Entry{
 				RepoRef:     itemPath.String(),
 				ShortRef:    shortRef,
 				ItemRef:     itemPath.Item(),
