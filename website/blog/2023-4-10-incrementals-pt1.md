@@ -89,12 +89,12 @@ of the data in Microsoft 365. For example, if the user has a file in the OneDriv
 `<tenant ID>/onedrive/<user ID>/files/<drive ID>/root/work/important` for that
 file.
 
-Corso also stores a few extra bits of metadata to help with incremental backups.
-Most importantly, it stores the Graph API’s delta tokens retrieved during the
-backup process as well as a mapping relating the current Microsoft 365 folder IDs to
-their paths. This information is stored with different path prefixes (ex. uses
-`onedriveMetadata` instead of `onedrive`) to make it straightforward to separate out from
-backed up item data.
+Corso also stores a few extra bits of metadata in the data snapshot to help with
+incremental backups. Most importantly, it stores the Graph API’s delta tokens
+retrieved during the backup process as well as a mapping relating the current
+Microsoft 365 folder IDs to their paths. This information is stored with
+different path prefixes (ex. uses `onedriveMetadata` instead of `onedrive`) to
+make it straightforward to separate out from backed up item data.
 
 ### Terminology
 
@@ -128,16 +128,26 @@ of the differences between independent backups and chained backups.
 *both images below show how data would be stored if the user backed up two files on their first backup and then made a*
 *new file and updated file1 before taking a second backup*
 ![an image of a chained backup](./images/chained_backups.png)
+*both images below show how data would be stored if the user backed up two files on their first backup and then made a*
+*new file and updated file1 before taking a second backup*
 
 Although having a full listing of all items present at the time of the backup in
 each backups sounds wasteful, Corso takes advantage of the data deduplication
-provided by kopia to only store one copy of the underlying data for backed up
-items. What this really means is each Corso backup has a complete set of
-*indexing information*. This gives Corso the best of both worlds; allowing
-completed backups to have independent indexing information and life cycles from
-each other while still minimizing the amount of item data stored.
+provided by kopia to only store one copy of the underlying bulk data in the data
+snapshot for backed up items. What this really means is each Corso backup has a
+complete set of *indexing information*. This gives Corso the best of both
+worlds; allowing completed backups to have independent indexing information and
+life cycles from each other while still minimizing the amount of item data
+stored.
 
-> 💡 In [part 2 of our series, we’ll cover Incremental backups in action](https://corsobackup.io/blog/incremental-backups-pt2/).
+Understanding how Microsoft provides information on item updates is a key part
+of Corso's ability to provide fast, high-performance backups that still
+accurately reflect all updates. If you have feedback, questions, or want more information, please join us on the [Corso Discord](https://discord.gg/63DTTSnuhT).
+
+> 💡 In
+> [part 2 of our series](../incremental-backups-pt2/),
+> we’ll cover Incremental backups in action, and how Corso manages state and
+> merges updates to the heirarhcy.
 
 ---
 
