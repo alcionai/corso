@@ -155,4 +155,4 @@ accurately reflect all updates. If you have feedback, questions, or want more in
 
 Corso implements compression, deduplication *and* incremental backups to give
 you the best backup performance. Check
-[our quickstart guide](https://corsobackup.io/docs/quickstart/) to see how to get started.
+[our quickstart guide](../../docs/quickstart/) to see how to get started.

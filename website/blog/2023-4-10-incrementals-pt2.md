@@ -543,5 +543,5 @@ feedback, questions, or want more information, please join us on the
 
 Corso implements compression, deduplication *and* incremental backups to give
 you the best backup performance. Check
-[our quickstart guide](https://corsobackup.io/docs/quickstart/) to see how
+[our quickstart guide](../../docs/quickstart/) to see how
 quickly you can get started.
