@@ -100,7 +100,7 @@ backed up item data.
 
 *Full backups* are backups where all of the data being backed up is fetched from
 Microsoft 365 with the Graph API. These backups may take a long time to complete (we’ve
-seen backups that run for 20+ hours) due to throttling imposed by Microsoft 365.
+seen backups of accounts with extremely large amounts of data run for 20+ hours) due to throttling imposed by Microsoft 365.
 For the purposes of this blog, *incremental backups* are backups where Corso
 fetches only a subset of items from Microsoft 365. Ideally Corso would fetch only the
 items that change, though there may be reasons it needs to fetch more data.
