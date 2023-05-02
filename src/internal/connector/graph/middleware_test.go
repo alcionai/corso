@@ -68,6 +68,7 @@ func (mw *testMW) Intercept(
 	tr := mw.toReturn[mw.iter]
 
 	mw.iter++
+
 	return tr.resp, tr.err
 }
 
