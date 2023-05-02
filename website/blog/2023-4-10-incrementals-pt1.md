@@ -147,7 +147,7 @@ accurately reflect all updates. If you have feedback, questions, or want more in
 > 💡 In
 > [part 2 of our series](../incremental-backups-pt2/),
 > we’ll cover Incremental backups in action, and how Corso manages state and
-> merges updates to the heirarhcy.
+> merges updates to the hierarchy.
 
 ---
 
