@@ -179,7 +179,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 		Type:   repository.MetadataMaintenance,
 	}
 
-	err = w.Maintenance(ctx, opts)
+	err = w.RepoMaintenance(ctx, opts)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -200,7 +200,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	}
 
 	// This will set the user.
-	err = w.Maintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -216,7 +216,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 
 	var notOwnedErr maintenance.NotOwnedError
 
-	err = w.Maintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, mOpts)
 	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
 }
 
@@ -237,7 +237,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	}
 
 	// This will set the user.
-	err = w.Maintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -254,13 +254,13 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	mOpts.Force = true
 
 	// This will set the user.
-	err = w.Maintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mOpts.Force = false
 
 	// Running without force should succeed now.
-	err = w.Maintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
