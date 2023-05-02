@@ -7,15 +7,19 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
+	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -514,4 +518,129 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 func isErrEntryNotFound(err error) bool {
 	return strings.Contains(err.Error(), "entry not found") &&
 		!strings.Contains(err.Error(), "parent is not a directory")
+}
+
+func (w Wrapper) RepoMaintenance(
+	ctx context.Context,
+	opts repository.Maintenance,
+) error {
+	kopiaSafety, err := translateSafety(opts.Safety)
+	if err != nil {
+		return clues.Wrap(err, "identifying safety level")
+	}
+
+	mode, err := translateMode(opts.Type)
+	if err != nil {
+		return clues.Wrap(err, "identifying maintenance mode")
+	}
+
+	currentOwner := w.c.ClientOptions().UsernameAtHost()
+
+	ctx = clues.Add(
+		ctx,
+		"kopia_safety", kopiaSafety,
+		"kopia_maintenance_mode", mode,
+		"force", opts.Force,
+		"current_local_owner", clues.Hide(currentOwner))
+
+	dr, ok := w.c.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.New("unable to get valid handle to repo").WithClues(ctx)
+	}
+
+	// Below write session options pulled from kopia's CLI code that runs
+	// maintenance.
+	err = repo.DirectWriteSession(
+		ctx,
+		dr,
+		repo.WriteSessionOptions{
+			Purpose: "Corso maintenance",
+		},
+		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
+			params, err := maintenance.GetParams(ctx, w.c)
+			if err != nil {
+				return clues.Wrap(err, "getting maintenance user@host").WithClues(ctx)
+			}
+
+			// Need to do some fixup here as the user/host may not have been set.
+			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
+				observe.Message(
+					ctx,
+					"updating maintenance user@host to ",
+					clues.Hide(currentOwner))
+
+				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
+					return clues.Wrap(err, "updating maintenance parameters").
+						WithClues(ctx)
+				}
+			}
+
+			ctx = clues.Add(ctx, "expected_owner", clues.Hide(params.Owner))
+
+			logger.Ctx(ctx).Info("running kopia maintenance")
+
+			err = snapshotmaintenance.Run(ctx, dw, mode, opts.Force, kopiaSafety)
+			if err != nil {
+				return clues.Wrap(err, "running kopia maintenance").WithClues(ctx)
+			}
+
+			return nil
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func translateSafety(
+	s repository.MaintenanceSafety,
+) (maintenance.SafetyParameters, error) {
+	switch s {
+	case repository.FullMaintenanceSafety:
+		return maintenance.SafetyFull, nil
+	case repository.NoMaintenanceSafety:
+		return maintenance.SafetyNone, nil
+	default:
+		return maintenance.SafetyParameters{}, clues.New("bad safety value").
+			With("input_safety", s.String())
+	}
+}
+
+func translateMode(t repository.MaintenanceType) (maintenance.Mode, error) {
+	switch t {
+	case repository.CompleteMaintenance:
+		return maintenance.ModeFull, nil
+
+	case repository.MetadataMaintenance:
+		return maintenance.ModeQuick, nil
+
+	default:
+		return maintenance.ModeNone, clues.New("bad maintenance type").
+			With("input_maintenance_type", t.String())
+	}
+}
+
+// setMaintenanceUserHost sets the user and host for maintenance to the the
+// user and host in the kopia config.
+func (w Wrapper) setMaintenanceParams(
+	ctx context.Context,
+	drw repo.DirectRepositoryWriter,
+	p *maintenance.Params,
+	userAtHost string,
+) error {
+	// This will source user/host from the kopia config file or fallback to
+	// fetching the values from the OS.
+	p.Owner = userAtHost
+	// Disable automatic maintenance for now since it can start matching on the
+	// user/host of at least one machine now.
+	p.QuickCycle.Enabled = false
+	p.FullCycle.Enabled = false
+
+	err := maintenance.SetParams(ctx, drw, p)
+	if err != nil {
+		return clues.Wrap(err, "setting maintenance user/host")
+	}
+
+	return nil
 }

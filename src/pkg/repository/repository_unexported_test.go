@@ -20,7 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
+	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -237,10 +237,10 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 
 	require.NotNil(t, k)
 
-	err = k.Initialize(ctx, control.RepoOptions{})
+	err = k.Initialize(ctx, rep.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Connect(ctx, control.RepoOptions{})
+	err = k.Connect(ctx, rep.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -287,8 +287,8 @@ func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 		k = kopia.NewConn(s)
 	)
 
-	require.NoError(t, k.Initialize(ctx, control.RepoOptions{}))
-	require.NoError(t, k.Connect(ctx, control.RepoOptions{}))
+	require.NoError(t, k.Initialize(ctx, rep.Options{}))
+	require.NoError(t, k.Connect(ctx, rep.Options{}))
 
 	defer k.Close(ctx)
 

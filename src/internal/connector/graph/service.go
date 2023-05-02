@@ -243,7 +243,7 @@ func kiotaMiddlewares(
 
 	mw = append(mw, []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
-		&RetryHandler{
+		&RetryMiddleware{
 			MaxRetries: cc.maxRetries,
 			Delay:      cc.minDelay,
 		},

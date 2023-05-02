@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.7.0] (beta) - 2023-05-02
+
 ### Added
 - Permissions backup for OneDrive is now out of experimental (By default, only newly backed up items will have their permissions backed up. You will have to run a full backup to ensure all items have their permissions backed up.)
 - LocationRef is now populated for all services and data types. It should be used in place of RepoRef if a location for an item is required.
@@ -30,9 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SharePoint now correctly displays site urls on `backup list`, instead of the site id.
 - Drives with a directory containing a folder named 'folder' will now restore without error.
 - The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
+- Fixed Exchange events progress output to show calendar names instead of IDs.
+- Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
+- Exchange event restores will display calendar IDs instead of names in the progress output.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
@@ -243,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/alcionai/corso/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.1
 [v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/alcionai/corso/compare/v0.3.0...v0.4.0

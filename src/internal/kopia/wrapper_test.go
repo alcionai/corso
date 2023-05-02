@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -143,7 +145,127 @@ func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 }
 
 // ---------------
-// integration tests that use kopia
+// integration tests that use kopia.
+// ---------------
+type BasicKopiaIntegrationSuite struct {
+	tester.Suite
+}
+
+func TestBasicKopiaIntegrationSuite(t *testing.T) {
+	suite.Run(t, &BasicKopiaIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+		),
+	})
+}
+
+// TestMaintenance checks that different username/hostname pairs will or won't
+// cause maintenance to run. It treats kopia maintenance as a black box and
+// only checks the returned error.
+func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	opts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	err = w.RepoMaintenance(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	// This will set the user.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var notOwnedErr maintenance.NotOwnedError
+
+	err = w.RepoMaintenance(ctx, mOpts)
+	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
+}
+
+func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeeds() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	// This will set the user.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	mOpts.Force = true
+
+	// This will set the user.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	mOpts.Force = false
+
+	// Running without force should succeed now.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+// ---------------
+// integration tests that use kopia and initialize a repo
 // ---------------
 type KopiaIntegrationSuite struct {
 	tester.Suite

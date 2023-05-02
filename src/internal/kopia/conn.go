@@ -18,7 +18,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -70,7 +70,7 @@ func NewConn(s storage.Storage) *conn {
 	}
 }
 
-func (w *conn) Initialize(ctx context.Context, opts control.RepoOptions) error {
+func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -110,7 +110,7 @@ func (w *conn) Initialize(ctx context.Context, opts control.RepoOptions) error {
 	return nil
 }
 
-func (w *conn) Connect(ctx context.Context, opts control.RepoOptions) error {
+func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -134,7 +134,7 @@ func (w *conn) Connect(ctx context.Context, opts control.RepoOptions) error {
 
 func (w *conn) commonConnect(
 	ctx context.Context,
-	opts control.RepoOptions,
+	opts repository.Options,
 	configDir string,
 	bst blob.Storage,
 	password, compressor string,
