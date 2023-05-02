@@ -15,7 +15,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -644,12 +644,12 @@ func fatal(ctx context.Context, msg string, err error) {
 }
 
 func mustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
-	t, err := common.ExtractTime(name)
-	if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+	t, err := dttm.ExtractTime(name)
+	if err != nil && !errors.Is(err, dttm.ErrNoTimeString) {
 		fatal(ctx, "extracting time from name: "+name, err)
 	}
 
-	return t, !errors.Is(err, common.ErrNoTimeString)
+	return t, !errors.Is(err, dttm.ErrNoTimeString)
 }
 
 func isWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool) bool {

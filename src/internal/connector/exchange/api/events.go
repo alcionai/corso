@@ -12,7 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
@@ -407,7 +407,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		startTime := ptr.Val(evt.GetStart().GetDateTime()) + "Z"
 
-		output, err := common.ParseTime(startTime)
+		output, err := dttm.ParseTime(startTime)
 		if err == nil {
 			start = output
 		}
@@ -418,7 +418,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := ptr.Val(evt.GetEnd().GetDateTime()) + "Z"
 
-		output, err := common.ParseTime(endTime)
+		output, err := dttm.ParseTime(endTime)
 		if err == nil {
 			end = output
 		}

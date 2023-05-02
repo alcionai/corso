@@ -1,4 +1,4 @@
-package common_test
+package dttm_test
 
 import (
 	"testing"
@@ -9,65 +9,64 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type CommonTimeUnitSuite struct {
+type DTTMUnitSuite struct {
 	tester.Suite
 }
 
-func TestCommonTimeUnitSuite(t *testing.T) {
-	s := &CommonTimeUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+func TestDTTMUnitSuite(t *testing.T) {
+	suite.Run(t, &DTTMUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *CommonTimeUnitSuite) TestFormatTime() {
+func (suite *DTTMUnitSuite) TestFormatTime() {
 	t := suite.T()
 	now := time.Now()
-	result := common.FormatTime(now)
+	result := dttm.Format(now)
 	assert.Equal(t, now.UTC().Format(time.RFC3339Nano), result)
 }
 
-func (suite *CommonTimeUnitSuite) TestLegacyTime() {
+func (suite *DTTMUnitSuite) TestLegacyTime() {
 	t := suite.T()
 	now := time.Now()
-	result := common.FormatLegacyTime(now)
+	result := dttm.FormatToLegacy(now)
 	assert.Equal(t, now.UTC().Format(time.RFC3339), result)
 }
 
-func (suite *CommonTimeUnitSuite) TestFormatTabularDisplayTime() {
+func (suite *DTTMUnitSuite) TestFormatTabularDisplayTime() {
 	t := suite.T()
 	now := time.Now()
-	result := common.FormatTabularDisplayTime(now)
-	assert.Equal(t, now.UTC().Format(string(common.TabularOutput)), result)
+	result := dttm.FormatToTabularDisplay(now)
+	assert.Equal(t, now.UTC().Format(string(dttm.TabularOutput)), result)
 }
 
-func (suite *CommonTimeUnitSuite) TestParseTime() {
+func (suite *DTTMUnitSuite) TestParseTime() {
 	t := suite.T()
 	now := time.Now()
 
 	nowStr := now.Format(time.RFC3339Nano)
-	result, err := common.ParseTime(nowStr)
+	result, err := dttm.ParseTime(nowStr)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, now.UTC(), result)
 
-	_, err = common.ParseTime("")
+	_, err = dttm.ParseTime("")
 	require.Error(t, err, clues.ToCore(err))
 
-	_, err = common.ParseTime("flablabls")
+	_, err = dttm.ParseTime("flablabls")
 	require.Error(t, err, clues.ToCore(err))
 }
 
-func (suite *CommonTimeUnitSuite) TestExtractTime() {
-	comparable := func(t *testing.T, tt time.Time, shortFormat common.TimeFormat) time.Time {
-		ts := common.FormatLegacyTime(tt.UTC())
+func (suite *DTTMUnitSuite) TestExtractTime() {
+	comparable := func(t *testing.T, tt time.Time, shortFormat dttm.TimeFormat) time.Time {
+		ts := dttm.FormatToLegacy(tt.UTC())
 
 		if len(shortFormat) > 0 {
 			ts = tt.UTC().Format(string(shortFormat))
 		}
 
-		c, err := common.ParseTime(ts)
+		c, err := dttm.ParseTime(ts)
 
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -92,16 +91,16 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		parseT("2006-01-02T03:00:04-01:00"),
 	}
 
-	formats := []common.TimeFormat{
-		common.ClippedSimple,
-		common.ClippedSimpleOneDrive,
-		common.LegacyTime,
-		common.SimpleDateTime,
-		common.SimpleDateTimeOneDrive,
-		common.StandardTime,
-		common.TabularOutput,
-		common.SimpleTimeTesting,
-		common.DateOnly,
+	formats := []dttm.TimeFormat{
+		dttm.ClippedHuman,
+		dttm.ClippedHumanDriveItem,
+		dttm.Legacy,
+		dttm.HumanReadable,
+		dttm.HumanReadableDriveItem,
+		dttm.Standard,
+		dttm.TabularOutput,
+		dttm.SafeForTesting,
+		dttm.DateOnly,
 	}
 
 	type presuf struct {
@@ -118,7 +117,7 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 
 	type testable struct {
 		input         string
-		clippedFormat common.TimeFormat
+		clippedFormat dttm.TimeFormat
 		expect        time.Time
 	}
 
@@ -129,13 +128,13 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		for _, f := range formats {
 			shortFormat := f
 
-			if f != common.ClippedSimple &&
-				f != common.ClippedSimpleOneDrive &&
-				f != common.DateOnly {
+			if f != dttm.ClippedHuman &&
+				f != dttm.ClippedHumanDriveItem &&
+				f != dttm.DateOnly {
 				shortFormat = ""
 			}
 
-			v := common.FormatTimeWith(in, f)
+			v := dttm.FormatTo(in, f)
 
 			for _, ps := range pss {
 				table = append(table, testable{
@@ -151,7 +150,7 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 		suite.Run(test.input, func() {
 			t := suite.T()
 
-			result, err := common.ExtractTime(test.input)
+			result, err := dttm.ExtractTime(test.input)
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect, comparable(t, result, test.clippedFormat))
 		})

@@ -12,6 +12,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -226,8 +227,8 @@ func purgeFolders(
 		// compare the folder time to the deletion boundary time first
 		displayName := *fld.GetDisplayName()
 
-		dnTime, err := common.ExtractTime(displayName)
-		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+		dnTime, err := dttm.ExtractTime(displayName)
+		if err != nil && !errors.Is(err, dttm.ErrNoTimeString) {
 			err = clues.Wrap(err, "!! Error: parsing container: "+displayName)
 			Info(ctx, err)
 
@@ -282,7 +283,7 @@ func getBoundaryTime(ctx context.Context) (time.Time, error) {
 	)
 
 	if len(before) > 0 {
-		boundaryTime, err = common.ParseTime(before)
+		boundaryTime, err = dttm.ParseTime(before)
 		if err != nil {
 			return time.Time{}, Only(ctx, clues.Wrap(err, "parsing before flag to time"))
 		}

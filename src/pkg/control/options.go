@@ -1,7 +1,7 @@
 package control
 
 import (
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
@@ -83,9 +83,9 @@ type RestoreDestination struct {
 	ContainerName string
 }
 
-func DefaultRestoreDestination(timeFormat common.TimeFormat) RestoreDestination {
+func DefaultRestoreDestination(timeFormat dttm.TimeFormat) RestoreDestination {
 	return RestoreDestination{
-		ContainerName: defaultRestoreLocation + common.FormatNow(timeFormat),
+		ContainerName: defaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
 }
 

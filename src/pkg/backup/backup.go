@@ -10,7 +10,7 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -264,7 +264,7 @@ func (b Backup) Values() []string {
 
 	return []string{
 		string(b.ID),
-		common.FormatTabularDisplayTime(b.StartedAt),
+		dttm.FormatToTabularDisplay(b.StartedAt),
 		bs.EndedAt.Sub(bs.StartedAt).String(),
 		status,
 		name,

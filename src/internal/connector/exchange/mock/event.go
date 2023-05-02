@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 )
 
 // Order of fields to fill in:
@@ -221,8 +221,8 @@ func EventBytes(subject string) []byte {
 func EventWithSubjectBytes(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := common.FormatTime(at)
-	endTime := common.FormatTime(at.Add(30 * time.Minute))
+	atTime := dttm.Format(at)
+	endTime := dttm.Format(at.Add(30 * time.Minute))
 
 	return EventWith(
 		defaultEventOrganizer, subject,
@@ -234,7 +234,7 @@ func EventWithSubjectBytes(subject string) []byte {
 func EventWithAttachment(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := common.FormatTime(at)
+	atTime := dttm.Format(at)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
@@ -246,7 +246,7 @@ func EventWithAttachment(subject string) []byte {
 func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := common.FormatTime(at)
+	atTime := dttm.Format(at)
 	timeSlice := strings.Split(atTime, "T")
 
 	recurrence := string(fmt.Sprintf(
@@ -265,7 +265,7 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 func EventWithAttendeesBytes(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := common.FormatTime(at)
+	atTime := dttm.Format(at)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
