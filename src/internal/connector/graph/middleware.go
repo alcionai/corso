@@ -190,30 +190,30 @@ func (mw RetryMiddleware) Intercept(
 ) (*http.Response, error) {
 	ctx := req.Context()
 
-	response, err := pipeline.Next(req, middlewareIndex)
+	resp, err := pipeline.Next(req, middlewareIndex)
 	if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-		return response, stackReq(ctx, req, response, err)
+		return resp, stackReq(ctx, req, resp, err)
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = mw.Delay
 	exponentialBackOff.Reset()
 
-	response, err = mw.retryRequest(
+	resp, err = mw.retryRequest(
 		ctx,
 		pipeline,
 		middlewareIndex,
 		req,
-		response,
+		resp,
 		0,
 		0,
 		exponentialBackOff,
 		err)
 	if err != nil {
-		return nil, stackReq(ctx, req, response, err)
+		return nil, stackReq(ctx, req, resp, err)
 	}
 
-	return response, nil
+	return resp, nil
 }
 
 func (mw RetryMiddleware) retryRequest(
@@ -225,7 +225,7 @@ func (mw RetryMiddleware) retryRequest(
 	executionCount int,
 	cumulativeDelay time.Duration,
 	exponentialBackoff *backoff.ExponentialBackOff,
-	initialErr error,
+	priorErr error,
 ) (*http.Response, error) {
 	ctx = clues.Add(
 		ctx,
@@ -233,10 +233,10 @@ func (mw RetryMiddleware) retryRequest(
 		"prev_resp_status", resp.Status)
 
 	// only retry under certain conditions:
-	// 1, we have an error.  2, the resp and/or status code match retriable conditions.
+	// 1, there was an error.  2, the resp and/or status code match retriable conditions.
 	// 3, the request is retriable.
 	// 4, we haven't hit our max retries already.
-	if (initialErr != nil || mw.isRetriableRespCode(ctx, resp, resp.StatusCode)) &&
+	if (priorErr != nil || mw.isRetriableRespCode(ctx, resp, resp.StatusCode)) &&
 		mw.isRetriableRequest(req) &&
 		executionCount < mw.MaxRetries {
 		executionCount++
@@ -253,7 +253,7 @@ func (mw RetryMiddleware) retryRequest(
 		case <-ctx.Done():
 			// Don't retry if the context is marked as done, it will just error out
 			// when we attempt to send the retry anyway.
-			return resp, ctx.Err()
+			return resp, clues.Stack(ctx.Err()).WithClues(ctx)
 
 		case <-timer.C:
 		}
@@ -274,8 +274,8 @@ func (mw RetryMiddleware) retryRequest(
 			err)
 	}
 
-	if initialErr != nil {
-		return nil, stackReq(ctx, req, nil, initialErr)
+	if priorErr != nil {
+		return nil, stackReq(ctx, req, nil, priorErr)
 	}
 
 	return resp, nil
