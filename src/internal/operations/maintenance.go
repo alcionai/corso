@@ -11,15 +11,14 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
 // MaintenanceOperation wraps an operation with restore-specific props.
 type MaintenanceOperation struct {
 	operation
-	Results          MaintenanceResults
-	safety           control.Safety
-	force            bool
-	quickMaintenance bool
+	Results MaintenanceResults
+	mOpts   repository.Maintenance
 }
 
 // MaintenanceResults aggregate the details of the results of the operation.
@@ -27,20 +26,17 @@ type MaintenanceResults struct {
 	stats.StartAndEndTime
 }
 
-// NewMaintenanceOperation constructs and validates a restore operation.
+// NewMaintenanceOperation constructs and validates a maintenance operation.
 func NewMaintenanceOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	safety control.Safety,
-	quickMaintenance, force bool,
+	mOpts repository.Maintenance,
 	bus events.Eventer,
 ) (MaintenanceOperation, error) {
 	op := MaintenanceOperation{
-		operation:        newOperation(opts, bus, kw, nil),
-		safety:           safety,
-		quickMaintenance: quickMaintenance,
-		force:            force,
+		operation: newOperation(opts, bus, kw, nil),
+		mOpts:     mOpts,
 	}
 
 	// Don't run validation because we don't populate the model store.
@@ -63,11 +59,7 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 
 	// TODO(ashmrtn): Send usage statistics?
 
-	err = op.operation.kopia.Maintenance(
-		ctx,
-		op.safety,
-		op.quickMaintenance,
-		op.force)
+	err = op.operation.kopia.RepoMaintenance(ctx, op.mOpts)
 	if err != nil {
 		return clues.Wrap(err, "running maintenance operation")
 	}

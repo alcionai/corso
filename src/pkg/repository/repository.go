@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -72,8 +73,7 @@ type Repository interface {
 	) (operations.RestoreOperation, error)
 	NewMaintenance(
 		ctx context.Context,
-		safety control.Safety,
-		quickMaintenance, force bool,
+		mOpts rep.Maintenance,
 	) (operations.MaintenanceOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
@@ -364,16 +364,13 @@ func (r repository) NewRestore(
 
 func (r repository) NewMaintenance(
 	ctx context.Context,
-	safety control.Safety,
-	quickMaintenance, force bool,
+	mOpts rep.Maintenance,
 ) (operations.MaintenanceOperation, error) {
 	return operations.NewMaintenanceOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		safety,
-		quickMaintenance,
-		force,
+		mOpts,
 		r.Bus)
 }
 
