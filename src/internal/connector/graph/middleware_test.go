@@ -71,8 +71,6 @@ func mockAdapter(creds account.M365Config, mw khttp.Middleware) (*msgraphsdkgo.G
 type RetryMWIntgSuite struct {
 	tester.Suite
 	creds account.M365Config
-	srv   Servicer
-	user  string
 }
 
 // We do end up mocking the actual request, but creating the rest
