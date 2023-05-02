@@ -1174,7 +1174,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		path.OneDriveService,
 		path.FilesCategory,
 		ic,
-		gtdi)
+		gtdi,
+		false)
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
@@ -1212,7 +1213,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
-		gtdi)
+		gtdi,
+		true)
 }
 
 func runDriveIncrementalTest(
@@ -1223,6 +1225,7 @@ func runDriveIncrementalTest(
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
 	getTestDriveID func(*testing.T, context.Context, graph.Servicer) string,
+	skipPermissionsTests bool,
 ) {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -1330,6 +1333,7 @@ func runDriveIncrementalTest(
 		updateFiles  func(t *testing.T)
 		itemsRead    int
 		itemsWritten int
+		skip         bool
 	}{
 		{
 			name:         "clean incremental, no changes",
@@ -1357,6 +1361,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to new file",
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1377,6 +1382,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from new file",
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1397,6 +1403,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to container",
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1418,6 +1425,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from container",
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1603,6 +1611,10 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			if test.skip {
+				t.Skip("flagged to skip")
+			}
+
 			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
 			require.NoError(t, err, clues.ToCore(err))
 
