@@ -52,9 +52,10 @@ func newTestMW(onIntercept func(*http.Request), mrs ...mwReturns) *testMW {
 }
 
 type testMW struct {
-	iter        int
-	toReturn    []mwReturns
-	onIntercept func(*http.Request)
+	repeatReturn0 bool
+	iter          int
+	toReturn      []mwReturns
+	onIntercept   func(*http.Request)
 }
 
 func (mw *testMW) Intercept(
@@ -64,8 +65,13 @@ func (mw *testMW) Intercept(
 ) (*http.Response, error) {
 	mw.onIntercept(req)
 
+	i := mw.iter
+	if mw.repeatReturn0 {
+		i = 0
+	}
+
 	// panic on out-of-bounds intentionally not protected
-	tr := mw.toReturn[mw.iter]
+	tr := mw.toReturn[i]
 
 	mw.iter++
 
@@ -169,6 +175,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			mw := newTestMW(
 				func(*http.Request) { called++ },
 				newMWReturns(test.status, nil, nil))
+			mw.repeatReturn0 = true
 
 			adpt, err := mockAdapter(suite.creds, mw)
 			require.NoError(t, err, clues.ToCore(err))
