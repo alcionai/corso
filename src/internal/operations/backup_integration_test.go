@@ -1169,6 +1169,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	runDriveIncrementalTest(
 		suite,
 		suite.user,
+		suite.user,
 		connector.Users,
 		path.OneDriveService,
 		path.FilesCategory,
@@ -1206,6 +1207,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
 	runDriveIncrementalTest(
 		suite,
 		suite.site,
+		suite.user,
 		connector.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
@@ -1215,7 +1217,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
 
 func runDriveIncrementalTest(
 	suite *BackupOpIntegrationSuite,
-	owner string,
+	owner, permissionsUser string,
 	resource connector.Resource,
 	service path.ServiceType,
 	category path.CategoryType,
@@ -1314,7 +1316,7 @@ func runDriveIncrementalTest(
 		writePerm            = metadata.Permission{
 			ID:       "perm-id",
 			Roles:    []string{"write"},
-			EntityID: owner,
+			EntityID: permissionsUser,
 		}
 	)
 
@@ -1348,7 +1350,7 @@ func runDriveIncrementalTest(
 					driveID,
 					targetContainer,
 					driveItem)
-				require.NoError(t, err, "creating new file", clues.ToCore(err))
+				require.NoErrorf(t, err, "creating new file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1367,9 +1369,8 @@ func runDriveIncrementalTest(
 					*newFile.GetId(),
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings,
-				)
-				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
@@ -1388,9 +1389,8 @@ func runDriveIncrementalTest(
 					*newFile.GetId(),
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
-					permissionIDMappings,
-				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
@@ -1410,9 +1410,8 @@ func runDriveIncrementalTest(
 					targetContainer,
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings,
-				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1432,9 +1431,8 @@ func runDriveIncrementalTest(
 					targetContainer,
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
-					permissionIDMappings,
-				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1448,7 +1446,7 @@ func runDriveIncrementalTest(
 					ItemsById(ptr.Val(newFile.GetId())).
 					Content().
 					Put(ctx, []byte("new content"), nil)
-				require.NoError(t, err, "updating file content")
+				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1470,7 +1468,7 @@ func runDriveIncrementalTest(
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err, "renaming file", clues.ToCore(err))
+				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1491,7 +1489,7 @@ func runDriveIncrementalTest(
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err, "moving file between folders", clues.ToCore(err))
+				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1506,7 +1504,7 @@ func runDriveIncrementalTest(
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
 					Delete(ctx, nil)
-				require.NoError(t, err, "deleting file", clues.ToCore(err))
+				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 0,
