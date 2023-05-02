@@ -9,7 +9,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 )
@@ -97,7 +97,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
+	dest := control.DefaultRestoreDestination(dttm.HumanReadableDriveItem)
 	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)

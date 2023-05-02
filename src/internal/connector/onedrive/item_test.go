@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
@@ -159,7 +159,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			folder, err := api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
 			require.NoError(t, err, clues.ToCore(err))
 
-			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
+			newFolderName := "testfolder_" + dttm.FormatNow(dttm.SafeForTesting)
 			t.Logf("Test will create folder %s", newFolderName)
 
 			newFolder, err := CreateItem(
@@ -171,7 +171,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
 
-			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
+			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
 			t.Logf("Test will create item %s", newItemName)
 
 			newItem, err := CreateItem(

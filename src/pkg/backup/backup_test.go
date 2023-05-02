@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -74,7 +74,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 			"Status",
 			"Resource Owner",
 		}
-		nowFmt   = common.FormatTabularDisplayTime(now)
+		nowFmt   = dttm.FormatToTabularDisplay(now)
 		expectVs = []string{
 			"id",
 			nowFmt,
