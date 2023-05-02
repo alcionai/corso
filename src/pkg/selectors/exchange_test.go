@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -642,25 +642,25 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"mail with a different subject", details.ExchangeMail, es.MailSubject("fancy"), assert.False},
 		{"mail with the matching subject", details.ExchangeMail, es.MailSubject(subject), assert.True},
 		{"mail with a substring subject match", details.ExchangeMail, es.MailSubject(subject[5:9]), assert.True},
-		{"mail received after the epoch", details.ExchangeMail, es.MailReceivedAfter(common.FormatTime(epoch)), assert.True},
-		{"mail received after now", details.ExchangeMail, es.MailReceivedAfter(common.FormatTime(now)), assert.False},
+		{"mail received after the epoch", details.ExchangeMail, es.MailReceivedAfter(dttm.Format(epoch)), assert.True},
+		{"mail received after now", details.ExchangeMail, es.MailReceivedAfter(dttm.Format(now)), assert.False},
 		{
 			"mail received after sometime later",
 			details.ExchangeMail,
-			es.MailReceivedAfter(common.FormatTime(future)),
+			es.MailReceivedAfter(dttm.Format(future)),
 			assert.False,
 		},
 		{
 			"mail received before the epoch",
 			details.ExchangeMail,
-			es.MailReceivedBefore(common.FormatTime(epoch)),
+			es.MailReceivedBefore(dttm.Format(epoch)),
 			assert.False,
 		},
-		{"mail received before now", details.ExchangeMail, es.MailReceivedBefore(common.FormatTime(now)), assert.False},
+		{"mail received before now", details.ExchangeMail, es.MailReceivedBefore(dttm.Format(now)), assert.False},
 		{
 			"mail received before sometime later",
 			details.ExchangeMail,
-			es.MailReceivedBefore(common.FormatTime(future)),
+			es.MailReceivedBefore(dttm.Format(future)),
 			assert.True,
 		},
 		{"event with any organizer", details.ExchangeEvent, es.EventOrganizer(AnyTgt), assert.True},
@@ -669,25 +669,25 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"event with the matching organizer", details.ExchangeEvent, es.EventOrganizer(organizer), assert.True},
 		{"event that recurs", details.ExchangeEvent, es.EventRecurs("true"), assert.True},
 		{"event that does not recur", details.ExchangeEvent, es.EventRecurs("false"), assert.False},
-		{"event starting after the epoch", details.ExchangeEvent, es.EventStartsAfter(common.FormatTime(epoch)), assert.True},
-		{"event starting after now", details.ExchangeEvent, es.EventStartsAfter(common.FormatTime(now)), assert.False},
+		{"event starting after the epoch", details.ExchangeEvent, es.EventStartsAfter(dttm.Format(epoch)), assert.True},
+		{"event starting after now", details.ExchangeEvent, es.EventStartsAfter(dttm.Format(now)), assert.False},
 		{
 			"event starting after sometime later",
 			details.ExchangeEvent,
-			es.EventStartsAfter(common.FormatTime(future)),
+			es.EventStartsAfter(dttm.Format(future)),
 			assert.False,
 		},
 		{
 			"event starting before the epoch",
 			details.ExchangeEvent,
-			es.EventStartsBefore(common.FormatTime(epoch)),
+			es.EventStartsBefore(dttm.Format(epoch)),
 			assert.False,
 		},
-		{"event starting before now", details.ExchangeEvent, es.EventStartsBefore(common.FormatTime(now)), assert.False},
+		{"event starting before now", details.ExchangeEvent, es.EventStartsBefore(dttm.Format(now)), assert.False},
 		{
 			"event starting before sometime later",
 			details.ExchangeEvent,
-			es.EventStartsBefore(common.FormatTime(future)),
+			es.EventStartsBefore(dttm.Format(future)),
 			assert.True,
 		},
 		{"event with any subject", details.ExchangeEvent, es.EventSubject(AnyTgt), assert.True},

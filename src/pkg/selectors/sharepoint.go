@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -703,9 +703,9 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	case SharePointWebURL:
 		i = info.WebURL
 	case SharePointInfoCreatedAfter, SharePointInfoCreatedBefore:
-		i = common.FormatTime(info.Created)
+		i = dttm.Format(info.Created)
 	case SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
-		i = common.FormatTime(info.Modified)
+		i = dttm.Format(info.Modified)
 	case SharePointInfoLibraryDrive:
 		ds := []string{}
 

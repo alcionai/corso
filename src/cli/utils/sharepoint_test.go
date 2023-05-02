@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -280,10 +280,10 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				WebURL:             []string{"www.corsobackup.io/sites/foo"},
-				FileCreatedAfter:   common.Now(),
-				FileCreatedBefore:  common.Now(),
-				FileModifiedAfter:  common.Now(),
-				FileModifiedBefore: common.Now(),
+				FileCreatedAfter:   dttm.Now(),
+				FileCreatedBefore:  dttm.Now(),
+				FileModifiedAfter:  dttm.Now(),
+				FileModifiedBefore: dttm.Now(),
 				Populated: utils.PopulatedFlags{
 					utils.SiteFN:               {},
 					utils.FileCreatedAfterFN:   {},
