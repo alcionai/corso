@@ -55,14 +55,12 @@ func (c Contacts) CreateContactFolder(
 	return mdl, nil
 }
 
-// CreateContactFolder makes a contact folder with the displayName of folderName.
-// If successful, returns the created folder object.
+// TODO: Add pagination or just reuse EnumerateContainer logic
+// with base id at root
 func (c Contacts) GetContactFolders(
 	ctx context.Context,
 	user string,
 ) (models.ContactFolderCollectionResponseable, error) {
-	// TODO: Add pagination or just reuse EnumerateContainer logic
-	// with base id at root
 	mdl, err := c.Stable.Client().UsersById(user).ContactFolders().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact folder")

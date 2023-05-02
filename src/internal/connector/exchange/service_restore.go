@@ -659,7 +659,6 @@ func establishContactsRestoreLocation(
 		// TODO:: Add status code check too
 		if graph.IsErrFolderExists(err) {
 			result, _ := ac.Contacts().GetContactFolders(ctx, user)
-			//fmt.Println(result.GetValue())
 		}
 		return "", err
 	}
