@@ -120,12 +120,12 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 		return nil, nil
 	}
 
-	odp, err := path.ToOneDrivePath(p)
+	dp, err := path.ToDrivePath(p)
 	if err != nil {
 		return nil, err
 	}
 
-	return path.Builder{}.Append(odp.Root).Append(odp.Folders...), nil
+	return path.Builder{}.Append(dp.Root).Append(dp.Folders...), nil
 }
 
 // NewCollection creates a Collection
