@@ -365,6 +365,11 @@ type ByteCounter interface {
 	Count(numBytes int64)
 }
 
+type restoreCollection struct {
+	restorePath path.Path
+	storageDirs map[string]*dirAndItems
+}
+
 type dirAndItems struct {
 	dir   path.Path
 	items []string
@@ -380,7 +385,7 @@ func loadDirsAndItems(
 	ctx context.Context,
 	snapshotRoot fs.Entry,
 	bcounter ByteCounter,
-	toLoad map[string]*dirAndItems,
+	toLoad map[string]*restoreCollection,
 	bus *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	var (
@@ -389,50 +394,61 @@ func loadDirsAndItems(
 		loadCount = 0
 	)
 
-	for _, dirItems := range toLoad {
+	for _, col := range toLoad {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
 
-		ictx := clues.Add(ctx, "directory_path", dirItems.dir)
+		ictx := clues.Add(ctx, "restore_path", col.restorePath)
 
-		dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
-		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "loading directory").
-				WithClues(ictx).
-				Label(fault.LabelForceNoBackupCreation))
-
-			continue
-		}
-
-		dc := &kopiaDataCollection{
-			path:            dirItems.dir,
-			dir:             dir,
-			counter:         bcounter,
-			expectedVersion: serializationVersion,
-		}
-
-		res = append(res, dc)
-
-		for _, item := range dirItems.items {
+		for _, dirItems := range col.storageDirs {
 			if el.Failure() != nil {
 				return nil, el.Failure()
 			}
 
-			err := dc.addStream(ictx, item)
+			ictx = clues.Add(ctx, "storage_directory_path", dirItems.dir)
+
+			dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "loading item").
+				el.AddRecoverable(clues.Wrap(err, "loading storage directory").
 					WithClues(ictx).
 					Label(fault.LabelForceNoBackupCreation))
 
 				continue
 			}
 
-			loadCount++
-			if loadCount%1000 == 0 {
-				logger.Ctx(ctx).Infow(
-					"loading items from kopia",
-					"loaded_items", loadCount)
+			dc := &kopiaDataCollection{
+				path:            col.restorePath,
+				dir:             dir,
+				counter:         bcounter,
+				expectedVersion: serializationVersion,
+			}
+
+			// TODO(ashmrtn): See if the restoreCollection has > 1 storageDir in the
+			// map. If it does then make this a "merge collection" that will source
+			// items from all underlying collections as it goes along.
+			res = append(res, dc)
+
+			for _, item := range dirItems.items {
+				if el.Failure() != nil {
+					return nil, el.Failure()
+				}
+
+				err := dc.addStream(ictx, item)
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "loading item").
+						WithClues(ictx).
+						Label(fault.LabelForceNoBackupCreation))
+
+					continue
+				}
+
+				loadCount++
+				if loadCount%1000 == 0 {
+					logger.Ctx(ctx).Infow(
+						"loading items from kopia",
+						"loaded_items", loadCount)
+				}
 			}
 		}
 	}
@@ -454,7 +470,7 @@ func loadDirsAndItems(
 func (w Wrapper) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
-	paths []path.Path,
+	paths []path.RestorePaths,
 	bcounter ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
@@ -474,36 +490,53 @@ func (w Wrapper) ProduceRestoreCollections(
 
 	var (
 		loadCount int
-		// Directory path -> set of items to load from the directory.
-		dirsToItems = map[string]*dirAndItems{}
+		// RestorePath -> []StoragePath directory -> set of items to load from the
+		// directory.
+		dirsToItems = map[string]*restoreCollection{}
 		el          = errs.Local()
 	)
 
-	for _, itemPath := range paths {
+	for _, itemPaths := range paths {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
 
-		// Group things by directory so we can load all items from a single
-		// directory instance lower down.
-		ictx := clues.Add(ctx, "item_path", itemPath.String())
+		// Group things by RestorePath and then StoragePath so we can load multiple
+		// items from a single directory instance lower down.
+		ictx := clues.Add(
+			ctx,
+			"item_path", itemPaths.StoragePath.String(),
+			"restore_path", itemPaths.RestorePath.String())
 
-		parentPath, err := itemPath.Dir()
+		parentStoragePath, err := itemPaths.StoragePath.Dir()
+
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "making directory collection").
+			el.AddRecoverable(clues.Wrap(err, "getting storage directory path").
 				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
 
 			continue
 		}
 
-		di := dirsToItems[parentPath.ShortRef()]
-		if di == nil {
-			dirsToItems[parentPath.ShortRef()] = &dirAndItems{dir: parentPath}
-			di = dirsToItems[parentPath.ShortRef()]
+		// Find the location this item is restored to.
+		rc := dirsToItems[itemPaths.RestorePath.ShortRef()]
+		if rc == nil {
+			dirsToItems[itemPaths.RestorePath.ShortRef()] = &restoreCollection{
+				restorePath: itemPaths.RestorePath,
+			}
+			rc = dirsToItems[itemPaths.RestorePath.ShortRef()]
 		}
 
-		di.items = append(di.items, itemPath.Item())
+		// Find the collection this item is sourced from.
+		di := rc.storageDirs[parentStoragePath.ShortRef()]
+		if di == nil {
+			rc.storageDirs[parentStoragePath.ShortRef()] = &dirAndItems{
+				dir: parentStoragePath,
+			}
+			di = rc.storageDirs[parentStoragePath.ShortRef()]
+		}
+
+		di.items = append(di.items, itemPaths.StoragePath.Item())
 
 		loadCount++
 		if loadCount%1000 == 0 {
