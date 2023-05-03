@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -391,7 +391,7 @@ func (c oneDriveCategory) isLeaf() bool {
 // => {odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	if ent.OneDrive == nil {
@@ -543,9 +543,9 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 
 	switch infoCat {
 	case FileInfoCreatedAfter, FileInfoCreatedBefore:
-		i = common.FormatTime(info.Created)
+		i = dttm.Format(info.Created)
 	case FileInfoModifiedAfter, FileInfoModifiedBefore:
-		i = common.FormatTime(info.Modified)
+		i = dttm.Format(info.Modified)
 	}
 
 	return s.Matches(infoCat, i)

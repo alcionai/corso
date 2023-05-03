@@ -157,7 +157,7 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	}
 }
 
-type MailAPIE2ESuite struct {
+type MailAPIIntgSuite struct {
 	tester.Suite
 	credentials account.M365Config
 	ac          api.Client
@@ -165,9 +165,9 @@ type MailAPIE2ESuite struct {
 }
 
 // We do end up mocking the actual request, but creating the rest
-// similar to E2E suite
-func TestMailAPIE2ESuite(t *testing.T) {
-	suite.Run(t, &MailAPIE2ESuite{
+// similar to full integration tests.
+func TestMailAPIIntgSuite(t *testing.T) {
+	suite.Run(t, &MailAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
@@ -175,7 +175,7 @@ func TestMailAPIE2ESuite(t *testing.T) {
 	})
 }
 
-func (suite *MailAPIE2ESuite) SetupSuite() {
+func (suite *MailAPIIntgSuite) SetupSuite() {
 	t := suite.T()
 
 	a := tester.NewM365Account(t)
@@ -205,7 +205,7 @@ func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interf
 	return out
 }
 
-func (suite *MailAPIE2ESuite) TestHugeAttachmentListDownload() {
+func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 	mid := "fake-message-id"
 	aid := "fake-attachment-id"
 

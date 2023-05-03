@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -42,7 +42,7 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 		{
 			name:     "valid time",
 			backupID: "bid",
-			opts:     utils.ExchangeOpts{EmailReceivedAfter: common.Now()},
+			opts:     utils.ExchangeOpts{EmailReceivedAfter: dttm.Now()},
 			expect:   assert.NoError,
 		},
 		{

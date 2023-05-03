@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -253,7 +253,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 
 	deets := &details.Details{
 		DetailsModel: details.DetailsModel{
-			Entries: []details.DetailsEntry{
+			Entries: []details.Entry{
 				{
 					RepoRef:     item,
 					ItemRef:     "item",
@@ -478,7 +478,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				test.pathElems...)
 			require.NoError(t, err, clues.ToCore(err))
 
-			ent := details.DetailsEntry{
+			ent := details.Entry{
 				RepoRef:     itemPath.String(),
 				ShortRef:    shortRef,
 				ItemRef:     itemPath.Item(),
@@ -524,19 +524,19 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		{"host does not contain substring", host, sel.WebURL([]string{"website"}), assert.False},
 		{"url does not suffix substring", url, sel.WebURL([]string{"oo"}, SuffixMatch()), assert.False},
 		{"host mismatch", host, sel.WebURL([]string{"www.google.com"}), assert.False},
-		{"file create after the epoch", host, sel.CreatedAfter(common.FormatTime(epoch)), assert.True},
-		{"file create after now", host, sel.CreatedAfter(common.FormatTime(now)), assert.False},
-		{"file create after later", url, sel.CreatedAfter(common.FormatTime(future)), assert.False},
-		{"file create before future", host, sel.CreatedBefore(common.FormatTime(future)), assert.True},
-		{"file create before now", host, sel.CreatedBefore(common.FormatTime(now)), assert.False},
-		{"file create before modification", host, sel.CreatedBefore(common.FormatTime(modification)), assert.True},
-		{"file create before epoch", host, sel.CreatedBefore(common.FormatTime(now)), assert.False},
-		{"file modified after the epoch", host, sel.ModifiedAfter(common.FormatTime(epoch)), assert.True},
-		{"file modified after now", host, sel.ModifiedAfter(common.FormatTime(now)), assert.True},
-		{"file modified after later", host, sel.ModifiedAfter(common.FormatTime(future)), assert.False},
-		{"file modified before future", host, sel.ModifiedBefore(common.FormatTime(future)), assert.True},
-		{"file modified before now", host, sel.ModifiedBefore(common.FormatTime(now)), assert.False},
-		{"file modified before epoch", host, sel.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"file create after the epoch", host, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
+		{"file create after now", host, sel.CreatedAfter(dttm.Format(now)), assert.False},
+		{"file create after later", url, sel.CreatedAfter(dttm.Format(future)), assert.False},
+		{"file create before future", host, sel.CreatedBefore(dttm.Format(future)), assert.True},
+		{"file create before now", host, sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file create before modification", host, sel.CreatedBefore(dttm.Format(modification)), assert.True},
+		{"file create before epoch", host, sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file modified after the epoch", host, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
+		{"file modified after now", host, sel.ModifiedAfter(dttm.Format(now)), assert.True},
+		{"file modified after later", host, sel.ModifiedAfter(dttm.Format(future)), assert.False},
+		{"file modified before future", host, sel.ModifiedBefore(dttm.Format(future)), assert.True},
+		{"file modified before now", host, sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"file modified before epoch", host, sel.ModifiedBefore(dttm.Format(now)), assert.False},
 		{"in library", host, sel.Library("included-library"), assert.True},
 		{"not in library", host, sel.Library("not-included-library"), assert.False},
 		{"library id", host, sel.Library("1234"), assert.True},

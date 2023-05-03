@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -593,7 +593,7 @@ func (ec exchangeCategory) isLeaf() bool {
 // => {exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	var folderCat, itemCat categorizer
@@ -617,8 +617,15 @@ func (ec exchangeCategory) pathValues(
 		item = repo.Item()
 	}
 
+	// Will hit the if-condition when we're at a top-level folder, but we'll get
+	// the same result when we extract from the RepoRef.
+	folder := ent.LocationRef
+	if len(folder) == 0 {
+		folder = repo.Folder(true)
+	}
+
 	result := map[categorizer][]string{
-		folderCat: {ent.LocationRef},
+		folderCat: {folder},
 		itemCat:   {item, ent.ShortRef},
 	}
 
@@ -769,7 +776,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoEventRecurs:
 		i = strconv.FormatBool(info.EventRecurs)
 	case ExchangeInfoEventStartsAfter, ExchangeInfoEventStartsBefore:
-		i = common.FormatTime(info.EventStart)
+		i = dttm.Format(info.EventStart)
 	case ExchangeInfoEventSubject:
 		i = info.Subject
 	case ExchangeInfoMailSender:
@@ -777,7 +784,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoMailSubject:
 		i = info.Subject
 	case ExchangeInfoMailReceivedAfter, ExchangeInfoMailReceivedBefore:
-		i = common.FormatTime(info.Received)
+		i = dttm.Format(info.Received)
 	}
 
 	return s.Matches(infoCat, i)

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
@@ -302,7 +302,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	var (
 		t              = suite.T()
 		folderIDs      = []string{}
-		folderName1    = "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
+		folderName1    = "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 		folderElements = []string{folderName1}
 		gs             = loadTestService(t)
 	)
@@ -340,7 +340,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	folderIDs = append(folderIDs, folderID)
 
-	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
+	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 	restoreFolders = restoreFolders.Append(folderName2)
 
 	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())

@@ -89,7 +89,7 @@ type (
 		//   folderCat: folder,
 		//   itemCat:   itemID,
 		// }
-		pathValues(path.Path, details.DetailsEntry, Config) (map[categorizer][]string, error)
+		pathValues(path.Path, details.Entry, Config) (map[categorizer][]string, error)
 
 		// pathKeys produces a list of categorizers that can be used as keys in the pathValues
 		// map.  The combination of the two funcs generically interprets the context of the
@@ -360,7 +360,7 @@ func reduce[T scopeT, C categoryT](
 	filts := scopesByCategory[T](s.Filters, dataCategories, true)
 	incls := scopesByCategory[T](s.Includes, dataCategories, false)
 
-	ents := []details.DetailsEntry{}
+	ents := []details.Entry{}
 
 	// for each entry, compare that entry against the scopes of the same data type
 	for _, ent := range deets.Items() {
@@ -441,7 +441,7 @@ func scopesByCategory[T scopeT, C categoryT](
 func passes[T scopeT, C categoryT](
 	cat C,
 	pathValues map[categorizer][]string,
-	entry details.DetailsEntry,
+	entry details.Entry,
 	excs, filts, incs []T,
 ) bool {
 	// a passing match requires either a filter or an inclusion
@@ -490,7 +490,7 @@ func matchesEntry[T scopeT, C categoryT](
 	sc T,
 	cat C,
 	pathValues map[categorizer][]string,
-	entry details.DetailsEntry,
+	entry details.Entry,
 ) bool {
 	// InfoCategory requires matching against service-specific info values
 	if len(getInfoCategory(sc)) > 0 {

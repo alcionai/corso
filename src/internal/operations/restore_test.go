@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -175,7 +176,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	suite.acct = tester.NewM365Account(t)
 
-	err := k.Initialize(ctx, control.RepoOptions{})
+	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -403,7 +404,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:  "SharePoint_Restore",
 			owner: tester.M365SiteID(suite.T()),
-			dest:  control.DefaultRestoreDestination(common.SimpleTimeTesting),
+			dest:  control.DefaultRestoreDestination(dttm.SafeForTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
 				rsel.Include(rsel.AllData())

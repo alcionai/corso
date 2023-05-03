@@ -145,7 +145,7 @@ var (
 	ExchangeEmailItemPath2 = ExchangeEmailBasePath2.mustAppend(ItemName2, true)
 	ExchangeEmailItemPath3 = ExchangeEmailBasePath3.mustAppend(ItemName3, true)
 
-	ExchangeEmailItems = []details.DetailsEntry{
+	ExchangeEmailItems = []details.Entry{
 		{
 			RepoRef:     ExchangeEmailItemPath1.RR.String(),
 			ShortRef:    ExchangeEmailItemPath1.RR.ShortRef(),
@@ -199,7 +199,7 @@ var (
 	ExchangeContactsItemPath1 = ExchangeContactsBasePath.mustAppend(ItemName1, true)
 	ExchangeContactsItemPath2 = ExchangeContactsBasePath2.mustAppend(ItemName2, true)
 
-	ExchangeContactsItems = []details.DetailsEntry{
+	ExchangeContactsItems = []details.Entry{
 		{
 			RepoRef:     ExchangeContactsItemPath1.RR.String(),
 			ShortRef:    ExchangeContactsItemPath1.RR.ShortRef(),
@@ -234,7 +234,7 @@ var (
 	ExchangeEventsItemPath1 = ExchangeEventsBasePath.mustAppend(ItemName1, true)
 	ExchangeEventsItemPath2 = ExchangeEventsBasePath2.mustAppend(ItemName2, true)
 
-	ExchangeEventsItems = []details.DetailsEntry{
+	ExchangeEventsItems = []details.Entry{
 		{
 			RepoRef:     ExchangeEventsItemPath1.RR.String(),
 			ShortRef:    ExchangeEventsItemPath1.RR.ShortRef(),
@@ -282,7 +282,7 @@ var (
 	OneDriveParentFolder1 = OneDriveBasePath1.loc.PopFront().String()
 	OneDriveParentFolder2 = OneDriveBasePath2.loc.PopFront().String()
 
-	OneDriveItems = []details.DetailsEntry{
+	OneDriveItems = []details.Entry{
 		{
 			RepoRef:     OneDriveItemPath1.RR.String(),
 			ShortRef:    OneDriveItemPath1.RR.ShortRef(),
@@ -352,7 +352,7 @@ var (
 	SharePointParentLibrary1 = SharePointBasePath1.loc.PopFront().String()
 	SharePointParentLibrary2 = SharePointBasePath2.loc.PopFront().String()
 
-	SharePointLibraryItems = []details.DetailsEntry{
+	SharePointLibraryItems = []details.Entry{
 		{
 			RepoRef:     SharePointLibraryItemPath1.RR.String(),
 			ShortRef:    SharePointLibraryItemPath1.RR.ShortRef(),
@@ -411,7 +411,7 @@ var (
 )
 
 func GetDetailsSet() *details.Details {
-	entries := []details.DetailsEntry{}
+	entries := []details.Entry{}
 
 	for _, e := range ExchangeEmailItems {
 		entries = append(entries, e)

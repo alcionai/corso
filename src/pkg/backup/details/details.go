@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -133,7 +133,7 @@ func NewSharePointLocationIDer(
 
 // DetailsModel describes what was stored in a Backup
 type DetailsModel struct {
-	Entries []DetailsEntry `json:"entries"`
+	Entries []Entry `json:"entries"`
 }
 
 // Print writes the DetailModel Entries to StdOut, in the format
@@ -194,8 +194,8 @@ func (dm DetailsModel) Paths() []string {
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
 // paths, and we want to slice out metadata.
-func (dm DetailsModel) Items() []*DetailsEntry {
-	res := make([]*DetailsEntry, 0, len(dm.Entries))
+func (dm DetailsModel) Items() []*Entry {
+	res := make([]*Entry, 0, len(dm.Entries))
 
 	for i := 0; i < len(dm.Entries); i++ {
 		ent := dm.Entries[i]
@@ -213,7 +213,7 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 // .meta files removed from the entries.
 func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	d2 := DetailsModel{
-		Entries: []DetailsEntry{},
+		Entries: []Entry{},
 	}
 
 	for _, ent := range dm.Entries {
@@ -228,7 +228,7 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 // Check if a file is a metadata file. These are used to store
 // additional data like permissions in case of OneDrive and are not to
 // be treated as regular files.
-func (de DetailsEntry) isMetaFile() bool {
+func (de Entry) isMetaFile() bool {
 	// TODO: Add meta file filtering to SharePoint as well once we add
 	// meta files for SharePoint.
 	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
@@ -241,8 +241,8 @@ func (de DetailsEntry) isMetaFile() bool {
 // Builder should be used to create a details model.
 type Builder struct {
 	d            Details
-	mu           sync.Mutex              `json:"-"`
-	knownFolders map[string]DetailsEntry `json:"-"`
+	mu           sync.Mutex       `json:"-"`
+	knownFolders map[string]Entry `json:"-"`
 }
 
 func (b *Builder) Add(
@@ -276,7 +276,7 @@ func (b *Builder) Add(
 
 func (b *Builder) addFolderEntries(
 	repoRef, locationRef *path.Builder,
-	entry DetailsEntry,
+	entry Entry,
 ) error {
 	if len(repoRef.Elements()) < len(locationRef.Elements()) {
 		return clues.New("RepoRef shorter than LocationRef").
@@ -284,7 +284,7 @@ func (b *Builder) addFolderEntries(
 	}
 
 	if b.knownFolders == nil {
-		b.knownFolders = map[string]DetailsEntry{}
+		b.knownFolders = map[string]Entry{}
 	}
 
 	// Need a unique location because we want to have separate folders for
@@ -317,7 +317,7 @@ func (b *Builder) addFolderEntries(
 		if !ok {
 			loc := uniqueLoc.InDetails().String()
 
-			folder = DetailsEntry{
+			folder = Entry{
 				RepoRef:     rr,
 				ShortRef:    shortRef,
 				ParentRef:   parentRef,
@@ -380,12 +380,12 @@ func (d *Details) add(
 	locationRef *path.Builder,
 	updated bool,
 	info ItemInfo,
-) (DetailsEntry, error) {
+) (Entry, error) {
 	if locationRef == nil {
-		return DetailsEntry{}, clues.New("nil LocationRef").With("repo_ref", repoRef)
+		return Entry{}, clues.New("nil LocationRef").With("repo_ref", repoRef)
 	}
 
-	entry := DetailsEntry{
+	entry := Entry{
 		RepoRef:     repoRef.String(),
 		ShortRef:    repoRef.ShortRef(),
 		ParentRef:   repoRef.ToBuilder().Dir().ShortRef(),
@@ -457,8 +457,8 @@ func withoutMetadataSuffix(id string) string {
 // Entry
 // --------------------------------------------------------------------------------
 
-// DetailsEntry describes a single item stored in a Backup
-type DetailsEntry struct {
+// Entry describes a single item stored in a Backup
+type Entry struct {
 	// RepoRef is the full storage path of the item in Kopia
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
@@ -490,7 +490,7 @@ type DetailsEntry struct {
 // ToLocationIDer takes a backup version and produces the unique location for
 // this entry if possible. Reasons it may not be possible to produce the unique
 // location include an unsupported backup version or missing information.
-func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
+func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 	if len(de.LocationRef) > 0 {
 		baseLoc, err := path.Builder{}.SplitUnescapeAppend(de.LocationRef)
 		if err != nil {
@@ -538,17 +538,17 @@ func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 // --------------------------------------------------------------------------------
 
 // interface compliance checks
-var _ print.Printable = &DetailsEntry{}
+var _ print.Printable = &Entry{}
 
 // MinimumPrintable DetailsEntries is a passthrough func, because no
 // reduction is needed for the json output.
-func (de DetailsEntry) MinimumPrintable() any {
+func (de Entry) MinimumPrintable() any {
 	return de
 }
 
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
-func (de DetailsEntry) Headers() []string {
+func (de Entry) Headers() []string {
 	hs := []string{"ID"}
 
 	if de.ItemInfo.Folder != nil {
@@ -571,7 +571,7 @@ func (de DetailsEntry) Headers() []string {
 }
 
 // Values returns the values matching the Headers list.
-func (de DetailsEntry) Values() []string {
+func (de Entry) Values() []string {
 	vs := []string{de.ShortRef}
 
 	if de.ItemInfo.Folder != nil {
@@ -804,8 +804,8 @@ func (i ExchangeInfo) Values() []string {
 		return []string{
 			i.Organizer,
 			i.Subject,
-			common.FormatTabularDisplayTime(i.EventStart),
-			common.FormatTabularDisplayTime(i.EventEnd),
+			dttm.FormatToTabularDisplay(i.EventStart),
+			dttm.FormatToTabularDisplay(i.EventEnd),
 			strconv.FormatBool(i.EventRecurs),
 		}
 
@@ -815,7 +815,7 @@ func (i ExchangeInfo) Values() []string {
 	case ExchangeMail:
 		return []string{
 			i.Sender, i.ParentPath, i.Subject,
-			common.FormatTabularDisplayTime(i.Received),
+			dttm.FormatToTabularDisplay(i.Received),
 		}
 	}
 
@@ -887,8 +887,8 @@ func (i SharePointInfo) Values() []string {
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
+		dttm.FormatToTabularDisplay(i.Created),
+		dttm.FormatToTabularDisplay(i.Modified),
 	}
 }
 
@@ -944,8 +944,8 @@ func (i OneDriveInfo) Values() []string {
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
+		dttm.FormatToTabularDisplay(i.Created),
+		dttm.FormatToTabularDisplay(i.Modified),
 	}
 }
 

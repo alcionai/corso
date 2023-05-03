@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -31,7 +31,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 	table := []struct {
 		name     string
 		selFunc  func() selectors.Reducer
-		expected []details.DetailsEntry
+		expected []details.Entry
 	}{
 		{
 			name: "ExchangeAllMail",
@@ -63,7 +63,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeMailSubjectExcludeItem",
@@ -77,7 +77,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeMailSender",
@@ -87,7 +87,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{
+			expected: []details.Entry{
 				testdata.ExchangeEmailItems[0],
 				testdata.ExchangeEmailItems[1],
 			},
@@ -97,12 +97,12 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Filter(sel.MailReceivedBefore(
-					common.FormatTime(testdata.Time1.Add(time.Second)),
+					dttm.Format(testdata.Time1.Add(time.Second)),
 				))
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeMailID",
@@ -115,7 +115,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeMailShortRef",
@@ -128,7 +128,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeAllEventsAndMailWithSubject",
@@ -142,7 +142,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeEventsAndMailWithSubject",
@@ -153,7 +153,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{},
+			expected: []details.Entry{},
 		},
 		{
 			name: "ExchangeAll",
@@ -166,7 +166,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			expected: append(
 				append(
 					append(
-						[]details.DetailsEntry{},
+						[]details.Entry{},
 						testdata.ExchangeEmailItems...),
 					testdata.ExchangeContactsItems...),
 				testdata.ExchangeEventsItems...,
@@ -182,7 +182,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		// TODO (keepers): all folders are treated as prefix-matches at this time.
 		// so this test actually does nothing different.  In the future, we'll
@@ -198,7 +198,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 		},
 		{
 			name: "ExchangeMailByFolderRoot",
@@ -222,7 +222,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeContactsItems[0]},
+			expected: []details.Entry{testdata.ExchangeContactsItems[0]},
 		},
 		{
 			name: "ExchangeContactByFolderRoot",
@@ -247,7 +247,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 				return sel
 			},
-			expected: []details.DetailsEntry{testdata.ExchangeEventsItems[0]},
+			expected: []details.Entry{testdata.ExchangeEventsItems[0]},
 		},
 		{
 			name: "ExchangeEventsByFolderRoot",

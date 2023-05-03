@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -41,6 +41,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -83,7 +84,7 @@ func prepNewTestBackupOp(
 		k  = kopia.NewConn(st)
 	)
 
-	err := k.Initialize(ctx, control.RepoOptions{})
+	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
@@ -374,7 +375,7 @@ func generateContainerOfItems(
 		items:       items,
 	}}
 
-	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)
 	dest.ContainerName = destFldr
 
 	dataColls := buildCollections(
@@ -409,8 +410,8 @@ func generateItemData(
 	dbf dataBuilderFunc,
 ) (string, []byte) {
 	var (
-		now       = common.Now()
-		nowLegacy = common.FormatLegacyTime(time.Now())
+		now       = dttm.Now()
+		nowLegacy = dttm.FormatToLegacy(time.Now())
 		id        = uuid.NewString()
 		subject   = "incr_test " + now[:16] + " - " + id[:8]
 		body      = "incr_test " + category.String() + " generation for " + resourceOwner + " at " + now + " - " + id
@@ -701,7 +702,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		acct       = tester.NewM365Account(t)
 		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
-		now        = common.Now()
+		now        = dttm.Now()
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
@@ -1231,7 +1232,7 @@ func runDriveIncrementalTest(
 
 		// `now` has to be formatted with SimpleDateTimeTesting as
 		// some drives cannot have `:` in file/folder names
-		now = common.FormatNow(common.SimpleTimeTesting)
+		now = dttm.FormatNow(dttm.SafeForTesting)
 
 		categories = map[path.CategoryType][]string{
 			category: {graph.DeltaURLsFileName, graph.PreviousPathFileName},

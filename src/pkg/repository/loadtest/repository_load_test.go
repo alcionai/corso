@@ -302,10 +302,10 @@ func doRestoreLoadTest(
 }
 
 // noFolders removes all "folder" category details entries
-func noFolders(t *testing.T, des []details.DetailsEntry) []details.DetailsEntry {
+func noFolders(t *testing.T, des []details.Entry) []details.Entry {
 	t.Helper()
 
-	sansfldr := []details.DetailsEntry{}
+	sansfldr := []details.Entry{}
 
 	for _, ent := range des {
 		if ent.Folder == nil {
