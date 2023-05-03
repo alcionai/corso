@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -804,8 +804,8 @@ func (i ExchangeInfo) Values() []string {
 		return []string{
 			i.Organizer,
 			i.Subject,
-			common.FormatTabularDisplayTime(i.EventStart),
-			common.FormatTabularDisplayTime(i.EventEnd),
+			dttm.FormatToTabularDisplay(i.EventStart),
+			dttm.FormatToTabularDisplay(i.EventEnd),
 			strconv.FormatBool(i.EventRecurs),
 		}
 
@@ -815,7 +815,7 @@ func (i ExchangeInfo) Values() []string {
 	case ExchangeMail:
 		return []string{
 			i.Sender, i.ParentPath, i.Subject,
-			common.FormatTabularDisplayTime(i.Received),
+			dttm.FormatToTabularDisplay(i.Received),
 		}
 	}
 
@@ -887,8 +887,8 @@ func (i SharePointInfo) Values() []string {
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
+		dttm.FormatToTabularDisplay(i.Created),
+		dttm.FormatToTabularDisplay(i.Modified),
 	}
 }
 
@@ -944,8 +944,8 @@ func (i OneDriveInfo) Values() []string {
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
+		dttm.FormatToTabularDisplay(i.Created),
+		dttm.FormatToTabularDisplay(i.Modified),
 	}
 }
 

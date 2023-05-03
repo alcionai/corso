@@ -413,6 +413,7 @@ func (w Wrapper) ProduceRestoreCollections(
 	}
 
 	var (
+		loadCount int
 		// Maps short ID of parent path to data collection for that folder.
 		cols = map[string]*kopiaDataCollection{}
 		el   = errs.Local()
@@ -451,6 +452,11 @@ func (w Wrapper) ProduceRestoreCollections(
 		}
 
 		c.streams = append(c.streams, ds)
+
+		loadCount++
+		if loadCount%1000 == 0 {
+			logger.Ctx(ctx).Infow("loading items from kopia", "loaded_count", loadCount)
+		}
 	}
 
 	// Can't use the maps package to extract the values because we need to convert
@@ -459,6 +465,8 @@ func (w Wrapper) ProduceRestoreCollections(
 	for _, c := range cols {
 		res = append(res, c)
 	}
+
+	logger.Ctx(ctx).Infow("done loading items from kopia", "loaded_count", loadCount)
 
 	return res, el.Failure()
 }
@@ -520,7 +528,7 @@ func isErrEntryNotFound(err error) bool {
 		!strings.Contains(err.Error(), "parent is not a directory")
 }
 
-func (w Wrapper) Maintenance(
+func (w Wrapper) RepoMaintenance(
 	ctx context.Context,
 	opts repository.Maintenance,
 ) error {

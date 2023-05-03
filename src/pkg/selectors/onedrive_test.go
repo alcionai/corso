@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -406,18 +406,18 @@ func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
 		scope  []OneDriveScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"file create after the epoch", ods.CreatedAfter(common.FormatTime(epoch)), assert.True},
-		{"file create after now", ods.CreatedAfter(common.FormatTime(now)), assert.False},
-		{"file create after later", ods.CreatedAfter(common.FormatTime(future)), assert.False},
-		{"file create before future", ods.CreatedBefore(common.FormatTime(future)), assert.True},
-		{"file create before now", ods.CreatedBefore(common.FormatTime(now)), assert.False},
-		{"file create before epoch", ods.CreatedBefore(common.FormatTime(now)), assert.False},
-		{"file modified after the epoch", ods.ModifiedAfter(common.FormatTime(epoch)), assert.True},
-		{"file modified after now", ods.ModifiedAfter(common.FormatTime(now)), assert.False},
-		{"file modified after later", ods.ModifiedAfter(common.FormatTime(future)), assert.False},
-		{"file modified before future", ods.ModifiedBefore(common.FormatTime(future)), assert.True},
-		{"file modified before now", ods.ModifiedBefore(common.FormatTime(now)), assert.False},
-		{"file modified before epoch", ods.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"file create after the epoch", ods.CreatedAfter(dttm.Format(epoch)), assert.True},
+		{"file create after now", ods.CreatedAfter(dttm.Format(now)), assert.False},
+		{"file create after later", ods.CreatedAfter(dttm.Format(future)), assert.False},
+		{"file create before future", ods.CreatedBefore(dttm.Format(future)), assert.True},
+		{"file create before now", ods.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file create before epoch", ods.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file modified after the epoch", ods.ModifiedAfter(dttm.Format(epoch)), assert.True},
+		{"file modified after now", ods.ModifiedAfter(dttm.Format(now)), assert.False},
+		{"file modified after later", ods.ModifiedAfter(dttm.Format(future)), assert.False},
+		{"file modified before future", ods.ModifiedBefore(dttm.Format(future)), assert.True},
+		{"file modified before now", ods.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"file modified before epoch", ods.ModifiedBefore(dttm.Format(now)), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

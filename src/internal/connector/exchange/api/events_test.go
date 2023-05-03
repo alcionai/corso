@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -31,7 +31,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 	// Exchange stores start/end times in UTC and the below compares hours
 	// directly so we need to "normalize" the timezone here.
 	initial := time.Now().UTC()
-	now := common.FormatTimeWith(initial, common.M365DateTimeTimeZone)
+	now := dttm.FormatTo(initial, dttm.M365DateTimeTimeZone)
 
 	suite.T().Logf("Initial: %v\nFormatted: %v\n", initial, now)
 
@@ -87,7 +87,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 				startTime.SetDateTime(&now)
 				event.SetStart(startTime)
 
-				nowp30m := common.FormatTimeWith(initial.Add(30*time.Minute), common.M365DateTimeTimeZone)
+				nowp30m := dttm.FormatTo(initial.Add(30*time.Minute), dttm.M365DateTimeTimeZone)
 				endTime.SetDateTime(&nowp30m)
 				event.SetEnd(endTime)
 

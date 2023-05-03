@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -198,7 +198,7 @@ func GetPopulatedFlags(cmd *cobra.Command) PopulatedFlags {
 // IsValidTimeFormat returns true if the input is recognized as a
 // supported format by the common time parser.
 func IsValidTimeFormat(in string) bool {
-	_, err := common.ParseTime(in)
+	_, err := dttm.ParseTime(in)
 	return err == nil
 }
 
