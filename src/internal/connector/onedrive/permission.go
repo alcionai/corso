@@ -246,7 +246,7 @@ func RestorePermissions(
 		return clues.Wrap(err, "parent permissions").WithClues(ctx)
 	}
 
-	permAdded, permRemoved := metadata.DiffPermissions(parentPermissions.Permissions, meta.Permissions)
+	permAdded, permRemoved := metadata.DiffPermissions(parentPermissions.Permissions, current.Permissions)
 
 	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, oldPermIDToNewID)
 }
