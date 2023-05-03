@@ -3,6 +3,7 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
@@ -187,6 +188,8 @@ func RestoreCollection(
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
 	logger.Ctx(ctx).Info("restoring onedrive collection")
 
+	fmt.Printf("\n-----\n1 %+v\n-----\n", parentDirToMeta)
+
 	colMeta, err := getCollectionMetadata(
 		ctx,
 		drivePath,
@@ -197,6 +200,8 @@ func RestoreCollection(
 	if err != nil {
 		return metrics, clues.Wrap(err, "getting permissions").WithClues(ctx)
 	}
+
+	fmt.Printf("\n-----\n2 %+v\n-----\n", parentDirToMeta)
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := CreateRestoreFolders(
@@ -215,6 +220,8 @@ func RestoreCollection(
 	if err != nil {
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
+
+	fmt.Printf("\n-----\nsetting %s\nto %+v\n-----\n", dc.FullPath(), colMeta)
 
 	parentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)

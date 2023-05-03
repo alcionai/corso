@@ -46,6 +46,7 @@ func RestoreCollections(
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
+	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -82,7 +83,7 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				false,
+				opts.RestorePermissions,
 				errs)
 
 		case path.ListsCategory:

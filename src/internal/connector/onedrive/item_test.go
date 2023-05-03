@@ -288,7 +288,7 @@ func TestItemUnitTestSuite(t *testing.T) {
 	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
+func (suite *ItemUnitTestSuite) TestDrivePermissionsFilter() {
 	permID := "fakePermId"
 	userID := "fakeuser@provider.com"
 	userID2 := "fakeuser2@provider.com"
