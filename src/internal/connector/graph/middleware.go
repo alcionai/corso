@@ -227,10 +227,11 @@ func (mw RetryMiddleware) retryRequest(
 	exponentialBackoff *backoff.ExponentialBackOff,
 	priorErr error,
 ) (*http.Response, error) {
-	ctx = clues.Add(
-		ctx,
-		"retry_count", executionCount,
-		"prev_resp_status", resp.Status)
+	ctx = clues.Add(ctx, "retry_count", executionCount)
+
+	if resp != nil {
+		ctx = clues.Add(ctx, "prev_resp_status", resp.Status)
+	}
 
 	// only retry under certain conditions:
 	// 1, there was an error.  2, the resp and/or status code match retriable conditions.
@@ -258,16 +259,16 @@ func (mw RetryMiddleware) retryRequest(
 		case <-timer.C:
 		}
 
-		response, err := pipeline.Next(req, middlewareIndex)
+		nextResp, err := pipeline.Next(req, middlewareIndex)
 		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-			return response, stackReq(ctx, req, response, err)
+			return nextResp, stackReq(ctx, req, nextResp, err)
 		}
 
 		return mw.retryRequest(ctx,
 			pipeline,
 			middlewareIndex,
 			req,
-			response,
+			nextResp,
 			executionCount,
 			cumulativeDelay,
 			exponentialBackoff,
