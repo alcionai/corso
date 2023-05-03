@@ -152,7 +152,7 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
-			assert.Equal(suite.T(), expected, api.MailInfo(msg))
+			assert.Equal(suite.T(), expected, api.MailInfo(msg, 0))
 		})
 	}
 }
