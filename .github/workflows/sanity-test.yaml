@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - accRoundRobin
   workflow_dispatch:
     inputs:
       user:
@@ -20,54 +19,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    environment: Testing
-    runs-on: ubuntu-latest
-    outputs:
-      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
-      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
-      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }} 
-    steps:
-      - name: Figure out which client id to use
-        id: roundrobin
-        run: |
-          slot=$((GITHUB_RUN_NUMBER % 4))
-          echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
-
-          case $slot in
-
-            0)
-              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID }}" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET }} " >> $GITHUB_OUTPUT
-
-              ;;
-            1)
-              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID_2 }}" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET_2 }} " >> $GITHUB_OUTPUT
-
-              ;;
-            2)
-              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID_3 }}" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET_3 }} " >> $GITHUB_OUTPUT
-
-              ;;
-            3)
-              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID_4 }}" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET_4 }} " >> $GITHUB_OUTPUT
-
-              ;;
-          esac
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
 
   Sanity-Tests:
-    needs: [ SetM365App] 
+    needs: [ SetM365App ] 
     environment: Testing
     runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-      AZURE_CLIENT_ID: ${{ needs.SetM365App.outputs.client_id_env }}
-      AZURE_CLIENT_SECRET: ${{ needs.SetM365App.outputs.client_secret_env }} 
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }} 
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
       CORSO_LOG_DIR: testlog
@@ -153,8 +116,8 @@ jobs:
       - name: New Data Creation
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ needs.SetM365App.outputs.client_id_env }}
-          AZURE_CLIENT_SECRET: ${{ needs.SetM365App.outputs.client_secret_env }} 
+          AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . exchange emails \
@@ -295,8 +258,8 @@ jobs:
         id: new-data-creation-onedrive
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ needs.SetM365App.outputs.client_id_env }}
-          AZURE_CLIENT_SECRET: ${{ needs.SetM365App.outputs.client_secret_env }} 
+          AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           suffix=`date +"%Y-%m-%d_%H-%M"`
@@ -394,8 +357,8 @@ jobs:
       - name: New Data Creation for Incremental OneDrive
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ needs.SetM365App.outputs.client_id_env }}
-          AZURE_CLIENT_SECRET: ${{ needs.SetM365App.outputs.client_secret_env }} 
+          AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
@@ -471,36 +434,35 @@ jobs:
           echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
           echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
           echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
-
-      
-      # - name: Send Github Action failure to Slack
-      #   id: slack-notification
-      #   if: failure()
-      #   uses: slackapi/slack-github-action@v1.23.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
-      #         "blocks": [
-      #           {
-      #             "type": "header",
-      #             "text": {
-      #               "type": "plain_text",
-      #               "text": "Failure in Sanity Test"
-      #             }
-      #           },
-      #           {
-      #             "type": "divider"
-      #           },
-      #           {
-      #             "type": "section",
-      #             "text": {
-      #               "type": "mrkdwn",
-      #               "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-      #             }
-      #           }
-      #         ]
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+     
+      - name: Send Github Action failure to Slack
+        id: slack-notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Failure in Sanity Test"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<${{  steps.sha-info.outputs.RUN_URL }}|Check logs> for <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
