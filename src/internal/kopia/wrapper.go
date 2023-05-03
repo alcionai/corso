@@ -327,26 +327,24 @@ func (w Wrapper) getSnapshotRoot(
 	return rootDirEntry, nil
 }
 
-// getItemStream looks up the item at the given path starting from snapshotRoot.
-// If the item is a file in kopia then it returns a data.Stream of the item. If
-// the item does not exist in kopia or is not a file an error is returned. The
-// UUID of the returned data.Stream will be the name of the kopia file the data
-// is sourced from.
-func getItemStream(
+// getDir looks up the directory at the given path starting from snapshotRoot.
+// If the item is a directory in kopia then it returns the kopia fs.Directory
+// handle. If the item does not exist in kopia or is not a directory an error is
+// returned.
+func getDir(
 	ctx context.Context,
-	itemPath path.Path,
+	dirPath path.Path,
 	snapshotRoot fs.Entry,
-	bcounter ByteCounter,
-) (data.Stream, error) {
-	if itemPath == nil {
-		return nil, clues.Wrap(errNoRestorePath, "getting item stream").WithClues(ctx)
+) (fs.Directory, error) {
+	if dirPath == nil {
+		return nil, clues.Wrap(errNoRestorePath, "getting directory").WithClues(ctx)
 	}
 
 	// GetNestedEntry handles nil properly.
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
 		snapshotRoot,
-		encodeElements(itemPath.PopFront().Elements()...))
+		encodeElements(dirPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
 			err = clues.Stack(data.ErrNotFound, err)
@@ -355,37 +353,89 @@ func getItemStream(
 		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
 	}
 
-	f, ok := e.(fs.File)
+	f, ok := e.(fs.Directory)
 	if !ok {
-		return nil, clues.New("requested object is not a file").WithClues(ctx)
+		return nil, clues.New("requested object is not a directory").WithClues(ctx)
 	}
 
-	if bcounter != nil {
-		bcounter.Count(f.Size())
-	}
-
-	r, err := f.Open(ctx)
-	if err != nil {
-		return nil, clues.Wrap(err, "opening file").WithClues(ctx)
-	}
-
-	decodedName, err := decodeElement(f.Name())
-	if err != nil {
-		return nil, clues.Wrap(err, "decoding file name").WithClues(ctx)
-	}
-
-	return &kopiaDataStream{
-		uuid: decodedName,
-		reader: &restoreStreamReader{
-			ReadCloser:      r,
-			expectedVersion: serializationVersion,
-		},
-		size: f.Size() - int64(versionSize),
-	}, nil
+	return f, nil
 }
 
 type ByteCounter interface {
 	Count(numBytes int64)
+}
+
+type dirAndItems struct {
+	dir   path.Path
+	items []string
+}
+
+func loadDirsAndItems(
+	ctx context.Context,
+	snapshotRoot fs.Entry,
+	bcounter ByteCounter,
+	toLoad map[string]*dirAndItems,
+	bus *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	var (
+		el        = bus.Local()
+		res       = make([]data.RestoreCollection, 0, len(toLoad))
+		loadCount = 0
+	)
+
+	for _, dirItems := range toLoad {
+		if el.Failure() != nil {
+			return nil, el.Failure()
+		}
+
+		ictx := clues.Add(ctx, "directory_path", dirItems.dir)
+
+		dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
+		if err != nil {
+			el.AddRecoverable(clues.Wrap(err, "loading directory").
+				WithClues(ictx).
+				Label(fault.LabelForceNoBackupCreation))
+
+			continue
+		}
+
+		dc := &kopiaDataCollection{
+			path:            dirItems.dir,
+			dir:             dir,
+			counter:         bcounter,
+			expectedVersion: serializationVersion,
+		}
+
+		res = append(res, dc)
+
+		for _, item := range dirItems.items {
+			if el.Failure() != nil {
+				return nil, el.Failure()
+			}
+
+			err := dc.addStream(ictx, item)
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "loading item").
+					WithClues(ictx).
+					Label(fault.LabelForceNoBackupCreation))
+
+				continue
+			}
+
+			loadCount++
+			if loadCount%1000 == 0 {
+				logger.Ctx(ctx).Infow(
+					"loading items from kopia",
+					"loaded_items", loadCount)
+			}
+		}
+	}
+
+	logger.Ctx(ctx).Infow(
+		"done loading items from kopia",
+		"loaded_items", loadCount)
+
+	return res, el.Failure()
 }
 
 // ProduceRestoreCollections looks up all paths- assuming each is an item declaration,
@@ -409,16 +459,18 @@ func (w Wrapper) ProduceRestoreCollections(
 		return nil, clues.Stack(errNoRestorePath).WithClues(ctx)
 	}
 
+	// Used later on, but less confusing to follow error propagation if we just
+	// load it here.
 	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "loading snapshot root")
 	}
 
 	var (
 		loadCount int
-		// Maps short ID of parent path to data collection for that folder.
-		cols = map[string]*kopiaDataCollection{}
-		el   = errs.Local()
+		// Directory path -> set of items to load from the directory.
+		dirsToItems = map[string]*dirAndItems{}
+		el          = errs.Local()
 	)
 
 	for _, itemPath := range paths {
@@ -426,13 +478,9 @@ func (w Wrapper) ProduceRestoreCollections(
 			return nil, el.Failure()
 		}
 
+		// Group things by directory so we can load all items from a single
+		// directory instance lower down.
 		ictx := clues.Add(ctx, "item_path", itemPath.String())
-
-		ds, err := getItemStream(ictx, itemPath, snapshotRoot, bcounter)
-		if err != nil {
-			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
 
 		parentPath, err := itemPath.Dir()
 		if err != nil {
@@ -443,32 +491,28 @@ func (w Wrapper) ProduceRestoreCollections(
 			continue
 		}
 
-		c, ok := cols[parentPath.ShortRef()]
-		if !ok {
-			cols[parentPath.ShortRef()] = &kopiaDataCollection{
-				path:         parentPath,
-				snapshotRoot: snapshotRoot,
-				counter:      bcounter,
-			}
-			c = cols[parentPath.ShortRef()]
+		di := dirsToItems[parentPath.ShortRef()]
+		if di == nil {
+			dirsToItems[parentPath.ShortRef()] = &dirAndItems{dir: parentPath}
+			di = dirsToItems[parentPath.ShortRef()]
 		}
 
-		c.streams = append(c.streams, ds)
+		di.items = append(di.items, itemPath.Item())
 
 		loadCount++
 		if loadCount%1000 == 0 {
-			logger.Ctx(ctx).Infow("loading items from kopia", "loaded_count", loadCount)
+			logger.Ctx(ctx).Infow(
+				"grouping items to load from kopia",
+				"group_items", loadCount)
 		}
 	}
 
-	// Can't use the maps package to extract the values because we need to convert
-	// from *kopiaDataCollection to data.RestoreCollection too.
-	res := make([]data.RestoreCollection, 0, len(cols))
-	for _, c := range cols {
-		res = append(res, c)
+	// Now that we've grouped everything, go through and load each directory and
+	// then load the items from the directory.
+	res, err := loadDirsAndItems(ctx, snapshotRoot, bcounter, dirsToItems, errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "loading items")
 	}
-
-	logger.Ctx(ctx).Infow("done loading items from kopia", "loaded_count", loadCount)
 
 	return res, el.Failure()
 }
