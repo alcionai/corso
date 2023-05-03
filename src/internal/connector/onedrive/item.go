@@ -257,7 +257,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
 			}
 			if gv2.GetDevice() != nil {
-				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
+				logm.With("device_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
 			logm.Info("untracked permission")
 		}
