@@ -1336,7 +1336,6 @@ func runDriveIncrementalTest(
 		updateFiles  func(t *testing.T)
 		itemsRead    int
 		itemsWritten int
-		skip         bool
 	}{
 		{
 			name:         "clean incremental, no changes",
@@ -1364,7 +1363,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to new file",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1385,7 +1383,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from new file",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1399,14 +1396,13 @@ func runDriveIncrementalTest(
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
 					permissionIDMappings)
-				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				require.NoErrorf(t, err, "removing permission from file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
 		},
 		{
 			name: "add permission to container",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1421,14 +1417,13 @@ func runDriveIncrementalTest(
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
 					permissionIDMappings)
-				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				require.NoErrorf(t, err, "adding permission to container %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
 		},
 		{
 			name: "remove permission from container",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1443,7 +1438,7 @@ func runDriveIncrementalTest(
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
 					permissionIDMappings)
-				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				require.NoErrorf(t, err, "removing permission from container %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1614,10 +1609,6 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			if test.skip {
-				suite.T().Skip("flagged to skip")
-			}
-
 			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
 			require.NoError(t, err, clues.ToCore(err))
 

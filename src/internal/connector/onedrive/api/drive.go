@@ -372,3 +372,21 @@ func GetFolderByName(
 
 	return foundItem, nil
 }
+
+func PostItemPermissionUpdate(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID, itemID string,
+	body *drive.ItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	itm, err := service.Client().
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Invite().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "posting permissions")
+	}
+
+	return itm, nil
+}

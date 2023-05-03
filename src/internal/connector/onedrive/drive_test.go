@@ -351,18 +351,18 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		Folders: folderElements,
 	}
 
+	caches := NewRestoreCaches()
+	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
+
 	folderID, err := CreateRestoreFolders(
 		ctx,
 		suite.creds,
 		gs,
 		&drivePath,
-		ptr.Val(rootFolder.GetId()),
 		restoreDir,
 		nil, // only needed for permissions
 		metadata.Metadata{},
-		map[string]metadata.Metadata{},
-		NewFolderCache(),
-		map[string]string{},
+		caches,
 		false)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -376,13 +376,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		suite.creds,
 		gs,
 		&drivePath,
-		ptr.Val(rootFolder.GetId()),
 		restoreDir,
 		nil, // only needed for permissions
 		metadata.Metadata{},
-		map[string]metadata.Metadata{},
-		NewFolderCache(),
-		map[string]string{},
+		caches,
 		false)
 	require.NoError(t, err, clues.ToCore(err))
 
