@@ -54,7 +54,7 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 			p, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, false, tt.pathElements...)
 			require.NoError(suite.T(), err, clues.ToCore(err))
 
-			got, err := path.ToOneDrivePath(p)
+			got, err := path.ToDrivePath(p)
 			tt.errCheck(t, err)
 			if err != nil {
 				return

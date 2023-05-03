@@ -23,27 +23,34 @@ func TestPermissionsUnitTestSuite(t *testing.T) {
 }
 
 func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
+	runComputeParentPermissionsTest(suite, path.OneDriveService, path.FilesCategory, "user")
+}
+
+func runComputeParentPermissionsTest(
+	suite *PermissionsUnitTestSuite,
+	service path.ServiceType,
+	category path.CategoryType,
+	resourceOwner string,
+) {
 	entryPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/level0/level1/level2/entry"
 	rootEntryPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/entry"
 
 	entry, err := path.Build(
 		"tenant",
-		"user",
-		path.OneDriveService,
-		path.FilesCategory,
+		resourceOwner,
+		service,
+		category,
 		false,
-		strings.Split(entryPath, "/")...,
-	)
+		strings.Split(entryPath, "/")...)
 	require.NoError(suite.T(), err, "creating path")
 
 	rootEntry, err := path.Build(
 		"tenant",
-		"user",
-		path.OneDriveService,
-		path.FilesCategory,
+		resourceOwner,
+		service,
+		category,
 		false,
-		strings.Split(rootEntryPath, "/")...,
-	)
+		strings.Split(rootEntryPath, "/")...)
 	require.NoError(suite.T(), err, "creating path")
 
 	level2, err := entry.Dir()
