@@ -356,7 +356,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	require.NoError(t, err, clues.ToCore(err))
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
-	assert.Empty(t, excludes)
+	assert.Empty(t, excludes.Keys())
 
 	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
 	assert.Equal(
