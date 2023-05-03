@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
-      client_id_env: ${{ secrets[steps.roundrobin.outputs.CLIENT_ID_ENV] }}
-      client_secret_env: ${{ secrets[steps.roundrobin.outputs.CLIENT_SECRET_ENV] }} 
+      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
+      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }} 
     steps:
       - name: Figure out which client id to use
         id: roundrobin
@@ -38,20 +38,24 @@ jobs:
           case $slot in
 
             0)
-              echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
+              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID }}" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET }} " >> $GITHUB_OUTPUT
+
               ;;
             1)
-              echo "CLIENT_ID_ENV=CLIENT_ID_2" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_2" >> $GITHUB_OUTPUT
+              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID_2 }}" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET_2 }} " >> $GITHUB_OUTPUT
+
               ;;
             2)
-              echo "CLIENT_ID_ENV=CLIENT_ID_3" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_3" >> $GITHUB_OUTPUT
+              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID_3 }}" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET_3 }} " >> $GITHUB_OUTPUT
+
               ;;
             3)
-              echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
+              echo "CLIENT_ID_ENV=${{ secrets.CLIENT_ID_4 }}" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV= ${{ secrets.CLIENT_SECRET_4 }} " >> $GITHUB_OUTPUT
+
               ;;
           esac
 
@@ -62,9 +66,6 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
-      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
-
       AZURE_CLIENT_ID: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET: ${{ needs.SetM365App.outputs.client_secret_env }} 
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
