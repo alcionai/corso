@@ -68,14 +68,16 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		testItemName = "itemName"
 		testItemData = []byte("testdata")
 		now          = time.Now()
-		testItemMeta = Metadata{Permissions: []UserPermission{
-			{
-				ID:         "testMetaID",
-				Roles:      []string{"read", "write"},
-				Email:      "email@provider.com",
-				Expiration: &now,
+		testItemMeta = metadata.Metadata{
+			Permissions: []metadata.Permission{
+				{
+					ID:         "testMetaID",
+					Roles:      []string{"read", "write"},
+					Email:      "email@provider.com",
+					Expiration: &now,
+				},
 			},
-		}}
+		}
 	)
 
 	type nst struct {
@@ -291,21 +293,19 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, testItemName, name)
 			assert.Equal(t, driveFolderPath, parentPath)
 
-			if test.source == OneDriveSource {
-				readItemMeta := readItems[1]
+			readItemMeta := readItems[1]
 
-				assert.Equal(t, testItemID+metadata.MetaFileSuffix, readItemMeta.UUID())
+			assert.Equal(t, testItemID+metadata.MetaFileSuffix, readItemMeta.UUID())
 
-				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
-				require.NoError(t, err, clues.ToCore(err))
+			readMetaData, err := io.ReadAll(readItemMeta.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
 
-				tm, err := json.Marshal(testItemMeta)
-				if err != nil {
-					t.Fatal("unable to marshall test permissions", err)
-				}
-
-				assert.Equal(t, tm, readMetaData)
+			tm, err := json.Marshal(testItemMeta)
+			if err != nil {
+				t.Fatal("unable to marshall test permissions", err)
 			}
+
+			assert.Equal(t, tm, readMetaData)
 		})
 	}
 }
@@ -515,6 +515,10 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 		{
 			name:   "oneDrive",
 			source: OneDriveSource,
+		},
+		{
+			name:   "sharePoint",
+			source: SharePointSource,
 		},
 	}
 	for _, test := range table {

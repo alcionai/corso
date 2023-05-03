@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -74,7 +75,7 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				map[string]onedrive.Metadata{}, // Currently permission data is not stored for sharepoint
+				map[string]metadata.Metadata{}, // Currently permission data is not stored for sharepoint
 				map[string]string{},
 				driveFolderCache,
 				nil,
