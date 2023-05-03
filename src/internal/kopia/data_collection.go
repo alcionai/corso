@@ -18,10 +18,25 @@ var (
 )
 
 type kopiaDataCollection struct {
-	path         path.Path
-	streams      []data.Stream
-	snapshotRoot fs.Entry
-	counter      ByteCounter
+	path            path.Path
+	streams         []data.Stream
+	dir             fs.Directory
+	counter         ByteCounter
+	expectedVersion uint32
+}
+
+func (kdc *kopiaDataCollection) addStream(
+	ctx context.Context,
+	name string,
+) error {
+	s, err := kdc.Fetch(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	kdc.streams = append(kdc.streams, s)
+
+	return nil
 }
 
 func (kdc *kopiaDataCollection) Items(
@@ -49,19 +64,49 @@ func (kdc kopiaDataCollection) Fetch(
 	ctx context.Context,
 	name string,
 ) (data.Stream, error) {
-	if kdc.snapshotRoot == nil {
-		return nil, clues.New("no snapshot root")
+	ctx = clues.Add(ctx, "item_name", clues.Hide(name))
+
+	if kdc.dir == nil {
+		return nil, clues.New("no snapshot directory")
 	}
 
-	p, err := kdc.FullPath().Append(name, true)
+	if len(name) == 0 {
+		return nil, clues.Wrap(errNoRestorePath, "getting item stream").WithClues(ctx)
+	}
+
+	e, err := kdc.dir.Child(ctx, encodeAsPath(name))
 	if err != nil {
-		return nil, clues.Wrap(err, "creating item path")
+		if isErrEntryNotFound(err) {
+			err = clues.Stack(data.ErrNotFound, err)
+		}
+
+		return nil, clues.Wrap(err, "getting item").WithClues(ctx)
 	}
 
-	// TODO(ashmrtn): We could possibly hold a reference to the folder this
-	// collection corresponds to, but that requires larger changes for the
-	// creation of these collections.
-	return getItemStream(ctx, p, kdc.snapshotRoot, kdc.counter)
+	f, ok := e.(fs.File)
+	if !ok {
+		return nil, clues.New("object is not a file").WithClues(ctx)
+	}
+
+	size := f.Size() - int64(versionSize)
+
+	if kdc.counter != nil {
+		kdc.counter.Count(size)
+	}
+
+	r, err := f.Open(ctx)
+	if err != nil {
+		return nil, clues.Wrap(err, "opening file").WithClues(ctx)
+	}
+
+	return &kopiaDataStream{
+		uuid: name,
+		reader: &restoreStreamReader{
+			ReadCloser:      r,
+			expectedVersion: kdc.expectedVersion,
+		},
+		size: size,
+	}, nil
 }
 
 type kopiaDataStream struct {

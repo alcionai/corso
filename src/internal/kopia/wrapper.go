@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -525,6 +526,12 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 }
 
 func isErrEntryNotFound(err error) bool {
+	// Calling Child on a directory may return this.
+	if errors.Is(err, fs.ErrEntryNotFound) {
+		return true
+	}
+
+	// This is returned when walking the hierarchy of a backup.
 	return strings.Contains(err.Error(), "entry not found") &&
 		!strings.Contains(err.Error(), "parent is not a directory")
 }
