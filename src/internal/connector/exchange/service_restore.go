@@ -649,28 +649,29 @@ func establishContactsRestoreLocation(
 		return cached, nil
 	}
 
-	folders[0] = "Corso_Restore_02-May-2023_00:06:19"
 	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
-	// This is where destination folder gets created by corso in graph
-	// This is the POST operation which may fail if the folder exists
-	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
-	if err != nil {
-		// TODO:: Add status code check too
-		if graph.IsErrFolderExists(err) {
-			result, _ := ac.Contacts().GetContactFolders(ctx, user)
+	fold, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
+	// 409 handling: Fetch folder if it exists.
+	// This is rare, but it may happen if an earlier CreateContactFolder POST failed
+	// with 5xx, potentially leaving dirty state in graph.
+	if graph.IsErrFolderExists(err) {
+		fold, err = ac.Contacts().GetContactFolderByDisplayName(ctx, user, folders[0])
+		if err != nil {
+			return "", err
 		}
+	} else if err != nil {
 		return "", err
 	}
 
-	folderID := ptr.Val(temp.GetId())
+	folderID := ptr.Val(fold.GetId())
 
 	if isNewCache {
 		if err := cfc.Populate(ctx, errs, folderID, folders[0]); err != nil {
 			return "", clues.Wrap(err, "populating contact cache")
 		}
 
-		if err = cfc.AddToCache(ctx, temp); err != nil {
+		if err = cfc.AddToCache(ctx, fold); err != nil {
 			return "", clues.Wrap(err, "adding contact folder to cache")
 		}
 	}

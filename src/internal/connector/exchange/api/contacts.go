@@ -55,18 +55,39 @@ func (c Contacts) CreateContactFolder(
 	return mdl, nil
 }
 
-// TODO: Add pagination or just reuse EnumerateContainer logic
-// with base id at root
-func (c Contacts) GetContactFolders(
+// GetContactFolderByDisplayName fetches contact folder which has the displayName of
+// folderName. This is only done at root level.
+func (c Contacts) GetContactFolderByDisplayName(
 	ctx context.Context,
-	user string,
-) (models.ContactFolderCollectionResponseable, error) {
-	mdl, err := c.Stable.Client().UsersById(user).ContactFolders().Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating contact folder")
+	user, folderName string,
+) (models.ContactFolderable, error) {
+	filter := fmt.Sprintf("displayName eq '%s'", folderName)
+	options := &users.ItemContactFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemContactFoldersRequestBuilderGetQueryParameters{
+			Filter: &filter,
+		},
 	}
 
-	return mdl, nil
+	resp, err := c.Stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting contact folder").
+			With("folder name", folderName)
+	}
+
+	// We only expect one folder with provided folderName. Return an error if
+	// multiple folders exist(unlikely) or if no folder was found
+	if len(resp.GetValue()) != 1 {
+		return nil, graph.Wrap(ctx, err, "unexpected number of folders").
+			With("folder count", len(resp.GetValue())).
+			With("folder name", folderName)
+	}
+
+	fold := resp.GetValue()[0]
+	if err := checkIDAndName(fold); err != nil {
+		return nil, err
+	}
+
+	return fold, nil
 }
 
 // DeleteContainer deletes the ContactFolder associated with the M365 ID if permissions are valid.
