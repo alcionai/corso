@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Added `--disable-delta` flag to disable delta based backups for Exchange
 
 ### Fixed
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix nil pointer exception when running an incremental backup on SharePoint where the base backup used an older index data format.
 - --user and --mailbox flags (already not supported) have been removed from CLI examples for details and restore commands.
 - Improve restore time on large restores by optimizing how items are loaded from the remote repository.
+- Fix backup for mailboxes that has used up all their storage quota
 
 ## [v0.7.0] (beta) - 2023-05-02
 
@@ -43,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
 - Fixed Exchange events progress output to show calendar names instead of IDs.
 - Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
-- Fix backup for mailboxes that has used up all their storage quota
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.

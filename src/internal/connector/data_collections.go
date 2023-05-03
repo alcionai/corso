@@ -64,6 +64,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner,
+		ctrlOpts,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -176,6 +177,7 @@ func checkServiceEnabled(
 	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
+	opts control.Options,
 ) (bool, bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
@@ -197,7 +199,7 @@ func checkServiceEnabled(
 		canMakeDeltaQueries = info.CanMakeDeltaQueries()
 	}
 
-	return true, canMakeDeltaQueries, nil
+	return true, canMakeDeltaQueries && !opts.ToggleFeatures.DisableDelta, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections
