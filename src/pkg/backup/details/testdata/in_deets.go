@@ -2,7 +2,6 @@ package testdata
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -17,378 +16,336 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// ---------------------------------------------------------------------------
+//	location set handling
+// ---------------------------------------------------------------------------
+
+var exists = struct{}{}
+
+type locSet struct {
+	// map [locationRef] map [itemRef] {}
+	// refs may be either the canonical ent refs, or something else,
+	// so long as they are consistent for the test in question
+	Locations map[string]map[string]struct{}
+	Deleted   map[string]map[string]struct{}
+}
+
+func newLocSet() *locSet {
+	return &locSet{
+		Locations: map[string]map[string]struct{}{},
+		Deleted:   map[string]map[string]struct{}{},
+	}
+}
+
+func (ls *locSet) AddItem(locationRef, itemRef string) {
+	if _, ok := ls.Locations[locationRef]; !ok {
+		ls.Locations[locationRef] = map[string]struct{}{}
+	}
+
+	ls.Locations[locationRef][itemRef] = exists
+	delete(ls.Deleted[locationRef], itemRef)
+}
+
+func (ls *locSet) RemoveItem(locationRef, itemRef string) {
+	delete(ls.Locations[locationRef], itemRef)
+
+	if _, ok := ls.Deleted[locationRef]; !ok {
+		ls.Deleted[locationRef] = map[string]struct{}{}
+	}
+
+	ls.Deleted[locationRef][itemRef] = exists
+}
+
+func (ls *locSet) AddLocation(locationRef string) {
+	if _, ok := ls.Locations[locationRef]; !ok {
+		ls.Locations[locationRef] = map[string]struct{}{}
+	}
+	// don't purge previously deleted items, or child locations.
+	// Assumption is that their itemRef is unique, and still deleted.
+	delete(ls.Deleted, locationRef)
+}
+
+func (ls *locSet) RemoveLocation(locationRef string) {
+	ss := ls.Subset(locationRef)
+
+	for lr := range ss.Locations {
+		items := ls.Locations[lr]
+
+		delete(ls.Locations, lr)
+
+		if _, ok := ls.Deleted[lr]; !ok {
+			ls.Deleted[lr] = map[string]struct{}{}
+		}
+
+		for ir := range items {
+			ls.Deleted[lr][ir] = exists
+		}
+	}
+}
+
+// MoveLocation takes the LAST elemet in the fromLocation (and all)
+// children matching the prefix, and relocates it as a child of toLocation.
+// ex: MoveLocation("/a/b/c", "/d") will move all entries with the prefix
+// "/a/b/c" into "/d/c".  This also deletes all "/a/b/c" entries and children.
+// assumes item IDs don't change across the migration.  If item IDs do change,
+// that difference will need to be handled manually by the caller.
+// returns the base folder's new location (ex: /d/c)
+func (ls *locSet) MoveLocation(fromLocation, toLocation string) string {
+	ss := ls.Subset(fromLocation)
+	lastElem := path.Builder{}.Append(path.Split(fromLocation)...).LastElem()
+
+	for lr, items := range ss.Locations {
+		newLoc := toLocation + "/" + lastElem
+		trimLoc := strings.TrimPrefix(lr, fromLocation)
+		trimLoc = strings.TrimPrefix(trimLoc, "/")
+
+		if len(trimLoc) > 0 {
+			newLoc += "/" + trimLoc
+		}
+
+		for ir := range items {
+			ls.RemoveItem(lr, ir)
+			ls.AddItem(newLoc, ir)
+		}
+
+		ls.RemoveLocation(lr)
+		ls.AddLocation(newLoc)
+	}
+
+	if len(toLocation) == 0 {
+		return lastElem
+	}
+
+	return toLocation + "/" + lastElem
+}
+
+func (ls *locSet) RenameLocation(fromLocation, toLocation string) {
+	ss := ls.Subset(fromLocation)
+
+	for lr, items := range ss.Locations {
+		newLoc := toLocation
+		trimLoc := strings.TrimPrefix(lr, fromLocation)
+		trimLoc = strings.TrimPrefix(trimLoc, "/")
+
+		if len(trimLoc) > 0 {
+			newLoc += "/" + trimLoc
+		}
+
+		for ir := range items {
+			ls.RemoveItem(lr, ir)
+			ls.AddItem(newLoc, ir)
+		}
+
+		ls.RemoveLocation(lr)
+		ls.AddLocation(newLoc)
+	}
+}
+
+// Subset produces a new locSet containing only Items and Locations
+// whose location matches the locationPfx
+func (ls *locSet) Subset(locationPfx string) *locSet {
+	ss := newLocSet()
+
+	for lr, items := range ls.Locations {
+		if strings.HasPrefix(lr, locationPfx) {
+			ss.AddLocation(lr)
+
+			for ir := range items {
+				ss.AddItem(lr, ir)
+			}
+		}
+	}
+
+	return ss
+}
+
+// ---------------------------------------------------------------------------
+// The goal of InDeets is to provide a struct and interface which allows
+// tests to predict not just the elements within a set of details entries,
+// but also their changes (relocation, renaming, etc) in a way that consolidates
+// building an "expected set" of details entries that can be compared against
+// the details results after a backup.
+// ---------------------------------------------------------------------------
 
 // InDeets is a helper for comparing details state in tests
 // across backup instances.
 type InDeets struct {
-	Entries map[string]details.DetailsEntry
-	Deleted map[string]struct{}
+	// only: tenantID/service/resourceOwnerID
+	RRPrefix string
+	// map of container setting the uniqueness boundary for location
+	// ref entries (eg, data type like email, contacts, etc, or
+	// drive id) to the unique entries in that set.
+	Sets map[string]*locSet
 }
 
-func NewInDeets() *InDeets {
-	id := &InDeets{}
-	id.init()
-
-	return id
+func NewInDeets(repoRefPrefix string) *InDeets {
+	return &InDeets{
+		RRPrefix: repoRefPrefix,
+		Sets:     map[string]*locSet{},
+	}
 }
 
-const clip = 82
+func (id *InDeets) getSet(set string) *locSet {
+	s, ok := id.Sets[set]
+	if ok {
+		return s
+	}
 
-func (id *InDeets) init() {
-	id.Entries = map[string]details.DetailsEntry{}
-	id.Deleted = map[string]struct{}{}
+	return newLocSet()
 }
 
-func (id *InDeets) Add(deets details.Details) {
-	if id.Entries == nil {
-		id.init()
+func (id *InDeets) AddAll(deets details.Details, ws whatSet) {
+	if id.Sets == nil {
+		id.Sets = map[string]*locSet{}
 	}
 
 	for _, ent := range deets.Entries {
-		id.Entries[ent.RepoRef] = ent
-	}
-}
+		set, err := ws(ent)
+		if err != nil {
+			set = err.Error()
+		}
 
-func (id *InDeets) AddEntry(rr string) {
-	fmt.Printf("-----\nadding %+v\n", rr[clip:])
-	addEnt(id, rr, details.DetailsEntry{RepoRef: rr})
-}
+		dir := ent.LocationRef
 
-func addent(id *InDeets, rr string, ent details.DetailsEntry) {
-	id.Entries[rr] = ent
-	delete(id.Deleted, rr)
-}
-
-func (id *InDeets) DeleteEntry(rr string) {
-	fmt.Printf("-----\ndeleting %+v\n", rr[clip:])
-	delete(id.Entries, rr)
-	id.Deleted[rr] = struct{}{}
-}
-
-func (id *InDeets) DeletePrefix(rr string) {
-	fmt.Printf("-----\ndelpfx %+v\n", rr[clip:])
-	delete(id.Entries, rr)
-	id.Deleted[rr] = struct{}{}
-
-	for k := range id.Entries {
-		if strings.HasPrefix(k, rr) {
-			id.DeleteEntry(k)
+		if ent.Folder != nil {
+			dir = dir + ent.Folder.DisplayName
+			id.AddLocation(set, dir)
+		} else {
+			id.AddItem(set, ent.LocationRef, ent.ItemRef)
 		}
 	}
 }
 
-func (id *InDeets) Subset(prefixRR string) *InDeets {
-	nd := NewInDeets()
-
-	for rr, ent := range id.Entries {
-		if strings.HasPrefix(rr, prefixRR) {
-			nd.Entries[rr] = ent
-		}
-	}
-
-	for rr, ent := range id.Deleted {
-		if strings.HasPrefix(rr, prefixRR) {
-			nd.Deleted[rr] = ent
-		}
-	}
-
-	return nd
+func (id *InDeets) AddItem(set, locationRef, itemRef string) {
+	id.getSet(set).AddItem(locationRef, itemRef)
 }
 
-// QoL func that makes a couple assumptions about how item migration
-// works in details.  Spedifically that movement is the act of trimming
-// the old prefix, and appending the remaining suffix to the new prefix.
-// eg: from = pfx/foo, to = newpfx/bar, result = newpfx/bar/foo
-// This implies that item IDs remain constant across moves, which may
-// not be guaranteed by the underlying service, so use this helper
-// with a measure of caution.
-func (id *InDeets) MovePrefix(t *testing.T, fromRR, toRR string) {
-	fmt.Printf("-----\nmove from %+v\n", fromRR[clip:])
-	ss := id.Subset(fromRR)
+func (id *InDeets) RemoveItem(set, locationRef, itemRef string) {
+	id.getSet(set).RemoveItem(locationRef, itemRef)
+}
 
-	for rr := range ss.Entries {
-		rr = strings.TrimPrefix(rr, fromRR)
-		if len(rr) == 0 {
-			continue
-		}
+func (id *InDeets) AddLocation(set, locationRef string) {
+	id.getSet(set).AddLocation(locationRef)
+}
 
-		rr = strings.TrimSuffix(toRR, "/") + "/" + strings.TrimPrefix(rr, "/")
-		id.AddEntry(rr)
-	}
+// RemoveLocation removes the provided location, and all children
+// of that location.
+func (id *InDeets) RemoveLocation(set, locationRef string) {
+	id.getSet(set).RemoveLocation(locationRef)
+}
 
-	id.DeletePrefix(fromRR)
-	id.AddEntry(toRR)
+// MoveLocation takes the LAST elemet in the fromLocation (and all)
+// children matching the prefix, and relocates it as a child of toLocation.
+// ex: MoveLocation("/a/b/c", "/d") will move all entries with the prefix
+// "/a/b/c" into "/d/c".  This also deletes all "/a/b/c" entries and children.
+// assumes item IDs don't change across the migration.  If item IDs do change,
+// that difference will need to be handled manually by the caller.
+// returns the base folder's new location (ex: /d/c)
+func (id *InDeets) MoveLocation(set, fromLocation, toLocation string) string {
+	return id.getSet(set).MoveLocation(fromLocation, toLocation)
+}
+
+func (id *InDeets) RenameLocation(set, fromLocation, toLocation string) {
+	id.getSet(set).RenameLocation(fromLocation, toLocation)
+}
+
+// Subset produces a new locSet containing only Items and Locations
+// whose location matches the locationPfx
+func (id *InDeets) Subset(set, locationPfx string) *locSet {
+	return id.getSet(set).Subset(locationPfx)
 }
 
 // ---------------------------------------------------------------------------
-//
+// whatSet helpers for extracing a set identifier from an arbitrary repoRef
 // ---------------------------------------------------------------------------
 
-// // InDeets is a helper for comparing details state in tests
-// // across backup instances.
-// type InDeets struct {
-// 	Items          map[string]details.DetailsEntry
-// 	Folders        map[string]details.DetailsEntry
-// 	DeletedItems   map[string]struct{}
-// 	DeletedFolders map[string]struct{}
-// }
+type whatSet func(details.Entry) (string, error)
 
-// func NewInDeets() *InDeets {
-// 	id := &InDeets{}
-// 	id.init()
+// common whatSet parser that extracts the service category from
+// a repoRef.
+func CategoryFromRepoRef(ent details.Entry) (string, error) {
+	p, err := path.FromDataLayerPath(ent.RepoRef, false)
+	if err != nil {
+		return "", err
+	}
 
-// 	return id
-// }
+	return p.Category().String(), nil
+}
 
-// func (id *InDeets) init() {
-// 	id.Items = map[string]details.DetailsEntry{}
-// 	id.Folders = map[string]details.DetailsEntry{}
-// 	id.DeletedItems = map[string]struct{}{}
-// 	id.DeletedFolders = map[string]struct{}{}
-// }
+// common whatSet parser that extracts the driveID from a repoRef.
+func DriveIDFromRepoRef(ent details.Entry) (string, error) {
+	p, err := path.FromDataLayerPath(ent.RepoRef, false)
+	if err != nil {
+		return "", err
+	}
 
-// func (id *InDeets) Add(deets details.Details) {
-// 	if id.Items == nil {
-// 		id.init()
-// 	}
+	odp, err := path.ToOneDrivePath(p)
+	if err != nil {
+		return "", err
+	}
 
-// 	for _, ent := range deets.Entries {
-// 		if ent.Folder == nil {
-// 			id.Items[ent.RepoRef] = ent
-// 		} else {
-// 			id.Folders[ent.RepoRef] = ent
-// 		}
-// 	}
-// }
-
-// func (id *InDeets) AddItem(parentRR, i string) {
-// 	rr := parentRR + "/" + i
-
-// 	id.Items[rr] = details.DetailsEntry{RepoRef: rr}
-// 	delete(id.DeletedItems, rr)
-// }
-
-// func (id *InDeets) RemoveItem(rr string) {
-// 	fmt.Printf("\n-----\ndeleting %+v\n-----\n", rr)
-// 	delete(id.Items, rr)
-// 	id.DeletedItems[rr] = struct{}{}
-// }
-
-// func (id *InDeets) AddFolder(rr string) {
-// 	id.Folders[rr] = details.DetailsEntry{RepoRef: rr}
-// 	delete(id.DeletedFolders, rr)
-// }
-
-// func (id *InDeets) RemoveFolder(rr string) {
-// 	fmt.Printf("\n-----\ndeleting %+v\n-----\n", rr)
-// 	delete(id.Folders, rr)
-// 	id.DeletedFolders[rr] = struct{}{}
-
-// 	for k := range id.Items {
-// 		if strings.HasPrefix(k, rr) {
-// 			id.RemoveItem(k)
-// 		}
-// 	}
-// }
-
-// func (id *InDeets) Subset(folderRR string) *InDeets {
-// 	nd := NewInDeets()
-
-// 	fEnt, ok := id.Folders[folderRR]
-// 	if ok {
-// 		nd.Folders[folderRR] = fEnt
-// 	}
-
-// 	dfEnt, ok := id.DeletedFolders[folderRR]
-// 	if ok {
-// 		nd.DeletedFolders[folderRR] = dfEnt
-// 	}
-
-// 	for rr, ent := range id.Items {
-// 		if strings.HasPrefix(rr, folderRR) {
-// 			nd.Items[rr] = ent
-// 		}
-// 	}
-
-// 	for rr, ent := range id.DeletedItems {
-// 		if strings.HasPrefix(rr, folderRR) {
-// 			nd.DeletedItems[rr] = ent
-// 		}
-// 	}
-
-// 	return nd
-// }
-
-// // assumes destination does not already exist
-// // also assumes item IDs don't change.  if item IDs change
-// // as a result of the move, you should instead chaing:
-// // RemoveFolder(), AddFolder(), AddItems()
-// func (id *InDeets) MoveFolder(t *testing.T, fromRR, toRR string) {
-// 	fmt.Printf("\n-----\nmove to %+v\n-----\n", toRR)
-// 	id.AddFolder(toRR)
-
-// 	moved := map[string]struct{}{}
-
-// 	for rr := range id.Items {
-// 		if strings.HasPrefix(rr, fromRR) {
-// 			moved[rr] = struct{}{}
-// 		}
-// 	}
-
-// 	for rr := range moved {
-// 		delete(id.Items, rr)
-
-// 		_, i := path.Split(rr)
-// 		id.AddItem(toRR, i)
-// 	}
-
-// 	id.RemoveFolder(fromRR)
-
-// 	fmt.Printf("\n-----\nmove from %+v\n-----\n", fromRR)
-// }
+	return odp.DriveID, nil
+}
 
 // ---------------------------------------------------------------------------
-//
+// helpers and comparators
 // ---------------------------------------------------------------------------
-
-// // InDeets is a helper for comparing details state in tests
-// // across backup instances.
-// type InDeets struct {
-// 	Items          map[string]struct{}
-// 	Folders        map[string]struct{}
-// 	ItemsInFolders map[string][]string
-// 	DeletedItems   map[string]struct{}
-// 	DeletedFolders map[string]struct{}
-// }
-
-// func NewInDeets() *InDeets {
-// 	id := &InDeets{}
-// 	id.init()
-
-// 	return id
-// }
-
-// func (id *InDeets) init() {
-// 	id.Items = map[string]struct{}{}
-// 	id.ItemsInFolders = map[string][]string{}
-// 	id.Folders = map[string]struct{}{}
-// 	id.DeletedItems = map[string]struct{}{}
-// 	id.DeletedFolders = map[string]struct{}{}
-// }
-
-// func (id *InDeets) Add(deets details.Details) {
-// 	if id.Items == nil {
-// 		id.init()
-// 	}
-
-// 	for _, ent := range deets.Entries {
-// 		if ent.Folder == nil {
-// 			id.AddItem(ent.ItemRef, ent.ParentRef)
-// 		} else {
-// 			id.AddFolder(ent.ParentRef, ent.Folder.DisplayName)
-// 		}
-// 	}
-// }
-
-// func (id *InDeets) AddItem(i, f string) {
-// 	id.Items[i] = struct{}{}
-
-// 	is := id.ItemsInFolders[f]
-// 	id.ItemsInFolders[f] = append(is, i)
-
-// 	delete(id.DeletedItems, i)
-// }
-
-// func (id *InDeets) RemoveItem(i string) {
-// 	delete(id.Items, i)
-// 	id.DeletedItems[i] = struct{}{}
-// }
-
-// func (id *InDeets) AddFolder(parent, f string) {
-// 	f = parent + "/" + f
-
-// 	id.Folders[f] = struct{}{}
-// 	delete(id.DeletedFolders, f)
-// }
-
-// func (id *InDeets) RemoveFolder(parent, f string) {
-// 	f = parent + "/" + f
-
-// 	for _, i := range id.ItemsInFolders[f] {
-// 		id.RemoveItem(i)
-// 	}
-
-// 	delete(id.Folders, f)
-// 	id.DeletedFolders[f] = struct{}{}
-// }
-
-// // assumes destination does not already exist
-// func (id *InDeets) Movefolder(fromParent, fromF, toParent, toF string) {
-// 	from := fromParent + "/" + fromF
-// 	to := toParent + "/" + toF
-// 	is := id.ItemsInFolders[from]
-
-// 	delete(id.ItemsInFolders, from)
-// 	delete(id.Folders, from)
-
-// 	id.ItemsInFolders[to] = is
-// 	id.Folders[to] = struct{}{}
-// }
 
 func CheckBackupDetails(
 	t *testing.T,
 	ctx context.Context, //revive:disable:context-as-argument
 	backupID model.StableID,
-	// kw *kopia.Wrapper,
+	ws whatSet,
 	ms *kopia.ModelStore,
 	ssr streamstore.Reader,
 	expect *InDeets,
 ) {
-	_, result := GetDeetsInBackup(t, ctx, backupID, ms, ssr)
+	deets, result := GetDeetsInBackup(t, ctx, backupID, "", "", path.UnknownService, ws, ms, ssr)
 
 	t.Log("details entries in result")
 
-	for rr := range result.Entries {
-		t.Log(rr)
+	for _, ent := range deets.Entries {
+		if ent.Folder == nil {
+			t.Log(ent.LocationRef)
+			t.Log(ent.ItemRef)
+		}
+
+		assert.Truef(
+			t,
+			strings.HasPrefix(ent.RepoRef, expect.RRPrefix),
+			"all details should begin with the expected prefix\nwant: %s\ngot:  %s",
+			expect.RRPrefix, ent.RepoRef)
 	}
 
-	assert.Subset(t, maps.Keys(result.Entries), maps.Keys(expect.Entries), "result missing expected entry")
+	for set := range expect.Sets {
+		assert.Subsetf(
+			t,
+			maps.Keys(result.Sets[set].Locations),
+			maps.Keys(expect.Sets[set].Locations),
+			"results in %s missing expected location", set)
 
-	for rr := range expect.Deleted {
-		_, ok := result.Entries[rr]
-		assert.False(t, ok, "deleted entry found in result: %s", rr)
+		for lr, items := range expect.Sets[set].Deleted {
+			_, ok := result.Sets[set].Locations[lr]
+			assert.Falsef(t, ok, "deleted location in %s found in result: %s", set, lr)
+
+			for ir := range items {
+				_, ok := result.Sets[set].Locations[lr][ir]
+				assert.Falsef(t, ok, "deleted item in %s found in result: %s", set, lr)
+			}
+		}
 	}
 }
-
-// func CheckBackupDetails(
-// 	t *testing.T,
-// 	ctx context.Context, //revive:disable:context-as-argument
-// 	backupID model.StableID,
-// 	// kw *kopia.Wrapper,
-// 	ms *kopia.ModelStore,
-// 	ssr streamstore.Reader,
-// 	expect *InDeets,
-// ) {
-// 	_, result := GetDeetsInBackup(t, ctx, backupID, ms, ssr)
-
-// 	assert.Subset(t, maps.Keys(result.Items), maps.Keys(expect.Items), "result should contain expected items")
-// 	assert.Subset(t, maps.Keys(result.Folders), maps.Keys(expect.Folders), "result should contain expected folders")
-
-// 	for i := range expect.DeletedItems {
-// 		assert.Nil(t, result.Items[i], "item was deleted and should not exist: %s", i)
-// 	}
-
-// 	for f := range expect.DeletedFolders {
-// 		assert.Nil(t, result.Folders[f], "folder was deleted and should not exist: %s", f)
-// 	}
-// }
 
 func GetDeetsInBackup(
 	t *testing.T,
 	ctx context.Context, //revive:disable:context-as-argument
 	backupID model.StableID,
-	// kw *kopia.Wrapper,
+	tid, resourceOwner string,
+	service path.ServiceType,
+	ws whatSet,
 	ms *kopia.ModelStore,
 	ssr streamstore.Reader,
 ) (details.Details, *InDeets) {
@@ -408,8 +365,8 @@ func GetDeetsInBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	id := NewInDeets()
-	id.Add(deets)
+	id := NewInDeets(path.Builder{}.Append(tid, service.String(), resourceOwner).String())
+	id.AddAll(deets, ws)
 
 	return deets, id
 }
