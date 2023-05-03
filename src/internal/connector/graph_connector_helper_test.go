@@ -693,7 +693,7 @@ func compareExchangeEvent(
 	checkEvent(t, expectedEvent, itemEvent)
 }
 
-func permissionEqual(expected onedrive.UserPermission, got onedrive.UserPermission) bool {
+func permissionEqual(expected metadata.Permission, got metadata.Permission) bool {
 	if !strings.EqualFold(expected.Email, got.Email) {
 		return false
 	}
@@ -769,8 +769,8 @@ func compareOneDriveItem(
 
 	if isMeta {
 		var (
-			itemMeta     onedrive.Metadata
-			expectedMeta onedrive.Metadata
+			itemMeta     metadata.Metadata
+			expectedMeta metadata.Metadata
 		)
 
 		err = json.Unmarshal(buf, &itemMeta)
@@ -812,7 +812,7 @@ func compareOneDriveItem(
 		}
 
 		// We cannot restore owner permissions, so skip checking them
-		itemPerms := []onedrive.UserPermission{}
+		itemPerms := []metadata.Permission{}
 
 		for _, p := range itemMeta.Permissions {
 			if p.Roles[0] != "owner" {

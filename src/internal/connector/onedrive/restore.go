@@ -48,7 +48,7 @@ func RestoreCollections(
 	var (
 		restoreMetrics support.CollectionMetrics
 		metrics        support.CollectionMetrics
-		folderMetas    = map[string]Metadata{}
+		folderMetas    = map[string]metadata.Metadata{}
 
 		// permissionIDMappings is used to map between old and new id
 		// of permissions as we restore them
@@ -132,7 +132,7 @@ func RestoreCollection(
 	backupVersion int,
 	service graph.Servicer,
 	dc data.RestoreCollection,
-	folderMetas map[string]Metadata,
+	folderMetas map[string]metadata.Metadata,
 	permissionIDMappings map[string]string,
 	fc *folderCache,
 	rootIDCache map[string]string, // map of drive id -> root folder ID
@@ -298,7 +298,7 @@ func restoreItem(
 	drivePath *path.DrivePath,
 	restoreFolderID string,
 	copyBuffer []byte,
-	folderMetas map[string]Metadata,
+	folderMetas map[string]metadata.Metadata,
 	permissionIDMappings map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
@@ -439,7 +439,7 @@ func restoreV1File(
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
-	folderMetas map[string]Metadata,
+	folderMetas map[string]metadata.Metadata,
 	permissionIDMappings map[string]string,
 	itemPath path.Path,
 	itemData data.Stream,
@@ -500,7 +500,7 @@ func restoreV6File(
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
-	folderMetas map[string]Metadata,
+	folderMetas map[string]metadata.Metadata,
 	permissionIDMappings map[string]string,
 	itemPath path.Path,
 	itemData data.Stream,
@@ -575,8 +575,8 @@ func createRestoreFoldersWithPermissions(
 	driveRootID string,
 	restoreFolders *path.Builder,
 	folderPath path.Path,
-	folderMetadata Metadata,
-	folderMetas map[string]Metadata,
+	folderMetadata metadata.Metadata,
+	folderMetas map[string]metadata.Metadata,
 	fc *folderCache,
 	permissionIDMappings map[string]string,
 	restorePerms bool,
@@ -741,11 +741,11 @@ func fetchAndReadMetadata(
 	ctx context.Context,
 	fetcher fileFetcher,
 	metaName string,
-) (Metadata, error) {
+) (metadata.Metadata, error) {
 	metaFile, err := fetcher.Fetch(ctx, metaName)
 	if err != nil {
 		err = clues.Wrap(err, "getting item metadata").With("meta_file_name", metaName)
-		return Metadata{}, err
+		return metadata.Metadata{}, err
 	}
 
 	metaReader := metaFile.ToReader()
@@ -754,25 +754,25 @@ func fetchAndReadMetadata(
 	meta, err := getMetadata(metaReader)
 	if err != nil {
 		err = clues.Wrap(err, "deserializing item metadata").With("meta_file_name", metaName)
-		return Metadata{}, err
+		return metadata.Metadata{}, err
 	}
 
 	return meta, nil
 }
 
 // getMetadata read and parses the metadata info for an item
-func getMetadata(metar io.ReadCloser) (Metadata, error) {
-	var meta Metadata
+func getMetadata(metar io.ReadCloser) (metadata.Metadata, error) {
+	var meta metadata.Metadata
 	// `metar` will be nil for the top level container folder
 	if metar != nil {
 		metaraw, err := io.ReadAll(metar)
 		if err != nil {
-			return Metadata{}, err
+			return metadata.Metadata{}, err
 		}
 
 		err = json.Unmarshal(metaraw, &meta)
 		if err != nil {
-			return Metadata{}, err
+			return metadata.Metadata{}, err
 		}
 	}
 
