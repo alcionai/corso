@@ -781,12 +781,17 @@ func getMetadata(metar io.ReadCloser) (metadata.Metadata, error) {
 
 // Augment restore path to add extra files(meta) needed for restore as
 // well as do any other ordering operations on the paths
-func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, error) {
-	colPaths := map[string]path.Path{}
+func AugmentRestorePaths(
+	backupVersion int,
+	paths []path.RestorePaths,
+) ([]path.RestorePaths, error) {
+	colPaths := map[string]path.RestorePaths{}
 
 	for _, p := range paths {
+		first := true
+
 		for {
-			np, err := p.Dir()
+			np, err := p.StoragePath.Dir()
 			if err != nil {
 				return nil, err
 			}
@@ -800,8 +805,37 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 				break
 			}
 
-			colPaths[np.String()] = np
-			p = np
+			// For now only allow storage and restore paths where the restore path is
+			// at least as long as the storage path. The path munging we have now
+			// should only produce that. If the restore path is shorter than the
+			// storage path it's not clear how we should handle permissions. If the
+			// restore path is longer than the storage path then the first few
+			// (closest to the root) directories will have default permissions.
+			if len(p.RestorePath.Elements()) < len(np.Elements()) {
+				return nil, clues.New("RestorePath shorter than StoragePath").
+					With("restore_path", p.RestorePath, "storage_path", np)
+			}
+
+			pd := p.RestorePath
+
+			// Make sure the RestorePath always points to the level of the current
+			// collection. We need to track if it's the first iteration because the
+			// RestorePath starts out at the collection level to begin with.
+			if !first {
+				pd, err = p.RestorePath.Dir()
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			paths := path.RestorePaths{
+				StoragePath: np,
+				RestorePath: pd,
+			}
+
+			colPaths[np.String()] = paths
+			p = paths
+			first = false
 		}
 	}
 
@@ -814,32 +848,45 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 	// As of now look up metadata for parent directories from a
 	// collection.
 	for _, p := range colPaths {
-		el := p.Elements()
+		el := p.StoragePath.Elements()
 
 		if backupVersion >= version.OneDrive6NameInMeta {
-			mPath, err := p.Append(".dirmeta", true)
+			mPath, err := p.StoragePath.Append(".dirmeta", true)
 			if err != nil {
 				return nil, err
 			}
 
-			paths = append(paths, mPath)
+			paths = append(
+				paths,
+				path.RestorePaths{StoragePath: mPath, RestorePath: p.RestorePath})
 		} else if backupVersion >= version.OneDrive4DirIncludesPermissions {
-			mPath, err := p.Append(el[len(el)-1]+".dirmeta", true)
+			mPath, err := p.StoragePath.Append(el[len(el)-1]+".dirmeta", true)
 			if err != nil {
 				return nil, err
 			}
 
-			paths = append(paths, mPath)
+			paths = append(
+				paths,
+				path.RestorePaths{StoragePath: mPath, RestorePath: p.RestorePath})
 		} else if backupVersion >= version.OneDrive1DataAndMetaFiles {
-			pp, err := p.Dir()
+			pp, err := p.StoragePath.Dir()
 			if err != nil {
 				return nil, err
 			}
+
 			mPath, err := pp.Append(el[len(el)-1]+".dirmeta", true)
 			if err != nil {
 				return nil, err
 			}
-			paths = append(paths, mPath)
+
+			prp, err := p.RestorePath.Dir()
+			if err != nil {
+				return nil, err
+			}
+
+			paths = append(
+				paths,
+				path.RestorePaths{StoragePath: mPath, RestorePath: prp})
 		}
 	}
 
@@ -847,8 +894,11 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 	// files. This is only a necessity for OneDrive as we are storing
 	// metadata for files/folders in separate meta files and we the
 	// data to be restored before we can restore the metadata.
+	//
+	// This sorting assumes stuff in the same StoragePath directory end up in the
+	// same RestorePath collection.
 	sort.Slice(paths, func(i, j int) bool {
-		return paths[i].String() < paths[j].String()
+		return paths[i].StoragePath.String() < paths[j].StoragePath.String()
 	})
 
 	return paths, nil
