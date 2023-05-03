@@ -1612,7 +1612,7 @@ func runDriveIncrementalTest(
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			if test.skip {
-				t.Skip("flagged to skip")
+				suite.T().Skip("flagged to skip")
 			}
 
 			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
