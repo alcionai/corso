@@ -14,13 +14,13 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/h2non/gock v1.2.0
 	github.com/kopia/kopia v0.12.2-0.20230327171220-747baeebdab1
-	github.com/microsoft/kiota-abstractions-go v0.18.0
+	github.com/microsoft/kiota-abstractions-go v0.20.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
-	github.com/microsoft/kiota-http-go v0.16.1
+	github.com/microsoft/kiota-http-go v0.17.0
 	github.com/microsoft/kiota-serialization-form-go v0.8.2
-	github.com/microsoft/kiota-serialization-json-go v0.8.2
+	github.com/microsoft/kiota-serialization-json-go v0.9.3
 	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
+	github.com/microsoftgraph/msgraph-sdk-go-core v0.36.2
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
 	github.com/spatialcurrent/go-lazy v0.0.0-20211115014721-47315cc003d1
@@ -60,8 +60,8 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.3.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.1.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.5.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.7.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
