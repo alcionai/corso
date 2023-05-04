@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -41,7 +42,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	ctx, end := diagnostics.Span(
 		ctx,
 		"gc:produceBackupCollections",
@@ -71,13 +72,13 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	}
 
 	var (
-		colls    []data.BackupCollection
-		excludes map[string]map[string]struct{}
+		colls []data.BackupCollection
+		ssmb  *prefixmatcher.StringSetMatcher
 	)
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, excludes, err = exchange.DataCollections(
+		colls, ssmb, err = exchange.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -91,7 +92,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 
 	case selectors.ServiceOneDrive:
-		colls, excludes, err = onedrive.DataCollections(
+		colls, ssmb, err = onedrive.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -108,7 +109,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 
 	case selectors.ServiceSharePoint:
-		colls, excludes, err = sharepoint.DataCollections(
+		colls, ssmb, err = sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
@@ -139,7 +140,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 	}
 
-	return colls, excludes, nil
+	return colls, ssmb, nil
 }
 
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {

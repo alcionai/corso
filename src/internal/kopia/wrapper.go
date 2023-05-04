@@ -14,6 +14,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -138,7 +139,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
@@ -150,7 +151,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	ctx, end := diagnostics.Span(ctx, "kopia:consumeBackupCollections")
 	defer end()
 
-	if len(collections) == 0 && len(globalExcludeSet) == 0 {
+	if len(collections) == 0 && (globalExcludeSet == nil || globalExcludeSet.Empty()) {
 		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
