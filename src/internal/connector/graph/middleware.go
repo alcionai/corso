@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -250,7 +251,6 @@ func (mw RetryMiddleware) retryRequest(
 		executionCount++
 
 		delay := mw.getRetryDelay(req, resp, exponentialBackoff)
-
 		cumulativeDelay += delay
 
 		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
@@ -264,6 +264,18 @@ func (mw RetryMiddleware) retryRequest(
 			return resp, clues.Stack(ctx.Err()).WithClues(ctx)
 
 		case <-timer.C:
+		}
+
+		// we have to reset the original body reader for each retry, or else the graph
+		// compressor will produce a 0 length body following an error response such
+		// as a 500.
+		if req.Body != nil {
+			if s, ok := req.Body.(io.Seeker); ok {
+				_, err := s.Seek(0, io.SeekStart)
+				if err != nil {
+					return nil, Wrap(ctx, err, "resetting request body reader")
+				}
+			}
 		}
 
 		nextResp, err := pipeline.Next(req, middlewareIndex)
@@ -380,6 +392,10 @@ func (mw *ThrottleControlMiddleware) Intercept(
 	QueueRequest(req.Context())
 	return pipeline.Next(req, middlewareIndex)
 }
+
+// ---------------------------------------------------------------------------
+// Metrics
+// ---------------------------------------------------------------------------
 
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}
