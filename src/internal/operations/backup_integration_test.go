@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -1168,11 +1169,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	runDriveIncrementalTest(
 		suite,
 		suite.user,
+		suite.user,
 		connector.Users,
 		path.OneDriveService,
 		path.FilesCategory,
 		ic,
-		gtdi)
+		gtdi,
+		false)
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
@@ -1205,21 +1208,24 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
 	runDriveIncrementalTest(
 		suite,
 		suite.site,
+		suite.user,
 		connector.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
-		gtdi)
+		gtdi,
+		true)
 }
 
 func runDriveIncrementalTest(
 	suite *BackupOpIntegrationSuite,
-	owner string,
+	owner, permissionsUser string,
 	resource connector.Resource,
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
 	getTestDriveID func(*testing.T, context.Context, graph.Servicer) string,
+	skipPermissionsTests bool,
 ) {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -1310,10 +1316,10 @@ func runDriveIncrementalTest(
 		newFileName = "new_file.txt"
 
 		permissionIDMappings = map[string]string{}
-		writePerm            = onedrive.UserPermission{
+		writePerm            = metadata.Permission{
 			ID:       "perm-id",
 			Roles:    []string{"write"},
-			EntityID: owner,
+			EntityID: permissionsUser,
 		}
 	)
 
@@ -1348,14 +1354,14 @@ func runDriveIncrementalTest(
 					driveID,
 					targetContainer,
 					driveItem)
-				require.NoError(t, err, "creating new file", clues.ToCore(err))
+				require.NoErrorf(t, err, "creating new file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
 		},
 		{
 			name: "add permission to new file",
-			skip: service == path.SharePointService,
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1366,18 +1372,17 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					[]onedrive.UserPermission{writePerm},
-					[]onedrive.UserPermission{},
-					permissionIDMappings,
-				)
-				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
+					[]metadata.Permission{writePerm},
+					[]metadata.Permission{},
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
 		},
 		{
 			name: "remove permission from new file",
-			skip: service == path.SharePointService,
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1388,18 +1393,17 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					[]onedrive.UserPermission{},
-					[]onedrive.UserPermission{writePerm},
-					permissionIDMappings,
-				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+					[]metadata.Permission{},
+					[]metadata.Permission{writePerm},
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
 		},
 		{
 			name: "add permission to container",
-			skip: service == path.SharePointService,
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1411,18 +1415,17 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					targetContainer,
-					[]onedrive.UserPermission{writePerm},
-					[]onedrive.UserPermission{},
-					permissionIDMappings,
-				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+					[]metadata.Permission{writePerm},
+					[]metadata.Permission{},
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
 		},
 		{
 			name: "remove permission from container",
-			skip: service == path.SharePointService,
+			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1434,11 +1437,10 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					targetContainer,
-					[]onedrive.UserPermission{},
-					[]onedrive.UserPermission{writePerm},
-					permissionIDMappings,
-				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+					[]metadata.Permission{},
+					[]metadata.Permission{writePerm},
+					permissionIDMappings)
+				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1452,7 +1454,7 @@ func runDriveIncrementalTest(
 					ItemsById(ptr.Val(newFile.GetId())).
 					Content().
 					Put(ctx, []byte("new content"), nil)
-				require.NoError(t, err, "updating file content")
+				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1474,7 +1476,7 @@ func runDriveIncrementalTest(
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err, "renaming file", clues.ToCore(err))
+				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1495,7 +1497,7 @@ func runDriveIncrementalTest(
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err, "moving file between folders", clues.ToCore(err))
+				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1510,7 +1512,7 @@ func runDriveIncrementalTest(
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
 					Delete(ctx, nil)
-				require.NoError(t, err, "deleting file", clues.ToCore(err))
+				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 0,
@@ -1609,9 +1611,8 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			// TODO(rkeepers): remove when sharepoint supports permission.
 			if test.skip {
-				return
+				suite.T().Skip("flagged to skip")
 			}
 
 			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
