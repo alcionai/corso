@@ -95,16 +95,15 @@ func (ls *locSet) RemoveLocation(locationRef string) {
 // returns the base folder's new location (ex: /d/c)
 func (ls *locSet) MoveLocation(fromLocation, toLocation string) string {
 	ss := ls.Subset(fromLocation)
-	lastElem := path.Builder{}.Append(path.Split(fromLocation)...).LastElem()
+
+	fromBuilder := path.Builder{}.Append(path.Split(fromLocation)...)
+	toBuilder := path.Builder{}.Append(path.Split(toLocation)...).Append(fromBuilder.LastElem())
 
 	for lr, items := range ss.Locations {
-		newLoc := toLocation + "/" + lastElem
-		trimLoc := strings.TrimPrefix(lr, fromLocation)
-		trimLoc = strings.TrimPrefix(trimLoc, "/")
+		lrBuilder := path.Builder{}.Append(path.Split(lr)...)
+		lrBuilder.UpdateParent(fromBuilder, toBuilder)
 
-		if len(trimLoc) > 0 {
-			newLoc += "/" + trimLoc
-		}
+		newLoc := lrBuilder.String()
 
 		for ir := range items {
 			ls.RemoveItem(lr, ir)
@@ -115,24 +114,19 @@ func (ls *locSet) MoveLocation(fromLocation, toLocation string) string {
 		ls.AddLocation(newLoc)
 	}
 
-	if len(toLocation) == 0 {
-		return lastElem
-	}
-
-	return toLocation + "/" + lastElem
+	return toBuilder.String()
 }
 
 func (ls *locSet) RenameLocation(fromLocation, toLocation string) {
 	ss := ls.Subset(fromLocation)
+	fromBuilder := path.Builder{}.Append(path.Split(fromLocation)...)
+	toBuilder := path.Builder{}.Append(path.Split(toLocation)...)
 
 	for lr, items := range ss.Locations {
-		newLoc := toLocation
-		trimLoc := strings.TrimPrefix(lr, fromLocation)
-		trimLoc = strings.TrimPrefix(trimLoc, "/")
+		lrBuilder := path.Builder{}.Append(path.Split(lr)...)
+		lrBuilder.UpdateParent(fromBuilder, toBuilder)
 
-		if len(trimLoc) > 0 {
-			newLoc += "/" + trimLoc
-		}
+		newLoc := lrBuilder.String()
 
 		for ir := range items {
 			ls.RemoveItem(lr, ir)

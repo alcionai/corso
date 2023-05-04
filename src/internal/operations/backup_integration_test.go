@@ -59,11 +59,9 @@ const incrementalsDestContainerPrefix = "incrementals_ci_"
 // prepNewTestBackupOp generates all clients required to run a backup operation,
 // returning both a backup operation created with those clients, as well as
 // the clients themselves.
-//
-//revive:disable:context-as-argument
 func prepNewTestBackupOp(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	bus events.Eventer,
 	sel selectors.Selector,
 	featureToggles control.Toggles,
@@ -78,7 +76,6 @@ func prepNewTestBackupOp(
 	selectors.Selector,
 	func(),
 ) {
-	//revive:enable:context-as-argument
 	var (
 		acct = tester.NewM365Account(t)
 		// need to initialize the repository before we can test connecting to it.
@@ -133,11 +130,9 @@ func prepNewTestBackupOp(
 // any other metadata, and uses them to generate a new backup operation.  This
 // allows backup chains to utilize the same temp directory and configuration
 // details.
-//
-//revive:disable:context-as-argument
 func newTestBackupOp(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
 	gc *connector.GraphConnector,
@@ -147,7 +142,6 @@ func newTestBackupOp(
 	featureToggles control.Toggles,
 	closer func(),
 ) BackupOperation {
-	//revive:enable:context-as-argument
 	var (
 		sw   = store.NewKopiaStore(ms)
 		opts = control.Defaults()
@@ -165,15 +159,13 @@ func newTestBackupOp(
 	return bo
 }
 
-//revive:disable:context-as-argument
 func runAndCheckBackup(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	bo *BackupOperation,
 	mb *evmock.Bus,
 	acceptNoData bool,
 ) {
-	//revive:enable:context-as-argument
 	err := bo.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
@@ -208,7 +200,7 @@ func runAndCheckBackup(
 
 func checkBackupIsInManifests(
 	t *testing.T,
-	ctx context.Context, //revive:disable:context-as-argument
+	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
 	bo *BackupOperation,
 	sel selectors.Selector,
@@ -251,7 +243,7 @@ func checkBackupIsInManifests(
 
 func checkMetadataFilesExist(
 	t *testing.T,
-	ctx context.Context, //revive:disable:context-as-argument
+	ctx context.Context, //revive:disable-line:context-as-argument
 	backupID model.StableID,
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
@@ -334,10 +326,9 @@ func checkMetadataFilesExist(
 // the callback provider can use them, or not, as wanted.
 type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
 
-//revive:disable:context-as-argument
 func generateContainerOfItems(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	gc *connector.GraphConnector,
 	service path.ServiceType,
 	acct account.Account,
@@ -348,7 +339,6 @@ func generateContainerOfItems(
 	backupVersion int,
 	dbf dataBuilderFunc,
 ) *details.Details {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	items := make([]incrementalItem, 0, howManyItems)
