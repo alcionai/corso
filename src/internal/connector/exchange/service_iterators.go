@@ -51,6 +51,10 @@ func filterContainersAndFillCollections(
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 		category   = qp.Category
+
+		// Stop-gap: Track folders by LocationPath and if there's duplicates pick
+		// the one with the lexicographically larger ID.
+		dupPaths = map[string]string{}
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
@@ -98,6 +102,53 @@ func filterContainersAndFillCollections(
 		if !ok {
 			continue
 		}
+
+		// This is a duplicate collection. Either the collection we're examining now
+		// should be skipped or the collection we previously added should be
+		// skipped.
+		//
+		// Calendars is already using folder IDs so we don't need to pick the
+		// "newest" folder for that.
+		if oldCID := dupPaths[locPath.String()]; category != path.EventsCategory && len(oldCID) > 0 {
+			if cID < oldCID {
+				logger.Ctx(ictx).Infow(
+					"skipping duplicate folder with lesser ID",
+					"previous_folder_id", clues.Hide(oldCID),
+					"current_folder_id", clues.Hide(cID),
+					"duplicate_path", locPath)
+
+				// Readd this entry to the tombstone map because we remove it first off.
+				if oldDP, ok := dps[cID]; ok {
+					tombstones[cID] = oldDP.path
+				}
+
+				// Continuing here ensures we don't add anything to the paths map or the
+				// delta map which is the behavior we want.
+				continue
+			}
+
+			logger.Ctx(ictx).Infow(
+				"switching duplicate folders as newer folder found",
+				"previous_folder_id", clues.Hide(oldCID),
+				"current_folder_id", clues.Hide(cID),
+				"duplicate_path", locPath)
+
+			// Remove the previous collection from the maps. This will make us think
+			// it's a new item and properly populate it if it ever:
+			//   * moves
+			//   * replaces the current entry (current entry moves/is deleted)
+			delete(collections, oldCID)
+			delete(deltaURLs, oldCID)
+			delete(currPaths, oldCID)
+
+			// Re-add the tombstone entry for the old folder so that it can be marked
+			// as deleted if need.
+			if oldDP, ok := dps[oldCID]; ok {
+				tombstones[oldCID] = oldDP.path
+			}
+		}
+
+		dupPaths[locPath.String()] = cID
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
