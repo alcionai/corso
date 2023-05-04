@@ -1148,6 +1148,22 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 		},
+		{
+			name: "SharePoint Old Format",
+			input: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   OneDriveItem,
+					ParentPath: folder1,
+				},
+			},
+			locPath: newOneDrivePB,
+			expectedItem: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   SharePointLibrary,
+					ParentPath: folder2,
+				},
+			},
+		},
 	}
 
 	for _, test := range table {
