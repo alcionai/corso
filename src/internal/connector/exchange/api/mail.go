@@ -137,6 +137,7 @@ func (c Mail) GetItem(
 	var (
 		size       int64
 		attachSize int32
+		mailBody   models.ItemBodyable
 	)
 	// Will need adjusted if attachments start allowing paging.
 	headers := buildPreferHeaders(false, immutableIDs)
@@ -149,13 +150,16 @@ func (c Mail) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mail.GetBody()) {
+	mailBody = mail.GetBody()
+	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mailBody) {
 		return mail, MailInfo(mail, 0), nil
 	}
 
-	bodySize := ptr.Val(mail.GetBody().GetContent())
-	if bodySize != "" {
-		size = int64(len(bodySize))
+	if mailBody != nil {
+		bodySize := ptr.Val(mailBody.GetContent())
+		if bodySize != "" {
+			size = int64(len(bodySize))
+		}
 	}
 
 	options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
@@ -178,6 +182,7 @@ func (c Mail) GetItem(
 		}
 
 		mail.SetAttachments(attached.GetValue())
+
 		return mail, MailInfo(mail, size), nil
 	}
 
