@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+- Fix nil pointer exception when running an incremental backup on SharePoint where the base backup used an older index data format.
+
 ## [v0.7.0] (beta) - 2023-05-02
 
 ### Added
