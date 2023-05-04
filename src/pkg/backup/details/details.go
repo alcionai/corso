@@ -642,6 +642,8 @@ func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 		updatePath = item.SharePoint.UpdateParentPath
 	} else if item.OneDrive != nil {
 		updatePath = item.OneDrive.UpdateParentPath
+	} else {
+		return
 	}
 
 	updatePath(newLocPath)

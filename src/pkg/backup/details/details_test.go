@@ -1164,6 +1164,12 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 		},
+		{
+			name:         "Empty Item Doesn't Fail",
+			input:        ItemInfo{},
+			locPath:      newOneDrivePB,
+			expectedItem: ItemInfo{},
+		},
 	}
 
 	for _, test := range table {
