@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -232,7 +233,7 @@ func write(
 		ctx,
 		nil,
 		dbcs,
-		nil,
+		prefixmatcher.NopReader[map[string]struct{}](),
 		nil,
 		false,
 		errs)
