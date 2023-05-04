@@ -8,19 +8,21 @@ import "github.com/alcionai/clues"
 //
 // driveID is `b!X_8Z2zuXpkKkXZsr7gThk9oJpuj0yXVGnK5_VjRRPK-q725SX_8ZQJgFDK8PlFxA` and
 // folders[] is []{"Folder1", "Folder2"}
+//
+// Should be compatible with all drive-based services (ex: oneDrive, sharePoint Libraries, etc)
 type DrivePath struct {
 	DriveID string
 	Root    string
 	Folders Elements
 }
 
-func ToOneDrivePath(p Path) (*DrivePath, error) {
+func ToDrivePath(p Path) (*DrivePath, error) {
 	folders := p.Folders()
 
 	// Must be at least `drives/<driveID>/root:`
 	if len(folders) < 3 {
 		return nil, clues.
-			New("folder path doesn't match expected format for OneDrive items").
+			New("folder path doesn't match expected format for Drive items").
 			With("path_folders", p.Folder(false))
 	}
 
@@ -29,7 +31,7 @@ func ToOneDrivePath(p Path) (*DrivePath, error) {
 
 // Returns the path to the folder within the drive (i.e. under `root:`)
 func GetDriveFolderPath(p Path) (string, error) {
-	drivePath, err := ToOneDrivePath(p)
+	drivePath, err := ToDrivePath(p)
 	if err != nil {
 		return "", err
 	}

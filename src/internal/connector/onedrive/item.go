@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -73,18 +74,18 @@ func baseItemMetaReader(
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
 	var (
-		perms []UserPermission
+		perms []metadata.Permission
 		err   error
-		meta  = Metadata{FileName: ptr.Val(item.GetName())}
+		meta  = metadata.Metadata{FileName: ptr.Val(item.GetName())}
 	)
 
 	if item.GetShared() == nil {
-		meta.SharingMode = SharingModeInherited
+		meta.SharingMode = metadata.SharingModeInherited
 	} else {
-		meta.SharingMode = SharingModeCustom
+		meta.SharingMode = metadata.SharingModeCustom
 	}
 
-	if meta.SharingMode == SharingModeCustom {
+	if meta.SharingMode == metadata.SharingModeCustom {
 		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
@@ -211,7 +212,7 @@ func driveItemPermissionInfo(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-) ([]UserPermission, error) {
+) ([]metadata.Permission, error) {
 	perm, err := api.GetItemPermission(ctx, service, driveID, itemID)
 	if err != nil {
 		return nil, err
@@ -222,8 +223,8 @@ func driveItemPermissionInfo(
 	return uperms, nil
 }
 
-func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []UserPermission {
-	up := []UserPermission{}
+func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []metadata.Permission {
+	up := []metadata.Permission{}
 
 	for _, p := range perms {
 		if p.GetGrantedToV2() == nil {
@@ -256,7 +257,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
 			}
 			if gv2.GetDevice() != nil {
-				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
+				logm.With("device_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
 			logm.Info("untracked permission")
 		}
@@ -268,7 +269,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			continue
 		}
 
-		up = append(up, UserPermission{
+		up = append(up, metadata.Permission{
 			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
 			EntityID:   entityID,
