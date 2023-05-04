@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -204,7 +203,7 @@ type permData struct {
 	user        string // user is only for older versions
 	entityID    string
 	roles       []string
-	sharingMode onedrive.SharingMode
+	sharingMode metadata.SharingMode
 }
 
 type itemData struct {
@@ -672,10 +671,10 @@ func onedriveMetadata(
 	}
 }
 
-func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
+func getMetadata(fileName string, perm permData, permUseID bool) metadata.Metadata {
 	if len(perm.user) == 0 || len(perm.roles) == 0 ||
-		perm.sharingMode != onedrive.SharingModeCustom {
-		return onedrive.Metadata{
+		perm.sharingMode != metadata.SharingModeCustom {
+		return metadata.Metadata{
 			FileName:    fileName,
 			SharingMode: perm.sharingMode,
 		}
@@ -685,7 +684,7 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 	// user/role combo unless deleted and readded, but we have to do
 	// this as we only have two users of which one is already taken.
 	id := uuid.NewString()
-	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
+	uperm := metadata.Permission{ID: id, Roles: perm.roles}
 
 	if permUseID {
 		uperm.EntityID = perm.entityID
@@ -693,9 +692,9 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 		uperm.Email = perm.user
 	}
 
-	meta := onedrive.Metadata{
+	meta := metadata.Metadata{
 		FileName:    fileName,
-		Permissions: []onedrive.UserPermission{uperm},
+		Permissions: []metadata.Permission{uperm},
 	}
 
 	return meta

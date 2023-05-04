@@ -227,16 +227,24 @@ func (mw RetryMiddleware) retryRequest(
 	exponentialBackoff *backoff.ExponentialBackOff,
 	priorErr error,
 ) (*http.Response, error) {
+	status := "unknown_resp_status"
+	statusCode := -1
+
+	if resp != nil {
+		status = resp.Status
+		statusCode = resp.StatusCode
+	}
+
 	ctx = clues.Add(
 		ctx,
-		"retry_count", executionCount,
-		"prev_resp_status", resp.Status)
+		"prev_resp_status", status,
+		"retry_count", executionCount)
 
 	// only retry under certain conditions:
 	// 1, there was an error.  2, the resp and/or status code match retriable conditions.
 	// 3, the request is retriable.
 	// 4, we haven't hit our max retries already.
-	if (priorErr != nil || mw.isRetriableRespCode(ctx, resp, resp.StatusCode)) &&
+	if (priorErr != nil || mw.isRetriableRespCode(ctx, resp, statusCode)) &&
 		mw.isRetriableRequest(req) &&
 		executionCount < mw.MaxRetries {
 		executionCount++
@@ -258,16 +266,16 @@ func (mw RetryMiddleware) retryRequest(
 		case <-timer.C:
 		}
 
-		response, err := pipeline.Next(req, middlewareIndex)
+		nextResp, err := pipeline.Next(req, middlewareIndex)
 		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-			return response, stackReq(ctx, req, response, err)
+			return nextResp, stackReq(ctx, req, nextResp, err)
 		}
 
 		return mw.retryRequest(ctx,
 			pipeline,
 			middlewareIndex,
 			req,
-			response,
+			nextResp,
 			executionCount,
 			cumulativeDelay,
 			exponentialBackoff,
