@@ -1,0 +1,37 @@
+name: Publish binary
+on:
+  workflow_dispatch:
+
+jobs:
+  SetEnv:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get version string
+        id: version
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
+            echo "version=$(git describe --exact-match --tags $(git rev-parse HEAD))" | tee -a $GITHUB_OUTPUT
+          else
+            echo "version=$(echo unreleased-$(git rev-parse --short HEAD))" | tee -a $GITHUB_OUTPUT
+          fi
+
+  Publish-Binary:
+    needs: [SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Publish Binary
+        uses: ./.github/actions/publish-binary
+        with:
+          version: ${{ needs.SetEnv.outputs.version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          rudderstack_write_key: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
+          rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}

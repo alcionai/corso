@@ -12,6 +12,7 @@ func IsMetadataFile(p path.Path) bool {
 
 	case path.SharePointService:
 		return p.Category() == path.LibrariesCategory && metadata.HasMetaSuffix(p.Item())
+
 	default:
 		return false
 	}

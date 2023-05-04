@@ -522,9 +522,9 @@ func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		return nil, clues.Wrap(err, "getting item RepoRef")
 	}
 
-	p, err := path.ToOneDrivePath(rr)
+	p, err := path.ToDrivePath(rr)
 	if err != nil {
-		return nil, clues.New("converting RepoRef to OneDrive path")
+		return nil, clues.New("converting RepoRef to drive path")
 	}
 
 	baseLoc := path.Builder{}.Append(p.Root).Append(p.Folders...)
