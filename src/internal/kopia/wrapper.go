@@ -370,6 +370,12 @@ type dirAndItems struct {
 	items []string
 }
 
+// loadDirsAndItems takes a set of ShortRef -> (directory path, []item names)
+// and creates a collection for each tuple in the set. Non-fatal errors are
+// accumulated into bus. Any fatal errors will stop processing and return the
+// error directly.
+//
+// All data is loaded from the given snapshot.
 func loadDirsAndItems(
 	ctx context.Context,
 	snapshotRoot fs.Entry,

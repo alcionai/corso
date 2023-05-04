@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -60,6 +61,9 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 	return kdc.path
 }
 
+// Fetch returns the file with the given name from the collection as a
+// data.Stream. Returns a data.ErrNotFound error if the file isn't in the
+// collection.
 func (kdc kopiaDataCollection) Fetch(
 	ctx context.Context,
 	name string,
@@ -71,7 +75,7 @@ func (kdc kopiaDataCollection) Fetch(
 	}
 
 	if len(name) == 0 {
-		return nil, clues.Wrap(errNoRestorePath, "getting item stream").WithClues(ctx)
+		return nil, clues.Wrap(errNoRestorePath, "unknown item").WithClues(ctx)
 	}
 
 	e, err := kdc.dir.Child(ctx, encodeAsPath(name))
@@ -89,6 +93,11 @@ func (kdc kopiaDataCollection) Fetch(
 	}
 
 	size := f.Size() - int64(versionSize)
+	if size < 0 {
+		logger.Ctx(ctx).Infow("negative file size; resetting to 0", "file_size", size)
+
+		size = 0
+	}
 
 	if kdc.counter != nil {
 		kdc.counter.Count(size)
