@@ -655,6 +655,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 						sc.scope,
 						test.inputMetadata(t, sc.cat),
 						control.Options{FailureHandling: control.FailFast},
+						true,
 						fault.New(true))
 					require.NoError(t, err, "getting collections", clues.ToCore(err))
 
@@ -904,6 +905,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 				scope,
 				test.inputMetadata,
 				control.Options{FailureHandling: control.FailFast},
+				true,
 				fault.New(true))
 			require.NoError(t, err, "getting collections", clues.ToCore(err))
 
