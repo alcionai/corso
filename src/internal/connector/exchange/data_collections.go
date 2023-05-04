@@ -276,9 +276,6 @@ func createCollections(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	// Create collection of ExchangeDataCollection
-	collections := make(map[string]data.BackupCollection)
-
 	qp := graph.QueryParams{
 		Category:      category,
 		ResourceOwner: user,
@@ -296,11 +293,10 @@ func createCollections(
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
-	err = filterContainersAndFillCollections(
+	collections, err := filterContainersAndFillCollections(
 		ctx,
 		qp,
 		getter,
-		collections,
 		su,
 		resolver,
 		scope,
