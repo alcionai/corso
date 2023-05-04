@@ -1,44 +1,81 @@
 package graph
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
-func newBodylessTestMW(onIntercept func(), code int, err error) testMW {
-	return testMW{
-		err:         err,
+type mwReturns struct {
+	err  error
+	resp *http.Response
+}
+
+func newMWReturns(code int, body []byte, err error) mwReturns {
+	var brc io.ReadCloser
+
+	if len(body) > 0 {
+		brc = io.NopCloser(bytes.NewBuffer(body))
+	}
+
+	return mwReturns{
+		err: err,
+		resp: &http.Response{
+			StatusCode: code,
+			Body:       brc,
+		},
+	}
+}
+
+func newTestMW(onIntercept func(*http.Request), mrs ...mwReturns) *testMW {
+	return &testMW{
 		onIntercept: onIntercept,
-		resp:        &http.Response{StatusCode: code},
+		toReturn:    mrs,
 	}
 }
 
 type testMW struct {
-	err         error
-	onIntercept func()
-	resp        *http.Response
+	repeatReturn0 bool
+	iter          int
+	toReturn      []mwReturns
+	onIntercept   func(*http.Request)
 }
 
-func (mw testMW) Intercept(
+func (mw *testMW) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	mw.onIntercept()
-	return mw.resp, mw.err
+	mw.onIntercept(req)
+
+	i := mw.iter
+	if mw.repeatReturn0 {
+		i = 0
+	}
+
+	// panic on out-of-bounds intentionally not protected
+	tr := mw.toReturn[i]
+
+	mw.iter++
+
+	return tr.resp, tr.err
 }
 
 // can't use graph/mock.CreateAdapter() due to circular references.
@@ -58,7 +95,7 @@ func mockAdapter(creds account.M365Config, mw khttp.Middleware) (*msgraphsdkgo.G
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
-	httpClient.Timeout = 5 * time.Second
+	httpClient.Timeout = 15 * time.Second
 
 	cc.apply(httpClient)
 
@@ -135,7 +172,10 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 
 			t := suite.T()
 			called := 0
-			mw := newBodylessTestMW(func() { called++ }, test.status, nil)
+			mw := newTestMW(
+				func(*http.Request) { called++ },
+				newMWReturns(test.status, nil, nil))
+			mw.repeatReturn0 = true
 
 			adpt, err := mockAdapter(suite.creds, mw)
 			require.NoError(t, err, clues.ToCore(err))
@@ -149,4 +189,44 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			assert.Equal(t, test.expectRetryCount, called-1)
 		})
 	}
+}
+
+func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter500() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t                = suite.T()
+		body             = models.NewMailFolder()
+		checkOnIntercept = func(req *http.Request) {
+			bs, err := io.ReadAll(req.Body)
+			require.NoError(t, err, clues.ToCore(err))
+
+			// an expired body, after graph compression, will
+			// normally contain 25 bytes.  So we should see more
+			// than that at least.
+			require.Less(
+				t,
+				25,
+				len(bs),
+				"body should be longer than 25 bytes; shorter indicates the body was sliced on a retry")
+		}
+	)
+
+	body.SetDisplayName(ptr.To(uuid.NewString()))
+
+	mw := newTestMW(
+		checkOnIntercept,
+		newMWReturns(http.StatusInternalServerError, nil, nil),
+		newMWReturns(http.StatusOK, nil, nil))
+
+	adpt, err := mockAdapter(suite.creds, mw)
+	require.NoError(t, err, clues.ToCore(err))
+
+	_, err = NewService(adpt).
+		Client().
+		UsersById("user").
+		MailFolders().
+		Post(ctx, body, nil)
+	require.NoError(t, err, clues.ToCore(err))
 }
