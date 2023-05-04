@@ -196,9 +196,9 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 	defer flush()
 
 	var (
-		t     = suite.T()
-		body  = models.NewMailFolder()
-		check = func(req *http.Request) {
+		t                = suite.T()
+		body             = models.NewMailFolder()
+		checkOnIntercept = func(req *http.Request) {
 			bs, err := io.ReadAll(req.Body)
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -216,7 +216,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 	body.SetDisplayName(ptr.To(uuid.NewString()))
 
 	mw := newTestMW(
-		check,
+		checkOnIntercept,
 		newMWReturns(http.StatusInternalServerError, nil, nil),
 		newMWReturns(http.StatusOK, nil, nil))
 
