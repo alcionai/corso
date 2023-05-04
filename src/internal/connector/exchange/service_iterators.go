@@ -115,7 +115,7 @@ func filterContainersAndFillCollections(
 					"skipping duplicate folder with lesser ID",
 					"previous_folder_id", clues.Hide(oldCID),
 					"current_folder_id", clues.Hide(cID),
-				)
+					"duplicate_path", locPath)
 
 				// Readd this entry to the tombstone map because we remove it first off.
 				if oldDP, ok := dps[cID]; ok {
@@ -130,7 +130,8 @@ func filterContainersAndFillCollections(
 			logger.Ctx(ictx).Infow(
 				"switching duplicate folders as newer folder found",
 				"previous_folder_id", clues.Hide(oldCID),
-				"current_folder_id", clues.Hide(cID))
+				"current_folder_id", clues.Hide(cID),
+				"duplicate_path", locPath)
 
 			// Remove the previous collection from the maps. This will make us think
 			// it's a new item and properly populate it if it ever:
