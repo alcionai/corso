@@ -102,23 +102,6 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				name += "-delta"
 			} else {
 				name += "-non-delta"
-
-			sel := test.getSelector(t)
-
-			collections, excludes, err := exchange.DataCollections(
-				ctx,
-				sel,
-				sel,
-				nil,
-				connector.credentials,
-				connector.UpdateStatus,
-				control.Defaults(),
-				fault.New(true))
-			require.NoError(t, err, clues.ToCore(err))
-			assert.True(t, excludes.Empty())
-
-			for range collections {
-				connector.incrementAwaitingMessages()
 			}
 
 			suite.Run(name, func() {
@@ -137,7 +120,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					canMakeDeltaQueries,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
-				assert.Empty(t, excludes)
+				assert.True(t, excludes.Empty())
 
 				for range collections {
 					connector.incrementAwaitingMessages()
