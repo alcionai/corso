@@ -522,9 +522,9 @@ func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		return nil, clues.Wrap(err, "getting item RepoRef")
 	}
 
-	p, err := path.ToOneDrivePath(rr)
+	p, err := path.ToDrivePath(rr)
 	if err != nil {
-		return nil, clues.New("converting RepoRef to OneDrive path")
+		return nil, clues.New("converting RepoRef to drive path")
 	}
 
 	baseLoc := path.Builder{}.Append(p.Root).Append(p.Folders...)
@@ -628,14 +628,21 @@ func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 	// contained in them.
 	var updatePath func(newLocPath *path.Builder)
 
-	switch item.infoType() {
-	case ExchangeContact, ExchangeEvent, ExchangeMail:
+	// Can't switch based on infoType because that's been unstable.
+	if item.Exchange != nil {
 		updatePath = item.Exchange.UpdateParentPath
-	case SharePointLibrary:
+	} else if item.SharePoint != nil {
+		// SharePoint used to store library items with the OneDriveItem ItemType.
+		// Start switching them over as we see them since there's no point in
+		// keeping the old format.
+		if item.SharePoint.ItemType == OneDriveItem {
+			item.SharePoint.ItemType = SharePointLibrary
+		}
+
 		updatePath = item.SharePoint.UpdateParentPath
-	case OneDriveItem:
+	} else if item.OneDrive != nil {
 		updatePath = item.OneDrive.UpdateParentPath
-	default:
+	} else {
 		return
 	}
 
