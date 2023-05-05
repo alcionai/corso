@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - --user and --mailbox flags have been removed from CLI examples for details and restore commands (they were already not supported, this only updates the docs).
 - Improve restore time on large restores by optimizing how items are loaded from the remote repository.
 - Remove exchange item filtering based on m365 item ID via the CLI.
+- OneDrive backups no longer include a user's non-default drives.
 
 ## [v0.7.0] (beta) - 2023-05-02
 
