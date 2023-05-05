@@ -135,9 +135,8 @@ func (c Mail) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		size       int64
-		attachSize int32
-		mailBody   models.ItemBodyable
+		size     int64
+		mailBody models.ItemBodyable
 	)
 	// Will need adjusted if attachments start allowing paging.
 	headers := buildPreferHeaders(false, immutableIDs)
@@ -151,15 +150,15 @@ func (c Mail) GetItem(
 	}
 
 	mailBody = mail.GetBody()
-	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mailBody) {
-		return mail, MailInfo(mail, 0), nil
+	if mailBody != nil {
+		content := ptr.Val(mailBody.GetContent())
+		if len(content) > 0 {
+			size = int64(len(content))
+		}
 	}
 
-	if mailBody != nil {
-		bodySize := ptr.Val(mailBody.GetContent())
-		if bodySize != "" {
-			size = int64(len(bodySize))
-		}
+	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mailBody) {
+		return mail, MailInfo(mail, size), nil
 	}
 
 	options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
@@ -177,8 +176,8 @@ func (c Mail) GetItem(
 		Get(ctx, options)
 	if err == nil {
 		for _, a := range attached.GetValue() {
-			attachSize = ptr.Val(a.GetSize())
-			size = size + int64(attachSize)
+			attachSize := ptr.Val(a.GetSize())
+			size = +int64(attachSize)
 		}
 
 		mail.SetAttachments(attached.GetValue())
@@ -233,9 +232,8 @@ func (c Mail) GetItem(
 		}
 
 		atts = append(atts, att)
-
-		attachSize = ptr.Val(a.GetSize())
-		size = size + int64(attachSize)
+		attachSize := ptr.Val(a.GetSize())
+		size = +int64(attachSize)
 	}
 
 	mail.SetAttachments(atts)
