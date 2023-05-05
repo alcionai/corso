@@ -655,7 +655,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 						sc.scope,
 						test.inputMetadata(t, sc.cat),
 						control.Options{FailureHandling: control.FailFast},
-						true,
 						fault.New(true))
 					require.NoError(t, err, "getting collections", clues.ToCore(err))
 
@@ -905,7 +904,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 				scope,
 				test.inputMetadata,
 				control.Options{FailureHandling: control.FailFast},
-				true,
 				fault.New(true))
 			require.NoError(t, err, "getting collections", clues.ToCore(err))
 
@@ -1108,7 +1106,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 	}
 }
 
-func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
+func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals_nondelta() {
 	var (
 		userID   = "user_id"
 		tenantID = suite.creds.AzureTenantID
@@ -1146,11 +1144,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 	}
 
 	table := []struct {
-		name     string
-		getter   mockGetter
-		resolver graph.ContainerResolver
-		dps      DeltaPaths
-		expect   map[string]endState
+		name            string
+		getter          mockGetter
+		resolver        graph.ContainerResolver
+		dps             DeltaPaths
+		expect          map[string]endState
+		skipForNonDelta bool
 	}{
 		{
 			name: "new container",
@@ -1344,6 +1343,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			expect: map[string]endState{
 				"1": {data.NotMovedState, true},
 			},
+			skipForNonDelta: true, // this is not a valid test for non-delta
 		},
 		{
 			name: "a little bit of everything",
@@ -1405,54 +1405,71 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				"4": {data.MovedState, true},
 				"5": {data.DeletedState, false},
 			},
+			skipForNonDelta: true,
 		},
 	}
 	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
+		for _, canMakeDeltaQueries := range []bool{true, false} {
+			name := test.name
 
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
-				ctx,
-				qp,
-				test.getter,
-				collections,
-				statusUpdater,
-				test.resolver,
-				allScope,
-				test.dps,
-				control.Defaults(),
-				fault.New(true))
-			assert.NoError(t, err, clues.ToCore(err))
-
-			metadatas := 0
-			for _, c := range collections {
-				p := c.FullPath()
-				if p == nil {
-					p = c.PreviousPath()
-				}
-
-				require.NotNil(t, p)
-
-				if p.Service() == path.ExchangeMetadataService {
-					metadatas++
+			if canMakeDeltaQueries {
+				name += "-delta"
+			} else {
+				if test.skipForNonDelta {
 					continue
 				}
-
-				p0 := p.Folders()[0]
-
-				expect, ok := test.expect[p0]
-				assert.True(t, ok, "collection is expected in result")
-
-				assert.Equalf(t, expect.state, c.State(), "collection %s state", p0)
-				assert.Equalf(t, expect.doNotMerge, c.DoNotMergeItems(), "collection %s DoNotMergeItems", p0)
+				name += "-non-delta"
 			}
 
-			assert.Equal(t, 1, metadatas, "metadata collections")
-		})
+			suite.Run(name, func() {
+				t := suite.T()
+
+				ctx, flush := tester.NewContext()
+				defer flush()
+
+				collections := map[string]data.BackupCollection{}
+
+				ctrlOpts := control.Defaults()
+				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
+
+				err := filterContainersAndFillCollections(
+					ctx,
+					qp,
+					test.getter,
+					collections,
+					statusUpdater,
+					test.resolver,
+					allScope,
+					test.dps,
+					ctrlOpts,
+					fault.New(true))
+				assert.NoError(t, err, clues.ToCore(err))
+
+				metadatas := 0
+				for _, c := range collections {
+					p := c.FullPath()
+					if p == nil {
+						p = c.PreviousPath()
+					}
+
+					require.NotNil(t, p)
+
+					if p.Service() == path.ExchangeMetadataService {
+						metadatas++
+						continue
+					}
+
+					p0 := p.Folders()[0]
+
+					expect, ok := test.expect[p0]
+					assert.True(t, ok, "collection is expected in result")
+
+					assert.Equalf(t, expect.state, c.State(), "collection %s state", p0)
+					assert.Equalf(t, expect.doNotMerge, c.DoNotMergeItems(), "collection %s DoNotMergeItems", p0)
+				}
+
+				assert.Equal(t, 1, metadatas, "metadata collections")
+			})
+		}
 	}
 }
