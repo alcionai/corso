@@ -617,6 +617,15 @@ func (ec exchangeCategory) pathValues(
 		item = repo.Item()
 	}
 
+	items := []string{ent.ShortRef, item}
+
+	// only include the item ID when the user is NOT matching
+	// item names. Exchange data does not contain an item name,
+	// only an ID, and we don't want to mix up the two.
+	if cfg.OnlyMatchItemNames {
+		items = []string{ent.ShortRef}
+	}
+
 	// Will hit the if-condition when we're at a top-level folder, but we'll get
 	// the same result when we extract from the RepoRef.
 	folder := ent.LocationRef
@@ -626,7 +635,7 @@ func (ec exchangeCategory) pathValues(
 
 	result := map[categorizer][]string{
 		folderCat: {folder},
-		itemCat:   {item, ent.ShortRef},
+		itemCat:   items,
 	}
 
 	return result, nil
