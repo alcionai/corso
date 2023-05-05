@@ -213,6 +213,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 		name            string
 		setupf          func()
 		attachmentCount int
+		size            int64
 		expect          assert.ErrorAssertionFunc
 	}{
 		{
@@ -242,6 +243,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
+
+				asize := int32(50)
+				aitem.SetSize(&asize)
 				atts.SetValue([]models.Attachmentable{aitem})
 
 				gock.New("https://graph.microsoft.com").
@@ -250,6 +254,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 					JSON(getJSONObject(suite.T(), atts))
 			},
 			attachmentCount: 1,
+			size:            50,
 			expect:          assert.NoError,
 		},
 		{
@@ -289,6 +294,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 					JSON(getJSONObject(suite.T(), aitem))
 			},
 			attachmentCount: 1,
+			size:            200,
 			expect:          assert.NoError,
 		},
 		{
@@ -330,6 +336,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				}
 			},
 			attachmentCount: 5,
+			size:            200,
 			expect:          assert.NoError,
 		},
 	}
@@ -348,8 +355,23 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 			it, ok := item.(models.Messageable)
 			require.True(suite.T(), ok, "convert to messageable")
 
+			var size int64
+			mailBody := it.GetBody()
+			if mailBody != nil {
+				content := ptr.Val(mailBody.GetContent())
+				if len(content) > 0 {
+					size = int64(len(content))
+				}
+			}
+
+			attachments := it.GetAttachments()
+			for _, attachment := range attachments {
+				size = +int64(*attachment.GetSize())
+			}
+
 			assert.Equal(suite.T(), *it.GetId(), mid)
-			assert.Equal(suite.T(), tt.attachmentCount, len(it.GetAttachments()), "attachment count")
+			assert.Equal(suite.T(), tt.attachmentCount, len(attachments), "attachment count")
+			assert.Equal(suite.T(), tt.size, size, "mail size")
 			assert.True(suite.T(), gock.IsDone(), "made all requests")
 		})
 	}
