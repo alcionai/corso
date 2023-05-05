@@ -288,14 +288,16 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctrlOpts := control.Defaults()
+			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
+
 			collections, err := createCollections(
 				ctx,
 				acct,
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Defaults(),
-				test.canMakeDeltaQueries,
+				ctrlOpts,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -366,7 +368,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
-				true,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -398,7 +399,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				dps,
 				control.Defaults(),
-				true,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -445,7 +445,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		sel.Scopes()[0],
 		DeltaPaths{},
 		control.Defaults(),
-		true,
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -519,7 +518,6 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
-				true,
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -632,7 +630,6 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
-				true,
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))

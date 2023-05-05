@@ -109,6 +109,9 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 				sel := test.getSelector(t)
 
+				ctrlOpts := control.Defaults()
+				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
+
 				collections, excludes, err := exchange.DataCollections(
 					ctx,
 					sel,
@@ -116,8 +119,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					nil,
 					connector.credentials,
 					connector.UpdateStatus,
-					control.Defaults(),
-					canMakeDeltaQueries,
+					ctrlOpts,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
 				assert.True(t, excludes.Empty())

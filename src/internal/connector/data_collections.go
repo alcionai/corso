@@ -64,7 +64,6 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner,
-		ctrlOpts,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -81,6 +80,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
+
+		ctrlOpts.ToggleFeatures.DisableDelta = true
 	}
 
 	switch sels.Service {
@@ -93,7 +94,6 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			gc.credentials,
 			gc.UpdateStatus,
 			ctrlOpts,
-			canMakeDeltaQueries,
 			errs)
 		if err != nil {
 			return nil, nil, err
@@ -177,7 +177,6 @@ func checkServiceEnabled(
 	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
-	opts control.Options,
 ) (bool, bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
@@ -199,7 +198,7 @@ func checkServiceEnabled(
 		canMakeDeltaQueries = info.CanMakeDeltaQueries()
 	}
 
-	return true, canMakeDeltaQueries && !opts.ToggleFeatures.DisableDelta, nil
+	return true, canMakeDeltaQueries, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections

@@ -42,7 +42,6 @@ func filterContainersAndFillCollections(
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
-	canMakeDeltaQueries bool,
 	errs *fault.Bus,
 ) error {
 	var (
@@ -168,7 +167,7 @@ func filterContainersAndFillCollections(
 			cID,
 			prevDelta,
 			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-			canMakeDeltaQueries,
+			!ctrlOpts.ToggleFeatures.DisableDelta,
 		)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
