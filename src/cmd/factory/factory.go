@@ -29,6 +29,12 @@ var oneDriveCmd = &cobra.Command{
 	RunE:  handleOneDriveFactory,
 }
 
+var sharePointCmd = &cobra.Command{
+	Use:   "sharepoint",
+	Short: "Generate shareopint data",
+	RunE:  handleSharePointFactory,
+}
+
 // ------------------------------------------------------------------------------------------
 // CLI command handlers
 // ------------------------------------------------------------------------------------------
@@ -42,8 +48,8 @@ func main() {
 	// persistent flags that are common to all use cases
 	fs := factoryCmd.PersistentFlags()
 	fs.StringVar(&impl.Tenant, "tenant", "", "m365 tenant containing the user")
+	fs.StringVar(&impl.Site, "site", "", "sharepoint site owning the new data")
 	fs.StringVar(&impl.User, "user", "", "m365 user owning the new data")
-	cobra.CheckErr(factoryCmd.MarkPersistentFlagRequired("user"))
 	fs.StringVar(&impl.SecondaryUser, "secondaryuser", "", "m365 secondary user owning the new data")
 	fs.IntVar(&impl.Count, "count", 0, "count of items to produce")
 	cobra.CheckErr(factoryCmd.MarkPersistentFlagRequired("count"))
@@ -54,6 +60,8 @@ func main() {
 	impl.AddExchangeCommands(exchangeCmd)
 	factoryCmd.AddCommand(oneDriveCmd)
 	impl.AddOneDriveCommands(oneDriveCmd)
+	factoryCmd.AddCommand(sharePointCmd)
+	impl.AddSharePointCommands(sharePointCmd)
 
 	if err := factoryCmd.ExecuteContext(ctx); err != nil {
 		logger.Flush(ctx)
@@ -72,6 +80,11 @@ func handleExchangeFactory(cmd *cobra.Command, args []string) error {
 }
 
 func handleOneDriveFactory(cmd *cobra.Command, args []string) error {
+	Err(cmd.Context(), impl.ErrNotYetImplemented)
+	return cmd.Help()
+}
+
+func handleSharePointFactory(cmd *cobra.Command, args []string) error {
 	Err(cmd.Context(), impl.ErrNotYetImplemented)
 	return cmd.Help()
 }
