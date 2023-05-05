@@ -389,13 +389,16 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
+	opts := control.Defaults()
+	opts.RestorePermissions = true
+
 	deets, err := gc.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		acct,
 		sel,
 		dest,
-		control.Options{RestorePermissions: true},
+		opts,
 		dataColls,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
