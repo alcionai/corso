@@ -129,7 +129,7 @@ func (c Events) GetContainerByName(
 	// is found.
 	if len(resp.GetValue()) != 1 {
 		return nil, graph.Wrap(ctx, err, "unexpected number of calendars").
-			With("calendar_count", len(resp.GetValue()))
+			With("returned_calendar_count", len(resp.GetValue()))
 	}
 
 	// Sanity check ID and name
