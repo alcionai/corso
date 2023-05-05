@@ -99,6 +99,50 @@ func (c Events) GetContainerByID(
 	return graph.CalendarDisplayable{Calendarable: cal}, nil
 }
 
+// GetContainerByName fetches calendar by name.
+// Note: At the moment, we only support lookups for calendars which belong to
+// the default calendar group.
+func (c Events) GetContainerByName(
+	ctx context.Context,
+	userID, name string,
+) (models.Calendarable, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	filter := fmt.Sprintf("name eq '%s'", name)
+	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
+			Filter: &filter,
+		},
+	}
+	ctx = clues.Add(ctx, "calendar_name", name)
+
+	resp, err := service.Client().UsersById(userID).Calendars().Get(ctx, options)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "searching calendar by name")
+	}
+
+	// We only allow the api to match one calendar with provided name.
+	// Return an error if multiple calendars exist(unlikely) or if no calendar
+	// is found.
+	if len(resp.GetValue()) != 1 {
+		return nil, graph.Wrap(ctx, err, "unexpected number of calendars").
+			With("calendar_count", len(resp.GetValue()))
+	}
+
+	// Sanity check ID and name
+	cal := resp.GetValue()[0]
+	cd := CalendarDisplayable{Calendarable: cal}
+
+	if err := checkIDAndName(cd); err != nil {
+		return nil, err
+	}
+
+	return cal, nil
+}
+
 // GetItem retrieves an Eventable item.
 func (c Events) GetItem(
 	ctx context.Context,
