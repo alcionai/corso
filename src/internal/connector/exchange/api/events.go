@@ -99,9 +99,7 @@ func (c Events) GetContainerByID(
 	return graph.CalendarDisplayable{Calendarable: cal}, nil
 }
 
-// GetContainerByName fetches calendar by name.
-// Note: At the moment, we only support lookups for calendars which belong to
-// the default calendar group.
+// GetContainerByName fetches a calendar by name
 func (c Events) GetContainerByName(
 	ctx context.Context,
 	userID, name string,
@@ -121,7 +119,7 @@ func (c Events) GetContainerByName(
 	}
 
 	// We only allow the api to match one calendar with provided name.
-	// Return an error if multiple calendars exist(unlikely) or if no calendar
+	// Return an error if multiple calendars exist (unlikely) or if no calendar
 	// is found.
 	if len(resp.GetValue()) != 1 {
 		err = clues.New("unexpected number of calendars returned").
