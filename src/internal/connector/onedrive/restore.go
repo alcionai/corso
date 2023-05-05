@@ -72,8 +72,10 @@ func RestoreCollections(
 		"backup_version", backupVersion,
 		"destination", dest.ContainerName)
 
+	// TODO: this is a gotcha/smell and should be centralized within the
+	// restore process.
 	// Reorder collections so that the parents directories are created
-	// before the child directories
+	// before the child directories; a requirement for permissions.
 	sort.Slice(dcs, func(i, j int) bool {
 		return dcs[i].FullPath().String() < dcs[j].FullPath().String()
 	})
@@ -173,12 +175,12 @@ func RestoreCollection(
 	// from the backup under this the restore folder instead of root)
 	// i.e. Restore into `<restoreContainerName>/<original folder path>`
 	// the drive into which this folder gets restored is tracked separately in drivePath.
-	restoreFolderElements := path.Builder{}.Append(restoreContainerName).Append(drivePath.Folders...)
+	restoreDir := path.Builder{}.Append(restoreContainerName).Append(drivePath.Folders...)
 
 	ctx = clues.Add(
 		ctx,
 		"directory", dc.FullPath().Folder(false),
-		"destination_elements", restoreFolderElements,
+		"destination_elements", restoreDir,
 		"drive_id", drivePath.DriveID)
 
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
@@ -196,12 +198,12 @@ func RestoreCollection(
 	}
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
-	restoreFolderID, err := createRestoreFoldersWithPermissions(
+	restoreFolderID, err := CreateRestoreFolders(
 		ctx,
 		creds,
 		service,
 		drivePath,
-		restoreFolderElements,
+		restoreDir,
 		dc.FullPath(),
 		colMeta,
 		caches,
@@ -557,27 +559,27 @@ func restoreV6File(
 	return itemInfo, nil
 }
 
-// createRestoreFoldersWithPermissions creates the restore folder hierarchy in
+// CreateRestoreFolders creates the restore folder hierarchy in
 // the specified drive and returns the folder ID of the last folder entry in the
 // hierarchy. Permissions are only applied to the last folder in the hierarchy.
 // Passing nil for the permissions results in just creating the folder(s).
 // folderCache is mutated, as a side effect of populating the items.
-func createRestoreFoldersWithPermissions(
+func CreateRestoreFolders(
 	ctx context.Context,
 	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
-	restoreFolders *path.Builder,
+	restoreDir *path.Builder,
 	folderPath path.Path,
 	folderMetadata metadata.Metadata,
 	caches *restoreCaches,
 	restorePerms bool,
 ) (string, error) {
-	id, err := CreateRestoreFolders(
+	id, err := createRestoreFolders(
 		ctx,
 		service,
 		drivePath,
-		restoreFolders,
+		restoreDir,
 		caches)
 	if err != nil {
 		return "", err
@@ -605,10 +607,10 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
-// CreateRestoreFolders creates the restore folder hierarchy in the specified
+// createRestoreFolders creates the restore folder hierarchy in the specified
 // drive and returns the folder ID of the last folder entry in the hierarchy.
 // folderCache is mutated, as a side effect of populating the items.
-func CreateRestoreFolders(
+func createRestoreFolders(
 	ctx context.Context,
 	service graph.Servicer,
 	drivePath *path.DrivePath,

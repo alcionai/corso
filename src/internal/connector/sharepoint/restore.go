@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"runtime/trace"
+	"sort"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -46,6 +47,7 @@ func RestoreCollections(
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
+	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -72,6 +74,14 @@ func RestoreCollections(
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
 		)
 
+		// TODO: this is a gotcha/smell and should be centralized within the
+		// restore process.
+		// Reorder collections so that the parents directories are created
+		// before the child directories; a requirement for permissions.
+		sort.Slice(dcs, func(i, j int) bool {
+			return dcs[i].FullPath().String() < dcs[j].FullPath().String()
+		})
+
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
 			metrics, err = onedrive.RestoreCollection(
@@ -84,7 +94,7 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				false,
+				opts.RestorePermissions,
 				errs)
 
 		case path.ListsCategory:

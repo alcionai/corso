@@ -33,6 +33,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddBackupIDFlag(c, true)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
+
+		options.AddRestorePermissionsFlag(c)
 		options.AddFailFastFlag(c)
 	}
 
@@ -47,7 +49,11 @@ const (
 	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's latest backup (1234abcd...)
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore files named "ServerRenderTemplate.xsl in the folder "Display Templates/Style Sheets".
+# Restore the file with ID 98765abcdef along with its associated permissions
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--file 98765abcdef --restore-permissions
+
+# Restore files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets".
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 

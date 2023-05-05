@@ -242,24 +242,27 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		// write - Design | Edit | Contribute (no difference in /permissions api)
 		// read  - Read
 		// empty - Restricted View
+		//
+		// helpful docs:
+		// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 		roles := p.GetRoles()
-
 		entityID := ""
-		if gv2.GetUser() != nil {
+
+		switch true {
+		case gv2.GetUser() != nil:
 			entityID = ptr.Val(gv2.GetUser().GetId())
-		} else if gv2.GetGroup() != nil {
+		case gv2.GetGroup() != nil:
 			entityID = ptr.Val(gv2.GetGroup().GetId())
-		} else {
-			// TODO Add application permissions when adding permissions for SharePoint
-			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
-			logm := logger.Ctx(ctx)
-			if gv2.GetApplication() != nil {
-				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
-			}
-			if gv2.GetDevice() != nil {
-				logm.With("device_id", ptr.Val(gv2.GetDevice().GetId()))
-			}
-			logm.Info("untracked permission")
+		case gv2.GetApplication() != nil:
+			entityID = ptr.Val(gv2.GetApplication().GetId())
+		case gv2.GetDevice() != nil:
+			entityID = ptr.Val(gv2.GetDevice().GetId())
+		default:
+			logger.Ctx(ctx).Info("untracked permission")
+		}
+
+		if gv2.GetDevice() != nil {
+			logger.Ctx(ctx).With("device_id", ptr.Val(gv2.GetDevice().GetId()))
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the
