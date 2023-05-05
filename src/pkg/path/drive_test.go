@@ -1,6 +1,7 @@
 package path_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -60,6 +61,52 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 				return
 			}
 			assert.Equal(suite.T(), tt.expected, got)
+		})
+	}
+}
+
+func (suite *OneDrivePathSuite) TestFormatDriveFolders() {
+	const (
+		driveID     = "some-drive-id"
+		drivePrefix = "drives/" + driveID
+	)
+
+	table := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name: "normal",
+			input: []string{
+				"root:",
+				"foo",
+				"bar",
+			},
+			expected: strings.Join(
+				append([]string{drivePrefix}, "root:", "foo", "bar"),
+				"/"),
+		},
+		{
+			name: "has character that would be escaped",
+			input: []string{
+				"root:",
+				"foo/",
+				"bar",
+			},
+			// Element "foo/" should end up escaped in the string output.
+			expected: strings.Join(
+				append([]string{drivePrefix}, "root:", `foo\/`, "bar"),
+				"/"),
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			assert.Equal(
+				suite.T(),
+				test.expected,
+				path.FormatDriveFolders(driveID, test.input...).String())
 		})
 	}
 }
