@@ -117,15 +117,16 @@ func (c Events) GetContainerByName(
 
 	resp, err := c.Stable.Client().UsersById(userID).Calendars().Get(ctx, options)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "searching calendar by name")
+		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
 
 	// We only allow the api to match one calendar with provided name.
 	// Return an error if multiple calendars exist(unlikely) or if no calendar
 	// is found.
 	if len(resp.GetValue()) != 1 {
-		return nil, graph.Wrap(ctx, err, "unexpected number of calendars").
+		err = clues.New("unexpected number of calendars returned").
 			With("returned_calendar_count", len(resp.GetValue()))
+		return nil, err
 	}
 
 	// Sanity check ID and name
