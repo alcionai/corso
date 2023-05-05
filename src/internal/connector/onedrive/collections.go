@@ -69,6 +69,13 @@ type folderMatcher interface {
 	Matches(string) bool
 }
 
+type drivePagerFunc func(
+	source driveSource,
+	servicer graph.Servicer,
+	resourceOwner string,
+	fields []string,
+) (api.DrivePager, error)
+
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
@@ -91,7 +98,7 @@ type Collections struct {
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
-	drivePagerFunc func(
+	dpf func(
 		source driveSource,
 		servicer graph.Servicer,
 		resourceOwner string,
@@ -119,17 +126,17 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		itemClient:     itemClient,
-		tenant:         tenant,
-		resourceOwner:  resourceOwner,
-		source:         source,
-		matcher:        matcher,
-		CollectionMap:  map[string]map[string]*Collection{},
-		drivePagerFunc: PagerForSource,
-		itemPagerFunc:  defaultItemPager,
-		service:        service,
-		statusUpdater:  statusUpdater,
-		ctrl:           ctrlOpts,
+		itemClient:    itemClient,
+		tenant:        tenant,
+		resourceOwner: resourceOwner,
+		source:        source,
+		matcher:       matcher,
+		CollectionMap: map[string]map[string]*Collection{},
+		dpf:           PagerForSource,
+		itemPagerFunc: defaultItemPager,
+		service:       service,
+		statusUpdater: statusUpdater,
+		ctrl:          ctrlOpts,
 	}
 }
 
@@ -285,14 +292,19 @@ func (c *Collections) Get(
 	defer close(driveComplete)
 
 	// Enumerate drives for the specified resourceOwner
-	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
+	pager, err := c.dpf(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drives, err := getDrivesBySource(
+		ctx,
+		c.service,
+		c.resourceOwner,
+		c.source,
+		pager)
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "enumerating drives")
 	}
 
 	var (
@@ -922,5 +934,34 @@ func updatePath(paths map[string]string, id, newPath string) {
 		}
 
 		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+	}
+}
+
+// gets either the user's default drive (if source is onedrive) or
+// enumerates all drives for the provided pager.
+func getDrivesBySource(
+	ctx context.Context,
+	gs graph.Servicer,
+	resourceOwner string,
+	source driveSource,
+	adp api.DrivePager,
+) ([]models.Driveable, error) {
+	// onedrive users *can* have multiple drives, but we want to ignore all
+	// except the default drive.
+	switch source {
+	case OneDriveSource:
+		dd, err := api.GetUsersDefaultDrive(ctx, gs, resourceOwner)
+		if err != nil {
+			return nil, err
+		}
+
+		return []models.Driveable{dd}, nil
+	default:
+		drives, err := api.GetAllDrives(ctx, adp, true, maxDrivesRetries)
+		if err != nil {
+			return nil, err
+		}
+
+		return drives, nil
 	}
 }

@@ -8,15 +8,29 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-type MockGraphService struct{}
+type MockGraphService struct {
+	useMockClient bool
+	creds         account.M365Config // only required if useMockClient=true
+}
 
 func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
-	return nil
+	if !ms.useMockClient {
+		return nil
+	}
+
+	s, err := mock.NewService(ms.creds)
+	if err != nil {
+		logger.Ctx(nil).Error("mocking client", err)
+	}
+
+	return s.Client()
 }
 
 func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {

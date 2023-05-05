@@ -2242,7 +2242,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				func(*support.ConnectorOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}},
 			)
-			c.drivePagerFunc = drivePagerFunc
+			c.dpf = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
 			prevDelta := "prev-delta"

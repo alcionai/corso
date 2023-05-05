@@ -109,6 +109,13 @@ type userDrivePager struct {
 	options *users.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
+// NewUserDrivePager produces a pager for getting all of a user's drives.
+// Use with caution: users *can* have multiple drives, even though onedrive
+// docs say that they cannot.  This can be manufactured by force, but the
+// more likely context is if microsoft is using the second drive behind the
+// scenes as an eventually-consistent copy for preservation and recovery.
+// Since corso generally only handles the user's default drive you probably
+// want to call GetUsersDefaultDrive instead of paging over all of them.
 func NewUserDrivePager(
 	gs graph.Servicer,
 	userID string,
@@ -211,7 +218,10 @@ type DrivePager interface {
 	ValuesIn(api.PageLinker) ([]models.Driveable, error)
 }
 
-// GetAllDrives fetches all drives for the given pager
+// GetAllDrives fetches all drives for the given pager.
+// If you're using this to enumerate a User's dries, first check whether
+// you need GetUsersDefaultDrive instead.  In most cases, we don't want to
+// track all of the drives in a user's onedrive; just the default one.
 func GetAllDrives(
 	ctx context.Context,
 	pager DrivePager,
@@ -308,18 +318,18 @@ func GetItemPermission(
 	return perm, nil
 }
 
-func GetDriveByID(
+func GetUsersDefaultDrive(
 	ctx context.Context,
 	srv graph.Servicer,
-	userID string,
+	user string,
 ) (models.Driveable, error) {
 	//revive:enable:context-as-argument
 	d, err := srv.Client().
-		UsersById(userID).
+		UsersById(user).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting drive")
+		return nil, graph.Wrap(ctx, err, "getting user's default drive")
 	}
 
 	return d, nil

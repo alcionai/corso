@@ -234,19 +234,21 @@ func (op *Displayable) GetDisplayName() *string {
 	return op.GetName()
 }
 
-// GetAllFolders returns all folders in all drives for the given user. If a
+// GetAllFolders returns all folders in tracked drives for the given user. If a
 // prefix is given, returns all folders with that prefix, regardless of if they
 // are a subfolder or top-level folder in the hierarchy.
 func GetAllFolders(
 	ctx context.Context,
 	gs graph.Servicer,
+	resourceOwner string,
+	source driveSource,
 	pager api.DrivePager,
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drives, err := getDrivesBySource(ctx, gs, resourceOwner, source, pager)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting OneDrive folders")
+		return nil, clues.Wrap(err, "getting folders across all drives")
 	}
 
 	var (

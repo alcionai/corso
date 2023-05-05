@@ -166,7 +166,7 @@ func purgeOneDriveFolders(
 			return nil, err
 		}
 
-		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix, fault.New(true))
+		cfs, err := onedrive.GetAllFolders(ctx, gs, "", onedrive.OneDriveSource, pager, prefix, fault.New(true))
 		if err != nil {
 			return nil, err
 		}

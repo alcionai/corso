@@ -308,10 +308,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		gs             = loadTestService(t)
 	)
 
-	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drives, err := getDrivesBySource(ctx, gs, suite.userID, OneDriveSource, nil)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, drives)
 
@@ -367,10 +364,14 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-			require.NoError(t, err, clues.ToCore(err))
-
-			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix, fault.New(true))
+			allFolders, err := GetAllFolders(
+				ctx,
+				gs,
+				suite.userID,
+				OneDriveSource,
+				nil,
+				test.prefix,
+				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
 			foundFolderIDs := []string{}
