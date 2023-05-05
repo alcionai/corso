@@ -250,7 +250,7 @@ To restore the selected email, use the following command.
 
   ```powershell
   # Restore a selected email
-  .\corso restore exchange --backup <id of your selected backup> --email <email ID>
+  .\corso restore exchange --backup <id of your selected backup> --email <email message ID>
   ```
 
 </TabItem>
@@ -258,7 +258,7 @@ To restore the selected email, use the following command.
 
   ```bash
   # Restore a selected email
-  ./corso restore exchange --backup <id of your selected backup> --email <email ID>
+  ./corso restore exchange --backup <id of your selected backup> --email <email message ID>
   ```
 
 </TabItem>
@@ -268,7 +268,7 @@ To restore the selected email, use the following command.
 `# Restore a selected email
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  restore exchange --backup <id of your selected backup> --email <email ID>`
+  restore exchange --backup <id of your selected backup> --email <email message ID>`
 }</CodeBlock>
 
 </TabItem>
