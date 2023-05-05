@@ -41,10 +41,6 @@ const (
 	syncFolderNotFound          errorCode = "ErrorSyncFolderNotFound"
 	syncStateInvalid            errorCode = "SyncStateInvalid"
 	syncStateNotFound           errorCode = "SyncStateNotFound"
-	// This error occurs when an attempt is made to create a folder that has
-	// the same name as another folder in the same parent. Such duplicate folder
-	// names are not allowed by graph.
-	folderExists errorCode = "ErrorFolderExists"
 )
 
 type errorMessage string
@@ -180,10 +176,6 @@ func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
 	}
 
 	return false
-}
-
-func IsErrFolderExists(err error) bool {
-	return hasErrorCode(err, folderExists)
 }
 
 // ---------------------------------------------------------------------------
