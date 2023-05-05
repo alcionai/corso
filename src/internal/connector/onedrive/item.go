@@ -241,6 +241,9 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		// write - Design | Edit | Contribute (no difference in /permissions api)
 		// read  - Read
 		// empty - Restricted View
+		//
+		// helpful docs:
+		// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 		roles := p.GetRoles()
 
 		entityID := ""
@@ -253,12 +256,12 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 
 			if gv2.GetApplication() != nil {
 				entityID = ptr.Val(gv2.GetApplication().GetId())
-			} else if gv2.GetDevice() != nil {
-				entityID = ptr.Val(gv2.GetDevice().GetId())
 			}
+
 			if gv2.GetDevice() != nil {
 				logm.With("device_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
+
 			logm.Info("untracked permission")
 		}
 
