@@ -21,6 +21,7 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -413,7 +414,7 @@ func streamBaseEntries(
 	locationPath *path.Builder,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) error {
 	if dir == nil {
@@ -421,19 +422,18 @@ func streamBaseEntries(
 	}
 
 	var (
+		longest    string
 		excludeSet map[string]struct{}
-		curPrefix  string
 	)
 
-	ctx = clues.Add(ctx, "current_item_path", curPath)
-
-	for prefix, excludes := range globalExcludeSet {
-		// Select the set with the longest prefix to be most precise.
-		if strings.HasPrefix(curPath.String(), prefix) && len(prefix) >= len(curPrefix) {
-			excludeSet = excludes
-			curPrefix = prefix
-		}
+	if globalExcludeSet != nil {
+		longest, excludeSet, _ = globalExcludeSet.LongestPrefix(curPath.String())
 	}
+
+	ctx = clues.Add(
+		ctx,
+		"current_item_path", curPath,
+		"longest_prefix", longest)
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
 		if err := innerCtx.Err(); err != nil {
@@ -521,7 +521,7 @@ func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.BackupCollection,
 	baseDir fs.Directory,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -569,7 +569,7 @@ func getStreamItemFunc(
 func buildKopiaDirs(
 	dirName string,
 	dir *treeMap,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
@@ -1053,7 +1053,7 @@ func inflateDirTree(
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	roots, updatedPaths, err := inflateCollectionTree(ctx, collections, progress.toMerge)
