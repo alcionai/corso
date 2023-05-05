@@ -106,20 +106,16 @@ func (c Events) GetContainerByName(
 	ctx context.Context,
 	userID, name string,
 ) (models.Calendarable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
 	filter := fmt.Sprintf("name eq '%s'", name)
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
 			Filter: &filter,
 		},
 	}
+
 	ctx = clues.Add(ctx, "calendar_name", name)
 
-	resp, err := service.Client().UsersById(userID).Calendars().Get(ctx, options)
+	resp, err := c.Stable.Client().UsersById(userID).Calendars().Get(ctx, options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "searching calendar by name")
 	}
