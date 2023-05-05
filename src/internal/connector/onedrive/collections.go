@@ -305,7 +305,7 @@ func (c *Collections) Get(
 	for _, d := range drives {
 		var (
 			driveID     = ptr.Val(d.GetId())
-			driveName   = ptr.Val(d.GetName())
+			driveName   = driveName(d)
 			prevDelta   = prevDeltas[driveID]
 			oldPaths    = oldPathsByDriveID[driveID]
 			numOldDelta = 0

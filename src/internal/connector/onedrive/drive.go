@@ -3,6 +3,7 @@ package onedrive
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -26,6 +27,12 @@ const (
 	nextLinkKey           = "@odata.nextLink"
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemNotFoundErrorCode = "itemNotFound"
+
+	// https://learn.microsoft.com/en-us/graph/api/resources/drive?view=graph-rest-1.0#properties
+	// OneDrive personal drives will return personal. OneDrive for Business will return business.
+	// SharePoint document libraries will return documentLibrary.
+	oneDriveDriveType = "business"
+	spDriveDriveType  = "documentLibrary"
 )
 
 // DeltaUpdate holds the results of a current delta token.  It normally
@@ -342,4 +349,22 @@ func DeleteItem(
 	}
 
 	return nil
+}
+
+// driveName returns the drive name for a drive
+// For OneDrive - Graph always sets d.Name to `OneDrive` so
+// instead we parse the webURL and use the last element
+// e.g. if it is "https://<site name>/personal/<user>_onmicrosoft_com/Documents",
+// we return `Documents`
+func driveName(d models.Driveable) string {
+	dt := ptr.Val(d.GetDriveType())
+	switch dt {
+	case oneDriveDriveType:
+		if webURL := ptr.Val(d.GetWebUrl()); webURL != "" {
+			return path.Base(webURL)
+		}
+		fallthrough
+	default:
+		return ptr.Val(d.GetName())
+	}
 }

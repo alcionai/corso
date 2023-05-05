@@ -277,6 +277,46 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 	}
 }
 
+func (suite *OneDriveUnitSuite) Test_driveName() {
+	_, flush := tester.NewContext()
+	defer flush()
+
+	webURL := "https://<site name>/personal/<user>_onmicrosoft_com/Documents"
+
+	driveOneDrive := models.NewDrive()
+	driveOneDrive.SetDriveType(ptr.To(oneDriveDriveType))
+	driveOneDrive.SetWebUrl(&webURL)
+	driveOneDrive.SetName(ptr.To("anewdrivename"))
+
+	driveSharePoint := models.NewDrive()
+	driveSharePoint.SetDriveType(ptr.To(spDriveDriveType))
+	driveSharePoint.SetWebUrl(&webURL)
+	driveSharePoint.SetName(ptr.To("anewdrivename"))
+
+	table := []struct {
+		name     string
+		d        models.Driveable
+		expected string
+	}{
+		{
+			"OneDrive",
+			driveOneDrive,
+			"Documents",
+		},
+		{
+			"Sharepoint",
+			driveSharePoint,
+			"anewdrivename",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			assert.Equal(t, test.expected, driveName(test.d))
+		})
+	}
+}
+
 // Integration tests
 
 type OneDriveSuite struct {
@@ -314,6 +354,14 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, drives)
+
+	// Verify drive type/name
+	for _, d := range drives {
+		assert.Equal(t, oneDriveDriveType, ptr.Val(d.GetDriveType()))
+		// Graph sets all OneDrive drive names to `OneDrive`
+		// Verify we're using the webURL instead
+		assert.NotEqual(t, "OneDrive", driveName(d))
+	}
 
 	// TODO: Verify the intended drive
 	driveID := ptr.Val(drives[0].GetId())
