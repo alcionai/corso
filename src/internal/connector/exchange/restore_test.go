@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -383,55 +382,6 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 
 			err = deleters[test.category].DeleteContainer(ctx, userID, destination)
 			assert.NoError(t, err, clues.ToCore(err))
-		})
-	}
-}
-
-// TestRestoreExchangeObject verifies path.Category usage for restored objects
-func (suite *ExchangeRestoreSuite) TestGetContainerByName() {
-	// deleters := map[path.CategoryType]containerDeleter{
-	// 	path.EventsCategory: suite.ac.Events(),
-	// }
-
-	userID := tester.M365UserID(suite.T())
-	folderName := tester.DefaultTestRestoreDestination().ContainerName
-	fmt.Println(folderName)
-
-	tests := []struct {
-		name        string
-		category    path.CategoryType
-		destination func(*testing.T, context.Context, string) string
-	}{
-		{
-			name:     "Test Events",
-			category: path.EventsCategory,
-			// destination: func(t *testing.T, ctx context.Context, calName string) string {
-			// 	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calName)
-			// 	require.NoError(t, err, clues.ToCore(err))
-
-			// 	return ptr.Val(calendar.GetId())
-			// },
-		},
-	}
-
-	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			//id := test.destination(t, ctx, folderName)
-			folder := "Corso_Restore_05-May-2023_09-38-09.814424"
-			_, err := suite.ac.Events().CreateCalendar(ctx, userID, folder)
-			require.NoError(t, err, clues.ToCore(err))
-
-			fmt.Print("here after dest")
-			_, err = suite.ac.Events().GetContainerByName(ctx, userID, folder) //ptr.Val("calendar.GetName())")
-			assert.NoError(t, err, clues.ToCore(err))
-			//fmt.Print(id)
-			// err = deleters[test.category].DeleteContainer(ctx, userID, id)
-			// assert.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
