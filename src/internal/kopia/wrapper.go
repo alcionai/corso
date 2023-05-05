@@ -399,7 +399,16 @@ func loadDirsAndItems(
 			return nil, el.Failure()
 		}
 
-		ictx := clues.Add(ctx, "restore_path", col.restorePath)
+		var (
+			mergeDC *mergeCollection
+			ictx    = clues.Add(ctx, "restore_path", col.restorePath)
+			merge   = len(col.storageDirs) > 0
+		)
+
+		if merge {
+			mergeDC = &mergeCollection{fullPath: col.restorePath}
+			res = append(res, mergeDC)
+		}
 
 		for _, dirItems := range col.storageDirs {
 			if el.Failure() != nil {
@@ -424,10 +433,17 @@ func loadDirsAndItems(
 				expectedVersion: serializationVersion,
 			}
 
-			// TODO(ashmrtn): See if the restoreCollection has > 1 storageDir in the
-			// map. If it does then make this a "merge collection" that will source
-			// items from all underlying collections as it goes along.
-			res = append(res, dc)
+			if merge {
+				if err := mergeDC.addCollection(dirItems.dir.String(), dc); err != nil {
+					el.AddRecoverable(clues.Wrap(err, "adding collection to merge collection").
+						WithClues(ctx).
+						Label(fault.LabelForceNoBackupCreation))
+
+					continue
+				}
+			} else {
+				res = append(res, dc)
+			}
 
 			for _, item := range dirItems.items {
 				if el.Failure() != nil {
