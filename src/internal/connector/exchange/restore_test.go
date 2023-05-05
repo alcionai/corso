@@ -393,7 +393,7 @@ func (suite *ExchangeRestoreSuite) TestGetContainerByName() {
 	// 	path.EventsCategory: suite.ac.Events(),
 	// }
 
-	userID := "Dustin.Corners@10rqc2.onmicrosoft.com" //tester.M365UserID(suite.T())
+	userID := tester.M365UserID(suite.T())
 	folderName := tester.DefaultTestRestoreDestination().ContainerName
 	fmt.Println(folderName)
 
