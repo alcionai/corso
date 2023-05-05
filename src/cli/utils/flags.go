@@ -215,6 +215,11 @@ func trimFolderSlash(folders []string) []string {
 	res := make([]string, 0, len(folders))
 
 	for _, p := range folders {
+		if len(p) == 1 && p[0] == path.PathSeparator {
+			res = []string{}
+			break
+		}
+
 		// Use path package because it has logic to handle escaping already.
 		res = append(res, path.TrimTrailingSlash(p))
 	}

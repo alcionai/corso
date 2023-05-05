@@ -30,6 +30,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{"/"}
 	)
 
 	table := []struct {
@@ -181,6 +182,13 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				FileName:   multi,
 			},
 			expectIncludeLen: 2,
+		},
+		{
+			name: "only / inputs",
+			opts: utils.SharePointOpts{
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
 		},
 	}
 	for _, test := range table {

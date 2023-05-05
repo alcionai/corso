@@ -26,6 +26,7 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{"/"}
 	)
 
 	table := []struct {
@@ -86,6 +87,15 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 				FolderPath: containsAndPrefix,
 			},
 			expectIncludeLen: 2,
+		},
+		{
+			name: "folder with just /",
+			opts: utils.OneDriveOpts{
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
 		},
 	}
 	for _, test := range table {
