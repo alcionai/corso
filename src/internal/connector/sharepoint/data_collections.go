@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -39,7 +39,7 @@ func DataCollections(
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
@@ -54,7 +54,7 @@ func DataCollections(
 		el          = errs.Local()
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
-		excluded    = map[string]map[string]struct{}{}
+		ssmb        = prefixmatcher.NewStringSetBuilder()
 	)
 
 	for _, scope := range b.Scopes() {
@@ -86,15 +86,14 @@ func DataCollections(
 			}
 
 		case path.LibrariesCategory:
-			var excludes map[string]map[string]struct{}
-
-			spcs, excludes, err = collectLibraries(
+			spcs, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
 				creds.AzureTenantID,
 				site,
 				metadata,
+				ssmb,
 				scope,
 				su,
 				ctrlOpts,
@@ -102,14 +101,6 @@ func DataCollections(
 			if err != nil {
 				el.AddRecoverable(err)
 				continue
-			}
-
-			for prefix, excludes := range excludes {
-				if _, ok := excluded[prefix]; !ok {
-					excluded[prefix] = map[string]struct{}{}
-				}
-
-				maps.Copy(excluded[prefix], excludes)
 			}
 
 		case path.PagesCategory:
@@ -150,7 +141,7 @@ func DataCollections(
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, excluded, el.Failure()
+	return collections, ssmb.ToReader(), el.Failure()
 }
 
 func collectLists(
@@ -208,11 +199,12 @@ func collectLibraries(
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
+	ssmb *prefixmatcher.StringSetMatchBuilder,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
 	var (
@@ -228,12 +220,12 @@ func collectLibraries(
 			ctrlOpts)
 	)
 
-	odcs, excludes, err := colls.Get(ctx, metadata, errs)
+	odcs, err := colls.Get(ctx, metadata, ssmb, errs)
 	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "getting library")
+		return nil, graph.Wrap(ctx, err, "getting library")
 	}
 
-	return append(collections, odcs...), excludes, nil
+	return append(collections, odcs...), nil
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated

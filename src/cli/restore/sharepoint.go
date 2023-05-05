@@ -44,20 +44,20 @@ const (
 	sharePointServiceCommandUseSuffix = "--backup <backupId>"
 
 	//nolint:lll
-	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's latest backup (1234abcd...)
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore a file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets".
+# Restore files named "ServerRenderTemplate.xsl in the folder "Display Templates/Style Sheets".
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
-# Restore all files that were created before 2020.
+# Restore all files in the folder "Display Templates/Style Sheets" that were created before 2020.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
     --file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets"
 
-# Restore all files in a certain library.
+# Restore all files in the "Documents" library.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --library documents --folder "Display Templates/Style Sheets" `
+    --library Documents --folder "Display Templates/Style Sheets" `
 )
 
 // `corso restore sharepoint [<flag>...]`

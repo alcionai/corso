@@ -43,16 +43,16 @@ corso backup create onedrive --user '*'`
 	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	oneDriveServiceCommandDetailsExamples = `# Explore Alice's files from backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+	oneDriveServiceCommandDetailsExamples = `# Explore items in Bob's latest backup (1234abcd...)
+corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Explore Alice or Bob's files with name containing "Fiscal 22" in folder "Reports"
+# Explore files in the folder "Reports" named "Fiscal 22"
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
+    --file-name "Fiscal 22" --folder "Reports"
 
-# Explore Alice's files created before end of 2015 from a specific backup
+# Explore files created before the end of 2015
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --file-created-before 2015-01-01T00:00:00`
+    --file-created-before 2015-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.

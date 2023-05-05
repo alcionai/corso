@@ -2,27 +2,47 @@ package prefixmatcher
 
 import (
 	"strings"
+
+	"golang.org/x/exp/maps"
 )
 
-type View[T any] interface {
+type Reader[T any] interface {
 	Get(key string) (T, bool)
 	LongestPrefix(key string) (string, T, bool)
 	Empty() bool
+	Keys() []string
 }
 
-type Matcher[T any] interface {
+type Builder[T any] interface {
 	// Add adds or updates the item with key to have value value.
 	Add(key string, value T)
-	View[T]
+	Reader[T]
 }
 
+// ---------------------------------------------------------------------------
+// Implementation
+// ---------------------------------------------------------------------------
+
+// prefixMatcher implements Builder
 type prefixMatcher[T any] struct {
 	data map[string]T
 }
 
-func (m *prefixMatcher[T]) Add(key string, value T) {
-	m.data[key] = value
+func NewMatcher[T any]() Builder[T] {
+	return &prefixMatcher[T]{
+		data: map[string]T{},
+	}
 }
+
+func NopReader[T any]() *prefixMatcher[T] {
+	return &prefixMatcher[T]{
+		data: make(map[string]T),
+	}
+}
+
+func (m *prefixMatcher[T]) Add(key string, value T) { m.data[key] = value }
+func (m prefixMatcher[T]) Empty() bool              { return len(m.data) == 0 }
+func (m prefixMatcher[T]) Keys() []string           { return maps.Keys(m.data) }
 
 func (m *prefixMatcher[T]) Get(key string) (T, bool) {
 	if m == nil {
@@ -57,12 +77,4 @@ func (m *prefixMatcher[T]) LongestPrefix(key string) (string, T, bool) {
 	}
 
 	return rk, rv, found
-}
-
-func (m prefixMatcher[T]) Empty() bool {
-	return len(m.data) == 0
-}
-
-func NewMatcher[T any]() Matcher[T] {
-	return &prefixMatcher[T]{data: map[string]T{}}
 }

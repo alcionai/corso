@@ -43,4 +43,3 @@ jobs:
               echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
               echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
               ;;
-          esac
