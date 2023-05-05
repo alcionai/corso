@@ -1396,7 +1396,7 @@ func runDriveIncrementalTest(
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
 					permissionIDMappings)
-				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				require.NoErrorf(t, err, "removing permission from file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
@@ -1418,7 +1418,7 @@ func runDriveIncrementalTest(
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
 					permissionIDMappings)
-				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				require.NoErrorf(t, err, "adding permission to container %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1440,7 +1440,7 @@ func runDriveIncrementalTest(
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
 					permissionIDMappings)
-				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				require.NoErrorf(t, err, "removing permission from container %v", clues.ToCore(err))
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection

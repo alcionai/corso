@@ -146,9 +146,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	deets, err := op.do(ctx, &opStats, sstore, start)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running restore", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running restore")
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 

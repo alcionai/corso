@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -18,9 +19,9 @@ import (
 
 func getParentMetadata(
 	parentPath path.Path,
-	metas map[string]metadata.Metadata,
+	parentDirToMeta map[string]metadata.Metadata,
 ) (metadata.Metadata, error) {
-	parentMeta, ok := metas[parentPath.String()]
+	parentMeta, ok := parentDirToMeta[parentPath.String()]
 	if !ok {
 		drivePath, err := path.ToDrivePath(parentPath)
 		if err != nil {
@@ -85,12 +86,13 @@ func getCollectionMetadata(
 }
 
 // computeParentPermissions computes the parent permissions by
-// traversing folderMetas and finding the first item with custom
-// permissions. folderMetas is expected to have all the parent
+// traversing parentMetas and finding the first item with custom
+// permissions. parentMetas is expected to have all the parent
 // directory metas for this to work.
 func computeParentPermissions(
-	itemPath path.Path,
-	folderMetas map[string]metadata.Metadata,
+	originDir path.Path,
+	// map parent dir -> parent's metadata
+	parentMetas map[string]metadata.Metadata,
 ) (metadata.Metadata, error) {
 	var (
 		parent path.Path
@@ -100,7 +102,7 @@ func computeParentPermissions(
 		ok  bool
 	)
 
-	parent = itemPath
+	parent = originDir
 
 	for {
 		parent, err = parent.Dir()
@@ -110,14 +112,14 @@ func computeParentPermissions(
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.New("get parent path")
+			return metadata.Metadata{}, clues.New("transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
 			return metadata.Metadata{}, nil
 		}
 
-		meta, ok = folderMetas[parent.String()]
+		meta, ok = parentMetas[parent.String()]
 		if !ok {
 			return metadata.Metadata{}, clues.New("no parent meta")
 		}
@@ -137,7 +139,7 @@ func UpdatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
-	permissionIDMappings map[string]string,
+	oldPermIDToNewID map[string]string,
 ) error {
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
@@ -151,7 +153,7 @@ func UpdatePermissions(
 			return graph.Wrap(ctx, err, "creating delete client")
 		}
 
-		pid, ok := permissionIDMappings[p.ID]
+		pid, ok := oldPermIDToNewID[p.ID]
 		if !ok {
 			return clues.New("no new permission id").WithClues(ctx)
 		}
@@ -182,7 +184,7 @@ func UpdatePermissions(
 			continue
 		}
 
-		pbody := msdrive.NewItemsItemInvitePostRequestBody()
+		pbody := drive.NewItemsItemInvitePostRequestBody()
 		pbody.SetRoles(roles)
 
 		if p.Expiration != nil {
@@ -207,12 +209,12 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
+		newPerm, err := api.PostItemPermissionUpdate(ctx, service, driveID, itemID, pbody)
 		if err != nil {
-			return graph.Wrap(ctx, err, "setting permissions")
+			return err
 		}
 
-		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
+		oldPermIDToNewID[p.ID] = ptr.Val(newPerm.GetValue()[0].GetId())
 	}
 
 	return nil
@@ -229,22 +231,31 @@ func RestorePermissions(
 	driveID string,
 	itemID string,
 	itemPath path.Path,
-	meta metadata.Metadata,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	current metadata.Metadata,
+	// map parent dir -> parent's metadata
+	parentMetas map[string]metadata.Metadata,
+	oldPermIDToNewID map[string]string,
 ) error {
-	if meta.SharingMode == metadata.SharingModeInherited {
+	if current.SharingMode == metadata.SharingModeInherited {
 		return nil
 	}
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
+	parents, err := computeParentPermissions(itemPath, parentMetas)
 	if err != nil {
 		return clues.Wrap(err, "parent permissions").WithClues(ctx)
 	}
 
-	permAdded, permRemoved := metadata.DiffPermissions(parentPermissions.Permissions, meta.Permissions)
+	permAdded, permRemoved := metadata.DiffPermissions(parents.Permissions, current.Permissions)
 
-	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
+	return UpdatePermissions(
+		ctx,
+		creds,
+		service,
+		driveID,
+		itemID,
+		permAdded,
+		permRemoved,
+		oldPermIDToNewID)
 }
