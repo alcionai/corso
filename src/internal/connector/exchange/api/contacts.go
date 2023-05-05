@@ -45,7 +45,7 @@ func (c Contacts) CreateContactFolder(
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
 
-	mdl, err := c.Stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.Stable.Client().Users().ByUserId(user).ContactFolders().Post(ctx, requestBody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact folder")
 	}
@@ -65,7 +65,7 @@ func (c Contacts) DeleteContainer(
 		return graph.Stack(ctx, err)
 	}
 
-	err = srv.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+	err = srv.Client().Users().ByUserId(user).ContactFolders().ByContactFolderId(folderID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -84,7 +84,7 @@ func (c Contacts) GetItem(
 		Headers: buildPreferHeaders(false, immutableIDs),
 	}
 
-	cont, err := c.Stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, options)
+	cont, err := c.Stable.Client().Users().ByUserId(user).Contacts().ByContactId(itemID).Get(ctx, options)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -101,7 +101,7 @@ func (c Contacts) GetContainerByID(
 		return nil, graph.Wrap(ctx, err, "setting contact folder options")
 	}
 
-	resp, err := c.Stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
+	resp, err := c.Stable.Client().Users().ByUserId(userID).ContactFolders().ByContactFolderId(dirID).Get(ctx, ofcf)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -134,8 +134,8 @@ func (c Contacts) EnumerateContainers(
 
 	el := errs.Local()
 	builder := service.Client().
-		UsersById(userID).
-		ContactFoldersById(baseDirID).
+		Users().ByUserId(userID).
+		ContactFolders().ByContactFolderId(baseDirID).
 		ChildFolders()
 
 	for {
@@ -217,7 +217,7 @@ func NewContactPager(
 		return &contactPager{}, err
 	}
 
-	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts()
+	builder := gs.Client().Users().ByUserId(user).ContactFolders().ByContactFolderId(directoryID).Contacts()
 
 	return &contactPager{gs, builder, options}, nil
 }
@@ -263,7 +263,7 @@ func getContactDeltaBuilder(
 	directoryID string,
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
-	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
+	builder := gs.Client().Users().ByUserId(user).ContactFolders().ByContactFolderId(directoryID).Contacts().Delta()
 	return builder
 }
 

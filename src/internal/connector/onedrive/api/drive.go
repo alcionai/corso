@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -35,8 +34,8 @@ const pageSize = int32(999)
 type driveItemPager struct {
 	gs      graph.Servicer
 	driveID string
-	builder *drives.ItemRootDeltaRequestBuilder
-	options *drives.ItemRootDeltaRequestBuilderGetRequestConfiguration
+	builder *drives.ItemItemsItemDeltaRequestBuilder
+	options *drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewItemPager(
@@ -55,9 +54,9 @@ func NewItemPager(
 	}
 	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
-	requestConfig := &drives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
 		Headers: headers,
-		QueryParameters: &drives.ItemRootDeltaRequestBuilderGetQueryParameters{
+		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
 			Top:    &pageCount,
 			Select: fields,
 		},
@@ -67,11 +66,13 @@ func NewItemPager(
 		gs:      gs,
 		driveID: driveID,
 		options: requestConfig,
-		builder: gs.Client().DrivesById(driveID).Root().Delta(),
+		builder: gs.Client().
+			Drives().ByDriveId(driveID).
+			Items().ByDriveItemId("root").Delta(), // TODO(meain): nor sure about root
 	}
 
 	if len(link) > 0 {
-		res.builder = drives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
+		res.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, gs.Adapter())
 	}
 
 	return res
@@ -92,11 +93,14 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 }
 
 func (p *driveItemPager) SetNext(link string) {
-	p.builder = drives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
+	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *driveItemPager) Reset() {
-	p.builder = p.gs.Client().DrivesById(p.driveID).Root().Delta()
+	p.builder = p.gs.Client().
+		Drives().ByDriveId(p.driveID).
+		Items().ByDriveItemId("root"). // TODO(meain): nor sure about root
+		Delta()
 }
 
 func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable, error) {
@@ -125,7 +129,7 @@ func NewUserDrivePager(
 		userID:  userID,
 		gs:      gs,
 		options: requestConfig,
-		builder: gs.Client().UsersById(userID).Drives(),
+		builder: gs.Client().Users().ByUserId(userID).Drives(),
 	}
 
 	return res
@@ -143,7 +147,7 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 		err  error
 	)
 
-	d, err := p.gs.Client().UsersById(p.userID).Drive().Get(ctx, nil)
+	d, err := p.gs.Client().Users().ByUserId(p.userID).Drive().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -204,7 +208,7 @@ func NewSiteDrivePager(
 	res := &siteDrivePager{
 		gs:      gs,
 		options: requestConfig,
-		builder: gs.Client().SitesById(siteID).Drives(),
+		builder: gs.Client().Sites().BySiteId(siteID).Drives(),
 	}
 
 	return res
@@ -308,8 +312,8 @@ func GetDriveItem(
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
 	di, err := srv.Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().ByDriveId(driveID).
+		Items().ByDriveItemId(itemID).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting item")
@@ -325,8 +329,8 @@ func GetItemPermission(
 ) (models.PermissionCollectionResponseable, error) {
 	perm, err := service.
 		Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().ByDriveId(driveID).
+		Items().ByDriveItemId(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
@@ -342,7 +346,7 @@ func GetUsersDrive(
 	user string,
 ) (models.Driveable, error) {
 	d, err := srv.Client().
-		UsersById(user).
+		Users().ByUserId(user).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -358,7 +362,7 @@ func GetSitesDefaultDrive(
 	site string,
 ) (models.Driveable, error) {
 	d, err := srv.Client().
-		SitesById(site).
+		Sites().BySiteId(site).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -373,10 +377,7 @@ func GetDriveRoot(
 	srv graph.Servicer,
 	driveID string,
 ) (models.DriveItemable, error) {
-	root, err := srv.Client().
-		DrivesById(driveID).
-		Root().
-		Get(ctx, nil)
+	root, err := srv.Client().Drives().ByDriveId(driveID).Root().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drive root")
 	}
@@ -400,7 +401,7 @@ func GetFolderByName(
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folder)
-	builder := drive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
+	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
@@ -423,13 +424,13 @@ func PostItemPermissionUpdate(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID, itemID string,
-	body *drive.ItemsItemInvitePostRequestBody,
+	body *drives.ItemItemsItemInvitePostRequestBody,
 ) (drives.ItemItemsItemInviteResponseable, error) {
 	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
 
 	itm, err := service.Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().ByDriveId(driveID).
+		Items().ByDriveItemId(itemID).
 		Invite().
 		Post(ctx, body, nil)
 	if err != nil {

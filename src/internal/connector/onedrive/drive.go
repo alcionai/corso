@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
@@ -224,7 +224,7 @@ func CreateItem(
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-	builder := drive.NewItemsRequestBuilder(rawURL, service.Adapter())
+	builder := drives.NewItemItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -266,7 +266,7 @@ func GetAllFolders(
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drvs, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
@@ -276,7 +276,7 @@ func GetAllFolders(
 		el      = errs.Local()
 	)
 
-	for _, d := range drives {
+	for _, d := range drvs {
 		if el.Failure() != nil {
 			break
 		}
@@ -358,7 +358,10 @@ func DeleteItem(
 	driveID string,
 	itemID string,
 ) error {
-	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
+	err := gs.Client().
+		Drives().ByDriveId(driveID).
+		Items().ByDriveItemId(itemID).
+		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
 	}

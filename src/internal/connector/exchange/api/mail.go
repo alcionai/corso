@@ -51,7 +51,7 @@ func (c Mail) CreateMailFolder(
 	requestBody.SetDisplayName(&folder)
 	requestBody.SetIsHidden(&isHidden)
 
-	mdl, err := c.Stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.Stable.Client().Users().ByUserId(user).MailFolders().Post(ctx, requestBody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating mail folder")
 	}
@@ -75,8 +75,8 @@ func (c Mail) CreateMailFolderWithParent(
 
 	mdl, err := service.
 		Client().
-		UsersById(user).
-		MailFoldersById(parentID).
+		Users().ByUserId(user).
+		MailFolders().ByMailFolderId(parentID).
 		ChildFolders().
 		Post(ctx, requestBody, nil)
 	if err != nil {
@@ -99,7 +99,10 @@ func (c Mail) DeleteContainer(
 		return graph.Stack(ctx, err)
 	}
 
-	err = srv.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
+	err = srv.Client().
+		Users().ByUserId(user).
+		MailFolders().ByMailFolderId(folderID).
+		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -121,7 +124,10 @@ func (c Mail) GetContainerByID(
 		return nil, graph.Wrap(ctx, err, "setting mail folder options")
 	}
 
-	resp, err := service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+	resp, err := service.Client().
+		Users().ByUserId(userID).
+		MailFolders().ByMailFolderId(dirID).
+		Get(ctx, ofmf)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -147,7 +153,7 @@ func (c Mail) GetItem(
 		Headers: headers,
 	}
 
-	mail, err := c.Stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, itemOpts)
+	mail, err := c.Stable.Client().Users().ByUserId(user).Messages().ByMessageId(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -173,8 +179,8 @@ func (c Mail) GetItem(
 
 	attached, err := c.LargeItem.
 		Client().
-		UsersById(user).
-		MessagesById(itemID).
+		Users().ByUserId(user).
+		Messages().ByMessageId(itemID).
 		Attachments().
 		Get(ctx, options)
 	if err == nil {
@@ -204,8 +210,8 @@ func (c Mail) GetItem(
 
 	attachments, err := c.LargeItem.
 		Client().
-		UsersById(user).
-		MessagesById(itemID).
+		Users().ByUserId(user).
+		Messages().ByMessageId(itemID).
 		Attachments().
 		Get(ctx, options)
 	if err != nil {
@@ -224,9 +230,9 @@ func (c Mail) GetItem(
 
 		att, err := c.Stable.
 			Client().
-			UsersById(user).
-			MessagesById(itemID).
-			AttachmentsById(ptr.Val(a.GetId())).
+			Users().ByUserId(user).
+			Messages().ByMessageId(itemID).
+			Attachments().ByAttachmentId(ptr.Val(a.GetId())).
 			Get(ctx, options)
 		if err != nil {
 			return nil, nil,
@@ -380,7 +386,10 @@ func NewMailPager(
 		return &mailPager{}, err
 	}
 
-	builder := gs.Client().UsersById(user).MailFoldersById(directoryID).Messages()
+	builder := gs.Client().
+		Users().ByUserId(user).
+		MailFolders().ByMailFolderId(directoryID).
+		Messages()
 
 	return &mailPager{gs, builder, options}, nil
 }
@@ -426,7 +435,11 @@ func getMailDeltaBuilder(
 	directoryID string,
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemMailFoldersItemMessagesDeltaRequestBuilder {
-	builder := gs.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
+	builder := gs.Client().
+		Users().ByUserId(user).
+		MailFolders().ByMailFolderId(directoryID).
+		Messages().
+		Delta()
 	return builder
 }
 
@@ -479,7 +492,11 @@ func (p *mailDeltaPager) setNext(nextLink string) {
 }
 
 func (p *mailDeltaPager) reset(ctx context.Context) {
-	p.builder = p.gs.Client().UsersById(p.user).MailFoldersById(p.directoryID).Messages().Delta()
+	p.builder = p.gs.Client().
+		Users().ByUserId(p.user).
+		MailFolders().ByMailFolderId(p.directoryID).
+		Messages().
+		Delta()
 }
 
 func (p *mailDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {

@@ -171,7 +171,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 		return nil, graph.Wrap(ctx, err, "getting all users")
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(
+	iter, err := msgraphgocore.NewPageIterator[models.Userable](
 		resp,
 		service.Adapter(),
 		models.CreateUserCollectionResponseFromDiscriminatorValue)
@@ -184,7 +184,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 		el = errs.Local()
 	)
 
-	iterator := func(item any) bool {
+	iterator := func(item models.Userable) bool {
 		if el.Failure() != nil {
 			return false
 		}
@@ -214,7 +214,7 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 		err  error
 	)
 
-	resp, err = c.stable.Client().UsersById(identifier).Get(ctx, nil)
+	resp, err = c.stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -316,8 +316,8 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 			},
 		}
 		_, err = c.stable.Client().
-			UsersById(userID).
-			MailFoldersById(ptr.Val(mf.GetId())).
+			Users().ByUserId(userID).
+			MailFolders().ByMailFolderId(ptr.Val(mf.GetId())).
 			Messages().
 			Delta().
 			Get(ctx, options)
@@ -338,7 +338,7 @@ func (c Users) GetMailFolders(
 	userID string,
 	options users.ItemMailFoldersRequestBuilderGetRequestConfiguration,
 ) (models.MailFolderCollectionResponseable, error) {
-	mailFolders, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, &options)
+	mailFolders, err := c.stable.Client().Users().ByUserId(userID).MailFolders().Get(ctx, &options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")
 	}
@@ -348,7 +348,7 @@ func (c Users) GetMailFolders(
 
 // TODO: remove when drive api goes into this package
 func (c Users) GetDrives(ctx context.Context, userID string) (models.DriveCollectionResponseable, error) {
-	drives, err := c.stable.Client().UsersById(userID).Drives().Get(ctx, nil)
+	drives, err := c.stable.Client().Users().ByUserId(userID).Drives().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drives")
 	}
@@ -498,21 +498,17 @@ func appendIfErr(errs []error, err error) []error {
 // validateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
 // returns the item as a Userable model.
-func validateUser(item any) (models.Userable, error) {
-	m, ok := item.(models.Userable)
-	if !ok {
-		return nil, clues.New(fmt.Sprintf("unexpected model: %T", item))
-	}
-
-	if m.GetId() == nil {
+// TODO(meain): no need to return item
+func validateUser(item models.Userable) (models.Userable, error) {
+	if item.GetId() == nil {
 		return nil, clues.New("missing ID")
 	}
 
-	if m.GetUserPrincipalName() == nil {
+	if item.GetUserPrincipalName() == nil {
 		return nil, clues.New("missing principalName")
 	}
 
-	return m, nil
+	return item, nil
 }
 
 func toString(ctx context.Context, key string, data map[string]any) (string, error) {

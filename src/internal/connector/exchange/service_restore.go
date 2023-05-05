@@ -74,7 +74,11 @@ func RestoreExchangeContact(
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
-	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
+	response, err := service.Client().
+		Users().ByUserId(user).
+		ContactFolders().ByContactFolderId(destination).
+		Contacts().
+		Post(ctx, contact, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "uploading Contact")
 	}
@@ -122,7 +126,11 @@ func RestoreExchangeEvent(
 		transformedEvent.SetAttachments([]models.Attachmentable{})
 	}
 
-	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
+	response, err := service.Client().
+		Users().ByUserId(user).
+		Calendars().ByCalendarId(destination).
+		Events().
+		Post(ctx, transformedEvent, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "uploading event")
 	}
@@ -245,7 +253,11 @@ func SendMailToBackStore(
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	message.SetAttachments([]models.Attachmentable{})
 
-	response, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
+	response, err := service.Client().
+		Users().ByUserId(user).
+		MailFolders().ByMailFolderId(destination).
+		Messages().
+		Post(ctx, message, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "restoring mail")
 	}

@@ -37,9 +37,9 @@ func (mau *mailAttachmentUploader) getItemID() string {
 
 func (mau *mailAttachmentUploader) uploadSmallAttachment(ctx context.Context, attach models.Attachmentable) error {
 	_, err := mau.service.Client().
-		UsersById(mau.userID).
-		MailFoldersById(mau.folderID).
-		MessagesById(mau.itemID).
+		Users().ByUserId(mau.userID).
+		MailFolders().ByMailFolderId(mau.folderID).
+		Messages().ByMessageId(mau.itemID).
 		Attachments().
 		Post(ctx, attach, nil)
 	if err != nil {
@@ -60,9 +60,9 @@ func (mau *mailAttachmentUploader) uploadSession(
 	r, err := mau.
 		service.
 		Client().
-		UsersById(mau.userID).
-		MailFoldersById(mau.folderID).
-		MessagesById(mau.itemID).
+		Users().ByUserId(mau.userID).
+		MailFolders().ByMailFolderId(mau.folderID).
+		Messages().ByMessageId(mau.itemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)
@@ -87,9 +87,9 @@ func (eau *eventAttachmentUploader) getItemID() string {
 
 func (eau *eventAttachmentUploader) uploadSmallAttachment(ctx context.Context, attach models.Attachmentable) error {
 	_, err := eau.service.Client().
-		UsersById(eau.userID).
-		CalendarsById(eau.calendarID).
-		EventsById(eau.itemID).
+		Users().ByUserId(eau.userID).
+		Calendars().ByCalendarId(eau.calendarID).
+		Events().ByEventId(eau.itemID).
 		Attachments().
 		Post(ctx, attach, nil)
 	if err != nil {
@@ -108,9 +108,9 @@ func (eau *eventAttachmentUploader) uploadSession(
 	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
 	r, err := eau.service.Client().
-		UsersById(eau.userID).
-		CalendarsById(eau.calendarID).
-		EventsById(eau.itemID).
+		Users().ByUserId(eau.userID).
+		Calendars().ByCalendarId(eau.calendarID).
+		Events().ByEventId(eau.itemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)

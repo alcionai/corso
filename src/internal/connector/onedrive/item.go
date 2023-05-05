@@ -346,8 +346,8 @@ func driveItemWriter(
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
 	r, err := service.Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().ByDriveId(driveID).
+		Items().ByDriveItemId(itemID).
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
