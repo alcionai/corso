@@ -46,15 +46,15 @@ func RestoreCollections(
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		restoreMetrics support.CollectionMetrics
-		metrics        support.CollectionMetrics
-		folderMetas    = map[string]metadata.Metadata{}
+		restoreMetrics  support.CollectionMetrics
+		metrics         support.CollectionMetrics
+		parentDirToMeta = map[string]metadata.Metadata{}
 
-		// permissionIDMappings is used to map between old and new id
+		// oldPermIDToNewID is used to map between old and new id
 		// of permissions as we restore them
-		permissionIDMappings = map[string]string{}
-		fc                   = NewFolderCache()
-		rootIDCache          = map[string]string{}
+		oldPermIDToNewID  = map[string]string{}
+		fc                = NewFolderCache()
+		rootFolderIDCache = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -91,10 +91,10 @@ func RestoreCollections(
 			backupVersion,
 			service,
 			dc,
-			folderMetas,
-			permissionIDMappings,
+			parentDirToMeta,
+			oldPermIDToNewID,
 			fc,
-			rootIDCache,
+			rootFolderIDCache,
 			OneDriveSource,
 			dest.ContainerName,
 			deets,
@@ -132,10 +132,10 @@ func RestoreCollection(
 	backupVersion int,
 	service graph.Servicer,
 	dc data.RestoreCollection,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	parentDirToMeta map[string]metadata.Metadata,
+	oldPermIDToNewID map[string]string,
 	fc *folderCache,
-	rootIDCache map[string]string, // map of drive id -> root folder ID
+	rootFolderIDCache map[string]string, // map of drive id -> root folder ID
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
@@ -157,17 +157,17 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
-	if rootIDCache == nil {
-		rootIDCache = map[string]string{}
+	if rootFolderIDCache == nil {
+		rootFolderIDCache = map[string]string{}
 	}
 
-	if _, ok := rootIDCache[drivePath.DriveID]; !ok {
+	if _, ok := rootFolderIDCache[drivePath.DriveID]; !ok {
 		root, err := api.GetDriveRoot(ctx, service, drivePath.DriveID)
 		if err != nil {
 			return metrics, clues.Wrap(err, "getting drive root id")
 		}
 
-		rootIDCache[drivePath.DriveID] = ptr.Val(root.GetId())
+		rootFolderIDCache[drivePath.DriveID] = ptr.Val(root.GetId())
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -189,7 +189,7 @@ func RestoreCollection(
 		ctx,
 		drivePath,
 		dc,
-		folderMetas,
+		parentDirToMeta,
 		backupVersion,
 		restorePerms)
 	if err != nil {
@@ -202,19 +202,19 @@ func RestoreCollection(
 		creds,
 		service,
 		drivePath,
-		rootIDCache[drivePath.DriveID],
+		rootFolderIDCache[drivePath.DriveID],
 		restoreFolderElements,
 		dc.FullPath(),
 		colMeta,
-		folderMetas,
+		parentDirToMeta,
 		fc,
-		permissionIDMappings,
+		oldPermIDToNewID,
 		restorePerms)
 	if err != nil {
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
 
-	folderMetas[dc.FullPath().String()] = colMeta
+	parentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
 	for {
@@ -247,8 +247,8 @@ func RestoreCollection(
 				drivePath,
 				restoreFolderID,
 				copyBuffer,
-				folderMetas,
-				permissionIDMappings,
+				parentDirToMeta,
+				oldPermIDToNewID,
 				restorePerms,
 				itemData,
 				itemPath)
@@ -298,8 +298,8 @@ func restoreItem(
 	drivePath *path.DrivePath,
 	restoreFolderID string,
 	copyBuffer []byte,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	parentDirToMeta map[string]metadata.Metadata,
+	oldPermIDToNewID map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
 	itemPath path.Path,
@@ -348,7 +348,7 @@ func restoreItem(
 		}
 
 		trimmedPath := strings.TrimSuffix(itemPath.String(), metadata.DirMetaFileSuffix)
-		folderMetas[trimmedPath] = meta
+		parentDirToMeta[trimmedPath] = meta
 
 		return details.ItemInfo{}, true, nil
 	}
@@ -366,8 +366,8 @@ func restoreItem(
 			restoreFolderID,
 			copyBuffer,
 			restorePerms,
-			folderMetas,
-			permissionIDMappings,
+			parentDirToMeta,
+			oldPermIDToNewID,
 			itemPath,
 			itemData)
 		if err != nil {
@@ -389,8 +389,8 @@ func restoreItem(
 		restoreFolderID,
 		copyBuffer,
 		restorePerms,
-		folderMetas,
-		permissionIDMappings,
+		parentDirToMeta,
+		oldPermIDToNewID,
 		itemPath,
 		itemData)
 	if err != nil {
@@ -439,8 +439,8 @@ func restoreV1File(
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	parentDirToMeta map[string]metadata.Metadata,
+	oldPermIDToNewID map[string]string,
 	itemPath path.Path,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
@@ -481,8 +481,8 @@ func restoreV1File(
 		itemID,
 		itemPath,
 		meta,
-		folderMetas,
-		permissionIDMappings)
+		parentDirToMeta,
+		oldPermIDToNewID)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -500,8 +500,8 @@ func restoreV6File(
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	parentDirToMeta map[string]metadata.Metadata,
+	oldPermIDToNewID map[string]string,
 	itemPath path.Path,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
@@ -553,8 +553,8 @@ func restoreV6File(
 		itemID,
 		itemPath,
 		meta,
-		folderMetas,
-		permissionIDMappings)
+		parentDirToMeta,
+		oldPermIDToNewID)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -622,13 +622,13 @@ func CreateRestoreFolders(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID, driveRootID string,
-	restoreFolders *path.Builder,
+	restoreDir *path.Builder,
 	fc *folderCache,
 ) (string, error) {
 	var (
 		location       = &path.Builder{}
 		parentFolderID = driveRootID
-		folders        = restoreFolders.Elements()
+		folders        = restoreDir.Elements()
 	)
 
 	for _, folder := range folders {
@@ -647,7 +647,7 @@ func CreateRestoreFolders(
 
 		folderItem, err := api.GetFolderByName(ictx, service, driveID, parentFolderID, folder)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
-			return "", clues.Wrap(err, "getting folder by display name").WithClues(ctx)
+			return "", clues.Wrap(err, "getting folder by display name")
 		}
 
 		// folder found, moving to next child
@@ -659,7 +659,7 @@ func CreateRestoreFolders(
 		}
 
 		// create the folder if not found
-		folderItem, err = CreateItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
+		folderItem, err = CreateItem(ictx, service, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -667,7 +667,7 @@ func CreateRestoreFolders(
 		parentFolderID = ptr.Val(folderItem.GetId())
 		fc.set(location, folderItem)
 
-		logger.Ctx(ctx).Debug("resolved restore destination")
+		logger.Ctx(ictx).Debug("resolved restore destination")
 	}
 
 	return parentFolderID, nil
@@ -700,13 +700,13 @@ func restoreData(
 	// Create Item
 	newItem, err := CreateItem(ctx, service, driveID, parentFolderID, newItem(name, false))
 	if err != nil {
-		return "", details.ItemInfo{}, clues.Wrap(err, "creating item")
+		return "", details.ItemInfo{}, err
 	}
 
 	// Get a drive item writer
 	w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
-		return "", details.ItemInfo{}, clues.Wrap(err, "creating item writer")
+		return "", details.ItemInfo{}, err
 	}
 
 	iReader := itemData.ToReader()
