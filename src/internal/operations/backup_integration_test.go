@@ -1540,7 +1540,6 @@ func runDriveIncrementalTest(
 		updateFiles  func(t *testing.T)
 		itemsRead    int
 		itemsWritten int
-		skip         bool
 	}{
 		{
 			name:         "clean incremental, no changes",
@@ -1572,7 +1571,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to new file",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1595,7 +1593,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from new file",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1617,7 +1614,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to container",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1640,7 +1636,6 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from container",
-			skip: skipPermissionsTests,
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
@@ -1852,10 +1847,6 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			if test.skip {
-				suite.T().Skip("flagged to skip")
-			}
-
 			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
 			require.NoError(t, err, clues.ToCore(err))
 
