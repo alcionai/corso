@@ -29,7 +29,7 @@ func locationRef(
 	elems := repoRef.Folders()
 
 	if ent.OneDrive != nil || ent.SharePoint != nil {
-		dp, err := path.ToOneDrivePath(repoRef)
+		dp, err := path.ToDrivePath(repoRef)
 		if err != nil {
 			return nil, clues.Wrap(err, "fallback for LocationRef")
 		}
@@ -79,7 +79,7 @@ func drivePathMerge(
 
 	// Fallback to trying to get from RepoRef.
 	if len(driveID) == 0 {
-		odp, err := path.ToOneDrivePath(repoRef)
+		odp, err := path.ToDrivePath(repoRef)
 		if err != nil {
 			return nil, clues.Wrap(err, "fallback getting DriveID")
 		}
