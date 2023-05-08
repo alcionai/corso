@@ -1,13 +1,11 @@
 package impl
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -20,8 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -200,44 +196,44 @@ func buildCollections(
 	return collections, nil
 }
 
-type permData struct {
-	user        string // user is only for older versions
-	entityID    string
-	roles       []string
-	sharingMode onedrive.SharingMode
-}
+// type permData struct {
+// 	user        string // user is only for older versions
+// 	EntityID    string
+// 	Roles       []string
+// 	sharingMode onedrive.SharingMode
+// }
 
-type itemData struct {
-	name  string
-	data  []byte
-	perms permData
-}
+// type connector.ItemData struct {
+// 	name  string
+// 	data  []byte
+// 	Perms connector.PermData
+// }
 
-type itemInfo struct {
-	// lookupKey is a string that can be used to find this data from a set of
-	// other data in the same collection. This key should be something that will
-	// be the same before and after restoring the item in M365 and may not be
-	// the M365 ID. When restoring items out of place, the item is assigned a
-	// new ID making it unsuitable for a lookup key.
-	lookupKey string
-	name      string
-	data      []byte
-}
+// type itemInfo struct {
+// 	// lookupKey is a string that can be used to find this data from a set of
+// 	// other data in the same collection. This key should be something that will
+// 	// be the same before and after restoring the item in M365 and may not be
+// 	// the M365 ID. When restoring items out of place, the item is assigned a
+// 	// new ID making it unsuitable for a lookup key.
+// 	lookupKey string
+// 	name      string
+// 	data      []byte
+// }
 
-type onedriveCollection struct {
-	service       path.ServiceType
-	pathElements  []string
-	items         []itemInfo
-	aux           []itemInfo
-	backupVersion int
-}
+// type onedriveCollection struct {
+// 	service       path.ServiceType
+// 	pathElements  []string
+// 	items         []itemInfo
+// 	aux           []itemInfo
+// 	backupVersion int
+// }
 
-type onedriveColInfo struct {
-	pathElements []string
-	perms        permData
-	files        []itemData
-	folders      []itemData
-}
+// type onedriveColInfo struct {
+// 	pathElements []string
+// 	Perms        connector.PermData
+// 	files        []DataForInfconnector.ItemDatao
+// 	folders      []DataForInfconnector.ItemDatao
+// }
 
 var (
 	folderAName = "folder-a"
@@ -278,7 +274,7 @@ func generateAndRestoreOnedriveItems(
 	driveID := ptr.Val(d.GetId())
 
 	var (
-		cols []onedriveColInfo
+		cols []connector.OnedriveColInfo
 
 		rootPath    = []string{"drives", driveID, "root:"}
 		folderAPath = []string{"drives", driveID, "root:", folderAName}
@@ -292,43 +288,43 @@ func generateAndRestoreOnedriveItems(
 	)
 
 	for i := 0; i < count; i++ {
-		col := []onedriveColInfo{
+		col := []connector.OnedriveColInfo{
 			// basic folder and file creation
 			{
-				pathElements: rootPath,
-				files: []itemData{
+				PathElements: rootPath,
+				Files: []connector.ItemData{
 					{
-						name: fmt.Sprintf("file-1st-count-%d-at-%s", i, currentTime),
-						data: fileAData,
-						perms: permData{
-							user:     secondaryUserName,
-							entityID: secondaryUserID,
-							roles:    writePerm,
+						Name: fmt.Sprintf("file-1st-count-%d-at-%s", i, currentTime),
+						Data: fileAData,
+						Perms: connector.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
 						},
 					},
 					{
-						name: fmt.Sprintf("file-2nd-count-%d-at-%s", i, currentTime),
-						data: fileBData,
+						Name: fmt.Sprintf("file-2nd-count-%d-at-%s", i, currentTime),
+						Data: fileBData,
 					},
 				},
-				folders: []itemData{
+				Folders: []connector.ItemData{
 					{
-						name: folderBName,
+						Name: folderBName,
 					},
 					{
-						name: folderAName,
-						perms: permData{
-							user:     secondaryUserName,
-							entityID: secondaryUserID,
-							roles:    readPerm,
+						Name: folderAName,
+						Perms: connector.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    readPerm,
 						},
 					},
 					{
-						name: folderCName,
-						perms: permData{
-							user:     secondaryUserName,
-							entityID: secondaryUserID,
-							roles:    readPerm,
+						Name: folderCName,
+						Perms: connector.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    readPerm,
 						},
 					},
 				},
@@ -336,62 +332,62 @@ func generateAndRestoreOnedriveItems(
 			{
 				// a folder that has permissions with an item in the folder with
 				// the different permissions.
-				pathElements: folderAPath,
-				files: []itemData{
+				PathElements: folderAPath,
+				Files: []connector.ItemData{
 					{
-						name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
-						data: fileEData,
-						perms: permData{
-							user:     secondaryUserName,
-							entityID: secondaryUserID,
-							roles:    writePerm,
+						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
+						Data: fileEData,
+						Perms: connector.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
 						},
 					},
 				},
-				perms: permData{
-					user:     secondaryUserName,
-					entityID: secondaryUserID,
-					roles:    readPerm,
+				Perms: connector.PermData{
+					User:     secondaryUserName,
+					EntityID: secondaryUserID,
+					Roles:    readPerm,
 				},
 			},
 			{
 				// a folder that has permissions with an item in the folder with
 				// no permissions.
-				pathElements: folderCPath,
-				files: []itemData{
+				PathElements: folderCPath,
+				Files: []connector.ItemData{
 					{
-						name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
-						data: fileAData,
+						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
+						Data: fileAData,
 					},
 				},
-				perms: permData{
-					user:     secondaryUserName,
-					entityID: secondaryUserID,
-					roles:    readPerm,
+				Perms: connector.PermData{
+					User:     secondaryUserName,
+					EntityID: secondaryUserID,
+					Roles:    readPerm,
 				},
 			},
 			{
-				pathElements: folderBPath,
-				files: []itemData{
+				PathElements: folderBPath,
+				Files: []connector.ItemData{
 					{
 						// restoring a file in a non-root folder that doesn't inherit
 						// permissions.
-						name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
-						data: fileBData,
-						perms: permData{
-							user:     secondaryUserName,
-							entityID: secondaryUserID,
-							roles:    writePerm,
+						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
+						Data: fileBData,
+						Perms: connector.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
 						},
 					},
 				},
-				folders: []itemData{
+				Folders: []connector.ItemData{
 					{
-						name: folderAName,
-						perms: permData{
-							user:     secondaryUserName,
-							entityID: secondaryUserID,
-							roles:    readPerm,
+						Name: folderAName,
+						Perms: connector.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    readPerm,
 						},
 					},
 				},
@@ -401,302 +397,316 @@ func generateAndRestoreOnedriveItems(
 		cols = append(cols, col...)
 	}
 
-	input := dataForInfo(service, cols, version.Backup)
-
-	collections := getCollections(
-		service,
-		tenantID,
-		[]string{resourceOwner},
-		input,
-		version.Backup)
+	// TODO Neha: work on this
+	t := testing.T{}
+	input := connector.DataForInfo(&t, service, cols, version.Backup)
 
 	opts := control.Options{
 		RestorePermissions: true,
 		ToggleFeatures:     control.Toggles{},
 	}
 
+	config := connector.ConfigInfo{
+		Acct:           acct,
+		Opts:           opts,
+		Resource:       connector.Users,
+		Service:        service,
+		Tenant:         tenantID,
+		ResourceOwners: []string{resourceOwner},
+		Dest:           tester.DefaultTestRestoreDestination(),
+	}
+
+	_, _, collections, _ := connector.GetCollectionsAndExpected(
+		&t,
+		config,
+		// service,
+		// tenantID,
+		// []string{resourceOwner},
+		input,
+		version.Backup)
+
 	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, collections, errs)
 }
 
-func getCollections(
-	service path.ServiceType,
-	tenant string,
-	resourceOwners []string,
-	testCollections []colInfo,
-	backupVersion int,
-) []data.RestoreCollection {
-	var collections []data.RestoreCollection
+// func getCollections(
+// 	service path.ServiceType,
+// 	tenant string,
+// 	resourceOwners []string,
+// 	testCollections []connector.ColInfo,
+// 	backupVersion int,
+// ) []data.RestoreCollection {
+// 	var collections []data.RestoreCollection
 
-	for _, owner := range resourceOwners {
-		ownerCollections := collectionsForInfo(
-			service,
-			tenant,
-			owner,
-			testCollections,
-			backupVersion,
-		)
+// 	for _, owner := range resourceOwners {
+// 		ownerCollections := collectionsForInfo(
+// 			service,
+// 			tenant,
+// 			owner,
+// 			testCollections,
+// 			backupVersion,
+// 		)
 
-		collections = append(collections, ownerCollections...)
-	}
+// 		collections = append(collections, ownerCollections...)
+// 	}
 
-	return collections
-}
+// 	return collections
+// }
 
-type mockRestoreCollection struct {
-	data.Collection
-	auxItems map[string]data.Stream
-}
+// type mockRestoreCollection struct {
+// 	data.Collection
+// 	auxItems map[string]data.Stream
+// }
 
-func (rc mockRestoreCollection) Fetch(
-	ctx context.Context,
-	name string,
-) (data.Stream, error) {
-	res := rc.auxItems[name]
-	if res == nil {
-		return nil, data.ErrNotFound
-	}
+// func (rc mockRestoreCollection) Fetch(
+// 	ctx context.Context,
+// 	name string,
+// ) (data.Stream, error) {
+// 	res := rc.auxItems[name]
+// 	if res == nil {
+// 		return nil, data.ErrNotFound
+// 	}
 
-	return res, nil
-}
+// 	return res, nil
+// }
 
-func collectionsForInfo(
-	service path.ServiceType,
-	tenant, user string,
-	allInfo []colInfo,
-	backupVersion int,
-) []data.RestoreCollection {
-	collections := make([]data.RestoreCollection, 0, len(allInfo))
+// func collectionsForInfo(
+// 	service path.ServiceType,
+// 	tenant, user string,
+// 	allInfo []colInfo,
+// 	backupVersion int,
+// ) []data.RestoreCollection {
+// 	collections := make([]data.RestoreCollection, 0, len(allInfo))
 
-	for _, info := range allInfo {
-		pth := mustToDataLayerPath(
-			service,
-			tenant,
-			user,
-			info.category,
-			info.pathElements,
-			false)
+// 	for _, info := range allInfo {
+// 		pth := mustToDataLayerPath(
+// 			service,
+// 			tenant,
+// 			user,
+// 			info.category,
+// 			info.pathElements,
+// 			false)
 
-		mc := exchMock.NewCollection(pth, pth, len(info.items))
+// 		mc := exchMock.NewCollection(pth, pth, len(info.items))
 
-		for i := 0; i < len(info.items); i++ {
-			mc.Names[i] = info.items[i].name
-			mc.Data[i] = info.items[i].data
+// 		for i := 0; i < len(info.items); i++ {
+// 			mc.Names[i] = info.items[i].name
+// 			mc.Data[i] = info.items[i].data
 
-			// We do not count metadata files against item count
-			if backupVersion > 0 && metadata.HasMetaSuffix(info.items[i].name) &&
-				(service == path.OneDriveService || service == path.SharePointService) {
-				continue
-			}
-		}
+// 			// We do not count metadata files against item count
+// 			if backupVersion > 0 && metadata.HasMetaSuffix(info.items[i].name) &&
+// 				(service == path.OneDriveService || service == path.SharePointService) {
+// 				continue
+// 			}
+// 		}
 
-		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
+// 		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
 
-		for _, aux := range info.auxItems {
-			c.auxItems[aux.name] = &exchMock.Data{
-				ID:     aux.name,
-				Reader: io.NopCloser(bytes.NewReader(aux.data)),
-			}
-		}
+// 		for _, aux := range info.auxItems {
+// 			c.auxItems[aux.name] = &exchMock.Data{
+// 				ID:     aux.name,
+// 				Reader: io.NopCloser(bytes.NewReader(aux.data)),
+// 			}
+// 		}
 
-		collections = append(collections, c)
-	}
+// 		collections = append(collections, c)
+// 	}
 
-	return collections
-}
+// 	return collections
+// }
 
-func mustToDataLayerPath(
-	service path.ServiceType,
-	tenant, resourceOwner string,
-	category path.CategoryType,
-	elements []string,
-	isItem bool,
-) path.Path {
-	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
-	if err != nil {
-		fmt.Println("building path", clues.ToCore(err))
-	}
+// func mustToDataLayerPath(
+// 	service path.ServiceType,
+// 	tenant, resourceOwner string,
+// 	category path.CategoryType,
+// 	elements []string,
+// 	isItem bool,
+// ) path.Path {
+// 	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
+// 	if err != nil {
+// 		fmt.Println("building path", clues.ToCore(err))
+// 	}
 
-	return res
-}
+// 	return res
+// }
 
-type colInfo struct {
-	// Elements (in order) for the path representing this collection. Should
-	// only contain elements after the prefix that corso uses for the path. For
-	// example, a collection for the Inbox folder in exchange mail would just be
-	// "Inbox".
-	pathElements []string
-	category     path.CategoryType
-	items        []itemInfo
-	// auxItems are items that can be retrieved with Fetch but won't be returned
-	// by Items().
-	auxItems []itemInfo
-}
+// type colInfo struct {
+// 	// Elements (in order) for the path representing this collection. Should
+// 	// only contain elements after the prefix that corso uses for the path. For
+// 	// example, a collection for the Inbox folder in exchange mail would just be
+// 	// "Inbox".
+// 	pathElements []string
+// 	category     path.CategoryType
+// 	items        []itemInfo
+// 	// auxItems are items that can be retrieved with Fetch but won't be returned
+// 	// by Items().
+// 	auxItems []itemInfo
+// }
 
-func newOneDriveCollection(
-	service path.ServiceType,
-	pathElements []string,
-	backupVersion int,
-) *onedriveCollection {
-	return &onedriveCollection{
-		service:       service,
-		pathElements:  pathElements,
-		backupVersion: backupVersion,
-	}
-}
+// func newOneDriveCollection(
+// 	service path.ServiceType,
+// 	pathElements []string,
+// 	backupVersion int,
+// ) *onedriveCollection {
+// 	return &onedriveCollection{
+// 		service:       service,
+// 		pathElements:  pathElements,
+// 		backupVersion: backupVersion,
+// 	}
+// }
 
-func dataForInfo(
-	service path.ServiceType,
-	cols []onedriveColInfo,
-	backupVersion int,
-) []colInfo {
-	var res []colInfo
+// func dataForInfo(
+// 	service path.ServiceType,
+// 	cols []onedriveColInfo,
+// 	backupVersion int,
+// ) []colInfo {
+// 	var res []colInfo
 
-	for _, c := range cols {
-		onedriveCol := newOneDriveCollection(service, c.pathElements, backupVersion)
+// 	for _, c := range cols {
+// 		onedriveCol := newOneDriveCollection(service, c.pathElements, backupVersion)
 
-		for _, f := range c.files {
-			onedriveCol.withFile(f.name, f.data, f.perms)
-		}
+// 		for _, f := range c.files {
+// 			onedriveCol.withFile(f.name, f.data, f.Perms)
+// 		}
 
-		onedriveCol.withPermissions(c.perms)
+// 		onedriveCol.withPermissions(c.Perms)
 
-		res = append(res, onedriveCol.collection())
-	}
+// 		res = append(res, onedriveCol.collection())
+// 	}
 
-	return res
-}
+// 	return res
+// }
 
-func (c onedriveCollection) collection() colInfo {
-	cat := path.FilesCategory
-	if c.service == path.SharePointService {
-		cat = path.LibrariesCategory
-	}
+// func (c onedriveCollection) collection() colInfo {
+// 	cat := path.FilesCategory
+// 	if c.service == path.SharePointService {
+// 		cat = path.LibrariesCategory
+// 	}
 
-	return colInfo{
-		pathElements: c.pathElements,
-		category:     cat,
-		items:        c.items,
-		auxItems:     c.aux,
-	}
-}
+// 	return colInfo{
+// 		pathElements: c.pathElements,
+// 		category:     cat,
+// 		items:        c.items,
+// 		auxItems:     c.aux,
+// 	}
+// }
 
-func (c *onedriveCollection) withFile(name string, fileData []byte, perm permData) *onedriveCollection {
-	c.items = append(c.items, onedriveItemWithData(
-		name+metadata.DataFileSuffix,
-		name+metadata.DataFileSuffix,
-		fileData))
+// func (c *onedriveCollection) withFile(name string, fileData []byte, perm connector.PermData) *onedriveCollection {
+// 	c.items = append(c.items, onedriveItemWithData(
+// 		name+metadata.DataFileSuffix,
+// 		name+metadata.DataFileSuffix,
+// 		fileData))
 
-	md := onedriveMetadata(
-		name,
-		name+metadata.MetaFileSuffix,
-		name,
-		perm,
-		true)
-	c.items = append(c.items, md)
-	c.aux = append(c.aux, md)
+// 	md := onedriveMetadata(
+// 		name,
+// 		name+metadata.MetaFileSuffix,
+// 		name,
+// 		perm,
+// 		true)
+// 	c.items = append(c.items, md)
+// 	c.aux = append(c.aux, md)
 
-	return c
-}
+// 	return c
+// }
 
-// withPermissions adds permissions to the folder represented by this
-// onedriveCollection.
-func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection {
-	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
-		return c
-	}
+// // withPermissions adds permissions to the folder represented by this
+// // onedriveCollection.
+// func (c *onedriveCollection) withPermissions(perm connector.PermData) *onedriveCollection {
+// 	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
+// 		return c
+// 	}
 
-	name := c.pathElements[len(c.pathElements)-1]
-	metaName := name
+// 	name := c.pathElements[len(c.pathElements)-1]
+// 	metaName := name
 
-	if c.backupVersion >= version.OneDrive5DirMetaNoName {
-		// We switched to just .dirmeta for metadata file names.
-		metaName = ""
-	}
+// 	if c.backupVersion >= version.OneDrive5DirMetaNoName {
+// 		// We switched to just .dirmeta for metadata file names.
+// 		metaName = ""
+// 	}
 
-	if name == "root:" {
-		return c
-	}
+// 	if name == "root:" {
+// 		return c
+// 	}
 
-	md := onedriveMetadata(
-		name,
-		metaName+metadata.DirMetaFileSuffix,
-		metaName+metadata.DirMetaFileSuffix,
-		perm,
-		true)
+// 	md := onedriveMetadata(
+// 		name,
+// 		metaName+metadata.DirMetaFileSuffix,
+// 		metaName+metadata.DirMetaFileSuffix,
+// 		perm,
+// 		true)
 
-	c.items = append(c.items, md)
-	c.aux = append(c.aux, md)
+// 	c.items = append(c.items, md)
+// 	c.aux = append(c.aux, md)
 
-	return c
-}
+// 	return c
+// }
 
-type oneDriveData struct {
-	FileName string `json:"fileName,omitempty"`
-	Data     []byte `json:"data,omitempty"`
-}
+// type oneDriveData struct {
+// 	FileName string `json:"fileName,omitempty"`
+// 	Data     []byte `json:"data,omitempty"`
+// }
 
-func onedriveItemWithData(
-	name, lookupKey string,
-	fileData []byte,
-) itemInfo {
-	content := oneDriveData{
-		FileName: lookupKey,
-		Data:     fileData,
-	}
+// func onedriveItemWithData(
+// 	name, lookupKey string,
+// 	fileData []byte,
+// ) itemInfo {
+// 	content := oneDriveData{
+// 		FileName: lookupKey,
+// 		Data:     fileData,
+// 	}
 
-	serialized, _ := json.Marshal(content)
+// 	serialized, _ := json.Marshal(content)
 
-	return itemInfo{
-		name:      name,
-		data:      serialized,
-		lookupKey: lookupKey,
-	}
-}
+// 	return itemInfo{
+// 		name:      name,
+// 		Data:      serialized,
+// 		lookupKey: lookupKey,
+// 	}
+// }
 
-func onedriveMetadata(
-	fileName, itemID, lookupKey string,
-	perm permData,
-	permUseID bool,
-) itemInfo {
-	meta := getMetadata(fileName, perm, permUseID)
+// func onedriveMetadata(
+// 	fileName, itemID, lookupKey string,
+// 	perm connector.PermData,
+// 	permUseID bool,
+// ) itemInfo {
+// 	meta := getMetadata(fileName, perm, permUseID)
 
-	metaJSON, err := json.Marshal(meta)
-	if err != nil {
-		fmt.Println("marshalling metadata", clues.ToCore(err))
-	}
+// 	metaJSON, err := json.Marshal(meta)
+// 	if err != nil {
+// 		fmt.Println("marshalling metadata", clues.ToCore(err))
+// 	}
 
-	return itemInfo{
-		name:      itemID,
-		data:      metaJSON,
-		lookupKey: lookupKey,
-	}
-}
+// 	return itemInfo{
+// 		name:      itemID,
+// 		Data:      metaJSON,
+// 		lookupKey: lookupKey,
+// 	}
+// }
 
-func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
-	if len(perm.user) == 0 || len(perm.roles) == 0 ||
-		perm.sharingMode != onedrive.SharingModeCustom {
-		return onedrive.Metadata{
-			FileName:    fileName,
-			SharingMode: perm.sharingMode,
-		}
-	}
+// func getMetadata(fileName string, perm connector.PermData, permUseID bool) onedrive.Metadata {
+// 	if len(perm.user) == 0 || len(perm.Roles) == 0 ||
+// 		perm.sharingMode != onedrive.SharingModeCustom {
+// 		return onedrive.Metadata{
+// 			FileName:    fileName,
+// 			SharingMode: perm.sharingMode,
+// 		}
+// 	}
 
-	// In case of permissions, the id will usually be same for same
-	// user/role combo unless deleted and readded, but we have to do
-	// this as we only have two users of which one is already taken.
-	id := uuid.NewString()
-	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
+// 	// In case of permissions, the id will usually be same for same
+// 	// user/role combo unless deleted and readded, but we have to do
+// 	// this as we only have two users of which one is already taken.
+// 	id := uuid.NewString()
+// 	uperm := onedrive.UserPermission{ID: id, Roles: perm.Roles}
 
-	if permUseID {
-		uperm.EntityID = perm.entityID
-	} else {
-		uperm.Email = perm.user
-	}
+// 	if permUseID {
+// 		uperm.EntityID = perm.EntityID
+// 	} else {
+// 		uperm.Email = perm.user
+// 	}
 
-	meta := onedrive.Metadata{
-		FileName:    fileName,
-		Permissions: []onedrive.UserPermission{uperm},
-	}
+// 	meta := onedrive.Metadata{
+// 		FileName:    fileName,
+// 		Permissions: []onedrive.UserPermission{uperm},
+// 	}
 
-	return meta
-}
+// 	return meta
+// }
