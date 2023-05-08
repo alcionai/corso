@@ -427,7 +427,7 @@ jobs:
         id: sharepoint-test
         run: |
           set -euo pipefail
-        echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup create sharepoint \
           --no-stats \
