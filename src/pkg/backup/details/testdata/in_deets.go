@@ -41,9 +41,7 @@ func newLocSet() *locSet {
 }
 
 func (ls *locSet) AddItem(locationRef, itemRef string) {
-	if _, ok := ls.Locations[locationRef]; !ok {
-		ls.Locations[locationRef] = map[string]struct{}{}
-	}
+	ls.AddLocation(locationRef)
 
 	ls.Locations[locationRef][itemRef] = exists
 	delete(ls.Deleted[locationRef], itemRef)
@@ -105,6 +103,8 @@ func (ls *locSet) MoveLocation(fromLocation, toLocation string) string {
 
 		newLoc := lrBuilder.String()
 
+		// move items first.  if you move locations first we slice
+		// out the reference and lose scope of the items.
 		for ir := range items {
 			ls.RemoveItem(lr, ir)
 			ls.AddItem(newLoc, ir)
@@ -296,6 +296,10 @@ func CheckBackupDetails(
 	ms *kopia.ModelStore,
 	ssr streamstore.Reader,
 	expect *InDeets,
+	// standard check is assert.Subset due to issues of external data cross-
+	// pollination.  This should be true if the backup contains a unique directory
+	// of data.
+	mustEqualFolders bool,
 ) {
 	deets, result := GetDeetsInBackup(t, ctx, backupID, "", "", path.UnknownService, ws, ms, ssr)
 
@@ -315,7 +319,13 @@ func CheckBackupDetails(
 	}
 
 	for set := range expect.Sets {
-		assert.Subsetf(
+		check = assert.Subsetf
+
+		if mustEqualFolders {
+			check = assert.ElementsMatchf
+		}
+
+		check(
 			t,
 			maps.Keys(result.Sets[set].Locations),
 			maps.Keys(expect.Sets[set].Locations),

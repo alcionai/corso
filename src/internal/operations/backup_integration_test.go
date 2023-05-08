@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -606,11 +607,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			var (
-				t   = suite.T()
-				mb  = evmock.NewBus()
-				sel = test.selector().Selector
-				ffs = control.Toggles{}
-				ws  = deeTD.CategoryFromRepoRef
+				t       = suite.T()
+				mb      = evmock.NewBus()
+				sel     = test.selector().Selector
+				ffs     = control.Toggles{}
+				whatSet = deeTD.CategoryFromRepoRef
 			)
 
 			bo, acct, kw, ms, ss, gc, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
@@ -642,10 +643,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				acct.ID(),
 				userID,
 				path.ExchangeService,
-				ws,
+				whatSet,
 				ms,
 				ss)
-			deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, ws, ms, ss, expectDeets)
+			deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, whatSet, ms, ss, expectDeets, false)
 
 			// Basic, happy path incremental test.  No changes are dictated or expected.
 			// This only tests that an incremental backup is runnable at all, and that it
@@ -671,10 +672,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				t,
 				ctx,
 				incBO.Results.BackupID,
-				deeTD.CategoryFromRepoRef,
+				whatSet,
 				ms,
 				ss,
-				expectDeets)
+				expectDeets,
+				false)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
@@ -723,7 +725,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup([]string{suite.user})
-		ws         = deeTD.CategoryFromRepoRef
+		whatSet    = deeTD.CategoryFromRepoRef
 	)
 
 	gc, sels := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
@@ -751,7 +753,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	type contDeets struct {
 		containerID string
 		locRef      string
-		// deets       *deeTD.InDeets
 	}
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
@@ -840,7 +841,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		acct.ID(),
 		uidn.ID(),
 		path.ExchangeService,
-		ws,
+		whatSet,
 		ms,
 		ss)
 
@@ -859,7 +860,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				// category must match, and the owning folder must be this destination
-				if p.Category() != category || p.ToBuilder().Dir().LastElem() != destName {
+				if p.Category() != category || strings.HasSuffix(ent.LocationRef, destName) {
 					continue
 				}
 
@@ -874,7 +875,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 			require.NotEmptyf(t, longestLR, "must find an expected details entry matching the generated folder: %s", destName)
 
-			// cd.deets = expectDeets.Subset(category.String(), longestLR)
 			cd.locRef = longestLR
 
 			dataset[category].dests[destName] = cd
@@ -939,17 +939,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					Post(ctx, body, nil)
 				require.NoError(t, err, clues.ToCore(err))
 
-				// if we MovePrefix on from.repoRef, then we'll only migrate the items,
-				// and not the whole folder.  A quick amendment fixes that.
-				// frrp := path.Builder{}.Append(path.Split(from.repoRef)...)
-				// fle := frrp.LastElem()
-				// frr := frrp.Dir().String()
 				newLoc := expectDeets.MoveLocation(cat.String(), from.locRef, to.locRef)
 
 				// then we need to update the dest cache.
 				from.locRef = newLoc
-				// from.deets = expectDeets.Subset(cat.String(), newLoc)
-				// dataset[path.EmailCategory].dests[container2] = from
 			},
 			itemsRead:    0, // zero because we don't count container reads
 			itemsWritten: 2,
@@ -1211,7 +1204,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				path.ExchangeService,
 				categories)
 
-			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, ws, ms, ss, expectDeets)
+			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, whatSet, ms, ss, expectDeets, true)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
