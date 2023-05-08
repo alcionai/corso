@@ -30,15 +30,10 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 
 	tests := []struct {
 		name     string
-		args     interface{}
+		args     models.Userable
 		want     models.Userable
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{
-			name:     "Invalid type",
-			args:     string("invalid type"),
-			errCheck: assert.Error,
-		},
 		{
 			name:     "No ID",
 			args:     models.NewUser(),

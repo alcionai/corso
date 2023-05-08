@@ -200,7 +200,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	// Clean-Up
 	var (
-		builder  = service.Client().SitesById(suite.siteID).Lists()
+		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
 		isFound  bool
 		deleteID string
 	)

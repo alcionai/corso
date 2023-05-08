@@ -33,16 +33,11 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 	tests := []struct {
 		name           string
-		args           any
+		args           models.Siteable
 		want           models.Siteable
 		errCheck       assert.ErrorAssertionFunc
 		errIsSkippable bool
 	}{
-		{
-			name:     "Invalid type",
-			args:     string("invalid type"),
-			errCheck: assert.Error,
-		},
 		{
 			name:     "No ID",
 			args:     models.NewSite(),

@@ -227,7 +227,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 
 	_, err = NewService(adpt).
 		Client().
-		UsersById("user").
+		Users().ByUserId("user").
 		MailFolders().
 		Post(ctx, body, nil)
 	require.NoError(t, err, clues.ToCore(err))
