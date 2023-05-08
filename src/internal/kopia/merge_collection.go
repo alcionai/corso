@@ -13,6 +13,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+var _ data.RestoreCollection = &mergeCollection{}
+
 type col struct {
 	storagePath string
 	data.RestoreCollection
@@ -69,7 +71,7 @@ func (mc *mergeCollection) Items(
 			// Unfortunately doesn't seem to be a way right now to see if the
 			// iteration failed and we should be exiting early.
 			ictx := clues.Add(ctx, "merged_collection_storage_path", c.storagePath)
-			logger.Ctx(ictx).Infow("sending items from merged collection")
+			logger.Ctx(ictx).Debug("sending items from merged collection")
 
 			for item := range c.Items(ictx, errs) {
 				res <- item
@@ -95,7 +97,7 @@ func (mc *mergeCollection) Fetch(
 	for _, c := range mc.cols {
 		ictx := clues.Add(ctx, "merged_collection_storage_path", c.storagePath)
 
-		logger.Ctx(ictx).Infow("looking for item in merged collection")
+		logger.Ctx(ictx).Debug("looking for item in merged collection")
 
 		s, err := c.Fetch(ictx, name)
 		if err == nil {

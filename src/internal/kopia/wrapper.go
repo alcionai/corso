@@ -400,15 +400,12 @@ func loadDirsAndItems(
 		}
 
 		var (
-			mergeDC *mergeCollection
-			ictx    = clues.Add(ctx, "restore_path", col.restorePath)
-			merge   = len(col.storageDirs) > 0
+			mergeCol *mergeCollection
+			ictx     = clues.Add(ctx, "restore_path", col.restorePath)
 		)
 
-		if merge {
-			mergeDC = &mergeCollection{fullPath: col.restorePath}
-			res = append(res, mergeDC)
-		}
+		mergeCol = &mergeCollection{fullPath: col.restorePath}
+		res = append(res, mergeCol)
 
 		for _, dirItems := range col.storageDirs {
 			if el.Failure() != nil {
@@ -433,16 +430,12 @@ func loadDirsAndItems(
 				expectedVersion: serializationVersion,
 			}
 
-			if merge {
-				if err := mergeDC.addCollection(dirItems.dir.String(), dc); err != nil {
-					el.AddRecoverable(clues.Wrap(err, "adding collection to merge collection").
-						WithClues(ctx).
-						Label(fault.LabelForceNoBackupCreation))
+			if err := mergeCol.addCollection(dirItems.dir.String(), dc); err != nil {
+				el.AddRecoverable(clues.Wrap(err, "adding collection to merge collection").
+					WithClues(ctx).
+					Label(fault.LabelForceNoBackupCreation))
 
-					continue
-				}
-			} else {
-				res = append(res, dc)
+				continue
 			}
 
 			for _, item := range dirItems.items {
