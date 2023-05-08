@@ -1492,48 +1492,74 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_leafCat() {
 func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 	t := suite.T()
 
-	contactPath := stubPath(t, "user", []string{"cfolder.d", "contactitem.d"}, path.ContactsCategory)
-	contactLoc := stubPath(t, "user", []string{"cfolder", "contactitem"}, path.ContactsCategory)
-	contactMap := map[categorizer][]string{
-		ExchangeContactFolder: {contactLoc.Folder(false)},
-		ExchangeContact:       {contactPath.Item(), "short"},
-	}
-	eventPath := stubPath(t, "user", []string{"ecalendar.d", "eventitem.d"}, path.EventsCategory)
-	eventLoc := stubPath(t, "user", []string{"ecalendar", "eventitem"}, path.EventsCategory)
-	eventMap := map[categorizer][]string{
-		ExchangeEventCalendar: {eventLoc.Folder(false)},
-		ExchangeEvent:         {eventPath.Item(), "short"},
-	}
-	mailPath := stubPath(t, "user", []string{"mfolder.d", "mailitem.d"}, path.EmailCategory)
-	mailLoc := stubPath(t, "user", []string{"mfolder", "mailitem"}, path.EmailCategory)
-	mailMap := map[categorizer][]string{
-		ExchangeMailFolder: {mailLoc.Folder(false)},
-		ExchangeMail:       {mailPath.Item(), "short"},
-	}
+	var (
+		contactPath = stubPath(t, "u", []string{"cfolder.d", "contactitem.d"}, path.ContactsCategory)
+		contactLoc  = stubPath(t, "u", []string{"cfolder", "contactitem"}, path.ContactsCategory)
+		contactMap  = map[categorizer][]string{
+			ExchangeContactFolder: {contactLoc.Folder(false)},
+			ExchangeContact:       {contactPath.Item(), "contact-short"},
+		}
+		contactOnlyNameMap = map[categorizer][]string{
+			ExchangeContactFolder: {contactLoc.Folder(false)},
+			ExchangeContact:       {"contact-short"},
+		}
+		eventPath = stubPath(t, "u", []string{"ecalendar.d", "eventitem.d"}, path.EventsCategory)
+		eventLoc  = stubPath(t, "u", []string{"ecalendar", "eventitem"}, path.EventsCategory)
+		eventMap  = map[categorizer][]string{
+			ExchangeEventCalendar: {eventLoc.Folder(false)},
+			ExchangeEvent:         {eventPath.Item(), "event-short"},
+		}
+		eventOnlyNameMap = map[categorizer][]string{
+			ExchangeEventCalendar: {eventLoc.Folder(false)},
+			ExchangeEvent:         {"event-short"},
+		}
+		mailPath = stubPath(t, "u", []string{"mfolder.d", "mailitem.d"}, path.EmailCategory)
+		mailLoc  = stubPath(t, "u", []string{"mfolder", "mailitem"}, path.EmailCategory)
+		mailMap  = map[categorizer][]string{
+			ExchangeMailFolder: {mailLoc.Folder(false)},
+			ExchangeMail:       {mailPath.Item(), "mail-short"},
+		}
+		mailOnlyNameMap = map[categorizer][]string{
+			ExchangeMailFolder: {mailLoc.Folder(false)},
+			ExchangeMail:       {"mail-short"},
+		}
+	)
 
 	table := []struct {
-		cat    exchangeCategory
-		path   path.Path
-		loc    path.Path
-		expect map[categorizer][]string
+		cat            exchangeCategory
+		path           path.Path
+		loc            path.Path
+		short          string
+		expect         map[categorizer][]string
+		expectOnlyName map[categorizer][]string
 	}{
-		{ExchangeContact, contactPath, contactLoc, contactMap},
-		{ExchangeEvent, eventPath, eventLoc, eventMap},
-		{ExchangeMail, mailPath, mailLoc, mailMap},
+		{ExchangeContact, contactPath, contactLoc, "contact-short", contactMap, contactOnlyNameMap},
+		{ExchangeEvent, eventPath, eventLoc, "event-short", eventMap, eventOnlyNameMap},
+		{ExchangeMail, mailPath, mailLoc, "mail-short", mailMap, mailOnlyNameMap},
 	}
 	for _, test := range table {
 		suite.Run(string(test.cat), func() {
 			t := suite.T()
 			ent := details.Entry{
 				RepoRef:     test.path.String(),
-				ShortRef:    "short",
+				ShortRef:    test.short,
 				LocationRef: test.loc.Folder(true),
 				ItemRef:     test.path.Item(),
 			}
 
 			pvs, err := test.cat.pathValues(test.path, ent, Config{})
 			require.NoError(t, err)
-			assert.Equal(t, test.expect, pvs)
+
+			for k := range test.expect {
+				assert.ElementsMatch(t, test.expect[k], pvs[k])
+			}
+
+			pvs, err = test.cat.pathValues(test.path, ent, Config{OnlyMatchItemNames: true})
+			require.NoError(t, err)
+
+			for k := range test.expectOnlyName {
+				assert.ElementsMatch(t, test.expectOnlyName[k], pvs[k], k)
+			}
 		})
 	}
 }
