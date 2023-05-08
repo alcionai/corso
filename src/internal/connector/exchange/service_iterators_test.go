@@ -1144,12 +1144,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 	}
 
 	table := []struct {
-		name            string
-		getter          mockGetter
-		resolver        graph.ContainerResolver
-		dps             DeltaPaths
-		expect          map[string]endState
-		skipForNonDelta bool
+		name                  string
+		getter                mockGetter
+		resolver              graph.ContainerResolver
+		dps                   DeltaPaths
+		expect                map[string]endState
+		skipWhenForcedNoDelta bool
 	}{
 		{
 			name: "new container",
@@ -1343,7 +1343,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			expect: map[string]endState{
 				"1": {data.NotMovedState, true},
 			},
-			skipForNonDelta: true, // this is not a valid test for non-delta
+			skipWhenForcedNoDelta: true, // this is not a valid test for non-delta
 		},
 		{
 			name: "a little bit of everything",
@@ -1405,7 +1405,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				"4": {data.MovedState, true},
 				"5": {data.DeletedState, false},
 			},
-			skipForNonDelta: true,
+			skipWhenForcedNoDelta: true,
 		},
 	}
 	for _, test := range table {
@@ -1415,8 +1415,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			if canMakeDeltaQueries {
 				name += "-delta"
 			} else {
-				if test.skipForNonDelta {
-					continue
+				if test.skipWhenForcedNoDelta {
+					t.Skip("intentionally skipped non-delta case")
 				}
 				name += "-non-delta"
 			}
