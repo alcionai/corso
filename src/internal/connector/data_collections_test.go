@@ -110,7 +110,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Empty(t, excludes)
+			assert.True(t, excludes.Empty())
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -215,7 +215,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, collections)
-			assert.Empty(t, excludes)
+			assert.Nil(t, excludes)
 		})
 	}
 }
@@ -272,7 +272,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			// Not expecting excludes as this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, excludes.Empty())
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -356,7 +356,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	require.NoError(t, err, clues.ToCore(err))
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
-	assert.Empty(t, excludes)
+	assert.True(t, excludes.Empty())
 
 	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
 	assert.Equal(
@@ -401,7 +401,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
-	assert.Empty(t, excludes)
+	assert.True(t, excludes.Empty())
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())

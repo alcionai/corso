@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -19,20 +18,20 @@ import (
 
 func getParentMetadata(
 	parentPath path.Path,
-	metas map[string]Metadata,
-) (Metadata, error) {
+	metas map[string]metadata.Metadata,
+) (metadata.Metadata, error) {
 	parentMeta, ok := metas[parentPath.String()]
 	if !ok {
-		onedrivePath, err := path.ToOneDrivePath(parentPath)
+		drivePath, err := path.ToDrivePath(parentPath)
 		if err != nil {
-			return Metadata{}, clues.Wrap(err, "invalid restore path")
+			return metadata.Metadata{}, clues.Wrap(err, "invalid restore path")
 		}
 
-		if len(onedrivePath.Folders) != 0 {
-			return Metadata{}, clues.Wrap(err, "computing item permissions")
+		if len(drivePath.Folders) != 0 {
+			return metadata.Metadata{}, clues.Wrap(err, "computing item permissions")
 		}
 
-		parentMeta = Metadata{}
+		parentMeta = metadata.Metadata{}
 	}
 
 	return parentMeta, nil
@@ -42,12 +41,12 @@ func getCollectionMetadata(
 	ctx context.Context,
 	drivePath *path.DrivePath,
 	dc data.RestoreCollection,
-	metas map[string]Metadata,
+	metas map[string]metadata.Metadata,
 	backupVersion int,
 	restorePerms bool,
-) (Metadata, error) {
+) (metadata.Metadata, error) {
 	if !restorePerms || backupVersion < version.OneDrive1DataAndMetaFiles {
-		return Metadata{}, nil
+		return metadata.Metadata{}, nil
 	}
 
 	var (
@@ -57,13 +56,13 @@ func getCollectionMetadata(
 
 	if len(drivePath.Folders) == 0 {
 		// No permissions for root folder
-		return Metadata{}, nil
+		return metadata.Metadata{}, nil
 	}
 
 	if backupVersion < version.OneDrive4DirIncludesPermissions {
 		colMeta, err := getParentMetadata(collectionPath, metas)
 		if err != nil {
-			return Metadata{}, clues.Wrap(err, "collection metadata")
+			return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
 		}
 
 		return colMeta, nil
@@ -79,83 +78,23 @@ func getCollectionMetadata(
 
 	meta, err := fetchAndReadMetadata(ctx, dc, metaName)
 	if err != nil {
-		return Metadata{}, clues.Wrap(err, "collection metadata")
+		return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
 	}
 
 	return meta, nil
-}
-
-// isSamePermission checks equality of two UserPermission objects
-func isSamePermission(p1, p2 UserPermission) bool {
-	// EntityID can be empty for older backups and Email can be empty
-	// for newer ones. It is not possible for both to be empty.  Also,
-	// if EntityID/Email for one is not empty then the other will also
-	// have EntityID/Email as we backup permissions for all the
-	// parents and children when we have a change in permissions.
-	if p1.EntityID != "" && p1.EntityID != p2.EntityID {
-		return false
-	}
-
-	if p1.Email != "" && p1.Email != p2.Email {
-		return false
-	}
-
-	p1r := p1.Roles
-	p2r := p2.Roles
-
-	slices.Sort(p1r)
-	slices.Sort(p2r)
-
-	return slices.Equal(p1r, p2r)
-}
-
-func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
-	var (
-		added   = []UserPermission{}
-		removed = []UserPermission{}
-	)
-
-	for _, cp := range after {
-		found := false
-
-		for _, pp := range before {
-			if isSamePermission(cp, pp) {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			added = append(added, cp)
-		}
-	}
-
-	for _, pp := range before {
-		found := false
-
-		for _, cp := range after {
-			if isSamePermission(cp, pp) {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			removed = append(removed, pp)
-		}
-	}
-
-	return added, removed
 }
 
 // computeParentPermissions computes the parent permissions by
 // traversing folderMetas and finding the first item with custom
 // permissions. folderMetas is expected to have all the parent
 // directory metas for this to work.
-func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadata) (Metadata, error) {
+func computeParentPermissions(
+	itemPath path.Path,
+	folderMetas map[string]metadata.Metadata,
+) (metadata.Metadata, error) {
 	var (
 		parent path.Path
-		meta   Metadata
+		meta   metadata.Metadata
 
 		err error
 		ok  bool
@@ -166,24 +105,24 @@ func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadat
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return Metadata{}, clues.New("getting parent")
+			return metadata.Metadata{}, clues.New("getting parent")
 		}
 
-		onedrivePath, err := path.ToOneDrivePath(parent)
+		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return Metadata{}, clues.New("get parent path")
+			return metadata.Metadata{}, clues.New("get parent path")
 		}
 
-		if len(onedrivePath.Folders) == 0 {
-			return Metadata{}, nil
+		if len(drivePath.Folders) == 0 {
+			return metadata.Metadata{}, nil
 		}
 
 		meta, ok = folderMetas[parent.String()]
 		if !ok {
-			return Metadata{}, clues.New("no parent meta")
+			return metadata.Metadata{}, clues.New("no parent meta")
 		}
 
-		if meta.SharingMode == SharingModeCustom {
+		if meta.SharingMode == metadata.SharingModeCustom {
 			return meta, nil
 		}
 	}
@@ -197,7 +136,7 @@ func UpdatePermissions(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-	permAdded, permRemoved []UserPermission,
+	permAdded, permRemoved []metadata.Permission,
 	permissionIDMappings map[string]string,
 ) error {
 	// The ordering of the operations is important here. We first
@@ -290,11 +229,11 @@ func RestorePermissions(
 	driveID string,
 	itemID string,
 	itemPath path.Path,
-	meta Metadata,
-	folderMetas map[string]Metadata,
+	meta metadata.Metadata,
+	folderMetas map[string]metadata.Metadata,
 	permissionIDMappings map[string]string,
 ) error {
-	if meta.SharingMode == SharingModeInherited {
+	if meta.SharingMode == metadata.SharingModeInherited {
 		return nil
 	}
 
@@ -305,7 +244,7 @@ func RestorePermissions(
 		return clues.Wrap(err, "parent permissions").WithClues(ctx)
 	}
 
-	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions)
+	permAdded, permRemoved := metadata.DiffPermissions(parentPermissions.Permissions, meta.Permissions)
 
 	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }

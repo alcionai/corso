@@ -193,18 +193,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			expectMetadataColls: 1,
 		},
 		{
-			name: "happy path, many containers, same display name",
-			getter: map[string]mockGetterResults{
-				"1": commonResult,
-				"2": commonResult,
-			},
-			resolver:            newMockResolver(container1, container2),
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      2,
-			expectMetadataColls: 1,
-		},
-		{
 			name: "no containers pass scope",
 			getter: map[string]mockGetterResults{
 				"1": commonResult,
@@ -299,13 +287,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
+			collections, err := filterContainersAndFillCollections(
 				ctx,
 				qp,
 				test.getter,
-				collections,
 				statusUpdater,
 				test.resolver,
 				test.scope,
@@ -340,6 +325,588 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			assert.Equal(t, test.expectNewColls, news, "new collections")
 			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
 			assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
+
+			// items in collections assertions
+			for k, expect := range test.getter {
+				coll := collections[k]
+
+				if coll == nil {
+					continue
+				}
+
+				exColl, ok := coll.(*Collection)
+				require.True(t, ok, "collection is an *exchange.Collection")
+
+				ids := [][]string{
+					make([]string, 0, len(exColl.added)),
+					make([]string, 0, len(exColl.removed)),
+				}
+
+				for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
+					for id := range cIDs {
+						ids[i] = append(ids[i], id)
+					}
+				}
+
+				assert.ElementsMatch(t, expect.added, ids[0], "added items")
+				assert.ElementsMatch(t, expect.removed, ids[1], "removed items")
+			}
+		})
+	}
+}
+
+func checkMetadata(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	cat path.CategoryType,
+	expect DeltaPaths,
+	c data.BackupCollection,
+) {
+	catPaths, err := parseMetadataCollections(
+		ctx,
+		[]data.RestoreCollection{data.NotFoundRestoreCollection{Collection: c}},
+		fault.New(true))
+	if !assert.NoError(t, err, "getting metadata", clues.ToCore(err)) {
+		return
+	}
+
+	assert.Equal(t, expect, catPaths[cat])
+}
+
+func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_DuplicateFolders() {
+	type scopeCat struct {
+		scope selectors.ExchangeScope
+		cat   path.CategoryType
+	}
+
+	var (
+		qp = graph.QueryParams{
+			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
+			Credentials:   suite.creds,
+		}
+		statusUpdater = func(*support.ConnectorOperationStatus) {}
+
+		dataTypes = []scopeCat{
+			{
+				scope: selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0],
+				cat:   path.EmailCategory,
+			},
+			{
+				scope: selectors.NewExchangeBackup(nil).ContactFolders(selectors.Any())[0],
+				cat:   path.ContactsCategory,
+			},
+		}
+
+		location = path.Builder{}.Append("foo", "bar")
+
+		result1 = mockGetterResults{
+			added:    []string{"a1", "a2", "a3"},
+			removed:  []string{"r1", "r2", "r3"},
+			newDelta: api.DeltaUpdate{URL: "delta_url"},
+		}
+		result2 = mockGetterResults{
+			added:    []string{"a4", "a5", "a6"},
+			removed:  []string{"r4", "r5", "r6"},
+			newDelta: api.DeltaUpdate{URL: "delta_url2"},
+		}
+
+		container1 = mockContainer{
+			id:          strPtr("1"),
+			displayName: strPtr("bar"),
+			p:           path.Builder{}.Append("1"),
+			l:           location,
+		}
+		container2 = mockContainer{
+			id:          strPtr("2"),
+			displayName: strPtr("bar"),
+			p:           path.Builder{}.Append("2"),
+			l:           location,
+		}
+	)
+
+	oldPath1 := func(t *testing.T, cat path.CategoryType) path.Path {
+		res, err := location.Append("1").ToDataLayerPath(
+			suite.creds.AzureTenantID,
+			qp.ResourceOwner.ID(),
+			path.ExchangeService,
+			cat,
+			false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		return res
+	}
+
+	oldPath2 := func(t *testing.T, cat path.CategoryType) path.Path {
+		res, err := location.Append("2").ToDataLayerPath(
+			suite.creds.AzureTenantID,
+			qp.ResourceOwner.ID(),
+			path.ExchangeService,
+			cat,
+			false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		return res
+	}
+
+	locPath := func(t *testing.T, cat path.CategoryType) path.Path {
+		res, err := location.ToDataLayerPath(
+			suite.creds.AzureTenantID,
+			qp.ResourceOwner.ID(),
+			path.ExchangeService,
+			cat,
+			false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		return res
+	}
+
+	table := []struct {
+		name           string
+		getter         mockGetter
+		resolver       graph.ContainerResolver
+		inputMetadata  func(t *testing.T, cat path.CategoryType) DeltaPaths
+		expectNewColls int
+		expectDeleted  int
+		expectAdded    []string
+		expectRemoved  []string
+		expectMetadata func(t *testing.T, cat path.CategoryType) DeltaPaths
+	}{
+		{
+			name: "1 moved to duplicate",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver: newMockResolver(container1, container2),
+			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"1": DeltaPath{
+						delta: "old_delta",
+						path:  oldPath1(t, cat).String(),
+					},
+					"2": DeltaPath{
+						delta: "old_delta",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+			expectDeleted: 1,
+			expectAdded:   result2.added,
+			expectRemoved: result2.removed,
+			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"2": DeltaPath{
+						delta: "delta_url2",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+		},
+		{
+			name: "1 moved to duplicate, other order",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver: newMockResolver(container2, container1),
+			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"1": DeltaPath{
+						delta: "old_delta",
+						path:  oldPath1(t, cat).String(),
+					},
+					"2": DeltaPath{
+						delta: "old_delta",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+			expectDeleted: 1,
+			expectAdded:   result2.added,
+			expectRemoved: result2.removed,
+			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"2": DeltaPath{
+						delta: "delta_url2",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+		},
+		{
+			name: "both move to duplicate",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver: newMockResolver(container1, container2),
+			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"1": DeltaPath{
+						delta: "old_delta",
+						path:  oldPath1(t, cat).String(),
+					},
+					"2": DeltaPath{
+						delta: "old_delta",
+						path:  oldPath2(t, cat).String(),
+					},
+				}
+			},
+			expectDeleted: 1,
+			expectAdded:   result2.added,
+			expectRemoved: result2.removed,
+			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"2": DeltaPath{
+						delta: "delta_url2",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+		},
+		{
+			name: "both new",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver: newMockResolver(container1, container2),
+			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{}
+			},
+			expectNewColls: 1,
+			expectAdded:    result2.added,
+			expectRemoved:  result2.removed,
+			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"2": DeltaPath{
+						delta: "delta_url2",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+		},
+		{
+			name: "add 1 remove 2",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+			},
+			resolver: newMockResolver(container1),
+			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"2": DeltaPath{
+						delta: "old_delta",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+			expectNewColls: 1,
+			expectDeleted:  1,
+			expectAdded:    result1.added,
+			expectRemoved:  result1.removed,
+			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
+				return DeltaPaths{
+					"1": DeltaPath{
+						delta: "delta_url",
+						path:  locPath(t, cat).String(),
+					},
+				}
+			},
+		},
+	}
+
+	for _, sc := range dataTypes {
+		suite.Run(sc.cat.String(), func() {
+			qp.Category = sc.cat
+
+			for _, test := range table {
+				suite.Run(test.name, func() {
+					t := suite.T()
+
+					ctx, flush := tester.NewContext()
+					defer flush()
+
+					collections, err := filterContainersAndFillCollections(
+						ctx,
+						qp,
+						test.getter,
+						statusUpdater,
+						test.resolver,
+						sc.scope,
+						test.inputMetadata(t, sc.cat),
+						control.Options{FailureHandling: control.FailFast},
+						fault.New(true))
+					require.NoError(t, err, "getting collections", clues.ToCore(err))
+
+					// collection assertions
+
+					deleteds, news, metadatas := 0, 0, 0
+					for _, c := range collections {
+						if c.State() == data.DeletedState {
+							deleteds++
+							continue
+						}
+
+						if c.FullPath().Service() == path.ExchangeMetadataService {
+							metadatas++
+							checkMetadata(t, ctx, sc.cat, test.expectMetadata(t, sc.cat), c)
+							continue
+						}
+
+						if c.State() == data.NewState {
+							news++
+						}
+
+						exColl, ok := c.(*Collection)
+						require.True(t, ok, "collection is an *exchange.Collection")
+
+						if exColl.LocationPath() != nil {
+							assert.Equal(t, location.String(), exColl.LocationPath().String())
+						}
+
+						ids := [][]string{
+							make([]string, 0, len(exColl.added)),
+							make([]string, 0, len(exColl.removed)),
+						}
+
+						for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
+							for id := range cIDs {
+								ids[i] = append(ids[i], id)
+							}
+						}
+
+						assert.ElementsMatch(t, test.expectAdded, ids[0], "added items")
+						assert.ElementsMatch(t, test.expectRemoved, ids[1], "removed items")
+					}
+
+					assert.Equal(t, test.expectDeleted, deleteds, "deleted collections")
+					assert.Equal(t, test.expectNewColls, news, "new collections")
+					assert.Equal(t, 1, metadatas, "metadata collections")
+				})
+			}
+		})
+	}
+}
+
+func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_DuplicateFolders_Events() {
+	var (
+		qp = graph.QueryParams{
+			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
+			Category:      path.EventsCategory,
+			Credentials:   suite.creds,
+		}
+		statusUpdater = func(*support.ConnectorOperationStatus) {}
+
+		scope = selectors.NewExchangeBackup(nil).EventCalendars(selectors.Any())[0]
+
+		location = path.Builder{}.Append("foo", "bar")
+
+		result1 = mockGetterResults{
+			added:    []string{"a1", "a2", "a3"},
+			removed:  []string{"r1", "r2", "r3"},
+			newDelta: api.DeltaUpdate{URL: "delta_url"},
+		}
+		result2 = mockGetterResults{
+			added:    []string{"a4", "a5", "a6"},
+			removed:  []string{"r4", "r5", "r6"},
+			newDelta: api.DeltaUpdate{URL: "delta_url2"},
+		}
+
+		container1 = mockContainer{
+			id:          strPtr("1"),
+			displayName: strPtr("bar"),
+			p:           path.Builder{}.Append("1"),
+			l:           location,
+		}
+		container2 = mockContainer{
+			id:          strPtr("2"),
+			displayName: strPtr("bar"),
+			p:           path.Builder{}.Append("2"),
+			l:           location,
+		}
+	)
+
+	oldPath1, err := location.Append("1").ToDataLayerPath(
+		suite.creds.AzureTenantID,
+		qp.ResourceOwner.ID(),
+		path.ExchangeService,
+		qp.Category,
+		false)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	oldPath2, err := location.Append("2").ToDataLayerPath(
+		suite.creds.AzureTenantID,
+		qp.ResourceOwner.ID(),
+		path.ExchangeService,
+		qp.Category,
+		false)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	idPath1, err := path.Builder{}.Append("1").ToDataLayerPath(
+		suite.creds.AzureTenantID,
+		qp.ResourceOwner.ID(),
+		path.ExchangeService,
+		qp.Category,
+		false)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	idPath2, err := path.Builder{}.Append("2").ToDataLayerPath(
+		suite.creds.AzureTenantID,
+		qp.ResourceOwner.ID(),
+		path.ExchangeService,
+		qp.Category,
+		false)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	table := []struct {
+		name           string
+		getter         mockGetter
+		resolver       graph.ContainerResolver
+		inputMetadata  DeltaPaths
+		expectNewColls int
+		expectDeleted  int
+		expectMetadata DeltaPaths
+	}{
+		{
+			name: "1 moved to duplicate",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver: newMockResolver(container1, container2),
+			inputMetadata: DeltaPaths{
+				"1": DeltaPath{
+					delta: "old_delta",
+					path:  oldPath1.String(),
+				},
+				"2": DeltaPath{
+					delta: "old_delta",
+					path:  idPath2.String(),
+				},
+			},
+			expectMetadata: DeltaPaths{
+				"1": DeltaPath{
+					delta: "delta_url",
+					path:  idPath1.String(),
+				},
+				"2": DeltaPath{
+					delta: "delta_url2",
+					path:  idPath2.String(),
+				},
+			},
+		},
+		{
+			name: "both move to duplicate",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver: newMockResolver(container1, container2),
+			inputMetadata: DeltaPaths{
+				"1": DeltaPath{
+					delta: "old_delta",
+					path:  oldPath1.String(),
+				},
+				"2": DeltaPath{
+					delta: "old_delta",
+					path:  oldPath2.String(),
+				},
+			},
+			expectMetadata: DeltaPaths{
+				"1": DeltaPath{
+					delta: "delta_url",
+					path:  idPath1.String(),
+				},
+				"2": DeltaPath{
+					delta: "delta_url2",
+					path:  idPath2.String(),
+				},
+			},
+		},
+		{
+			name: "both new",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+				"2": result2,
+			},
+			resolver:       newMockResolver(container1, container2),
+			inputMetadata:  DeltaPaths{},
+			expectNewColls: 2,
+			expectMetadata: DeltaPaths{
+				"1": DeltaPath{
+					delta: "delta_url",
+					path:  idPath1.String(),
+				},
+				"2": DeltaPath{
+					delta: "delta_url2",
+					path:  idPath2.String(),
+				},
+			},
+		},
+		{
+			name: "add 1 remove 2",
+			getter: map[string]mockGetterResults{
+				"1": result1,
+			},
+			resolver: newMockResolver(container1),
+			inputMetadata: DeltaPaths{
+				"2": DeltaPath{
+					delta: "old_delta",
+					path:  idPath2.String(),
+				},
+			},
+			expectNewColls: 1,
+			expectDeleted:  1,
+			expectMetadata: DeltaPaths{
+				"1": DeltaPath{
+					delta: "delta_url",
+					path:  idPath1.String(),
+				},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			collections, err := filterContainersAndFillCollections(
+				ctx,
+				qp,
+				test.getter,
+				statusUpdater,
+				test.resolver,
+				scope,
+				test.inputMetadata,
+				control.Options{FailureHandling: control.FailFast},
+				fault.New(true))
+			require.NoError(t, err, "getting collections", clues.ToCore(err))
+
+			// collection assertions
+
+			deleteds, news, metadatas := 0, 0, 0
+			for _, c := range collections {
+				if c.State() == data.DeletedState {
+					deleteds++
+					continue
+				}
+
+				if c.FullPath().Service() == path.ExchangeMetadataService {
+					metadatas++
+					checkMetadata(t, ctx, qp.Category, test.expectMetadata, c)
+					continue
+				}
+
+				if c.State() == data.NewState {
+					news++
+				}
+			}
+
+			assert.Equal(t, test.expectDeleted, deleteds, "deleted collections")
+			assert.Equal(t, test.expectNewColls, news, "new collections")
+			assert.Equal(t, 1, metadatas, "metadata collections")
 
 			// items in collections assertions
 			for k, expect := range test.getter {
@@ -457,13 +1024,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
 			require.Equal(t, "user_name", qp.ResourceOwner.Name(), qp.ResourceOwner)
 
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
+			collections, err := filterContainersAndFillCollections(
 				ctx,
 				qp,
 				test.getter,
-				collections,
 				statusUpdater,
 				resolver,
 				allScope,
@@ -822,13 +1386,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
+			collections, err := filterContainersAndFillCollections(
 				ctx,
 				qp,
 				test.getter,
-				collections,
 				statusUpdater,
 				test.resolver,
 				allScope,

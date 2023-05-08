@@ -538,7 +538,7 @@ func runBackupAndCompare(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	// No excludes yet because this isn't an incremental backup.
-	assert.Empty(t, excludes)
+	assert.True(t, excludes.Empty())
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
@@ -1121,7 +1121,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			// No excludes yet because this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, excludes.Empty())
 
 			t.Log("Backup enumeration complete")
 
@@ -1280,7 +1280,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				fault.New(true))
 			require.NoError(t, err)
 			// No excludes yet because this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, excludes.Empty())
 
 			t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 

@@ -40,10 +40,10 @@ const (
 )
 
 const (
-	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for a Site
-corso backup create sharepoint --site <siteURL>
+	sharePointServiceCommandCreateExamples = `# Backup SharePoint data in the HR Site
+corso backup create sharepoint --site https://example.com/hr
 
-# Backup SharePoint for two sites: HR and Team
+# Backup SharePoint for the HR and Team sites
 corso backup create sharepoint --site https://example.com/hr,https://example.com/team
 
 # Backup all SharePoint data for all Sites
@@ -52,16 +52,20 @@ corso backup create sharepoint --site '*'`
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	sharePointServiceCommandDetailsExamples = `# Explore a site's files from backup 1234abcd-12ab-cd34-56de-1234abcd
+	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Find all files that were created before a certain date.
+# Explore files in the folder "Reports" named "Fiscal 22"
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --file-name "Fiscal 22" --folder "Reports"
+
+# Explore files in the folder ""Display Templates/Style Sheets"" created before the end of 2015.
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file-created-before 2015-01-01T00:00:00 --folder "Display Templates/Style Sheets"
 
-# Find all files within a specific library.
+# Explore all files within the document library "Work Documents"
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --library documents --folder "Display Templates/Style Sheets"
+    --library "Work Documents"
 `
 )
 
