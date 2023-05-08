@@ -319,7 +319,7 @@ func CheckBackupDetails(
 	}
 
 	for set := range expect.Sets {
-		check = assert.Subsetf
+		check := assert.Subsetf
 
 		if mustEqualFolders {
 			check = assert.ElementsMatchf
