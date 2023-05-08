@@ -65,7 +65,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 			return false
 		}
 
-		s, err := validateSite(item)
+		err := validateSite(item)
 		if errors.Is(err, errKnownSkippableCase) {
 			// safe to no-op
 			return true
@@ -76,7 +76,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 			return true
 		}
 
-		us = append(us, s)
+		us = append(us, item)
 
 		return true
 	}
@@ -168,21 +168,20 @@ const personalSitePath = "sharepoint.com/personal/"
 // validateSite ensures the item is a Siteable, and contains the necessary
 // identifiers that we handle with all users.
 // returns the item as a Siteable model.
-// TODO(meain): no need to return item
-func validateSite(item models.Siteable) (models.Siteable, error) {
+func validateSite(item models.Siteable) error {
 	id := ptr.Val(item.GetId())
 	if len(id) == 0 {
-		return nil, clues.New("missing ID")
+		return clues.New("missing ID")
 	}
 
 	wURL := ptr.Val(item.GetWebUrl())
 	if len(wURL) == 0 {
-		return nil, clues.New("missing webURL").With("site_id", id) // TODO: pii
+		return clues.New("missing webURL").With("site_id", id) // TODO: pii
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	if strings.Contains(wURL, personalSitePath) {
-		return nil, clues.Stack(errKnownSkippableCase).
+		return clues.Stack(errKnownSkippableCase).
 			With("site_id", id, "site_web_url", wURL) // TODO: pii
 	}
 
@@ -190,12 +189,12 @@ func validateSite(item models.Siteable) (models.Siteable, error) {
 	if len(name) == 0 {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if strings.HasSuffix(wURL, "/search") {
-			return nil, clues.Stack(errKnownSkippableCase).
+			return clues.Stack(errKnownSkippableCase).
 				With("site_id", id, "site_web_url", wURL) // TODO: pii
 		}
 
-		return nil, clues.New("missing site display name").With("site_id", id)
+		return clues.New("missing site display name").With("site_id", id)
 	}
 
-	return item, nil
+	return nil
 }

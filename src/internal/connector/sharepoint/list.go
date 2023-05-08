@@ -216,7 +216,6 @@ func fetchListItems(
 				break
 			}
 
-			// TODO(meain): Not sure about ByListItemId
 			newPrefix := prefix.Items().ByListItemId(ptr.Val(itm.GetId()))
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)

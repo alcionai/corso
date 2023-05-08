@@ -189,11 +189,11 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 			return false
 		}
 
-		u, err := validateUser(item)
+		err := validateUser(item)
 		if err != nil {
 			el.AddRecoverable(graph.Wrap(ctx, err, "validating user"))
 		} else {
-			us = append(us, u)
+			us = append(us, item)
 		}
 
 		return true
@@ -497,18 +497,16 @@ func appendIfErr(errs []error, err error) []error {
 
 // validateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
-// returns the item as a Userable model.
-// TODO(meain): no need to return item
-func validateUser(item models.Userable) (models.Userable, error) {
+func validateUser(item models.Userable) error {
 	if item.GetId() == nil {
-		return nil, clues.New("missing ID")
+		return clues.New("missing ID")
 	}
 
 	if item.GetUserPrincipalName() == nil {
-		return nil, clues.New("missing principalName")
+		return clues.New("missing principalName")
 	}
 
-	return item, nil
+	return nil
 }
 
 func toString(ctx context.Context, key string, data map[string]any) (string, error) {

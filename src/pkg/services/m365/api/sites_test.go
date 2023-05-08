@@ -34,7 +34,6 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 	tests := []struct {
 		name           string
 		args           models.Siteable
-		want           models.Siteable
 		errCheck       assert.ErrorAssertionFunc
 		errIsSkippable bool
 	}{
@@ -87,7 +86,6 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 		{
 			name:     "Valid Site",
 			args:     site,
-			want:     site,
 			errCheck: assert.NoError,
 		},
 	}
@@ -95,14 +93,12 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			got, err := validateSite(test.args)
+			err := validateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
 				assert.ErrorIs(t, err, errKnownSkippableCase)
 			}
-
-			assert.Equal(t, test.want, got)
 		})
 	}
 }

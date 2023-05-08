@@ -31,7 +31,6 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 	tests := []struct {
 		name     string
 		args     models.Userable
-		want     models.Userable
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
@@ -51,7 +50,6 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 		{
 			name:     "Valid User",
 			args:     user,
-			want:     user,
 			errCheck: assert.NoError,
 		},
 	}
@@ -59,10 +57,8 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 		suite.Run(tt.name, func() {
 			t := suite.T()
 
-			got, err := validateUser(tt.args)
+			err := validateUser(tt.args)
 			tt.errCheck(t, err, clues.ToCore(err))
-
-			assert.Equal(t, tt.want, got)
 		})
 	}
 }
