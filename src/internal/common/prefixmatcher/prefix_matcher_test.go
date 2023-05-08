@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -41,6 +42,8 @@ func (suite *PrefixMatcherUnitSuite) TestAdd_Get() {
 		assert.True(t, ok, "searching for key", k)
 		assert.Equal(t, v, val, "returned value")
 	}
+
+	assert.ElementsMatch(t, maps.Keys(kvs), pm.Keys())
 }
 
 func (suite *PrefixMatcherUnitSuite) TestLongestPrefix() {

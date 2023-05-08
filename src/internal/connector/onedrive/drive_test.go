@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
@@ -442,10 +443,12 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 					ToggleFeatures: control.Toggles{},
 				})
 
-			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))
+			ssmb := prefixmatcher.NewStringSetBuilder()
+
+			odcs, err := colls.Get(ctx, nil, ssmb, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			// Don't expect excludes as this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, ssmb.Empty())
 
 			for _, entry := range odcs {
 				assert.NotEmpty(t, entry.FullPath())

@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -272,7 +273,7 @@ func (op *BackupOperation) do(
 		}
 	}
 
-	cs, excludes, err := produceBackupDataCollections(
+	cs, ssmb, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
@@ -294,7 +295,7 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
-		excludes,
+		ssmb,
 		backupID,
 		op.incremental && canUseMetaData,
 		op.Errors)
@@ -352,7 +353,7 @@ func produceBackupDataCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
@@ -424,7 +425,7 @@ func consumeBackupCollections(
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.BackupCollection,
-	excludes map[string]map[string]struct{},
+	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
@@ -497,7 +498,7 @@ func consumeBackupCollections(
 		ctx,
 		bases,
 		cs,
-		excludes,
+		pmr,
 		tags,
 		isIncremental,
 		errs)

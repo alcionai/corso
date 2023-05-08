@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -195,6 +196,10 @@ func (mw RetryMiddleware) Intercept(
 		return resp, stackReq(ctx, req, resp, err)
 	}
 
+	if resp != nil && resp.StatusCode/100 != 4 && resp.StatusCode/100 != 5 {
+		return resp, err
+	}
+
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = mw.Delay
 	exponentialBackOff.Reset()
@@ -250,7 +255,6 @@ func (mw RetryMiddleware) retryRequest(
 		executionCount++
 
 		delay := mw.getRetryDelay(req, resp, exponentialBackoff)
-
 		cumulativeDelay += delay
 
 		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
@@ -264,6 +268,18 @@ func (mw RetryMiddleware) retryRequest(
 			return resp, clues.Stack(ctx.Err()).WithClues(ctx)
 
 		case <-timer.C:
+		}
+
+		// we have to reset the original body reader for each retry, or else the graph
+		// compressor will produce a 0 length body following an error response such
+		// as a 500.
+		if req.Body != nil {
+			if s, ok := req.Body.(io.Seeker); ok {
+				_, err := s.Seek(0, io.SeekStart)
+				if err != nil {
+					return nil, Wrap(ctx, err, "resetting request body reader")
+				}
+			}
 		}
 
 		nextResp, err := pipeline.Next(req, middlewareIndex)
@@ -299,6 +315,12 @@ var retryableRespCodes = []int{
 func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
 	if slices.Contains(retryableRespCodes, code) {
 		return true
+	}
+
+	// prevent the body dump below in case of a 2xx response.
+	// There's no reason to check the body on a healthy status.
+	if code/100 != 4 && code/100 != 5 {
+		return false
 	}
 
 	// not a status code, but the message itself might indicate a connectivity issue that
@@ -380,6 +402,10 @@ func (mw *ThrottleControlMiddleware) Intercept(
 	QueueRequest(req.Context())
 	return pipeline.Next(req, middlewareIndex)
 }
+
+// ---------------------------------------------------------------------------
+// Metrics
+// ---------------------------------------------------------------------------
 
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}

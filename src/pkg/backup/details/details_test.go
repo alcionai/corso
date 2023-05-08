@@ -1148,6 +1148,28 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 		},
+		{
+			name: "SharePoint Old Format",
+			input: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   OneDriveItem,
+					ParentPath: folder1,
+				},
+			},
+			locPath: newOneDrivePB,
+			expectedItem: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   SharePointLibrary,
+					ParentPath: folder2,
+				},
+			},
+		},
+		{
+			name:         "Empty Item Doesn't Fail",
+			input:        ItemInfo{},
+			locPath:      newOneDrivePB,
+			expectedItem: ItemInfo{},
+		},
 	}
 
 	for _, test := range table {

@@ -300,3 +300,48 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 
 	assert.Equal(suite.T(), expect, ItemInfo(&i))
 }
+
+func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("folder doesn't exist"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr",
+			err:    odErr(string(folderExists)),
+			expect: assert.True,
+		},
+		// next two tests are to make sure the checks are case insensitive
+		{
+			name:   "oDataErr camelcase",
+			err:    odErr("ErrorFolderExists"),
+			expect: assert.True,
+		},
+		{
+			name:   "oDataErr lowercase",
+			err:    odErr("errorfolderexists"),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrFolderExists(test.err))
+		})
+	}
+}

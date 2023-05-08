@@ -46,19 +46,19 @@ const (
 	oneDriveServiceCommand          = "onedrive"
 	oneDriveServiceCommandUseSuffix = "--backup <backupId>"
 
-	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's last backup (1234abcd...)
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore file with ID 98765abcdef along with its associated permissions
+# Restore the file with ID 98765abcdef along with its associated permissions
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
 
-# Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
+# Restore files named "FY2021 Planning.xlsx in "Documents/Finance Reports"
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
-# Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
+# Restore all files and folders in folder "Documents/Finance Reports" that were created before 2020
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`

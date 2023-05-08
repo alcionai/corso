@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -170,7 +171,7 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
@@ -276,9 +277,6 @@ func createCollections(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	// Create collection of ExchangeDataCollection
-	collections := make(map[string]data.BackupCollection)
-
 	qp := graph.QueryParams{
 		Category:      category,
 		ResourceOwner: user,
@@ -296,11 +294,10 @@ func createCollections(
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
-	err = filterContainersAndFillCollections(
+	collections, err := filterContainersAndFillCollections(
 		ctx,
 		qp,
 		getter,
-		collections,
 		su,
 		resolver,
 		scope,
