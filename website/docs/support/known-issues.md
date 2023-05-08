@@ -24,3 +24,5 @@ Below is a list of known Corso issues and limitations:
 
 * Exchange Calender Event instance exceptions (changes to a single event within a recurring series) aren't
 included in backup and restore.
+
+* Calendar backup and restore is only supported for calendars which belong to user's default calendar group.
