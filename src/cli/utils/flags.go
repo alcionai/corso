@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // common flag vars (eg: FV)
@@ -215,8 +216,8 @@ func trimFolderSlash(folders []string) []string {
 	res := make([]string, 0, len(folders))
 
 	for _, p := range folders {
-		if len(p) == 1 && p[0] == path.PathSeparator {
-			res = []string{}
+		if p == string(path.PathSeparator) {
+			res = selectors.Any()
 			break
 		}
 
