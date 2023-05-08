@@ -249,11 +249,11 @@ jobs:
           ./sanityTest
 
       # non-delta backup
-      - name: Backup exchange incremental
-        id: exchange-incremental-test
+      - name: Backup exchange incremental without delta
+        id: exchange-incremental-test-no-delta
         run: |
           set -euo pipefail
-          echo -e "\nBackup Exchange incremental test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange incremental test without delta\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
           --no-stats \
           --hide-progress \
@@ -280,7 +280,7 @@ jobs:
           ./corso restore exchange \
           --no-stats \
           --hide-progress \
-          --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
+          --backup "${{ steps.exchange-incremental-test-no-delta.outputs.result }}" \
           --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT

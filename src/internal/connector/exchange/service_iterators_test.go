@@ -1416,7 +1416,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				name += "-delta"
 			} else {
 				if test.skipWhenForcedNoDelta {
-					t.Skip("intentionally skipped non-delta case")
+					suite.T().Skip("intentionally skipped non-delta case")
 				}
 				name += "-non-delta"
 			}
