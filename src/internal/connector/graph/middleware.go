@@ -165,6 +165,8 @@ func (mw *LoggingMiddleware) Intercept(
 			log.Infow("2xx graph api resp", "response", dump)
 		}
 	case 3:
+		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
+
 		if logExtra {
 			log.With("response", getRespDump(ctx, resp, false))
 		}
