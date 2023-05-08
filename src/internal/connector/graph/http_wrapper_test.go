@@ -84,7 +84,7 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 		url  = uri + path
 	)
 
-	// can't use gock for this, or else it'll short-circut the transport,
+	// can't use gock for this, or else it'll short-circuit the transport,
 	// and thus skip all the middelware
 	hdr := http.Header{}
 	hdr.Set("Location", "localhost:99999999/smarfs")
