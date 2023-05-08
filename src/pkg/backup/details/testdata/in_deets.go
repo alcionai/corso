@@ -92,27 +92,10 @@ func (ls *locSet) RemoveLocation(locationRef string) {
 // that difference will need to be handled manually by the caller.
 // returns the base folder's new location (ex: /d/c)
 func (ls *locSet) MoveLocation(fromLocation, toLocation string) string {
-	ss := ls.Subset(fromLocation)
-
 	fromBuilder := path.Builder{}.Append(path.Split(fromLocation)...)
 	toBuilder := path.Builder{}.Append(path.Split(toLocation)...).Append(fromBuilder.LastElem())
 
-	for lr, items := range ss.Locations {
-		lrBuilder := path.Builder{}.Append(path.Split(lr)...)
-		lrBuilder.UpdateParent(fromBuilder, toBuilder)
-
-		newLoc := lrBuilder.String()
-
-		// move items first.  if you move locations first we slice
-		// out the reference and lose scope of the items.
-		for ir := range items {
-			ls.RemoveItem(lr, ir)
-			ls.AddItem(newLoc, ir)
-		}
-
-		ls.RemoveLocation(lr)
-		ls.AddLocation(newLoc)
-	}
+	ls.RenameLocation(fromBuilder.String(), toBuilder.String())
 
 	return toBuilder.String()
 }
@@ -253,7 +236,7 @@ func (id *InDeets) Subset(set, locationPfx string) *locSet {
 }
 
 // ---------------------------------------------------------------------------
-// whatSet helpers for extracing a set identifier from an arbitrary repoRef
+// whatSet helpers for extracting a set identifier from an arbitrary repoRef
 // ---------------------------------------------------------------------------
 
 type whatSet func(details.Entry) (string, error)
@@ -290,7 +273,7 @@ func DriveIDFromRepoRef(ent details.Entry) (string, error) {
 
 func CheckBackupDetails(
 	t *testing.T,
-	ctx context.Context, //revive:disable:context-as-argument
+	ctx context.Context, //revive:disable-line:context-as-argument
 	backupID model.StableID,
 	ws whatSet,
 	ms *kopia.ModelStore,
@@ -345,7 +328,7 @@ func CheckBackupDetails(
 
 func GetDeetsInBackup(
 	t *testing.T,
-	ctx context.Context, //revive:disable:context-as-argument
+	ctx context.Context, //revive:disable-line:context-as-argument
 	backupID model.StableID,
 	tid, resourceOwner string,
 	service path.ServiceType,
