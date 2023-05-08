@@ -196,6 +196,10 @@ func (mw RetryMiddleware) Intercept(
 		return resp, stackReq(ctx, req, resp, err)
 	}
 
+	if resp != nil && resp.StatusCode/100 != 4 && resp.StatusCode/100 != 5 {
+		return resp, err
+	}
+
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = mw.Delay
 	exponentialBackOff.Reset()
@@ -311,6 +315,12 @@ var retryableRespCodes = []int{
 func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
 	if slices.Contains(retryableRespCodes, code) {
 		return true
+	}
+
+	// prevent the body dump below in case of a 2xx response.
+	// There's no reason to check the body on a healthy status.
+	if code/100 != 4 && code/100 != 5 {
+		return false
 	}
 
 	// not a status code, but the message itself might indicate a connectivity issue that
