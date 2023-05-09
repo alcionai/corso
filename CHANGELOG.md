@@ -13,8 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
 - POST Retries following certain status codes (500, 502, 504) will re-use the post body instead of retrying with a no-content request.
 - Fix nil pointer exception when running an incremental backup on SharePoint where the base backup used an older index data format.
-- --user and --mailbox flags (already not supported) have been removed from CLI examples for details and restore commands.
+- --user and --mailbox flags have been removed from CLI examples for details and restore commands (they were already not supported, this only updates the docs).
 - Improve restore time on large restores by optimizing how items are loaded from the remote repository.
+- Remove exchange item filtering based on m365 item ID via the CLI.
+- OneDrive backups no longer include a user's non-default drives.
 
 ## [v0.7.0] (beta) - 2023-05-02
 

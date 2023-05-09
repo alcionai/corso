@@ -199,17 +199,19 @@ var (
 			},
 		},
 		{
-			Name:     "MailItemRef",
-			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
-			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItems[0].ItemRef},
-			},
-		},
-		{
 			Name:     "MailShortRef",
 			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
 				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
+			},
+		},
+		{
+			Name: "BadMailItemRef",
+			// no matches are expected, since exchange ItemRefs
+			// are not matched when using the CLI's selectors.
+			Expected: []details.Entry{},
+			Opts: utils.ExchangeOpts{
+				Email: []string{testdata.ExchangeEmailItems[0].ItemRef},
 			},
 		},
 		{
