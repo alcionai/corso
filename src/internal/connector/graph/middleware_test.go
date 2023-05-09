@@ -292,3 +292,47 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 		})
 	}
 }
+
+func (suite *MiddlewareUnitSuite) TestLimiterConsumption() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// an unpopulated ctx should produce the default consumption
+	assert.Equal(suite.T(), defaultLimiterConsumption, ctxLimiterConsumption(ctx, defaultLimiterConsumption))
+
+	table := []struct {
+		name   string
+		n      int
+		expect int
+	}{
+		{
+			name:   "matches default",
+			n:      defaultLimiterConsumption,
+			expect: defaultLimiterConsumption,
+		},
+		{
+			name:   "default+1",
+			n:      defaultLimiterConsumption + 1,
+			expect: defaultLimiterConsumption + 1,
+		},
+		{
+			name:   "zero",
+			n:      0,
+			expect: defaultLimiterConsumption,
+		},
+		{
+			name:   "negative",
+			n:      -1,
+			expect: defaultLimiterConsumption,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			tctx := ConsumeNTokens(ctx, test.n)
+			lc := ctxLimiterConsumption(tctx, defaultLimiterConsumption)
+			assert.Equal(t, test.expect, lc)
+		})
+	}
+}

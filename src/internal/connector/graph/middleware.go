@@ -360,6 +360,11 @@ func (mw RetryMiddleware) getRetryDelay(
 	return exponentialBackoff.NextBackOff()
 }
 
+// ---------------------------------------------------------------------------
+// Rate limit controls
+// https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online
+// ---------------------------------------------------------------------------
+
 // We're trying to keep calls below the 10k-per-10-minute threshold.
 // 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
 // which is a bit below the mark.
@@ -419,13 +424,55 @@ func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
 	return lc, ok
 }
 
+type limiterConsumptionKey string
+
+const (
+	limiterConsumptionCtxKey       limiterConsumptionKey = "corsoGraphRateLimiterConsumption"
+	defaultLimiterConsumption                            = 1
+	driveDefaultLimiterConsumption                       = 2
+	// limit consumption rate for single-item GETs requests,
+	// or delta-based multi-item GETs.
+	SingleGetOrDeltaLC = 1
+	// limit consumption rate for anything permissions related
+	PermissionsLC = 5
+)
+
+// ConsumeNTokens ensures any calls using this context will consume
+// n rate-limiter tokens.  Default is 1, and this value does not need
+// to be established in the context to consume the default tokens.
+// This should only get used on a per-call basis, to avoid cross-pollination.
+func ConsumeNTokens(ctx context.Context, n int) context.Context {
+	return context.WithValue(ctx, limiterConsumptionCtxKey, n)
+}
+
+func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
+	l := ctx.Value(limiterConsumptionCtxKey)
+	if l == nil {
+		return defaultConsumption
+	}
+
+	lc, ok := l.(int)
+	if !ok || lc < 1 {
+		return defaultConsumption
+	}
+
+	return lc
+}
+
 // QueueRequest will allow the request to occur immediately if we're under the
 // 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
 	limiter := ctxLimiter(ctx)
+	defaultConsumed := defaultLimiterConsumption
 
-	if err := limiter.Wait(ctx); err != nil {
+	if limiter == driveLimiter {
+		defaultConsumed = driveDefaultLimiterConsumption
+	}
+
+	consume := ctxLimiterConsumption(ctx, defaultConsumed)
+
+	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}
 }
