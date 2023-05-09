@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"reflect"
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
@@ -231,10 +230,19 @@ func RestoreMailMessage(
 	return info, nil
 }
 
-// attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
-// TODO: Revisit how we retrieve/persist attachment content during backup so this is not needed
-func attachmentBytes(attachment models.Attachmentable) []byte {
-	return reflect.Indirect(reflect.ValueOf(attachment)).FieldByName("contentBytes").Bytes()
+// GetAttachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
+func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
+	bi, err := attachment.GetBackingStore().Get("contentBytes")
+	if err != nil {
+		return nil, err
+	}
+
+	bts, ok := bi.([]byte)
+	if !ok {
+		return nil, clues.New("attachment content is not a byte array")
+	}
+
+	return bts, nil
 }
 
 // SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
