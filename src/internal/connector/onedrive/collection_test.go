@@ -734,8 +734,8 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		gr      graph.Requester
 		driveID string
 		iorc    = io.NopCloser(bytes.NewReader([]byte("fnords")))
-		item    = &models.DriveItem{}
-		itemWID = &models.DriveItem{}
+		item    = models.NewDriveItem()
+		itemWID = models.NewDriveItem()
 	)
 
 	itemWID.SetId(ptr.To("brainhooldy"))
