@@ -83,9 +83,6 @@ func AddLoggingFlags(cmd *cobra.Command) {
 
 	//nolint:errcheck
 	fs.MarkHidden(ReadableLogsFN)
-	// TODO(keepers): unhide when we have sufficient/complete coverage of PII handling
-	//nolint:errcheck
-	fs.MarkHidden(SensitiveInfoFN)
 }
 
 // internal deduplication for adding flags
@@ -110,7 +107,7 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 		&SensitiveInfoFV,
 		SensitiveInfoFN,
 		PIIPlainText,
-		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
+		fmt.Sprintf("set the format for sensitive info in logs to %s|%s", PIIHash, PIIPlainText))
 }
 
 // Settings records the user's preferred logging settings.
