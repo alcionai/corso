@@ -1463,7 +1463,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 }
 
 // TestProduceRestoreCollections_Fetch tests that the Fetch function still works
-// properly even with different Restore and Storage paths.
+// properly even with different Restore and Storage paths and items from
+// different kopia directories.
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetch() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -1484,6 +1485,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 			StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
 			RestorePath: rp1,
 		},
+		{
+			StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+			RestorePath: rp1,
+		},
 	}
 
 	// Really only interested in getting the collection so we can call fetch on
@@ -1499,6 +1504,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 	require.NoError(t, err, "getting collection", clues.ToCore(err))
 	require.Len(t, result, 1)
 
+	// Item from first kopia directory.
 	f := suite.files[suite.testPath1.String()][0]
 
 	item, err := result[0].Fetch(ctx, f.itemPath.Item())
@@ -1507,6 +1513,19 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 	r := item.ToReader()
 
 	buf, err := io.ReadAll(r)
+	require.NoError(t, err, "reading file data", clues.ToCore(err))
+
+	assert.Equal(t, f.data, buf)
+
+	// Item from second kopia directory.
+	f = suite.files[suite.testPath2.String()][0]
+
+	item, err = result[0].Fetch(ctx, f.itemPath.Item())
+	require.NoError(t, err, "fetching file", clues.ToCore(err))
+
+	r = item.ToReader()
+
+	buf, err = io.ReadAll(r)
 	require.NoError(t, err, "reading file data", clues.ToCore(err))
 
 	assert.Equal(t, f.data, buf)
