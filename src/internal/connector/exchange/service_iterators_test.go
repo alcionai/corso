@@ -384,6 +384,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 			Credentials:   suite.creds,
 		}
+
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
 
 		dataTypes = []scopeCat{
