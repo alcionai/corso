@@ -373,7 +373,7 @@ const (
 	defaultPerSecond = 15
 	defaultMaxCap    = 900
 	drivePerSecond   = 15
-	driveMaxCap      = 1200
+	driveMaxCap      = 1100
 )
 
 var (
@@ -388,7 +388,7 @@ type LimiterCfg struct {
 
 type limiterCfgKey string
 
-const limiterCfgCtxKey = "corsoGaphRateLimiterCfg"
+const limiterCfgCtxKey limiterCfgKey = "corsoGraphRateLimiterCfg"
 
 func ctxLimiter(ctx context.Context) *rate.Limiter {
 	lc, ok := extractRateLimiterConfig(ctx)
@@ -415,6 +415,7 @@ func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
 	}
 
 	lc, ok := l.(LimiterCfg)
+
 	return lc, ok
 }
 

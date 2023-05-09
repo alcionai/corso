@@ -219,7 +219,6 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: path.ExchangeService})
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, creds, backupVersion, gc.Service, dest, opts, dcs, deets, errs)
