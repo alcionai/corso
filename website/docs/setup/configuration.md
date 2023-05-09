@@ -139,9 +139,8 @@ This setting can cause logs to compete with progress bar displays in the termal.
 We suggest using the `--hide-progress` option if you plan to log to stdout or stderr.
 
 
-Log entries contain plain text information by default, including user and file names.
-If you plan to share your log outputs publically, the `--sensitive-info hash` option will replace all private
-details with a cryptographically secure hash.
+Log entries, by default, include user names and file names. The `--mask-sensitive-data` option can be
+used to replace this information with anonymized hashes.
 
 
 <Tabs groupId="os">

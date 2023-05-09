@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
-- Released the --sensitive-info flag, which will automatically obscure private data in logs.
+- Released the --mask-sensitive-data flag, which will automatically obscure private data in logs.
 
 ### Fixed
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
