@@ -73,7 +73,7 @@ function Purge-Library {
     Write-Host "`nPurging library: $LibraryName"
 
     $foldersToPurge = @()
-    $folders = Get-PnPFolderItem -FolderSiteRelativeUrl $LibraryName -ItemType Folder 
+    $folders = Get-PnPFolderItem -FolderSiteRelativeUrl $LibraryName -ItemType Folder -Recursive
 
     foreach ($f in $folders) {
         $folderName = $f.Name
