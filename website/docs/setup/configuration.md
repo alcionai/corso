@@ -140,7 +140,6 @@ We suggest using the `--hide-progress` option if you plan to log to stdout or st
 Log entries, by default, include user names and file names. The `--mask-sensitive-data` option can be
 used to replace this information with anonymized hashes.
 
-
 <Tabs groupId="os">
 <TabItem value="win" label="Windows">
 
