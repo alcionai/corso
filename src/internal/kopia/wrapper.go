@@ -406,7 +406,7 @@ func loadDirsAndItems(
 				return nil, el.Failure()
 			}
 
-			ictx = clues.Add(ctx, "storage_directory_path", dirItems.dir)
+			ictx = clues.Add(ictx, "storage_directory_path", dirItems.dir)
 
 			dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
 			if err != nil {
@@ -509,7 +509,6 @@ func (w Wrapper) ProduceRestoreCollections(
 			"restore_path", itemPaths.RestorePath.String())
 
 		parentStoragePath, err := itemPaths.StoragePath.Dir()
-
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "getting storage directory path").
 				WithClues(ictx).
@@ -523,6 +522,7 @@ func (w Wrapper) ProduceRestoreCollections(
 		if rc == nil {
 			dirsToItems[itemPaths.RestorePath.ShortRef()] = &restoreCollection{
 				restorePath: itemPaths.RestorePath,
+				storageDirs: map[string]*dirAndItems{},
 			}
 			rc = dirsToItems[itemPaths.RestorePath.ShortRef()]
 		}

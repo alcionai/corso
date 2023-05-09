@@ -781,22 +781,29 @@ func getMetadata(metar io.ReadCloser) (metadata.Metadata, error) {
 
 // Augment restore path to add extra files(meta) needed for restore as
 // well as do any other ordering operations on the paths
+//
+// Only accepts StoragePath/RestorePath pairs where the RestorePath is
+// at least as long as the StoragePath. If the RestorePath is longer than the
+// StoragePath then the first few (closest to the root) directories will use
+// default permissions during restore.
 func AugmentRestorePaths(
 	backupVersion int,
 	paths []path.RestorePaths,
 ) ([]path.RestorePaths, error) {
+	// Keyed by each value's StoragePath.String() which corresponds to the RepoRef
+	// of the directory.
 	colPaths := map[string]path.RestorePaths{}
 
 	for _, p := range paths {
 		first := true
 
 		for {
-			np, err := p.StoragePath.Dir()
+			sp, err := p.StoragePath.Dir()
 			if err != nil {
 				return nil, err
 			}
 
-			drivePath, err := path.ToDrivePath(np)
+			drivePath, err := path.ToDrivePath(sp)
 			if err != nil {
 				return nil, err
 			}
@@ -805,35 +812,29 @@ func AugmentRestorePaths(
 				break
 			}
 
-			// For now only allow storage and restore paths where the restore path is
-			// at least as long as the storage path. The path munging we have now
-			// should only produce that. If the restore path is shorter than the
-			// storage path it's not clear how we should handle permissions. If the
-			// restore path is longer than the storage path then the first few
-			// (closest to the root) directories will have default permissions.
-			if len(p.RestorePath.Elements()) < len(np.Elements()) {
-				return nil, clues.New("RestorePath shorter than StoragePath").
-					With("restore_path", p.RestorePath, "storage_path", np)
+			if len(p.RestorePath.Elements()) < len(sp.Elements()) {
+				return nil, clues.New("restorePath shorter than storagePath").
+					With("restore_path", p.RestorePath, "storage_path", sp)
 			}
 
-			pd := p.RestorePath
+			rp := p.RestorePath
 
 			// Make sure the RestorePath always points to the level of the current
 			// collection. We need to track if it's the first iteration because the
 			// RestorePath starts out at the collection level to begin with.
 			if !first {
-				pd, err = p.RestorePath.Dir()
+				rp, err = p.RestorePath.Dir()
 				if err != nil {
 					return nil, err
 				}
 			}
 
 			paths := path.RestorePaths{
-				StoragePath: np,
-				RestorePath: pd,
+				StoragePath: sp,
+				RestorePath: rp,
 			}
 
-			colPaths[np.String()] = paths
+			colPaths[sp.String()] = paths
 			p = paths
 			first = false
 		}

@@ -381,7 +381,7 @@ func formatDetailsForRestoration(
 		if err != nil {
 			el.AddRecoverable(clues.
 				Wrap(err, "getting restore directory after reduction").
-				WithMap(clues.In(ctx)).
+				WithClues(ctx).
 				With("path", fdsPaths[i]))
 
 			continue
