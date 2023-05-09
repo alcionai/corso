@@ -44,9 +44,7 @@ func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -148,9 +146,7 @@ func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
