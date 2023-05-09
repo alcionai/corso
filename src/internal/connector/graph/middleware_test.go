@@ -134,9 +134,9 @@ func (suite *RetryMWIntgSuite) SetupSuite() {
 
 func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 	var (
-		uri  = "https://graph.microsoft.com"
-		path = "/v1.0/users/user/messages/foo"
-		url  = uri + path
+		uri     = "https://graph.microsoft.com"
+		urlPath = "/v1.0/users/user/messages/foo"
+		url     = uri + urlPath
 	)
 
 	tests := []struct {
