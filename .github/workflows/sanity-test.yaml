@@ -450,7 +450,7 @@ jobs:
       - name: Backup sharepoint list test
         run: |
           set -euo pipefail
-        echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup list sharepoint \
           --no-stats \
@@ -467,7 +467,7 @@ jobs:
       - name: Backup sharepoint list single backup test
         run: |
           set -euo pipefail
-        echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup list sharepoint \
           --no-stats \
@@ -486,7 +486,7 @@ jobs:
         id: sharepoint-restore-test
         run: |
           set -euo pipefail
-        echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso restore sharepoint \
           --no-stats \
@@ -513,7 +513,7 @@ jobs:
         id: sharepoint-incremental-test
         run: |
           set -euo pipefail
-        echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup create sharepoint \
           --no-stats \
@@ -537,7 +537,7 @@ jobs:
         id: sharepoint-incremental-restore-test
         run: |
           set -euo pipefail
-        echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso restore sharepoint \
           --no-stats \
