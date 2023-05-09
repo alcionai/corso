@@ -161,7 +161,7 @@ func UpdatePermissions(
 			DrivesById(driveID).
 			ItemsById(itemID).
 			PermissionsById(pid).
-			Delete(ctx, nil)
+			Delete(graph.ConsumeNTokens(ctx, graph.PermissionsLC), nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "removing permissions")
 		}
@@ -207,7 +207,11 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
+		np, err := service.Client().
+			DrivesById(driveID).
+			ItemsById(itemID).
+			Invite().
+			Post(graph.ConsumeNTokens(ctx, graph.PermissionsLC), pbody, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "setting permissions")
 		}

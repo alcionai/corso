@@ -373,7 +373,10 @@ func GetDriveRoot(
 	srv graph.Servicer,
 	driveID string,
 ) (models.DriveItemable, error) {
-	root, err := srv.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	root, err := srv.Client().
+		DrivesById(driveID).
+		Root().
+		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drive root")
 	}

@@ -333,7 +333,11 @@ func driveItemWriter(
 	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
-	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
+	r, err := service.Client().
+		DrivesById(driveID).
+		ItemsById(itemID).
+		CreateUploadSession().
+		Post(ctx, session, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating item upload session")
 	}
