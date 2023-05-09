@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
 
   schedule:
-    # Run every day at 0 minutes and 0 hours (midnight GMT)
-    - cron: "0 0 * * *"
+    # Run every day at 04:00 GMT (roughly 8pm PST)
+    - cron: "0 4 * * *"
 
 permissions:
   # required to retrieve AWS credentials
@@ -121,6 +121,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_NIGHTLY_TESTS: true
+          CORSO_E2E_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
