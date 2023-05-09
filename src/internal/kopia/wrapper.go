@@ -399,12 +399,9 @@ func loadDirsAndItems(
 			return nil, el.Failure()
 		}
 
-		var (
-			mergeCol *mergeCollection
-			ictx     = clues.Add(ctx, "restore_path", col.restorePath)
-		)
+		ictx := clues.Add(ctx, "restore_path", col.restorePath)
 
-		mergeCol = &mergeCollection{fullPath: col.restorePath}
+		mergeCol := &mergeCollection{fullPath: col.restorePath}
 		res = append(res, mergeCol)
 
 		for _, dirItems := range col.storageDirs {
