@@ -1,8 +1,8 @@
 name: Nightly Load Testing
 on:
   schedule:
-    # every day at 05:59 GMT (roughly 10pm PST)
-    - cron: "59 5 * * *"
+    # every day at 03:59 GMT (roughly 8pm PST)
+    - cron: "59 3 * * *"
 
 permissions:
   # required to retrieve AWS credentials

@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
 
   schedule:
-    # Run every day at 06:00 GMT (roughly 10pm PST)
-    - cron: "0 6 * * *"
+    # Run every day at 04:00 GMT (roughly 8pm PST)
+    - cron: "0 4 * * *"
 
 permissions:
   # required to retrieve AWS credentials
