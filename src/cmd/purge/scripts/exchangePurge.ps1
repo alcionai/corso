@@ -615,6 +615,9 @@ function Purge-Items {
     }
 }
 
+#Somewhat hacky but user names may need to be sanitized in some cases resulting from re-creating CI user
+$User = [regex]::split($User, '\d*$')[0]
+
 Write-Host 'Authenticating with Exchange Web Services ...'
 $global:Token = Get-AccessToken | ConvertTo-SecureString -AsPlainText -Force 
 
