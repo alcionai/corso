@@ -48,7 +48,6 @@ var (
 	LogLevelFV          = "info"
 	ReadableLogsFV      bool
 	MaskSensitiveDataFV bool
-	SensitiveDataCfg    = PIIPlainText
 
 	LogFile string // logFileFV after processing
 )
@@ -131,19 +130,19 @@ func PreloadLoggingFlags(args []string) Settings {
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
-	if MaskSensitiveDataFV {
-		SensitiveDataCfg = PIIHash
-	}
-
 	ls := Settings{
 		File:        "",
 		Level:       LogLevelFV,
-		PIIHandling: SensitiveDataCfg,
+		PIIHandling: PIIPlainText,
 	}
 
 	// parse the os args list to find the log level flag
 	if err := fs.Parse(args); err != nil {
 		return ls
+	}
+
+	if MaskSensitiveDataFV {
+		ls.PIIHandling = PIIHash
 	}
 
 	// retrieve the user's preferred log level

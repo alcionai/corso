@@ -33,7 +33,7 @@ func (suite *LoggerUnitSuite) TestAddLoggingFlags() {
 			assert.True(t, logger.DebugAPIFV, logger.DebugAPIFN)
 			assert.True(t, logger.ReadableLogsFV, logger.ReadableLogsFN)
 			assert.Equal(t, logger.LLError, logger.LogLevelFV, logger.LogLevelFN)
-			assert.Equal(t, logger.PIIMask, logger.MaskSensitiveDataFV, logger.MaskSensitiveDataFN)
+			assert.True(t, logger.MaskSensitiveDataFV, logger.MaskSensitiveDataFN)
 			// empty assertion here, instead of matching "log-file", because the LogFile
 			// var isn't updated by running the command (this is expected and correct),
 			// while the logFileFV remains unexported.
@@ -50,7 +50,7 @@ func (suite *LoggerUnitSuite) TestAddLoggingFlags() {
 		"--" + logger.LogFileFN, "log-file",
 		"--" + logger.LogLevelFN, logger.LLError,
 		"--" + logger.ReadableLogsFN,
-		"--" + logger.MaskSensitiveDataFN, logger.PIIMask,
+		"--" + logger.MaskSensitiveDataFN,
 	})
 
 	err := cmd.Execute()
@@ -68,7 +68,7 @@ func (suite *LoggerUnitSuite) TestPreloadLoggingFlags() {
 		"--" + logger.LogFileFN, "log-file",
 		"--" + logger.LogLevelFN, logger.LLError,
 		"--" + logger.ReadableLogsFN,
-		"--" + logger.MaskSensitiveDataFN, logger.PIIMask,
+		"--" + logger.MaskSensitiveDataFN,
 	}
 
 	settings := logger.PreloadLoggingFlags(args)
@@ -77,5 +77,5 @@ func (suite *LoggerUnitSuite) TestPreloadLoggingFlags() {
 	assert.True(t, logger.ReadableLogsFV, logger.ReadableLogsFN)
 	assert.Equal(t, "log-file", settings.File, "settings.File")
 	assert.Equal(t, logger.LLError, settings.Level, "settings.Level")
-	assert.Equal(t, logger.PIIMask, settings.PIIHandling, "settings.PIIHandling")
+	assert.Equal(t, logger.PIIHash, settings.PIIHandling, "settings.PIIHandling")
 }
