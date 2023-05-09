@@ -173,6 +173,8 @@ type clientConfig struct {
 	// The minimum delay in seconds between retries
 	minDelay           time.Duration
 	overrideRetryCount bool
+
+	appendMiddleware []khttp.Middleware
 }
 
 type Option func(*clientConfig)
@@ -225,6 +227,14 @@ func MinimumBackoff(dur time.Duration) Option {
 	}
 }
 
+func appendMiddleware(mw ...khttp.Middleware) Option {
+	return func(c *clientConfig) {
+		if len(mw) > 0 {
+			c.appendMiddleware = mw
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Middleware Control
 // ---------------------------------------------------------------------------
@@ -256,6 +266,10 @@ func kiotaMiddlewares(
 		&ThrottleControlMiddleware{},
 		&MetricsMiddleware{},
 	}...)
+
+	if len(cc.appendMiddleware) > 0 {
+		mw = append(mw, cc.appendMiddleware...)
+	}
 
 	return mw
 }
