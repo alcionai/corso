@@ -355,6 +355,13 @@ var (
 			},
 		},
 		{
+			Name:     "FilesWithSingleSlash",
+			Expected: testdata.OneDriveItems,
+			Opts: utils.OneDriveOpts{
+				FolderPath: []string{"/"},
+			},
+		},
+		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
@@ -478,6 +485,13 @@ var (
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
 				FolderPath: selectors.Any(),
+			},
+		},
+		{
+			Name:     "LibraryItemsWithSingleSlash",
+			Expected: testdata.SharePointLibraryItems,
+			Opts: utils.SharePointOpts{
+				FolderPath: []string{"/"},
 			},
 		},
 		{
