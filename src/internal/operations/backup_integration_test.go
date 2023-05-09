@@ -50,6 +50,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+// Does not use the tester.DefaultTestRestoreDestination syntax as some of these
+// items are created directly, not as a result of restoration, and we want to ensure
+// they get clearly selected without accidental overlap.
 const incrementalsDestContainerPrefix = "incrementals_ci_"
 
 // ---------------------------------------------------------------------------
