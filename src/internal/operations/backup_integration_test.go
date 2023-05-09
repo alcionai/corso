@@ -46,7 +46,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -1134,7 +1134,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 		osel       = selectors.NewOneDriveBackup([]string{m365UserID})
 	)
 
-	osel.Include(osel.AllData())
+	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
 	bo, _, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
@@ -1692,7 +1692,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	uname := ptr.Val(userable.GetUserPrincipalName())
 
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
-	oldsel.Include(oldsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
 	bo, _, kw, ms, gc, sel, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
 	defer closer()
@@ -1714,7 +1714,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
 	newsel := selectors.NewOneDriveBackup([]string{uid})
-	newsel.Include(newsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	newsel.Include(selTD.OneDriveBackupFolderScope(newsel))
 	sel = newsel.SetDiscreteOwnerIDName(uid, uname)
 
 	var (
@@ -1793,7 +1793,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
-	sel.Include(testdata.SharePointBackupFolderScope(sel))
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
 	bo, _, kw, _, _, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()

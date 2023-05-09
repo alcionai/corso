@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 // ---------------------------------------------------------------
@@ -82,19 +83,19 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 			checkError: assert.NoError,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
-				sel.Exclude(sel.Folders(selectors.Any()))
+				sel.Exclude(selTD.OneDriveBackupFolderScope(sel))
 				sel.DiscreteOwner = "elliotReid@someHospital.org"
 				return sel.Selector
 			},
 			filters: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
-				sel.Filter(sel.Folders(selectors.Any()))
+				sel.Filter(selTD.OneDriveBackupFolderScope(sel))
 				sel.DiscreteOwner = "elliotReid@someHospital.org"
 				return sel.Selector
 			},
 			includes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
-				sel.Include(sel.Folders(selectors.Any()))
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
 				sel.DiscreteOwner = "elliotReid@someHospital.org"
 				return sel.Selector
 			},
@@ -104,17 +105,17 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 			checkError: assert.NoError,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
-				sel.Exclude(sel.Folders(selectors.Any()))
+				sel.Exclude(selTD.OneDriveBackupFolderScope(sel))
 				return sel.Selector
 			},
 			filters: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
-				sel.Filter(sel.Folders(selectors.Any()))
+				sel.Filter(selTD.OneDriveBackupFolderScope(sel))
 				return sel.Selector
 			},
 			includes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
-				sel.Include(sel.Folders(selectors.Any()))
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},

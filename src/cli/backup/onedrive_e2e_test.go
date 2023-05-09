@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -176,7 +177,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewOneDriveBackup(users)
-	sel.Include(sel.Folders(selectors.Any()))
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
 	backupOp, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
