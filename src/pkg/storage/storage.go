@@ -36,6 +36,11 @@ const (
 type Storage struct {
 	Provider storageProvider
 	Config   map[string]string
+	// TODO: These are AWS S3 specific -> move these out
+	SessionTags     map[string]string
+	Role            string
+	SessionName     string
+	SessionDuration string
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
@@ -45,6 +50,28 @@ func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, er
 	return Storage{
 		Provider: p,
 		Config:   cs,
+	}, err
+}
+
+// NewStorageUsingRole supports specifying an AWS IAM role the storage provider
+// should assume.
+func NewStorageUsingRole(
+	p storageProvider,
+	roleARN string,
+	sessionName string,
+	sessionTags map[string]string,
+	duration string,
+	cfgs ...common.StringConfigurer,
+) (Storage, error) {
+	cs, err := common.UnionStringConfigs(cfgs...)
+
+	return Storage{
+		Provider:        p,
+		Config:          cs,
+		Role:            roleARN,
+		SessionTags:     sessionTags,
+		SessionName:     sessionName,
+		SessionDuration: duration,
 	}, err
 }
 
