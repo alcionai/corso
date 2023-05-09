@@ -1,4 +1,4 @@
-package uploadsession
+package graph
 
 import (
 	"bytes"

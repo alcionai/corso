@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -106,7 +105,7 @@ func uploadLargeAttachment(
 	}
 
 	url := ptr.Val(session.GetUploadUrl())
-	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
+	aw := graph.NewWriter(uploader.getItemID(), url, size)
 	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", graph.LoggableURL(url))
 
 	// Upload the stream data

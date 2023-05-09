@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
-	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -360,7 +359,7 @@ func driveItemWriter(
 
 	url := ptr.Val(r.GetUploadUrl())
 
-	return uploadsession.NewWriter(itemID, url, itemSize), nil
+	return graph.NewWriter(itemID, url, itemSize), nil
 }
 
 // constructWebURL helper function for recreating the webURL
