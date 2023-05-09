@@ -17,10 +17,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/time/rate"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type mwReturns struct {
@@ -229,4 +231,64 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 		MailFolders().
 		Post(ctx, body, nil)
 	require.NoError(t, err, clues.ToCore(err))
+}
+
+type MiddlewareUnitSuite struct {
+	tester.Suite
+}
+
+func TestMiddlewareUnitSuite(t *testing.T) {
+	suite.Run(t, &MiddlewareUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// an unpopulated ctx should produce the default limiter
+	assert.Equal(suite.T(), defaultLimiter, ctxLimiter(ctx))
+
+	table := []struct {
+		name          string
+		service       path.ServiceType
+		expectOK      require.BoolAssertionFunc
+		expectLimiter *rate.Limiter
+	}{
+		{
+			name:          "exchange",
+			service:       path.ExchangeService,
+			expectLimiter: defaultLimiter,
+		},
+		{
+			name:          "oneDrive",
+			service:       path.OneDriveService,
+			expectLimiter: driveLimiter,
+		},
+		{
+			name:          "sharePoint",
+			service:       path.SharePointService,
+			expectLimiter: driveLimiter,
+		},
+		{
+			name:          "unknownService",
+			service:       path.UnknownService,
+			expectLimiter: defaultLimiter,
+		},
+		{
+			name:          "badService",
+			service:       path.ServiceType(-1),
+			expectLimiter: defaultLimiter,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			tctx := BindRateLimiterConfig(ctx, LimiterCfg{Service: test.service})
+			lc, ok := extractRateLimiterConfig(tctx)
+			require.True(t, ok, "found rate limiter in ctx")
+			assert.Equal(t, test.service, lc.Service)
+			assert.Equal(t, test.expectLimiter, ctxLimiter(tctx))
+		})
+	}
 }
