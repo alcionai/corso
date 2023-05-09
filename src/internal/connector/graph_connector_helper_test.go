@@ -918,7 +918,36 @@ func checkHasCollections(
 	}
 
 	for _, g := range got {
-		gotNames = append(gotNames, g.FullPath().String())
+		// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
+		// interface.
+		if !assert.Implements(t, (*data.LocationPather)(nil), g) {
+			continue
+		}
+
+		fp := g.FullPath()
+		loc := g.(data.LocationPather).LocationPath()
+
+		if fp.Service() == path.OneDriveService ||
+			(fp.Service() == path.SharePointService && fp.Category() == path.LibrariesCategory) {
+			dp, err := path.ToDrivePath(fp)
+			if !assert.NoError(t, err, clues.ToCore(err)) {
+				continue
+			}
+
+			loc = path.FormatDriveFolders(dp.DriveID, loc.Elements()...)
+		}
+
+		p, err := loc.ToDataLayerPath(
+			fp.Tenant(),
+			fp.ResourceOwner(),
+			fp.Service(),
+			fp.Category(),
+			false)
+		if !assert.NoError(t, err, clues.ToCore(err)) {
+			continue
+		}
+
+		gotNames = append(gotNames, p.String())
 	}
 
 	assert.ElementsMatch(t, expectedNames, gotNames, "returned collections")
