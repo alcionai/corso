@@ -25,7 +25,6 @@ func TestS3E2ESuite(t *testing.T) {
 	suite.Run(t, &S3E2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCITests,
 	)})
 }
 
