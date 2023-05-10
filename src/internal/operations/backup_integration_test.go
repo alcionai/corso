@@ -1249,7 +1249,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	bID := bo.Results.BackupID
 
 	_, expectDeets := deeTD.GetDeetsInBackup(t, ctx, bID, tenID, sel.ID(), svc, ws, ms, ss)
-	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets)
+	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets, false)
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
@@ -1509,8 +1509,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					[]onedrive.UserPermission{writePerm},
-					[]onedrive.UserPermission{},
+					[]metadata.Permission{writePerm},
+					[]metadata.Permission{},
 					permissionIDMappings,
 				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
@@ -1532,8 +1532,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					[]onedrive.UserPermission{},
-					[]onedrive.UserPermission{writePerm},
+					[]metadata.Permission{},
+					[]metadata.Permission{writePerm},
 					permissionIDMappings,
 				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
@@ -1556,8 +1556,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					targetContainer,
-					[]onedrive.UserPermission{writePerm},
-					[]onedrive.UserPermission{},
+					[]metadata.Permission{writePerm},
+					[]metadata.Permission{},
 					permissionIDMappings,
 				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
@@ -1580,8 +1580,8 @@ func runDriveIncrementalTest(
 					gc.Service,
 					driveID,
 					targetContainer,
-					[]onedrive.UserPermission{},
-					[]onedrive.UserPermission{writePerm},
+					[]metadata.Permission{},
+					[]metadata.Permission{writePerm},
 					permissionIDMappings,
 				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
@@ -1812,7 +1812,7 @@ func runDriveIncrementalTest(
 				roidn.ID(),
 				service,
 				categories)
-			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, ws, ms, ss, expectDeets)
+			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, ws, ms, ss, expectDeets, true)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.
