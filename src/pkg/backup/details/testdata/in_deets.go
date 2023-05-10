@@ -268,7 +268,7 @@ func DriveIDFromRepoRef(ent details.Entry) (string, error) {
 		return "", err
 	}
 
-	odp, err := path.ToOneDrivePath(p)
+	odp, err := path.ToDrivePath(p)
 	if err != nil {
 		return "", err
 	}
