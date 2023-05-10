@@ -31,6 +31,10 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 		Prefix:         cfg.Prefix,
 		DoNotUseTLS:    cfg.DoNotUseTLS,
 		DoNotVerifyTLS: cfg.DoNotVerifyTLS,
+		Tags:           s.SessionTags,
+		SessionName:    s.SessionName,
+		RoleARN:        s.Role,
+		RoleDuration:   s.SessionDuration,
 	}
 
 	store, err := s3.New(ctx, &opts, false)

@@ -218,8 +218,7 @@ func RestoreMailMessage(
 		return nil, err
 	}
 
-	info := api.MailInfo(clone)
-	info.Size = int64(len(bits))
+	info := api.MailInfo(clone, int64(len(bits)))
 
 	return info, nil
 }
@@ -689,8 +688,18 @@ func establishEventsRestoreLocation(
 	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
 	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
-	if err != nil {
+	if err != nil && !graph.IsErrFolderExists(err) {
 		return "", err
+	}
+
+	// 409 handling: Fetch folder if it exists and add to cache.
+	// This is rare, but may happen if CreateCalendar() POST fails with 5xx,
+	// potentially leaving dirty state in graph.
+	if graph.IsErrFolderExists(err) {
+		temp, err = ac.Events().GetContainerByName(ctx, user, folders[0])
+		if err != nil {
+			return "", err
+		}
 	}
 
 	folderID := ptr.Val(temp.GetId())

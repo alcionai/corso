@@ -46,16 +46,28 @@ type mockRestoreProducer struct {
 	onRestore restoreFunc
 }
 
-type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
+type restoreFunc func(
+	id string,
+	ps []path.RestorePaths,
+) ([]data.RestoreCollection, error)
 
 func (mr *mockRestoreProducer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
 ) {
-	mr.onRestore = func(id string, ps []path.Path) ([]data.RestoreCollection, error) {
+	mr.onRestore = func(
+		id string,
+		ps []path.RestorePaths,
+	) ([]data.RestoreCollection, error) {
+		gotPaths := make([]path.Path, 0, len(ps))
+
+		for _, rp := range ps {
+			gotPaths = append(gotPaths, rp.StoragePath)
+		}
+
 		assert.Equal(t, oid, id, "manifest id")
-		checkPaths(t, ops, ps)
+		checkPaths(t, ops, gotPaths)
 
 		return mr.colls, mr.err
 	}
@@ -64,11 +76,13 @@ func (mr *mockRestoreProducer) buildRestoreFunc(
 func (mr *mockRestoreProducer) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
-	paths []path.Path,
+	paths []path.RestorePaths,
 	bc kopia.ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	mr.gotPaths = append(mr.gotPaths, paths...)
+	for _, ps := range paths {
+		mr.gotPaths = append(mr.gotPaths, ps.StoragePath)
+	}
 
 	if mr.onRestore != nil {
 		return mr.onRestore(snapshotID, paths)

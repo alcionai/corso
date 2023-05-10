@@ -14,8 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
 - POST Retries following certain status codes (500, 502, 504) will re-use the post body instead of retrying with a no-content request.
 - Fix nil pointer exception when running an incremental backup on SharePoint where the base backup used an older index data format.
-- --user and --mailbox flags (already not supported) have been removed from CLI examples for details and restore commands.
+- --user and --mailbox flags have been removed from CLI examples for details and restore commands (they were already not supported, this only updates the docs).
 - Improve restore time on large restores by optimizing how items are loaded from the remote repository.
+- Remove exchange item filtering based on m365 item ID via the CLI.
+- OneDrive backups no longer include a user's non-default drives.
+- OneDrive and SharePoint file downloads will properly redirect from 3xx responses.
 - Fix backup for mailboxes that has used up all their storage quota
 
 ## [v0.7.0] (beta) - 2023-05-02
@@ -45,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
 - Fixed Exchange events progress output to show calendar names instead of IDs.
 - Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
+- Fix backup for mailboxes that has used up all their storage quota
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.

@@ -1,5 +1,6 @@
 name: CI Test Cleanup
 on:
+  workflow_dispatch:
   schedule:
     # every half hour
     - cron: "*/30 * * * *"
