@@ -23,11 +23,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
+	exapi "github.com/alcionai/corso/src/internal/connector/exchange/api"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	odapi "github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -698,7 +699,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -742,7 +743,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	m365, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := api.NewClient(m365)
+	ac, err := exapi.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.
@@ -941,8 +942,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				newLoc := expectDeets.MoveLocation(cat.String(), from.locRef, to.locRef)
-
-				// then we need to update the dest cache.
 				from.locRef = newLoc
 			},
 			itemsRead:    0, // zero because we don't count container reads
@@ -1231,21 +1230,29 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	defer flush()
 
 	var (
-		t          = suite.T()
-		mb         = evmock.NewBus()
-		m365UserID = tester.SecondaryM365UserID(t)
-		osel       = selectors.NewOneDriveBackup([]string{m365UserID})
+		t      = suite.T()
+		tenID  = tester.M365TenantID(t)
+		mb     = evmock.NewBus()
+		userID = tester.SecondaryM365UserID(t)
+		osel   = selectors.NewOneDriveBackup([]string{userID})
+		ws     = deeTD.DriveIDFromRepoRef
+		svc    = path.OneDriveService
 	)
 
 	osel.Include(osel.AllData())
 
-	bo, _, _, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, control.Toggles{}, version.Backup)
+	bo, _, _, ms, ss, _, sel, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	bID := bo.Results.BackupID
+
+	_, expectDeets := deeTD.GetDeetsInBackup(t, ctx, bID, tenID, sel.ID(), svc, ws, ms, ss)
+	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets, false)
 }
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 	sel := selectors.NewOneDriveRestore([]string{suite.user})
 
 	ic := func(cs []string) selectors.Selector {
@@ -1256,9 +1263,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	gtdi := func(
 		t *testing.T,
 		ctx context.Context,
-		svc graph.Servicer,
+		gs graph.Servicer,
 	) string {
-		d, err := svc.Client().UsersById(suite.user).Drive().Get(ctx, nil)
+		d, err := odapi.GetUsersDrive(ctx, gs, suite.user)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
 				With("user", suite.user)
@@ -1284,7 +1291,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		false)
 }
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 	sel := selectors.NewSharePointRestore([]string{suite.site})
 
 	ic := func(cs []string) selectors.Selector {
@@ -1295,9 +1302,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePointIncrementals() {
 	gtdi := func(
 		t *testing.T,
 		ctx context.Context,
-		svc graph.Servicer,
+		gs graph.Servicer,
 	) string {
-		d, err := svc.Client().SitesById(suite.site).Drive().Get(ctx, nil)
+		d, err := odapi.GetSitesDefaultDrive(ctx, gs, suite.site)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
 				With("site", suite.site)
@@ -1341,6 +1348,7 @@ func runDriveIncrementalTest(
 		acct = tester.NewM365Account(t)
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
+		ws   = deeTD.DriveIDFromRepoRef
 
 		// `now` has to be formatted with SimpleDateTimeTesting as
 		// some drives cannot have `:` in file/folder names
@@ -1349,9 +1357,10 @@ func runDriveIncrementalTest(
 		categories = map[path.CategoryType][]string{
 			category: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
 		}
-		container1 = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
-		container2 = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
-		container3 = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
+		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
+		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
+		container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
+		containerRename = "renamed_folder"
 
 		genDests = []string{container1, container2}
 
@@ -1367,10 +1376,16 @@ func runDriveIncrementalTest(
 
 	gc, sel := GCWithSelector(t, ctx, acct, resource, sel, nil, nil)
 
+	roidn := inMock.NewProvider(sel.ID(), sel.Name())
+
 	var (
 		driveID = getTestDriveID(t, ctx, gc.Service)
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)
+		}
+		makeLocRef = func(flds ...string) string {
+			elems := append([]string{driveID, "root:"}, flds...)
+			return path.Builder{}.Append(elems...).String()
 		}
 	)
 
@@ -1389,7 +1404,7 @@ func runDriveIncrementalTest(
 			acct,
 			category,
 			sel,
-			creds.AzureTenantID, owner, driveID, destName,
+			creds.AzureTenantID, roidn.ID(), driveID, destName,
 			2,
 			// Use an old backup version so we don't need metadata files.
 			0,
@@ -1411,15 +1426,27 @@ func runDriveIncrementalTest(
 		containerIDs[destName] = ptr.Val(resp.GetId())
 	}
 
-	bo, _, kw, ms, _, gc, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+	bo, _, kw, ms, ss, gc, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		acct.ID(),
+		roidn.ID(),
+		service,
+		ws,
+		ms,
+		ss)
+
 	var (
 		newFile     models.DriveItemable
 		newFileName = "new_file.txt"
+		newFileID   string
 
 		permissionIDMappings = map[string]string{}
 		writePerm            = metadata.Permission{
@@ -1461,6 +1488,10 @@ func runDriveIncrementalTest(
 					targetContainer,
 					driveItem)
 				require.NoErrorf(t, err, "creating new file %v", clues.ToCore(err))
+
+				newFileID = ptr.Val(newFile.GetId())
+
+				expectDeets.AddItem(driveID, makeLocRef(container1), newFileID)
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1480,8 +1511,10 @@ func runDriveIncrementalTest(
 					*newFile.GetId(),
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings)
+					permissionIDMappings,
+				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
@@ -1501,8 +1534,10 @@ func runDriveIncrementalTest(
 					*newFile.GetId(),
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
-					permissionIDMappings)
+					permissionIDMappings,
+				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
@@ -1523,8 +1558,10 @@ func runDriveIncrementalTest(
 					targetContainer,
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings)
+					permissionIDMappings,
+				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				// no expectedDeets: metadata isn't tracked5tgb
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1545,8 +1582,10 @@ func runDriveIncrementalTest(
 					targetContainer,
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
-					permissionIDMappings)
+					permissionIDMappings,
+				)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
+				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    0,
 			itemsWritten: 1, // .dirmeta for collection
@@ -1561,6 +1600,7 @@ func runDriveIncrementalTest(
 					Content().
 					Put(ctx, []byte("new content"), nil)
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
+				// no expectedDeets: neither file id nor location changed
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1586,11 +1626,12 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			// no expectedDeets: neither file id nor location changed
 		},
 		{
 			name: "move a file between folders",
 			updateFiles: func(t *testing.T) {
-				dest := containerIDs[container1]
+				dest := containerIDs[container2]
 
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1604,6 +1645,12 @@ func runDriveIncrementalTest(
 					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
+
+				expectDeets.MoveItem(
+					driveID,
+					makeLocRef(container1),
+					makeLocRef(container2),
+					ptr.Val(newFile.GetId()))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1619,6 +1666,8 @@ func runDriveIncrementalTest(
 					ItemsById(ptr.Val(newFile.GetId())).
 					Delete(ctx, nil)
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
+
+				expectDeets.RemoveItem(driveID, makeLocRef(container2), ptr.Val(newFile.GetId()))
 			},
 			itemsRead:    0,
 			itemsWritten: 0,
@@ -1626,21 +1675,26 @@ func runDriveIncrementalTest(
 		{
 			name: "move a folder to a subfolder",
 			updateFiles: func(t *testing.T) {
-				dest := containerIDs[container1]
-				source := containerIDs[container2]
+				parent := containerIDs[container1]
+				child := containerIDs[container2]
 
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&container2)
 				parentRef := models.NewItemReference()
-				parentRef.SetId(&dest)
+				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
 				_, err := gc.Service.
 					Client().
 					DrivesById(driveID).
-					ItemsById(source).
+					ItemsById(child).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "moving folder", clues.ToCore(err))
+
+				expectDeets.MoveLocation(
+					driveID,
+					makeLocRef(container2),
+					makeLocRef(container1))
 			},
 			itemsRead:    0,
 			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
@@ -1652,8 +1706,7 @@ func runDriveIncrementalTest(
 				child := containerIDs[container2]
 
 				driveItem := models.NewDriveItem()
-				name := "renamed_folder"
-				driveItem.SetName(&name)
+				driveItem.SetName(&containerRename)
 				parentRef := models.NewItemReference()
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
@@ -1664,6 +1717,13 @@ func runDriveIncrementalTest(
 					ItemsById(child).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "renaming folder", clues.ToCore(err))
+
+				containerIDs[containerRename] = containerIDs[container2]
+
+				expectDeets.RenameLocation(
+					driveID,
+					makeLocRef(container1, container2),
+					makeLocRef(container1, containerRename))
 			},
 			itemsRead:    0,
 			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
@@ -1671,7 +1731,7 @@ func runDriveIncrementalTest(
 		{
 			name: "delete a folder",
 			updateFiles: func(t *testing.T) {
-				container := containerIDs[container2]
+				container := containerIDs[containerRename]
 				// deletes require unique http clients
 				// https://github.com/alcionai/corso/issues/2707
 				err = newDeleteServicer(t).
@@ -1680,6 +1740,8 @@ func runDriveIncrementalTest(
 					ItemsById(container).
 					Delete(ctx, nil)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
+
+				expectDeets.RemoveLocation(driveID, makeLocRef(container1, containerRename))
 			},
 			itemsRead:    0,
 			itemsWritten: 0,
@@ -1695,7 +1757,7 @@ func runDriveIncrementalTest(
 					acct,
 					category,
 					sel,
-					creds.AzureTenantID, owner, driveID, container3,
+					creds.AzureTenantID, roidn.ID(), driveID, container3,
 					2,
 					0,
 					fileDBF)
@@ -1710,6 +1772,8 @@ func runDriveIncrementalTest(
 				require.NoError(t, err, "getting drive folder ID", "folder name", container3, clues.ToCore(err))
 
 				containerIDs[container3] = ptr.Val(resp.GetId())
+
+				expectDeets.AddLocation(driveID, container3)
 			},
 			itemsRead:    2, // 2 .data for 2 files
 			itemsWritten: 6, // read items + 2 directory meta
@@ -1737,7 +1801,7 @@ func runDriveIncrementalTest(
 			err = incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, sel.ID(), maps.Keys(categories)...)
+			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, roidn.ID(), maps.Keys(categories)...)
 			checkMetadataFilesExist(
 				t,
 				ctx,
@@ -1745,9 +1809,10 @@ func runDriveIncrementalTest(
 				kw,
 				ms,
 				creds.AzureTenantID,
-				sel.ID(),
+				roidn.ID(),
 				service,
 				categories)
+			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, ws, ms, ss, expectDeets, true)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.

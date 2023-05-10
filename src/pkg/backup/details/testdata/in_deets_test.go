@@ -234,7 +234,100 @@ func (suite *LocSetUnitSuite) TestRename() {
 	}
 }
 
-func (suite *LocSetUnitSuite) TestMove() {
+func (suite *LocSetUnitSuite) TestItem() {
+	t := suite.T()
+	b4 := "bar/lr_4"
+
+	makeSet := func() *locSet {
+		ls := newLocSet()
+
+		ls.AddItem(l1, i1)
+		ls.AddItem(l1, i2)
+		ls.AddLocation(l13)
+		ls.AddItem(l14, i3)
+		ls.AddItem(l14, i4)
+		ls.AddItem(b4, "fnord")
+
+		return ls
+	}
+
+	ts := makeSet()
+	assert.ElementsMatch(t, []string{l1, l13, l14, b4}, maps.Keys(ts.Locations))
+	assert.ElementsMatch(t, []string{i1, i2}, maps.Keys(ts.Locations[l1]))
+	assert.Empty(t, maps.Keys(ts.Locations[l13]))
+	assert.ElementsMatch(t, []string{i3, i4}, maps.Keys(ts.Locations[l14]))
+	assert.ElementsMatch(t, []string{"fnord"}, maps.Keys(ts.Locations[b4]))
+
+	table := []struct {
+		name   string
+		item   string
+		from   string
+		to     string
+		expect func(*testing.T, *locSet)
+	}{
+		{
+			name: "nop item",
+			item: "floob",
+			from: l2,
+			to:   l1,
+			expect: func(t *testing.T, ls *locSet) {
+				assert.ElementsMatch(t, []string{i1, i2, "floob"}, maps.Keys(ls.Locations[l1]))
+				assert.Empty(t, maps.Keys(ls.Locations[l2]))
+			},
+		},
+		{
+			name: "nop origin",
+			item: i1,
+			from: "smarf",
+			to:   l2,
+			expect: func(t *testing.T, ls *locSet) {
+				assert.ElementsMatch(t, []string{i1, i2}, maps.Keys(ls.Locations[l1]))
+				assert.ElementsMatch(t, []string{i1}, maps.Keys(ls.Locations[l2]))
+				assert.Empty(t, maps.Keys(ls.Locations["smarf"]))
+			},
+		},
+		{
+			name: "new location",
+			item: i1,
+			from: l1,
+			to:   "fnords",
+			expect: func(t *testing.T, ls *locSet) {
+				assert.ElementsMatch(t, []string{i2}, maps.Keys(ls.Locations[l1]))
+				assert.ElementsMatch(t, []string{i1}, maps.Keys(ls.Locations["fnords"]))
+			},
+		},
+		{
+			name: "existing location",
+			item: i1,
+			from: l1,
+			to:   l2,
+			expect: func(t *testing.T, ls *locSet) {
+				assert.ElementsMatch(t, []string{i2}, maps.Keys(ls.Locations[l1]))
+				assert.ElementsMatch(t, []string{i1}, maps.Keys(ls.Locations[l2]))
+			},
+		},
+		{
+			name: "same location",
+			item: i1,
+			from: l1,
+			to:   l1,
+			expect: func(t *testing.T, ls *locSet) {
+				assert.ElementsMatch(t, []string{i1, i2}, maps.Keys(ls.Locations[l1]))
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ls := makeSet()
+
+			ls.MoveItem(test.from, test.to, test.item)
+			test.expect(t, ls)
+		})
+	}
+}
+
+func (suite *LocSetUnitSuite) TestMoveLocation() {
 	t := suite.T()
 	b4 := "bar/lr_4"
 

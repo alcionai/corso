@@ -57,6 +57,11 @@ func (ls *locSet) RemoveItem(locationRef, itemRef string) {
 	ls.Deleted[locationRef][itemRef] = exists
 }
 
+func (ls *locSet) MoveItem(fromLocation, toLocation, ir string) {
+	ls.RemoveItem(fromLocation, ir)
+	ls.AddItem(toLocation, ir)
+}
+
 func (ls *locSet) AddLocation(locationRef string) {
 	if _, ok := ls.Locations[locationRef]; !ok {
 		ls.Locations[locationRef] = map[string]struct{}{}
@@ -202,6 +207,10 @@ func (id *InDeets) AddItem(set, locationRef, itemRef string) {
 
 func (id *InDeets) RemoveItem(set, locationRef, itemRef string) {
 	id.getSet(set).RemoveItem(locationRef, itemRef)
+}
+
+func (id *InDeets) MoveItem(set, fromLocation, toLocation, ir string) {
+	id.getSet(set).MoveItem(fromLocation, toLocation, ir)
 }
 
 func (id *InDeets) AddLocation(set, locationRef string) {
