@@ -82,6 +82,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
+
+		ctrlOpts.ToggleFeatures.DisableDelta = true
 	}
 
 	switch sels.Service {
@@ -94,7 +96,6 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			gc.credentials,
 			gc.UpdateStatus,
 			ctrlOpts,
-			canMakeDeltaQueries,
 			errs)
 		if err != nil {
 			return nil, nil, err

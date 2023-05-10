@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Added `--disable-delta` flag to disable delta based backups for Exchange
 
 ### Fixed
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove exchange item filtering based on m365 item ID via the CLI.
 - OneDrive backups no longer include a user's non-default drives.
 - OneDrive and SharePoint file downloads will properly redirect from 3xx responses.
+- Fix backup for mailboxes that has used up all their storage quota
 
 ## [v0.7.0] (beta) - 2023-05-02
 

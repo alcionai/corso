@@ -297,6 +297,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				ctx, flush := tester.NewContext()
 				defer flush()
 
+				ctrlOpts := control.Options{FailureHandling: test.failFast}
+				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
+
 				collections, err := filterContainersAndFillCollections(
 					ctx,
 					qp,
@@ -305,11 +308,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 					test.resolver,
 					test.scope,
 					dps,
-					control.Options{FailureHandling: test.failFast},
-					canMakeDeltaQueries,
+					ctrlOpts,
 					fault.New(test.failFast == control.FailFast))
 				test.expectErr(t, err, clues.ToCore(err))
-
 				// collection assertions
 
 				deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
@@ -647,7 +648,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 						sc.scope,
 						test.inputMetadata(t, sc.cat),
 						control.Options{FailureHandling: control.FailFast},
-						true,
 						fault.New(true))
 					require.NoError(t, err, "getting collections", clues.ToCore(err))
 
@@ -894,7 +894,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 				scope,
 				test.inputMetadata,
 				control.Options{FailureHandling: control.FailFast},
-				true,
 				fault.New(true))
 			require.NoError(t, err, "getting collections", clues.ToCore(err))
 
@@ -1047,7 +1046,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				allScope,
 				dps,
 				control.Options{FailureHandling: control.FailFast},
-				true,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -1410,7 +1408,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				allScope,
 				test.dps,
 				control.Defaults(),
-				true,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
