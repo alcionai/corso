@@ -11,19 +11,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ data.BackupCollection = emptyCollection{}
+var _ data.BackupCollection = prefixCollection{}
 
 // TODO: move this out of graph.  /data would be a much better owner
 // for a generic struct like this.  However, support.StatusUpdater makes
 // it difficult to extract from this package in a generic way.
-type emptyCollection struct {
+type prefixCollection struct {
 	full  path.Path
 	prev  path.Path
 	su    support.StatusUpdater
 	state data.CollectionState
 }
 
-func (c emptyCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Stream {
+func (c prefixCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Stream {
 	res := make(chan data.Stream)
 	close(res)
 
@@ -33,19 +33,19 @@ func (c emptyCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.St
 	return res
 }
 
-func (c emptyCollection) FullPath() path.Path {
+func (c prefixCollection) FullPath() path.Path {
 	return c.full
 }
 
-func (c emptyCollection) PreviousPath() path.Path {
+func (c prefixCollection) PreviousPath() path.Path {
 	return c.prev
 }
 
-func (c emptyCollection) State() data.CollectionState {
+func (c prefixCollection) State() data.CollectionState {
 	return c.state
 }
 
-func (c emptyCollection) DoNotMergeItems() bool {
+func (c prefixCollection) DoNotMergeItems() bool {
 	return false
 }
 
@@ -91,7 +91,7 @@ func BaseCollections(
 
 		// only add this collection if it doesn't already exist in the set.
 		if _, ok := collKeys[full.String()]; !ok {
-			res = append(res, &emptyCollection{
+			res = append(res, &prefixCollection{
 				prev:  full,
 				full:  full,
 				su:    su,
@@ -108,7 +108,10 @@ func BaseCollections(
 // ---------------------------------------------------------------------------
 
 // Creates a new collection that only handles prefix pathing.
-func NewPrefixCollection(prev, full path.Path, su support.StatusUpdater) (*emptyCollection, error) {
+func NewPrefixCollection(
+	prev, full path.Path,
+	su support.StatusUpdater,
+) (*prefixCollection, error) {
 	if prev != nil {
 		if len(prev.Item()) > 0 {
 			return nil, clues.New("prefix collection previous path contains an item")
@@ -129,7 +132,7 @@ func NewPrefixCollection(prev, full path.Path, su support.StatusUpdater) (*empty
 		}
 	}
 
-	pc := &emptyCollection{
+	pc := &prefixCollection{
 		prev:  prev,
 		full:  full,
 		su:    su,
