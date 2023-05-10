@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -242,9 +243,9 @@ func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) Entry {
 		"tenant-id",
 		"user-id",
 		[]string{
-			"drives",
+			odConsts.DrivesPathDir,
 			"drive-id",
-			"root:",
+			odConsts.RootPathDir,
 			"Inbox",
 			"folder1",
 			id,
@@ -408,7 +409,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		{
 			ItemInfo: ItemInfo{
 				Folder: &FolderInfo{
-					DisplayName: "root:",
+					DisplayName: odConsts.RootPathDir,
 					ItemType:    FolderItem,
 					DriveName:   "drive-name",
 					DriveID:     "drive-id",
@@ -416,7 +417,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			LocationRef: "root:",
+			LocationRef: odConsts.RootPathDir,
 			ItemInfo: ItemInfo{
 				Folder: &FolderInfo{
 					DisplayName: "Inbox",
@@ -958,7 +959,7 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_shortRefsUniqueFromFolder() {
 		"a-user",
 		[]string{
 			"drive-id",
-			"root:",
+			odConsts.RootPathDir,
 			"folder",
 			name + "-id",
 		})
@@ -971,7 +972,7 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_shortRefsUniqueFromFolder() {
 		"a-user",
 		[]string{
 			"drive-id",
-			"root:",
+			odConsts.RootPathDir,
 			"folder",
 			name + "-id",
 			name,
@@ -1060,7 +1061,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	)
 
 	newExchangePB := path.Builder{}.Append(folder2)
-	newOneDrivePB := path.Builder{}.Append("root:", folder2)
+	newOneDrivePB := path.Builder{}.Append(odConsts.RootPathDir, folder2)
 
 	table := []struct {
 		name         string

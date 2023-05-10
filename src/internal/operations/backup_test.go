@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/mock"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -657,15 +658,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				path.OneDriveService.String(),
 				ro,
 				path.FilesCategory.String(),
-				"drives",
+				odConsts.DrivesPathDir,
 				"drive-id",
-				"root:",
+				odConsts.RootPathDir,
 				"work",
 				"item1",
 			},
 			true,
 		)
-		locationPath1 = path.Builder{}.Append("root:", "work-display-name")
+		locationPath1 = path.Builder{}.Append(odConsts.RootPathDir, "work-display-name")
 		itemPath2     = makePath(
 			suite.T(),
 			[]string{
@@ -673,15 +674,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				path.OneDriveService.String(),
 				ro,
 				path.FilesCategory.String(),
-				"drives",
+				odConsts.DrivesPathDir,
 				"drive-id",
-				"root:",
+				odConsts.RootPathDir,
 				"personal",
 				"item2",
 			},
 			true,
 		)
-		locationPath2 = path.Builder{}.Append("root:", "personal-display-name")
+		locationPath2 = path.Builder{}.Append(odConsts.RootPathDir, "personal-display-name")
 		itemPath3     = makePath(
 			suite.T(),
 			[]string{

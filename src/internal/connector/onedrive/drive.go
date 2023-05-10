@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -71,7 +72,7 @@ func pathPrefixerForSource(
 	}
 
 	return func(driveID string) (path.Path, error) {
-		return path.Build(tenantID, resourceOwner, serv, cat, false, "drives", driveID, "root:")
+		return path.Build(tenantID, resourceOwner, serv, cat, false, odConsts.DrivesPathDir, driveID, odConsts.RootPathDir)
 	}
 }
 
