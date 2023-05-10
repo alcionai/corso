@@ -101,6 +101,7 @@ type Collections struct {
 		servicer graph.Servicer,
 		driveID, link string,
 	) itemPager
+	servicePathPfxFunc pathPrefixerFunc
 
 	// Track stats from drive enumeration. Represents the items backed up.
 	NumItems      int
@@ -119,17 +120,18 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		itemClient:     itemClient,
-		tenant:         tenant,
-		resourceOwner:  resourceOwner,
-		source:         source,
-		matcher:        matcher,
-		CollectionMap:  map[string]map[string]*Collection{},
-		drivePagerFunc: PagerForSource,
-		itemPagerFunc:  defaultItemPager,
-		service:        service,
-		statusUpdater:  statusUpdater,
-		ctrl:           ctrlOpts,
+		itemClient:         itemClient,
+		tenant:             tenant,
+		resourceOwner:      resourceOwner,
+		source:             source,
+		matcher:            matcher,
+		CollectionMap:      map[string]map[string]*Collection{},
+		drivePagerFunc:     PagerForSource,
+		itemPagerFunc:      defaultItemPager,
+		servicePathPfxFunc: pathPrefixerForSource(tenant, resourceOwner, source),
+		service:            service,
+		statusUpdater:      statusUpdater,
+		ctrl:               ctrlOpts,
 	}
 }
 
@@ -280,6 +282,12 @@ func (c *Collections) Get(
 		return nil, err
 	}
 
+	driveTombstones := map[string]struct{}{}
+
+	for driveID := range oldPathsByDriveID {
+		driveTombstones[driveID] = struct{}{}
+	}
+
 	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
 	defer closer()
 	defer close(driveComplete)
@@ -311,6 +319,8 @@ func (c *Collections) Get(
 			numOldDelta = 0
 			ictx        = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 		)
+
+		delete(driveTombstones, driveID)
 
 		if _, ok := c.CollectionMap[driveID]; !ok {
 			c.CollectionMap[driveID] = map[string]*Collection{}
@@ -408,7 +418,7 @@ func (c *Collections) Get(
 
 			col, err := NewCollection(
 				c.itemClient,
-				nil,
+				nil, // delete the folder
 				prevPath,
 				driveID,
 				c.service,
@@ -427,15 +437,46 @@ func (c *Collections) Get(
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
-	// Add an extra for the metadata collection.
 	collections := []data.BackupCollection{}
 
+	// add all the drives we found
 	for _, driveColls := range c.CollectionMap {
 		for _, coll := range driveColls {
 			collections = append(collections, coll)
 		}
 	}
 
+	drivePathPfx, err := c.servicePathPfxFunc()
+	if err != nil {
+		return nil, clues.Wrap(err, "making service prefix for drive tombstone").WithClues(ctx)
+	}
+
+	// generate tombstones for drives that were removed.
+	for driveID := range driveTombstones {
+		prevDrivePath, err := drivePathPfx.Append("drives", driveID, "root:").AsDataLayerPath(false)
+		if err != nil {
+			return nil, clues.Wrap(err, "making drive tombstone previous path").WithClues(ctx)
+		}
+
+		coll, err := NewCollection(
+			c.itemClient,
+			nil, // delete the drive
+			prevDrivePath,
+			driveID,
+			c.service,
+			c.statusUpdater,
+			c.source,
+			c.ctrl,
+			CollectionScopeUnknown,
+			true)
+		if err != nil {
+			return nil, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
+		}
+
+		collections = append(collections, coll)
+	}
+
+	// add metadata collections
 	service, category := c.source.toPathServiceCat()
 	md, err := graph.MakeMetadataCollection(
 		c.tenant,
@@ -457,7 +498,6 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
-	// TODO(ashmrtn): Track and return the set of items to exclude.
 	return collections, nil
 }
 

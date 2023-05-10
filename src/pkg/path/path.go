@@ -420,6 +420,36 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	}, nil
 }
 
+// AsDataLayerPath transforms the builder to a path.Path.
+// unlike ToDataLayerPath, it assumes the builder already
+// contains a well-formed service prefix.
+func (pb Builder) AsDataLayerPath(isItem bool) (Path, error) {
+	elems := pb.elements
+
+	if len(elems) < 4 {
+		return nil, clues.New("incomplete path prefix")
+	}
+
+	if len(elems) == 4 {
+		return ServicePrefix(
+			elems[0],
+			elems[2],
+			toServiceType(elems[1]),
+			ToCategoryType(elems[3]))
+	}
+
+	return pb.PopFront().
+		PopFront().
+		PopFront().
+		PopFront().
+		ToDataLayerPath(
+			elems[0],
+			elems[2],
+			toServiceType(elems[1]),
+			ToCategoryType(elems[3]),
+			isItem)
+}
+
 func (pb Builder) ToDataLayerPath(
 	tenant, user string,
 	service ServiceType,

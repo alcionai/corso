@@ -813,3 +813,52 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) TestAsDataLayerPath() {
+	basePath, err := ServicePrefix("tid", "ro", OneDriveService, FilesCategory)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	baseBuilder := basePath.ToBuilder()
+
+	table := []struct {
+		name      string
+		pb        *Builder
+		expect    string
+		expectErr require.ErrorAssertionFunc
+		expectNil bool
+	}{
+		{
+			name:      "prefix only, no folders",
+			pb:        baseBuilder,
+			expect:    basePath.String(),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "with folders",
+			pb:        baseBuilder.Append("foo"),
+			expect:    baseBuilder.Append("foo").String(),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "too short",
+			pb:        baseBuilder.Dir(),
+			expect:    "",
+			expectErr: require.Error,
+			expectNil: true,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := test.pb.AsDataLayerPath(false)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if test.expectNil {
+				assert.Nil(t, result)
+			} else {
+				assert.Equal(t, test.expect, result.String())
+			}
+		})
+	}
+}
