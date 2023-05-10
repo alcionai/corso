@@ -1214,9 +1214,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 			resource: Users,
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{suite.user})
-				sel.Include(
-					sel.Folders([]string{selectors.NoneTgt}),
-				)
+				sel.Include(sel.Folders([]string{selectors.NoneTgt}))
 
 				return sel.Selector
 			},
