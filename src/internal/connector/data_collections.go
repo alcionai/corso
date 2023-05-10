@@ -49,6 +49,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
+	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
+
 	// Limit the max number of active requests to graph from this collection.
 	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
 		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
@@ -194,7 +196,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	acct account.Account,
-	selector selectors.Selector,
+	sels selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
@@ -202,6 +204,8 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 ) (*details.Details, error) {
 	ctx, end := diagnostics.Span(ctx, "connector:restore")
 	defer end()
+
+	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
 
 	var (
 		status *support.ConnectorOperationStatus
@@ -213,7 +217,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 		return nil, clues.Wrap(err, "malformed azure credentials")
 	}
 
-	switch selector.Service {
+	switch sels.Service {
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
@@ -221,7 +225,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	case selectors.ServiceSharePoint:
 		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets, errs)
 	default:
-		err = clues.Wrap(clues.New(selector.Service.String()), "service not supported")
+		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}
 
 	gc.incrementAwaitingMessages()
