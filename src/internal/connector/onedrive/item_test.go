@@ -154,10 +154,6 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
-			// Test Requirement 2: "Test Folder" should exist
-			folder, err := api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
-			require.NoError(t, err, clues.ToCore(err))
-
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
 			t.Logf("creating folder %s", newFolderName)
 
@@ -165,7 +161,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				ctx,
 				srv,
 				test.driveID,
-				ptr.Val(folder.GetId()),
+				ptr.Val(root.GetId()),
 				newItem(newFolderName, true))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
