@@ -191,7 +191,9 @@ func tenantHash(tenID string) string {
 type m string
 
 // metrics collection bucket
-const APICall m = "api_call"
+const (
+	APICall m = "api_call"
+)
 
 // configurations
 const (
@@ -259,6 +261,12 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 func Inc(cat m, keys ...string) {
 	cats := append([]string{string(cat)}, keys...)
 	metrics.IncrCounter(cats, 1)
+}
+
+// IncN increments the given category by N.
+func IncN(n int, cat m, keys ...string) {
+	cats := append([]string{string(cat)}, keys...)
+	metrics.IncrCounter(cats, float32(n))
 }
 
 // Since records the duration between the provided time and now, in millis.
