@@ -439,7 +439,7 @@ jobs:
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_sharepoint.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -525,7 +525,7 @@ jobs:
           
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_sharepoint_incremental.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
