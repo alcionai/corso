@@ -106,7 +106,7 @@ func (suite *OneDrivePathSuite) TestFormatDriveFolders() {
 			assert.Equal(
 				suite.T(),
 				test.expected,
-				path.FormatDriveFolders(driveID, test.input...).String())
+				path.BuildDriveLocation(driveID, test.input...).String())
 		})
 	}
 }

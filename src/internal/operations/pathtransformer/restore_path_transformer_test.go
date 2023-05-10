@@ -56,8 +56,43 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 		name          string
 		backupVersion int
 		input         []*details.Entry
+		expectErr     assert.ErrorAssertionFunc
 		expected      []expectPaths
 	}{
+		{
+			name: "SharePoint List Errors",
+			// No version bump for the change so we always have to check for this.
+			backupVersion: version.All8MigrateUserPNToID,
+			input: []*details.Entry{
+				{
+					RepoRef:     SharePointRootItemPath.RR.String(),
+					LocationRef: SharePointRootItemPath.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointList,
+						},
+					},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "SharePoint Page Errors",
+			// No version bump for the change so we always have to check for this.
+			backupVersion: version.All8MigrateUserPNToID,
+			input: []*details.Entry{
+				{
+					RepoRef:     SharePointRootItemPath.RR.String(),
+					LocationRef: SharePointRootItemPath.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointPage,
+						},
+					},
+				},
+			},
+			expectErr: assert.Error,
+		},
 		{
 			name: "SharePoint old format, item in root",
 			// No version bump for the change so we always have to check for this.
@@ -74,6 +109,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: SharePointRootItemPath.RR.String(),
@@ -98,6 +134,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: SharePointRootItemPath.RR.String(),
@@ -125,6 +162,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: testdata.OneDriveItemPath2.RR.String(),
@@ -150,6 +188,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: testdata.ExchangeEmailItemPath3.RR.String(),
@@ -173,6 +212,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: testdata.ExchangeEmailItemPath3.RR.String(),
@@ -196,6 +236,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: testdata.ExchangeContactsItemPath1.RR.String(),
@@ -218,6 +259,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage:         testdata.ExchangeContactsItemPath1.RR.String(),
@@ -240,6 +282,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
+			expectErr: assert.NoError,
 			expected: []expectPaths{
 				{
 					storage: testdata.ExchangeEmailItemPath3.RR.String(),
@@ -263,7 +306,11 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 				test.backupVersion,
 				test.input,
 				fault.New(true))
-			require.NoError(t, err, clues.ToCore(err))
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
 
 			expected := make([]path.RestorePaths, 0, len(test.expected))
 

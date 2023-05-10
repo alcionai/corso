@@ -40,7 +40,7 @@ func locationRef(
 	return path.Builder{}.Append(elems...), nil
 }
 
-func basicPathMerge(repoRef path.Path, locRef *path.Builder) (path.Path, error) {
+func basicLocationPath(repoRef path.Path, locRef *path.Builder) (path.Path, error) {
 	if len(locRef.Elements()) == 0 {
 		res, err := path.ServicePrefix(
 			repoRef.Tenant(),
@@ -87,12 +87,12 @@ func drivePathMerge(
 		driveID = odp.DriveID
 	}
 
-	return basicPathMerge(
+	return basicLocationPath(
 		repoRef,
-		path.FormatDriveFolders(driveID, locRef.Elements()...))
+		path.BuildDriveLocation(driveID, locRef.Elements()...))
 }
 
-func restorePathsForItem(
+func makeRestorePathsForEntry(
 	ctx context.Context,
 	backupVersion int,
 	ent *details.Entry,
@@ -101,27 +101,27 @@ func restorePathsForItem(
 
 	repoRef, err := path.FromDataLayerPath(ent.RepoRef, true)
 	if err != nil {
-		err = clues.Wrap(err, "parsing details path after reduction").
+		err = clues.Wrap(err, "parsing RepoRef").
 			WithClues(ctx).
-			With("storage_path", clues.Hide(ent.RepoRef), "location", clues.Hide(ent.LocationRef))
+			With("repo_ref", clues.Hide(ent.RepoRef), "location_ref", clues.Hide(ent.LocationRef))
 
 		return res, err
 	}
 
 	res.StoragePath = repoRef
-	ctx = clues.Add(ctx, "storage_path", repoRef)
+	ctx = clues.Add(ctx, "repo_ref", repoRef)
 
 	// Get the LocationRef so we can munge it onto our path.
 	locRef, err := locationRef(ent, repoRef, backupVersion)
 	if err != nil {
 		err = clues.Wrap(err, "parsing LocationRef after reduction").
 			WithClues(ctx).
-			With("location", clues.Hide(ent.LocationRef))
+			With("location_ref", clues.Hide(ent.LocationRef))
 
 		return res, err
 	}
 
-	ctx = clues.Add(ctx, "location", locRef)
+	ctx = clues.Add(ctx, "location_ref", locRef)
 
 	// Now figure out what type of ent it is and munge the path accordingly.
 	// Eventually we're going to need munging for:
@@ -131,8 +131,10 @@ func restorePathsForItem(
 	if ent.Exchange != nil {
 		// TODO(ashmrtn): Eventually make Events have it's own function to handle
 		// setting the restore destination properly.
-		res.RestorePath, err = basicPathMerge(repoRef, locRef)
-	} else if ent.OneDrive != nil || ent.SharePoint != nil {
+		res.RestorePath, err = basicLocationPath(repoRef, locRef)
+	} else if ent.OneDrive != nil ||
+		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointLibrary) ||
+		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem) {
 		res.RestorePath, err = drivePathMerge(ent, repoRef, locRef)
 	} else {
 		return res, clues.New("unknown entry type").WithClues(ctx)
@@ -154,9 +156,8 @@ func GetPaths(
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	var (
-		paths     = make([]path.RestorePaths, len(items))
-		shortRefs = make([]string, len(items))
-		el        = errs.Local()
+		paths = make([]path.RestorePaths, len(items))
+		el    = errs.Local()
 	)
 
 	for i, ent := range items {
@@ -164,17 +165,16 @@ func GetPaths(
 			break
 		}
 
-		restorePaths, err := restorePathsForItem(ctx, backupVersion, ent)
+		restorePaths, err := makeRestorePathsForEntry(ctx, backupVersion, ent)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "getting restore paths"))
 			continue
 		}
 
 		paths[i] = restorePaths
-		shortRefs[i] = restorePaths.StoragePath.ShortRef()
 	}
 
-	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
+	logger.Ctx(ctx).Infof("found %d details entries to restore", len(paths))
 
 	return paths, el.Failure()
 }

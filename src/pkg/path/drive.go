@@ -39,10 +39,10 @@ func GetDriveFolderPath(p Path) (string, error) {
 	return Builder{}.Append(drivePath.Folders...).String(), nil
 }
 
-// FormatDriveFolders takes a driveID and a set of unescaped element names,
+// BuildDriveLocation takes a driveID and a set of unescaped element names,
 // including the root folder, and returns a *path.Builder containing the
 // canonical path representation for the drive path.
-func FormatDriveFolders(
+func BuildDriveLocation(
 	driveID string,
 	unescapedElements ...string,
 ) *Builder {
