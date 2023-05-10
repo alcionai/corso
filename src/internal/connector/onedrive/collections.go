@@ -446,14 +446,9 @@ func (c *Collections) Get(
 		}
 	}
 
-	drivePathPfx, err := c.servicePathPfxFunc()
-	if err != nil {
-		return nil, clues.Wrap(err, "making service prefix for drive tombstone").WithClues(ctx)
-	}
-
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := drivePathPfx.Append("drives", driveID, "root:").AsDataLayerPath(false)
+		prevDrivePath, err := c.servicePathPfxFunc(driveID)
 		if err != nil {
 			return nil, clues.Wrap(err, "making drive tombstone previous path").WithClues(ctx)
 		}

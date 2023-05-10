@@ -56,7 +56,7 @@ func PagerForSource(
 	}
 }
 
-type pathPrefixerFunc func() (*path.Builder, error)
+type pathPrefixerFunc func(driveID string) (path.Path, error)
 
 func pathPrefixerForSource(
 	tenantID, resourceOwner string,
@@ -70,13 +70,8 @@ func pathPrefixerForSource(
 		serv = path.SharePointService
 	}
 
-	return func() (*path.Builder, error) {
-		p, err := path.ServicePrefix(tenantID, resourceOwner, serv, cat)
-		if err != nil {
-			return nil, err
-		}
-
-		return p.ToBuilder(), nil
+	return func(driveID string) (path.Path, error) {
+		return path.Build(tenantID, resourceOwner, serv, cat, false, "drives", driveID, "root:")
 	}
 }
 
