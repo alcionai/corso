@@ -58,6 +58,14 @@ func RestoreCollections(
 		el             = errs.Local()
 	)
 
+	// TODO: this is a gotcha/smell and should be centralized within the
+	// restore process.
+	// Reorder collections so that the parents directories are created
+	// before the child directories; a requirement for permissions.
+	sort.Slice(dcs, func(i, j int) bool {
+		return dcs[i].FullPath().String() < dcs[j].FullPath().String()
+	})
+
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
 		if el.Failure() != nil {
@@ -73,14 +81,6 @@ func RestoreCollections(
 				"destination", clues.Hide(dest.ContainerName),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
 		)
-
-		// TODO: this is a gotcha/smell and should be centralized within the
-		// restore process.
-		// Reorder collections so that the parents directories are created
-		// before the child directories; a requirement for permissions.
-		sort.Slice(dcs, func(i, j int) bool {
-			return dcs[i].FullPath().String() < dcs[j].FullPath().String()
-		})
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
