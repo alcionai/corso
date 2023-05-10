@@ -30,7 +30,10 @@ import (
 var _ addedAndRemovedItemIDsGetter = &mockGetter{}
 
 type (
-	mockGetter        map[string]mockGetterResults
+	mockGetter struct {
+		noReturnDelta bool
+		results       map[string]mockGetterResults
+	}
 	mockGetterResults struct {
 		added    []string
 		removed  []string
@@ -50,12 +53,17 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	api.DeltaUpdate,
 	error,
 ) {
-	results, ok := mg[cID]
+	results, ok := mg.results[cID]
 	if !ok {
 		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
-	return results.added, results.removed, results.newDelta, results.err
+	delta := results.newDelta
+	if mg.noReturnDelta {
+		delta.URL = ""
+	}
+
+	return results.added, results.removed, delta, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
@@ -172,8 +180,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 	}{
 		{
 			name: "happy path, one container",
-			getter: map[string]mockGetterResults{
-				"1": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResult,
+				},
 			},
 			resolver:            newMockResolver(container1),
 			scope:               allScope,
@@ -183,9 +193,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "happy path, many containers",
-			getter: map[string]mockGetterResults{
-				"1": commonResult,
-				"2": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResult,
+					"2": commonResult,
+				},
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
@@ -195,9 +207,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "no containers pass scope",
-			getter: map[string]mockGetterResults{
-				"1": commonResult,
-				"2": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResult,
+					"2": commonResult,
+				},
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               selectors.NewExchangeBackup(nil).MailFolders(selectors.None())[0],
@@ -207,8 +221,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "err: deleted in flight",
-			getter: map[string]mockGetterResults{
-				"1": deletedInFlightResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": deletedInFlightResult,
+				},
 			},
 			resolver:              newMockResolver(container1),
 			scope:                 allScope,
@@ -219,8 +235,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "err: other error",
-			getter: map[string]mockGetterResults{
-				"1": errorResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": errorResult,
+				},
 			},
 			resolver:            newMockResolver(container1),
 			scope:               allScope,
@@ -230,9 +248,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "half collections error: deleted in flight",
-			getter: map[string]mockGetterResults{
-				"1": deletedInFlightResult,
-				"2": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": deletedInFlightResult,
+					"2": commonResult,
+				},
 			},
 			resolver:              newMockResolver(container1, container2),
 			scope:                 allScope,
@@ -243,9 +263,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "half collections error: other error",
-			getter: map[string]mockGetterResults{
-				"1": errorResult,
-				"2": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": errorResult,
+					"2": commonResult,
+				},
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
@@ -255,9 +277,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "half collections error: deleted in flight, fail fast",
-			getter: map[string]mockGetterResults{
-				"1": deletedInFlightResult,
-				"2": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": deletedInFlightResult,
+					"2": commonResult,
+				},
 			},
 			resolver:              newMockResolver(container1, container2),
 			scope:                 allScope,
@@ -269,9 +293,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 		{
 			name: "half collections error: other error, fail fast",
-			getter: map[string]mockGetterResults{
-				"1": errorResult,
-				"2": commonResult,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": errorResult,
+					"2": commonResult,
+				},
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
@@ -311,6 +337,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 					ctrlOpts,
 					fault.New(test.failFast == control.FailFast))
 				test.expectErr(t, err, clues.ToCore(err))
+
 				// collection assertions
 
 				deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
@@ -339,7 +366,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
 
 				// items in collections assertions
-				for k, expect := range test.getter {
+				for k, expect := range test.getter.results {
 					coll := collections[k]
 
 					if coll == nil {
@@ -486,9 +513,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 	}{
 		{
 			name: "1 moved to duplicate",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver: newMockResolver(container1, container2),
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
@@ -517,9 +546,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "1 moved to duplicate, other order",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver: newMockResolver(container2, container1),
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
@@ -548,9 +579,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "both move to duplicate",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver: newMockResolver(container1, container2),
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
@@ -579,9 +612,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "both new",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver: newMockResolver(container1, container2),
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
@@ -601,8 +636,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "add 1 remove 2",
-			getter: map[string]mockGetterResults{
-				"1": result1,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+				},
 			},
 			resolver: newMockResolver(container1),
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
@@ -782,9 +819,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 	}{
 		{
 			name: "1 moved to duplicate",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver: newMockResolver(container1, container2),
 			inputMetadata: DeltaPaths{
@@ -810,9 +849,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "both move to duplicate",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver: newMockResolver(container1, container2),
 			inputMetadata: DeltaPaths{
@@ -838,9 +879,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "both new",
-			getter: map[string]mockGetterResults{
-				"1": result1,
-				"2": result2,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+					"2": result2,
+				},
 			},
 			resolver:       newMockResolver(container1, container2),
 			inputMetadata:  DeltaPaths{},
@@ -858,8 +901,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 		},
 		{
 			name: "add 1 remove 2",
-			getter: map[string]mockGetterResults{
-				"1": result1,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": result1,
+				},
 			},
 			resolver: newMockResolver(container1),
 			inputMetadata: DeltaPaths{
@@ -922,7 +967,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			assert.Equal(t, 1, metadatas, "metadata collections")
 
 			// items in collections assertions
-			for k, expect := range test.getter {
+			for k, expect := range test.getter.results {
 				coll := collections[k]
 
 				if coll == nil {
@@ -961,10 +1006,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 	}{
 		{
 			name: "repeated adds",
-			getter: map[string]mockGetterResults{
-				"1": {
-					added:    []string{"a1", "a2", "a3", "a1"},
-					newDelta: newDelta,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": {
+						added:    []string{"a1", "a2", "a3", "a1"},
+						newDelta: newDelta,
+					},
 				},
 			},
 			expectAdded: map[string]struct{}{
@@ -976,10 +1023,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 		},
 		{
 			name: "repeated removes",
-			getter: map[string]mockGetterResults{
-				"1": {
-					removed:  []string{"r1", "r2", "r3", "r1"},
-					newDelta: newDelta,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": {
+						removed:  []string{"r1", "r2", "r3", "r1"},
+						newDelta: newDelta,
+					},
 				},
 			},
 			expectAdded: map[string]struct{}{},
@@ -991,11 +1040,13 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 		},
 		{
 			name: "remove for same item wins",
-			getter: map[string]mockGetterResults{
-				"1": {
-					added:    []string{"i1", "a2", "a3"},
-					removed:  []string{"i1", "r2", "r3"},
-					newDelta: newDelta,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": {
+						added:    []string{"i1", "a2", "a3"},
+						removed:  []string{"i1", "r2", "r3"},
+						newDelta: newDelta,
+					},
 				},
 			},
 			expectAdded: map[string]struct{}{
@@ -1077,7 +1128,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			assert.Zero(t, doNotMerges, "doNotMerge collections")
 
 			// items in collections assertions
-			for k := range test.getter {
+			for k := range test.getter.results {
 				coll := collections[k]
 				if !assert.NotNilf(t, coll, "missing collection for path %s", k) {
 					continue
@@ -1093,7 +1144,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 	}
 }
 
-func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
+func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals_nondelta() {
 	var (
 		userID   = "user_id"
 		tenantID = suite.creds.AzureTenantID
@@ -1131,16 +1182,19 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 	}
 
 	table := []struct {
-		name     string
-		getter   mockGetter
-		resolver graph.ContainerResolver
-		dps      DeltaPaths
-		expect   map[string]endState
+		name                  string
+		getter                mockGetter
+		resolver              graph.ContainerResolver
+		dps                   DeltaPaths
+		expect                map[string]endState
+		skipWhenForcedNoDelta bool
 	}{
 		{
 			name: "new container",
-			getter: map[string]mockGetterResults{
-				"1": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("1"),
@@ -1155,8 +1209,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "not moved container",
-			getter: map[string]mockGetterResults{
-				"1": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("1"),
@@ -1176,8 +1232,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "moved container",
-			getter: map[string]mockGetterResults{
-				"1": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("1"),
@@ -1196,8 +1254,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			},
 		},
 		{
-			name:     "deleted container",
-			getter:   map[string]mockGetterResults{},
+			name: "deleted container",
+			getter: mockGetter{
+				results: map[string]mockGetterResults{},
+			},
 			resolver: newMockResolver(),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -1211,8 +1271,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "one deleted, one new",
-			getter: map[string]mockGetterResults{
-				"2": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"2": commonResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("2"),
@@ -1233,8 +1295,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "one deleted, one new, same path",
-			getter: map[string]mockGetterResults{
-				"2": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"2": commonResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("2"),
@@ -1255,9 +1319,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "one moved, one new, same path",
-			getter: map[string]mockGetterResults{
-				"1": commonResults,
-				"2": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResults,
+					"2": commonResults,
+				},
 			},
 			resolver: newMockResolver(
 				mockContainer{
@@ -1286,8 +1352,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "bad previous path strings",
-			getter: map[string]mockGetterResults{
-				"1": commonResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("1"),
@@ -1311,8 +1379,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 		{
 			name: "delta expiration",
-			getter: map[string]mockGetterResults{
-				"1": expiredResults,
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": expiredResults,
+				},
 			},
 			resolver: newMockResolver(mockContainer{
 				id:          strPtr("1"),
@@ -1329,15 +1399,18 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			expect: map[string]endState{
 				"1": {data.NotMovedState, true},
 			},
+			skipWhenForcedNoDelta: true, // this is not a valid test for non-delta
 		},
 		{
 			name: "a little bit of everything",
-			getter: map[string]mockGetterResults{
-				"1": commonResults,  // new
-				"2": commonResults,  // notMoved
-				"3": commonResults,  // moved
-				"4": expiredResults, // moved
-				// "5" gets deleted
+			getter: mockGetter{
+				results: map[string]mockGetterResults{
+					"1": commonResults,  // new
+					"2": commonResults,  // notMoved
+					"3": commonResults,  // moved
+					"4": expiredResults, // moved
+					// "5" gets deleted
+				},
 			},
 			resolver: newMockResolver(
 				mockContainer{
@@ -1390,51 +1463,82 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				"4": {data.MovedState, true},
 				"5": {data.DeletedState, false},
 			},
+			skipWhenForcedNoDelta: true,
 		},
 	}
 	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
+		for _, deltaBefore := range []bool{true, false} {
+			for _, deltaAfter := range []bool{true, false} {
+				name := test.name
 
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			collections, err := filterContainersAndFillCollections(
-				ctx,
-				qp,
-				test.getter,
-				statusUpdater,
-				test.resolver,
-				allScope,
-				test.dps,
-				control.Defaults(),
-				fault.New(true))
-			assert.NoError(t, err, clues.ToCore(err))
-
-			metadatas := 0
-			for _, c := range collections {
-				p := c.FullPath()
-				if p == nil {
-					p = c.PreviousPath()
+				if deltaAfter {
+					name += "-delta"
+				} else {
+					if test.skipWhenForcedNoDelta {
+						suite.T().Skip("intentionally skipped non-delta case")
+					}
+					name += "-non-delta"
 				}
 
-				require.NotNil(t, p)
+				suite.Run(name, func() {
+					t := suite.T()
 
-				if p.Service() == path.ExchangeMetadataService {
-					metadatas++
-					continue
-				}
+					ctx, flush := tester.NewContext()
+					defer flush()
 
-				p0 := p.Folders()[0]
+					ctrlOpts := control.Defaults()
+					ctrlOpts.ToggleFeatures.DisableDelta = !deltaAfter
 
-				expect, ok := test.expect[p0]
-				assert.True(t, ok, "collection is expected in result")
+					getter := test.getter
+					if !deltaAfter {
+						getter.noReturnDelta = false
+					}
 
-				assert.Equalf(t, expect.state, c.State(), "collection %s state", p0)
-				assert.Equalf(t, expect.doNotMerge, c.DoNotMergeItems(), "collection %s DoNotMergeItems", p0)
+					dps := test.dps
+					if !deltaBefore {
+						for k := range dps {
+							dps.RemoveDelta(k)
+						}
+					}
+
+					collections, err := filterContainersAndFillCollections(
+						ctx,
+						qp,
+						test.getter,
+						statusUpdater,
+						test.resolver,
+						allScope,
+						test.dps,
+						ctrlOpts,
+						fault.New(true))
+					assert.NoError(t, err, clues.ToCore(err))
+
+					metadatas := 0
+					for _, c := range collections {
+						p := c.FullPath()
+						if p == nil {
+							p = c.PreviousPath()
+						}
+
+						require.NotNil(t, p)
+
+						if p.Service() == path.ExchangeMetadataService {
+							metadatas++
+							continue
+						}
+
+						p0 := p.Folders()[0]
+
+						expect, ok := test.expect[p0]
+						assert.True(t, ok, "collection is expected in result")
+
+						assert.Equalf(t, expect.state, c.State(), "collection %s state", p0)
+						assert.Equalf(t, expect.doNotMerge, c.DoNotMergeItems(), "collection %s DoNotMergeItems", p0)
+					}
+
+					assert.Equal(t, 1, metadatas, "metadata collections")
+				})
 			}
-
-			assert.Equal(t, 1, metadatas, "metadata collections")
-		})
+		}
 	}
 }

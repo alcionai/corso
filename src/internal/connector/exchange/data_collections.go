@@ -55,6 +55,16 @@ func (dps DeltaPaths) AddPath(k, p string) {
 	dps[k] = dp
 }
 
+// RemoveDelta removes the delta from the DeltaPaths.
+// It is *ONLY* for use in tests.
+func (dps DeltaPaths) RemoveDelta(k string) {
+	dp, ok := dps[k]
+	if ok {
+		dp.delta = ""
+		dps[k] = dp
+	}
+}
+
 type DeltaPath struct {
 	delta string
 	path  string
