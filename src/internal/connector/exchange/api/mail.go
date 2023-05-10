@@ -134,6 +134,10 @@ func (c Mail) GetItem(
 	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
+	var (
+		size     int64
+		mailBody models.ItemBodyable
+	)
 	// Will need adjusted if attachments start allowing paging.
 	headers := buildPreferHeaders(false, immutableIDs)
 	itemOpts := &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
@@ -145,8 +149,16 @@ func (c Mail) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mail.GetBody()) {
-		return mail, MailInfo(mail), nil
+	mailBody = mail.GetBody()
+	if mailBody != nil {
+		content := ptr.Val(mailBody.GetContent())
+		if len(content) > 0 {
+			size = int64(len(content))
+		}
+	}
+
+	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mailBody) {
+		return mail, MailInfo(mail, size), nil
 	}
 
 	options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
@@ -163,8 +175,14 @@ func (c Mail) GetItem(
 		Attachments().
 		Get(ctx, options)
 	if err == nil {
+		for _, a := range attached.GetValue() {
+			attachSize := ptr.Val(a.GetSize())
+			size = +int64(attachSize)
+		}
+
 		mail.SetAttachments(attached.GetValue())
-		return mail, MailInfo(mail), nil
+
+		return mail, MailInfo(mail, size), nil
 	}
 
 	// A failure can be caused by having a lot of attachments as
@@ -214,11 +232,13 @@ func (c Mail) GetItem(
 		}
 
 		atts = append(atts, att)
+		attachSize := ptr.Val(a.GetSize())
+		size = +int64(attachSize)
 	}
 
 	mail.SetAttachments(atts)
 
-	return mail, MailInfo(mail), nil
+	return mail, MailInfo(mail, size), nil
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -419,7 +439,7 @@ func (c Mail) Serialize(
 // Helpers
 // ---------------------------------------------------------------------------
 
-func MailInfo(msg models.Messageable) *details.ExchangeInfo {
+func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	var (
 		sender     = UnwrapEmailAddress(msg.GetSender())
 		subject    = ptr.Val(msg.GetSubject())
@@ -444,6 +464,7 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 		Recipient: recipients,
 		Subject:   subject,
 		Received:  received,
+		Size:      size,
 		Created:   created,
 		Modified:  ptr.OrNow(msg.GetLastModifiedDateTime()),
 	}
