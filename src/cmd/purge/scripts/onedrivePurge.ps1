@@ -131,6 +131,12 @@ if (![string]::IsNullOrEmpty($User)) {
     # Works for dev domains where format is <user name>@<domain>.onmicrosoft.com
     $domain = $User.Split('@')[1].Split('.')[0]
     $userNameEscaped = $User.Replace('.', '_').Replace('@', '_')
+
+    # hacky special case because of recreated CI user
+    if ($userNameEscaped -ilike "lynner*") {
+        $userNameEscaped += '1'
+    }
+
     $siteUrl = "https://$domain-my.sharepoint.com/personal/$userNameEscaped/"
 
     if ($LibraryNameList.count -eq 0) {

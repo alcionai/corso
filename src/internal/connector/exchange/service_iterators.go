@@ -31,19 +31,24 @@ type addedAndRemovedItemIDsGetter interface {
 // into a BackupCollection. Messages outside of those directories are omitted.
 // @param collection is filled with during this function.
 // Supports all exchange applications: Contacts, Events, and Mail
+//
+// TODO(ashmrtn): This should really return []data.BackupCollection but
+// unfortunately some of our tests rely on being able to lookup returned
+// collections by ID and it would be non-trivial to change them.
 func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	getter addedAndRemovedItemIDsGetter,
-	collections map[string]data.BackupCollection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) error {
+) (map[string]data.BackupCollection, error) {
 	var (
+		// folder ID -> BackupCollection.
+		collections = map[string]data.BackupCollection{}
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -64,19 +69,19 @@ func filterContainersAndFillCollections(
 	// But this will work for the short term.
 	ac, err := api.NewClient(qp.Credentials)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ibt, err := itemerByType(ac, category)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	el := errs.Local()
 
 	for _, c := range resolver.Items() {
 		if el.Failure() != nil {
-			return el.Failure()
+			return nil, el.Failure()
 		}
 
 		cID := ptr.Val(c.GetId())
@@ -222,7 +227,7 @@ func filterContainersAndFillCollections(
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
 		if el.Failure() != nil {
-			return el.Failure()
+			return nil, el.Failure()
 		}
 
 		ictx := clues.Add(ctx, "tombstone_id", id)
@@ -274,12 +279,12 @@ func filterContainersAndFillCollections(
 		},
 		statusUpdater)
 	if err != nil {
-		return clues.Wrap(err, "making metadata collection")
+		return nil, clues.Wrap(err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
 
-	return el.Failure()
+	return collections, el.Failure()
 }
 
 // produces a set of id:path pairs from the deltapaths map.

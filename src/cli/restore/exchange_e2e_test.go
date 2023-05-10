@@ -48,9 +48,7 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &RestoreExchangeE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
