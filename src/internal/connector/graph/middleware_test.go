@@ -298,7 +298,7 @@ func (suite *MiddlewareUnitSuite) TestLimiterConsumption() {
 	defer flush()
 
 	// an unpopulated ctx should produce the default consumption
-	assert.Equal(suite.T(), defaultLimiterConsumption, ctxLimiterConsumption(ctx, defaultLimiterConsumption))
+	assert.Equal(suite.T(), defaultLC, ctxLimiterConsumption(ctx, defaultLC))
 
 	table := []struct {
 		name   string
@@ -307,23 +307,23 @@ func (suite *MiddlewareUnitSuite) TestLimiterConsumption() {
 	}{
 		{
 			name:   "matches default",
-			n:      defaultLimiterConsumption,
-			expect: defaultLimiterConsumption,
+			n:      defaultLC,
+			expect: defaultLC,
 		},
 		{
 			name:   "default+1",
-			n:      defaultLimiterConsumption + 1,
-			expect: defaultLimiterConsumption + 1,
+			n:      defaultLC + 1,
+			expect: defaultLC + 1,
 		},
 		{
 			name:   "zero",
 			n:      0,
-			expect: defaultLimiterConsumption,
+			expect: defaultLC,
 		},
 		{
 			name:   "negative",
 			n:      -1,
-			expect: defaultLimiterConsumption,
+			expect: defaultLC,
 		},
 	}
 	for _, test := range table {
@@ -331,7 +331,7 @@ func (suite *MiddlewareUnitSuite) TestLimiterConsumption() {
 			t := suite.T()
 
 			tctx := ConsumeNTokens(ctx, test.n)
-			lc := ctxLimiterConsumption(tctx, defaultLimiterConsumption)
+			lc := ctxLimiterConsumption(tctx, defaultLC)
 			assert.Equal(t, test.expect, lc)
 		})
 	}
