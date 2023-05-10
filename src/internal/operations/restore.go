@@ -349,7 +349,7 @@ func formatDetailsForRestoration(
 	sel selectors.Selector,
 	deets *details.Details,
 	errs *fault.Bus,
-) ([]path.Path, error) {
+) ([]path.RestorePaths, error) {
 	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
 		return nil, err
@@ -357,7 +357,7 @@ func formatDetailsForRestoration(
 
 	var (
 		fdsPaths  = fds.Paths()
-		paths     = make([]path.Path, len(fdsPaths))
+		paths     = make([]path.RestorePaths, len(fdsPaths))
 		shortRefs = make([]string, len(fdsPaths))
 		el        = errs.Local()
 	)
@@ -377,7 +377,18 @@ func formatDetailsForRestoration(
 			continue
 		}
 
-		paths[i] = p
+		dir, err := p.Dir()
+		if err != nil {
+			el.AddRecoverable(clues.
+				Wrap(err, "getting restore directory after reduction").
+				WithClues(ctx).
+				With("path", fdsPaths[i]))
+
+			continue
+		}
+
+		paths[i].StoragePath = p
+		paths[i].RestorePath = dir
 		shortRefs[i] = p.ShortRef()
 	}
 

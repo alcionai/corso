@@ -59,14 +59,12 @@ var (
 	testFileData6 = testFileData
 )
 
-//revive:disable:context-as-argument
 func testForFiles(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expected map[string][]byte,
 	collections []data.RestoreCollection,
 ) {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	count := 0
@@ -105,6 +103,19 @@ func checkSnapshotTags(
 	man, err := snapshot.LoadSnapshot(ctx, rep, manifest.ID(snapshotID))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, expectedTags, man.Tags)
+}
+
+func toRestorePaths(t *testing.T, paths ...path.Path) []path.RestorePaths {
+	res := make([]path.RestorePaths, 0, len(paths))
+
+	for _, p := range paths {
+		dir, err := p.Dir()
+		require.NoError(t, err, clues.ToCore(err))
+
+		res = append(res, path.RestorePaths{StoragePath: p, RestorePath: dir})
+	}
+
+	return res
 }
 
 // ---------------
@@ -705,10 +716,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	result, err := w.ProduceRestoreCollections(
 		ctx,
 		string(stats.SnapshotID),
-		[]path.Path{
-			fp1,
-			fp2,
-		},
+		toRestorePaths(t, fp1, fp2),
 		nil,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -838,7 +846,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	_, err = suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(stats.SnapshotID),
-		[]path.Path{failedPath},
+		toRestorePaths(t, failedPath),
 		&ic,
 		fault.New(true))
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
@@ -1219,9 +1227,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			_, err = suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(stats.SnapshotID),
-				[]path.Path{
-					suite.files[suite.testPath1.String()][0].itemPath,
-				},
+				toRestorePaths(t, suite.files[suite.testPath1.String()][0].itemPath),
 				&ic,
 				fault.New(true))
 			test.restoreCheck(t, err, clues.ToCore(err))
@@ -1322,7 +1328,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 			result, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(suite.snapshotID),
-				test.inputPaths,
+				toRestorePaths(t, test.inputPaths...),
 				&ic,
 				fault.New(true))
 			test.expectedErr(t, err, clues.ToCore(err))
@@ -1338,6 +1344,193 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	}
 }
 
+// TestProduceRestoreCollections_PathChanges tests that having different
+// Restore and Storage paths works properly. Having the same Restore and Storage
+// paths is tested by TestProduceRestoreCollections.
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_PathChanges() {
+	rp1, err := path.Build(
+		testTenant,
+		testUser,
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"corso_restore", "Inbox")
+	require.NoError(suite.T(), err)
+
+	rp2, err := path.Build(
+		testTenant,
+		testUser,
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"corso_restore", "Archive")
+	require.NoError(suite.T(), err)
+
+	// Expected items is generated during the test by looking up paths in the
+	// suite's map of files.
+	table := []struct {
+		name                string
+		inputPaths          []path.RestorePaths
+		expectedCollections int
+	}{
+		{
+			name: "SingleItem",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+			},
+			expectedCollections: 1,
+		},
+		{
+			name: "MultipleItemsSameCollection",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+				{
+					StoragePath: suite.files[suite.testPath1.String()][1].itemPath,
+					RestorePath: rp1,
+				},
+			},
+			expectedCollections: 1,
+		},
+		{
+			name: "MultipleItemsDifferentCollections",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+				{
+					StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+					RestorePath: rp2,
+				},
+			},
+			expectedCollections: 2,
+		},
+		{
+			name: "Multiple Items From Different Collections To Same Collection",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+				{
+					StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+			},
+			expectedCollections: 1,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+			expected := make(map[string][]byte, len(test.inputPaths))
+
+			for _, pth := range test.inputPaths {
+				item, ok := suite.filesByPath[pth.StoragePath.String()]
+				require.True(t, ok, "getting expected file data")
+
+				itemPath, err := pth.RestorePath.Append(pth.StoragePath.Item(), true)
+				require.NoError(t, err, "getting expected item path")
+
+				expected[itemPath.String()] = item.data
+			}
+
+			ic := i64counter{}
+
+			result, err := suite.w.ProduceRestoreCollections(
+				suite.ctx,
+				string(suite.snapshotID),
+				test.inputPaths,
+				&ic,
+				fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Len(t, result, test.expectedCollections)
+			assert.Less(t, int64(0), ic.i)
+			testForFiles(t, ctx, expected, result)
+		})
+	}
+}
+
+// TestProduceRestoreCollections_Fetch tests that the Fetch function still works
+// properly even with different Restore and Storage paths and items from
+// different kopia directories.
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetch() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	rp1, err := path.Build(
+		testTenant,
+		testUser,
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"corso_restore", "Inbox")
+	require.NoError(suite.T(), err)
+
+	inputPaths := []path.RestorePaths{
+		{
+			StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+			RestorePath: rp1,
+		},
+		{
+			StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+			RestorePath: rp1,
+		},
+	}
+
+	// Really only interested in getting the collection so we can call fetch on
+	// it.
+	ic := i64counter{}
+
+	result, err := suite.w.ProduceRestoreCollections(
+		suite.ctx,
+		string(suite.snapshotID),
+		inputPaths,
+		&ic,
+		fault.New(true))
+	require.NoError(t, err, "getting collection", clues.ToCore(err))
+	require.Len(t, result, 1)
+
+	// Item from first kopia directory.
+	f := suite.files[suite.testPath1.String()][0]
+
+	item, err := result[0].Fetch(ctx, f.itemPath.Item())
+	require.NoError(t, err, "fetching file", clues.ToCore(err))
+
+	r := item.ToReader()
+
+	buf, err := io.ReadAll(r)
+	require.NoError(t, err, "reading file data", clues.ToCore(err))
+
+	assert.Equal(t, f.data, buf)
+
+	// Item from second kopia directory.
+	f = suite.files[suite.testPath2.String()][0]
+
+	item, err = result[0].Fetch(ctx, f.itemPath.Item())
+	require.NoError(t, err, "fetching file", clues.ToCore(err))
+
+	r = item.ToReader()
+
+	buf, err = io.ReadAll(r)
+	require.NoError(t, err, "reading file data", clues.ToCore(err))
+
+	assert.Equal(t, f.data, buf)
+}
+
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Errors() {
 	itemPath, err := suite.testPath1.Append(testFileName, true)
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -1345,7 +1538,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Erro
 	table := []struct {
 		name       string
 		snapshotID string
-		paths      []path.Path
+		paths      []path.RestorePaths
 	}{
 		{
 			"NilPaths",
@@ -1355,12 +1548,12 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Erro
 		{
 			"EmptyPaths",
 			string(suite.snapshotID),
-			[]path.Path{},
+			[]path.RestorePaths{},
 		},
 		{
 			"NoSnapshot",
 			"foo",
-			[]path.Path{itemPath},
+			toRestorePaths(suite.T(), itemPath),
 		},
 	}
 
@@ -1393,7 +1586,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	c, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(suite.snapshotID),
-		[]path.Path{itemPath},
+		toRestorePaths(t, itemPath),
 		&ic,
 		fault.New(true))
 	assert.Error(t, err, "snapshot should be deleted", clues.ToCore(err))
