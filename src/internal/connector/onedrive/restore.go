@@ -180,7 +180,7 @@ func RestoreCollection(
 	ctx = clues.Add(
 		ctx,
 		"directory", dc.FullPath().Folder(false),
-		"destination_elements", restoreDir,
+		"restore_destination", restoreDir,
 		"drive_id", drivePath.DriveID)
 
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
@@ -303,6 +303,7 @@ func restoreItem(
 	itemPath path.Path,
 ) (details.ItemInfo, bool, error) {
 	itemUUID := itemData.UUID()
+	ctx = clues.Add(ctx, "item_id", itemUUID)
 
 	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		itemInfo, err := restoreV0File(
