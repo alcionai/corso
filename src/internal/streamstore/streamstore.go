@@ -262,12 +262,22 @@ func read(
 		return clues.Stack(err).WithClues(ctx)
 	}
 
+	pd, err := p.Dir()
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
 	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
 
 	cs, err := rer.ProduceRestoreCollections(
 		ctx,
 		snapshotID,
-		[]path.Path{p},
+		[]path.RestorePaths{
+			{
+				StoragePath: p,
+				RestorePath: pd,
+			},
+		},
 		&stats.ByteCounter{},
 		errs)
 	if err != nil {
