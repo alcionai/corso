@@ -36,6 +36,7 @@ jobs:
       CORSO_LOG_DIR: testlog
       CORSO_LOG_FILE: testlog/testlogging.log
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      TEST_SITE: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
       SECONDARY_TEST_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: test_results
@@ -123,7 +124,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . exchange emails \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --count 4
@@ -268,7 +269,7 @@ jobs:
           suffix=`date +"%Y-%m-%d_%H-%M"`
 
           go run . onedrive files  \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_$suffix \
@@ -364,7 +365,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
@@ -432,7 +433,7 @@ jobs:
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --site "${TEST_SITE}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_sharepoint.txt 
 
@@ -518,7 +519,7 @@ jobs:
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --site "${TEST_SITE}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_sharepoint_incremental.txt 
           
