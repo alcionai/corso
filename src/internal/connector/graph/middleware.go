@@ -455,10 +455,11 @@ func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
 
 type limiterConsumptionKey string
 
+const limiterConsumptionCtxKey limiterConsumptionKey = "corsoGraphRateLimiterConsumption"
+
 const (
-	limiterConsumptionCtxKey       limiterConsumptionKey = "corsoGraphRateLimiterConsumption"
-	defaultLimiterConsumption                            = 1
-	driveDefaultLimiterConsumption                       = 2
+	defaultLC      = 1
+	driveDefaultLC = 2
 	// limit consumption rate for single-item GETs requests,
 	// or delta-based multi-item GETs.
 	SingleGetOrDeltaLC = 1
@@ -493,10 +494,10 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
 	limiter := ctxLimiter(ctx)
-	defaultConsumed := defaultLimiterConsumption
+	defaultConsumed := defaultLC
 
 	if limiter == driveLimiter {
-		defaultConsumed = driveDefaultLimiterConsumption
+		defaultConsumed = driveDefaultLC
 	}
 
 	consume := ctxLimiterConsumption(ctx, defaultConsumed)
