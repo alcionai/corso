@@ -335,8 +335,16 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	restoreFolders := path.Builder{}.Append(folderElements...)
+	drivePath := path.DrivePath{
+		DriveID: driveID,
+		Root:    "root:",
+		Folders: folderElements,
+	}
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	caches := NewRestoreCaches()
+	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
+
+	folderID, err := CreateRestoreFolders(ctx, gs, &drivePath, restoreFolders, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -344,7 +352,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 	restoreFolders = restoreFolders.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	folderID, err = CreateRestoreFolders(ctx, gs, &drivePath, restoreFolders, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)

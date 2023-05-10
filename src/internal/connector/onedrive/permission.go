@@ -42,7 +42,7 @@ func getCollectionMetadata(
 	ctx context.Context,
 	drivePath *path.DrivePath,
 	dc data.RestoreCollection,
-	metas map[string]metadata.Metadata,
+	caches *restoreCaches,
 	backupVersion int,
 	restorePerms bool,
 ) (metadata.Metadata, error) {
@@ -61,7 +61,7 @@ func getCollectionMetadata(
 	}
 
 	if backupVersion < version.OneDrive4DirIncludesPermissions {
-		colMeta, err := getParentMetadata(collectionPath, metas)
+		colMeta, err := getParentMetadata(collectionPath, caches.ParentDirToMeta)
 		if err != nil {
 			return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
 		}
@@ -232,9 +232,7 @@ func RestorePermissions(
 	itemID string,
 	itemPath path.Path,
 	current metadata.Metadata,
-	// map parent dir -> parent's metadata
-	parentMetas map[string]metadata.Metadata,
-	oldPermIDToNewID map[string]string,
+	caches *restoreCaches,
 ) error {
 	if current.SharingMode == metadata.SharingModeInherited {
 		return nil
@@ -242,7 +240,7 @@ func RestorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	parents, err := computeParentPermissions(itemPath, parentMetas)
+	parents, err := computeParentPermissions(itemPath, caches.ParentDirToMeta)
 	if err != nil {
 		return clues.Wrap(err, "parent permissions").WithClues(ctx)
 	}
@@ -257,5 +255,5 @@ func RestorePermissions(
 		itemID,
 		permAdded,
 		permRemoved,
-		oldPermIDToNewID)
+		caches.OldPermIDToNewID)
 }
