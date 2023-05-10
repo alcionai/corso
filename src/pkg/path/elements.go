@@ -2,6 +2,7 @@ package path
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -122,8 +123,16 @@ func (el Elements) Last() string {
 // LoggableDir takes in a path reference (of any structure) and conceals any
 // non-standard elements (ids, filenames, foldernames, etc).
 func LoggableDir(ref string) string {
-	elems := Split(ref)
-	pii.ConcealElements(elems, piiSafePathElems)
+	r := ref
+	n := strings.TrimSuffix(r, string(PathSeparator))
+
+	for n != r {
+		r = n
+		n = strings.TrimSuffix(r, string(PathSeparator))
+	}
+
+	elems := Split(r)
+	elems = pii.ConcealElements(elems, piiSafePathElems)
 
 	return join(elems)
 }
