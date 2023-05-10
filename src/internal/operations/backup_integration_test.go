@@ -711,6 +711,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
+		service    = path.ExchangeService
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
@@ -755,6 +756,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	type contDeets struct {
 		containerID string
 		locRef      string
+		itemRefs    []string // cached for populating expected deets, otherwise not used
 	}
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
@@ -815,11 +817,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 			// TODO: the details.Builder returned by restore can contain entries with
 			// incorrect information.  non-representative repo-refs and the like.  Until
 			// that gets fixed, we can't consume that info for testing.
-			generateContainerOfItems(
+			deets := generateContainerOfItems(
 				t,
 				ctx,
 				gc,
-				path.ExchangeService,
+				service,
 				acct,
 				category,
 				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
@@ -827,6 +829,23 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 				2,
 				version.Backup,
 				gen.dbf)
+
+			itemRefs := []string{}
+
+			for _, ent := range deets.Entries {
+				if ent.Exchange == nil || ent.Folder != nil {
+					continue
+				}
+
+				if len(ent.ItemRef) > 0 {
+					itemRefs = append(itemRefs, ent.ItemRef)
+				}
+			}
+
+			// save the item ids for building expectedDeets later on
+			cd := dataset[category].dests[destName]
+			cd.itemRefs = itemRefs
+			dataset[category].dests[destName] = cd
 		}
 	}
 
@@ -836,16 +855,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
-	bupDeets, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		acct.ID(),
-		uidn.ID(),
-		path.ExchangeService,
-		whatSet,
-		ms,
-		ss)
+	rrPfx, err := path.ServicePrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// strip the category from the prefix; we primarily want the tenant and resource owner.
+	expectDeets := deeTD.NewInDeets(rrPfx.ToBuilder().Dir().String())
+	bupDeets, _ := deeTD.GetDeetsInBackup(t, ctx, bo.Results.BackupID, acct.ID(), uidn.ID(), service, ws, ms, ss)
 
 	// update the datasets with their location refs
 	for category, gen := range dataset {
@@ -880,6 +895,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 			cd.locRef = longestLR
 
 			dataset[category].dests[destName] = cd
+			expectDeets.AddLocation(category.String(), cd.locRef)
+
+			for _, i := range dataset[category].dests[destName].itemRefs {
+				expectDeets.AddItem(category.String(), cd.locRef, i)
+			}
 		}
 	}
 
@@ -903,6 +923,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 			dataset[category].dests[destName] = dest
 		}
 	}
+
+	// precheck to ensure the expectedDeets are correct.
+	// if we fail here, the expectedDeets were populated incorrectly.
+	deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, ws, ms, ss, expectDeets)
 
 	// Although established as a table, these tests are no isolated from each other.
 	// Assume that every test's side effects cascade to all following test cases.
@@ -979,7 +1003,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 						t,
 						ctx,
 						gc,
-						path.ExchangeService,
+						service,
 						acct,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
@@ -1005,7 +1029,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					id, ok := cr.LocationInCache(expectedLocRef)
 					require.Truef(t, ok, "dir %s found in %s cache", expectedLocRef, category)
 
-					dataset[category].dests[container3] = contDeets{id, expectedLocRef}
+					dataset[category].dests[container3] = contDeets{
+						containerID: id,
+						locRef:      expectedLocRef,
+						itemRefs:    nil, // not needed at this point
+					}
 
 					for _, ent := range deets.Entries {
 						if ent.Folder == nil {
@@ -1186,25 +1214,19 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 				t     = suite.T()
 				incMB = evmock.NewBus()
 				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sels, incMB, ffs, closer)
+				atid  = m365.AzureTenantID
 			)
 
 			test.updateUserData(t)
 
 			err := incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sels, uidn.ID(), maps.Keys(categories)...)
-			checkMetadataFilesExist(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				kw,
-				ms,
-				m365.AzureTenantID,
-				uidn.ID(),
-				path.ExchangeService,
-				categories)
 
-			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, whatSet, ms, ss, expectDeets, true)
+			bupID := incBO.Results.BackupID
+
+			checkBackupIsInManifests(t, ctx, kw, &incBO, sels, uidn.ID(), maps.Keys(categories)...)
+			checkMetadataFilesExist(t, ctx, bupID, kw, ms, atid, uidn.ID(), service, categories)
+			deeTD.CheckBackupDetails(t, ctx, bupID, ws, ms, ss, expectDeets, true)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
@@ -1216,7 +1238,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 			assert.Equal(t,
 				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				incBO.Results.BackupID, "incremental backupID pre-declaration")
+				bupID, "incremental backupID pre-declaration")
 		})
 	}
 }
@@ -1379,6 +1401,7 @@ func runDriveIncrementalTest(
 	roidn := inMock.NewProvider(sel.ID(), sel.Name())
 
 	var (
+		atid    = creds.AzureTenantID
 		driveID = getTestDriveID(t, ctx, gc.Service)
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)
@@ -1389,6 +1412,12 @@ func runDriveIncrementalTest(
 		}
 	)
 
+	rrPfx, err := path.ServicePrefix(atid, roidn.ID(), service, path.FilesCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// strip the category from the prefix; we primarily want the tenant and resource owner.
+	expectDeets := deeTD.NewInDeets(rrPfx.ToBuilder().Dir().String())
+
 	// Populate initial test data.
 	// Generate 2 new folders with two items each. Only the first two
 	// folders will be part of the initial backup and
@@ -1396,7 +1425,7 @@ func runDriveIncrementalTest(
 	// through the changes. This should be enough to cover most delta
 	// actions.
 	for _, destName := range genDests {
-		generateContainerOfItems(
+		deets := generateContainerOfItems(
 			t,
 			ctx,
 			gc,
@@ -1404,11 +1433,19 @@ func runDriveIncrementalTest(
 			acct,
 			category,
 			sel,
-			creds.AzureTenantID, roidn.ID(), driveID, destName,
+			atid, roidn.ID(), driveID, destName,
 			2,
 			// Use an old backup version so we don't need metadata files.
 			0,
 			fileDBF)
+
+		for _, ent := range deets.Entries {
+			if ent.Folder != nil {
+				continue
+			}
+
+			expectDeets.AddItem(driveID, makeLocRef(destName), ent.ItemRef)
+		}
 	}
 
 	containerIDs := map[string]string{}
@@ -1432,16 +1469,9 @@ func runDriveIncrementalTest(
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		acct.ID(),
-		roidn.ID(),
-		service,
-		ws,
-		ms,
-		ss)
+	// precheck to ensure the expectedDeets are correct.
+	// if we fail here, the expectedDeets were populated incorrectly.
+	deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, ws, ms, ss, expectDeets)
 
 	var (
 		newFile     models.DriveItemable
@@ -1757,7 +1787,7 @@ func runDriveIncrementalTest(
 					acct,
 					category,
 					sel,
-					creds.AzureTenantID, roidn.ID(), driveID, container3,
+					atid, roidn.ID(), driveID, container3,
 					2,
 					0,
 					fileDBF)
@@ -1801,18 +1831,11 @@ func runDriveIncrementalTest(
 			err = incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
+			bupID := incBO.Results.BackupID
+
 			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, roidn.ID(), maps.Keys(categories)...)
-			checkMetadataFilesExist(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				kw,
-				ms,
-				creds.AzureTenantID,
-				roidn.ID(),
-				service,
-				categories)
-			deeTD.CheckBackupDetails(t, ctx, incBO.Results.BackupID, ws, ms, ss, expectDeets, true)
+			checkMetadataFilesExist(t, ctx, bupID, kw, ms, atid, roidn.ID(), service, categories)
+			deeTD.CheckBackupDetails(t, ctx, bupID, ws, ms, ss, expectDeets, true)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.
@@ -1824,7 +1847,7 @@ func runDriveIncrementalTest(
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 			assert.Equal(t,
 				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				incBO.Results.BackupID, "incremental backupID pre-declaration")
+				bupID, "incremental backupID pre-declaration")
 		})
 	}
 }
