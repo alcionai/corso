@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type nexter interface {
@@ -196,6 +197,10 @@ func (mw RetryMiddleware) Intercept(
 		return resp, stackReq(ctx, req, resp, err)
 	}
 
+	if resp != nil && resp.StatusCode/100 != 4 && resp.StatusCode/100 != 5 {
+		return resp, err
+	}
+
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = mw.Delay
 	exponentialBackOff.Reset()
@@ -313,6 +318,12 @@ func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Re
 		return true
 	}
 
+	// prevent the body dump below in case of a 2xx response.
+	// There's no reason to check the body on a healthy status.
+	if code/100 != 4 && code/100 != 5 {
+		return false
+	}
+
 	// not a status code, but the message itself might indicate a connectivity issue that
 	// can be retried independent of the status code.
 	return strings.Contains(
@@ -359,18 +370,61 @@ func (mw RetryMiddleware) getRetryDelay(
 // the volume keeps up after that, we'll always stay between 9000 and 9900 out
 // of 10k.
 const (
-	perSecond = 15
-	maxCap    = 900
+	defaultPerSecond = 15
+	defaultMaxCap    = 900
+	drivePerSecond   = 15
+	driveMaxCap      = 1100
 )
 
-// Single, global rate limiter at this time.  Refinements for method (creates,
-// versus reads) or service can come later.
-var limiter = rate.NewLimiter(perSecond, maxCap)
+var (
+	driveLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+	// also used as the exchange service limiter
+	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+)
+
+type LimiterCfg struct {
+	Service path.ServiceType
+}
+
+type limiterCfgKey string
+
+const limiterCfgCtxKey limiterCfgKey = "corsoGraphRateLimiterCfg"
+
+func ctxLimiter(ctx context.Context) *rate.Limiter {
+	lc, ok := extractRateLimiterConfig(ctx)
+	if !ok {
+		return defaultLimiter
+	}
+
+	switch lc.Service {
+	case path.OneDriveService, path.SharePointService:
+		return driveLimiter
+	default:
+		return defaultLimiter
+	}
+}
+
+func BindRateLimiterConfig(ctx context.Context, lc LimiterCfg) context.Context {
+	return context.WithValue(ctx, limiterCfgCtxKey, lc)
+}
+
+func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
+	l := ctx.Value(limiterCfgCtxKey)
+	if l == nil {
+		return LimiterCfg{}, false
+	}
+
+	lc, ok := l.(LimiterCfg)
+
+	return lc, ok
+}
 
 // QueueRequest will allow the request to occur immediately if we're under the
 // 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
+	limiter := ctxLimiter(ctx)
+
 	if err := limiter.Wait(ctx); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}

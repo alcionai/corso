@@ -104,6 +104,7 @@ func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable
 }
 
 type userDrivePager struct {
+	userID  string
 	gs      graph.Servicer
 	builder *users.ItemDrivesRequestBuilder
 	options *users.ItemDrivesRequestBuilderGetRequestConfiguration
@@ -121,6 +122,7 @@ func NewUserDrivePager(
 	}
 
 	res := &userDrivePager{
+		userID:  userID,
 		gs:      gs,
 		options: requestConfig,
 		builder: gs.Client().UsersById(userID).Drives(),
@@ -129,16 +131,32 @@ func NewUserDrivePager(
 	return res
 }
 
+type nopUserDrivePageLinker struct {
+	drive models.Driveable
+}
+
+func (nl nopUserDrivePageLinker) GetOdataNextLink() *string { return nil }
+
 func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	var (
 		resp api.PageLinker
 		err  error
 	)
 
-	resp, err = p.builder.Get(ctx, p.options)
+	d, err := p.gs.Client().UsersById(p.userID).Drive().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
+
+	resp = &nopUserDrivePageLinker{drive: d}
+
+	// TODO(keepers): turn back on when we can separate drive enumeration
+	// from default drive lookup.
+
+	// resp, err = p.builder.Get(ctx, p.options)
+	// if err != nil {
+	// 	return nil, graph.Stack(ctx, err)
+	// }
 
 	return resp, nil
 }
@@ -148,7 +166,17 @@ func (p *userDrivePager) SetNext(link string) {
 }
 
 func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
-	return getValues[models.Driveable](l)
+	nl, ok := l.(*nopUserDrivePageLinker)
+	if !ok || nl == nil {
+		return nil, clues.New(fmt.Sprintf("improper page linker struct for user drives: %T", l))
+	}
+
+	// TODO(keepers): turn back on when we can separate drive enumeration
+	// from default drive lookup.
+
+	// return getValues[models.Driveable](l)
+
+	return []models.Driveable{nl.drive}, nil
 }
 
 type siteDrivePager struct {

@@ -297,16 +297,13 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				ctx, flush := tester.NewContext()
 				defer flush()
 
-				collections := map[string]data.BackupCollection{}
-
 				ctrlOpts := control.Options{FailureHandling: test.failFast}
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
-				err := filterContainersAndFillCollections(
+				collections, err := filterContainersAndFillCollections(
 					ctx,
 					qp,
 					test.getter,
-					collections,
 					statusUpdater,
 					test.resolver,
 					test.scope,
@@ -643,13 +640,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 					ctx, flush := tester.NewContext()
 					defer flush()
 
-					collections := map[string]data.BackupCollection{}
-
-					err := filterContainersAndFillCollections(
+					collections, err := filterContainersAndFillCollections(
 						ctx,
 						qp,
 						test.getter,
-						collections,
 						statusUpdater,
 						test.resolver,
 						sc.scope,
@@ -892,13 +886,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
+			collections, err := filterContainersAndFillCollections(
 				ctx,
 				qp,
 				test.getter,
-				collections,
 				statusUpdater,
 				test.resolver,
 				scope,
@@ -1047,13 +1038,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
 			require.Equal(t, "user_name", qp.ResourceOwner.Name(), qp.ResourceOwner)
 
-			collections := map[string]data.BackupCollection{}
-
-			err := filterContainersAndFillCollections(
+			collections, err := filterContainersAndFillCollections(
 				ctx,
 				qp,
 				test.getter,
-				collections,
 				statusUpdater,
 				resolver,
 				allScope,
@@ -1427,16 +1415,13 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				ctx, flush := tester.NewContext()
 				defer flush()
 
-				collections := map[string]data.BackupCollection{}
-
 				ctrlOpts := control.Defaults()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
-				err := filterContainersAndFillCollections(
+				collections, err := filterContainersAndFillCollections(
 					ctx,
 					qp,
 					test.getter,
-					collections,
 					statusUpdater,
 					test.resolver,
 					allScope,

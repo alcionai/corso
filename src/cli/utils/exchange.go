@@ -113,7 +113,7 @@ func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command) {
 	fs.StringSliceVar(
 		&EmailFV,
 		EmailFN, nil,
-		"Select emails by email ID; accepts '"+Wildcard+"' to select all emails.")
+		"Select email messages by ID; accepts '"+Wildcard+"' to select all emails.")
 	fs.StringSliceVar(
 		&EmailFolderFV,
 		EmailFolderFN, nil,

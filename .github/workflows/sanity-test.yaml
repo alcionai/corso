@@ -19,19 +19,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
   Sanity-Tests:
+    needs: [ SetM365App ] 
     environment: Testing
     runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-      AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }} 
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
       CORSO_LOG_DIR: testlog
       CORSO_LOG_FILE: testlog/testlogging.log
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      TEST_SITE: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
       SECONDARY_TEST_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: test_results
@@ -114,12 +119,12 @@ jobs:
       - name: New Data Creation
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . exchange emails \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --count 4
@@ -304,14 +309,14 @@ jobs:
         id: new-data-creation-onedrive
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           suffix=`date +"%Y-%m-%d_%H-%M"`
 
           go run . onedrive files  \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_$suffix \
@@ -402,12 +407,12 @@ jobs:
       - name: New Data Creation for Incremental OneDrive
         working-directory: ./src/cmd/factory
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
@@ -470,12 +475,12 @@ jobs:
         id: sharepoint-test
         run: |
           set -euo pipefail
-        echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --site "${TEST_SITE}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_sharepoint.txt 
 
@@ -493,7 +498,7 @@ jobs:
       - name: Backup sharepoint list test
         run: |
           set -euo pipefail
-        echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup list sharepoint \
           --no-stats \
@@ -510,7 +515,7 @@ jobs:
       - name: Backup sharepoint list single backup test
         run: |
           set -euo pipefail
-        echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup list sharepoint \
           --no-stats \
@@ -529,7 +534,7 @@ jobs:
         id: sharepoint-restore-test
         run: |
           set -euo pipefail
-        echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso restore sharepoint \
           --no-stats \
@@ -556,12 +561,12 @@ jobs:
         id: sharepoint-incremental-test
         run: |
           set -euo pipefail
-        echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --site "${TEST_SITE}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_sharepoint_incremental.txt 
           
@@ -580,7 +585,7 @@ jobs:
         id: sharepoint-incremental-restore-test
         run: |
           set -euo pipefail
-        echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso restore sharepoint \
           --no-stats \
@@ -620,7 +625,7 @@ jobs:
           echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
           echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
           echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
-      
+
       - name: Send Github Action failure to Slack
         id: slack-notification
         if: failure()
