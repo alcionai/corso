@@ -211,7 +211,7 @@ func UpdatePermissions(
 
 		newPerm, err := api.PostItemPermissionUpdate(ctx, service, driveID, itemID, pbody)
 		if err != nil {
-			return err
+			return clues.Stack(err)
 		}
 
 		oldPermIDToNewID[p.ID] = ptr.Val(newPerm.GetValue()[0].GetId())
