@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odapi "github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -369,7 +370,7 @@ func generateContainerOfItems(
 
 	switch service {
 	case path.OneDriveService, path.SharePointService:
-		pathFolders = []string{"drives", driveID, "root:", destFldr}
+		pathFolders = []string{odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
 	}
 
 	collections := []incrementalCollection{{

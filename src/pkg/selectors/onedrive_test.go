@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -315,7 +316,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	fileName := "file"
 	fileID := fileName + "-id"
 	shortRef := "short"
-	elems := []string{"drives", "driveID", "root:", "dir1.d", "dir2.d", fileID}
+	elems := []string{odConsts.DrivesPathDir, "driveID", odConsts.RootPathDir, "dir1.d", "dir2.d", fileID}
 
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
 	require.NoError(t, err, clues.ToCore(err))
