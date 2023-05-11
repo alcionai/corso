@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -101,6 +100,9 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
+// 1 MB
+const logMBLimit = 1 * 1048576
+
 func (mw *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -123,42 +125,61 @@ func (mw *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
-	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
-	log := logger.Ctx(ctx)
+	ctx = clues.Add(
+		ctx,
+		"status", resp.Status,
+		"statusCode", resp.StatusCode,
+		"content_len", resp.ContentLength)
 
-	// Return immediately if the response is good (2xx).
-	// If api logging is toggled, log a body-less dump of the request/resp.
-	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPIFV || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
-		}
+	var (
+		log       = logger.Ctx(ctx)
+		respClass = resp.StatusCode / 100
+		logExtra  = logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != ""
+	)
 
-		return resp, err
-	}
-
-	// Log errors according to api debugging configurations.
-	// When debugging is toggled, every non-2xx is recorded with a response dump.
-	// Otherwise, throttling cases and other non-2xx responses are logged
-	// with a slimmer reference for telemetry/supportability purposes.
-	if logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != "" {
-		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
-		return resp, err
-	}
-
-	msg := fmt.Sprintf("graph api error: %s", resp.Status)
-
-	// special case for supportability: log all throttling cases.
+	// special case: always info log 429 responses
 	if resp.StatusCode == http.StatusTooManyRequests {
-		log = log.With(
+		log.Infow(
+			"graph api throttling",
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
-	} else if resp.StatusCode/100 == 4 || resp.StatusCode == http.StatusServiceUnavailable {
-		log = log.With("response", getRespDump(ctx, resp, true))
+
+		return resp, err
 	}
 
-	log.Info(msg)
+	// special case: always dump status-400-bad-request
+	if resp.StatusCode == http.StatusBadRequest {
+		log.With("response", getRespDump(ctx, resp, true)).
+			Error("graph api error: " + resp.Status)
+
+		return resp, err
+	}
+
+	// Log api calls according to api debugging configurations.
+	switch respClass {
+	case 2:
+		if logExtra {
+			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
+			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
+			log.Infow("2xx graph api resp", "response", dump)
+		}
+	case 3:
+		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
+
+		if logExtra {
+			log.With("response", getRespDump(ctx, resp, false))
+		}
+
+		log.Info("graph api redirect: " + resp.Status)
+	default:
+		if logExtra {
+			log.With("response", getRespDump(ctx, resp, true))
+		}
+
+		log.Error("graph api error: " + resp.Status)
+	}
 
 	return resp, err
 }
