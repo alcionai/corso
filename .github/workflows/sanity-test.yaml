@@ -66,7 +66,7 @@ jobs:
       - name: Version Test
         run: |  
           set -euo pipefail
-          if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
+          if [ $( ./corso --version | grep -c 'Corso version:' ) -ne 1 ]
           then
               echo "valid version not found"
               exit 1
@@ -78,7 +78,7 @@ jobs:
           TEST_RESULT: "test_results"
         run: |
           set -euo pipefail 
-          prefix=`date +"%Y-%m-%d-%T"`
+          prefix=$(date +"%Y-%m-%d-%T")
           echo -e "\nRepo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
           --no-stats \
@@ -266,7 +266,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
-          suffix=`date +"%Y-%m-%d_%H-%M"`
+          suffix=$(date +"%Y-%m-%d_%H-%M")
 
           go run . onedrive files  \
           --user ${TEST_USER} \

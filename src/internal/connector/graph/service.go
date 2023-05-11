@@ -264,7 +264,7 @@ func kiotaMiddlewares(
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
-		&ThrottleControlMiddleware{},
+		&RateLimiterMiddleware{},
 		&MetricsMiddleware{},
 	}...)
 
