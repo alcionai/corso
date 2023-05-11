@@ -157,7 +157,8 @@ func collectItems(
 	}
 
 	for {
-		page, err := pager.GetPage(ctx)
+		// assume delta urls here, which allows single-token consumption
+		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
 
 		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
