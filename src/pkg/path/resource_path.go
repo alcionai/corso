@@ -269,10 +269,6 @@ func (rp dataLayerResourcePath) Append(
 }
 
 func (rp dataLayerResourcePath) AppendItem(item string) (Path, error) {
-	if rp.hasItem {
-		return nil, clues.New("appending to an item path")
-	}
-
 	return rp.Append(true, item)
 }
 
