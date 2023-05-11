@@ -32,8 +32,8 @@ func (suite *LoggerUnitSuite) TestAddLoggingFlags() {
 		Run: func(cmd *cobra.Command, args []string) {
 			assert.True(t, logger.DebugAPIFV, logger.DebugAPIFN)
 			assert.True(t, logger.ReadableLogsFV, logger.ReadableLogsFN)
-			assert.Equal(t, logger.LLError, logger.LogLevelFV, logger.LogLevelFN)
-			assert.Equal(t, logger.LLError, logger.LogFormatFV, logger.LogFormatFN)
+			assert.Equal(t, string(logger.LLError), logger.LogLevelFV, logger.LogLevelFN)
+			assert.Equal(t, string(logger.LFText), logger.LogFormatFV, logger.LogFormatFN)
 			assert.True(t, logger.MaskSensitiveDataFV, logger.MaskSensitiveDataFN)
 			// empty assertion here, instead of matching "log-file", because the LogFile
 			// var isn't updated by running the command (this is expected and correct),
