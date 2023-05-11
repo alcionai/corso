@@ -212,6 +212,23 @@ func (op *RestoreOperation) do(
 			events.RestoreID:        opStats.restoreID,
 		})
 
+	defer op.bus.Event(
+		ctx,
+		events.RestoreEnd,
+		map[string]any{
+			events.BackupID:      op.BackupID,
+			events.DataRetrieved: op.Results.BytesRead,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:       dttm.Format(op.Results.CompletedAt),
+			events.ItemsRead:     op.Results.ItemsRead,
+			events.ItemsWritten:  op.Results.ItemsWritten,
+			events.Resources:     op.Results.ResourceOwners,
+			events.RestoreID:     opStats.restoreID,
+			events.Service:       op.Selectors.Service.String(),
+			events.StartTime:     dttm.Format(op.Results.StartedAt),
+			events.Status:        op.Status.String(),
+		})
+
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 	logger.Ctx(ctx).With("control_options", op.Options, "selectors", op.Selectors).Info("restoring selection")
 
@@ -282,24 +299,6 @@ func (op *RestoreOperation) persistResults(
 	}
 
 	op.Results.ItemsWritten = opStats.gc.Successes
-
-	op.bus.Event(
-		ctx,
-		events.RestoreEnd,
-		map[string]any{
-			events.BackupID:      op.BackupID,
-			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       dttm.Format(op.Results.CompletedAt),
-			events.ItemsRead:     op.Results.ItemsRead,
-			events.ItemsWritten:  op.Results.ItemsWritten,
-			events.Resources:     op.Results.ResourceOwners,
-			events.RestoreID:     opStats.restoreID,
-			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     dttm.Format(op.Results.StartedAt),
-			events.Status:        op.Status.String(),
-		},
-	)
 
 	return op.Errors.Failure()
 }
