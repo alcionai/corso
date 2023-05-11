@@ -1,6 +1,7 @@
 package path_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -31,18 +32,18 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 	}{
 		{
 			name:         "Not enough path elements",
-			pathElements: []string{"drive", "driveID"},
+			pathElements: []string{"drives", "driveID"},
 			errCheck:     assert.Error,
 		},
 		{
 			name:         "Root path",
-			pathElements: []string{"drive", "driveID", root},
+			pathElements: []string{"drives", "driveID", root},
 			expected:     &path.DrivePath{DriveID: "driveID", Root: root, Folders: []string{}},
 			errCheck:     assert.NoError,
 		},
 		{
 			name:         "Deeper path",
-			pathElements: []string{"drive", "driveID", root, "folder1", "folder2"},
+			pathElements: []string{"drives", "driveID", root, "folder1", "folder2"},
 			expected:     &path.DrivePath{DriveID: "driveID", Root: root, Folders: []string{"folder1", "folder2"}},
 			errCheck:     assert.NoError,
 		},
@@ -60,6 +61,52 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 				return
 			}
 			assert.Equal(suite.T(), tt.expected, got)
+		})
+	}
+}
+
+func (suite *OneDrivePathSuite) TestFormatDriveFolders() {
+	const (
+		driveID     = "some-drive-id"
+		drivePrefix = "drives/" + driveID
+	)
+
+	table := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name: "normal",
+			input: []string{
+				"root:",
+				"foo",
+				"bar",
+			},
+			expected: strings.Join(
+				append([]string{drivePrefix}, "root:", "foo", "bar"),
+				"/"),
+		},
+		{
+			name: "has character that would be escaped",
+			input: []string{
+				"root:",
+				"foo/",
+				"bar",
+			},
+			// Element "foo/" should end up escaped in the string output.
+			expected: strings.Join(
+				append([]string{drivePrefix}, "root:", `foo\/`, "bar"),
+				"/"),
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			assert.Equal(
+				suite.T(),
+				test.expected,
+				path.BuildDriveLocation(driveID, test.input...).String())
 		})
 	}
 }

@@ -126,7 +126,7 @@ jobs:
           go run . exchange emails \
           --user ${TEST_USER} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          --destination Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
           --count 4
 
       - name: Backup exchange test
@@ -192,7 +192,7 @@ jobs:
           echo -e "\nBackup Exchange restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
-          --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          --email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.exchange-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
@@ -202,7 +202,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "exchange"
-          TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.repo-init.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityTest
@@ -239,7 +239,7 @@ jobs:
           --no-stats \
           --hide-progress \
           --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
-          --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          --email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
           2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
@@ -247,7 +247,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "exchange"
-          TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.repo-init.outputs.result }}
           BASE_BACKUP: ${{ steps.exchange-restore-test.outputs.result }}
         run: |
           set -euo pipefail
@@ -272,7 +272,7 @@ jobs:
           --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_$suffix \
+          --destination Corso_Test_sanity$suffix \
           --count 4
 
           echo result="$suffix" >> $GITHUB_OUTPUT
@@ -341,7 +341,7 @@ jobs:
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
-          --folder Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --folder Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.onedrive-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
@@ -351,7 +351,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "onedrive"
-          TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityTest
@@ -368,7 +368,7 @@ jobs:
           --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --destination Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
           --count 4
 
       # incremental backup
@@ -404,7 +404,7 @@ jobs:
           --no-stats \
           --restore-permissions \
           --hide-progress \
-          --folder Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --folder Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
           --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
@@ -413,7 +413,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "onedrive"
-          TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityTest

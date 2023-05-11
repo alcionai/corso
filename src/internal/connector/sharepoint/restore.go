@@ -125,7 +125,7 @@ func RestoreCollections(
 }
 
 // restoreListItem utility function restores a List to the siteID.
-// The name is changed to to Corso_Restore_{timeStame}_name
+// The name is changed to to {DestName}_{name}
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
 // Restored List can be verified within the Site contents.
 func restoreListItem(

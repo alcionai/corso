@@ -249,18 +249,6 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			},
 			expected: []details.Entry{testdata.ExchangeEventsItems[0]},
 		},
-		{
-			name: "ExchangeEventsByFolderRoot",
-			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore(selectors.Any())
-				sel.Include(sel.EventCalendars(
-					[]string{testdata.ExchangeEventsRootPath.FolderLocation()},
-				))
-
-				return sel
-			},
-			expected: testdata.ExchangeEventsItems,
-		},
 	}
 
 	for _, test := range table {
