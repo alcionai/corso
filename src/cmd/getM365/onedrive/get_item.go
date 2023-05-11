@@ -112,7 +112,7 @@ func runDisplayM365JSON(
 	creds account.M365Config,
 	user, itemID string,
 ) error {
-	drive, err := api.GetDriveByID(ctx, srv, user)
+	drive, err := api.GetUsersDrive(ctx, srv, user)
 	if err != nil {
 		return err
 	}

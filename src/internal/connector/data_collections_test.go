@@ -20,7 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "Invalid onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup(owners)
-				sel.Include(sel.Folders(selectors.Any()))
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -168,7 +168,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "Invalid sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(testdata.SharePointBackupFolderScope(sel))
+				sel.Include(selTD.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -185,7 +185,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "missing onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup(owners)
-				sel.Include(sel.Folders(selectors.Any()))
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -194,7 +194,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "missing sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(testdata.SharePointBackupFolderScope(sel))
+				sel.Include(selTD.SharePointBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -239,7 +239,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			name: "Libraries",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(testdata.SharePointBackupFolderScope(sel))
+				sel.Include(selTD.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
