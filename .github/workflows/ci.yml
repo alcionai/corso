@@ -364,7 +364,7 @@ jobs:
   # --- Source Code Linting ----------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Linting:
+  Source-Code-Linting:
     needs: [Precheck, Checkout]
     environment: Testing
     runs-on: ubuntu-latest
@@ -403,6 +403,30 @@ jobs:
           install-go: false
           working-directory: src
 
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- GitHub Actions Linting -------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Actions-Lint:
+    needs: [Precheck]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: needs.precheck.outputs.actionsfileschanged == 'true'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: actionlint
+        uses: raven-actions/actionlint@v1
+        with:
+          fail-on-error: true
+          cache: true
+          # Ignore
+          #   * combining commands into a subshell and using single output
+          #     redirect
+          #   * various variable quoting patterns
+          #   * possible ineffective echo commands
+          flags: "-ignore SC2129 -ignore SC2086 -ignore SC2046 -ignore 2116"
 
   # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
