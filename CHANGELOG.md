@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Released the --mask-sensitive-data flag, which will automatically obscure private data in logs.
 - Added `--disable-delta` flag to disable delta based backups for Exchange
 
 ### Fixed

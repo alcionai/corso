@@ -207,7 +207,7 @@ func runBackups(
 
 		var (
 			owner = discSel.DiscreteOwner
-			ictx  = clues.Add(ctx, "resource_owner", owner)
+			ictx  = clues.Add(ctx, "resource_owner_selected", owner)
 		)
 
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
@@ -217,6 +217,11 @@ func runBackups(
 
 			continue
 		}
+
+		ictx = clues.Add(
+			ctx,
+			"resource_owner_id", bo.ResourceOwner.ID(),
+			"resource_owner_name", bo.ResourceOwner.Name())
 
 		err = bo.Run(ictx)
 		if err != nil {

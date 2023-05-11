@@ -223,7 +223,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 
 	var (
 		prefixElems = []string{
-			"drive",
+			"drives",
 			"drive!id",
 			"root:",
 		}
@@ -415,7 +415,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 		itemName   = "item"
 		itemID     = "item-id"
 		shortRef   = "short"
-		driveElems = []string{"drive", "drive!id", "root:.d", "dir1.d", "dir2.d", itemID}
+		driveElems = []string{"drives", "drive!id", "root:.d", "dir1.d", "dir2.d", itemID}
 		elems      = []string{"dir1", "dir2", itemID}
 	)
 

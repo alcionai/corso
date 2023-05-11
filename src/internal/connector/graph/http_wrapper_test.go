@@ -93,6 +93,7 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 		StatusCode: 302,
 		Header:     hdr,
 	}
+
 	mwResp := mwForceResp{
 		resp: toResp,
 		alternate: func(req *http.Request) (bool, *http.Response, error) {

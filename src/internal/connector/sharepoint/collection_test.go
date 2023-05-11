@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
@@ -193,7 +192,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
 
-	destName := "Corso_Restore_" + dttm.FormatNow(dttm.SafeForTesting)
+	destName := tester.DefaultTestRestoreDestination("").ContainerName
 
 	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
 	assert.NoError(t, err, clues.ToCore(err))

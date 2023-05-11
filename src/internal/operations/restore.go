@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/operations/pathtransformer"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -355,41 +356,9 @@ func formatDetailsForRestoration(
 		return nil, err
 	}
 
-	var (
-		fdsPaths  = fds.Paths()
-		paths     = make([]path.RestorePaths, len(fdsPaths))
-		shortRefs = make([]string, len(fdsPaths))
-		el        = errs.Local()
-	)
-
-	for i := range fdsPaths {
-		if el.Failure() != nil {
-			break
-		}
-
-		p, err := path.FromDataLayerPath(fdsPaths[i], true)
-		if err != nil {
-			el.AddRecoverable(clues.
-				Wrap(err, "parsing details path after reduction").
-				WithMap(clues.In(ctx)).
-				With("path", fdsPaths[i]))
-
-			continue
-		}
-
-		dir, err := p.Dir()
-		if err != nil {
-			el.AddRecoverable(clues.
-				Wrap(err, "getting restore directory after reduction").
-				WithClues(ctx).
-				With("path", fdsPaths[i]))
-
-			continue
-		}
-
-		paths[i].StoragePath = p
-		paths[i].RestorePath = dir
-		shortRefs[i] = p.ShortRef()
+	paths, err := pathtransformer.GetPaths(ctx, backupVersion, fds.Items(), errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting restore paths")
 	}
 
 	if sel.Service == selectors.ServiceOneDrive {
@@ -399,7 +368,5 @@ func formatDetailsForRestoration(
 		}
 	}
 
-	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
-
-	return paths, el.Failure()
+	return paths, nil
 }
