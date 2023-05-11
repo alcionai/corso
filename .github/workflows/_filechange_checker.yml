@@ -19,6 +19,7 @@ jobs:
     outputs:
       srcfileschanged: ${{ steps.srcchecker.outputs.srcfileschanged }}
       websitefileschanged: ${{ steps.websitechecker.outputs.websitefileschanged }}
+      actionsfileschanged: ${{ steps.actionschecker.outputs.actionsfileschanged }}
     steps:
       - uses: actions/checkout@v3
 
@@ -50,3 +51,10 @@ jobs:
         run: |
           echo "website or workflow file changes occurred"
           echo websitefileschanged=true >> $GITHUB_OUTPUT
+
+      - name: Check dorny for changes in workflow filepaths
+        id: actionschecker
+        if: steps.dornycheck.outputs.actions == 'true'
+        run: |
+          echo "workflow file changes occurred"
+          echo actionsfileschanged=true >> $GITHUB_OUTPUT

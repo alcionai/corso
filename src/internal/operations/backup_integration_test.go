@@ -251,10 +251,9 @@ func checkBackupIsInManifests(
 	}
 }
 
-//revive:disable:context-as-argument
 func checkMetadataFilesExist(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	backupID model.StableID,
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
@@ -262,7 +261,6 @@ func checkMetadataFilesExist(
 	service path.ServiceType,
 	filesByCat map[path.CategoryType][]string,
 ) {
-	//revive:enable:context-as-argument
 	for category, files := range filesByCat {
 		t.Run(category.String(), func(t *testing.T) {
 			bup := &backup.Backup{}
@@ -272,7 +270,7 @@ func checkMetadataFilesExist(
 				return
 			}
 
-			paths := []path.Path{}
+			paths := []path.RestorePaths{}
 			pathsByRef := map[string][]string{}
 
 			for _, fName := range files {
@@ -288,11 +286,18 @@ func checkMetadataFilesExist(
 					continue
 				}
 
-				paths = append(paths, p)
+				paths = append(
+					paths,
+					path.RestorePaths{StoragePath: p, RestorePath: dir})
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			cols, err := kw.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, nil, fault.New(true))
+			cols, err := kw.ProduceRestoreCollections(
+				ctx,
+				bup.SnapshotID,
+				paths,
+				nil,
+				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
 			for _, col := range cols {
