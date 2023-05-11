@@ -130,6 +130,13 @@ var (
 	_ fmt.Stringer    = &Builder{}
 )
 
+// RestorePaths denotes the location to find an item in kopia and the path of
+// the collection to place the item in for restore.
+type RestorePaths struct {
+	StoragePath Path
+	RestorePath Path
+}
+
 // Builder is a simple path representation that only tracks path elements. It
 // can join, escape, and unescape elements. Higher-level packages are expected
 // to wrap this struct to build resource-specific contexts (e.x. an

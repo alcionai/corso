@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -101,6 +100,9 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
+// 1 MB
+const logMBLimit = 1 * 1048576
+
 func (mw *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -123,42 +125,61 @@ func (mw *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
-	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
-	log := logger.Ctx(ctx)
+	ctx = clues.Add(
+		ctx,
+		"status", resp.Status,
+		"statusCode", resp.StatusCode,
+		"content_len", resp.ContentLength)
 
-	// Return immediately if the response is good (2xx).
-	// If api logging is toggled, log a body-less dump of the request/resp.
-	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPIFV || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
-		}
+	var (
+		log       = logger.Ctx(ctx)
+		respClass = resp.StatusCode / 100
+		logExtra  = logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != ""
+	)
 
-		return resp, err
-	}
-
-	// Log errors according to api debugging configurations.
-	// When debugging is toggled, every non-2xx is recorded with a response dump.
-	// Otherwise, throttling cases and other non-2xx responses are logged
-	// with a slimmer reference for telemetry/supportability purposes.
-	if logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != "" {
-		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
-		return resp, err
-	}
-
-	msg := fmt.Sprintf("graph api error: %s", resp.Status)
-
-	// special case for supportability: log all throttling cases.
+	// special case: always info log 429 responses
 	if resp.StatusCode == http.StatusTooManyRequests {
-		log = log.With(
+		log.Infow(
+			"graph api throttling",
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
-	} else if resp.StatusCode/100 == 4 || resp.StatusCode == http.StatusServiceUnavailable {
-		log = log.With("response", getRespDump(ctx, resp, true))
+
+		return resp, err
 	}
 
-	log.Info(msg)
+	// special case: always dump status-400-bad-request
+	if resp.StatusCode == http.StatusBadRequest {
+		log.With("response", getRespDump(ctx, resp, true)).
+			Error("graph api error: " + resp.Status)
+
+		return resp, err
+	}
+
+	// Log api calls according to api debugging configurations.
+	switch respClass {
+	case 2:
+		if logExtra {
+			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
+			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
+			log.Infow("2xx graph api resp", "response", dump)
+		}
+	case 3:
+		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
+
+		if logExtra {
+			log.With("response", getRespDump(ctx, resp, false))
+		}
+
+		log.Info("graph api redirect: " + resp.Status)
+	default:
+		if logExtra {
+			log.With("response", getRespDump(ctx, resp, true))
+		}
+
+		log.Error("graph api error: " + resp.Status)
+	}
 
 	return resp, err
 }
@@ -360,24 +381,31 @@ func (mw RetryMiddleware) getRetryDelay(
 	return exponentialBackoff.NextBackOff()
 }
 
-// We're trying to keep calls below the 10k-per-10-minute threshold.
-// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
-// which is a bit below the mark.
-// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
-// We'll have built up 900 tokens in reserve, so the first 900 calls go through
-// immediately.  Over the next 10 minutes, we'll partition out the other calls
-// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
-// the volume keeps up after that, we'll always stay between 9000 and 9900 out
-// of 10k.
 const (
-	defaultPerSecond = 15
-	defaultMaxCap    = 900
-	drivePerSecond   = 15
-	driveMaxCap      = 1100
+	// Default goal is to keep calls below the 10k-per-10-minute threshold.
+	// 14 tokens every second nets 840 per minute.  That's 8400 every 10 minutes,
+	// which is a bit below the mark.
+	// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
+	// We'll have built up 750 tokens in reserve, so the first 750 calls go through
+	// immediately.  Over the next 10 minutes, we'll partition out the other calls
+	// at a rate of 840-per-minute, ending at a total of 9150.  Theoretically, if
+	// the volume keeps up after that, we'll always stay between 8400 and 9150 out
+	// of 10k.  Worst case scenario, we have an extra minute of padding to allow
+	// up to 9990.
+	defaultPerSecond = 14  // 14 * 60 = 840
+	defaultMaxCap    = 750 // real cap is 10k-per-10-minutes
+	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
+	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
+	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
+	// calls in the first minute, putting us over the per-minute limit.  Keeping
+	// the cap at the per-second burst means we only dole out a max of 1240 in one
+	// minute (20 cap + 1200 per minute + one burst of padding).
+	drivePerSecond = 20 // 20 * 60 = 1200
+	driveMaxCap    = 20 // real cap is 1250-per-minute
 )
 
 var (
-	driveLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
 	// also used as the exchange service limiter
 	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
 )
@@ -454,6 +482,8 @@ func (mw *ThrottleControlMiddleware) Intercept(
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}
 
+const xmruHeader = "x-ms-resource-unit"
+
 func (mw *MetricsMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -473,6 +503,19 @@ func (mw *MetricsMiddleware) Intercept(
 	events.Inc(events.APICall, status)
 	events.Since(start, events.APICall)
 	events.Since(start, events.APICall, status)
+
+	// track the graph "resource cost" for each call (if not provided, assume 1)
+
+	// from msoft throttling documentation:
+	// x-ms-resource-unit - Indicates the resource unit used for this request. Values are positive integer
+	xmru := resp.Header.Get(xmruHeader)
+	xmrui, e := strconv.Atoi(xmru)
+
+	if len(xmru) == 0 || e != nil {
+		xmrui = 1
+	}
+
+	events.IncN(xmrui, events.APICall, xmruHeader)
 
 	return resp, err
 }

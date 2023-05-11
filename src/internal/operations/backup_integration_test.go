@@ -53,6 +53,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+// Does not use the tester.DefaultTestRestoreDestination syntax as some of these
+// items are created directly, not as a result of restoration, and we want to ensure
+// they get clearly selected without accidental overlap.
 const incrementalsDestContainerPrefix = "incrementals_ci_"
 
 // ---------------------------------------------------------------------------
@@ -263,7 +266,7 @@ func checkMetadataFilesExist(
 				return
 			}
 
-			paths := []path.Path{}
+			paths := []path.RestorePaths{}
 			pathsByRef := map[string][]string{}
 
 			for _, fName := range files {
@@ -279,11 +282,18 @@ func checkMetadataFilesExist(
 					continue
 				}
 
-				paths = append(paths, p)
+				paths = append(
+					paths,
+					path.RestorePaths{StoragePath: p, RestorePath: dir})
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			cols, err := kw.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, nil, fault.New(true))
+			cols, err := kw.ProduceRestoreCollections(
+				ctx,
+				bup.SnapshotID,
+				paths,
+				nil,
+				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
 			for _, col := range cols {
@@ -1261,7 +1271,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 		svc    = path.OneDriveService
 	)
 
-	osel.Include(osel.AllData())
+	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
 	bo, _, _, ms, ss, _, sel, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
@@ -1883,7 +1893,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	uname := ptr.Val(userable.GetUserPrincipalName())
 
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
-	oldsel.Include(oldsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
 	bo, _, kw, ms, _, gc, sel, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
 	defer closer()
@@ -1905,7 +1915,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
 	newsel := selectors.NewOneDriveBackup([]string{uid})
-	newsel.Include(newsel.Folders([]string{"test"}, selectors.ExactMatch()))
+	newsel.Include(selTD.OneDriveBackupFolderScope(newsel))
 	sel = newsel.SetDiscreteOwnerIDName(uid, uname)
 
 	var (

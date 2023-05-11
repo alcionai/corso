@@ -218,8 +218,7 @@ func RestoreMailMessage(
 		return nil, err
 	}
 
-	info := api.MailInfo(clone)
-	info.Size = int64(len(bits))
+	info := api.MailInfo(clone, int64(len(bits)))
 
 	return info, nil
 }

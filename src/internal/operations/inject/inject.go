@@ -47,7 +47,7 @@ type (
 		ProduceRestoreCollections(
 			ctx context.Context,
 			snapshotID string,
-			paths []path.Path,
+			paths []path.RestorePaths,
 			bc kopia.ByteCounter,
 			errs *fault.Bus,
 		) ([]data.RestoreCollection, error)
