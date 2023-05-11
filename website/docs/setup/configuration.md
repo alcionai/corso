@@ -134,7 +134,7 @@ The default location of Corso's log file is shown below but the location can be 
 The log file will be appended to if multiple Corso invocations are pointed to the same file.
 
 You can also use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
-This setting can cause logs to compete with progress bar displays in the termal.
+This setting can cause logs to compete with progress bar displays in the terminal.
 We suggest using the `--hide-progress` option if you plan to log to stdout or stderr.
 
 Log entries, by default, include user names and file names. The `--mask-sensitive-data` option can be
