@@ -308,7 +308,7 @@ func collectMetadata(
 	tenantID string,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	paths := []path.Path{}
+	paths := []path.RestorePaths{}
 
 	for _, fn := range fileNames {
 		for _, reason := range man.Reasons {
@@ -326,7 +326,14 @@ func collectMetadata(
 					With("metadata_file", fn, "category", reason.Category)
 			}
 
-			paths = append(paths, p)
+			dir, err := p.Dir()
+			if err != nil {
+				return nil, clues.
+					Wrap(err, "building metadata collection path").
+					With("metadata_file", fn, "category", reason.Category)
+			}
+
+			paths = append(paths, path.RestorePaths{StoragePath: p, RestorePath: dir})
 		}
 	}
 
