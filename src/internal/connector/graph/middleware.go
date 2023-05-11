@@ -14,12 +14,10 @@ import (
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/exp/slices"
-	"golang.org/x/time/rate"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type nexter interface {
@@ -379,100 +377,6 @@ func (mw RetryMiddleware) getRetryDelay(
 	} // TODO parse the header if it's a date
 
 	return exponentialBackoff.NextBackOff()
-}
-
-const (
-	// Default goal is to keep calls below the 10k-per-10-minute threshold.
-	// 14 tokens every second nets 840 per minute.  That's 8400 every 10 minutes,
-	// which is a bit below the mark.
-	// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
-	// We'll have built up 750 tokens in reserve, so the first 750 calls go through
-	// immediately.  Over the next 10 minutes, we'll partition out the other calls
-	// at a rate of 840-per-minute, ending at a total of 9150.  Theoretically, if
-	// the volume keeps up after that, we'll always stay between 8400 and 9150 out
-	// of 10k.  Worst case scenario, we have an extra minute of padding to allow
-	// up to 9990.
-	defaultPerSecond = 14  // 14 * 60 = 840
-	defaultMaxCap    = 750 // real cap is 10k-per-10-minutes
-	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
-	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
-	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
-	// calls in the first minute, putting us over the per-minute limit.  Keeping
-	// the cap at the per-second burst means we only dole out a max of 1240 in one
-	// minute (20 cap + 1200 per minute + one burst of padding).
-	drivePerSecond = 20 // 20 * 60 = 1200
-	driveMaxCap    = 20 // real cap is 1250-per-minute
-)
-
-var (
-	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
-	// also used as the exchange service limiter
-	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
-)
-
-type LimiterCfg struct {
-	Service path.ServiceType
-}
-
-type limiterCfgKey string
-
-const limiterCfgCtxKey limiterCfgKey = "corsoGraphRateLimiterCfg"
-
-func ctxLimiter(ctx context.Context) *rate.Limiter {
-	lc, ok := extractRateLimiterConfig(ctx)
-	if !ok {
-		return defaultLimiter
-	}
-
-	switch lc.Service {
-	case path.OneDriveService, path.SharePointService:
-		return driveLimiter
-	default:
-		return defaultLimiter
-	}
-}
-
-func BindRateLimiterConfig(ctx context.Context, lc LimiterCfg) context.Context {
-	return context.WithValue(ctx, limiterCfgCtxKey, lc)
-}
-
-func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
-	l := ctx.Value(limiterCfgCtxKey)
-	if l == nil {
-		return LimiterCfg{}, false
-	}
-
-	lc, ok := l.(LimiterCfg)
-
-	return lc, ok
-}
-
-// QueueRequest will allow the request to occur immediately if we're under the
-// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
-// the next token set is available.
-func QueueRequest(ctx context.Context) {
-	limiter := ctxLimiter(ctx)
-
-	if err := limiter.Wait(ctx); err != nil {
-		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Rate Limiting
-// ---------------------------------------------------------------------------
-
-// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
-// request limits.
-type ThrottleControlMiddleware struct{}
-
-func (mw *ThrottleControlMiddleware) Intercept(
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	req *http.Request,
-) (*http.Response, error) {
-	QueueRequest(req.Context())
-	return pipeline.Next(req, middlewareIndex)
 }
 
 // ---------------------------------------------------------------------------
