@@ -506,6 +506,11 @@ func (mw *MetricsMiddleware) Intercept(
 
 	// track the graph "resource cost" for each call (if not provided, assume 1)
 
+	// nil-pointer guard
+	if len(resp.Header) == 0 {
+		resp.Header = http.Header{}
+	}
+
 	// from msoft throttling documentation:
 	// x-ms-resource-unit - Indicates the resource unit used for this request. Values are positive integer
 	xmru := resp.Header.Get(xmruHeader)
