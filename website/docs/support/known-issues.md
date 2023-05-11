@@ -23,4 +23,4 @@ Below is a list of known Corso issues and limitations:
 * Exchange Calender Event instance exceptions (changes to a single event within a recurring series) aren't
 included in backup and restore.
 
-* SharePoint document library data cannot be restored after the library has been deleted.
+* SharePoint document library data can't be restored after the library has been deleted.
