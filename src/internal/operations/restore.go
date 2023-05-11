@@ -140,6 +140,25 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"service", op.Selectors.Service,
 		"destination_container", clues.Hide(op.Destination.ContainerName))
 
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.RestoreEnd,
+			map[string]any{
+				events.BackupID:      op.BackupID,
+				events.DataRetrieved: op.Results.BytesRead,
+				events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:       dttm.Format(op.Results.CompletedAt),
+				events.ItemsRead:     op.Results.ItemsRead,
+				events.ItemsWritten:  op.Results.ItemsWritten,
+				events.Resources:     op.Results.ResourceOwners,
+				events.RestoreID:     opStats.restoreID,
+				events.Service:       op.Selectors.Service.String(),
+				events.StartTime:     dttm.Format(op.Results.StartedAt),
+				events.Status:        op.Status.String(),
+			})
+	}()
+
 	// -----
 	// Execution
 	// -----
@@ -210,23 +229,6 @@ func (op *RestoreOperation) do(
 			events.BackupID:         op.BackupID,
 			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
-		})
-
-	defer op.bus.Event(
-		ctx,
-		events.RestoreEnd,
-		map[string]any{
-			events.BackupID:      op.BackupID,
-			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       dttm.Format(op.Results.CompletedAt),
-			events.ItemsRead:     op.Results.ItemsRead,
-			events.ItemsWritten:  op.Results.ItemsWritten,
-			events.Resources:     op.Results.ResourceOwners,
-			events.RestoreID:     opStats.restoreID,
-			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     dttm.Format(op.Results.StartedAt),
-			events.Status:        op.Status.String(),
 		})
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
