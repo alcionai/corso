@@ -22,20 +22,40 @@ var (
 	loggerton *zap.SugaredLogger
 )
 
-type logLevel int
+// type logLevel int
+
+// const (
+// 	Debug logLevel = iota
+// 	Info
+// 	Warn
+// 	Error
+// 	Disabled
+// )
+
+type logLevel string
 
 const (
-	Development logLevel = iota
-	Info
-	Warn
-	Production
-	Disabled
+	LLDebug    logLevel = "debug"
+	LLInfo     logLevel = "info"
+	LLWarn     logLevel = "warn"
+	LLError    logLevel = "error"
+	LLDisabled logLevel = "disabled"
+)
+
+type logFormat string
+
+const (
+	// use for cli/terminal
+	LFText logFormat = "text"
+	// use for cloud logging
+	LFJSON logFormat = "json"
 )
 
 // flag names
 const (
 	DebugAPIFN          = "debug-api-calls"
 	LogFileFN           = "log-file"
+	LogFormatFN         = "log-format"
 	LogLevelFN          = "log-level"
 	ReadableLogsFN      = "readable-logs"
 	MaskSensitiveDataFN = "mask-sensitive-data"
@@ -45,7 +65,8 @@ const (
 var (
 	DebugAPIFV          bool
 	logFileFV           = ""
-	LogLevelFV          = "info"
+	LogFormatFV         = string(LFText)
+	LogLevelFV          = string(LLInfo)
 	ReadableLogsFV      bool
 	MaskSensitiveDataFV bool
 
@@ -59,12 +80,6 @@ const (
 	PIIHash      = "hash"
 	PIIMask      = "mask"
 	PIIPlainText = "plaintext"
-
-	LLDebug    = "debug"
-	LLInfo     = "info"
-	LLWarn     = "warn"
-	LLError    = "error"
-	LLDisabled = "disabled"
 )
 
 // Returns the default location for writing logs
@@ -90,8 +105,14 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 	fs.StringVar(
 		&LogLevelFV,
 		LogLevelFN,
-		LLInfo,
+		string(LLInfo),
 		fmt.Sprintf("set the log level to %s|%s|%s|%s", LLDebug, LLInfo, LLWarn, LLError))
+
+	fs.StringVar(
+		&LogFormatFV,
+		LogFormatFN,
+		string(LFText),
+		fmt.Sprintf("set the log format to %s|%s", LFText, LFJSON))
 
 	// The default provided here is only for help info
 	fs.StringVar(&logFileFV, LogFileFN, defaultFile, "location for writing logs, use '-' for stdout")
@@ -112,9 +133,10 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 
 // Settings records the user's preferred logging settings.
 type Settings struct {
-	File        string // what file to log to (alt: stderr, stdout)
-	Level       string // what level to log at
-	PIIHandling string // how to obscure pii
+	File        string    // what file to log to (alt: stderr, stdout)
+	Format      logFormat // whether to format as text (console) or json (cloud)
+	Level       logLevel  // what level to log at
+	PIIHandling string    // how to obscure pii
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the
@@ -132,7 +154,8 @@ func PreloadLoggingFlags(args []string) Settings {
 
 	ls := Settings{
 		File:        "",
-		Level:       LogLevelFV,
+		Format:      logFormat(LogFormatFV),
+		Level:       logLevel(LogLevelFV),
 		PIIHandling: PIIPlainText,
 	}
 
@@ -152,7 +175,16 @@ func PreloadLoggingFlags(args []string) Settings {
 		return ls
 	}
 
-	ls.Level = levelString
+	ls.Level = logLevel(levelString)
+
+	// retrieve the user's preferred log format
+	// automatically defaults to "text"
+	formatString, err := fs.GetString(LogFormatFN)
+	if err != nil {
+		return ls
+	}
+
+	ls.Format = logFormat(formatString)
 
 	// retrieve the user's preferred log file location
 	// automatically defaults to default log location
@@ -207,53 +239,50 @@ func GetLogFile(logFileFlagVal string) string {
 	return r
 }
 
-func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogger) {
+func genLogger(level logLevel, format logFormat, logfile string) (*zapcore.Core, *zap.SugaredLogger) {
 	// when testing, ensure debug logging matches the test.v setting
 	for _, arg := range os.Args {
 		if arg == `--test.v=true` {
-			level = Development
+			level = LLDebug
 		}
 	}
 
-	// set up a logger core to use as a fallback
-	levelFilter := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		switch level {
-		case Info:
-			return lvl >= zapcore.InfoLevel
-		case Warn:
-			return lvl >= zapcore.WarnLevel
-		case Production:
-			return lvl >= zapcore.ErrorLevel
-		case Disabled:
-			return false
-		default:
-			return true
-		}
-	})
-	out := zapcore.Lock(os.Stderr)
-	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
-	core := zapcore.NewTee(
-		zapcore.NewCore(consoleEncoder, out, levelFilter),
-	)
-
-	// then try to set up a logger directly
 	var (
 		lgr  *zap.Logger
 		err  error
 		opts = []zap.Option{zap.AddStacktrace(zapcore.PanicLevel)}
+
+		// set up a logger core to use as a fallback
+		levelFilter = zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			switch level {
+			case LLInfo:
+				return lvl >= zapcore.InfoLevel
+			case LLWarn:
+				return lvl >= zapcore.WarnLevel
+			case LLError:
+				return lvl >= zapcore.ErrorLevel
+			case LLDisabled:
+				return false
+			default:
+				return true
+			}
+		})
+
+		out            = zapcore.Lock(os.Stderr)
+		consoleEncoder = zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+		core           = zapcore.NewTee(
+			zapcore.NewCore(consoleEncoder, out, levelFilter),
+		)
+
+		cfg zap.Config
 	)
 
-	if level != Production {
-		cfg := zap.NewDevelopmentConfig()
-
-		switch level {
-		case Info:
-			cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
-		case Warn:
-			cfg.Level = zap.NewAtomicLevelAt(zapcore.WarnLevel)
-		case Disabled:
-			cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
-		}
+	switch format {
+	case LFJSON:
+		cfg = setLevel(zap.NewProductionConfig(), level)
+		cfg.OutputPaths = []string{logfile}
+	default:
+		cfg = setLevel(zap.NewDevelopmentConfig(), level)
 
 		if ReadableLogsFV {
 			opts = append(opts, zap.WithCaller(false))
@@ -265,14 +294,10 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 		}
 
 		cfg.OutputPaths = []string{logfile}
-		lgr, err = cfg.Build(opts...)
-	} else {
-		cfg := zap.NewProductionConfig()
-		cfg.OutputPaths = []string{logfile}
-		lgr, err = cfg.Build(opts...)
 	}
 
 	// fall back to the core config if the default creation fails
+	lgr, err = cfg.Build(opts...)
 	if err != nil {
 		lgr = zap.New(core)
 	}
@@ -280,7 +305,22 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 	return &core, lgr.Sugar()
 }
 
-func singleton(level logLevel, logfile string) *zap.SugaredLogger {
+func setLevel(cfg zap.Config, level logLevel) zap.Config {
+	switch level {
+	case LLInfo:
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	case LLWarn:
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.WarnLevel)
+	case LLError:
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.ErrorLevel)
+	case LLDisabled:
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
+	}
+
+	return cfg
+}
+
+func singleton(level logLevel, format logFormat, logfile string) *zap.SugaredLogger {
 	if loggerton != nil {
 		return loggerton
 	}
@@ -292,7 +332,7 @@ func singleton(level logLevel, logfile string) *zap.SugaredLogger {
 		return loggerton
 	}
 
-	logCore, loggerton = genLogger(level, logfile)
+	logCore, loggerton = genLogger(level, format, logfile)
 
 	return loggerton
 }
@@ -314,9 +354,13 @@ func Seed(ctx context.Context, set Settings) (context.Context, *zap.SugaredLogge
 		set.Level = LLInfo
 	}
 
+	if len(set.Format) == 0 {
+		set.Format = LFText
+	}
+
 	setCluesSecretsHash(set.PIIHandling)
 
-	zsl := singleton(levelOf(set.Level), set.File)
+	zsl := singleton(set.Level, set.Format, set.File)
 
 	return Set(ctx, zsl), zsl
 }
@@ -334,8 +378,8 @@ func setCluesSecretsHash(alg string) {
 	}
 }
 
-// SeedLevel generates a logger within the context with the given log-level.
-func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
+// SeedLevel generates a logger within the context with the given log-level and -format.
+func SeedLevel(ctx context.Context, level logLevel, format logFormat) (context.Context, *zap.SugaredLogger) {
 	l := ctx.Value(ctxKey)
 	if l == nil {
 		logfile := os.Getenv("CORSO_LOG_FILE")
@@ -344,7 +388,7 @@ func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.Sugar
 			logfile = defaultLogLocation()
 		}
 
-		zsl := singleton(level, logfile)
+		zsl := singleton(level, format, logfile)
 
 		return Set(ctx, zsl), zsl
 	}
@@ -365,7 +409,10 @@ func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
 func Ctx(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		return singleton(levelOf(LogLevelFV), defaultLogLocation())
+		return singleton(
+			logLevel(LogLevelFV),
+			logFormat(LogFormatFV),
+			defaultLogLocation())
 	}
 
 	return l.(*zap.SugaredLogger).With(clues.In(ctx).Slice()...)
@@ -379,22 +426,6 @@ func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
 			"error", err,
 			"error_labels", clues.Labels(err)).
 		With(clues.InErr(err).Slice()...)
-}
-
-// transforms the llevel flag value to a logLevel enum
-func levelOf(lvl string) logLevel {
-	switch lvl {
-	case LLDebug:
-		return Development
-	case LLWarn:
-		return Warn
-	case LLError:
-		return Production
-	case LLDisabled:
-		return Disabled
-	}
-
-	return Info
 }
 
 // Flush writes out all buffered logs.

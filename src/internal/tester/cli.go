@@ -34,21 +34,22 @@ func StubRootCmd(args ...string) *cobra.Command {
 }
 
 func NewContext() (context.Context, func()) {
-	level := logger.Info
+	level := logger.LLInfo
+	format := logger.LFText
 
 	for _, a := range os.Args {
 		if a == "-test.v=true" {
-			level = logger.Development
+			level = logger.LLDebug
 		}
 	}
 
 	//nolint:forbidigo
-	ctx, _ := logger.SeedLevel(context.Background(), level)
+	ctx, _ := logger.SeedLevel(context.Background(), level, format)
 
 	return ctx, func() { logger.Flush(ctx) }
 }
 
 func WithContext(ctx context.Context) (context.Context, func()) {
-	ctx, _ = logger.SeedLevel(ctx, logger.Development)
+	ctx, _ = logger.SeedLevel(ctx, logger.LLDebug, logger.LFText)
 	return ctx, func() { logger.Flush(ctx) }
 }

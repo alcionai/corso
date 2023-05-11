@@ -33,6 +33,7 @@ func (suite *LoggerUnitSuite) TestAddLoggingFlags() {
 			assert.True(t, logger.DebugAPIFV, logger.DebugAPIFN)
 			assert.True(t, logger.ReadableLogsFV, logger.ReadableLogsFN)
 			assert.Equal(t, logger.LLError, logger.LogLevelFV, logger.LogLevelFN)
+			assert.Equal(t, logger.LLError, logger.LogFormatFV, logger.LogFormatFN)
 			assert.True(t, logger.MaskSensitiveDataFV, logger.MaskSensitiveDataFN)
 			// empty assertion here, instead of matching "log-file", because the LogFile
 			// var isn't updated by running the command (this is expected and correct),
@@ -48,7 +49,8 @@ func (suite *LoggerUnitSuite) TestAddLoggingFlags() {
 		"test",
 		"--" + logger.DebugAPIFN,
 		"--" + logger.LogFileFN, "log-file",
-		"--" + logger.LogLevelFN, logger.LLError,
+		"--" + logger.LogLevelFN, string(logger.LLError),
+		"--" + logger.LogFormatFN, string(logger.LFText),
 		"--" + logger.ReadableLogsFN,
 		"--" + logger.MaskSensitiveDataFN,
 	})
@@ -66,7 +68,8 @@ func (suite *LoggerUnitSuite) TestPreloadLoggingFlags() {
 	args := []string{
 		"--" + logger.DebugAPIFN,
 		"--" + logger.LogFileFN, "log-file",
-		"--" + logger.LogLevelFN, logger.LLError,
+		"--" + logger.LogLevelFN, string(logger.LLError),
+		"--" + logger.LogFormatFN, string(logger.LFText),
 		"--" + logger.ReadableLogsFN,
 		"--" + logger.MaskSensitiveDataFN,
 	}
@@ -77,5 +80,6 @@ func (suite *LoggerUnitSuite) TestPreloadLoggingFlags() {
 	assert.True(t, logger.ReadableLogsFV, logger.ReadableLogsFN)
 	assert.Equal(t, "log-file", settings.File, "settings.File")
 	assert.Equal(t, logger.LLError, settings.Level, "settings.Level")
+	assert.Equal(t, logger.LFText, settings.Format, "settings.Format")
 	assert.Equal(t, logger.PIIHash, settings.PIIHandling, "settings.PIIHandling")
 }

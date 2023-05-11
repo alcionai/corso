@@ -17,7 +17,7 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
+	ctx, _ := logger.SeedLevel(context.Background(), logger.LLDebug, logger.LFText)
 
 	ctx = SetRootCmd(ctx, rootCmd)
 	defer logger.Flush(ctx)

@@ -1007,7 +1007,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	expectedDirs := 6
 	expectedFiles := len(suite.filesByPath)
 	//nolint:forbidigo
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.LLDebug, logger.LFText)
 
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
