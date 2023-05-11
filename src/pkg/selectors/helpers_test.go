@@ -146,6 +146,14 @@ func stubInfoScope(match string) mockScope {
 	return sc
 }
 
+func makeStubScope(cfg Config, match []string) mockScope {
+	return makeScope[mockScope](leafCatStub, match, defaultItemOptions(cfg)...)
+}
+
+func (s mockScope) Matches(cat mockCategorizer, target string) bool {
+	return matches(s, cat, target)
+}
+
 // ---------------------------------------------------------------------------
 // Stringers and Concealers
 // ---------------------------------------------------------------------------

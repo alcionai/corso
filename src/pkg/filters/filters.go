@@ -503,16 +503,18 @@ var _ clues.PlainConcealer = &Filter{}
 var safeFilterValues = map[string]struct{}{"*": {}}
 
 func (f Filter) Conceal() string {
-	fcs := f.Comparator
+	fcs := string(f.Comparator)
 
 	switch f.Comparator {
+	case UnknownComparator:
+		fcs = "UnknownComparison"
 	case Passes, Fails:
-		return string(fcs)
+		return fcs
 	}
 
 	concealed := pii.ConcealElements(f.Targets, safeFilterValues)
 
-	return string(fcs) + ":" + strings.Join(concealed, ",")
+	return fcs + ":" + strings.Join(concealed, ",")
 }
 
 func (f Filter) Format(fs fmt.State, _ rune) {
@@ -524,12 +526,14 @@ func (f Filter) String() string {
 }
 
 func (f Filter) PlainString() string {
-	fcs := f.Comparator
+	fcs := string(f.Comparator)
 
 	switch f.Comparator {
+	case UnknownComparator:
+		fcs = "UnknownComparison"
 	case Passes, Fails:
-		return string(fcs)
+		return fcs
 	}
 
-	return string(fcs) + ":" + strings.Join(f.Targets, ",")
+	return fcs + ":" + strings.Join(f.Targets, ",")
 }
