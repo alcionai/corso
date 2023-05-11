@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -52,6 +53,25 @@ func PagerForSource(
 		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
 		return nil, clues.New("unrecognized drive data source")
+	}
+}
+
+type pathPrefixerFunc func(driveID string) (path.Path, error)
+
+func pathPrefixerForSource(
+	tenantID, resourceOwner string,
+	source driveSource,
+) pathPrefixerFunc {
+	cat := path.FilesCategory
+	serv := path.OneDriveService
+
+	if source == SharePointSource {
+		cat = path.LibrariesCategory
+		serv = path.SharePointService
+	}
+
+	return func(driveID string) (path.Path, error) {
+		return path.Build(tenantID, resourceOwner, serv, cat, false, "drives", driveID, "root:")
 	}
 }
 
