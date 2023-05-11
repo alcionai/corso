@@ -1111,8 +1111,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					}
 				}
 			},
-			itemsRead:    0, // containers are not counted as reads
-			itemsWritten: 4, // two items per category
+			itemsRead: 0, // containers are not counted as reads
+			// Renaming a folder doesn't cause kopia changes as the folder ID doesn't
+			// change.
+			itemsWritten: 0,
 		},
 		{
 			name: "add a new item",
