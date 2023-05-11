@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type OneDriveUtilsSuite struct {
@@ -26,6 +27,7 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{string(path.PathSeparator)}
 	)
 
 	table := []struct {
@@ -86,6 +88,15 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 				FolderPath: containsAndPrefix,
 			},
 			expectIncludeLen: 2,
+		},
+		{
+			name: "folder with just /",
+			opts: utils.OneDriveOpts{
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
 		},
 	}
 	for _, test := range table {
