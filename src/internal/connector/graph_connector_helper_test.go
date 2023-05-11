@@ -1099,7 +1099,7 @@ func makeSharePointBackupSel(
 }
 
 // backupSelectorForExpected creates a selector that can be used to backup the
-// given items in expected based on the item paths. Fails the test if items from
+// given dests based on the item paths. Fails the test if items from
 // multiple services are in expected.
 func backupSelectorForExpected(
 	t *testing.T,
