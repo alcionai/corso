@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OneDrive backups no longer include a user's non-default drives.
 - OneDrive and SharePoint file downloads will properly redirect from 3xx responses.
 
+ ### Known Issues
+ - SharePoint document library data cannot be restored after the library has been deleted.
+
 ## [v0.7.0] (beta) - 2023-05-02
 
 ### Added
