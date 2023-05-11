@@ -934,7 +934,7 @@ func checkHasCollections(
 				continue
 			}
 
-			loc = path.FormatDriveFolders(dp.DriveID, loc.Elements()...)
+			loc = path.BuildDriveLocation(dp.DriveID, loc.Elements()...)
 		}
 
 		p, err := loc.ToDataLayerPath(
