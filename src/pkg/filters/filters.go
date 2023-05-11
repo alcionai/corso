@@ -11,40 +11,44 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type comparator int
+type comparator string
 
 //go:generate stringer -type=comparator -linecomment
 const (
-	UnknownComparator comparator = iota // UnknownComparison
-	// a == b
-	EqualTo // EQ
+	UnknownComparator comparator = ""
+	// norm(a) == norm(b)
+	EqualTo = "EQ"
 	// a > b
-	GreaterThan // GT
+	GreaterThan = "GT"
 	// a < b
-	LessThan // LT
+	LessThan = "LT"
 	// "foo,bar,baz" contains "foo"
-	TargetContains // Cont
+	TargetContains = "Cont"
 	// "foo" is found in "foo,bar,baz"
-	TargetIn // IN
+	TargetIn = "IN"
 	// always passes
-	Passes // Pass
+	Passes = "Pass"
 	// always fails
-	Fails // Fail
+	Fails = "Fail"
 	// passthrough for the target
-	IdentityValue // Identity
+	IdentityValue = "Identity"
 	// "foo" is a prefix of "foobarbaz"
-	TargetPrefixes // Pfx
+	TargetPrefixes = "Pfx"
 	// "baz" is a suffix of "foobarbaz"
-	TargetSuffixes // Sfx
+	TargetSuffixes = "Sfx"
 	// "foo" equals any complete element prefix of "foo/bar/baz"
-	TargetPathPrefix // PathPfx
+	TargetPathPrefix = "PathPfx"
 	// "foo" equals any complete element in "foo/bar/baz"
-	TargetPathContains // PathCont
+	TargetPathContains = "PathCont"
 	// "baz" equals any complete element suffix of "foo/bar/baz"
-	TargetPathSuffix // PathSfx
+	TargetPathSuffix = "PathSfx"
 	// "foo/bar/baz" equals the complete path "foo/bar/baz"
-	TargetPathEquals // PathEQ
+	TargetPathEquals = "PathEQ"
 )
+
+func (c comparator) String() string {
+	return string(c)
+}
 
 func normAll(ss []string) []string {
 	r := slices.Clone(ss)
@@ -56,7 +60,7 @@ func normAll(ss []string) []string {
 }
 
 func norm(s string) string {
-	return strings.ToLower(s)
+	return strings.ToLower(strings.TrimSpace(s))
 }
 
 // normPathElem ensures the string is:
@@ -66,6 +70,8 @@ func norm(s string) string {
 // without re-running the prefix-suffix addition multiple
 // times per target.
 func normPathElem(s string) string {
+	s = strings.TrimSpace(s)
+
 	if len(s) == 0 {
 		return s
 	}
@@ -74,7 +80,9 @@ func normPathElem(s string) string {
 		s = string(path.PathSeparator) + s
 	}
 
-	s = path.TrimTrailingSlash(s) + string(path.PathSeparator)
+	s = path.TrimTrailingSlash(s)
+	s = strings.ToLower(s)
+	s += string(path.PathSeparator)
 
 	return s
 }
@@ -83,7 +91,7 @@ func normPathElem(s string) string {
 // compare values against.  Filter.Matches(v) returns
 // true if Filter.Comparer(filter.target, v) is true.
 type Filter struct {
-	Comparator        comparator `json:"comparator"`
+	Comparator        comparator `json:"comparator_type"`   // the type of comparison
 	Targets           []string   `json:"targets"`           // the set of values to compare
 	NormalizedTargets []string   `json:"normalizedTargets"` // the set of comparable values post normalization
 	Negate            bool       `json:"negate"`            // when true, negate the comparator result
@@ -92,7 +100,8 @@ type Filter struct {
 	Identity string `json:"identity"`
 
 	// deprecated, kept around for deserialization
-	Target string `json:"target"` // the value to compare against
+	Target        string `json:"target"` // the value to compare against
+	ComparatorInt int    `json:"comparator"`
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -111,7 +120,7 @@ func Identity(id string) Filter {
 }
 
 // Equal creates a filter where Compare(v) is true if, for any target string,
-// target == v
+// norm(target) == norm(v)
 func Equal(target []string) Filter {
 	return newFilter(EqualTo, target, normAll(target), false)
 }
@@ -356,29 +365,22 @@ func (f Filter) CompareAny(inputs ...string) bool {
 func (f Filter) Compare(input string) bool {
 	var cmp func(string, string) bool
 
+	// select comparison func
 	switch f.Comparator {
-	case EqualTo, IdentityValue:
+	case EqualTo, IdentityValue, TargetPathEquals:
 		cmp = equals
 	case GreaterThan:
 		cmp = greater
 	case LessThan:
 		cmp = less
-	case TargetContains:
+	case TargetContains, TargetPathContains:
 		cmp = contains
 	case TargetIn:
 		cmp = in
-	case TargetPrefixes:
+	case TargetPrefixes, TargetPathPrefix:
 		cmp = prefixed
-	case TargetSuffixes:
+	case TargetSuffixes, TargetPathSuffix:
 		cmp = suffixed
-	case TargetPathPrefix:
-		cmp = pathPrefix
-	case TargetPathContains:
-		cmp = pathContains
-	case TargetPathSuffix:
-		cmp = pathSuffix
-	case TargetPathEquals:
-		cmp = pathEquals
 	case Passes:
 		return true
 	case Fails:
@@ -388,14 +390,36 @@ func (f Filter) Compare(input string) bool {
 	var (
 		res     bool
 		targets = f.NormalizedTargets
+		_input  = norm(input)
+		// most comparators expect cmp(target, input)
+		// path comparators expect cmp(input, target)
+		swapParams bool
 	)
+
+	// set conditional behavior
+	switch f.Comparator {
+	case TargetContains:
+		// legacy case handling for contains, which checks for
+		// strings.Contains(target, input) instead of (input, target)
+		swapParams = true
+	case TargetPathPrefix, TargetPathContains, TargetPathSuffix, TargetPathEquals:
+		// As a precondition, assumes each entry in the NormalizedTargets
+		// list has been passed through normPathElem().
+		_input = normPathElem(input)
+	}
 
 	if len(targets) == 0 {
 		targets = f.Targets
 	}
 
 	for _, tgt := range targets {
-		res = cmp(norm(tgt), norm(input))
+		t, i := tgt, _input
+
+		if swapParams {
+			t, i = _input, tgt
+		}
+
+		res = cmp(t, i)
 
 		// any-match
 		if res {
@@ -410,7 +434,7 @@ func (f Filter) Compare(input string) bool {
 	return res
 }
 
-// true if t == i
+// true if t == i, case insensitive and folded
 func equals(target, input string) bool {
 	return strings.EqualFold(target, input)
 }
@@ -425,9 +449,9 @@ func less(target, input string) bool {
 	return target < input
 }
 
-// true if target contains input as a substring.
+// true if input contains target as a substring.
 func contains(target, input string) bool {
-	return strings.Contains(target, input)
+	return strings.Contains(input, target)
 }
 
 // true if input contains target as a substring.
@@ -445,63 +469,6 @@ func suffixed(target, input string) bool {
 	return strings.HasSuffix(input, target)
 }
 
-// true if target is an _element complete_ prefix match
-// on the input.  Element complete means we do not
-// succeed on partial element matches (ex: "/foo" does
-// not match "/foobar").
-//
-// As a precondition, assumes the target value has been
-// passed through normPathElem().
-//
-// The input is assumed to be the complete path that may
-// have the target as a prefix.
-func pathPrefix(target, input string) bool {
-	return strings.HasPrefix(normPathElem(input), target)
-}
-
-// true if target has an _element complete_ equality
-// with any element, or any sequence of elements, from
-// the input.  Element complete means we do not succeed
-// on partial element matches (ex: foo does not match
-// /foobar, and foo/bar does not match foo/barbaz).
-//
-// As a precondition, assumes the target value has been
-// passed through normPathElem().
-//
-// Input is assumed to be the complete path that may
-// contain the target as an element or sequence of elems.
-func pathContains(target, input string) bool {
-	return strings.Contains(normPathElem(input), target)
-}
-
-// true if target is an _element complete_ suffix match
-// on the input.  Element complete means we do not
-// succeed on partial element matches (ex: "/bar" does
-// not match "/foobar").
-//
-// As a precondition, assumes the target value has been
-// passed through normPathElem().
-//
-// The input is assumed to be the complete path that may
-// have the target as a suffix.
-func pathSuffix(target, input string) bool {
-	return strings.HasSuffix(normPathElem(input), target)
-}
-
-// true if target is an _exact_ match on the input, excluding
-// path delmiters. Element complete means we do not succeed
-// on partial element matches (ex: "/bar" does not match
-// "/foobar").
-//
-// As a precondition, assumes the target value has been
-// passed through normPathElem().
-//
-// The input is assumed to be the complete path that may
-// match the target.
-func pathEquals(target, input string) bool {
-	return strings.EqualFold(normPathElem(input), target)
-}
-
 // ----------------------------------------------------------------------------------------------------
 // Printers and PII control
 // ----------------------------------------------------------------------------------------------------
@@ -511,16 +478,16 @@ var _ clues.PlainConcealer = &Filter{}
 var safeFilterValues = map[string]struct{}{"*": {}}
 
 func (f Filter) Conceal() string {
-	fcs := f.Comparator.String()
+	fcs := f.Comparator
 
 	switch f.Comparator {
 	case Passes, Fails:
-		return fcs
+		return string(fcs)
 	}
 
 	concealed := pii.ConcealElements(f.Targets, safeFilterValues)
 
-	return fcs + ":" + strings.Join(concealed, ",")
+	return string(fcs) + ":" + strings.Join(concealed, ",")
 }
 
 func (f Filter) Format(fs fmt.State, _ rune) {
@@ -532,12 +499,12 @@ func (f Filter) String() string {
 }
 
 func (f Filter) PlainString() string {
-	fcs := f.Comparator.String()
+	fcs := f.Comparator
 
 	switch f.Comparator {
 	case Passes, Fails:
-		return fcs
+		return string(fcs)
 	}
 
-	return fcs + ":" + strings.Join(f.Targets, ",")
+	return string(fcs) + ":" + strings.Join(f.Targets, ",")
 }
