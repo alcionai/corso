@@ -132,7 +132,13 @@ directory within the container.
 Corso generates a unique log file named with its timestamp for every invocation.
 The default location of Corso's log file is shown below but the location can be overridden by using the `--log-file` flag.
 The log file will be appended to if multiple Corso invocations are pointed to the same file.
+
 You can also use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
+This setting can cause logs to compete with progress bar displays in the terminal.
+We suggest using the `--hide-progress` option if you plan to log to stdout or stderr.
+
+Log entries, by default, include user names and file names. The `--mask-sensitive-data` option can be
+used to replace this information with anonymized hashes.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Windows">
