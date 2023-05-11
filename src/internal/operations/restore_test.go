@@ -55,7 +55,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 	)
 
 	table := []struct {
@@ -220,7 +220,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		sw   = &store.Wrapper{}
 		gc   = &mock.GraphConnector{}
 		acct = tester.NewM365Account(suite.T())
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 		opts = control.Defaults()
 	)
 
@@ -392,7 +392,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:  "Exchange_Restore",
 			owner: tester.M365UserID(suite.T()),
-			dest:  tester.DefaultTestRestoreDestination(),
+			dest:  tester.DefaultTestRestoreDestination(""),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewExchangeRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -464,7 +464,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 
 	var (
 		t    = suite.T()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 		mb   = evmock.NewBus()
 	)
 

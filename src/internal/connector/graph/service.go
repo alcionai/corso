@@ -21,13 +21,14 @@ const (
 	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
 	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
 	log2xxGraphResponseEnvKey = "LOG_2XX_GRAPH_RESPONSES"
-	retryAttemptHeader        = "Retry-Attempt"
-	retryAfterHeader          = "Retry-After"
 	defaultMaxRetries         = 3
 	defaultDelay              = 3 * time.Second
+	locationHeader            = "Location"
 	rateLimitHeader           = "RateLimit-Limit"
 	rateRemainingHeader       = "RateLimit-Remaining"
 	rateResetHeader           = "RateLimit-Reset"
+	retryAfterHeader          = "Retry-After"
+	retryAttemptHeader        = "Retry-Attempt"
 	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
@@ -173,6 +174,8 @@ type clientConfig struct {
 	// The minimum delay in seconds between retries
 	minDelay           time.Duration
 	overrideRetryCount bool
+
+	appendMiddleware []khttp.Middleware
 }
 
 type Option func(*clientConfig)
@@ -225,6 +228,14 @@ func MinimumBackoff(dur time.Duration) Option {
 	}
 }
 
+func appendMiddleware(mw ...khttp.Middleware) Option {
+	return func(c *clientConfig) {
+		if len(mw) > 0 {
+			c.appendMiddleware = mw
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Middleware Control
 // ---------------------------------------------------------------------------
@@ -256,6 +267,10 @@ func kiotaMiddlewares(
 		&ThrottleControlMiddleware{},
 		&MetricsMiddleware{},
 	}...)
+
+	if len(cc.appendMiddleware) > 0 {
+		mw = append(mw, cc.appendMiddleware...)
+	}
 
 	return mw
 }

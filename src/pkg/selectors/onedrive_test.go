@@ -315,7 +315,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	fileName := "file"
 	fileID := fileName + "-id"
 	shortRef := "short"
-	elems := []string{"drive", "driveID", "root:", "dir1.d", "dir2.d", fileID}
+	elems := []string{"drives", "driveID", "root:", "dir1.d", "dir2.d", fileID}
 
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
 	require.NoError(t, err, clues.ToCore(err))

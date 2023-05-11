@@ -34,20 +34,20 @@ const (
 
 // flag names
 const (
-	DebugAPIFN      = "debug-api-calls"
-	LogFileFN       = "log-file"
-	LogLevelFN      = "log-level"
-	ReadableLogsFN  = "readable-logs"
-	SensitiveInfoFN = "sensitive-info"
+	DebugAPIFN          = "debug-api-calls"
+	LogFileFN           = "log-file"
+	LogLevelFN          = "log-level"
+	ReadableLogsFN      = "readable-logs"
+	MaskSensitiveDataFN = "mask-sensitive-data"
 )
 
 // flag values
 var (
-	DebugAPIFV      bool
-	logFileFV       = ""
-	LogLevelFV      = "info"
-	ReadableLogsFV  bool
-	SensitiveInfoFV = PIIPlainText
+	DebugAPIFV          bool
+	logFileFV           = ""
+	LogLevelFV          = "info"
+	ReadableLogsFV      bool
+	MaskSensitiveDataFV bool
 
 	LogFile string // logFileFV after processing
 )
@@ -83,9 +83,6 @@ func AddLoggingFlags(cmd *cobra.Command) {
 
 	//nolint:errcheck
 	fs.MarkHidden(ReadableLogsFN)
-	// TODO(keepers): unhide when we have sufficient/complete coverage of PII handling
-	//nolint:errcheck
-	fs.MarkHidden(SensitiveInfoFN)
 }
 
 // internal deduplication for adding flags
@@ -106,11 +103,11 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 		false,
 		"minimizes log output for console readability: removes the file and date, colors the level")
 
-	fs.StringVar(
-		&SensitiveInfoFV,
-		SensitiveInfoFN,
-		PIIPlainText,
-		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
+	fs.BoolVar(
+		&MaskSensitiveDataFV,
+		MaskSensitiveDataFN,
+		false,
+		"anonymize personal data in log output")
 }
 
 // Settings records the user's preferred logging settings.
@@ -136,12 +133,16 @@ func PreloadLoggingFlags(args []string) Settings {
 	ls := Settings{
 		File:        "",
 		Level:       LogLevelFV,
-		PIIHandling: SensitiveInfoFV,
+		PIIHandling: PIIPlainText,
 	}
 
 	// parse the os args list to find the log level flag
 	if err := fs.Parse(args); err != nil {
 		return ls
+	}
+
+	if MaskSensitiveDataFV {
+		ls.PIIHandling = PIIHash
 	}
 
 	// retrieve the user's preferred log level
@@ -165,7 +166,7 @@ func PreloadLoggingFlags(args []string) Settings {
 
 	// retrieve the user's preferred PII handling algorithm
 	// automatically defaults to default log location
-	pii, err := fs.GetString(SensitiveInfoFN)
+	pii, err := fs.GetString(MaskSensitiveDataFN)
 	if err != nil {
 		return ls
 	}
