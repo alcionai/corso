@@ -9,6 +9,9 @@ on:
       websitefileschanged:
         description: "'true' if websites/** or .github/workflows/** files have changed in the branch"
         value: ${{ jobs.file-change-check.outputs.websitefileschanged }}
+      actionsfileschanged:
+        description: "'true' if .github/actions/** or .github/workflows/** files have changed in the branch"
+        value: ${{ jobs.file-change-check.outputs.actionsfileschanged }}
 
 jobs:
   file-change-check:
@@ -52,9 +55,9 @@ jobs:
           echo "website or workflow file changes occurred"
           echo websitefileschanged=true >> $GITHUB_OUTPUT
 
-      - name: Check dorny for changes in workflow filepaths
+      - name: Check dorny for changes in actions filepaths
         id: actionschecker
         if: steps.dornycheck.outputs.actions == 'true'
         run: |
-          echo "workflow file changes occurred"
+          echo "actions file changes occurred"
           echo actionsfileschanged=true >> $GITHUB_OUTPUT
