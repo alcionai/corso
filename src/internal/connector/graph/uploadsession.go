@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/alcionai/clues"
 
@@ -20,7 +19,7 @@ const (
 
 // Writer implements an io.Writer for a M365
 // UploadSession URL
-type writer struct {
+type largeItemWriter struct {
 	// Identifier
 	id string
 	// Upload URL for this item
@@ -32,15 +31,17 @@ type writer struct {
 	client            httpWrapper
 }
 
-func NewWriter(id, url string, size int64) *writer {
-	return &writer{id: id, url: url, contentLength: size, client: *NewNoTimeoutHTTPWrapper()}
+func NewLargeItemWriter(id, url string, size int64) *largeItemWriter {
+	return &largeItemWriter{id: id, url: url, contentLength: size, client: *NewNoTimeoutHTTPWrapper()}
 }
 
 // Write will upload the provided data to M365. It sets the `Content-Length` and `Content-Range` headers based on
 // https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession
-func (iw *writer) Write(p []byte) (int, error) {
+func (iw *largeItemWriter) Write(p []byte) (int, error) {
 	rangeLength := len(p)
-	logger.Ctx(context.Background()).
+	ctx := context.Background()
+
+	logger.Ctx(ctx).
 		Debugf("WRITE for %s. Size:%d, Offset: %d, TotalSize: %d",
 			iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
 
@@ -48,25 +49,15 @@ func (iw *writer) Write(p []byte) (int, error) {
 
 	// PUT the request - set headers `Content-Range`to describe total size and `Content-Length` to describe size of
 	// data in the current request
-	req, err := http.NewRequest("PUT", iw.url, bytes.NewReader(p))
-	if err != nil {
-		return 0, clues.Wrap(err, "uploading item").With(
-			"upload_id", iw.id,
-			"upload_chunk_size", rangeLength,
-			"upload_offset", iw.lastWrittenOffset,
-			"upload_size", iw.contentLength)
-	}
+	headers := make(map[string]string)
+	headers[contentRangeHeaderKey] = fmt.Sprintf(
+		contentRangeHeaderValueFmt,
+		iw.lastWrittenOffset,
+		endOffset-1,
+		iw.contentLength)
+	headers[contentLengthHeaderKey] = fmt.Sprintf("%d", rangeLength)
 
-	req.Header = http.Header{
-		contentRangeHeaderKey: {fmt.Sprintf(
-			contentRangeHeaderValueFmt,
-			iw.lastWrittenOffset,
-			endOffset-1,
-			iw.contentLength)},
-		contentLengthHeaderKey: {fmt.Sprintf("%d", rangeLength)},
-	}
-	_, err = iw.client.client.Do(req)
-
+	_, err := iw.client.Request(ctx, "PUT", iw.url, bytes.NewReader(p), headers)
 	if err != nil {
 		return 0, clues.Wrap(err, "uploading item").With(
 			"upload_id", iw.id,

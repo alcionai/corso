@@ -359,7 +359,7 @@ func driveItemWriter(
 
 	url := ptr.Val(r.GetUploadUrl())
 
-	return graph.NewWriter(itemID, url, itemSize), nil
+	return graph.NewLargeItemWriter(itemID, url, itemSize), nil
 }
 
 // constructWebURL helper function for recreating the webURL

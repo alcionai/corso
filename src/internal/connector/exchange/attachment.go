@@ -105,7 +105,7 @@ func uploadLargeAttachment(
 	}
 
 	url := ptr.Val(session.GetUploadUrl())
-	aw := graph.NewWriter(uploader.getItemID(), url, size)
+	aw := graph.NewLargeItemWriter(uploader.getItemID(), url, size)
 	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", graph.LoggableURL(url))
 
 	// Upload the stream data
