@@ -512,11 +512,16 @@ func consumeBackupCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	if kopiaStats.ErrorCount > 0 ||
-		(kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount) {
-		err = clues.New("building kopia snapshot").With(
-			"kopia_errors", kopiaStats.ErrorCount,
-			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
+	ctx = clues.Add(
+		ctx,
+		"kopia_errors", kopiaStats.ErrorCount,
+		"kopia_ignored_errors", kopiaStats.IgnoredErrorCount,
+		"kopia_expected_ignored_errors", kopiaStats.ExpectedIgnoredErrorCount)
+
+	if kopiaStats.ErrorCount > 0 {
+		err = clues.New("building kopia snapshot").WithClues(ctx)
+	} else if kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount {
+		err = clues.New("downloading items for persistence").WithClues(ctx)
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err

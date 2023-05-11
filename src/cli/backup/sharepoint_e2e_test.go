@@ -45,7 +45,6 @@ func TestNoBackupSharePointE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupSharePointE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCITests,
 	)})
 }
 
@@ -112,9 +111,7 @@ func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteSharePointE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 

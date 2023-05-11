@@ -28,8 +28,7 @@ jobs:
       - name: Get version string
         id: version
         run: |
-          echo "set-output name=version::$(git describe --tags --abbrev=0)"
-          echo "::set-output name=version::$(git describe --tags --abbrev=0)"
+          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
 
   # ----------------------------------------------------------------------------------------------------
   # --- Website Linting -----------------------------------------------------------------------------------

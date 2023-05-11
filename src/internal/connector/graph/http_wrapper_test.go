@@ -88,10 +88,12 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 	// and thus skip all the middleware
 	hdr := http.Header{}
 	hdr.Set("Location", "localhost:99999999/smarfs")
+
 	toResp := &http.Response{
 		StatusCode: 302,
 		Header:     hdr,
 	}
+
 	mwResp := mwForceResp{
 		resp: toResp,
 		alternate: func(req *http.Request) (bool, *http.Response, error) {
