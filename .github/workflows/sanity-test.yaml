@@ -36,6 +36,7 @@ jobs:
       CORSO_LOG_DIR: testlog
       CORSO_LOG_FILE: testlog/testlogging.log
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      TEST_SITE: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
       SECONDARY_TEST_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: test_results
@@ -65,7 +66,7 @@ jobs:
       - name: Version Test
         run: |  
           set -euo pipefail
-          if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
+          if [ $( ./corso --version | grep -c 'Corso version:' ) -ne 1 ]
           then
               echo "valid version not found"
               exit 1
@@ -77,7 +78,7 @@ jobs:
           TEST_RESULT: "test_results"
         run: |
           set -euo pipefail 
-          prefix=`date +"%Y-%m-%d-%T"`
+          prefix=$(date +"%Y-%m-%d-%T")
           echo -e "\nRepo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
           --no-stats \
@@ -123,9 +124,9 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . exchange emails \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          --destination Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
           --count 4
 
       - name: Backup exchange test
@@ -191,7 +192,7 @@ jobs:
           echo -e "\nBackup Exchange restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
-          --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          --email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.exchange-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
@@ -201,7 +202,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "exchange"
-          TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.repo-init.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityTest
@@ -238,7 +239,7 @@ jobs:
           --no-stats \
           --hide-progress \
           --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
-          --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          --email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
           2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
@@ -246,7 +247,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "exchange"
-          TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.repo-init.outputs.result }}
           BASE_BACKUP: ${{ steps.exchange-restore-test.outputs.result }}
         run: |
           set -euo pipefail
@@ -265,13 +266,13 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
-          suffix=`date +"%Y-%m-%d_%H-%M"`
+          suffix=$(date +"%Y-%m-%d_%H-%M")
 
           go run . onedrive files  \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_$suffix \
+          --destination Corso_Test_sanity$suffix \
           --count 4
 
           echo result="$suffix" >> $GITHUB_OUTPUT
@@ -340,7 +341,7 @@ jobs:
           ./corso restore onedrive \
           --no-stats \
           --restore-permissions \
-          --folder Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --folder Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.onedrive-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
@@ -350,7 +351,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "onedrive"
-          TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityTest
@@ -364,10 +365,10 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
-          --user ${{ env.TEST_USER }} \
+          --user ${TEST_USER} \
           --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --destination Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
           --count 4
 
       # incremental backup
@@ -403,7 +404,7 @@ jobs:
           --no-stats \
           --restore-permissions \
           --hide-progress \
-          --folder Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }} \
+          --folder Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
           --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
@@ -412,7 +413,7 @@ jobs:
         env:
           SANITY_RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
           SANITY_RESTORE_SERVICE: "onedrive"
-          TEST_DATA: Corso_Restore_st_${{ steps.new-data-creation-onedrive.outputs.result }}
+          TEST_DATA: Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityTest
@@ -427,18 +428,18 @@ jobs:
         id: sharepoint-test
         run: |
           set -euo pipefail
-        echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --site "${TEST_SITE}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_sharepoint.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_sharepoint.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -450,7 +451,7 @@ jobs:
       - name: Backup sharepoint list test
         run: |
           set -euo pipefail
-        echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup List SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup list sharepoint \
           --no-stats \
@@ -467,7 +468,7 @@ jobs:
       - name: Backup sharepoint list single backup test
         run: |
           set -euo pipefail
-        echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup List single backup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup list sharepoint \
           --no-stats \
@@ -486,7 +487,7 @@ jobs:
         id: sharepoint-restore-test
         run: |
           set -euo pipefail
-        echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRestore SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso restore sharepoint \
           --no-stats \
@@ -513,18 +514,18 @@ jobs:
         id: sharepoint-incremental-test
         run: |
           set -euo pipefail
-        echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nIncremental Backup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${CORSO_M365_TEST_SITE_URL}" \
+          --site "${TEST_SITE}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_sharepoint_incremental.txt 
           
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_sharepoint_incremental.txt ) 
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
             echo "backup was not successful"
             exit 1
           fi
@@ -537,7 +538,7 @@ jobs:
         id: sharepoint-incremental-restore-test
         run: |
           set -euo pipefail
-        echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nIncremental Restore SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           ./corso restore sharepoint \
           --no-stats \

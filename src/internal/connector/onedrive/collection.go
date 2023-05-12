@@ -131,7 +131,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 // NewCollection creates a Collection
 func NewCollection(
 	itemClient graph.Requester,
-	folderPath path.Path,
+	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
 	service graph.Servicer,
@@ -145,9 +145,9 @@ func NewCollection(
 	// to be changed as we won't be able to extract path information from the
 	// storage path. In that case, we'll need to start storing the location paths
 	// like we do the previous path.
-	locPath, err := pathToLocation(folderPath)
+	locPath, err := pathToLocation(currPath)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting location").With("folder_path", folderPath.String())
+		return nil, clues.Wrap(err, "getting location").With("curr_path", currPath.String())
 	}
 
 	prevLocPath, err := pathToLocation(prevPath)
@@ -157,7 +157,7 @@ func NewCollection(
 
 	c := newColl(
 		itemClient,
-		folderPath,
+		currPath,
 		prevPath,
 		driveID,
 		service,
@@ -175,7 +175,7 @@ func NewCollection(
 
 func newColl(
 	gr graph.Requester,
-	folderPath path.Path,
+	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
 	service graph.Servicer,
@@ -188,7 +188,7 @@ func newColl(
 	c := &Collection{
 		itemClient:      gr,
 		itemGetter:      api.GetDriveItem,
-		folderPath:      folderPath,
+		folderPath:      currPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
@@ -197,7 +197,7 @@ func newColl(
 		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
-		state:           data.StateOf(prevPath, folderPath),
+		state:           data.StateOf(prevPath, currPath),
 		scope:           colScope,
 		doNotMergeItems: doNotMergeItems,
 	}

@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
+
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 )
 
 // For any version post this(inclusive), we expect to be using IDs for
@@ -230,7 +232,7 @@ func (c *onedriveCollection) withPermissions(perm PermData) *onedriveCollection 
 		metaName = ""
 	}
 
-	if name == rootFolder {
+	if name == odConsts.RootPathDir {
 		return c
 	}
 

@@ -1,7 +1,9 @@
 package repository_test
 
 import (
+	"os"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -145,6 +147,33 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	}
 }
 
+const (
+	roleARNEnvKey = "CORSO_TEST_S3_ROLE"
+	roleDuration  = time.Minute * 20
+)
+
+func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
+	if _, ok := os.LookupEnv(roleARNEnvKey); !ok {
+		suite.T().Skip(roleARNEnvKey + " not set")
+	}
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	st := tester.NewPrefixedS3Storage(suite.T())
+
+	st.Role = os.Getenv(roleARNEnvKey)
+	st.SessionName = "corso-repository-test"
+	st.SessionDuration = roleDuration.String()
+
+	r, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	require.NoError(suite.T(), err)
+
+	defer func() {
+		r.Close(ctx)
+	}()
+}
+
 func (suite *RepositoryIntegrationSuite) TestConnect() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -213,7 +242,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	t := suite.T()
 
 	acct := tester.NewM365Account(t)
-	dest := tester.DefaultTestRestoreDestination()
+	dest := tester.DefaultTestRestoreDestination("")
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)

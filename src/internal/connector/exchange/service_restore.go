@@ -218,8 +218,7 @@ func RestoreMailMessage(
 		return nil, err
 	}
 
-	info := api.MailInfo(clone)
-	info.Size = int64(len(bits))
+	info := api.MailInfo(clone, int64(len(bits)))
 
 	return info, nil
 }
@@ -436,16 +435,13 @@ func restoreCollection(
 			metrics.Bytes += int64(len(byteArray))
 			metrics.Successes++
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				errs.AddRecoverable(clues.Wrap(err, "building full path with item").WithClues(ctx))
 				continue
 			}
 
-			locationRef := &path.Builder{}
-			if category == path.ContactsCategory {
-				locationRef = locationRef.Append(itemPath.Folders()...)
-			}
+			locationRef := path.Builder{}.Append(itemPath.Folders()...)
 
 			err = deets.Add(
 				itemPath,

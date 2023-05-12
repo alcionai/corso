@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -351,35 +352,35 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		suite.BackupResourceOwner())
 
 	rootPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 	}
 	folderAPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 	}
 	subfolderBPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 		folderBName,
 	}
 	subfolderAPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 		folderBName,
 		folderAName,
 	}
 	folderBPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderBName,
 	}
 
@@ -496,34 +497,34 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	folderCName := "folder-c"
 
 	rootPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 	}
 	folderAPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 	}
 	folderBPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderBName,
 	}
 	// For skipped test
 	// subfolderAPath := []string{
-	// 	"drives",
+	// 	odConsts.DrivesPathDir,
 	// 	driveID,
-	// 	rootFolder,
+	// 	odConsts.RootPathDir,
 	// 	folderBName,
 	// 	folderAName,
 	// }
 	folderCPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderCName,
 	}
 
@@ -707,9 +708,9 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 	inputCols := []OnedriveColInfo{
 		{
 			PathElements: []string{
-				"drives",
+				odConsts.DrivesPathDir,
 				driveID,
-				rootFolder,
+				odConsts.RootPathDir,
 			},
 			Files: []ItemData{
 				{
@@ -728,9 +729,9 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 	expectedCols := []OnedriveColInfo{
 		{
 			PathElements: []string{
-				"drives",
+				odConsts.DrivesPathDir,
 				driveID,
-				rootFolder,
+				odConsts.RootPathDir,
 			},
 			Files: []ItemData{
 				{
@@ -793,34 +794,34 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	folderCName := "empty"
 
 	rootPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 	}
 	folderAPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 	}
 	subfolderAAPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 		folderAName,
 	}
 	subfolderABPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 		folderBName,
 	}
 	subfolderACPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderAName,
 		folderCName,
 	}
@@ -966,20 +967,20 @@ func testRestoreFolderNamedFolderRegression(
 		suite.BackupResourceOwner())
 
 	rootPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 	}
 	folderFolderPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderNamedFolder,
 	}
 	subfolderPath := []string{
-		"drives",
+		odConsts.DrivesPathDir,
 		driveID,
-		rootFolder,
+		odConsts.RootPathDir,
 		folderNamedFolder,
 		folderBName,
 	}

@@ -140,7 +140,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
+					p, err := emailPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
@@ -163,7 +163,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
+					p, err := emailPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
@@ -191,10 +191,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
+					p, err := emailPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
-					p, err = contactPath.Append(f, true)
+					p, err = contactPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
@@ -222,10 +222,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
+					p, err := emailPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
-					p, err = contactPath.Append(f, true)
+					p, err = contactPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}

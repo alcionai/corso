@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
@@ -81,7 +80,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 
 	t := suite.T()
 
-	destName := "Corso_Restore_" + dttm.FormatNow(dttm.SafeForTesting)
+	destName := tester.DefaultTestRestoreDestination("").ContainerName
 	testName := "MockPage"
 
 	// Create Test Page
@@ -98,8 +97,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 		suite.service,
 		pageData,
 		suite.siteID,
-		destName,
-	)
+		destName)
 
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, info)

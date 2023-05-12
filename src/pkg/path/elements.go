@@ -86,3 +86,12 @@ func (el Elements) String() string {
 func (el Elements) PlainString() string {
 	return join(el)
 }
+
+// Last returns the last element.  Returns "" if empty.
+func (el Elements) Last() string {
+	if len(el) == 0 {
+		return ""
+	}
+
+	return el[len(el)-1]
+}

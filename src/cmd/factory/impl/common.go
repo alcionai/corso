@@ -420,7 +420,7 @@ func generateAndRestoreOnedriveItems(
 		Service:        service,
 		Tenant:         tenantID,
 		ResourceOwners: []string{resourceOwner},
-		Dest:           tester.DefaultTestRestoreDestination(),
+		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
 	_, _, collections, _ := connector.GetCollectionsAndExpected(
