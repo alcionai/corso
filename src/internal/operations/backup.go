@@ -199,9 +199,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Results.BackupID)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running backup", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running backup")
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
