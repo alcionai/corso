@@ -478,7 +478,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			ctx = clues.Add(
 				ctx,
 				"item_id", itemID,
-				"item_name", itemName,
+				"item_name", clues.Hide(itemName),
 				"item_size", itemSize)
 
 			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
