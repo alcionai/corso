@@ -21,13 +21,14 @@ const (
 	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
 	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
 	log2xxGraphResponseEnvKey = "LOG_2XX_GRAPH_RESPONSES"
-	retryAttemptHeader        = "Retry-Attempt"
-	retryAfterHeader          = "Retry-After"
 	defaultMaxRetries         = 3
 	defaultDelay              = 3 * time.Second
+	locationHeader            = "Location"
 	rateLimitHeader           = "RateLimit-Limit"
 	rateRemainingHeader       = "RateLimit-Remaining"
 	rateResetHeader           = "RateLimit-Reset"
+	retryAfterHeader          = "Retry-After"
+	retryAttemptHeader        = "Retry-Attempt"
 	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
@@ -263,7 +264,7 @@ func kiotaMiddlewares(
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
-		&ThrottleControlMiddleware{},
+		&RateLimiterMiddleware{},
 		&MetricsMiddleware{},
 	}...)
 

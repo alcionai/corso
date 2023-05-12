@@ -128,8 +128,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive
-// It creates a new `testfolder_<timestamp` folder with a new
-// testitem_<timestamp> item and writes data to it
+// It creates a new folder with a new item and writes data to it
 func (suite *ItemIntegrationSuite) TestItemWriter() {
 	table := []struct {
 		name    string
@@ -155,24 +154,20 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
-			// Test Requirement 2: "Test Folder" should exist
-			folder, err := api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
-			require.NoError(t, err, clues.ToCore(err))
-
-			newFolderName := "testfolder_" + dttm.FormatNow(dttm.SafeForTesting)
-			t.Logf("Test will create folder %s", newFolderName)
+			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
+			t.Logf("creating folder %s", newFolderName)
 
 			newFolder, err := CreateItem(
 				ctx,
 				srv,
 				test.driveID,
-				ptr.Val(folder.GetId()),
+				ptr.Val(root.GetId()),
 				newItem(newFolderName, true))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
-			t.Logf("Test will create item %s", newItemName)
+			t.Logf("creating item %s", newItemName)
 
 			newItem, err := CreateItem(
 				ctx,

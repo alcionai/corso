@@ -279,24 +279,24 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 
 // Integration tests
 
-type OneDriveSuite struct {
+type OneDriveIntgSuite struct {
 	tester.Suite
 	userID string
 }
 
 func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{
+	suite.Run(t, &OneDriveIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *OneDriveSuite) SetupSuite() {
+func (suite *OneDriveIntgSuite) SetupSuite() {
 	suite.userID = tester.SecondaryM365UserID(suite.T())
 }
 
-func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
+func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -401,7 +401,7 @@ func (fm testFolderMatcher) Matches(p string) bool {
 	return fm.scope.Matches(selectors.OneDriveFolder, p)
 }
 
-func (suite *OneDriveSuite) TestOneDriveNewCollections() {
+func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 

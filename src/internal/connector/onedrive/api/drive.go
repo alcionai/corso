@@ -336,18 +336,33 @@ func GetItemPermission(
 	return perm, nil
 }
 
-func GetDriveByID(
+func GetUsersDrive(
 	ctx context.Context,
 	srv graph.Servicer,
-	userID string,
+	user string,
 ) (models.Driveable, error) {
-	//revive:enable:context-as-argument
 	d, err := srv.Client().
-		UsersById(userID).
+		UsersById(user).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting drive")
+		return nil, graph.Wrap(ctx, err, "getting user's drive")
+	}
+
+	return d, nil
+}
+
+func GetSitesDefaultDrive(
+	ctx context.Context,
+	srv graph.Servicer,
+	site string,
+) (models.Driveable, error) {
+	d, err := srv.Client().
+		SitesById(site).
+		Drive().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting site's drive")
 	}
 
 	return d, nil
@@ -358,7 +373,10 @@ func GetDriveRoot(
 	srv graph.Servicer,
 	driveID string,
 ) (models.DriveItemable, error) {
-	root, err := srv.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	root, err := srv.Client().
+		DrivesById(driveID).
+		Root().
+		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drive root")
 	}
