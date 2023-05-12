@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -60,11 +61,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, err := checkServiceEnabled(
+	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
 		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
-		sels.DiscreteOwner)
+		sels.DiscreteOwner,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,6 +79,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		colls []data.BackupCollection
 		ssmb  *prefixmatcher.StringSetMatcher
 	)
+
+	if !canMakeDeltaQueries {
+		logger.Ctx(ctx).Info("delta requests not available")
+
+		ctrlOpts.ToggleFeatures.DisableDelta = true
+	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
@@ -171,22 +179,28 @@ func checkServiceEnabled(
 	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
-) (bool, error) {
+) (bool, bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
-		return true, nil
+		return true, true, nil
 	}
 
 	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
-	return true, nil
+	canMakeDeltaQueries := true
+	if service == path.ExchangeService {
+		// we currently can only check quota exceeded for exchange
+		canMakeDeltaQueries = info.CanMakeDeltaQueries()
+	}
+
+	return true, canMakeDeltaQueries, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections

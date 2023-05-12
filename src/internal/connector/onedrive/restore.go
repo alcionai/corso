@@ -231,7 +231,7 @@ func RestoreCollection(
 				return metrics, nil
 			}
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
@@ -852,7 +852,7 @@ func AugmentRestorePaths(
 		el := p.StoragePath.Elements()
 
 		if backupVersion >= version.OneDrive6NameInMeta {
-			mPath, err := p.StoragePath.Append(".dirmeta", true)
+			mPath, err := p.StoragePath.AppendItem(".dirmeta")
 			if err != nil {
 				return nil, err
 			}
@@ -861,7 +861,7 @@ func AugmentRestorePaths(
 				paths,
 				path.RestorePaths{StoragePath: mPath, RestorePath: p.RestorePath})
 		} else if backupVersion >= version.OneDrive4DirIncludesPermissions {
-			mPath, err := p.StoragePath.Append(el[len(el)-1]+".dirmeta", true)
+			mPath, err := p.StoragePath.AppendItem(el.Last() + ".dirmeta")
 			if err != nil {
 				return nil, err
 			}
@@ -875,7 +875,7 @@ func AugmentRestorePaths(
 				return nil, err
 			}
 
-			mPath, err := pp.Append(el[len(el)-1]+".dirmeta", true)
+			mPath, err := pp.AppendItem(el.Last() + ".dirmeta")
 			if err != nil {
 				return nil, err
 			}

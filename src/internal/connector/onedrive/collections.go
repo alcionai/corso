@@ -677,7 +677,7 @@ func (c *Collections) getCollectionPath(
 		return nil, clues.New("folder with empty name")
 	}
 
-	collectionPath, err = collectionPath.Append(name, false)
+	collectionPath, err = collectionPath.Append(false, name)
 	if err != nil {
 		return nil, clues.Wrap(err, "making non-root folder path")
 	}

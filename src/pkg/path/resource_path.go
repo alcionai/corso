@@ -253,19 +253,23 @@ func (rp dataLayerResourcePath) Dir() (Path, error) {
 }
 
 func (rp dataLayerResourcePath) Append(
-	element string,
 	isItem bool,
+	elems ...string,
 ) (Path, error) {
 	if rp.hasItem {
 		return nil, clues.New("appending to an item path")
 	}
 
 	return &dataLayerResourcePath{
-		Builder:  *rp.Builder.Append(element),
+		Builder:  *rp.Builder.Append(elems...),
 		service:  rp.service,
 		category: rp.category,
 		hasItem:  isItem,
 	}, nil
+}
+
+func (rp dataLayerResourcePath) AppendItem(item string) (Path, error) {
+	return rp.Append(true, item)
 }
 
 func (rp dataLayerResourcePath) ToBuilder() *Builder {
