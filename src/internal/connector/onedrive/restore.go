@@ -227,14 +227,16 @@ func RestoreCollection(
 				return metrics, nil
 			}
 
+			ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
+
 			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
 				continue
 			}
 
 			itemInfo, skipped, err := restoreItem(
-				ctx,
+				ictx,
 				creds,
 				dc,
 				backupVersion,
@@ -260,7 +262,7 @@ func RestoreCollection(
 			}
 
 			if skipped {
-				logger.Ctx(ctx).With("item_path", itemPath).Debug("did not restore item")
+				logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
 				continue
 			}
 
@@ -271,7 +273,7 @@ func RestoreCollection(
 				itemInfo)
 			if err != nil {
 				// Not critical enough to need to stop restore operation.
-				logger.CtxErr(ctx, err).Infow("adding restored item to details")
+				logger.CtxErr(ictx, err).Infow("adding restored item to details")
 			}
 
 			metrics.Successes++
@@ -504,6 +506,11 @@ func restoreV6File(
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
+	ctx = clues.Add(
+		ctx,
+		"count_perms", len(meta.Permissions),
+		"restore_item_name", clues.Hide(meta.FileName))
+
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "deserializing item metadata")
 	}
@@ -675,10 +682,7 @@ func restoreData(
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
-	ctx = clues.Add(ctx, "item_name", itemData.UUID())
-
-	itemName := itemData.UUID()
-	trace.Log(ctx, "gc:oneDrive:restoreItem", itemName)
+	trace.Log(ctx, "gc:oneDrive:restoreItem", itemData.UUID())
 
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)
