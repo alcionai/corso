@@ -5,16 +5,16 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // For any version post this(inclusive), we expect to be using IDs for

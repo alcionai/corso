@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/stretchr/testify/require"
+
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/stretchr/testify/require"
 )
 
 type ColInfo struct {
