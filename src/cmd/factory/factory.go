@@ -34,7 +34,11 @@ var oneDriveCmd = &cobra.Command{
 // ------------------------------------------------------------------------------------------
 
 func main() {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.LLDebug, logger.LFText)
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
+	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
 	ctx = SetRootCmd(ctx, factoryCmd)
 
 	defer logger.Flush(ctx)

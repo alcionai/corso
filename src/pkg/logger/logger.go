@@ -12,6 +12,9 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/exp/slices"
+
+	"github.com/alcionai/corso/src/internal/common"
 )
 
 // Default location for writing logs, initialized in platform specific files
@@ -21,16 +24,6 @@ var (
 	logCore   *zapcore.Core
 	loggerton *zap.SugaredLogger
 )
-
-// type logLevel int
-
-// const (
-// 	Debug logLevel = iota
-// 	Info
-// 	Warn
-// 	Error
-// 	Disabled
-// )
 
 type logLevel string
 
@@ -51,6 +44,14 @@ const (
 	LFJSON logFormat = "json"
 )
 
+type piiAlg string
+
+const (
+	PIIHash      piiAlg = "hash"
+	PIIMask      piiAlg = "mask"
+	PIIPlainText piiAlg = "plaintext"
+)
+
 // flag names
 const (
 	DebugAPIFN          = "debug-api-calls"
@@ -64,27 +65,28 @@ const (
 // flag values
 var (
 	DebugAPIFV          bool
-	logFileFV           = ""
-	LogFormatFV         = string(LFText)
-	LogLevelFV          = string(LLInfo)
+	logFileFV           string
+	LogFormatFV         string
+	LogLevelFV          string
 	ReadableLogsFV      bool
 	MaskSensitiveDataFV bool
 
-	LogFile string // logFileFV after processing
+	LogFile     string // logFileFV after processing
+	piiHandling string // piiHandling after MaskSensitiveDataFV processing
 )
 
 const (
 	Stderr = "stderr"
 	Stdout = "stdout"
-
-	PIIHash      = "hash"
-	PIIMask      = "mask"
-	PIIPlainText = "plaintext"
 )
 
 // Returns the default location for writing logs
 func defaultLogLocation() string {
-	return filepath.Join(userLogsDir, "corso", "logs", time.Now().UTC().Format("2006-01-02T15-04-05Z")+".log")
+	return filepath.Join(
+		userLogsDir,
+		"corso",
+		"logs",
+		time.Now().UTC().Format("2006-01-02T15-04-05Z")+".log")
 }
 
 // adds the persistent flag --log-level and --log-file to the provided command.
@@ -131,14 +133,6 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 		"anonymize personal data in log output")
 }
 
-// Settings records the user's preferred logging settings.
-type Settings struct {
-	File        string    // what file to log to (alt: stderr, stdout)
-	Format      logFormat // whether to format as text (console) or json (cloud)
-	Level       logLevel  // what level to log at
-	PIIHandling string    // how to obscure pii
-}
-
 // Due to races between the lazy evaluation of flags in cobra and the
 // need to init logging behavior in a ctx, log-level and log-file gets
 // pre-processed manually here using pflags.  The canonical
@@ -152,60 +146,58 @@ func PreloadLoggingFlags(args []string) Settings {
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
-	ls := Settings{
-		File:        "",
-		Format:      logFormat(LogFormatFV),
-		Level:       logLevel(LogLevelFV),
+	set := Settings{
+		File:        defaultLogLocation(),
+		Format:      LFText,
+		Level:       LLInfo,
 		PIIHandling: PIIPlainText,
 	}
 
 	// parse the os args list to find the log level flag
 	if err := fs.Parse(args); err != nil {
-		return ls
-	}
-
-	if MaskSensitiveDataFV {
-		ls.PIIHandling = PIIHash
+		return set
 	}
 
 	// retrieve the user's preferred log level
-	// automatically defaults to "info"
+	// defaults to "info"
 	levelString, err := fs.GetString(LogLevelFN)
 	if err != nil {
-		return ls
+		return set
 	}
 
-	ls.Level = logLevel(levelString)
+	set.Level = logLevel(levelString)
 
 	// retrieve the user's preferred log format
-	// automatically defaults to "text"
+	// defaults to "text"
 	formatString, err := fs.GetString(LogFormatFN)
 	if err != nil {
-		return ls
+		return set
 	}
 
-	ls.Format = logFormat(formatString)
+	set.Format = logFormat(formatString)
 
 	// retrieve the user's preferred log file location
-	// automatically defaults to default log location
+	// defaults to default log location
 	lffv, err := fs.GetString(LogFileFN)
 	if err != nil {
-		return ls
+		return set
 	}
 
-	ls.File = GetLogFile(lffv)
-	LogFile = ls.File
+	set.File = GetLogFile(lffv)
+	LogFile = set.File
 
 	// retrieve the user's preferred PII handling algorithm
-	// automatically defaults to default log location
-	pii, err := fs.GetString(MaskSensitiveDataFN)
+	// defaults to "plaintext"
+	maskPII, err := fs.GetBool(MaskSensitiveDataFN)
 	if err != nil {
-		return ls
+		return set
 	}
 
-	ls.PIIHandling = pii
+	if maskPII {
+		set.PIIHandling = PIIHash
+	}
 
-	return ls
+	return set
 }
 
 // GetLogFile parses the log file.  Uses the provided value, if populated,
@@ -239,11 +231,50 @@ func GetLogFile(logFileFlagVal string) string {
 	return r
 }
 
-func genLogger(level logLevel, format logFormat, logfile string) (*zapcore.Core, *zap.SugaredLogger) {
+// Settings records the user's preferred logging settings.
+type Settings struct {
+	File        string    // what file to log to (alt: stderr, stdout)
+	Format      logFormat // whether to format as text (console) or json (cloud)
+	Level       logLevel  // what level to log at
+	PIIHandling piiAlg    // how to obscure pii
+}
+
+// EnsureDefaults sets any non-populated settings to their default value.
+// exported for testing without circular dependencies.
+func (s Settings) EnsureDefaults() Settings {
+	set := s
+
+	levels := []logLevel{LLDisabled, LLDebug, LLInfo, LLWarn, LLError}
+	if len(set.Level) == 0 || !slices.Contains(levels, set.Level) {
+		set.Level = LLInfo
+	}
+
+	formats := []logFormat{LFText, LFJSON}
+	if len(set.Format) == 0 || !slices.Contains(formats, set.Format) {
+		set.Format = LFText
+	}
+
+	algs := []piiAlg{PIIPlainText, PIIMask, PIIHash}
+	if len(set.PIIHandling) == 0 || !slices.Contains(algs, set.PIIHandling) {
+		set.PIIHandling = piiAlg(common.First(piiHandling, string(PIIPlainText)))
+	}
+
+	if len(set.File) == 0 {
+		set.File = GetLogFile("")
+	}
+
+	return set
+}
+
+// ---------------------------------------------------------------------------
+// constructors
+// ---------------------------------------------------------------------------
+
+func genLogger(set Settings) (*zapcore.Core, *zap.SugaredLogger) {
 	// when testing, ensure debug logging matches the test.v setting
 	for _, arg := range os.Args {
 		if arg == `--test.v=true` {
-			level = LLDebug
+			set.Level = LLDebug
 		}
 	}
 
@@ -254,7 +285,7 @@ func genLogger(level logLevel, format logFormat, logfile string) (*zapcore.Core,
 
 		// set up a logger core to use as a fallback
 		levelFilter = zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-			switch level {
+			switch set.Level {
 			case LLInfo:
 				return lvl >= zapcore.InfoLevel
 			case LLWarn:
@@ -277,23 +308,23 @@ func genLogger(level logLevel, format logFormat, logfile string) (*zapcore.Core,
 		cfg zap.Config
 	)
 
-	switch format {
+	switch set.Format {
 	case LFJSON:
-		cfg = setLevel(zap.NewProductionConfig(), level)
-		cfg.OutputPaths = []string{logfile}
+		cfg = setLevel(zap.NewProductionConfig(), set.Level)
+		cfg.OutputPaths = []string{set.File}
 	default:
-		cfg = setLevel(zap.NewDevelopmentConfig(), level)
+		cfg = setLevel(zap.NewDevelopmentConfig(), set.Level)
 
 		if ReadableLogsFV {
 			opts = append(opts, zap.WithCaller(false))
 			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
 
-			if logfile == Stderr || logfile == Stdout {
+			if set.File == Stderr || set.File == Stdout {
 				cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 			}
 		}
 
-		cfg.OutputPaths = []string{logfile}
+		cfg.OutputPaths = []string{set.File}
 	}
 
 	// fall back to the core config if the default creation fails
@@ -320,7 +351,7 @@ func setLevel(cfg zap.Config, level logLevel) zap.Config {
 	return cfg
 }
 
-func singleton(level logLevel, format logFormat, logfile string) *zap.SugaredLogger {
+func singleton(set Settings) *zap.SugaredLogger {
 	if loggerton != nil {
 		return loggerton
 	}
@@ -332,7 +363,10 @@ func singleton(level logLevel, format logFormat, logfile string) *zap.SugaredLog
 		return loggerton
 	}
 
-	logCore, loggerton = genLogger(level, format, logfile)
+	set = set.EnsureDefaults()
+	setCluesSecretsHash(set.PIIHandling)
+
+	logCore, loggerton = genLogger(set)
 
 	return loggerton
 }
@@ -350,22 +384,11 @@ const ctxKey loggingKey = "corsoLogger"
 // cobra.  This early parsing is necessary since logging depends on
 // a seeded context prior to cobra evaluating flags.
 func Seed(ctx context.Context, set Settings) (context.Context, *zap.SugaredLogger) {
-	if len(set.Level) == 0 {
-		set.Level = LLInfo
-	}
-
-	if len(set.Format) == 0 {
-		set.Format = LFText
-	}
-
-	setCluesSecretsHash(set.PIIHandling)
-
-	zsl := singleton(set.Level, set.Format, set.File)
-
+	zsl := singleton(set)
 	return Set(ctx, zsl), zsl
 }
 
-func setCluesSecretsHash(alg string) {
+func setCluesSecretsHash(alg piiAlg) {
 	switch alg {
 	case PIIHash:
 		// TODO: a persistent hmac key for each tenant would be nice
@@ -378,18 +401,12 @@ func setCluesSecretsHash(alg string) {
 	}
 }
 
-// SeedLevel generates a logger within the context with the given log-level and -format.
-func SeedLevel(ctx context.Context, level logLevel, format logFormat) (context.Context, *zap.SugaredLogger) {
+// CtxOrSeed attempts to retrieve the logger from the ctx.  If not found, it
+// generates a logger with the given settings and adds it to the context.
+func CtxOrSeed(ctx context.Context, set Settings) (context.Context, *zap.SugaredLogger) {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		logfile := os.Getenv("CORSO_LOG_FILE")
-
-		if len(logfile) == 0 {
-			logfile = defaultLogLocation()
-		}
-
-		zsl := singleton(level, format, logfile)
-
+		zsl := singleton(set)
 		return Set(ctx, zsl), zsl
 	}
 
@@ -409,10 +426,7 @@ func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
 func Ctx(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		return singleton(
-			logLevel(LogLevelFV),
-			logFormat(LogFormatFV),
-			defaultLogLocation())
+		l = singleton(Settings{}.EnsureDefaults())
 	}
 
 	return l.(*zap.SugaredLogger).With(clues.In(ctx).Slice()...)
@@ -439,7 +453,6 @@ func Flush(ctx context.Context) {
 
 type wrapper struct {
 	zap.SugaredLogger
-
 	forceDebugLogLevel bool
 }
 
