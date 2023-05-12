@@ -9,7 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
 const (
@@ -146,22 +146,20 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateMaintenanceFlags(s control.Safety) error {
-	_, ok := control.SafetyValues[s]
+func getMaintenanceType(t string) (repository.MaintenanceType, error) {
+	res, ok := repository.StringToMaintenanceType[t]
 	if !ok {
-		values := maps.Keys(control.SafetyValues)
+		modes := maps.Keys(repository.StringToMaintenanceType)
 		allButLast := []string{}
 
-		for i := 0; i < len(values)-1; i++ {
-			allButLast = append(allButLast, string(values[i]))
+		for i := 0; i < len(modes)-1; i++ {
+			allButLast = append(allButLast, string(modes[i]))
 		}
 
-		valuesStr := strings.Join(allButLast, ", ") + " or " + string(values[len(values)-1])
+		valuesStr := strings.Join(allButLast, ", ") + " or " + string(modes[len(modes)-1])
 
-		return clues.New(
-			string(s) + " is an unrecognized safety level; must be one of " +
-				valuesStr)
+		return res, clues.New(t + " is an unrecognized maintenance mode; must be one of " + valuesStr)
 	}
 
-	return nil
+	return res, nil
 }

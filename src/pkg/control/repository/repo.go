@@ -26,6 +26,11 @@ const (
 	MetadataMaintenance                        // metadata
 )
 
+var StringToMaintenanceType = map[string]MaintenanceType{
+	CompleteMaintenance.String(): CompleteMaintenance,
+	MetadataMaintenance.String(): MetadataMaintenance,
+}
+
 type MaintenanceSafety int
 
 // Can't be reordered as we rely on iota for numbering.
