@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -150,17 +151,35 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 // can utilize it on a per-download basis.
 func KiotaHTTPClient(opts ...Option) *http.Client {
 	var (
-		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
-		cc            = populateConfig(opts...)
-		middlewares   = kiotaMiddlewares(&clientOptions, cc)
-		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
+		clientOptions   = msgraphsdkgo.GetDefaultClientOptions()
+		cc              = populateConfig(opts...)
+		middlewares     = kiotaMiddlewares(&clientOptions, cc)
+		httpClient      = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
+		customTransport = khttp.NewCustomTransportWithParentTransport(defaultHttpTransport(), middlewares...)
 	)
 
+	httpClient.Transport = customTransport
 	httpClient.Timeout = defaultHTTPClientTimeout
 
 	cc.apply(httpClient)
 
 	return httpClient
+}
+
+func defaultHttpTransport() *http.Transport {
+	defaultTransport := khttp.GetDefaultTransport().(*http.Transport).Clone()
+
+	// default: 10 seconds
+	defaultTransport.TLSHandshakeTimeout = 30 * time.Second
+
+	// default: 30 seconds
+	nd := &net.Dialer{
+		Timeout:   60 * time.Second,
+		KeepAlive: 60 * time.Second,
+	}
+	defaultTransport.DialContext = nd.DialContext
+
+	return defaultTransport
 }
 
 // ---------------------------------------------------------------------------

@@ -37,7 +37,7 @@ func NewHTTPWrapper(opts ...Option) *httpWrapper {
 		rt = customTransport{
 			n: pipeline{
 				middlewares: internalMiddleware(cc),
-				transport:   defaultTransport(),
+				transport:   defaultHttpTransport(),
 			},
 		}
 		redirect = func(req *http.Request, via []*http.Request) error {
@@ -130,13 +130,6 @@ func (pl pipeline) Next(req *http.Request, idx int) (*http.Response, error) {
 	}
 
 	return pl.transport.RoundTrip(req)
-}
-
-func defaultTransport() http.RoundTripper {
-	defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
-	defaultTransport.ForceAttemptHTTP2 = true
-
-	return defaultTransport
 }
 
 func internalMiddleware(cc *clientConfig) []khttp.Middleware {
