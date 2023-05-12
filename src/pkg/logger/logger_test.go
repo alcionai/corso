@@ -83,3 +83,19 @@ func (suite *LoggerUnitSuite) TestPreloadLoggingFlags() {
 	assert.Equal(t, logger.LFText, settings.Format, "settings.Format")
 	assert.Equal(t, logger.PIIHash, settings.PIIHandling, "settings.PIIHandling")
 }
+
+func (suite *LoggerUnitSuite) TestSettings_ensureDefaults() {
+	t := suite.T()
+
+	s := logger.Settings{}
+	require.Empty(t, s.File, "file")
+	require.Empty(t, s.Level, "level")
+	require.Empty(t, s.Format, "format")
+	require.Empty(t, s.PIIHandling, "piialg")
+
+	s = s.EnsureDefaults()
+	require.NotEmpty(t, s.File, "file")
+	require.NotEmpty(t, s.Level, "level")
+	require.NotEmpty(t, s.Format, "format")
+	require.NotEmpty(t, s.PIIHandling, "piialg")
+}

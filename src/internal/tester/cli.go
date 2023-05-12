@@ -43,13 +43,23 @@ func NewContext() (context.Context, func()) {
 		}
 	}
 
+	ls := logger.Settings{
+		Level:  level,
+		Format: format,
+	}
+
 	//nolint:forbidigo
-	ctx, _ := logger.SeedLevel(context.Background(), level, format)
+	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
 
 	return ctx, func() { logger.Flush(ctx) }
 }
 
 func WithContext(ctx context.Context) (context.Context, func()) {
-	ctx, _ = logger.SeedLevel(ctx, logger.LLDebug, logger.LFText)
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
+	ctx, _ = logger.CtxOrSeed(ctx, ls)
+
 	return ctx, func() { logger.Flush(ctx) }
 }

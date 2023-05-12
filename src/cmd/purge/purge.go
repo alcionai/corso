@@ -49,7 +49,11 @@ var ErrPurging = clues.New("not all items were successfully purged")
 // ------------------------------------------------------------------------------------------
 
 func main() {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.LLDebug, logger.LFText)
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
+	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
 	ctx = SetRootCmd(ctx, purgeCmd)
 
 	defer logger.Flush(ctx)
