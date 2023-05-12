@@ -313,8 +313,7 @@ func createCollections(
 		scope,
 		dps,
 		ctrlOpts,
-		errs,
-	)
+		errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "filling collections")
 	}

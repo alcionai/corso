@@ -303,6 +303,11 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	userInfo.Mailbox = mbxInfo
 
+	// TODO: This tries to determine if the user has hit their mailbox
+	// limit by trying to fetch an item and seeing if we get the quota
+	// exceeded error. Ideally(if available) we should convert this to
+	// pull the user's usage via an api and compare if they have used
+	// up their quota.
 	if mfs != nil {
 		mf := mfs.GetValue()[0] // we will always have one
 		options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{

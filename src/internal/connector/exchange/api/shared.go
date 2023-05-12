@@ -22,7 +22,9 @@ type itemPager interface {
 	getPage(context.Context) (api.PageLinker, error)
 	// setNext is used to pass in the next url got from graph
 	setNext(string)
-	// reset is used to clear delta url in delta pagers
+	// reset is used to clear delta url in delta pagers. When
+	// reset is called, we reset the state(delta url) that we
+	// currently have and start a new delta query without the token.
 	reset(context.Context)
 	// valuesIn gets us the values in a page
 	valuesIn(api.PageLinker) ([]getIDAndAddtler, error)
@@ -93,7 +95,7 @@ func getAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	// return error if invalid delta error or oldDelta was empty
+	// return error if invalid not delta error or oldDelta was empty
 	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 {
 		return nil, nil, DeltaUpdate{}, err
 	}
@@ -168,7 +170,7 @@ func getItemsAddedAndRemovedFromContainer(
 		}
 
 		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(deltaLink) {
+			if !api.IsNextLinkValid(nextLink) || !api.IsNextLinkValid(deltaLink) {
 				logger.Ctx(ctx).
 					With("next_link", graph.LoggableURL(nextLink)).
 					With("delta_link", graph.LoggableURL(deltaLink)).

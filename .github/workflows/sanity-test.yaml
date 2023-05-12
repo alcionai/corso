@@ -281,7 +281,7 @@ jobs:
         id: exchange-non-delta-restore-test
         run: |
           set -euo pipefail
-          echo -e "\nBackup Exchange incremental restore test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nBackup Exchange incremental without delta restore test\n" >> ${CORSO_LOG_FILE}
           ./corso restore exchange \
           --no-stats \
           --hide-progress \

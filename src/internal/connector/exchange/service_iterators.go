@@ -121,8 +121,7 @@ func filterContainersAndFillCollections(
 			cID,
 			prevDelta,
 			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-			!ctrlOpts.ToggleFeatures.DisableDelta,
-		)
+			!ctrlOpts.ToggleFeatures.DisableDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
