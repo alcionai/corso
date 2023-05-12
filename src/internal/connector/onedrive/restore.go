@@ -616,9 +616,9 @@ func CreateRestoreFolders(
 	caches *restoreCaches,
 ) (string, error) {
 	var (
-		location       = &path.Builder{}
-		folders        = restoreDir.Elements()
 		driveID        = drivePath.DriveID
+		folders        = restoreDir.Elements()
+		location       = path.Builder{}.Append(driveID)
 		parentFolderID = caches.DriveIDToRootFolderID[drivePath.DriveID]
 	)
 
