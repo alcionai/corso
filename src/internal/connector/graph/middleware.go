@@ -399,6 +399,10 @@ func (mw *MetricsMiddleware) Intercept(
 		status    = "nil-resp"
 	)
 
+	if resp == nil {
+		return resp, err
+	}
+
 	if resp != nil {
 		status = resp.Status
 	}
@@ -409,11 +413,6 @@ func (mw *MetricsMiddleware) Intercept(
 	events.Since(start, events.APICall, status)
 
 	// track the graph "resource cost" for each call (if not provided, assume 1)
-
-	// nil-pointer guard
-	if len(resp.Header) == 0 {
-		resp.Header = http.Header{}
-	}
 
 	// from msoft throttling documentation:
 	// x-ms-resource-unit - Indicates the resource unit used for this request. Values are positive integer
