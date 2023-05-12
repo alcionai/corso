@@ -277,6 +277,8 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
+	// This is where we get the previous deltas from.
+	// Each drive has one delta, so the cache will be per drive as well.
 	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, err
@@ -335,7 +337,22 @@ func (c *Collections) Get(
 			"num_paths_entries", len(oldPaths),
 			"num_deltas_entries", numOldDelta)
 
+		// This produces new delta token which we will eventually store in kopia
+		// This does a delta GET to graph
 		delta, paths, excluded, err := collectItems(
+			ictx,
+			c.itemPagerFunc(c.service, driveID, ""),
+			driveID,
+			driveName,
+			c.UpdateCollections,
+			oldPaths,
+			prevDelta,
+			errs)
+		if err != nil {
+			return nil, err
+		}
+
+		delta, paths, excluded, err = collectItems(
 			ictx,
 			c.itemPagerFunc(c.service, driveID, ""),
 			driveID,
@@ -357,6 +374,7 @@ func (c *Collections) Get(
 		// we leave empty delta tokens then we may end up setting the State field
 		// for collections when not actually getting delta results.
 		if len(delta.URL) > 0 {
+			// Let's see where does delta.URl get used.
 			deltaURLs[driveID] = delta.URL
 			numDeltas++
 		}

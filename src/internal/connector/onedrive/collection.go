@@ -388,6 +388,8 @@ func downloadContent(
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
+	// GetDriveItem calls the graph api to get the item's content url
+	// This is where we need to handle 401
 	_, content, err := irf(ctx, gr, item)
 	if err == nil {
 		return content, nil
@@ -399,11 +401,16 @@ func downloadContent(
 	// token, and that we've overrun the available window to
 	// download the actual file.  Re-downloading the item will
 	// refresh that download url.
+
+	// If the item got deleted by now, we'll get a 404
+	// Just fail and let the caller handle it
 	di, err := igf(ctx, svc, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
+	// What if other item properties change? Not just download URL
+	// Do we really care about other properties during download content?
 	_, content, err = irf(ctx, gr, di)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")

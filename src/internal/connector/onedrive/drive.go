@@ -179,6 +179,10 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "extracting items from response")
 		}
 
+		// This function will iterate through all the items returned by GetPage().valuesIn()
+		// and add them to collections.
+		// We can specify our own collector function, which can populate
+		// [item ID] -> [DI] map
 		err = collector(
 			ctx,
 			driveID,

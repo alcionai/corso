@@ -1362,6 +1362,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		true)
 }
 
+// Good reference point for testing incremental backups
 func runDriveIncrementalTest(
 	suite *BackupOpIntegrationSuite,
 	owner, permissionsUser string,

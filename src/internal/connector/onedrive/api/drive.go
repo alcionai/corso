@@ -77,6 +77,7 @@ func NewItemPager(
 	return res
 }
 
+// Delta API call
 func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	var (
 		resp api.DeltaPageLinker
@@ -95,6 +96,8 @@ func (p *driveItemPager) SetNext(link string) {
 	p.builder = drives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
+// Reset delta token
+// This doesn't reset all of item pager state though.
 func (p *driveItemPager) Reset() {
 	p.builder = p.gs.Client().DrivesById(p.driveID).Root().Delta()
 }

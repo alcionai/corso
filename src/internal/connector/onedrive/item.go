@@ -105,6 +105,8 @@ func baseItemMetaReader(
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
+
+// Returns readcloser
 func oneDriveItemReader(
 	ctx context.Context,
 	client graph.Requester,
