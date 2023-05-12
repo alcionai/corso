@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -16,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -221,16 +219,6 @@ func NewContactPager(
 
 	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts()
 
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
-
 	return &contactPager{gs, builder, options}, nil
 }
 
@@ -276,16 +264,6 @@ func getContactDeltaBuilder(
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
 	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
-
 	return builder
 }
 

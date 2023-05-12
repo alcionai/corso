@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -18,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -281,15 +279,6 @@ func NewEventPager(
 	}
 
 	builder := gs.Client().UsersById(user).CalendarsById(calendarID).Events()
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
 
 	return &eventPager{gs, builder, options}, nil
 }
@@ -366,16 +355,6 @@ func getEventDeltaBuilder(
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
-
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
 
 	return builder
 }
