@@ -308,9 +308,18 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				}
 
 				require.NotEmpty(t, c.FullPath().Folder(false))
-				folder := c.FullPath().Folder(false)
 
-				delete(test.folderNames, folder)
+				// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
+				// interface.
+				if !assert.Implements(t, (*data.LocationPather)(nil), c) {
+					continue
+				}
+
+				loc := c.(data.LocationPather).LocationPath().String()
+
+				require.NotEmpty(t, loc)
+
+				delete(test.folderNames, loc)
 			}
 
 			assert.Empty(t, test.folderNames)
@@ -551,7 +560,16 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 					continue
 				}
 
-				assert.Equal(t, edc.FullPath().Folder(false), DefaultContactFolder)
+				// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
+				// interface.
+				if !assert.Implements(t, (*data.LocationPather)(nil), edc) {
+					continue
+				}
+
+				assert.Equal(
+					t,
+					edc.(data.LocationPather).LocationPath().String(),
+					DefaultContactFolder)
 				assert.NotZero(t, count)
 			}
 

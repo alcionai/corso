@@ -172,7 +172,11 @@ func restoreListItem(
 	newList.SetItems(contents)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := service.
+		Client().
+		SitesById(siteID).
+		Lists().
+		Post(ctx, newList, nil)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -247,7 +251,7 @@ func RestoreListCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
@@ -335,7 +339,7 @@ func RestorePageCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue

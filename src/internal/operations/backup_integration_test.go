@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odapi "github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -369,7 +370,7 @@ func generateContainerOfItems(
 
 	switch service {
 	case path.OneDriveService, path.SharePointService:
-		pathFolders = []string{"drives", driveID, "root:", destFldr}
+		pathFolders = []string{odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
 	}
 
 	collections := []incrementalCollection{{
@@ -1126,7 +1127,9 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				}
 			},
 			deltaItemsRead:       0, // containers are not counted as reads
-			deltaItemsWritten:    4, // two items per category
+			// Renaming a folder doesn't cause kopia changes as the folder ID doesn't
+			// change.
+			deltaItemsWritten:    0, // two items per category
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 4,
 		},
