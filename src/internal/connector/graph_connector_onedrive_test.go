@@ -28,7 +28,6 @@ var (
 	folderAName       = "folder-a"
 	folderBName       = "b"
 	folderNamedFolder = "folder"
-	// rootFolder        = "root:"
 
 	fileAData = []byte(strings.Repeat("a", 33))
 	fileBData = []byte(strings.Repeat("b", 65))

@@ -21,8 +21,6 @@ import (
 // permission instead of email
 const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
-var rootFolder = "root:"
-
 func getMetadata(fileName string, perm PermData, permUseID bool) metadata.Metadata {
 	if len(perm.User) == 0 || len(perm.Roles) == 0 ||
 		perm.SharingMode != metadata.SharingModeCustom {
