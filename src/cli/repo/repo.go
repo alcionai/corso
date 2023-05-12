@@ -42,8 +42,7 @@ func AddCommands(cmd *cobra.Command) {
 		maintenanceCmd,
 		utils.HideCommand(),
 		utils.MarkPreReleaseCommand())
-	utils.AddMaintenanceSafetyFlag(maintenanceCmd)
-	utils.AddQuickMaintenanceFlag(maintenanceCmd)
+	utils.AddMaintenanceModeFlag(maintenanceCmd)
 	utils.AddForceMaintenanceFlag(maintenanceCmd)
 
 	for _, addRepoTo := range repoCommands {
@@ -108,7 +107,7 @@ func maintenanceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   maintenanceCommand,
 		Short: "Run maintenance on an existing repository",
-		Long:  `Run maintenance on an existing repository to keep it running smoothly`,
+		Long:  `Run maintenance on an existing repository to optimize performance and storage use`,
 		RunE:  handleMaintenanceCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -117,8 +116,8 @@ func maintenanceCmd() *cobra.Command {
 func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s := control.Safety(utils.MaintenanceSafetyFV)
-	if err := validateMaintenanceFlags(s); err != nil {
+	t, err := getMaintenanceType(utils.MaintenanceModeFV)
+	if err != nil {
 		return err
 	}
 
@@ -131,9 +130,11 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 
 	m, err := r.NewMaintenance(
 		ctx,
-		s,
-		utils.QuickMaintenanceFV,
-		utils.ForceMaintenanceFV)
+		repository.Maintenance{
+			Type:   t,
+			Safety: repository.FullMaintenanceSafety,
+			Force:  utils.ForceMaintenanceFV,
+		})
 	if err != nil {
 		return print.Only(ctx, err)
 	}

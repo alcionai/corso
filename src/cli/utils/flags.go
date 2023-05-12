@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -39,9 +39,8 @@ var (
 	// for selection of data by category.  eg: `--data email,contacts`
 	CategoryDataFV []string
 
-	MaintenanceSafetyFV string
-	QuickMaintenanceFV  bool
-	ForceMaintenanceFV  bool
+	MaintenanceModeFV  string
+	ForceMaintenanceFV bool
 )
 
 // common flag names (eg: FN)
@@ -66,9 +65,8 @@ const (
 	FileModifiedBeforeFN = "file-modified-before"
 
 	// Maintenance stuff.
-	MaintenanceSafetyFN = "safety"
-	QuickMaintenanceFN  = "quick"
-	ForceMaintenanceFN  = "force"
+	MaintenanceModeFN  = "mode"
+	ForceMaintenanceFN = "force"
 )
 
 // well-known flag values
@@ -178,24 +176,14 @@ func AddSiteFlag(cmd *cobra.Command) {
 		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
 }
 
-func AddMaintenanceSafetyFlag(cmd *cobra.Command) {
+func AddMaintenanceModeFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.StringVar(
-		&MaintenanceSafetyFV,
-		MaintenanceSafetyFN,
-		string(control.FullSafety),
-		"Disable safety measures to run maintenance faster. Improper usage can break a repository")
-	cobra.CheckErr(fs.MarkHidden(MaintenanceSafetyFN))
-}
-
-func AddQuickMaintenanceFlag(cmd *cobra.Command) {
-	fs := cmd.Flags()
-	fs.BoolVar(
-		&QuickMaintenanceFV,
-		QuickMaintenanceFN,
-		false,
-		"Run quick maintenance that won't clean up and optimize the repo as much")
-	cobra.CheckErr(fs.MarkHidden(QuickMaintenanceFN))
+		&MaintenanceModeFV,
+		MaintenanceModeFN,
+		repository.CompleteMaintenance.String(),
+		"Run a faster maintenance that does minimal clean-up and optimization")
+	cobra.CheckErr(fs.MarkHidden(MaintenanceModeFN))
 }
 
 func AddForceMaintenanceFlag(cmd *cobra.Command) {
@@ -204,7 +192,7 @@ func AddForceMaintenanceFlag(cmd *cobra.Command) {
 		&ForceMaintenanceFV,
 		ForceMaintenanceFN,
 		false,
-		"Always run maintenance even if it may be unsafe")
+		"Force maintenance. Caution: user must ensure this is not run concurrently on a single repo")
 	cobra.CheckErr(fs.MarkHidden(ForceMaintenanceFN))
 }
 
