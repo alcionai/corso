@@ -1126,12 +1126,12 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 					}
 				}
 			},
-			deltaItemsRead:       0, // containers are not counted as reads
+			deltaItemsRead: 0, // containers are not counted as reads
 			// Renaming a folder doesn't cause kopia changes as the folder ID doesn't
 			// change.
 			deltaItemsWritten:    0, // two items per category
 			nonDeltaItemsRead:    8,
-			nonDeltaItemsWritten: 4,
+			nonDeltaItemsWritten: 0,
 		},
 		{
 			name: "add a new item",

@@ -86,8 +86,8 @@ func filterContainersAndFillCollections(
 
 		var (
 			dp          = dps[cID]
-			prevDelta   = dp.delta
-			prevPathStr = dp.path // do not log: pii; log prevPath instead
+			prevDelta   = dp.Delta
+			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
@@ -245,7 +245,7 @@ func makeTombstones(dps DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
-		r[id] = v.path
+		r[id] = v.Path
 	}
 
 	return r

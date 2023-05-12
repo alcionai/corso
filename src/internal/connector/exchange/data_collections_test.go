@@ -70,8 +70,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "delta-link",
-					path:  "prev-path",
+					Delta: "delta-link",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -92,8 +92,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "delta-link",
-					path:  "prev-path",
+					Delta: "delta-link",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -115,8 +115,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "delta-link",
-					path:  "prev-path",
+					Delta: "delta-link",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -129,8 +129,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "`!@#$%^&*()_[]{}/\"\\",
-					path:  "prev-path",
+					Delta: "`!@#$%^&*()_[]{}/\"\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -143,8 +143,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
-					path:  "prev-path",
+					Delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -160,8 +160,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "\\n",
-					path:  "prev-path",
+					Delta: "\\n",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -201,8 +201,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			assert.Len(t, emails, len(test.expect))
 
 			for k, v := range emails {
-				assert.Equal(t, v.delta, emails[k].delta, "delta")
-				assert.Equal(t, v.path, emails[k].path, "path")
+				assert.Equal(t, v.Delta, emails[k].Delta, "delta")
+				assert.Equal(t, v.Path, emails[k].Path, "path")
 			}
 		})
 	}

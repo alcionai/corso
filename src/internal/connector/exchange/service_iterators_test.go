@@ -538,24 +538,24 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"1": DeltaPath{
-						delta: "old_delta",
-						path:  oldPath1(t, cat).String(),
+						Delta: "old_delta",
+						Path:  oldPath1(t, cat).String(),
 					},
 					"2": DeltaPath{
-						delta: "old_delta",
-						path:  idPath2(t, cat).String(),
+						Delta: "old_delta",
+						Path:  idPath2(t, cat).String(),
 					},
 				}
 			},
 			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"1": DeltaPath{
-						delta: "delta_url",
-						path:  idPath1(t, cat).String(),
+						Delta: "delta_url",
+						Path:  idPath1(t, cat).String(),
 					},
 					"2": DeltaPath{
-						delta: "delta_url2",
-						path:  idPath2(t, cat).String(),
+						Delta: "delta_url2",
+						Path:  idPath2(t, cat).String(),
 					},
 				}
 			},
@@ -572,24 +572,24 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"1": DeltaPath{
-						delta: "old_delta",
-						path:  oldPath1(t, cat).String(),
+						Delta: "old_delta",
+						Path:  oldPath1(t, cat).String(),
 					},
 					"2": DeltaPath{
-						delta: "old_delta",
-						path:  oldPath2(t, cat).String(),
+						Delta: "old_delta",
+						Path:  oldPath2(t, cat).String(),
 					},
 				}
 			},
 			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"1": DeltaPath{
-						delta: "delta_url",
-						path:  idPath1(t, cat).String(),
+						Delta: "delta_url",
+						Path:  idPath1(t, cat).String(),
 					},
 					"2": DeltaPath{
-						delta: "delta_url2",
-						path:  idPath2(t, cat).String(),
+						Delta: "delta_url2",
+						Path:  idPath2(t, cat).String(),
 					},
 				}
 			},
@@ -610,12 +610,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"1": DeltaPath{
-						delta: "delta_url",
-						path:  idPath1(t, cat).String(),
+						Delta: "delta_url",
+						Path:  idPath1(t, cat).String(),
 					},
 					"2": DeltaPath{
-						delta: "delta_url2",
-						path:  idPath2(t, cat).String(),
+						Delta: "delta_url2",
+						Path:  idPath2(t, cat).String(),
 					},
 				}
 			},
@@ -631,8 +631,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"2": DeltaPath{
-						delta: "old_delta",
-						path:  idPath2(t, cat).String(),
+						Delta: "old_delta",
+						Path:  idPath2(t, cat).String(),
 					},
 				}
 			},
@@ -641,8 +641,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
 				return DeltaPaths{
 					"1": DeltaPath{
-						delta: "delta_url",
-						path:  idPath1(t, cat).String(),
+						Delta: "delta_url",
+						Path:  idPath1(t, cat).String(),
 					},
 				}
 			},
@@ -954,8 +954,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "not_moved").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "not_moved").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -977,8 +977,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "prev").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "prev").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -993,8 +993,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "deleted").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -1016,8 +1016,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "deleted").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -1040,8 +1040,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "same").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "same").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -1073,8 +1073,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "prev").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "prev").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -1097,12 +1097,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  "1/fnords/mc/smarfs",
+					Delta: "old_delta_url",
+					Path:  "1/fnords/mc/smarfs",
 				},
 				"2": DeltaPath{
-					delta: "old_delta_url",
-					path:  "2/fnords/mc/smarfs",
+					Delta: "old_delta_url",
+					Path:  "2/fnords/mc/smarfs",
 				},
 			},
 			expect: map[string]endState{
@@ -1124,8 +1124,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "same").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "same").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -1172,20 +1172,20 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			),
 			dps: DeltaPaths{
 				"2": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "2", "not_moved").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "2", "not_moved").String(),
 				},
 				"3": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "3", "prev").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "3", "prev").String(),
 				},
 				"4": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "4", "prev").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "4", "prev").String(),
 				},
 				"5": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "5", "deleted").String(),
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "5", "deleted").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -1228,8 +1228,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 
 					dps := test.dps
 					if !deltaBefore {
-						for k := range dps {
-							dps.RemoveDelta(k)
+						for k, dp := range dps {
+							dp.Delta = ""
+							dps[k] = dp
 						}
 					}
 
