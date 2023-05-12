@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -383,16 +382,6 @@ func NewMailPager(
 
 	builder := gs.Client().UsersById(user).MailFoldersById(directoryID).Messages()
 
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
-
 	return &mailPager{gs, builder, options}, nil
 }
 
@@ -438,17 +427,6 @@ func getMailDeltaBuilder(
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemMailFoldersItemMessagesDeltaRequestBuilder {
 	builder := gs.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
-
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
-
 	return builder
 }
 
@@ -502,16 +480,6 @@ func (p *mailDeltaPager) setNext(nextLink string) {
 
 func (p *mailDeltaPager) reset(ctx context.Context) {
 	p.builder = p.gs.Client().UsersById(p.user).MailFoldersById(p.directoryID).Messages().Delta()
-
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := p.builder.ToGetRequestInformation(ctx, p.options)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
-	}
 }
 
 func (p *mailDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
