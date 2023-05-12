@@ -251,8 +251,12 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		switch true {
 		case gv2.GetUser() != nil:
 			entityID = ptr.Val(gv2.GetUser().GetId())
+		case gv2.GetSiteUser() != nil:
+			entityID = ptr.Val(gv2.GetSiteUser().GetId())
 		case gv2.GetGroup() != nil:
 			entityID = ptr.Val(gv2.GetGroup().GetId())
+		case gv2.GetSiteGroup() != nil:
+			entityID = ptr.Val(gv2.GetSiteGroup().GetId())
 		case gv2.GetApplication() != nil:
 			entityID = ptr.Val(gv2.GetApplication().GetId())
 		case gv2.GetDevice() != nil:
