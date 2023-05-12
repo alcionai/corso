@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/alcionai/clues"
 
@@ -167,15 +166,6 @@ func getItemsAddedAndRemovedFromContainer(
 		} else {
 			nextLink = api.NextLink(resp)
 			deltaLink = "" // to make sure we don't use an old value
-		}
-
-		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			if !api.IsNextLinkValid(nextLink) || !api.IsNextLinkValid(deltaLink) {
-				logger.Ctx(ctx).
-					With("next_link", graph.LoggableURL(nextLink)).
-					With("delta_link", graph.LoggableURL(deltaLink)).
-					Info("invalid link from M365")
-			}
 		}
 
 		// the deltaLink is kind of like a cursor for overall data state.
