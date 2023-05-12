@@ -866,7 +866,7 @@ type SharePointInfo struct {
 	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `josn:"modified,omitempty"`
+	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
