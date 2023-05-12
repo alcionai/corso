@@ -84,6 +84,28 @@ func (suite *LoggerUnitSuite) TestPreloadLoggingFlags() {
 	assert.Equal(t, logger.PIIHash, settings.PIIHandling, "settings.PIIHandling")
 }
 
+func (suite *LoggerUnitSuite) TestPreloadLoggingFlags_badArgsEnsureDefault() {
+	t := suite.T()
+
+	logger.DebugAPIFV = false
+	logger.ReadableLogsFV = false
+
+	args := []string{
+		"--" + logger.DebugAPIFN,
+		"--" + logger.LogFileFN, "log-file",
+		"--" + logger.LogLevelFN, "not-a-level",
+		"--" + logger.LogFormatFN, "not-a-format",
+		"--" + logger.ReadableLogsFN,
+		"--" + logger.MaskSensitiveDataFN,
+	}
+
+	settings := logger.PreloadLoggingFlags(args)
+	settings = settings.EnsureDefaults()
+
+	assert.Equal(t, logger.LLInfo, settings.Level, "settings.Level")
+	assert.Equal(t, logger.LFText, settings.Format, "settings.Format")
+}
+
 func (suite *LoggerUnitSuite) TestSettings_ensureDefaults() {
 	t := suite.T()
 

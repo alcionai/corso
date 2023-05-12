@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -23,16 +24,6 @@ var (
 	logCore   *zapcore.Core
 	loggerton *zap.SugaredLogger
 )
-
-// type logLevel int
-
-// const (
-// 	Debug logLevel = iota
-// 	Info
-// 	Warn
-// 	Error
-// 	Disabled
-// )
 
 type logLevel string
 
@@ -53,12 +44,12 @@ const (
 	LFJSON logFormat = "json"
 )
 
-type piiHandling string
+type piiAlg string
 
 const (
-	PIIHash      piiHandling = "hash"
-	PIIMask      piiHandling = "mask"
-	PIIPlainText piiHandling = "plaintext"
+	PIIHash      piiAlg = "hash"
+	PIIMask      piiAlg = "mask"
+	PIIPlainText piiAlg = "plaintext"
 )
 
 // flag names
@@ -81,7 +72,7 @@ var (
 	MaskSensitiveDataFV bool
 
 	LogFile     string // logFileFV after processing
-	PIIHandling string // piiHandling after MaskSensitiveDataFV processing
+	piiHandling string // piiHandling after MaskSensitiveDataFV processing
 )
 
 const (
@@ -242,10 +233,10 @@ func GetLogFile(logFileFlagVal string) string {
 
 // Settings records the user's preferred logging settings.
 type Settings struct {
-	File        string      // what file to log to (alt: stderr, stdout)
-	Format      logFormat   // whether to format as text (console) or json (cloud)
-	Level       logLevel    // what level to log at
-	PIIHandling piiHandling // how to obscure pii
+	File        string    // what file to log to (alt: stderr, stdout)
+	Format      logFormat // whether to format as text (console) or json (cloud)
+	Level       logLevel  // what level to log at
+	PIIHandling piiAlg    // how to obscure pii
 }
 
 // EnsureDefaults sets any non-populated settings to their default value.
@@ -253,16 +244,19 @@ type Settings struct {
 func (s Settings) EnsureDefaults() Settings {
 	set := s
 
-	if len(set.Level) == 0 {
-		set.Level = logLevel(common.First(LogLevelFV, string(LLInfo)))
+	levels := []logLevel{LLDisabled, LLDebug, LLInfo, LLWarn, LLError}
+	if len(set.Level) == 0 || !slices.Contains(levels, set.Level) {
+		set.Level = LLInfo
 	}
 
-	if len(set.Format) == 0 {
-		set.Format = logFormat(common.First(LogFormatFV, string(LFText)))
+	formats := []logFormat{LFText, LFJSON}
+	if len(set.Format) == 0 || !slices.Contains(formats, set.Format) {
+		set.Format = LFText
 	}
 
-	if len(set.PIIHandling) == 0 {
-		set.PIIHandling = piiHandling(common.First(PIIHandling, string(PIIPlainText)))
+	algs := []piiAlg{PIIPlainText, PIIMask, PIIHash}
+	if len(set.PIIHandling) == 0 || !slices.Contains(algs, set.PIIHandling) {
+		set.PIIHandling = piiAlg(common.First(piiHandling, string(PIIPlainText)))
 	}
 
 	if len(set.File) == 0 {
@@ -394,7 +388,7 @@ func Seed(ctx context.Context, set Settings) (context.Context, *zap.SugaredLogge
 	return Set(ctx, zsl), zsl
 }
 
-func setCluesSecretsHash(alg piiHandling) {
+func setCluesSecretsHash(alg piiAlg) {
 	switch alg {
 	case PIIHash:
 		// TODO: a persistent hmac key for each tenant would be nice
