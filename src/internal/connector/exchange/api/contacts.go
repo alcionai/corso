@@ -191,77 +191,35 @@ var _ itemPager = &contactPager{}
 
 type contactPager struct {
 	gs      graph.Servicer
-	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
-	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
+	builder *users.ItemContactFoldersItemContactsRequestBuilder
+	options *users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration
 }
 
-func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
-}
-
-func (p *contactPager) setNext(nextLink string) {
-	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
-}
-
-func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Contactable](pl)
-}
-
-func (c Contacts) GetAddedAndRemovedItemIDs(
+func NewContactPager(
 	ctx context.Context,
-	user, directoryID, oldDelta string,
+	gs graph.Servicer,
+	user, directoryID string,
 	immutableIDs bool,
-) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.service()
+) (itemPager, error) {
+	selecting, err := buildOptions([]string{"parentFolderId"}, fieldsForContacts)
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		return nil, err
 	}
 
-	var resetDelta bool
+	requestParameters := &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
 
-	ctx = clues.Add(
-		ctx,
-		"category", selectors.ExchangeContact,
-		"container_id", directoryID)
+	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
 
-	options, err := optionsForContactFoldersItemDelta(
-		[]string{"parentFolderId"},
-		immutableIDs)
 	if err != nil {
-		return nil,
-			nil,
-			DeltaUpdate{},
-			graph.Wrap(ctx, err, "setting contact folder options")
+		return &contactPager{}, err
 	}
 
-	if len(oldDelta) > 0 {
-		var (
-			builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &contactPager{service, builder, options}
-		)
-
-		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
-		// note: happy path, not the error condition
-		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, err
-		}
-
-		// only return on error if it is NOT a delta issue.
-		// on bad deltas we retry the call with the regular builder
-		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
-		}
-
-		resetDelta = true
-	}
-
-	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
-	pgr := &contactPager{service, builder, options}
+	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts()
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, options)
@@ -273,12 +231,146 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		}
 	}
 
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	return &contactPager{gs, builder, options}, nil
+}
+
+func (p *contactPager) getPage(ctx context.Context) (api.PageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+		return nil, graph.Stack(ctx, err)
 	}
 
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+	return resp, nil
+}
+
+func (p *contactPager) setNext(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+// non delta pagers don't need reset
+func (p *contactPager) reset(context.Context) {}
+
+func (p *contactPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Contactable](pl)
+}
+
+// ---------------------------------------------------------------------------
+// delta item pager
+// ---------------------------------------------------------------------------
+
+var _ itemPager = &contactDeltaPager{}
+
+type contactDeltaPager struct {
+	gs          graph.Servicer
+	user        string
+	directoryID string
+	builder     *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	options     *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func getContactDeltaBuilder(
+	ctx context.Context,
+	gs graph.Servicer,
+	user string,
+	directoryID string,
+	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
+) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
+	builder := gs.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := builder.ToGetRequestInformation(ctx, options)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("getting builder info")
+		} else {
+			logger.Ctx(ctx).
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
+		}
+	}
+
+	return builder
+}
+
+func NewContactDeltaPager(
+	ctx context.Context,
+	gs graph.Servicer,
+	user, directoryID, deltaURL string,
+	immutableIDs bool,
+) (itemPager, error) {
+	selecting, err := buildOptions([]string{"parentFolderId"}, fieldsForContacts)
+	if err != nil {
+		return nil, err
+	}
+
+	requestParameters := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+
+	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+		Headers:         buildPreferHeaders(true, immutableIDs),
+	}
+
+	if err != nil {
+		return &contactDeltaPager{}, err
+	}
+
+	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	if deltaURL != "" {
+		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(deltaURL, gs.Adapter())
+	} else {
+		builder = getContactDeltaBuilder(ctx, gs, user, directoryID, options)
+	}
+
+	return &contactDeltaPager{gs, user, directoryID, builder, options}, nil
+}
+
+func (p *contactDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
+func (p *contactDeltaPager) setNext(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *contactDeltaPager) reset(ctx context.Context) {
+	p.builder = getContactDeltaBuilder(ctx, p.gs, p.user, p.directoryID, p.options)
+}
+
+func (p *contactDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Contactable](pl)
+}
+
+func (c Contacts) GetAddedAndRemovedItemIDs(
+	ctx context.Context,
+	user, directoryID, oldDelta string,
+	immutableIDs bool,
+	canMakeDeltaQueries bool,
+) ([]string, []string, DeltaUpdate, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+	}
+
+	ctx = clues.Add(
+		ctx,
+		"category", selectors.ExchangeContact,
+		"container_id", directoryID)
+
+	pager, err := NewContactPager(ctx, service, user, directoryID, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
+	}
+
+	deltaPager, err := NewContactDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------

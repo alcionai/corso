@@ -75,27 +75,6 @@ const (
 // which reduces the overall latency of complex calls
 // -----------------------------------------------------------------------
 
-func optionsForFolderMessagesDelta(
-	moreOps []string,
-	immutableIDs bool,
-) (*users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForMessages)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-
-	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-		Headers:         buildPreferHeaders(true, immutableIDs),
-	}
-
-	return options, nil
-}
-
 // optionsForCalendars places allowed options for exchange.Calendar object
 // @param moreOps should reflect elements from fieldsForCalendars
 // @return is first call in Calendars().GetWithRequestConfigurationAndResponseHandler
@@ -175,27 +154,6 @@ func optionsForMailFoldersItem(
 	}
 	options := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
-func optionsForContactFoldersItemDelta(
-	moreOps []string,
-	immutableIDs bool,
-) (*users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForContacts)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-
-	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-		Headers:         buildPreferHeaders(true, immutableIDs),
 	}
 
 	return options, nil

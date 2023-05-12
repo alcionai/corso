@@ -68,7 +68,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			data: []fileValues{
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect: map[string]DeltaPath{
+				"key": {
+					Delta: "delta-link",
+					Path:  "prev-path",
+				},
+			},
 			expectError: assert.NoError,
 		},
 		{
@@ -87,8 +92,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "delta-link",
-					path:  "prev-path",
+					Delta: "delta-link",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -108,7 +113,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, ""},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect: map[string]DeltaPath{
+				"key": {
+					Delta: "delta-link",
+					Path:  "prev-path",
+				},
+			},
 			expectError: assert.NoError,
 		},
 		{
@@ -119,8 +129,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "`!@#$%^&*()_[]{}/\"\\",
-					path:  "prev-path",
+					Delta: "`!@#$%^&*()_[]{}/\"\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -133,8 +143,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
-					path:  "prev-path",
+					Delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -150,8 +160,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "\\n",
-					path:  "prev-path",
+					Delta: "\\n",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -191,8 +201,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			assert.Len(t, emails, len(test.expect))
 
 			for k, v := range emails {
-				assert.Equal(t, v.delta, emails[k].delta, "delta")
-				assert.Equal(t, v.path, emails[k].path, "path")
+				assert.Equal(t, v.Delta, emails[k].Delta, "delta")
+				assert.Equal(t, v.Path, emails[k].Path, "path")
 			}
 		})
 	}
@@ -245,9 +255,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
-		name        string
-		scope       selectors.ExchangeScope
-		folderNames map[string]struct{}
+		name                string
+		scope               selectors.ExchangeScope
+		folderNames         map[string]struct{}
+		canMakeDeltaQueries bool
 	}{
 		{
 			name: "Folder Iterative Check Mail",
@@ -258,6 +269,18 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
 			},
+			canMakeDeltaQueries: true,
+		},
+		{
+			name: "Folder Iterative Check Mail Non-Delta",
+			scope: selectors.NewExchangeBackup(users).MailFolders(
+				[]string{DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+			folderNames: map[string]struct{}{
+				DefaultMailFolder: {},
+			},
+			canMakeDeltaQueries: false,
 		},
 	}
 
@@ -265,13 +288,16 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctrlOpts := control.Defaults()
+			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
+
 			collections, err := createCollections(
 				ctx,
 				acct,
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Defaults(),
+				ctrlOpts,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
