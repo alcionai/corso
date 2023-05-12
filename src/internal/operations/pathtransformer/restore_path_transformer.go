@@ -128,15 +128,16 @@ func makeRestorePathsForEntry(
 	//   * Exchange Calendars (different folder handling)
 	//   * Exchange Email/Contacts
 	//   * OneDrive/SharePoint (needs drive information)
-	if ent.Exchange != nil {
+	switch true {
+	case ent.Exchange != nil:
 		// TODO(ashmrtn): Eventually make Events have it's own function to handle
 		// setting the restore destination properly.
 		res.RestorePath, err = basicLocationPath(repoRef, locRef)
-	} else if ent.OneDrive != nil ||
+	case ent.OneDrive != nil ||
 		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointLibrary) ||
-		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem) {
+		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem):
 		res.RestorePath, err = drivePathMerge(ent, repoRef, locRef)
-	} else {
+	default:
 		return res, clues.New("unknown entry type").WithClues(ctx)
 	}
 

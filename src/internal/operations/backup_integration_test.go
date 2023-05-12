@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odapi "github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -369,7 +370,7 @@ func generateContainerOfItems(
 
 	switch service {
 	case path.OneDriveService, path.SharePointService:
-		pathFolders = []string{"drives", driveID, "root:", destFldr}
+		pathFolders = []string{odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
 	}
 
 	collections := []incrementalCollection{{
@@ -707,9 +708,15 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	}
 }
 
-// TestBackup_Run ensures that Integration Testing works
-// for the following scopes: Contacts, Events, and Mail
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
+	testExchangeContinuousBackups(suite, control.Toggles{})
+}
+
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
+	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
+}
+
+func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles control.Toggles) {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -718,7 +725,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	var (
 		t          = suite.T()
 		acct       = tester.NewM365Account(t)
-		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
 		service    = path.ExchangeService
@@ -859,7 +865,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 		}
 	}
 
-	bo, acct, kw, ms, ss, gc, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs, version.Backup)
+	bo, acct, kw, ms, ss, gc, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -945,15 +951,19 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateUserData func(t *testing.T)
-		itemsRead      int
-		itemsWritten   int
+		updateUserData       func(t *testing.T)
+		deltaItemsRead       int
+		deltaItemsWritten    int
+		nonDeltaItemsRead    int
+		nonDeltaItemsWritten int
 	}{
 		{
-			name:           "clean incremental, no changes",
-			updateUserData: func(t *testing.T) {},
-			itemsRead:      0,
-			itemsWritten:   0,
+			name:                 "clean, no changes",
+			updateUserData:       func(t *testing.T) {},
+			deltaItemsRead:       0,
+			deltaItemsWritten:    0,
+			nonDeltaItemsRead:    8,
+			nonDeltaItemsWritten: 0, // unchanged items are not counted towards write
 		},
 		{
 			name: "move an email folder to a subfolder",
@@ -978,8 +988,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 				newLoc := expectDeets.MoveLocation(cat.String(), from.locRef, to.locRef)
 				from.locRef = newLoc
 			},
-			itemsRead:    0, // zero because we don't count container reads
-			itemsWritten: 2,
+			deltaItemsRead:       0, // zero because we don't count container reads
+			deltaItemsWritten:    2,
+			nonDeltaItemsRead:    8,
+			nonDeltaItemsWritten: 2,
 		},
 		{
 			name: "delete a folder",
@@ -1002,8 +1014,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					expectDeets.RemoveLocation(category.String(), d.dests[container2].locRef)
 				}
 			},
-			itemsRead:    0,
-			itemsWritten: 0, // deletions are not counted as "writes"
+			deltaItemsRead:       0,
+			deltaItemsWritten:    0, // deletions are not counted as "writes"
+			nonDeltaItemsRead:    4,
+			nonDeltaItemsWritten: 0,
 		},
 		{
 			name: "add a new folder",
@@ -1052,8 +1066,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					}
 				}
 			},
-			itemsRead:    4,
-			itemsWritten: 4,
+			deltaItemsRead:       4,
+			deltaItemsWritten:    4,
+			nonDeltaItemsRead:    8,
+			nonDeltaItemsWritten: 4,
 		},
 		{
 			name: "rename a folder",
@@ -1110,8 +1126,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					}
 				}
 			},
-			itemsRead:    0, // containers are not counted as reads
-			itemsWritten: 4, // two items per category
+			deltaItemsRead: 0, // containers are not counted as reads
+			// Renaming a folder doesn't cause kopia changes as the folder ID doesn't
+			// change.
+			deltaItemsWritten:    0, // two items per category
+			nonDeltaItemsRead:    8,
+			nonDeltaItemsWritten: 0,
 		},
 		{
 			name: "add a new item",
@@ -1162,8 +1182,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					}
 				}
 			},
-			itemsRead:    2,
-			itemsWritten: 2,
+			deltaItemsRead:       2,
+			deltaItemsWritten:    2,
+			nonDeltaItemsRead:    10,
+			nonDeltaItemsWritten: 2,
 		},
 		{
 			name: "delete an existing item",
@@ -1174,7 +1196,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false)
+						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false, true)
 						require.NoError(t, err, "getting message ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "message ids in folder")
 
@@ -1187,7 +1209,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 							ids[0])
 
 					case path.ContactsCategory:
-						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false)
+						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false, true)
 						require.NoError(t, err, "getting contact ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "contact ids in folder")
 
@@ -1200,7 +1222,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 							ids[0])
 
 					case path.EventsCategory:
-						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false)
+						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false, true)
 						require.NoError(t, err, "getting event ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "event ids in folder")
 
@@ -1214,16 +1236,19 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 					}
 				}
 			},
-			itemsRead:    2,
-			itemsWritten: 0, // deletes are not counted as "writes"
+			deltaItemsRead:       2,
+			deltaItemsWritten:    0, // deletes are not counted as "writes"
+			nonDeltaItemsRead:    8,
+			nonDeltaItemsWritten: 0,
 		},
 	}
+
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sels, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sels, incMB, toggles, closer)
 				atid  = m365.AzureTenantID
 			)
 
@@ -1240,8 +1265,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
-			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
-			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
+			if !toggles.DisableDelta {
+				assert.Equal(t, test.deltaItemsRead+4, incBO.Results.ItemsRead, "incremental items read")
+				assert.Equal(t, test.deltaItemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
+			} else {
+				assert.Equal(t, test.nonDeltaItemsRead+4, incBO.Results.ItemsRead, "non delta items read")
+				assert.Equal(t, test.nonDeltaItemsWritten+4, incBO.Results.ItemsWritten, "non delta items written")
+			}
+
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")

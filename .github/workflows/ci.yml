@@ -364,7 +364,7 @@ jobs:
   # --- Source Code Linting ----------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Linting:
+  Source-Code-Linting:
     needs: [Precheck, Checkout]
     environment: Testing
     runs-on: ubuntu-latest
@@ -405,11 +405,35 @@ jobs:
 
 
   # ----------------------------------------------------------------------------------------------------
+  # --- GitHub Actions Linting -------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Actions-Lint:
+    needs: [Precheck]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: needs.precheck.outputs.actionsfileschanged == 'true'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: actionlint
+        uses: raven-actions/actionlint@v1
+        with:
+          fail-on-error: true
+          cache: true
+          # Ignore
+          #   * combining commands into a subshell and using single output
+          #     redirect
+          #   * various variable quoting patterns
+          #   * possible ineffective echo commands
+          flags: "-ignore SC2129 -ignore SC2086 -ignore SC2046 -ignore 2116"
+
+  # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
   Publish-Binary:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -426,7 +450,7 @@ jobs:
           rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
 
   Publish-Image:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -568,7 +592,7 @@ jobs:
           ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Publish-Website-Test:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
