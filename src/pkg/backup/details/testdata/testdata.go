@@ -25,7 +25,7 @@ func mustParsePath(ref string, isItem bool) path.Path {
 // path with the element appended to it. Panics if the path cannot be parsed.
 // Useful for simple variable assignments.
 func mustAppendPath(p path.Path, newElement string, isItem bool) path.Path {
-	newP, err := p.Append(newElement, isItem)
+	newP, err := p.Append(isItem, newElement)
 	if err != nil {
 		panic(err)
 	}
