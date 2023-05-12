@@ -435,7 +435,7 @@ func restoreCollection(
 			metrics.Bytes += int64(len(byteArray))
 			metrics.Successes++
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				errs.AddRecoverable(clues.Wrap(err, "building full path with item").WithClues(ctx))
 				continue
