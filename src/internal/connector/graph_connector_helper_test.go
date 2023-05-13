@@ -54,6 +54,7 @@ func testElementsMatch[T any](
 	t.Helper()
 
 	pending := make([]*T, len(expected))
+
 	for i := range expected {
 		ei := expected[i]
 		pending[i] = &ei
@@ -772,6 +773,7 @@ func compareDriveItem(
 
 	if isMeta {
 		var itemType *metadata.Item
+
 		assert.IsType(t, itemType, item)
 
 		var (

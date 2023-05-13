@@ -167,7 +167,7 @@ jobs:
         id: new-data-creation-onedrive
         working-directory: ./src/cmd/factory
         run: |
-          suffix=$(date +"%Y-%m-%d_%H-%M")
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
           go run . onedrive files  \
             --user ${TEST_USER} \
@@ -176,7 +176,7 @@ jobs:
             --destination ${RESTORE_DEST_PFX}$suffix \
             --count 4
 
-          echo result="$suffix" >> $GITHUB_OUTPUT
+          echo result="${suffix}" >> $GITHUB_OUTPUT
 
       - name: OneDrive - Backup
         id: onedrive-backup
@@ -218,7 +218,7 @@ jobs:
         id: new-data-creation-sharepoint
         working-directory: ./src/cmd/factory
         run: |
-          suffix=$(date +"%Y-%m-%d_%H-%M")
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
           echo -e "\nGenerate SharePoint test data\n" >> ${CORSO_LOG_FILE}
 
           go run . sharepoint files  \
@@ -229,7 +229,7 @@ jobs:
             --destination ${RESTORE_DEST_PFX}$suffix \
             --count 4
 
-          echo result="$suffix" >> $GITHUB_OUTPUT
+          echo result="${suffix}" >> $GITHUB_OUTPUT
 
       - name: SharePoint - Backup
         id: sharepoint-backup
