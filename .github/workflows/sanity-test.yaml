@@ -216,8 +216,8 @@ jobs:
       # generate new entries for test
       - name: SharePoint - Create new data
         id: new-data-creation-sharepoint
-        working-directory: ./src/cmd/factory
         run: |
+          workdir=./src/cmd/factory
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
           echo -e "\nGenerate SharePoint test data\n" >> ${CORSO_LOG_FILE}
 
