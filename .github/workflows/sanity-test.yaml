@@ -219,6 +219,7 @@ jobs:
         working-directory: ./src/cmd/factory
         run: |
           suffix=$(date +"%Y-%m-%d_%H-%M")
+          echo -e "\nGenerate SharePoint test data\n" >> ${CORSO_LOG_FILE}
 
           go run . sharepoint files  \
             --site ${TEST_SITE} \

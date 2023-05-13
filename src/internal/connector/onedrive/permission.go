@@ -144,13 +144,18 @@ func UpdatePermissions(
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
 	for _, p := range permRemoved {
+		ictx := clues.Add(
+			ctx,
+			"permission_entity_type", p.EntityType,
+			"permission_entity_id", clues.Hide(p.EntityID))
+
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707
 		// this is bad citizenship, and could end up consuming a lot of
 		// system resources if servicers leak client connections (sockets, etc).
 		a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 		if err != nil {
-			return graph.Wrap(ctx, err, "creating delete client")
+			return graph.Wrap(ictx, err, "creating delete client")
 		}
 
 		pid, ok := oldPermIDToNewID[p.ID]
@@ -163,13 +168,18 @@ func UpdatePermissions(
 			DrivesById(driveID).
 			ItemsById(itemID).
 			PermissionsById(pid).
-			Delete(graph.ConsumeNTokens(ctx, graph.PermissionsLC), nil)
+			Delete(graph.ConsumeNTokens(ictx, graph.PermissionsLC), nil)
 		if err != nil {
-			return graph.Wrap(ctx, err, "removing permissions")
+			return graph.Wrap(ictx, err, "removing permissions")
 		}
 	}
 
 	for _, p := range permAdded {
+		ictx := clues.Add(
+			ctx,
+			"permission_entity_type", p.EntityType,
+			"permission_entity_id", clues.Hide(p.EntityID))
+
 		// We are not able to restore permissions when there are no
 		// roles or for owner, this seems to be restriction in graph
 		roles := []string{}
@@ -192,14 +202,11 @@ func UpdatePermissions(
 			pbody.SetExpirationDateTime(&expiry)
 		}
 
-		si := false
-		pbody.SetSendInvitation(&si)
-
-		rs := true
-		pbody.SetRequireSignIn(&rs)
+		pbody.SetSendInvitation(ptr.To(false))
+		pbody.SetRequireSignIn(ptr.To(true))
 
 		rec := models.NewDriveRecipient()
-		if p.EntityID != "" {
+		if len(p.EntityID) > 0 {
 			rec.SetObjectId(&p.EntityID)
 		} else {
 			// Previous versions used to only store email for a
@@ -209,7 +216,7 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		newPerm, err := api.PostItemPermissionUpdate(ctx, service, driveID, itemID, pbody)
+		newPerm, err := api.PostItemPermissionUpdate(ictx, service, driveID, itemID, pbody)
 		if err != nil {
 			return clues.Stack(err)
 		}

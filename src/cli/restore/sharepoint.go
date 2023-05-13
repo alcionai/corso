@@ -51,7 +51,7 @@ corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765a
 
 # Restore the file with ID 98765abcdef along with its associated permissions
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--file 98765abcdef --restore-permissions
+    --file 98765abcdef --restore-permissions
 
 # Restore files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets".
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \

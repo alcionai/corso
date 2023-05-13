@@ -87,7 +87,7 @@ func main() {
 	case "onedrive":
 		checkOneDriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
 	case "sharepoint":
-		checkSharePointRestoration(ctx, client, testSite, folder, dataFolder, startTime)
+		checkSharePointRestoration(ctx, client, testSite, testUser, folder, dataFolder, startTime)
 	default:
 		fatal(ctx, "no service specified", nil)
 	}
@@ -314,7 +314,6 @@ func checkOneDriveRestoration(
 		ctx,
 		client,
 		path.OneDriveService,
-		userID,
 		folderName,
 		ptr.Val(drive.GetId()),
 		ptr.Val(drive.GetName()),
@@ -330,7 +329,7 @@ func checkOneDriveRestoration(
 func checkSharePointRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	siteID, folderName, dataFolder string,
+	siteID, userID, folderName, dataFolder string,
 	startTime time.Time,
 ) {
 	drive, err := client.
@@ -345,7 +344,6 @@ func checkSharePointRestoration(
 		ctx,
 		client,
 		path.SharePointService,
-		siteID,
 		folderName,
 		ptr.Val(drive.GetId()),
 		ptr.Val(drive.GetName()),
@@ -362,7 +360,6 @@ func checkDriveRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	service path.ServiceType,
-	resourceOwner,
 	folderName,
 	driveID,
 	driveName,
