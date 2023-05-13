@@ -167,7 +167,10 @@ jobs:
         id: new-data-creation-onedrive
         working-directory: ./src/cmd/factory
         run: |
+          set -euo pipefail
+
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+          echo -e "\nGenerate OneDrive test data\n" >> ${CORSO_LOG_FILE}
 
           go run . onedrive files  \
             --user ${TEST_USER} \
@@ -192,6 +195,9 @@ jobs:
       - name: OneDrive - Create new data (for incremental)
         working-directory: ./src/cmd/factory
         run: |
+          set -euo pipefail
+          echo -e "\nGenerate more OneDrive test data\n" >> ${CORSO_LOG_FILE}
+
           go run . onedrive files  \
             --user ${TEST_USER} \
             --secondaryuser  ${SECONDARY_TEST_USER} \
@@ -218,6 +224,8 @@ jobs:
         id: new-data-creation-sharepoint
         working-directory: ./src/cmd/factory
         run: |
+          set -euo pipefail
+
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
           echo -e "\nGenerate SharePoint test data\n" >> ${CORSO_LOG_FILE}
 
