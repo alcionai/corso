@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -42,8 +41,6 @@ var sharePointCmd = &cobra.Command{
 // ------------------------------------------------------------------------------------------
 
 func main() {
-	fmt.Printf("\n-----\nfactory main\n-----\n")
-
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
 	ctx = SetRootCmd(ctx, factoryCmd)
 

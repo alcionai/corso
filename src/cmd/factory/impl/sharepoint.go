@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -26,8 +25,6 @@ func AddSharePointCommands(cmd *cobra.Command) {
 }
 
 func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error {
-	fmt.Printf("\n-----\nbeginning sharepoint factory %+v\n-----\n", args)
-
 	var (
 		ctx      = cmd.Context()
 		service  = path.SharePointService
