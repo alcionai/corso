@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cmd/factory/impl"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -40,10 +42,15 @@ var sharePointCmd = &cobra.Command{
 // ------------------------------------------------------------------------------------------
 
 func main() {
+	fmt.Printf("\n-----\nfactory main\n-----\n")
+
 	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
 	ctx = SetRootCmd(ctx, factoryCmd)
 
-	defer logger.Flush(ctx)
+	defer func() {
+		crash.Recovery(ctx, recover(), "backup")
+		logger.Flush(ctx)
+	}()
 
 	// persistent flags that are common to all use cases
 	fs := factoryCmd.PersistentFlags()

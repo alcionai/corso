@@ -17,7 +17,7 @@ import (
 
 var spFilesCmd = &cobra.Command{
 	Use:   "files",
-	Short: "Generate OneDrive files",
+	Short: "Generate SharePoint files",
 	RunE:  handleSharePointLibraryFileFactory,
 }
 
