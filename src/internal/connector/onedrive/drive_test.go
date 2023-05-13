@@ -279,24 +279,24 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 
 // Integration tests
 
-type OneDriveSuite struct {
+type OneDriveIntgSuite struct {
 	tester.Suite
 	userID string
 }
 
 func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{
+	suite.Run(t, &OneDriveIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *OneDriveSuite) SetupSuite() {
+func (suite *OneDriveIntgSuite) SetupSuite() {
 	suite.userID = tester.SecondaryM365UserID(suite.T())
 }
 
-func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
+func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -335,8 +335,16 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	restoreFolders := path.Builder{}.Append(folderElements...)
+	drivePath := path.DrivePath{
+		DriveID: driveID,
+		Root:    "root:",
+		Folders: folderElements,
+	}
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	caches := NewRestoreCaches()
+	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
+
+	folderID, err := CreateRestoreFolders(ctx, gs, &drivePath, restoreFolders, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -344,7 +352,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 	restoreFolders = restoreFolders.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	folderID, err = CreateRestoreFolders(ctx, gs, &drivePath, restoreFolders, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -401,7 +409,7 @@ func (fm testFolderMatcher) Matches(p string) bool {
 	return fm.scope.Matches(selectors.OneDriveFolder, p)
 }
 
-func (suite *OneDriveSuite) TestOneDriveNewCollections() {
+func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 

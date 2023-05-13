@@ -12,6 +12,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -223,9 +224,9 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 
 	var (
 		prefixElems = []string{
-			"drive",
+			odConsts.DrivesPathDir,
 			"drive!id",
-			"root:",
+			odConsts.RootPathDir,
 		}
 		itemElems1 = []string{"folderA", "folderB"}
 		itemElems2 = []string{"folderA", "folderC"}
@@ -257,7 +258,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				{
 					RepoRef:     item,
 					ItemRef:     "item",
-					LocationRef: strings.Join(append([]string{"root:"}, itemElems1...), "/"),
+					LocationRef: strings.Join(append([]string{odConsts.RootPathDir}, itemElems1...), "/"),
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType:   details.SharePointLibrary,
@@ -268,7 +269,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				},
 				{
 					RepoRef:     item2,
-					LocationRef: strings.Join(append([]string{"root:"}, itemElems2...), "/"),
+					LocationRef: strings.Join(append([]string{odConsts.RootPathDir}, itemElems2...), "/"),
 					// ItemRef intentionally blank to test fallback case
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
@@ -281,7 +282,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				{
 					RepoRef:     item3,
 					ItemRef:     "item3",
-					LocationRef: strings.Join(append([]string{"root:"}, itemElems3...), "/"),
+					LocationRef: strings.Join(append([]string{odConsts.RootPathDir}, itemElems3...), "/"),
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType:   details.SharePointLibrary,
@@ -415,8 +416,15 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 		itemName   = "item"
 		itemID     = "item-id"
 		shortRef   = "short"
-		driveElems = []string{"drive", "drive!id", "root:.d", "dir1.d", "dir2.d", itemID}
-		elems      = []string{"dir1", "dir2", itemID}
+		driveElems = []string{
+			odConsts.DrivesPathDir,
+			"drive!id",
+			odConsts.RootPathDir + ".d",
+			"dir1.d",
+			"dir2.d",
+			itemID,
+		}
+		elems = []string{"dir1", "dir2", itemID}
 	)
 
 	table := []struct {

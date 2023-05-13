@@ -260,7 +260,12 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				return
 			}
 
-			info.Size = int64(len(data))
+			// In case of mail the size of data is calc as- size of body content+size of attachment
+			// in all other case the size is - total item's serialized size
+			if info.Size <= 0 {
+				info.Size = int64(len(data))
+			}
+
 			info.ParentPath = col.locationPath.String()
 
 			col.data <- &Stream{

@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/operations/pathtransformer"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -139,6 +140,25 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"service", op.Selectors.Service,
 		"destination_container", clues.Hide(op.Destination.ContainerName))
 
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.RestoreEnd,
+			map[string]any{
+				events.BackupID:      op.BackupID,
+				events.DataRetrieved: op.Results.BytesRead,
+				events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:       dttm.Format(op.Results.CompletedAt),
+				events.ItemsRead:     op.Results.ItemsRead,
+				events.ItemsWritten:  op.Results.ItemsWritten,
+				events.Resources:     op.Results.ResourceOwners,
+				events.RestoreID:     opStats.restoreID,
+				events.Service:       op.Selectors.Service.String(),
+				events.StartTime:     dttm.Format(op.Results.StartedAt),
+				events.Status:        op.Status.String(),
+			})
+	}()
+
 	// -----
 	// Execution
 	// -----
@@ -146,9 +166,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	deets, err := op.do(ctx, &opStats, sstore, start)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running restore", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running restore")
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
@@ -282,24 +300,6 @@ func (op *RestoreOperation) persistResults(
 
 	op.Results.ItemsWritten = opStats.gc.Successes
 
-	op.bus.Event(
-		ctx,
-		events.RestoreEnd,
-		map[string]any{
-			events.BackupID:      op.BackupID,
-			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       dttm.Format(op.Results.CompletedAt),
-			events.ItemsRead:     op.Results.ItemsRead,
-			events.ItemsWritten:  op.Results.ItemsWritten,
-			events.Resources:     op.Results.ResourceOwners,
-			events.RestoreID:     opStats.restoreID,
-			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     dttm.Format(op.Results.StartedAt),
-			events.Status:        op.Status.String(),
-		},
-	)
-
 	return op.Errors.Failure()
 }
 
@@ -349,36 +349,15 @@ func formatDetailsForRestoration(
 	sel selectors.Selector,
 	deets *details.Details,
 	errs *fault.Bus,
-) ([]path.Path, error) {
+) ([]path.RestorePaths, error) {
 	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	var (
-		fdsPaths  = fds.Paths()
-		paths     = make([]path.Path, len(fdsPaths))
-		shortRefs = make([]string, len(fdsPaths))
-		el        = errs.Local()
-	)
-
-	for i := range fdsPaths {
-		if el.Failure() != nil {
-			break
-		}
-
-		p, err := path.FromDataLayerPath(fdsPaths[i], true)
-		if err != nil {
-			el.AddRecoverable(clues.
-				Wrap(err, "parsing details path after reduction").
-				WithMap(clues.In(ctx)).
-				With("path", fdsPaths[i]))
-
-			continue
-		}
-
-		paths[i] = p
-		shortRefs[i] = p.ShortRef()
+	paths, err := pathtransformer.GetPaths(ctx, backupVersion, fds.Items(), errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting restore paths")
 	}
 
 	if sel.Service == selectors.ServiceOneDrive {
@@ -388,7 +367,5 @@ func formatDetailsForRestoration(
 		}
 	}
 
-	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
-
-	return paths, el.Failure()
+	return paths, nil
 }

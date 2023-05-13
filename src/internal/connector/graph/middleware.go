@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -15,7 +14,6 @@ import (
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/exp/slices"
-	"golang.org/x/time/rate"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
@@ -35,6 +33,7 @@ type LoggingMiddleware struct{}
 
 // well-known path names used by graph api calls
 // used to un-hide path elements in a pii.SafeURL
+// https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
 var SafeURLPathParams = pii.MapWithPlurals(
 	//nolint:misspell
 	"alltime",
@@ -48,11 +47,16 @@ var SafeURLPathParams = pii.MapWithPlurals(
 	"childfolder",
 	"children",
 	"clone",
+	"clutter",
 	"column",
+	"conflict",
 	"contactfolder",
 	"contact",
 	"contenttype",
+	"conversationhistory",
+	"deleteditem",
 	"delta",
+	"draft",
 	"drive",
 	"event",
 	"group",
@@ -61,18 +65,28 @@ var SafeURLPathParams = pii.MapWithPlurals(
 	"invitation",
 	"item",
 	"joinedteam",
+	"junkemail",
 	"label",
 	"list",
+	"localfailure",
 	"mailfolder",
 	"member",
 	"message",
+	"msgfolderroot",
 	"notification",
+	"outbox",
 	"page",
 	"primarychannel",
+	"recoverableitemsdeletion",
 	"root",
+	"scheduled",
+	"searchfolder",
 	"security",
+	"sentitem",
+	"serverfailure",
 	"site",
 	"subscription",
+	"syncissue",
 	"team",
 	"unarchive",
 	"user",
@@ -100,6 +114,9 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
+// 1 MB
+const logMBLimit = 1 * 1048576
+
 func (mw *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -122,42 +139,61 @@ func (mw *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
-	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
-	log := logger.Ctx(ctx)
+	ctx = clues.Add(
+		ctx,
+		"status", resp.Status,
+		"statusCode", resp.StatusCode,
+		"content_len", resp.ContentLength)
 
-	// Return immediately if the response is good (2xx).
-	// If api logging is toggled, log a body-less dump of the request/resp.
-	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPIFV || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
-		}
+	var (
+		log       = logger.Ctx(ctx)
+		respClass = resp.StatusCode / 100
+		logExtra  = logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != ""
+	)
 
-		return resp, err
-	}
-
-	// Log errors according to api debugging configurations.
-	// When debugging is toggled, every non-2xx is recorded with a response dump.
-	// Otherwise, throttling cases and other non-2xx responses are logged
-	// with a slimmer reference for telemetry/supportability purposes.
-	if logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != "" {
-		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
-		return resp, err
-	}
-
-	msg := fmt.Sprintf("graph api error: %s", resp.Status)
-
-	// special case for supportability: log all throttling cases.
+	// special case: always info log 429 responses
 	if resp.StatusCode == http.StatusTooManyRequests {
-		log = log.With(
+		log.Infow(
+			"graph api throttling",
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
-	} else if resp.StatusCode/100 == 4 || resp.StatusCode == http.StatusServiceUnavailable {
-		log = log.With("response", getRespDump(ctx, resp, true))
+
+		return resp, err
 	}
 
-	log.Info(msg)
+	// special case: always dump status-400-bad-request
+	if resp.StatusCode == http.StatusBadRequest {
+		log.With("response", getRespDump(ctx, resp, true)).
+			Error("graph api error: " + resp.Status)
+
+		return resp, err
+	}
+
+	// Log api calls according to api debugging configurations.
+	switch respClass {
+	case 2:
+		if logExtra {
+			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
+			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
+			log.Infow("2xx graph api resp", "response", dump)
+		}
+	case 3:
+		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
+
+		if logExtra {
+			log.With("response", getRespDump(ctx, resp, false))
+		}
+
+		log.Info("graph api redirect: " + resp.Status)
+	default:
+		if logExtra {
+			log.With("response", getRespDump(ctx, resp, true))
+		}
+
+		log.Error("graph api error: " + resp.Status)
+	}
 
 	return resp, err
 }
@@ -359,56 +395,14 @@ func (mw RetryMiddleware) getRetryDelay(
 	return exponentialBackoff.NextBackOff()
 }
 
-// We're trying to keep calls below the 10k-per-10-minute threshold.
-// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
-// which is a bit below the mark.
-// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
-// We'll have built up 900 tokens in reserve, so the first 900 calls go through
-// immediately.  Over the next 10 minutes, we'll partition out the other calls
-// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
-// the volume keeps up after that, we'll always stay between 9000 and 9900 out
-// of 10k.
-const (
-	perSecond = 15
-	maxCap    = 900
-)
-
-// Single, global rate limiter at this time.  Refinements for method (creates,
-// versus reads) or service can come later.
-var limiter = rate.NewLimiter(perSecond, maxCap)
-
-// QueueRequest will allow the request to occur immediately if we're under the
-// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
-// the next token set is available.
-func QueueRequest(ctx context.Context) {
-	if err := limiter.Wait(ctx); err != nil {
-		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Rate Limiting
-// ---------------------------------------------------------------------------
-
-// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
-// request limits.
-type ThrottleControlMiddleware struct{}
-
-func (mw *ThrottleControlMiddleware) Intercept(
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	req *http.Request,
-) (*http.Response, error) {
-	QueueRequest(req.Context())
-	return pipeline.Next(req, middlewareIndex)
-}
-
 // ---------------------------------------------------------------------------
 // Metrics
 // ---------------------------------------------------------------------------
 
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}
+
+const xmruHeader = "x-ms-resource-unit"
 
 func (mw *MetricsMiddleware) Intercept(
 	pipeline khttp.Pipeline,
@@ -421,6 +415,10 @@ func (mw *MetricsMiddleware) Intercept(
 		status    = "nil-resp"
 	)
 
+	if resp == nil {
+		return resp, err
+	}
+
 	if resp != nil {
 		status = resp.Status
 	}
@@ -429,6 +427,19 @@ func (mw *MetricsMiddleware) Intercept(
 	events.Inc(events.APICall, status)
 	events.Since(start, events.APICall)
 	events.Since(start, events.APICall, status)
+
+	// track the graph "resource cost" for each call (if not provided, assume 1)
+
+	// from msoft throttling documentation:
+	// x-ms-resource-unit - Indicates the resource unit used for this request. Values are positive integer
+	xmru := resp.Header.Get(xmruHeader)
+	xmrui, e := strconv.Atoi(xmru)
+
+	if len(xmru) == 0 || e != nil {
+		xmrui = 1
+	}
+
+	events.IncN(xmrui, events.APICall, xmruHeader)
 
 	return resp, err
 }

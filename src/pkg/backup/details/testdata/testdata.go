@@ -25,7 +25,7 @@ func mustParsePath(ref string, isItem bool) path.Path {
 // path with the element appended to it. Panics if the path cannot be parsed.
 // Useful for simple variable assignments.
 func mustAppendPath(p path.Path, newElement string, isItem bool) path.Path {
-	newP, err := p.Append(newElement, isItem)
+	newP, err := p.Append(isItem, newElement)
 	if err != nil {
 		panic(err)
 	}
@@ -54,10 +54,10 @@ func locFromRepo(rr path.Path, isItem bool) *path.Builder {
 
 type repoRefAndLocRef struct {
 	RR  path.Path
-	loc *path.Builder
+	Loc *path.Builder
 }
 
-func (p repoRefAndLocRef) mustAppend(newElement string, isItem bool) repoRefAndLocRef {
+func (p repoRefAndLocRef) MustAppend(newElement string, isItem bool) repoRefAndLocRef {
 	e := newElement + folderSuffix
 
 	if isItem {
@@ -68,7 +68,7 @@ func (p repoRefAndLocRef) mustAppend(newElement string, isItem bool) repoRefAndL
 		RR: mustAppendPath(p.RR, e, isItem),
 	}
 
-	res.loc = locFromRepo(res.RR, isItem)
+	res.Loc = locFromRepo(res.RR, isItem)
 
 	return res
 }
@@ -85,7 +85,7 @@ func (p repoRefAndLocRef) FolderLocation() string {
 		lastElem = f[len(f)-2]
 	}
 
-	return p.loc.Append(strings.TrimSuffix(lastElem, folderSuffix)).String()
+	return p.Loc.Append(strings.TrimSuffix(lastElem, folderSuffix)).String()
 }
 
 func mustPathRep(ref string, isItem bool) repoRefAndLocRef {
@@ -115,7 +115,7 @@ func mustPathRep(ref string, isItem bool) repoRefAndLocRef {
 	}
 
 	res.RR = rr
-	res.loc = locFromRepo(rr, isItem)
+	res.Loc = locFromRepo(rr, isItem)
 
 	return res
 }
@@ -138,12 +138,12 @@ var (
 	Time4 = time.Date(2023, 10, 21, 10, 0, 0, 0, time.UTC)
 
 	ExchangeEmailInboxPath = mustPathRep("tenant-id/exchange/user-id/email/Inbox", false)
-	ExchangeEmailBasePath  = ExchangeEmailInboxPath.mustAppend("subfolder", false)
-	ExchangeEmailBasePath2 = ExchangeEmailInboxPath.mustAppend("othersubfolder/", false)
-	ExchangeEmailBasePath3 = ExchangeEmailBasePath2.mustAppend("subsubfolder", false)
-	ExchangeEmailItemPath1 = ExchangeEmailBasePath.mustAppend(ItemName1, true)
-	ExchangeEmailItemPath2 = ExchangeEmailBasePath2.mustAppend(ItemName2, true)
-	ExchangeEmailItemPath3 = ExchangeEmailBasePath3.mustAppend(ItemName3, true)
+	ExchangeEmailBasePath  = ExchangeEmailInboxPath.MustAppend("subfolder", false)
+	ExchangeEmailBasePath2 = ExchangeEmailInboxPath.MustAppend("othersubfolder/", false)
+	ExchangeEmailBasePath3 = ExchangeEmailBasePath2.MustAppend("subsubfolder", false)
+	ExchangeEmailItemPath1 = ExchangeEmailBasePath.MustAppend(ItemName1, true)
+	ExchangeEmailItemPath2 = ExchangeEmailBasePath2.MustAppend(ItemName2, true)
+	ExchangeEmailItemPath3 = ExchangeEmailBasePath3.MustAppend(ItemName3, true)
 
 	ExchangeEmailItems = []details.Entry{
 		{
@@ -151,7 +151,7 @@ var (
 			ShortRef:    ExchangeEmailItemPath1.RR.ShortRef(),
 			ParentRef:   ExchangeEmailItemPath1.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeEmailItemPath1.ItemLocation(),
-			LocationRef: ExchangeEmailItemPath1.loc.String(),
+			LocationRef: ExchangeEmailItemPath1.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType: details.ExchangeMail,
@@ -166,7 +166,7 @@ var (
 			ShortRef:    ExchangeEmailItemPath2.RR.ShortRef(),
 			ParentRef:   ExchangeEmailItemPath2.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeEmailItemPath2.ItemLocation(),
-			LocationRef: ExchangeEmailItemPath2.loc.String(),
+			LocationRef: ExchangeEmailItemPath2.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType: details.ExchangeMail,
@@ -181,7 +181,7 @@ var (
 			ShortRef:    ExchangeEmailItemPath3.RR.ShortRef(),
 			ParentRef:   ExchangeEmailItemPath3.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeEmailItemPath3.ItemLocation(),
-			LocationRef: ExchangeEmailItemPath3.loc.String(),
+			LocationRef: ExchangeEmailItemPath3.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType: details.ExchangeMail,
@@ -194,10 +194,10 @@ var (
 	}
 
 	ExchangeContactsRootPath  = mustPathRep("tenant-id/exchange/user-id/contacts/contacts", false)
-	ExchangeContactsBasePath  = ExchangeContactsRootPath.mustAppend("contacts", false)
-	ExchangeContactsBasePath2 = ExchangeContactsRootPath.mustAppend("morecontacts", false)
-	ExchangeContactsItemPath1 = ExchangeContactsBasePath.mustAppend(ItemName1, true)
-	ExchangeContactsItemPath2 = ExchangeContactsBasePath2.mustAppend(ItemName2, true)
+	ExchangeContactsBasePath  = ExchangeContactsRootPath.MustAppend("contacts", false)
+	ExchangeContactsBasePath2 = ExchangeContactsRootPath.MustAppend("morecontacts", false)
+	ExchangeContactsItemPath1 = ExchangeContactsBasePath.MustAppend(ItemName1, true)
+	ExchangeContactsItemPath2 = ExchangeContactsBasePath2.MustAppend(ItemName2, true)
 
 	ExchangeContactsItems = []details.Entry{
 		{
@@ -205,7 +205,7 @@ var (
 			ShortRef:    ExchangeContactsItemPath1.RR.ShortRef(),
 			ParentRef:   ExchangeContactsItemPath1.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeContactsItemPath1.ItemLocation(),
-			LocationRef: ExchangeContactsItemPath1.loc.String(),
+			LocationRef: ExchangeContactsItemPath1.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
@@ -218,7 +218,7 @@ var (
 			ShortRef:    ExchangeContactsItemPath2.RR.ShortRef(),
 			ParentRef:   ExchangeContactsItemPath2.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeContactsItemPath2.ItemLocation(),
-			LocationRef: ExchangeContactsItemPath2.loc.String(),
+			LocationRef: ExchangeContactsItemPath2.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
@@ -228,11 +228,10 @@ var (
 		},
 	}
 
-	ExchangeEventsRootPath  = mustPathRep("tenant-id/exchange/user-id/events/holidays", false)
-	ExchangeEventsBasePath  = ExchangeEventsRootPath.mustAppend("holidays", false)
-	ExchangeEventsBasePath2 = ExchangeEventsRootPath.mustAppend("moreholidays", false)
-	ExchangeEventsItemPath1 = ExchangeEventsBasePath.mustAppend(ItemName1, true)
-	ExchangeEventsItemPath2 = ExchangeEventsBasePath2.mustAppend(ItemName2, true)
+	ExchangeEventsBasePath  = mustPathRep("tenant-id/exchange/user-id/events/holidays", false)
+	ExchangeEventsBasePath2 = mustPathRep("tenant-id/exchange/user-id/events/moreholidays", false)
+	ExchangeEventsItemPath1 = ExchangeEventsBasePath.MustAppend(ItemName1, true)
+	ExchangeEventsItemPath2 = ExchangeEventsBasePath2.MustAppend(ItemName2, true)
 
 	ExchangeEventsItems = []details.Entry{
 		{
@@ -240,7 +239,7 @@ var (
 			ShortRef:    ExchangeEventsItemPath1.RR.ShortRef(),
 			ParentRef:   ExchangeEventsItemPath1.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeEventsItemPath1.ItemLocation(),
-			LocationRef: ExchangeEventsItemPath1.loc.String(),
+			LocationRef: ExchangeEventsItemPath1.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeEvent,
@@ -256,7 +255,7 @@ var (
 			ShortRef:    ExchangeEventsItemPath2.RR.ShortRef(),
 			ParentRef:   ExchangeEventsItemPath2.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     ExchangeEventsItemPath2.ItemLocation(),
-			LocationRef: ExchangeEventsItemPath2.loc.String(),
+			LocationRef: ExchangeEventsItemPath2.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeEvent,
@@ -270,17 +269,17 @@ var (
 	}
 
 	OneDriveRootPath   = mustPathRep("tenant-id/onedrive/user-id/files/drives/foo/root:", false)
-	OneDriveFolderPath = OneDriveRootPath.mustAppend("folder", false)
-	OneDriveBasePath1  = OneDriveFolderPath.mustAppend("a", false)
-	OneDriveBasePath2  = OneDriveFolderPath.mustAppend("b", false)
+	OneDriveFolderPath = OneDriveRootPath.MustAppend("folder", false)
+	OneDriveBasePath1  = OneDriveFolderPath.MustAppend("a", false)
+	OneDriveBasePath2  = OneDriveFolderPath.MustAppend("b", false)
 
-	OneDriveItemPath1 = OneDriveFolderPath.mustAppend(ItemName1, true)
-	OneDriveItemPath2 = OneDriveBasePath1.mustAppend(ItemName2, true)
-	OneDriveItemPath3 = OneDriveBasePath2.mustAppend(ItemName3, true)
+	OneDriveItemPath1 = OneDriveFolderPath.MustAppend(ItemName1, true)
+	OneDriveItemPath2 = OneDriveBasePath1.MustAppend(ItemName2, true)
+	OneDriveItemPath3 = OneDriveBasePath2.MustAppend(ItemName3, true)
 
-	OneDriveFolderFolder  = OneDriveFolderPath.loc.PopFront().String()
-	OneDriveParentFolder1 = OneDriveBasePath1.loc.PopFront().String()
-	OneDriveParentFolder2 = OneDriveBasePath2.loc.PopFront().String()
+	OneDriveFolderFolder  = OneDriveFolderPath.Loc.PopFront().String()
+	OneDriveParentFolder1 = OneDriveBasePath1.Loc.PopFront().String()
+	OneDriveParentFolder2 = OneDriveBasePath2.Loc.PopFront().String()
 
 	OneDriveItems = []details.Entry{
 		{
@@ -288,7 +287,7 @@ var (
 			ShortRef:    OneDriveItemPath1.RR.ShortRef(),
 			ParentRef:   OneDriveItemPath1.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     OneDriveItemPath1.ItemLocation(),
-			LocationRef: OneDriveItemPath1.loc.String(),
+			LocationRef: OneDriveItemPath1.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
 					ItemType:   details.OneDriveItem,
@@ -306,7 +305,7 @@ var (
 			ShortRef:    OneDriveItemPath2.RR.ShortRef(),
 			ParentRef:   OneDriveItemPath2.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     OneDriveItemPath2.ItemLocation(),
-			LocationRef: OneDriveItemPath2.loc.String(),
+			LocationRef: OneDriveItemPath2.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
 					ItemType:   details.OneDriveItem,
@@ -324,7 +323,7 @@ var (
 			ShortRef:    OneDriveItemPath3.RR.ShortRef(),
 			ParentRef:   OneDriveItemPath3.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     OneDriveItemPath3.ItemLocation(),
-			LocationRef: OneDriveItemPath3.loc.String(),
+			LocationRef: OneDriveItemPath3.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
 					ItemType:   details.OneDriveItem,
@@ -340,17 +339,17 @@ var (
 	}
 
 	SharePointRootPath    = mustPathRep("tenant-id/sharepoint/site-id/libraries/drives/foo/root:", false)
-	SharePointLibraryPath = SharePointRootPath.mustAppend("library", false)
-	SharePointBasePath1   = SharePointLibraryPath.mustAppend("a", false)
-	SharePointBasePath2   = SharePointLibraryPath.mustAppend("b", false)
+	SharePointLibraryPath = SharePointRootPath.MustAppend("library", false)
+	SharePointBasePath1   = SharePointLibraryPath.MustAppend("a", false)
+	SharePointBasePath2   = SharePointLibraryPath.MustAppend("b", false)
 
-	SharePointLibraryItemPath1 = SharePointLibraryPath.mustAppend(ItemName1, true)
-	SharePointLibraryItemPath2 = SharePointBasePath1.mustAppend(ItemName2, true)
-	SharePointLibraryItemPath3 = SharePointBasePath2.mustAppend(ItemName3, true)
+	SharePointLibraryItemPath1 = SharePointLibraryPath.MustAppend(ItemName1, true)
+	SharePointLibraryItemPath2 = SharePointBasePath1.MustAppend(ItemName2, true)
+	SharePointLibraryItemPath3 = SharePointBasePath2.MustAppend(ItemName3, true)
 
-	SharePointLibraryFolder  = SharePointLibraryPath.loc.PopFront().String()
-	SharePointParentLibrary1 = SharePointBasePath1.loc.PopFront().String()
-	SharePointParentLibrary2 = SharePointBasePath2.loc.PopFront().String()
+	SharePointLibraryFolder  = SharePointLibraryPath.Loc.PopFront().String()
+	SharePointParentLibrary1 = SharePointBasePath1.Loc.PopFront().String()
+	SharePointParentLibrary2 = SharePointBasePath2.Loc.PopFront().String()
 
 	SharePointLibraryItems = []details.Entry{
 		{
@@ -358,7 +357,7 @@ var (
 			ShortRef:    SharePointLibraryItemPath1.RR.ShortRef(),
 			ParentRef:   SharePointLibraryItemPath1.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     SharePointLibraryItemPath1.ItemLocation(),
-			LocationRef: SharePointLibraryItemPath1.loc.String(),
+			LocationRef: SharePointLibraryItemPath1.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType:   details.SharePointLibrary,
@@ -376,7 +375,7 @@ var (
 			ShortRef:    SharePointLibraryItemPath2.RR.ShortRef(),
 			ParentRef:   SharePointLibraryItemPath2.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     SharePointLibraryItemPath2.ItemLocation(),
-			LocationRef: SharePointLibraryItemPath2.loc.String(),
+			LocationRef: SharePointLibraryItemPath2.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType:   details.SharePointLibrary,
@@ -394,7 +393,7 @@ var (
 			ShortRef:    SharePointLibraryItemPath3.RR.ShortRef(),
 			ParentRef:   SharePointLibraryItemPath3.RR.ToBuilder().Dir().ShortRef(),
 			ItemRef:     SharePointLibraryItemPath3.ItemLocation(),
-			LocationRef: SharePointLibraryItemPath3.loc.String(),
+			LocationRef: SharePointLibraryItemPath3.Loc.String(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType:   details.SharePointLibrary,

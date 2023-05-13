@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/mock"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -46,16 +47,28 @@ type mockRestoreProducer struct {
 	onRestore restoreFunc
 }
 
-type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
+type restoreFunc func(
+	id string,
+	ps []path.RestorePaths,
+) ([]data.RestoreCollection, error)
 
 func (mr *mockRestoreProducer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
 ) {
-	mr.onRestore = func(id string, ps []path.Path) ([]data.RestoreCollection, error) {
+	mr.onRestore = func(
+		id string,
+		ps []path.RestorePaths,
+	) ([]data.RestoreCollection, error) {
+		gotPaths := make([]path.Path, 0, len(ps))
+
+		for _, rp := range ps {
+			gotPaths = append(gotPaths, rp.StoragePath)
+		}
+
 		assert.Equal(t, oid, id, "manifest id")
-		checkPaths(t, ops, ps)
+		checkPaths(t, ops, gotPaths)
 
 		return mr.colls, mr.err
 	}
@@ -64,11 +77,13 @@ func (mr *mockRestoreProducer) buildRestoreFunc(
 func (mr *mockRestoreProducer) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
-	paths []path.Path,
+	paths []path.RestorePaths,
 	bc kopia.ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	mr.gotPaths = append(mr.gotPaths, paths...)
+	for _, ps := range paths {
+		mr.gotPaths = append(mr.gotPaths, ps.StoragePath)
+	}
 
 	if mr.onRestore != nil {
 		return mr.onRestore(snapshotID, paths)
@@ -643,15 +658,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				path.OneDriveService.String(),
 				ro,
 				path.FilesCategory.String(),
-				"drives",
+				odConsts.DrivesPathDir,
 				"drive-id",
-				"root:",
+				odConsts.RootPathDir,
 				"work",
 				"item1",
 			},
 			true,
 		)
-		locationPath1 = path.Builder{}.Append("root:", "work-display-name")
+		locationPath1 = path.Builder{}.Append(odConsts.RootPathDir, "work-display-name")
 		itemPath2     = makePath(
 			suite.T(),
 			[]string{
@@ -659,15 +674,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				path.OneDriveService.String(),
 				ro,
 				path.FilesCategory.String(),
-				"drives",
+				odConsts.DrivesPathDir,
 				"drive-id",
-				"root:",
+				odConsts.RootPathDir,
 				"personal",
 				"item2",
 			},
 			true,
 		)
-		locationPath2 = path.Builder{}.Append("root:", "personal-display-name")
+		locationPath2 = path.Builder{}.Append(odConsts.RootPathDir, "personal-display-name")
 		itemPath3     = makePath(
 			suite.T(),
 			[]string{

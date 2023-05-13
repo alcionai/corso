@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"runtime/trace"
@@ -12,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -51,20 +51,25 @@ func RestoreCollections(
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		err            error
 		restoreMetrics support.CollectionMetrics
+		caches         = onedrive.NewRestoreCaches()
+		el             = errs.Local()
 	)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
+		if el.Failure() != nil {
+			break
+		}
+
 		var (
+			err      error
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"destination", clues.Hide(dest.ContainerName),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
-			driveFolderCache = onedrive.NewFolderCache()
 		)
 
 		switch dc.FullPath().Category() {
@@ -75,10 +80,7 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				map[string]metadata.Metadata{}, // Currently permission data is not stored for sharepoint
-				map[string]string{},
-				driveFolderCache,
-				nil,
+				caches,
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
@@ -110,6 +112,10 @@ func RestoreCollections(
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
+			el.AddRecoverable(err)
+		}
+
+		if errors.Is(err, context.Canceled) {
 			break
 		}
 	}
@@ -121,11 +127,11 @@ func RestoreCollections(
 		restoreMetrics,
 		dest.ContainerName)
 
-	return status, err
+	return status, el.Failure()
 }
 
 // restoreListItem utility function restores a List to the siteID.
-// The name is changed to to Corso_Restore_{timeStame}_name
+// The name is changed to to {DestName}_{name}
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
 // Restored List can be verified within the Site contents.
 func restoreListItem(
@@ -172,7 +178,11 @@ func restoreListItem(
 	newList.SetItems(contents)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := service.
+		Client().
+		SitesById(siteID).
+		Lists().
+		Post(ctx, newList, nil)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -247,7 +257,7 @@ func RestoreListCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
@@ -335,7 +345,7 @@ func RestorePageCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue

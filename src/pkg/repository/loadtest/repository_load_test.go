@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -150,7 +151,7 @@ func runRestoreLoadTest(
 			t.Skip("restore load test is toggled off")
 		}
 
-		dest := tester.DefaultTestRestoreDestination()
+		dest := tester.DefaultTestRestoreDestination("")
 
 		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
 		require.NoError(t, err, clues.ToCore(err))
@@ -541,7 +542,7 @@ func (suite *LoadOneDriveSuite) TestOneDrive() {
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
-	bsel.Include(bsel.AllData())
+	bsel.Include(selTD.OneDriveBackupFolderScope(bsel))
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -588,7 +589,7 @@ func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
-	bsel.Include(bsel.AllData())
+	bsel.Include(selTD.OneDriveBackupFolderScope(bsel))
 	sel := bsel.Selector
 
 	runLoadTest(

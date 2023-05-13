@@ -245,6 +245,26 @@ func (suite *PathUnitSuite) TestAppend() {
 	}
 }
 
+func (suite *PathUnitSuite) TestAppendItem() {
+	t := suite.T()
+
+	p, err := Build("t", "ro", ExchangeService, EmailCategory, false, "foo", "bar")
+	require.NoError(t, err, clues.ToCore(err))
+
+	pb := p.ToBuilder()
+	assert.Equal(t, pb.String(), p.String())
+
+	pb = pb.Append("qux")
+
+	p, err = p.AppendItem("qux")
+
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, pb.String(), p.String())
+
+	_, err = p.AppendItem("fnords")
+	require.Error(t, err, clues.ToCore(err))
+}
+
 func (suite *PathUnitSuite) TestUnescapeAndAppend() {
 	table := append(append([]testData{}, genericCases...), basicEscapedInputs...)
 	for _, test := range table {

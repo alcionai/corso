@@ -85,7 +85,7 @@ type Path interface {
 	Category() CategoryType
 	Tenant() string
 	ResourceOwner() string
-	Folder(bool) string
+	Folder(escaped bool) string
 	Folders() Elements
 	Item() string
 	// UpdateParent updates parent from old to new if the item/folder was
@@ -106,7 +106,9 @@ type Path interface {
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.
-	Append(element string, isItem bool) (Path, error)
+	Append(isItem bool, elems ...string) (Path, error)
+	// AppendItem is a shorthand for Append(true, someItem)
+	AppendItem(item string) (Path, error)
 	// ShortRef returns a short reference representing this path. The short
 	// reference is guaranteed to be unique. No guarantees are made about whether
 	// a short reference can be converted back into the Path that generated it.
@@ -129,6 +131,13 @@ var (
 	_ clues.Concealer = &Builder{}
 	_ fmt.Stringer    = &Builder{}
 )
+
+// RestorePaths denotes the location to find an item in kopia and the path of
+// the collection to place the item in for restore.
+type RestorePaths struct {
+	StoragePath Path
+	RestorePath Path
+}
 
 // Builder is a simple path representation that only tracks path elements. It
 // can join, escape, and unescape elements. Higher-level packages are expected

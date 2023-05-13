@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -49,6 +50,8 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
+	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
+
 	// Limit the max number of active requests to graph from this collection.
 	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
 		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
@@ -58,11 +61,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, err := checkServiceEnabled(
+	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
 		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
-		sels.DiscreteOwner)
+		sels.DiscreteOwner,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,6 +79,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		colls []data.BackupCollection
 		ssmb  *prefixmatcher.StringSetMatcher
 	)
+
+	if !canMakeDeltaQueries {
+		logger.Ctx(ctx).Info("delta requests not available")
+
+		ctrlOpts.ToggleFeatures.DisableDelta = true
+	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
@@ -169,22 +179,28 @@ func checkServiceEnabled(
 	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
-) (bool, error) {
+) (bool, bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
-		return true, nil
+		return true, true, nil
 	}
 
 	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
-	return true, nil
+	canMakeDeltaQueries := true
+	if service == path.ExchangeService {
+		// we currently can only check quota exceeded for exchange
+		canMakeDeltaQueries = info.CanMakeDeltaQueries()
+	}
+
+	return true, canMakeDeltaQueries, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections
@@ -194,7 +210,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	acct account.Account,
-	selector selectors.Selector,
+	sels selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
@@ -202,6 +218,8 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 ) (*details.Details, error) {
 	ctx, end := diagnostics.Span(ctx, "connector:restore")
 	defer end()
+
+	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
 
 	var (
 		status *support.ConnectorOperationStatus
@@ -213,7 +231,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 		return nil, clues.Wrap(err, "malformed azure credentials")
 	}
 
-	switch selector.Service {
+	switch sels.Service {
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
@@ -221,7 +239,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	case selectors.ServiceSharePoint:
 		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets, errs)
 	default:
-		err = clues.Wrap(clues.New(selector.Service.String()), "service not supported")
+		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}
 
 	gc.incrementAwaitingMessages()

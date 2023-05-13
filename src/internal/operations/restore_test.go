@@ -55,7 +55,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 	)
 
 	table := []struct {
@@ -220,7 +220,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		sw   = &store.Wrapper{}
 		gc   = &mock.GraphConnector{}
 		acct = tester.NewM365Account(suite.T())
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 		opts = control.Defaults()
 	)
 
@@ -392,7 +392,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:  "Exchange_Restore",
 			owner: tester.M365UserID(suite.T()),
-			dest:  tester.DefaultTestRestoreDestination(),
+			dest:  tester.DefaultTestRestoreDestination(""),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewExchangeRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -458,13 +458,13 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	}
 }
 
-func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
+func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	var (
 		t    = suite.T()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 		mb   = evmock.NewBus()
 	)
 
@@ -495,6 +495,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 	require.Nil(t, ds, "restoreOp.Run() should not produce details")
 	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
 	assert.Zero(t, ro.Results.BytesRead, "bytes read")
-	assert.Zero(t, mb.TimesCalled[events.RestoreStart], "restore-start events")
-	assert.Zero(t, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+	// no restore start, because we'd need to find the backup first.
+	assert.Equal(t, 0, mb.TimesCalled[events.RestoreStart], "restore-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }

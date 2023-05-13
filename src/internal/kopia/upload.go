@@ -347,7 +347,7 @@ func collectionEntries(
 			seen[encodedName] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
-			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
+			itemPath, err := streamedEnts.FullPath().AppendItem(e.UUID())
 			if err != nil {
 				err = clues.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(err)
@@ -464,7 +464,7 @@ func streamBaseEntries(
 		}
 
 		// For now assuming that item IDs don't need escaping.
-		itemPath, err := curPath.Append(entName, true)
+		itemPath, err := curPath.AppendItem(entName)
 		if err != nil {
 			return clues.Wrap(err, "getting full item path for base entry")
 		}
@@ -473,7 +473,7 @@ func streamBaseEntries(
 		// backup details. If the item moved and we had only the new path, we'd be
 		// unable to find it in the old backup details because we wouldn't know what
 		// to look for.
-		prevItemPath, err := prevPath.Append(entName, true)
+		prevItemPath, err := prevPath.AppendItem(entName)
 		if err != nil {
 			return clues.Wrap(err, "getting previous full item path for base entry")
 		}

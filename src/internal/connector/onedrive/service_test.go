@@ -23,6 +23,8 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
+var _ graph.Servicer = &oneDriveService{}
+
 // TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
 type oneDriveService struct {
 	client      msgraphsdk.GraphServiceClient
