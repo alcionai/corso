@@ -145,7 +145,7 @@ of Corso's ability to provide fast, high-performance backups that still
 accurately reflect all updates. If you have feedback, questions, or want more information, please join us on the [Corso Discord](https://discord.gg/63DTTSnuhT).
 
 > 💡 In
-> [part 2 of our series](2023-4-29-incrementals-pt2.md),
+> [part 2 of our series](2023-05-13-incrementals-pt2.md),
 > we’ll cover Incremental backups in action, and how Corso manages state and
 > merges updates to the hierarchy.
 
