@@ -233,40 +233,44 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			continue
 		}
 
-		gv2 := p.GetGrantedToV2()
-
-		// Below are the mapping from roles to "Advanced" permissions
-		// screen entries:
-		//
-		// owner - Full Control
-		// write - Design | Edit | Contribute (no difference in /permissions api)
-		// read  - Read
-		// empty - Restricted View
-		//
-		// helpful docs:
-		// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
-		roles := p.GetRoles()
-		entityID := ""
+		var (
+			// Below are the mapping from roles to "Advanced" permissions
+			// screen entries:
+			//
+			// owner - Full Control
+			// write - Design | Edit | Contribute (no difference in /permissions api)
+			// read  - Read
+			// empty - Restricted View
+			//
+			// helpful docs:
+			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
+			roles    = p.GetRoles()
+			gv2      = p.GetGrantedToV2()
+			entityID string
+			gv2t     metadata.GV2Type
+		)
 
 		switch true {
 		case gv2.GetUser() != nil:
+			gv2t = metadata.GV2User
 			entityID = ptr.Val(gv2.GetUser().GetId())
 		case gv2.GetSiteUser() != nil:
+			gv2t = metadata.GV2SiteUser
 			entityID = ptr.Val(gv2.GetSiteUser().GetId())
 		case gv2.GetGroup() != nil:
+			gv2t = metadata.GV2Group
 			entityID = ptr.Val(gv2.GetGroup().GetId())
 		case gv2.GetSiteGroup() != nil:
+			gv2t = metadata.GV2SiteGroup
 			entityID = ptr.Val(gv2.GetSiteGroup().GetId())
 		case gv2.GetApplication() != nil:
+			gv2t = metadata.GV2App
 			entityID = ptr.Val(gv2.GetApplication().GetId())
 		case gv2.GetDevice() != nil:
+			gv2t = metadata.GV2Device
 			entityID = ptr.Val(gv2.GetDevice().GetId())
 		default:
 			logger.Ctx(ctx).Info("untracked permission")
-		}
-
-		if gv2.GetDevice() != nil {
-			logger.Ctx(ctx).With("device_id", ptr.Val(gv2.GetDevice().GetId()))
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the
@@ -280,6 +284,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
 			EntityID:   entityID,
+			EntityType: gv2t,
 			Expiration: p.GetExpirationDateTime(),
 		})
 	}

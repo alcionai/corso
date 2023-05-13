@@ -79,7 +79,8 @@ func RestoreCollections(
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"destination", clues.Hide(dest.ContainerName),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"full_path", dc.FullPath())
 		)
 
 		switch dc.FullPath().Category() {

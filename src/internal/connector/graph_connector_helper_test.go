@@ -48,13 +48,15 @@ func testElementsMatch[T any](
 	t *testing.T,
 	expected []T,
 	got []T,
+	subset bool,
 	equalityCheck func(expectedItem, gotItem T) bool,
 ) {
 	t.Helper()
 
 	pending := make([]*T, len(expected))
-	for i := 0; i < len(expected); i++ {
-		pending[i] = &expected[i]
+	for i := range expected {
+		ei := expected[i]
+		pending[i] = &ei
 	}
 
 	unexpected := []T{}
@@ -97,15 +99,20 @@ func testElementsMatch[T any](
 		return
 	}
 
+	if subset && len(missing) == 0 && len(unexpected) > 0 {
+		return
+	}
+
 	assert.Failf(
 		t,
-		"contain different elements",
-		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
+		"elements differ",
+		"expected: (%T)%+v\ngot: (%T)%+v\nmissing: %+v\nextra: %+v\n",
 		expected,
-		missing,
+		expected,
 		got,
-		unexpected,
-	)
+		got,
+		missing,
+		unexpected)
 }
 
 type configInfo struct {
@@ -211,7 +218,7 @@ func checkMessage(
 	expected models.Messageable,
 	got models.Messageable,
 ) {
-	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), attachmentEqual)
+	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), false, attachmentEqual)
 
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
@@ -289,7 +296,7 @@ func checkMessage(
 
 	assert.Equal(t, ptr.Val(expected.GetSubject()), ptr.Val(got.GetSubject()), "Subject")
 
-	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), recipientEqual)
+	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), false, recipientEqual)
 
 	// Skip WebLink as it's tied to this specific instance of the item.
 
@@ -535,10 +542,10 @@ func checkEvent(
 		t,
 		[]models.Locationable{expected.GetLocation()},
 		[]models.Locationable{got.GetLocation()},
-		locationEqual,
-	)
+		false,
+		locationEqual)
 
-	testElementsMatch(t, expected.GetLocations(), got.GetLocations(), locationEqual)
+	testElementsMatch(t, expected.GetLocations(), got.GetLocations(), false, locationEqual)
 
 	assert.Equal(t, expected.GetOnlineMeeting(), got.GetOnlineMeeting(), "OnlineMeeting")
 
@@ -726,7 +733,7 @@ func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
-	restorePermissions bool,
+	config configInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
@@ -746,19 +753,15 @@ func compareDriveItem(
 		isMeta      = metadata.HasMetaSuffix(name)
 	)
 
-	if isMeta {
-		var itemType *metadata.Item
-
-		assert.IsType(t, itemType, item)
-	} else {
+	if !isMeta {
 		oitem := item.(*onedrive.Item)
 		info := oitem.Info()
 
-		// Don't need to check SharePoint because it was added after we stopped
-		// adding meta files to backup details.
 		if info.OneDrive != nil {
 			displayName = oitem.Info().OneDrive.ItemName
 
+			// Don't need to check SharePoint because it was added after we stopped
+			// adding meta files to backup details.
 			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
 		} else if info.SharePoint != nil {
 			displayName = oitem.Info().SharePoint.ItemName
@@ -768,6 +771,9 @@ func compareDriveItem(
 	}
 
 	if isMeta {
+		var itemType *metadata.Item
+		assert.IsType(t, itemType, item)
+
 		var (
 			itemMeta     metadata.Metadata
 			expectedMeta metadata.Metadata
@@ -806,7 +812,7 @@ func compareDriveItem(
 			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
 		}
 
-		if !restorePermissions {
+		if !config.opts.RestorePermissions {
 			assert.Equal(t, 0, len(itemMeta.Permissions))
 			return true
 		}
@@ -824,6 +830,10 @@ func compareDriveItem(
 			t,
 			expectedMeta.Permissions,
 			itemPerms,
+			// sharepoint retrieves a superset of permissions
+			// (all site admins, site groups, built in by default)
+			// relative to the permissions changed by the test.
+			config.service == path.SharePointService,
 			permissionEqual)
 
 		return true
@@ -865,7 +875,7 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
-	restorePermissions bool,
+	config configInfo,
 	rootDir bool,
 ) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
@@ -886,7 +896,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		return compareDriveItem(t, expected, item, restorePermissions, rootDir)
+		return compareDriveItem(t, expected, item, config, rootDir)
 
 	case path.SharePointService:
 		if category != path.LibrariesCategory {
@@ -894,7 +904,7 @@ func compareItem(
 		}
 
 		// SharePoint libraries reuses OneDrive code.
-		return compareDriveItem(t, expected, item, restorePermissions, rootDir)
+		return compareDriveItem(t, expected, item, config, rootDir)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
@@ -959,8 +969,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
-	dest control.RestoreDestination,
-	restorePermissions bool,
+	config configInfo,
 ) int {
 	collectionsWithItems := []data.BackupCollection{}
 
@@ -974,7 +983,7 @@ func checkCollections(
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == dest.ContainerName
+			rootDir         = folders[len(folders)-1] == config.dest.ContainerName
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -1007,7 +1016,7 @@ func checkCollections(
 				service,
 				category,
 				item,
-				restorePermissions,
+				config,
 				rootDir) {
 				gotItems--
 			}
@@ -1239,7 +1248,7 @@ func collectionsForInfo(
 		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
 
 		baseExpected := expectedData[baseDestPath.String()]
-		if baseExpected == nil {
+		if len(baseExpected) == 0 {
 			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
 			baseExpected = expectedData[baseDestPath.String()]
 		}

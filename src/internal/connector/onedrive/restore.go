@@ -91,9 +91,10 @@ func RestoreCollections(
 			metrics support.CollectionMetrics
 			ictx    = clues.Add(
 				ctx,
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"category", dc.FullPath().Category(),
-				"path", dc.FullPath())
+				"destination", clues.Hide(dest.ContainerName),
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"full_path", dc.FullPath())
 		)
 
 		metrics, err = RestoreCollection(
@@ -154,7 +155,7 @@ func RestoreCollection(
 		el         = errs.Local()
 	)
 
-	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreCollection", diagnostics.Label("path", directory))
+	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
 	defer end()
 
 	drivePath, err := path.ToDrivePath(directory)

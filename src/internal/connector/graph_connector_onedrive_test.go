@@ -286,7 +286,7 @@ type itemData struct {
 	perms permData
 }
 
-type onedriveColInfo struct {
+type driveColInfo struct {
 	pathElements []string
 	perms        permData
 	files        []itemData
@@ -296,7 +296,7 @@ type onedriveColInfo struct {
 func testDataForInfo(
 	t *testing.T,
 	service path.ServiceType,
-	cols []onedriveColInfo,
+	cols []driveColInfo,
 	backupVersion int,
 ) []colInfo {
 	var res []colInfo
@@ -493,6 +493,11 @@ func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsInheritanc
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
+func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
+	// No reason why it couldn't work with previous versions, but this is when it got introduced.
+	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+}
+
 // ---------------------------------------------------------------------------
 // OneDrive most recent backup version
 // ---------------------------------------------------------------------------
@@ -670,7 +675,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		folderBName,
 	}
 
-	cols := []onedriveColInfo{
+	cols := []driveColInfo{
 		{
 			pathElements: rootPath,
 			files: []itemData{
@@ -814,7 +819,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		folderCName,
 	}
 
-	cols := []onedriveColInfo{
+	cols := []driveColInfo{
 		{
 			pathElements: rootPath,
 			files: []itemData{
@@ -946,9 +951,10 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	}
 
 	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
@@ -991,7 +997,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		suite.Service(),
 		suite.BackupResourceOwner())
 
-	inputCols := []onedriveColInfo{
+	inputCols := []driveColInfo{
 		{
 			pathElements: []string{
 				odConsts.DrivesPathDir,
@@ -1012,7 +1018,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expectedCols := []onedriveColInfo{
+	expectedCols := []driveColInfo{
 		{
 			pathElements: []string{
 				odConsts.DrivesPathDir,
@@ -1030,9 +1036,10 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 	}
 
 	expected := testDataForInfo(suite.T(), suite.BackupService(), expectedCols, version.Backup)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			input := testDataForInfo(t, suite.BackupService(), inputCols, vn)
 
@@ -1157,7 +1164,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	// 	   - inherted-permission-file
 	//     - empty-permission-file (empty/empty might have interesting behavior)
 
-	cols := []onedriveColInfo{
+	cols := []driveColInfo{
 		{
 			pathElements: rootPath,
 			files:        []itemData{},
@@ -1206,9 +1213,10 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	}
 
 	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
@@ -1271,7 +1279,7 @@ func testRestoreFolderNamedFolderRegression(
 		folderBName,
 	}
 
-	cols := []onedriveColInfo{
+	cols := []driveColInfo{
 		{
 			pathElements: rootPath,
 			files: []itemData{
@@ -1320,9 +1328,10 @@ func testRestoreFolderNamedFolderRegression(
 	}
 
 	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			input := testDataForInfo(t, suite.BackupService(), cols, vn)
 

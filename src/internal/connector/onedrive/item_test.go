@@ -243,50 +243,39 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}
 }
 
-type identityType string
-
-const (
-	itApp       identityType = "application"
-	itDevice    identityType = "device"
-	itGroup     identityType = "group"
-	itSiteUser  identityType = "site_user"
-	itSiteGroup identityType = "site_group"
-	itUser      identityType = "user"
-)
-
 func getPermsAndResourceOwnerPerms(
 	permID, resourceOwner string,
-	it identityType,
+	gv2t metadata.GV2Type,
 	scopes []string,
 ) (models.Permissionable, metadata.Permission) {
 	sharepointIdentitySet := models.NewSharePointIdentitySet()
 
-	switch it {
-	case itApp, itDevice, itGroup, itUser:
+	switch gv2t {
+	case metadata.GV2App, metadata.GV2Device, metadata.GV2Group, metadata.GV2User:
 		identity := models.NewIdentity()
 		identity.SetId(&resourceOwner)
 		identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
-		switch it {
-		case itUser:
+		switch gv2t {
+		case metadata.GV2User:
 			sharepointIdentitySet.SetUser(identity)
-		case itGroup:
+		case metadata.GV2Group:
 			sharepointIdentitySet.SetGroup(identity)
-		case itApp:
+		case metadata.GV2App:
 			sharepointIdentitySet.SetApplication(identity)
-		case itDevice:
+		case metadata.GV2Device:
 			sharepointIdentitySet.SetDevice(identity)
 		}
 
-	case itSiteUser, itSiteGroup:
+	case metadata.GV2SiteUser, metadata.GV2SiteGroup:
 		spIdentity := models.NewSharePointIdentity()
 		spIdentity.SetId(&resourceOwner)
 		spIdentity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
-		switch it {
-		case itSiteUser:
+		switch gv2t {
+		case metadata.GV2SiteUser:
 			sharepointIdentitySet.SetSiteUser(spIdentity)
-		case itSiteGroup:
+		case metadata.GV2SiteGroup:
 			sharepointIdentitySet.SetSiteGroup(spIdentity)
 		}
 	}
@@ -297,9 +286,10 @@ func getPermsAndResourceOwnerPerms(
 	perm.SetGrantedToV2(sharepointIdentitySet)
 
 	ownersPerm := metadata.Permission{
-		ID:       permID,
-		Roles:    []string{"read"},
-		EntityID: resourceOwner,
+		ID:         permID,
+		Roles:      []string{"read"},
+		EntityID:   resourceOwner,
+		EntityType: gv2t,
 	}
 
 	return perm, ownersPerm
@@ -323,17 +313,17 @@ func (suite *ItemUnitTestSuite) TestDrivePermissionsFilter() {
 		rw   = []string{"read", "write"}
 	)
 
-	userOwnerPerm, userOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, itUser, own)
-	userReadPerm, userReadROperm := getPermsAndResourceOwnerPerms(pID, uID, itUser, r)
-	userReadWritePerm, userReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, itUser, rw)
-	siteUserOwnerPerm, siteUserOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, itSiteUser, own)
-	siteUserReadPerm, siteUserReadROperm := getPermsAndResourceOwnerPerms(pID, uID, itSiteUser, r)
-	siteUserReadWritePerm, siteUserReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, itSiteUser, rw)
+	userOwnerPerm, userOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2User, own)
+	userReadPerm, userReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2User, r)
+	userReadWritePerm, userReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2User, rw)
+	siteUserOwnerPerm, siteUserOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteUser, own)
+	siteUserReadPerm, siteUserReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteUser, r)
+	siteUserReadWritePerm, siteUserReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2SiteUser, rw)
 
-	groupReadPerm, groupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, itGroup, r)
-	groupReadWritePerm, groupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, itGroup, rw)
-	siteGroupReadPerm, siteGroupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, itSiteGroup, r)
-	siteGroupReadWritePerm, siteGroupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, itSiteGroup, rw)
+	groupReadPerm, groupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2Group, r)
+	groupReadWritePerm, groupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2Group, rw)
+	siteGroupReadPerm, siteGroupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteGroup, r)
+	siteGroupReadWritePerm, siteGroupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2SiteGroup, rw)
 
 	noPerm, _ := getPermsAndResourceOwnerPerms(pID, uID, "user", []string{"read"})
 	noPerm.SetGrantedToV2(nil) // eg: link shares
