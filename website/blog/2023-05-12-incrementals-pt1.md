@@ -9,7 +9,7 @@ implementing backups in this manner required us to play a few tricks with the
 Corso implementation, so we thought we’d share them here."
 authors: amartinez
 tags: [corso, microsoft 365, backups]
-date: 2023-04-28
+date: 2023-05-12
 image: ./images/incremental-encoder.jpg
 ---
 <!-- vale Vale.Spelling = NO -->

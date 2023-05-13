@@ -4,7 +4,7 @@ title: "Incremental Microsoft 365 backups in action"
 description: "In part 1 we discussed how there’s more than one way to run backups, and how full and incremental backups differ. With all the background information out of the way, it’s time to see how incremental backups actually come together in Corso. To do this, we’ll discuss things in the context of a running example."
 authors: amartinez
 tags: [corso, microsoft 365, backups]
-date: 2023-04-29
+date: 2023-05-13
 image: ./images/incremental-scale.png
 ---
 <!-- vale Vale.Spelling = NO -->
