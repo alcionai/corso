@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drive"
@@ -90,6 +91,7 @@ func getCollectionMetadata(
 // permissions. parentMetas is expected to have all the parent
 // directory metas for this to work.
 func computeParentPermissions(
+	ctx context.Context,
 	originDir path.Path,
 	// map parent dir -> parent's metadata
 	parentMetas map[string]metadata.Metadata,
@@ -102,17 +104,25 @@ func computeParentPermissions(
 		ok  bool
 	)
 
+	fmt.Printf("\n-----\nparent %+v\n-----\n", originDir)
+	for k := range parentMetas {
+		fmt.Println(k)
+	}
+	fmt.Printf("\n-----\nwrap\n-----\n")
+
 	parent = originDir
 
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return metadata.Metadata{}, clues.New("getting parent")
+			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
 		}
+
+		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.New("transforming dir to drivePath")
+			return metadata.Metadata{}, clues.New("transforming dir to drivePath").WithClues(ictx)
 		}
 
 		if len(drivePath.Folders) == 0 {
@@ -121,7 +131,7 @@ func computeParentPermissions(
 
 		meta, ok = parentMetas[parent.String()]
 		if !ok {
-			return metadata.Metadata{}, clues.New("no parent meta")
+			return metadata.Metadata{}, clues.New("no parent meta").WithClues(ictx)
 		}
 
 		if meta.SharingMode == metadata.SharingModeCustom {
@@ -249,9 +259,9 @@ func RestorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	parents, err := computeParentPermissions(itemPath, caches.ParentDirToMeta)
+	parents, err := computeParentPermissions(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "parent permissions").WithClues(ctx)
+		return clues.Wrap(err, "parent permissions")
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(parents.Permissions, current.Permissions)

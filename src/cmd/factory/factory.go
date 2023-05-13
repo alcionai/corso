@@ -45,7 +45,10 @@ func main() {
 	ctx = SetRootCmd(ctx, factoryCmd)
 
 	defer func() {
-		crash.Recovery(ctx, recover(), "backup")
+		if err := crash.Recovery(ctx, recover(), "backup"); err != nil {
+			logger.CtxErr(ctx, err).Error("panic in factory")
+		}
+
 		logger.Flush(ctx)
 	}()
 
