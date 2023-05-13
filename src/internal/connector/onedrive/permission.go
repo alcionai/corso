@@ -190,7 +190,9 @@ func UpdatePermissions(
 			}
 		}
 
-		if len(roles) == 0 {
+		// TODO: sitegroup support.  Currently errors with "One or more users could not be resolved",
+		// likely due to the site group entityID consisting of a single integer (ex: 4)
+		if len(roles) == 0 || p.EntityType == metadata.GV2SiteGroup {
 			continue
 		}
 
