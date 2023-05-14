@@ -326,6 +326,8 @@ func restoreItem(
 
 	// only v1+ backups from this point on
 
+	fmt.Printf("\n-----\n%+v\n-----\n", itemUUID)
+
 	if strings.HasSuffix(itemUUID, metadata.MetaFileSuffix) {
 		// Just skip this for the moment since we moved the code to the above
 		// item restore path. We haven't yet stopped fetching these items in
@@ -338,6 +340,7 @@ func restoreItem(
 		// permission for child folders here. Later versions can request
 		// permissions inline when processing the collection.
 		if !restorePerms || backupVersion >= version.OneDrive4DirIncludesPermissions {
+			fmt.Printf("\n-----\n>>> %v || %v\n-----\n", !restorePerms, backupVersion >= version.OneDrive4DirIncludesPermissions)
 			return details.ItemInfo{}, true, nil
 		}
 
@@ -346,6 +349,7 @@ func restoreItem(
 
 		meta, err := getMetadata(metaReader)
 		if err != nil {
+			fmt.Printf("\n-----\n>>> %v\n-----\n", err)
 			return details.ItemInfo{}, true, clues.Wrap(err, "getting directory metadata").WithClues(ctx)
 		}
 
