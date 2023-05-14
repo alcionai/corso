@@ -104,11 +104,10 @@ func computeParentPermissions(
 		ok  bool
 	)
 
-	fmt.Printf("\n-----\nparent %+v\n-----\n", originDir)
+	fmt.Printf("\n-----\nparent metas\n-----\n")
 	for k := range parentMetas {
-		fmt.Println(k)
+		fmt.Println("pm", k)
 	}
-	fmt.Printf("\n-----\nwrap\n-----\n")
 
 	parent = originDir
 
@@ -118,7 +117,7 @@ func computeParentPermissions(
 			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
 		}
 
-		fmt.Println("parent_dir", parent)
+		fmt.Println("pd", parent)
 
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
@@ -133,7 +132,7 @@ func computeParentPermissions(
 
 		meta, ok = parentMetas[parent.String()]
 		if !ok {
-			return metadata.Metadata{}, clues.New("no parent meta").WithClues(ictx)
+			return metadata.Metadata{}, clues.New("no metadata found for parent folder: " + parent.String()).WithClues(ictx)
 		}
 
 		if meta.SharingMode == metadata.SharingModeCustom {
