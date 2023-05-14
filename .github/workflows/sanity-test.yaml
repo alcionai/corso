@@ -42,7 +42,6 @@ jobs:
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       TEST_SITE: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
       SECONDARY_TEST_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
-      RUNTEST: false
       # The default working directory doesn't seem to apply to things without
       # the 'run' directive. https://stackoverflow.com/a/67845456
       WORKING_DIR: src
