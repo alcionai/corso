@@ -105,8 +105,9 @@ func computeParentPermissions(
 	)
 
 	fmt.Printf("\n-----\nparent metas\n-----\n")
-	for k := range parentMetas {
+	for k, v := range parentMetas {
 		fmt.Println("pm", k)
+		fmt.Printf("%+v\n", v)
 	}
 
 	parent = originDir
