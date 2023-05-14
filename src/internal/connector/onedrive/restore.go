@@ -3,6 +3,7 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
@@ -213,6 +214,7 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
 
+	fmt.Printf("\n-----\nadding fp %+v\n-----\n", dc.FullPath().String())
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
@@ -346,6 +348,8 @@ func restoreItem(
 		if err != nil {
 			return details.ItemInfo{}, true, clues.Wrap(err, "getting directory metadata").WithClues(ctx)
 		}
+
+		fmt.Printf("\n-----\nadding %+v\n-----\n", itemPath.String())
 
 		trimmedPath := strings.TrimSuffix(itemPath.String(), metadata.DirMetaFileSuffix)
 		caches.ParentDirToMeta[trimmedPath] = meta

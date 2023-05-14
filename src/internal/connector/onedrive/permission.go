@@ -118,6 +118,8 @@ func computeParentPermissions(
 			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
 		}
 
+		fmt.Println("parent_dir", parent)
+
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
