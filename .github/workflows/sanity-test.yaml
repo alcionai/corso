@@ -1,5 +1,5 @@
 name: Sanity Testing
-on: 
+on:
   push:
     branches:
       - main
@@ -23,14 +23,14 @@ jobs:
     uses: alcionai/corso/.github/workflows/accSelector.yaml@main
 
   Sanity-Tests:
-    needs: [ SetM365App ] 
+    needs: [ SetM365App ]
     environment: Testing
     runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }} 
-      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
       CORSO_LOG_DIR: testlog
@@ -60,7 +60,7 @@ jobs:
       - run: mkdir ${CORSO_LOG_DIR}
 
       - name: Version Test
-        run: |  
+        run: |
           ./corso --version | grep -c 'Corso version:'
 
       - name: Repo init test
@@ -68,20 +68,20 @@ jobs:
         env:
           TEST_RESULT: "test_results"
         run: |
-          set -euo pipefail 
+          set -euo pipefail
           prefix=$(date +"%Y-%m-%d-%T")
           echo -e "\nRepo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
             --no-stats --hide-progress --prefix $prefix \
-            --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
+            --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt
 
-          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
+          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt
           then
             echo "Repo could not be initialized"
             exit 1
           fi
-          
-          echo result="$prefix" >> $GITHUB_OUTPUT 
+
+          echo result="$prefix" >> $GITHUB_OUTPUT
 
       - name: Repo connect test
         run: |
@@ -89,9 +89,9 @@ jobs:
           echo -e "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
           ./corso repo connect s3 \
             --no-stats --hide-progress --prefix ${{ steps.repo-init.outputs.result }} \
-            --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
+            --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt
 
-          if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
+          if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt
           then
             echo "Repo could not be connected"
             exit 1
@@ -107,7 +107,7 @@ jobs:
         working-directory: ./src/cmd/factory
         env:
           AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
-          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . exchange emails \
@@ -125,7 +125,7 @@ jobs:
           backup-args: '--mailbox "${TEST_USER}" --data "email"'
           restore-args: '--email-folder Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           test-folder: 'Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
-          
+
       - name: Exchange - Incremental backup
         id: exchange-backup-incremental
         uses: ./.github/actions/backup-restore-test
@@ -158,7 +158,7 @@ jobs:
           restore-args: '--email-folder Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           test-folder: 'Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
-        
+
 
 ##########################################################################################################################################
 
@@ -170,7 +170,7 @@ jobs:
         working-directory: ./src/cmd/factory
         env:
           AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
-          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           suffix=$(date +"%Y-%m-%d_%H-%M")
@@ -199,7 +199,7 @@ jobs:
         working-directory: ./src/cmd/factory
         env:
           AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
-          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }} 
+          AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
@@ -265,7 +265,7 @@ jobs:
       - name: SHA info
         id: sha-info
         if: failure()
-        run: |  
+        run: |
           echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
           echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
           echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
