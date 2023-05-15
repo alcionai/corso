@@ -72,14 +72,12 @@ jobs:
           prefix=$(date +"%Y-%m-%d-%T")
           echo -e "\nRepo init test\n" >> ${CORSO_LOG_FILE}
           ./corso repo init s3 \
-          --no-stats \
-          --hide-progress \
-          --prefix $prefix \
-          --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
+            --no-stats --hide-progress --prefix $prefix \
+            --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
 
           if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
           then
-            echo "repo could not be initiated"
+            echo "Repo could not be initialized"
             exit 1
           fi
           
@@ -90,14 +88,12 @@ jobs:
           set -euo pipefail
           echo -e "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
           ./corso repo connect s3 \
-          --no-stats \
-          --hide-progress \
-          --prefix ${{ steps.repo-init.outputs.result }} \
-          --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
+            --no-stats --hide-progress --prefix ${{ steps.repo-init.outputs.result }} \
+            --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
 
           if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
           then
-            echo "repo could not be connected"
+            echo "Repo could not be connected"
             exit 1
           fi
 
@@ -117,7 +113,7 @@ jobs:
           go run . exchange emails \
           --user ${TEST_USER} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Test_sanity${{ steps.repo-init.outputs.result }} \
+          --destination Corso_Test_Sanity_${{ steps.repo-init.outputs.result }} \
           --count 4
 
       - name: Exchange - Backup
@@ -127,8 +123,8 @@ jobs:
           service: exchange
           kind: backup
           backup-args: '--mailbox "${TEST_USER}" --data "email"'
-          restore-args: '--email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
-          test-folder: 'Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
+          restore-args: '--email-folder Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
+          test-folder: 'Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           
       - name: Exchange - Incremental backup
         id: exchange-backup-incremental
@@ -137,8 +133,8 @@ jobs:
           service: exchange
           kind: backup-incremental
           backup-args: '--mailbox "${TEST_USER}" --data "email"'
-          restore-args: '--email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
-          test-folder: 'Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
+          restore-args: '--email-folder Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
+          test-folder: 'Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
 
       - name: Exchange - Non delta backup
@@ -148,8 +144,8 @@ jobs:
           service: exchange
           kind: backup-non-delta
           backup-args: '--mailbox "${TEST_USER}" --data "email" --disable-delta'
-          restore-args: '--email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
-          test-folder: 'Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
+          restore-args: '--email-folder Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
+          test-folder: 'Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
 
       - name: Exchange - Incremental backup after non-delta
@@ -159,8 +155,8 @@ jobs:
           service: exchange
           kind: backup-incremental-after-non-delta
           backup-args: '--mailbox "${TEST_USER}" --data "email"'
-          restore-args: '--email-folder Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
-          test-folder: 'Corso_Test_sanity${{ steps.repo-init.outputs.result }}'
+          restore-args: '--email-folder Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
+          test-folder: 'Corso_Test_Sanity_${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
         
 
@@ -180,11 +176,11 @@ jobs:
           suffix=$(date +"%Y-%m-%d_%H-%M")
 
           go run . onedrive files  \
-          --user ${TEST_USER} \
-          --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
-          --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Test_sanity$suffix \
-          --count 4
+            --user ${TEST_USER} \
+            --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
+            --tenant ${{ env.AZURE_TENANT_ID }} \
+            --destination Corso_Test_Sanity_$suffix \
+            --count 4
 
           echo result="$suffix" >> $GITHUB_OUTPUT
 
@@ -195,8 +191,8 @@ jobs:
           service: onedrive
           kind: backup
           backup-args: '--user "${TEST_USER}"'
-          restore-args: '--folder Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
-          test-folder: 'Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }}'
+          restore-args: '--folder Corso_Test_Sanity_${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          test-folder: 'Corso_Test_Sanity_${{ steps.new-data-creation-onedrive.outputs.result }}'
 
       # generate some more enteries for incremental check
       - name: OneDrive - Create new data (for incremental)
@@ -207,11 +203,11 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
         run: |
           go run . onedrive files  \
-          --user ${TEST_USER} \
-          --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
-          --tenant ${{ env.AZURE_TENANT_ID }} \
-          --destination Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} \
-          --count 4
+            --user ${TEST_USER} \
+            --secondaryuser  ${{ env.SECONDARY_TEST_USER }} \
+            --tenant ${{ env.AZURE_TENANT_ID }} \
+            --destination Corso_Test_Sanity_${{ steps.new-data-creation-onedrive.outputs.result }} \
+            --count 4
 
       - name: OneDrive - Incremental backup
         id: onedrive-incremental
@@ -220,8 +216,8 @@ jobs:
           service: onedrive
           kind: incremental
           backup-args: '--user "${TEST_USER}"'
-          restore-args: '--folder Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
-          test-folder: 'Corso_Test_sanity${{ steps.new-data-creation-onedrive.outputs.result }}'
+          restore-args: '--folder Corso_Test_Sanity_${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          test-folder: 'Corso_Test_Sanity_${{ steps.new-data-creation-onedrive.outputs.result }}'
 
 ##########################################################################################################################################
 
