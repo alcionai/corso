@@ -88,6 +88,30 @@ func (suite *FiltersSuite) TestEquals_any() {
 	}
 }
 
+func (suite *FiltersSuite) TestStrictEquals() {
+	f := filters.StrictEqual(foo)
+	nf := filters.NotStrictEqual(foo)
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"foo", assert.True, assert.False},
+		{"FOO", assert.False, assert.True},
+		{" foo ", assert.False, assert.True},
+		{"bar", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
+		})
+	}
+}
+
 func (suite *FiltersSuite) TestGreater() {
 	f := filters.Greater(five)
 	nf := filters.NotGreater(five)

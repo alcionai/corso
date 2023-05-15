@@ -18,6 +18,8 @@ const (
 	UnknownComparator comparator = ""
 	// norm(a) == norm(b)
 	EqualTo = "EQ"
+	// a === b
+	StrictEqualTo = "StrictEQ"
 	// a > b
 	GreaterThan = "GT"
 	// a < b
@@ -129,6 +131,19 @@ func Equal(target []string) Filter {
 // target != v
 func NotEqual(target []string) Filter {
 	return newFilter(EqualTo, target, normAll(target), true)
+}
+
+// StrictEqual creates a filter where Compare(v) is true if, for any target string,
+// target === v.  Target and v are not normalized for this comparison.  The comparison
+// is case sensitive and ignores character folding.
+func StrictEqual(target []string) Filter {
+	return newFilter(StrictEqualTo, target, normAll(target), false)
+}
+
+// NotStrictEqual creates a filter where Compare(v) is true if, for any target string,
+// target != v
+func NotStrictEqual(target []string) Filter {
+	return newFilter(StrictEqualTo, target, normAll(target), true)
 }
 
 // Greater creates a filter where Compare(v) is true if, for any target string,
@@ -369,6 +384,8 @@ func (f Filter) Compare(input string) bool {
 	switch f.Comparator {
 	case EqualTo, IdentityValue, TargetPathEquals:
 		cmp = equals
+	case StrictEqualTo:
+		cmp = strictEquals
 	case GreaterThan:
 		cmp = greater
 	case LessThan:
@@ -402,6 +419,9 @@ func (f Filter) Compare(input string) bool {
 		// legacy case handling for contains, which checks for
 		// strings.Contains(target, input) instead of (input, target)
 		swapParams = true
+	case StrictEqualTo:
+		targets = f.Targets
+		_input = input
 	case TargetPathPrefix, TargetPathContains, TargetPathSuffix, TargetPathEquals:
 		// As a precondition, assumes each entry in the NormalizedTargets
 		// list has been passed through normPathElem().
@@ -437,6 +457,11 @@ func (f Filter) Compare(input string) bool {
 // true if t == i, case insensitive and folded
 func equals(target, input string) bool {
 	return strings.EqualFold(target, input)
+}
+
+// true if t == i, case sensitive and not folded
+func strictEquals(target, input string) bool {
+	return target == input
 }
 
 // true if t > i
