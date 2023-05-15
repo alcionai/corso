@@ -139,25 +139,36 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	printEntries(ctx, dm.Entries)
+}
+
+type infoer interface {
+	Entry | *Entry
+	// Need this here so we can access the infoType function without a type
+	// assertion. See https://stackoverflow.com/a/71378366 for more details.
+	infoType() ItemType
+}
+
+func printEntries[T infoer](ctx context.Context, entries []T) {
 	if print.DisplayJSONFormat() {
-		printJSON(ctx, dm)
+		printJSON(ctx, entries)
 	} else {
-		printTable(ctx, dm)
+		printTable(ctx, entries)
 	}
 }
 
-func printTable(ctx context.Context, dm DetailsModel) {
+func printTable[T infoer](ctx context.Context, entries []T) {
 	perType := map[ItemType][]print.Printable{}
 
-	for _, de := range dm.Entries {
-		it := de.infoType()
+	for _, ent := range entries {
+		it := ent.infoType()
 		ps, ok := perType[it]
 
 		if !ok {
 			ps = []print.Printable{}
 		}
 
-		perType[it] = append(ps, print.Printable(de))
+		perType[it] = append(ps, print.Printable(ent))
 	}
 
 	for _, ps := range perType {
@@ -165,10 +176,10 @@ func printTable(ctx context.Context, dm DetailsModel) {
 	}
 }
 
-func printJSON(ctx context.Context, dm DetailsModel) {
+func printJSON[T infoer](ctx context.Context, entries []T) {
 	ents := []print.Printable{}
 
-	for _, ent := range dm.Entries {
+	for _, ent := range entries {
 		ents = append(ents, print.Printable(ent))
 	}
 
@@ -456,6 +467,13 @@ func withoutMetadataSuffix(id string) string {
 // --------------------------------------------------------------------------------
 // Entry
 // --------------------------------------------------------------------------------
+
+// Add a new type so we can transparently use PrintAll in different situations.
+type entrySet []*Entry
+
+func (ents entrySet) PrintEntries(ctx context.Context) {
+	printEntries(ctx, ents)
+}
 
 // Entry describes a single item stored in a Backup
 type Entry struct {
