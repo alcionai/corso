@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -397,9 +396,10 @@ func generateAndRestoreOnedriveItems(
 		cols = append(cols, col...)
 	}
 
-	// TODO Neha: work on this
-	t := testing.T{}
-	input := connector.DataForInfo(&t, service, cols, version.Backup)
+	input, err := connector.DataForInfo(service, cols, version.Backup)
+	if err != nil {
+		return nil, err
+	}
 
 	// collections := getCollections(
 	// 	service,
@@ -423,14 +423,18 @@ func generateAndRestoreOnedriveItems(
 		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	_, _, collections, _ := connector.GetCollectionsAndExpected(
-		&t,
+	_, _, collections, _, err := connector.GetCollectionsAndExpected(
+		// &t,
 		config,
 		// service,
 		// tenantID,
 		// []string{resourceOwner},
 		input,
 		version.Backup)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, collections, errs)
 }

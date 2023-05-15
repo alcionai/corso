@@ -545,11 +545,15 @@ func runRestoreBackupTest(
 		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	totalItems, totalKopiaItems, collections, expectedData := GetCollectionsAndExpected(
-		t,
+	totalItems, totalKopiaItems, collections, expectedData, err := GetCollectionsAndExpected(
+		// t,
 		config,
 		test.collections,
 		version.Backup)
+
+	if err != nil {
+		assert.FailNow(t, "failed with error", err)
+	}
 
 	runRestore(
 		t,
@@ -591,11 +595,15 @@ func runRestoreTestWithVerion(
 		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	totalItems, _, collections, _ := GetCollectionsAndExpected(
-		t,
+	totalItems, _, collections, _, err := GetCollectionsAndExpected(
+		// t,
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
+
+	if err != nil {
+		assert.FailNow(t, "failed with error", err)
+	}
 
 	runRestore(
 		t,
@@ -630,11 +638,15 @@ func runRestoreBackupTestVersions(
 		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	totalItems, _, collections, _ := GetCollectionsAndExpected(
-		t,
+	totalItems, _, collections, _, err := GetCollectionsAndExpected(
+		// t,
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
+
+	if err != nil {
+		assert.FailNow(t, "failed with error", err)
+	}
 
 	runRestore(
 		t,
@@ -645,11 +657,15 @@ func runRestoreBackupTestVersions(
 		totalItems)
 
 	// Get expected output for new version.
-	totalItems, totalKopiaItems, _, expectedData := GetCollectionsAndExpected(
-		t,
+	totalItems, totalKopiaItems, _, expectedData, err := GetCollectionsAndExpected(
+		// t,
 		config,
 		test.collectionsLatest,
 		version.Backup)
+
+	if err != nil {
+		assert.FailNow(t, "failed with error", err)
+	}
 
 	runBackupAndCompare(
 		t,
@@ -1014,8 +1030,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				})
 
-				totalItems, _, collections, expectedData := collectionsForInfo(
-					t,
+				totalItems, _, collections, expectedData, err := collectionsForInfo(
+					// t,
 					test.service,
 					suite.connector.tenant,
 					suite.user,
@@ -1023,6 +1039,11 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					[]ColInfo{collection},
 					version.Backup,
 				)
+
+				if err != nil {
+					assert.FailNow(t, "failed with error", err)
+				}
+
 				allItems += totalItems
 
 				for k, v := range expectedData {

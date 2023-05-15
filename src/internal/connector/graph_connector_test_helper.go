@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"testing"
-
-	"github.com/alcionai/clues"
-	"github.com/stretchr/testify/require"
 
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
@@ -53,17 +49,20 @@ type ConfigInfo struct {
 }
 
 func mustToDataLayerPath(
-	t *testing.T,
+	// t *testing.T,
 	service path.ServiceType,
 	tenant, resourceOwner string,
 	category path.CategoryType,
 	elements []string,
 	isItem bool,
-) path.Path {
+) (path.Path, error) {
 	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
-	require.NoError(t, err, clues.ToCore(err))
+	if err != nil {
+		return nil, err
+	}
+	// require.NoError(t, err, clues.ToCore(err))
 
-	return res
+	return res, err
 }
 
 // backupOutputPathFromRestore returns a path.Path denoting the location in
@@ -71,10 +70,10 @@ func mustToDataLayerPath(
 // combination of the location the data was recently restored to and where the
 // data was originally in the hierarchy.
 func backupOutputPathFromRestore(
-	t *testing.T,
+	// t *testing.T,
 	restoreDest control.RestoreDestination,
 	inputPath path.Path,
-) path.Path {
+) (path.Path, error) {
 	base := []string{restoreDest.ContainerName}
 
 	// OneDrive has leading information like the drive ID.
@@ -91,8 +90,8 @@ func backupOutputPathFromRestore(
 		base = append(base, inputPath.Folders()...)
 	}
 
-	return mustToDataLayerPath(
-		t,
+	path, err := mustToDataLayerPath(
+		// t,
 		inputPath.Service(),
 		inputPath.Tenant(),
 		inputPath.ResourceOwner(),
@@ -100,6 +99,7 @@ func backupOutputPathFromRestore(
 		base,
 		false,
 	)
+	return path, err
 }
 
 // TODO(ashmrtn): Make this an actual mock class that can be used in other
@@ -122,13 +122,13 @@ func (rc mockRestoreCollection) Fetch(
 }
 
 func collectionsForInfo(
-	t *testing.T,
+	// t *testing.T,
 	service path.ServiceType,
 	tenant, user string,
 	dest control.RestoreDestination,
 	allInfo []ColInfo,
 	backupVersion int,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
+) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
 	var (
 		collections  = make([]data.RestoreCollection, 0, len(allInfo))
 		expectedData = make(map[string]map[string][]byte, len(allInfo))
@@ -137,17 +137,23 @@ func collectionsForInfo(
 	)
 
 	for _, info := range allInfo {
-		pth := mustToDataLayerPath(
-			t,
+		pth, err := mustToDataLayerPath(
+			// t,
 			service,
 			tenant,
 			user,
 			info.Category,
 			info.PathElements,
 			false)
+		if err != nil {
+			return totalItems, kopiaEntries, collections, expectedData, err
+		}
 
 		mc := exchMock.NewCollection(pth, pth, len(info.Items))
-		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
+		baseDestPath, err := backupOutputPathFromRestore(dest, pth)
+		if err != nil {
+			return totalItems, kopiaEntries, collections, expectedData, err
+		}
 
 		baseExpected := expectedData[baseDestPath.String()]
 		if baseExpected == nil {
@@ -184,5 +190,5 @@ func collectionsForInfo(
 		kopiaEntries += len(info.Items)
 	}
 
-	return totalItems, kopiaEntries, collections, expectedData
+	return totalItems, kopiaEntries, collections, expectedData, nil
 }

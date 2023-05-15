@@ -449,12 +449,18 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 	}
 
-	expected := DataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := DataForInfo(t, suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			if err != nil {
+				assert.FailNow(suite.T(), err.Error())
+			}
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -658,7 +664,10 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected := DataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
@@ -666,7 +675,10 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input := DataForInfo(t, suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			if err != nil {
+				assert.FailNow(suite.T(), err.Error())
+			}
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -742,12 +754,18 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected := DataForInfo(suite.T(), suite.BackupService(), expectedCols, version.Backup)
+	expected, err := DataForInfo(suite.BackupService(), expectedCols, version.Backup)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := DataForInfo(t, suite.BackupService(), inputCols, vn)
+			input, err := DataForInfo(suite.BackupService(), inputCols, vn)
+			if err != nil {
+				assert.FailNow(suite.T(), err.Error())
+			}
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -918,7 +936,10 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 	}
 
-	expected := DataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
@@ -926,7 +947,10 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input := DataForInfo(t, suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			if err != nil {
+				assert.FailNow(suite.T(), err.Error())
+			}
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -1032,12 +1056,18 @@ func testRestoreFolderNamedFolderRegression(
 		},
 	}
 
-	expected := DataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := DataForInfo(t, suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			if err != nil {
+				assert.FailNow(suite.T(), err.Error())
+			}
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
