@@ -717,10 +717,10 @@ func (c *Collections) UpdateCollections(
 
 		if item.GetMalware() != nil {
 			addtl := graph.ItemInfo(item)
-			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, addtl)
+			skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
 			if isFolder {
-				skip = fault.ContainerSkip(fault.SkipMalware, itemID, itemName, addtl)
+				skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 			}
 
 			errs.AddSkip(skip)

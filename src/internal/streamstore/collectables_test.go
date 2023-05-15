@@ -108,8 +108,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
 				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
@@ -137,8 +137,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
 				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
