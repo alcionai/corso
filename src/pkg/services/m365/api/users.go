@@ -214,7 +214,7 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 		err  error
 	)
 
-	resp, err = c.stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
+	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -315,7 +315,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 				Top: ptr.To[int32](1), // just one item is enough
 			},
 		}
-		_, err = c.stable.Client().
+		_, err = c.Stable.Client().
 			Users().
 			ByUserId(userID).
 			MailFolders().
@@ -340,7 +340,7 @@ func (c Users) GetMailFolders(
 	userID string,
 	options users.ItemMailFoldersRequestBuilderGetRequestConfiguration,
 ) (models.MailFolderCollectionResponseable, error) {
-	mailFolders, err := c.stable.Client().Users().ByUserId(userID).MailFolders().Get(ctx, &options)
+	mailFolders, err := c.Stable.Client().Users().ByUserId(userID).MailFolders().Get(ctx, &options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")
 	}
@@ -350,7 +350,7 @@ func (c Users) GetMailFolders(
 
 // TODO: remove when drive api goes into this package
 func (c Users) GetDrives(ctx context.Context, userID string) (models.DriveCollectionResponseable, error) {
-	drives, err := c.stable.Client().Users().ByUserId(userID).Drives().Get(ctx, nil)
+	drives, err := c.Stable.Client().Users().ByUserId(userID).Drives().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drives")
 	}
@@ -364,7 +364,7 @@ func (c Users) getMailboxSettings(
 ) (MailboxInfo, error) {
 	var (
 		rawURL  = fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID)
-		adapter = c.stable.Adapter()
+		adapter = c.Stable.Adapter()
 		mi      = MailboxInfo{
 			ErrGetMailBoxSetting: []error{},
 		}

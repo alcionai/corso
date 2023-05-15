@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	exapi "github.com/alcionai/corso/src/internal/connector/exchange/api"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
@@ -51,6 +50,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -763,7 +763,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	m365, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := exapi.NewClient(m365)
+	ac, err := api.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.
