@@ -69,7 +69,7 @@ runs:
         TEST_DATA: ${{ inputs.test-folder }}
         BASE_BACKUP: ${{ inputs.base-backup }}
       run: |
-        go run ./cmd/sanity_test
+        ./sanity-test
 
     - name: List ${{ inputs.service }} ${{ inputs.kind }}
       shell: bash
