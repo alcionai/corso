@@ -29,10 +29,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - run: go build -o corso
-      shell: bash
-      working-directory: src
-
     - name: Backup ${{ inputs.service }} ${{ inputs.kind }}
       id: backup
       shell: bash
