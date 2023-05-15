@@ -49,7 +49,6 @@ type ConfigInfo struct {
 }
 
 func mustToDataLayerPath(
-	// t *testing.T,
 	service path.ServiceType,
 	tenant, resourceOwner string,
 	category path.CategoryType,
@@ -60,7 +59,6 @@ func mustToDataLayerPath(
 	if err != nil {
 		return nil, err
 	}
-	// require.NoError(t, err, clues.ToCore(err))
 
 	return res, err
 }
@@ -70,7 +68,6 @@ func mustToDataLayerPath(
 // combination of the location the data was recently restored to and where the
 // data was originally in the hierarchy.
 func backupOutputPathFromRestore(
-	// t *testing.T,
 	restoreDest control.RestoreDestination,
 	inputPath path.Path,
 ) (path.Path, error) {
@@ -90,8 +87,7 @@ func backupOutputPathFromRestore(
 		base = append(base, inputPath.Folders()...)
 	}
 
-	path, err := mustToDataLayerPath(
-		// t,
+	return mustToDataLayerPath(
 		inputPath.Service(),
 		inputPath.Tenant(),
 		inputPath.ResourceOwner(),
@@ -99,7 +95,6 @@ func backupOutputPathFromRestore(
 		base,
 		false,
 	)
-	return path, err
 }
 
 // TODO(ashmrtn): Make this an actual mock class that can be used in other
@@ -122,7 +117,6 @@ func (rc mockRestoreCollection) Fetch(
 }
 
 func collectionsForInfo(
-	// t *testing.T,
 	service path.ServiceType,
 	tenant, user string,
 	dest control.RestoreDestination,
@@ -138,7 +132,6 @@ func collectionsForInfo(
 
 	for _, info := range allInfo {
 		pth, err := mustToDataLayerPath(
-			// t,
 			service,
 			tenant,
 			user,
@@ -150,6 +143,7 @@ func collectionsForInfo(
 		}
 
 		mc := exchMock.NewCollection(pth, pth, len(info.Items))
+
 		baseDestPath, err := backupOutputPathFromRestore(dest, pth)
 		if err != nil {
 			return totalItems, kopiaEntries, collections, expectedData, err

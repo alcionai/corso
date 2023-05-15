@@ -74,7 +74,6 @@ type onedriveCollection struct {
 	items         []ItemInfo
 	aux           []ItemInfo
 	backupVersion int
-	// t             *testing.T
 }
 
 func (c onedriveCollection) collection() ColInfo {
@@ -92,7 +91,6 @@ func (c onedriveCollection) collection() ColInfo {
 }
 
 func NewOneDriveCollection(
-	// t *testing.T,
 	service path.ServiceType,
 	PathElements []string,
 	backupVersion int,
@@ -101,12 +99,10 @@ func NewOneDriveCollection(
 		service:       service,
 		PathElements:  PathElements,
 		backupVersion: backupVersion,
-		// t:             t,
 	}
 }
 
 func DataForInfo(
-	// t *testing.T,
 	service path.ServiceType,
 	cols []OnedriveColInfo,
 	backupVersion int,
@@ -150,11 +146,9 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 		// Lookups will occur using the most recent version of things so we need
 		// the embedded file name to match that.
 		item, err := onedriveItemWithData(
-			// c.t,
 			name,
 			name+metadata.DataFileSuffix,
 			fileData)
-
 		if err != nil {
 			return c, err
 		}
@@ -164,13 +158,10 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 		// v1-5, early metadata design
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
 		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
-
 		items, err := onedriveItemWithData(
-			// c.t,
 			name+metadata.DataFileSuffix,
 			name+metadata.DataFileSuffix,
 			fileData)
-
 		if err != nil {
 			return c, err
 		}
@@ -178,13 +169,11 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 		c.items = append(c.items, items)
 
 		md, err := onedriveMetadata(
-			// c.t,
 			"",
 			name+metadata.MetaFileSuffix,
 			name+metadata.MetaFileSuffix,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
-
 		if err != nil {
 			return c, err
 		}
@@ -195,11 +184,9 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 		// v6+ current metadata design
 	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef, version.All8MigrateUserPNToID:
 		item, err := onedriveItemWithData(
-			// c.t,
 			name+metadata.DataFileSuffix,
 			name+metadata.DataFileSuffix,
 			fileData)
-
 		if err != nil {
 			return c, err
 		}
@@ -207,13 +194,11 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 		c.items = append(c.items, item)
 
 		md, err := onedriveMetadata(
-			// c.t,
 			name,
 			name+metadata.MetaFileSuffix,
 			name,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
-
 		if err != nil {
 			return c, err
 		}
@@ -223,7 +208,6 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 
 	default:
 		return c, clues.New(fmt.Sprintf("bad backup version. version %d", c.backupVersion))
-		// assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
 	}
 
 	return c, nil
@@ -237,7 +221,6 @@ func (c *onedriveCollection) withFolder(name string, perm PermData) (*onedriveCo
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
 		item, err := onedriveMetadata(
-			// c.t,
 			"",
 			name+metadata.DirMetaFileSuffix,
 			name+metadata.DirMetaFileSuffix,
@@ -252,7 +235,6 @@ func (c *onedriveCollection) withFolder(name string, perm PermData) (*onedriveCo
 
 	default:
 		return c, clues.New(fmt.Sprintf("bad backup version.version %d", c.backupVersion))
-		// assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
 	}
 
 	return c, nil
@@ -280,16 +262,15 @@ func (c *onedriveCollection) withPermissions(perm PermData) (*onedriveCollection
 	}
 
 	md, err := onedriveMetadata(
-		// c.t,
 		name,
 		metaName+metadata.DirMetaFileSuffix,
 		metaName+metadata.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
-
 	if err != nil {
 		return c, err
 	}
+
 	c.items = append(c.items, md)
 	c.aux = append(c.aux, md)
 
@@ -302,12 +283,9 @@ type testOneDriveData struct {
 }
 
 func onedriveItemWithData(
-	// t *testing.T,
 	name, lookupKey string,
 	fileData []byte,
 ) (ItemInfo, error) {
-	// t.Helper()
-
 	content := testOneDriveData{
 		FileName: lookupKey,
 		Data:     fileData,
@@ -317,7 +295,6 @@ func onedriveItemWithData(
 	if err != nil {
 		return ItemInfo{}, clues.Stack(err)
 	}
-	// require.NoError(t, err, clues.ToCore(err))
 
 	return ItemInfo{
 		name:      name,
@@ -327,20 +304,16 @@ func onedriveItemWithData(
 }
 
 func onedriveMetadata(
-	// t *testing.T,
 	fileName, itemID, lookupKey string,
 	perm PermData,
 	permUseID bool,
 ) (ItemInfo, error) {
-	// t.Helper()
-
 	testMeta := getMetadata(fileName, perm, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
 	if err != nil {
 		return ItemInfo{}, clues.Wrap(err, "marshalling metadata")
 	}
-	// require.NoError(t, err, "marshalling metadata", clues.ToCore(err))
 
 	return ItemInfo{
 		name:      itemID,
@@ -350,13 +323,10 @@ func onedriveMetadata(
 }
 
 func GetCollectionsAndExpected(
-	// t *testing.T,
 	config ConfigInfo,
 	testCollections []ColInfo,
 	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
-	// t.Helper()
-
 	var (
 		collections     []data.RestoreCollection
 		expectedData    = map[string]map[string][]byte{}
@@ -366,7 +336,6 @@ func GetCollectionsAndExpected(
 
 	for _, owner := range config.ResourceOwners {
 		numItems, kopiaItems, ownerCollections, userExpectedData, err := collectionsForInfo(
-			// t,
 			config.Service,
 			config.Tenant,
 			owner,
