@@ -27,3 +27,30 @@ func NextLink(pl PageLinker) string {
 func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
 	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
 }
+
+type Valuer[T any] interface {
+	GetValue() []T
+}
+
+type PageLinkValuer[T any] interface {
+	PageLinker
+	Valuer[T]
+}
+
+// emptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
+type emptyDeltaLinker[T any] struct {
+	PageLinkValuer[T]
+}
+
+func (emptyDeltaLinker[T]) GetOdataDeltaLink() *string {
+	empty := ""
+	return &empty
+}
+
+func EmptyDeltaLinker[T any](e PageLinkValuer[T]) emptyDeltaLinker[T] {
+	return emptyDeltaLinker[T]{e}
+}
+
+func (e emptyDeltaLinker[T]) GetValue() []T {
+	return e.PageLinkValuer.GetValue()
+}

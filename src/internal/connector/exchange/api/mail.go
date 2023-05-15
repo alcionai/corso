@@ -385,13 +385,13 @@ func NewMailPager(
 	return &mailPager{gs, builder, options}, nil
 }
 
-func (p *mailPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return page, nil
+	return api.EmptyDeltaLinker[models.Messageable](page), nil
 }
 
 func (p *mailPager) setNext(nextLink string) {
@@ -465,7 +465,7 @@ func NewMailDeltaPager(
 	return &mailDeltaPager{gs, user, directoryID, builder, options}, nil
 }
 
-func (p *mailDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)

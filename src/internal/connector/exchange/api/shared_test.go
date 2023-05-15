@@ -35,6 +35,11 @@ func (p testPage) GetOdataNextLink() *string {
 	return &next
 }
 
+func (p testPage) GetOdataDeltaLink() *string {
+	delta := "" // delta is not tested here
+	return &delta
+}
+
 var _ itemPager = &testPager{}
 
 type testPager struct {
@@ -45,7 +50,7 @@ type testPager struct {
 	needsReset bool
 }
 
-func (p *testPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *testPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	if p.errorCode != "" {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)

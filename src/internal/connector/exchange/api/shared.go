@@ -18,7 +18,7 @@ import (
 
 type itemPager interface {
 	// getPage get a page with the specified options from graph
-	getPage(context.Context) (api.PageLinker, error)
+	getPage(context.Context) (api.DeltaPageLinker, error)
 	// setNext is used to pass in the next url got from graph
 	setNext(string)
 	// reset is used to clear delta url in delta pagers. When
@@ -119,8 +119,6 @@ func getItemsAddedAndRemovedFromContainer(
 		addedIDs   = []string{}
 		removedIDs = []string{}
 		deltaURL   string
-		nextLink   string
-		deltaLink  string
 	)
 
 	itemCount := 0
@@ -160,13 +158,7 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
-		dresp, ok := resp.(api.DeltaPageLinker)
-		if ok {
-			nextLink, deltaLink = api.NextAndDeltaLink(dresp)
-		} else {
-			nextLink = api.NextLink(resp)
-			deltaLink = "" // to make sure we don't use an old value
-		}
+		nextLink, deltaLink := api.NextAndDeltaLink(resp)
 
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will
