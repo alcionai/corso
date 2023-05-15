@@ -626,11 +626,9 @@ const (
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(newLocPath *path.Builder)
-
 	// Can't switch based on infoType because that's been unstable.
 	if item.Exchange != nil {
-		updatePath = item.Exchange.UpdateParentPath
+		item.Exchange.UpdateParentPath(newLocPath)
 	} else if item.SharePoint != nil {
 		// SharePoint used to store library items with the OneDriveItem ItemType.
 		// Start switching them over as we see them since there's no point in
@@ -639,14 +637,10 @@ func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 			item.SharePoint.ItemType = SharePointLibrary
 		}
 
-		updatePath = item.SharePoint.UpdateParentPath
+		item.SharePoint.UpdateParentPath(newLocPath)
 	} else if item.OneDrive != nil {
-		updatePath = item.OneDrive.UpdateParentPath
-	} else {
-		return
+		item.OneDrive.UpdateParentPath(newLocPath)
 	}
-
-	updatePath(newLocPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -872,7 +866,7 @@ type SharePointInfo struct {
 	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `josn:"modified,omitempty"`
+	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`

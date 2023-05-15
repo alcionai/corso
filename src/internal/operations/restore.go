@@ -140,6 +140,25 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"service", op.Selectors.Service,
 		"destination_container", clues.Hide(op.Destination.ContainerName))
 
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.RestoreEnd,
+			map[string]any{
+				events.BackupID:      op.BackupID,
+				events.DataRetrieved: op.Results.BytesRead,
+				events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:       dttm.Format(op.Results.CompletedAt),
+				events.ItemsRead:     op.Results.ItemsRead,
+				events.ItemsWritten:  op.Results.ItemsWritten,
+				events.Resources:     op.Results.ResourceOwners,
+				events.RestoreID:     opStats.restoreID,
+				events.Service:       op.Selectors.Service.String(),
+				events.StartTime:     dttm.Format(op.Results.StartedAt),
+				events.Status:        op.Status.String(),
+			})
+	}()
+
 	// -----
 	// Execution
 	// -----
@@ -147,9 +166,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	deets, err := op.do(ctx, &opStats, sstore, start)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running restore", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running restore")
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
@@ -282,24 +299,6 @@ func (op *RestoreOperation) persistResults(
 	}
 
 	op.Results.ItemsWritten = opStats.gc.Successes
-
-	op.bus.Event(
-		ctx,
-		events.RestoreEnd,
-		map[string]any{
-			events.BackupID:      op.BackupID,
-			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       dttm.Format(op.Results.CompletedAt),
-			events.ItemsRead:     op.Results.ItemsRead,
-			events.ItemsWritten:  op.Results.ItemsWritten,
-			events.Resources:     op.Results.ResourceOwners,
-			events.RestoreID:     opStats.restoreID,
-			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     dttm.Format(op.Results.StartedAt),
-			events.Status:        op.Status.String(),
-		},
-	)
 
 	return op.Errors.Failure()
 }

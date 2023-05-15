@@ -98,3 +98,40 @@ func (suite *ElementsUnitSuite) TestElements_piiHandling() {
 		})
 	}
 }
+
+func (suite *ElementsUnitSuite) TestLoggableDir() {
+	table := []struct {
+		inpt   string
+		expect string
+	}{
+		{
+			inpt:   "archive/clutter",
+			expect: "archive/clutter",
+		},
+		{
+			inpt:   "foo/bar",
+			expect: "***/***",
+		},
+		{
+			inpt:   "inbox/foo",
+			expect: "inbox/***",
+		},
+		{
+			inpt:   "foo/",
+			expect: "***",
+		},
+		{
+			inpt:   "foo//",
+			expect: "***",
+		},
+		{
+			inpt:   "foo///",
+			expect: "***",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.inpt, func() {
+			assert.Equal(suite.T(), test.expect, LoggableDir(test.inpt))
+		})
+	}
+}

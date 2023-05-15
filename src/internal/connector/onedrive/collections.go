@@ -646,7 +646,7 @@ func (c *Collections) getCollectionPath(
 		if item.GetParentReference() == nil ||
 			item.GetParentReference().GetPath() == nil {
 			err := clues.New("no parent reference").
-				With("item_name", ptr.Val(item.GetName()))
+				With("item_name", clues.Hide(ptr.Val(item.GetName())))
 
 			return nil, err
 		}
@@ -711,7 +711,7 @@ func (c *Collections) UpdateCollections(
 		var (
 			itemID   = ptr.Val(item.GetId())
 			itemName = ptr.Val(item.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
 			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
 
@@ -758,7 +758,7 @@ func (c *Collections) UpdateCollections(
 
 		// Skip items that don't match the folder selectors we were given.
 		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-			logger.Ctx(ictx).Debugw("Skipping drive path", "skipped_path", collectionPath.String())
+			logger.Ctx(ictx).Debugw("path not selected", "skipped_path", collectionPath.String())
 			continue
 		}
 

@@ -253,6 +253,99 @@ jobs:
           set -euo pipefail
           ./sanityTest
 
+      # non-delta backup
+      - name: Backup exchange incremental without delta
+        id: exchange-incremental-test-no-delta
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup Exchange incremental test without delta\n" >> ${CORSO_LOG_FILE}
+          ./corso backup create exchange \
+          --no-stats \
+          --hide-progress \
+          --disable-delta \
+          --mailbox "${TEST_USER}" \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange_incremental.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          echo result=$( echo $resultjson | jq -r '.[0] | .id' ) >> $GITHUB_OUTPUT
+
+      # restore from non delta
+      - name: Backup non delta exchange restore
+        id: exchange-non-delta-restore-test
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup Exchange incremental without delta restore test\n" >> ${CORSO_LOG_FILE}
+          ./corso restore exchange \
+          --no-stats \
+          --hide-progress \
+          --backup "${{ steps.exchange-incremental-test-no-delta.outputs.result }}" \
+          --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
+        
+      - name: Restoration check
+        env:
+          SANITY_RESTORE_FOLDER: ${{ steps.exchange-non-delta-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "exchange"
+          TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
+          BASE_BACKUP: ${{ steps.exchange-restore-test.outputs.result }}
+        run: |
+          set -euo pipefail
+          ./sanityTest
+
+      # incremental backup after non-delta
+      - name: Backup exchange incremental after non-delta
+        id: exchange-incremental-test-after-non-delta
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup Exchange incremental test after non-delta\n" >> ${CORSO_LOG_FILE}
+          ./corso backup create exchange \
+          --no-stats \
+          --hide-progress \
+          --mailbox "${TEST_USER}" \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_exchange_incremental_after_non_delta.txt
+
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange_incremental_after_non_delta.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          echo result=$( echo $resultjson | jq -r '.[0] | .id' ) >> $GITHUB_OUTPUT
+
+      # restore from incremental
+      - name: Backup incremantal exchange restore after non-delta
+        id: exchange-incremantal-restore-test-after-non-delta
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup Exchange incremental restore test after non-delta\n" >> ${CORSO_LOG_FILE}
+          ./corso restore exchange \
+          --no-stats \
+          --hide-progress \
+          --backup "${{ steps.exchange-incremental-test-after-non-delta.outputs.result }}" \
+          --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
+          2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test-after-non-delta.txt
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test-after-non-delta.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
+
+      - name: Restoration check
+        env:
+          SANITY_RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test-after-non-delta.outputs.result }}
+          SANITY_RESTORE_SERVICE: "exchange"
+          TEST_DATA: Corso_Restore_st_${{ steps.repo-init.outputs.result }}
+          BASE_BACKUP: ${{ steps.exchange-restore-test.outputs.result }}
+        run: |
+          set -euo pipefail
+          ./sanityTest
+
 ##########################################################################################################################################
 
 # Onedrive
@@ -383,7 +476,7 @@ jobs:
           --user "${TEST_USER}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
-          
+
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive_incremental.txt ) 
 
           if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
@@ -393,7 +486,7 @@ jobs:
 
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
-          
+
       # restore from incremental
       - name: Backup onedrive restore
         id: onedrive-incremental-restore-test
