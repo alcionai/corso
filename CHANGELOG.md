@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Released the --mask-sensitive-data flag, which will automatically obscure private data in logs.
 - Added `--disable-delta` flag to disable delta based backups for Exchange
+- Permission support for SharePoint libraries.
 
 ### Fixed
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Issues
 - Restore operations will merge duplicate Exchange folders at the same hierarchy level into a single folder.
+- Sharepoint SiteGroup permissions are not restored.
 
  ### Known Issues
  - SharePoint document library data can't be restored after the library has been deleted.
