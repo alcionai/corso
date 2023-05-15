@@ -226,11 +226,11 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 }
 
 // Check if a file is a metadata file. These are used to store
-// additional data like permissions in case of OneDrive and are not to
-// be treated as regular files.
+// additional data like permissions (in case of Drive items) and are
+// not to be treated as regular files.
 func (de Entry) isMetaFile() bool {
-	// TODO: Add meta file filtering to SharePoint as well once we add
-	// meta files for SharePoint.
+	// sharepoint types not needed, since sharepoint permissions were
+	// added after IsMeta was deprecated.
 	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 

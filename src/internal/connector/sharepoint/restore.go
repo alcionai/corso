@@ -46,6 +46,7 @@ func RestoreCollections(
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
+	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -55,6 +56,10 @@ func RestoreCollections(
 		caches         = onedrive.NewRestoreCaches()
 		el             = errs.Local()
 	)
+
+	// Reorder collections so that the parents directories are created
+	// before the child directories; a requirement for permissions.
+	data.SortRestoreCollections(dcs)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
@@ -69,7 +74,8 @@ func RestoreCollections(
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"destination", clues.Hide(dest.ContainerName),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"full_path", dc.FullPath())
 		)
 
 		switch dc.FullPath().Category() {
@@ -84,7 +90,7 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				false,
+				opts.RestorePermissions,
 				errs)
 
 		case path.ListsCategory:
