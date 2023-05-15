@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Released the --mask-sensitive-data flag, which will automatically obscure private data in logs.
+- Added `--disable-delta` flag to disable delta based backups for Exchange
+- Permission support for SharePoint libraries.
 
 ### Fixed
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
@@ -19,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove exchange item filtering based on m365 item ID via the CLI.
 - OneDrive backups no longer include a user's non-default drives.
 - OneDrive and SharePoint file downloads will properly redirect from 3xx responses.
+- Refined oneDrive rate limiter controls to reduce throttling errors.
+- Fix handling of duplicate folders at the same hierarchy level in Exchange. Duplicate folders will be merged during restore operations.
+- Fix backup for mailboxes that has used up all their storage quota
+
+### Known Issues
+- Restore operations will merge duplicate Exchange folders at the same hierarchy level into a single folder.
+- Sharepoint SiteGroup permissions are not restored.
+
+ ### Known Issues
+ - SharePoint document library data can't be restored after the library has been deleted.
 
 ## [v0.7.0] (beta) - 2023-05-02
 
@@ -47,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
 - Fixed Exchange events progress output to show calendar names instead of IDs.
 - Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
+- Fix backup for mailboxes that has used up all their storage quota
 
 ### Known Issues
 - Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.

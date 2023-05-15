@@ -373,7 +373,10 @@ func GetDriveRoot(
 	srv graph.Servicer,
 	driveID string,
 ) (models.DriveItemable, error) {
-	root, err := srv.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	root, err := srv.Client().
+		DrivesById(driveID).
+		Root().
+		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drive root")
 	}
@@ -414,4 +417,24 @@ func GetFolderByName(
 	}
 
 	return foundItem, nil
+}
+
+func PostItemPermissionUpdate(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID, itemID string,
+	body *drive.ItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
+
+	itm, err := service.Client().
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Invite().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "posting permissions")
+	}
+
+	return itm, nil
 }

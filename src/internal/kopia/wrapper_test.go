@@ -73,7 +73,7 @@ func testForFiles(
 		for s := range c.Items(ctx, fault.New(true)) {
 			count++
 
-			fullPath, err := c.FullPath().Append(s.UUID(), true)
+			fullPath, err := c.FullPath().AppendItem(s.UUID())
 			require.NoError(t, err, clues.ToCore(err))
 
 			expected, ok := expected[fullPath.String()]
@@ -689,10 +689,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	dc1 := exchMock.NewCollection(suite.storePath1, suite.locPath1, 1)
 	dc2 := exchMock.NewCollection(suite.storePath2, suite.locPath2, 1)
 
-	fp1, err := suite.storePath1.Append(dc1.Names[0], true)
+	fp1, err := suite.storePath1.AppendItem(dc1.Names[0])
 	require.NoError(t, err, clues.ToCore(err))
 
-	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
+	fp2, err := suite.storePath2.AppendItem(dc2.Names[0])
 	require.NoError(t, err, clues.ToCore(err))
 
 	stats, _, _, err := w.ConsumeBackupCollections(
@@ -838,7 +838,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// 5 file and 2 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+2)
 
-	failedPath, err := suite.storePath2.Append(testFileName4, true)
+	failedPath, err := suite.storePath2.AppendItem(testFileName4)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ic := i64counter{}
@@ -987,7 +987,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 	}
 
 	for _, item := range filesInfo {
-		pth, err := item.parentPath.Append(item.name, true)
+		pth, err := item.parentPath.AppendItem(item.name)
 		require.NoError(suite.T(), err, clues.ToCore(err))
 
 		mapKey := item.parentPath.String()
@@ -1006,8 +1006,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
 	expectedDirs := 6
 	expectedFiles := len(suite.filesByPath)
+
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
 	//nolint:forbidigo
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+	suite.ctx, _ = logger.CtxOrSeed(context.Background(), ls)
 
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -1439,7 +1444,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 				item, ok := suite.filesByPath[pth.StoragePath.String()]
 				require.True(t, ok, "getting expected file data")
 
-				itemPath, err := pth.RestorePath.Append(pth.StoragePath.Item(), true)
+				itemPath, err := pth.RestorePath.AppendItem(pth.StoragePath.Item())
 				require.NoError(t, err, "getting expected item path")
 
 				expected[itemPath.String()] = item.data
@@ -1532,7 +1537,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Errors() {
-	itemPath, err := suite.testPath1.Append(testFileName, true)
+	itemPath, err := suite.testPath1.AppendItem(testFileName)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {

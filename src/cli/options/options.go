@@ -18,6 +18,7 @@ func Control() control.Options {
 	opt.RestorePermissions = restorePermissionsFV
 	opt.SkipReduce = skipReduceFV
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementalsFV
+	opt.ToggleFeatures.DisableDelta = disableDeltaFV
 	opt.ToggleFeatures.ExchangeImmutableIDs = enableImmutableID
 	opt.ToggleFeatures.DisableConcurrencyLimiter = disableConcurrencyLimiterFV
 	opt.Parallelism.ItemFetch = fetchParallelismFV
@@ -35,6 +36,7 @@ const (
 	NoStatsFN                   = "no-stats"
 	RestorePermissionsFN        = "restore-permissions"
 	SkipReduceFN                = "skip-reduce"
+	DisableDeltaFN              = "disable-delta"
 	DisableIncrementalsFN       = "disable-incrementals"
 	EnableImmutableIDFN         = "enable-immutable-id"
 	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
@@ -92,7 +94,10 @@ func AddFetchParallelismFlag(cmd *cobra.Command) {
 // Feature Flags
 // ---------------------------------------------------------------------------
 
-var disableIncrementalsFV bool
+var (
+	disableIncrementalsFV bool
+	disableDeltaFV        bool
+)
 
 // Adds the hidden '--disable-incrementals' cli flag which, when set, disables
 // incremental backups.
@@ -104,6 +109,18 @@ func AddDisableIncrementalsFlag(cmd *cobra.Command) {
 		false,
 		"Disable incremental data retrieval in backups.")
 	cobra.CheckErr(fs.MarkHidden(DisableIncrementalsFN))
+}
+
+// Adds the hidden '--disable-delta' cli flag which, when set, disables
+// delta based backups.
+func AddDisableDeltaFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&disableDeltaFV,
+		DisableDeltaFN,
+		false,
+		"Disable delta based data retrieval in backups.")
+	cobra.CheckErr(fs.MarkHidden(DisableDeltaFN))
 }
 
 var enableImmutableID bool

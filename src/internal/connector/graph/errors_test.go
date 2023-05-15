@@ -161,6 +161,45 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrQuotaExceeded() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "as",
+			err:    ErrInvalidDelta,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "quota-exceeded oDataErr",
+			err:    odErr("ErrorQuotaExceeded"),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrQuotaExceeded(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	table := []struct {
 		name   string

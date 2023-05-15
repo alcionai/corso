@@ -52,7 +52,7 @@ corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abc
 # Restore the file with ID 98765abcdef along with its associated permissions
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
 
-# Restore files named "FY2021 Planning.xlsx in "Documents/Finance Reports"
+# Restore files named "FY2021 Planning.xlsx" in "Documents/Finance Reports"
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 

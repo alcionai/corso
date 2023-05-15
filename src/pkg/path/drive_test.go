@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -22,8 +23,6 @@ func TestOneDrivePathSuite(t *testing.T) {
 }
 
 func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
-	const root = "root:"
-
 	tests := []struct {
 		name         string
 		pathElements []string
@@ -32,20 +31,28 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 	}{
 		{
 			name:         "Not enough path elements",
-			pathElements: []string{"drives", "driveID"},
+			pathElements: []string{odConsts.DrivesPathDir, "driveID"},
 			errCheck:     assert.Error,
 		},
 		{
 			name:         "Root path",
-			pathElements: []string{"drives", "driveID", root},
-			expected:     &path.DrivePath{DriveID: "driveID", Root: root, Folders: []string{}},
-			errCheck:     assert.NoError,
+			pathElements: []string{odConsts.DrivesPathDir, "driveID", odConsts.RootPathDir},
+			expected: &path.DrivePath{
+				DriveID: "driveID",
+				Root:    odConsts.RootPathDir,
+				Folders: []string{},
+			},
+			errCheck: assert.NoError,
 		},
 		{
 			name:         "Deeper path",
-			pathElements: []string{"drives", "driveID", root, "folder1", "folder2"},
-			expected:     &path.DrivePath{DriveID: "driveID", Root: root, Folders: []string{"folder1", "folder2"}},
-			errCheck:     assert.NoError,
+			pathElements: []string{odConsts.DrivesPathDir, "driveID", odConsts.RootPathDir, "folder1", "folder2"},
+			expected: &path.DrivePath{
+				DriveID: "driveID",
+				Root:    odConsts.RootPathDir,
+				Folders: []string{"folder1", "folder2"},
+			},
+			errCheck: assert.NoError,
 		},
 	}
 	for _, tt := range tests {

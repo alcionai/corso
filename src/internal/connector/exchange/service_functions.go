@@ -137,21 +137,15 @@ func includeContainer(
 		directory = locPath.Folder(false)
 	}
 
-	var (
-		ok      bool
-		pathRes path.Path
-	)
+	var ok bool
 
 	switch category {
 	case path.EmailCategory:
 		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
-		pathRes = locPath
 	case path.ContactsCategory:
 		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
-		pathRes = locPath
 	case path.EventsCategory:
 		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
-		pathRes = dirPath
 	default:
 		return nil, nil, false
 	}
@@ -162,5 +156,5 @@ func includeContainer(
 		"matches_input", directory,
 	).Debug("backup folder selection filter")
 
-	return pathRes, loc, ok
+	return dirPath, loc, ok
 }

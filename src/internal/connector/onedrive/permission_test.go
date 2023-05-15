@@ -22,8 +22,12 @@ func TestPermissionsUnitTestSuite(t *testing.T) {
 	suite.Run(t, &PermissionsUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
+func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions_oneDrive() {
 	runComputeParentPermissionsTest(suite, path.OneDriveService, path.FilesCategory, "user")
+}
+
+func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions_sharePoint() {
+	runComputeParentPermissionsTest(suite, path.SharePointService, path.LibrariesCategory, "site")
 }
 
 func runComputeParentPermissionsTest(
@@ -147,12 +151,12 @@ func runComputeParentPermissionsTest(
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			_, flush := tester.NewContext()
+			ctx, flush := tester.NewContext()
 			defer flush()
 
 			t := suite.T()
 
-			m, err := computeParentPermissions(test.item, test.parentPerms)
+			m, err := computeParentPermissions(ctx, test.item, test.parentPerms)
 			require.NoError(t, err, "compute permissions")
 
 			assert.Equal(t, m, test.meta)

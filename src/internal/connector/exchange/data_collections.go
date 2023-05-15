@@ -41,7 +41,7 @@ func (dps DeltaPaths) AddDelta(k, d string) {
 		dp = DeltaPath{}
 	}
 
-	dp.delta = d
+	dp.Delta = d
 	dps[k] = dp
 }
 
@@ -51,13 +51,13 @@ func (dps DeltaPaths) AddPath(k, p string) {
 		dp = DeltaPath{}
 	}
 
-	dp.path = p
+	dp.Path = p
 	dps[k] = dp
 }
 
 type DeltaPath struct {
-	delta string
-	path  string
+	Delta string
+	Path  string
 }
 
 // ParseMetadataCollections produces a map of structs holding delta
@@ -148,7 +148,7 @@ func parseMetadataCollections(
 	// complete backup on the next run.
 	for _, dps := range cdp {
 		for k, dp := range dps {
-			if len(dp.delta) == 0 || len(dp.path) == 0 {
+			if len(dp.Path) == 0 {
 				delete(dps, k)
 			}
 		}
