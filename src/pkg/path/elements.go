@@ -2,6 +2,7 @@ package path
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -28,7 +29,26 @@ var piiSafePathElems = pii.MapWithPlurals(
 	LibrariesCategory.String(),
 	PagesCategory.String(),
 	DetailsCategory.String(),
-)
+
+	// well known folders
+	// https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
+	"archive",
+	"clutter",
+	"conflict",
+	"conversationhistory",
+	"deleteditem",
+	"draft",
+	"inbox",
+	"junkemail",
+	"localfailure",
+	"msgfolderroot",
+	"outbox",
+	"recoverableitemsdeletion",
+	"scheduled",
+	"searchfolder",
+	"sentitem",
+	"serverfailure",
+	"syncissue")
 
 var (
 	// interface compliance required for handling PII
@@ -85,4 +105,34 @@ func (el Elements) String() string {
 // errors.
 func (el Elements) PlainString() string {
 	return join(el)
+}
+
+// Last returns the last element.  Returns "" if empty.
+func (el Elements) Last() string {
+	if len(el) == 0 {
+		return ""
+	}
+
+	return el[len(el)-1]
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+// LoggableDir takes in a path reference (of any structure) and conceals any
+// non-standard elements (ids, filenames, foldernames, etc).
+func LoggableDir(ref string) string {
+	r := ref
+	n := strings.TrimSuffix(r, string(PathSeparator))
+
+	for n != r {
+		r = n
+		n = strings.TrimSuffix(r, string(PathSeparator))
+	}
+
+	elems := Split(r)
+	elems = pii.ConcealElements(elems, piiSafePathElems)
+
+	return join(elems)
 }

@@ -43,6 +43,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				utils.UserFN,
 				utils.CategoryDataFN,
 				options.DisableIncrementalsFN,
+				options.DisableDeltaFN,
 				options.FailFastFN,
 				options.FetchParallelismFN,
 				options.SkipReduceFN,
