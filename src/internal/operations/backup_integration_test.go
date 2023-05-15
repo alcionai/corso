@@ -27,7 +27,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	odapi "github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -1333,7 +1332,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		ctx context.Context,
 		gs graph.Servicer,
 	) string {
-		d, err := odapi.GetUsersDrive(ctx, gs, suite.user)
+		d, err := api.GetUsersDrive(ctx, gs, suite.user)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
 				With("user", suite.user)
@@ -1372,7 +1371,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		ctx context.Context,
 		gs graph.Servicer,
 	) string {
-		d, err := odapi.GetSitesDefaultDrive(ctx, gs, suite.site)
+		d, err := api.GetSitesDefaultDrive(ctx, gs, suite.site)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
 				With("site", suite.site)

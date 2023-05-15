@@ -15,10 +15,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ItemIntegrationSuite struct {
