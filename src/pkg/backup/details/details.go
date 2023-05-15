@@ -205,7 +205,7 @@ func (dm DetailsModel) Paths() []string {
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
 // paths, and we want to slice out metadata.
-func (dm DetailsModel) Items() []*Entry {
+func (dm DetailsModel) Items() entrySet {
 	res := make([]*Entry, 0, len(dm.Entries))
 
 	for i := 0; i < len(dm.Entries); i++ {
