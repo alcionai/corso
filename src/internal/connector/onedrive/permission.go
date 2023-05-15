@@ -52,8 +52,8 @@ func getCollectionMetadata(
 	}
 
 	var (
-		err            error
-		collectionPath = dc.FullPath()
+		err      error
+		fullPath = dc.FullPath()
 	)
 
 	if len(drivePath.Folders) == 0 {
@@ -62,7 +62,7 @@ func getCollectionMetadata(
 	}
 
 	if backupVersion < version.OneDrive4DirIncludesPermissions {
-		colMeta, err := getParentMetadata(collectionPath, caches.ParentDirToMeta)
+		colMeta, err := getParentMetadata(fullPath, caches.ParentDirToMeta)
 		if err != nil {
 			return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
 		}
@@ -70,8 +70,7 @@ func getCollectionMetadata(
 		return colMeta, nil
 	}
 
-	// Root folder doesn't have a metadata file associated with it.
-	folders := collectionPath.Folders()
+	folders := fullPath.Folders()
 	metaName := folders[len(folders)-1] + metadata.DirMetaFileSuffix
 
 	if backupVersion >= version.OneDrive5DirMetaNoName {
@@ -103,12 +102,6 @@ func computeParentPermissions(
 		err error
 		ok  bool
 	)
-
-	fmt.Printf("\n-----\nparent metas\n-----\n")
-	for k, v := range parentMetas {
-		fmt.Println("pm", k)
-		fmt.Printf("%+v\n", v)
-	}
 
 	parent = originDir
 

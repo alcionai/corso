@@ -3,7 +3,6 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
@@ -73,13 +72,9 @@ func RestoreCollections(
 		"backup_version", backupVersion,
 		"destination", dest.ContainerName)
 
-	// TODO: this is a gotcha/smell and should be centralized within the
-	// restore process.
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
-	sort.Slice(dcs, func(i, j int) bool {
-		return dcs[i].FullPath().String() < dcs[j].FullPath().String()
-	})
+	data.SortRestoreCollections(dcs)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
@@ -214,7 +209,6 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
 
-	fmt.Printf("\n-----\nadding fp %+v\n-----\n", dc.FullPath().String())
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
@@ -755,8 +749,6 @@ func fetchAndReadMetadata(
 	if err != nil {
 		return metadata.Metadata{}, clues.Wrap(err, "deserializing item metadata")
 	}
-
-	fmt.Printf("\n-----\ngot meta %+v\n-----\n", meta)
 
 	return meta, nil
 }
