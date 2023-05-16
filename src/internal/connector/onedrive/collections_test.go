@@ -912,8 +912,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			expectedDeltas: map[string]string{},
-			expectedPaths:  map[string]map[string]string{},
-			errCheck:       assert.NoError,
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+				},
+			},
+			errCheck: assert.NoError,
 		},
 		{
 			// An empty path map but valid delta results in metadata being returned
@@ -936,7 +940,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: map[string]string{driveID1: deltaURL1},
+			expectedDeltas: map[string]string{},
 			expectedPaths:  map[string]map[string]string{driveID1: {}},
 			errCheck:       assert.NoError,
 		},
@@ -965,9 +969,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: map[string]string{},
-			expectedPaths:  map[string]map[string]string{},
-			errCheck:       assert.NoError,
+			expectedDeltas: map[string]string{driveID1: ""},
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+				},
+			},
+			errCheck: assert.NoError,
 		},
 		{
 			name: "SuccessTwoDrivesTwoCollections",
@@ -1033,9 +1041,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: map[string]string{},
-			expectedPaths:  map[string]map[string]string{},
-			errCheck:       assert.Error,
+			errCheck: assert.Error,
 		},
 		{
 			// Unexpected files are logged and skipped. They don't cause an error to
@@ -1167,8 +1173,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 			deltas, paths, err := deserializeMetadata(ctx, cols, fault.New(true))
 			test.errCheck(t, err)
 
-			assert.Equal(t, test.expectedDeltas, deltas)
-			assert.Equal(t, test.expectedPaths, paths)
+			assert.Equal(t, test.expectedDeltas, deltas, "deltas")
+			assert.Equal(t, test.expectedPaths, paths, "paths")
 		})
 	}
 }
@@ -1281,9 +1287,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		prevFolderPaths map[string]map[string]string
 		// Collection name -> set of item IDs. We can't check item data because
 		// that's not mocked out. Metadata is checked separately.
-		expectedCollections  map[string]map[data.CollectionState][]string
-		expectedDeltaURLs    map[string]string
-		expectedFolderPaths  map[string]map[string]string
+		expectedCollections map[string]map[data.CollectionState][]string
+		expectedDeltaURLs   map[string]string
+		expectedFolderPaths map[string]map[string]string
+		// Items that should be excluded from the base. Only populated if the delta
+		// was valid and there was at least 1 previous folder path.
 		expectedDelList      *pmMock.PrefixMap
 		expectedSkippedCount int
 		// map full or previous path (prefers full) -> bool
@@ -1366,10 +1374,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
-			prevFolderPaths: map[string]map[string]string{
-				driveID1: {},
-			},
+			errCheck:        assert.NoError,
+			prevFolderPaths: map[string]map[string]string{},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1: {data.NewState: {}},
 				folderPath1:     {data.NewState: {"folder", "file"}},
@@ -1383,9 +1389,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
@@ -1403,10 +1411,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
-			prevFolderPaths: map[string]map[string]string{
-				driveID1: {},
-			},
+			errCheck:        assert.NoError,
+			prevFolderPaths: map[string]map[string]string{},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1: {data.NewState: {}},
 				folderPath1:     {data.NewState: {"folder", "file"}},
@@ -1420,9 +1426,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
@@ -1442,7 +1450,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 			errCheck: assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
-				driveID1: {},
+				driveID1: {
+					"root": rootFolderPath1,
+				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1: {data.NotMovedState: {"file"}},
@@ -1484,11 +1494,18 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				rootFolderPath1: {data.NewState: {}},
 				folderPath1:     {data.NewState: {"folder", "file"}},
 			},
-			expectedDeltaURLs:   map[string]string{},
-			expectedFolderPaths: map[string]map[string]string{},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-			}),
+			expectedDeltaURLs: map[string]string{},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
 		},
 		{
 			name:   "OneDrive_TwoItemPages_NoErrors",
@@ -1530,9 +1547,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file", "file2"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
 		},
 		{
 			name: "TwoDrives_OneItemPageEach_NoErrors",
@@ -1587,10 +1606,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder2": folderPath2,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-				rootFolderPath2: getDelList("file2"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+				rootFolderPath2: true,
+				folderPath2:     true,
+			},
 		},
 		{
 			name: "TwoDrives_DuplicateIDs_OneItemPageEach_NoErrors",
@@ -1645,10 +1667,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder": folderPath2,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-				rootFolderPath2: getDelList("file2"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+				rootFolderPath2: true,
+				folderPath2:     true,
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_Errors",
@@ -1772,7 +1797,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 			errCheck: assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
-				driveID1: {},
+				driveID1: {
+					"root": rootFolderPath1,
+				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1:          {data.NotMovedState: {"file"}},
@@ -1929,9 +1956,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file", "file2"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
 			expectedSkippedCount: 2,
 		},
 		{
@@ -2110,9 +2139,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"root": rootFolderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+			},
 		},
 		{
 			name:   "One Drive Item Made And Deleted",
@@ -2153,9 +2183,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
 		},
 		{
 			name:   "One Drive Random Folder Delete",
@@ -2187,6 +2219,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+			},
 		},
 		{
 			name:   "One Drive Random Item Delete",
@@ -2217,9 +2252,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"root": rootFolderPath1,
 				},
 			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
-			}),
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+			},
 		},
 		{
 			name:   "TwoPriorDrives_OneTombstoned",
@@ -2352,7 +2388,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					}
 
 					assert.Equal(t, test.expectedDeltaURLs, deltas, "delta urls")
-					assert.Equal(t, test.expectedFolderPaths, paths, "folder  paths")
+					assert.Equal(t, test.expectedFolderPaths, paths, "folder paths")
 
 					continue
 				}
@@ -2426,7 +2462,7 @@ func coreItem(
 	case isFolder:
 		item.SetFolder(models.NewFolder())
 	case isPackage:
-		item.SetPackage(models.NewPackage_escaped())
+		item.SetPackage(models.NewPackageEscaped())
 	}
 
 	return item
@@ -2493,7 +2529,7 @@ func delItem(
 	case isFolder:
 		item.SetFolder(models.NewFolder())
 	case isPackage:
-		item.SetPackage(models.NewPackage_escaped())
+		item.SetPackage(models.NewPackageEscaped())
 	}
 
 	return item

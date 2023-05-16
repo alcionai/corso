@@ -216,9 +216,8 @@ func (s *exchange) Contacts(folders, contacts []string, opts ...option) []Exchan
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContact, contacts).
-			set(ExchangeContactFolder, folders, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeContact, contacts, defaultItemOptions(s.Cfg)...).
+			set(ExchangeContactFolder, folders, opts...))
 
 	return scopes
 }
@@ -236,8 +235,7 @@ func (s *exchange) ContactFolders(folders []string, opts ...option) []ExchangeSc
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...),
-	)
+		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...))
 
 	return scopes
 }
@@ -252,9 +250,8 @@ func (s *exchange) Events(calendars, events []string, opts ...option) []Exchange
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEvent, events).
-			set(ExchangeEventCalendar, calendars, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeEvent, events, defaultItemOptions(s.Cfg)...).
+			set(ExchangeEventCalendar, calendars, opts...))
 
 	return scopes
 }
@@ -273,8 +270,7 @@ func (s *exchange) EventCalendars(events []string, opts ...option) []ExchangeSco
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...),
-	)
+		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...))
 
 	return scopes
 }
@@ -289,9 +285,8 @@ func (s *exchange) Mails(folders, mails []string, opts ...option) []ExchangeScop
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMail, mails).
-			set(ExchangeMailFolder, folders, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeMail, mails, defaultItemOptions(s.Cfg)...).
+			set(ExchangeMailFolder, folders, opts...))
 
 	return scopes
 }
@@ -309,8 +304,7 @@ func (s *exchange) MailFolders(folders []string, opts ...option) []ExchangeScope
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...),
-	)
+		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...))
 
 	return scopes
 }
@@ -326,8 +320,7 @@ func (s *exchange) AllData() []ExchangeScope {
 	scopes = append(scopes,
 		makeScope[ExchangeScope](ExchangeContactFolder, Any()),
 		makeScope[ExchangeScope](ExchangeEventCalendar, Any()),
-		makeScope[ExchangeScope](ExchangeMailFolder, Any()),
-	)
+		makeScope[ExchangeScope](ExchangeMailFolder, Any()))
 
 	return scopes
 }

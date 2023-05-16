@@ -245,8 +245,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 		scopes,
 		makeScope[SharePointScope](SharePointLibraryFolder, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
-		makeScope[SharePointScope](SharePointPageFolder, Any()),
-	)
+		makeScope[SharePointScope](SharePointPageFolder, Any()))
 
 	return scopes
 }
@@ -276,9 +275,8 @@ func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePoi
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointListItem, items).
-			set(SharePointList, lists, opts...),
-	)
+		makeScope[SharePointScope](SharePointListItem, items, defaultItemOptions(s.Cfg)...).
+			set(SharePointList, lists, opts...))
 
 	return scopes
 }
@@ -312,8 +310,7 @@ func (s *sharePoint) LibraryFolders(libraryFolders []string, opts ...option) []S
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...),
-	)
+		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...))
 
 	return scopes
 }
@@ -328,9 +325,8 @@ func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []S
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryItem, items).
-			set(SharePointLibraryFolder, libraries, opts...),
-	)
+		makeScope[SharePointScope](SharePointLibraryItem, items, defaultItemOptions(s.Cfg)...).
+			set(SharePointLibraryFolder, libraries, opts...))
 
 	return scopes
 }
@@ -361,8 +357,7 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 	scopes = append(
 		scopes,
 		makeScope[SharePointScope](SharePointPage, items).
-			set(SharePointPageFolder, pages, opts...),
-	)
+			set(SharePointPageFolder, pages, opts...))
 
 	return scopes
 }

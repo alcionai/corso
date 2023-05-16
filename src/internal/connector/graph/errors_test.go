@@ -25,10 +25,10 @@ func TestGraphErrorsUnitSuite(t *testing.T) {
 }
 
 func odErr(code string) *odataerrors.ODataError {
-	odErr := &odataerrors.ODataError{}
-	merr := odataerrors.MainError{}
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(&merr)
+	odErr.SetError(merr)
 
 	return odErr
 }
@@ -300,33 +300,33 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 
 func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 	var (
-		i        = models.DriveItem{}
-		cb       = models.User{}
+		i        = models.NewDriveItem()
+		cb       = models.NewUser()
 		cbID     = "created-by"
-		lm       = models.User{}
+		lm       = models.NewUser()
 		lmID     = "last-mod-by"
-		ref      = models.ItemReference{}
+		ref      = models.NewItemReference()
 		refCID   = "container-id"
 		refCN    = "container-name"
 		refCP    = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
 		refCPexp = "/Folder/container-name"
-		mal      = models.Malware{}
+		mal      = models.NewMalware()
 		malDesc  = "malware-description"
 	)
 
 	cb.SetId(&cbID)
-	i.SetCreatedByUser(&cb)
+	i.SetCreatedByUser(cb)
 
 	lm.SetId(&lmID)
-	i.SetLastModifiedByUser(&lm)
+	i.SetLastModifiedByUser(lm)
 
 	ref.SetId(&refCID)
 	ref.SetName(&refCN)
 	ref.SetPath(&refCP)
-	i.SetParentReference(&ref)
+	i.SetParentReference(ref)
 
 	mal.SetDescription(&malDesc)
-	i.SetMalware(&mal)
+	i.SetMalware(mal)
 
 	expect := map[string]any{
 		fault.AddtlCreatedBy:     cbID,
@@ -337,7 +337,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
-	assert.Equal(suite.T(), expect, ItemInfo(&i))
+	assert.Equal(suite.T(), expect, ItemInfo(i))
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {

@@ -1,4 +1,4 @@
-package uploadsession
+package graph
 
 import (
 	"bytes"
@@ -69,7 +69,7 @@ func (suite *UploadSessionSuite) TestWriter() {
 
 	defer ts.Close()
 
-	writer := NewWriter("item", ts.URL, writeSize)
+	writer := NewLargeItemWriter("item", ts.URL, writeSize)
 
 	// Using a 32 KB buffer for the copy allows us to validate the
 	// multi-part upload. `io.CopyBuffer` will only write 32 KB at
