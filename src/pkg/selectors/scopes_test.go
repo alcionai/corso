@@ -513,17 +513,17 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 	table := []struct {
 		name   string
 		config scopeConfig
-		expect int
+		expect string
 	}{
 		{
 			name:   "no configs set",
 			config: scopeConfig{},
-			expect: int(filters.EqualTo),
+			expect: filters.EqualTo,
 		},
 		{
 			name:   "force prefix",
 			config: scopeConfig{usePrefixFilter: true},
-			expect: int(filters.TargetPrefixes),
+			expect: filters.TargetPrefixes,
 		},
 	}
 	for _, test := range table {
@@ -531,7 +531,7 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 			t := suite.T()
 
 			result := filterFor(test.config, input)
-			assert.Equal(t, test.expect, int(result.Comparator))
+			assert.Equal(t, test.expect, string(result.Comparator))
 		})
 	}
 }
