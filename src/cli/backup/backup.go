@@ -226,6 +226,13 @@ func runBackups(
 
 		err = bo.Run(ictx)
 		if err != nil {
+			if strings.Contains(err.Error(), graph.ErrServiceNotEnabled.Error()) {
+				logger.Ctx(ctx).Debugf("Service not enabled for creating backup for %s", bo.ResourceOwner.Name())
+				Infof(ictx, "%v\n", err)
+
+				continue
+			}
+
 			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)
 
@@ -254,11 +261,6 @@ func runBackups(
 		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))
 
 		for i, e := range errs {
-			if strings.Contains(e.Error(), graph.ErrServiceNotEnabled.Error()) {
-				logger.Ctx(ctx).Debugf("Service not enabled for creating backup %d of %d", i+1, len(selectorSet))
-				continue
-			}
-
 			logger.CtxErr(ctx, e).Errorf("Backup %d of %d failed", i+1, len(selectorSet))
 			sb += "∙ " + e.Error() + "\n"
 		}
