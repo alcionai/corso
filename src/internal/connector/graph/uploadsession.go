@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/alcionai/clues"
 
@@ -57,7 +58,12 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 		iw.contentLength)
 	headers[contentLengthHeaderKey] = fmt.Sprintf("%d", rangeLength)
 
-	_, err := iw.client.Request(ctx, "PUT", iw.url, bytes.NewReader(p), headers)
+	_, err := iw.client.Request(
+		ctx,
+		http.MethodPut,
+		iw.url,
+		bytes.NewReader(p),
+		headers)
 	if err != nil {
 		return 0, clues.Wrap(err, "uploading item").With(
 			"upload_id", iw.id,
