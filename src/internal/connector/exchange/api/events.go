@@ -283,13 +283,13 @@ func NewEventPager(
 	return &eventPager{gs, builder, options}, nil
 }
 
-func (p *eventPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return resp, nil
+	return api.EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
 }
 
 func (p *eventPager) setNext(nextLink string) {
@@ -359,7 +359,7 @@ func getEventDeltaBuilder(
 	return builder
 }
 
-func (p *eventDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *eventDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
