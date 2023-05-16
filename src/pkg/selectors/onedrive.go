@@ -223,8 +223,7 @@ func (s *oneDrive) Folders(folders []string, opts ...option) []OneDriveScope {
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveFolder, folders, os...),
-	)
+		makeScope[OneDriveScope](OneDriveFolder, folders, os...))
 
 	return scopes
 }
@@ -239,9 +238,8 @@ func (s *oneDrive) Items(folders, items []string, opts ...option) []OneDriveScop
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveItem, items).
-			set(OneDriveFolder, folders, opts...),
-	)
+		makeScope[OneDriveScope](OneDriveItem, items, defaultItemOptions(s.Cfg)...).
+			set(OneDriveFolder, folders, opts...))
 
 	return scopes
 }

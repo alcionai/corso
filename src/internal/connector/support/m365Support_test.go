@@ -213,7 +213,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 				pg.SetWebUrl(&title)
 
 				writer := kioser.NewJsonSerializationWriter()
-				err := pg.Serialize(writer)
+				err := writer.WriteObjectValue("", pg)
 				require.NoError(t, err, clues.ToCore(err))
 
 				byteArray, err := writer.GetSerializedContent()
@@ -231,6 +231,11 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 			result, err := CreatePageFromBytes(test.getBytes(t))
 			test.checkError(t, err)
 			test.isNil(t, result)
+			if result != nil {
+				assert.Equal(t, "Tested", *result.GetName(), "name")
+				assert.Equal(t, "Tested", *result.GetTitle(), "title")
+				assert.Equal(t, "Tested", *result.GetWebUrl(), "webURL")
+			}
 		})
 	}
 }

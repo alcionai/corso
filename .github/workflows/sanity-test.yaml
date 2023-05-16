@@ -58,6 +58,8 @@ jobs:
           go-version-file: src/go.mod
 
       - run: make build
+      - run: go build -o sanity-test ./cmd/sanity_test
+
       - run: mkdir ${TEST_RESULT}
       - run: mkdir ${CORSO_LOG_DIR}
 

@@ -46,7 +46,7 @@ func (c Events) CreateCalendar(
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	mdl, err := c.Stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	mdl, err := c.Stable.Client().Users().ByUserId(user).Calendars().Post(ctx, requestbody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar")
 	}
@@ -67,7 +67,7 @@ func (c Events) DeleteContainer(
 		return graph.Stack(ctx, err)
 	}
 
-	err = srv.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	err = srv.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -89,7 +89,7 @@ func (c Events) GetContainerByID(
 		return nil, graph.Wrap(ctx, err, "setting event calendar options")
 	}
 
-	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, ofc)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -111,7 +111,7 @@ func (c Events) GetContainerByName(
 
 	ctx = clues.Add(ctx, "calendar_name", name)
 
-	resp, err := c.Stable.Client().UsersById(userID).Calendars().Get(ctx, options)
+	resp, err := c.Stable.Client().Users().ByUserId(userID).Calendars().Get(ctx, options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -152,7 +152,7 @@ func (c Events) GetItem(
 		}
 	)
 
-	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, itemOpts)
+	event, err = c.Stable.Client().Users().ByUserId(user).Events().ByEventId(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -167,8 +167,10 @@ func (c Events) GetItem(
 
 		attached, err := c.LargeItem.
 			Client().
-			UsersById(user).
-			EventsById(itemID).
+			Users().
+			ByUserId(user).
+			Events().
+			ByEventId(itemID).
 			Attachments().
 			Get(ctx, options)
 		if err != nil {
@@ -203,7 +205,7 @@ func (c Events) EnumerateContainers(
 	}
 
 	el := errs.Local()
-	builder := service.Client().UsersById(userID).Calendars()
+	builder := service.Client().Users().ByUserId(userID).Calendars()
 
 	for {
 		if el.Failure() != nil {
@@ -278,18 +280,18 @@ func NewEventPager(
 		Headers: buildPreferHeaders(true, immutableIDs),
 	}
 
-	builder := gs.Client().UsersById(user).CalendarsById(calendarID).Events()
+	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
 
 	return &eventPager{gs, builder, options}, nil
 }
 
-func (p *eventPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return resp, nil
+	return api.EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
 }
 
 func (p *eventPager) setNext(nextLink string) {
@@ -359,7 +361,7 @@ func getEventDeltaBuilder(
 	return builder
 }
 
-func (p *eventDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *eventDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)

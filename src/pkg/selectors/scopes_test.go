@@ -460,6 +460,67 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	}
 }
 
+func (suite *SelectorScopesSuite) TestDefaultItemOptions() {
+	table := []struct {
+		name   string
+		cfg    Config
+		match  []string
+		target string
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "no config, matches same value",
+			cfg:    Config{},
+			match:  []string{"foo"},
+			target: "foo",
+			expect: assert.True,
+		},
+		{
+			name:   "no config, does not match different case",
+			cfg:    Config{},
+			match:  []string{"bar"},
+			target: "BAR",
+			expect: assert.False,
+		},
+		{
+			name:   "no config, does not match substring",
+			cfg:    Config{},
+			match:  []string{"bar"},
+			target: "ba",
+			expect: assert.False,
+		},
+		{
+			name:   "only names, matches same same value",
+			cfg:    Config{OnlyMatchItemNames: true},
+			match:  []string{"fnords"},
+			target: "fnords",
+			expect: assert.True,
+		},
+		{
+			name:   "only names, matches different case",
+			cfg:    Config{OnlyMatchItemNames: true},
+			match:  []string{"smarf"},
+			target: "SMARF",
+			expect: assert.True,
+		},
+		{
+			name:   "only names, does not match substring",
+			cfg:    Config{OnlyMatchItemNames: true},
+			match:  []string{"brunhilda"},
+			target: "unhild",
+			expect: assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			sc := makeStubScope(test.cfg, test.match)
+
+			test.expect(t, sc.Matches(leafCatStub, test.target))
+		})
+	}
+}
+
 func (suite *SelectorScopesSuite) TestClean() {
 	table := []struct {
 		name   string
@@ -513,17 +574,17 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 	table := []struct {
 		name   string
 		config scopeConfig
-		expect int
+		expect string
 	}{
 		{
 			name:   "no configs set",
 			config: scopeConfig{},
-			expect: int(filters.EqualTo),
+			expect: filters.EqualTo,
 		},
 		{
 			name:   "force prefix",
 			config: scopeConfig{usePrefixFilter: true},
-			expect: int(filters.TargetPrefixes),
+			expect: filters.TargetPrefixes,
 		},
 	}
 	for _, test := range table {
@@ -531,7 +592,7 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 			t := suite.T()
 
 			result := filterFor(test.config, input)
-			assert.Equal(t, test.expect, int(result.Comparator))
+			assert.Equal(t, test.expect, string(result.Comparator))
 		})
 	}
 }

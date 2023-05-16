@@ -36,7 +36,7 @@ func preFetchLists(
 	siteID string,
 ) ([]listTuple, error) {
 	var (
-		builder    = gs.Client().SitesById(siteID).Lists()
+		builder    = gs.Client().Sites().BySiteId(siteID).Lists()
 		options    = preFetchListOptions()
 		listTuples = make([]listTuple, 0)
 	)
@@ -128,7 +128,7 @@ func loadSiteLists(
 				err   error
 			)
 
-			entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
+			entry, err = gs.Client().Sites().BySiteId(siteID).Lists().ByListId(id).Get(ctx, nil)
 			if err != nil {
 				el.AddRecoverable(graph.Wrap(ctx, err, "getting site list"))
 				return
@@ -195,7 +195,7 @@ func fetchListItems(
 	errs *fault.Bus,
 ) ([]models.ListItemable, error) {
 	var (
-		prefix  = gs.Client().SitesById(siteID).ListsById(listID)
+		prefix  = gs.Client().Sites().BySiteId(siteID).Lists().ByListId(listID)
 		builder = prefix.Items()
 		itms    = make([]models.ListItemable, 0)
 		el      = errs.Local()
@@ -216,7 +216,7 @@ func fetchListItems(
 				break
 			}
 
-			newPrefix := prefix.ItemsById(ptr.Val(itm.GetId()))
+			newPrefix := prefix.Items().ByListItemId(ptr.Val(itm.GetId()))
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
@@ -252,7 +252,7 @@ func fetchColumns(
 	cs := make([]models.ColumnDefinitionable, 0)
 
 	if len(cTypeID) == 0 {
-		builder := gs.Client().SitesById(siteID).ListsById(listID).Columns()
+		builder := gs.Client().Sites().BySiteId(siteID).Lists().ByListId(listID).Columns()
 
 		for {
 			resp, err := builder.Get(ctx, nil)
@@ -270,7 +270,14 @@ func fetchColumns(
 			builder = sites.NewItemListsItemColumnsRequestBuilder(link, gs.Adapter())
 		}
 	} else {
-		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
+		builder := gs.Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			ContentTypes().
+			ByContentTypeId(cTypeID).
+			Columns()
 
 		for {
 			resp, err := builder.Get(ctx, nil)
@@ -307,7 +314,7 @@ func fetchContentTypes(
 	var (
 		el      = errs.Local()
 		cTypes  = make([]models.ContentTypeable, 0)
-		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypes()
+		builder = gs.Client().Sites().BySiteId(siteID).Lists().ByListId(listID).ContentTypes()
 	)
 
 	for {
@@ -363,8 +370,15 @@ func fetchColumnLinks(
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnLinkable, error) {
 	var (
-		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).ColumnLinks()
-		links   = make([]models.ColumnLinkable, 0)
+		builder = gs.Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			ContentTypes().
+			ByContentTypeId(cTypeID).
+			ColumnLinks()
+		links = make([]models.ColumnLinkable, 0)
 	)
 
 	for {
@@ -396,7 +410,7 @@ func DeleteList(
 	gs graph.Servicer,
 	siteID, listID string,
 ) error {
-	err := gs.Client().SitesById(siteID).ListsById(listID).Delete(ctx, nil)
+	err := gs.Client().Sites().BySiteId(siteID).Lists().ByListId(listID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting list")
 	}

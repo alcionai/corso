@@ -428,6 +428,7 @@ func ExampleBus_AddSkip() {
 	// error.  Our only option is to skip it.
 	errs.AddSkip(fault.FileSkip(
 		fault.SkipMalware,
+		"deduplication-namespace",
 		"file-id",
 		"file-name",
 		map[string]any{"foo": "bar"},

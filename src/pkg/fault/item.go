@@ -49,6 +49,12 @@ var (
 // by the end user (cli or sdk) for surfacing human-readable and
 // identifiable points of failure.
 type Item struct {
+	// deduplication namespace; the maximally-unique boundary of the
+	// item ID.  The scope of this boundary depends on the service.
+	// ex: exchange items are unique within their category, drive items
+	// are only unique within a given drive.
+	Namespace string `json:"namespace"`
+
 	// deduplication identifier; the ID of the observed item.
 	ID string `json:"id"`
 
@@ -70,6 +76,12 @@ type Item struct {
 	// only for information that might be immediately relevant to the
 	// end user.
 	Additional map[string]any `json:"additional"`
+}
+
+// dedupeID is the id used to deduplicate items when aggreagating
+// errors in fault.Errors().
+func (i *Item) dedupeID() string {
+	return i.Namespace + i.ID
 }
 
 // Error complies with the error interface.
@@ -111,23 +123,24 @@ func (i Item) Values() []string {
 }
 
 // ContainerErr produces a Container-type Item for tracking erroneous items
-func ContainerErr(cause error, id, name string, addtl map[string]any) *Item {
-	return itemErr(ContainerType, cause, id, name, addtl)
+func ContainerErr(cause error, namespace, id, name string, addtl map[string]any) *Item {
+	return itemErr(ContainerType, cause, namespace, id, name, addtl)
 }
 
 // FileErr produces a File-type Item for tracking erroneous items.
-func FileErr(cause error, id, name string, addtl map[string]any) *Item {
-	return itemErr(FileType, cause, id, name, addtl)
+func FileErr(cause error, namespace, id, name string, addtl map[string]any) *Item {
+	return itemErr(FileType, cause, namespace, id, name, addtl)
 }
 
 // OnwerErr produces a ResourceOwner-type Item for tracking erroneous items.
-func OwnerErr(cause error, id, name string, addtl map[string]any) *Item {
-	return itemErr(ResourceOwnerType, cause, id, name, addtl)
+func OwnerErr(cause error, namespace, id, name string, addtl map[string]any) *Item {
+	return itemErr(ResourceOwnerType, cause, namespace, id, name, addtl)
 }
 
 // itemErr produces a Item of the provided type for tracking erroneous items.
-func itemErr(t itemType, cause error, id, name string, addtl map[string]any) *Item {
+func itemErr(t itemType, cause error, namespace, id, name string, addtl map[string]any) *Item {
 	return &Item{
+		Namespace:  namespace,
 		ID:         id,
 		Name:       name,
 		Type:       t,
@@ -228,24 +241,25 @@ func (s Skipped) Values() []string {
 }
 
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
-func ContainerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return itemSkip(ContainerType, cause, id, name, addtl)
+func ContainerSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(ContainerType, cause, namespace, id, name, addtl)
 }
 
 // FileSkip produces a File-kind Item for tracking skipped items.
-func FileSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return itemSkip(FileType, cause, id, name, addtl)
+func FileSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(FileType, cause, namespace, id, name, addtl)
 }
 
 // OnwerSkip produces a ResourceOwner-kind Item for tracking skipped items.
-func OwnerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return itemSkip(ResourceOwnerType, cause, id, name, addtl)
+func OwnerSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(ResourceOwnerType, cause, namespace, id, name, addtl)
 }
 
 // itemSkip produces a Item of the provided type for tracking skipped items.
-func itemSkip(t itemType, cause skipCause, id, name string, addtl map[string]any) *Skipped {
+func itemSkip(t itemType, cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return &Skipped{
 		Item: Item{
+			Namespace:  namespace,
 			ID:         id,
 			Name:       name,
 			Type:       t,

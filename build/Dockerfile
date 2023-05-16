@@ -6,7 +6,7 @@ COPY src .
 ARG CORSO_BUILD_LDFLAGS=""
 RUN go build -o corso -ldflags "$CORSO_BUILD_LDFLAGS"
 
-FROM alpine:3.17
+FROM alpine:3
 
 LABEL org.opencontainers.image.title="Corso"
 LABEL org.opencontainers.image.description="Free, Secure, and Open-Source Backup for Microsoft 365"
