@@ -710,7 +710,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 				return item, nil
 			}
 
-			_, err := col.getDriveItemContent(ctx, item, errs)
+			_, err := col.getDriveItemContent(ctx, "driveID", item, errs)
 			if test.err == nil {
 				assert.NoError(t, err, clues.ToCore(err))
 				return
