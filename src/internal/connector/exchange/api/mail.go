@@ -440,6 +440,7 @@ func getMailDeltaBuilder(
 		MailFolders().ByMailFolderId(directoryID).
 		Messages().
 		Delta()
+
 	return builder
 }
 
