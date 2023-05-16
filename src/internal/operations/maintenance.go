@@ -74,9 +74,7 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 			})
 	}()
 
-	err = op.do(ctx)
-
-	return err
+	return op.do(ctx)
 }
 
 func (op *MaintenanceOperation) do(ctx context.Context) error {
