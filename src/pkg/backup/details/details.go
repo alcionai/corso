@@ -139,25 +139,36 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	printEntries(ctx, dm.Entries)
+}
+
+type infoer interface {
+	Entry | *Entry
+	// Need this here so we can access the infoType function without a type
+	// assertion. See https://stackoverflow.com/a/71378366 for more details.
+	infoType() ItemType
+}
+
+func printEntries[T infoer](ctx context.Context, entries []T) {
 	if print.DisplayJSONFormat() {
-		printJSON(ctx, dm)
+		printJSON(ctx, entries)
 	} else {
-		printTable(ctx, dm)
+		printTable(ctx, entries)
 	}
 }
 
-func printTable(ctx context.Context, dm DetailsModel) {
+func printTable[T infoer](ctx context.Context, entries []T) {
 	perType := map[ItemType][]print.Printable{}
 
-	for _, de := range dm.Entries {
-		it := de.infoType()
+	for _, ent := range entries {
+		it := ent.infoType()
 		ps, ok := perType[it]
 
 		if !ok {
 			ps = []print.Printable{}
 		}
 
-		perType[it] = append(ps, print.Printable(de))
+		perType[it] = append(ps, print.Printable(ent))
 	}
 
 	for _, ps := range perType {
@@ -165,10 +176,10 @@ func printTable(ctx context.Context, dm DetailsModel) {
 	}
 }
 
-func printJSON(ctx context.Context, dm DetailsModel) {
+func printJSON[T infoer](ctx context.Context, entries []T) {
 	ents := []print.Printable{}
 
-	for _, ent := range dm.Entries {
+	for _, ent := range entries {
 		ents = append(ents, print.Printable(ent))
 	}
 
@@ -194,7 +205,7 @@ func (dm DetailsModel) Paths() []string {
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
 // paths, and we want to slice out metadata.
-func (dm DetailsModel) Items() []*Entry {
+func (dm DetailsModel) Items() entrySet {
 	res := make([]*Entry, 0, len(dm.Entries))
 
 	for i := 0; i < len(dm.Entries); i++ {
@@ -226,11 +237,11 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 }
 
 // Check if a file is a metadata file. These are used to store
-// additional data like permissions in case of OneDrive and are not to
-// be treated as regular files.
+// additional data like permissions (in case of Drive items) and are
+// not to be treated as regular files.
 func (de Entry) isMetaFile() bool {
-	// TODO: Add meta file filtering to SharePoint as well once we add
-	// meta files for SharePoint.
+	// sharepoint types not needed, since sharepoint permissions were
+	// added after IsMeta was deprecated.
 	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
@@ -457,6 +468,13 @@ func withoutMetadataSuffix(id string) string {
 // Entry
 // --------------------------------------------------------------------------------
 
+// Add a new type so we can transparently use PrintAll in different situations.
+type entrySet []*Entry
+
+func (ents entrySet) PrintEntries(ctx context.Context) {
+	printEntries(ctx, ents)
+}
+
 // Entry describes a single item stored in a Backup
 type Entry struct {
 	// RepoRef is the full storage path of the item in Kopia
@@ -626,11 +644,9 @@ const (
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(newLocPath *path.Builder)
-
 	// Can't switch based on infoType because that's been unstable.
 	if item.Exchange != nil {
-		updatePath = item.Exchange.UpdateParentPath
+		item.Exchange.UpdateParentPath(newLocPath)
 	} else if item.SharePoint != nil {
 		// SharePoint used to store library items with the OneDriveItem ItemType.
 		// Start switching them over as we see them since there's no point in
@@ -639,14 +655,10 @@ func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 			item.SharePoint.ItemType = SharePointLibrary
 		}
 
-		updatePath = item.SharePoint.UpdateParentPath
+		item.SharePoint.UpdateParentPath(newLocPath)
 	} else if item.OneDrive != nil {
-		updatePath = item.OneDrive.UpdateParentPath
-	} else {
-		return
+		item.OneDrive.UpdateParentPath(newLocPath)
 	}
-
-	updatePath(newLocPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -872,7 +884,7 @@ type SharePointInfo struct {
 	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `josn:"modified,omitempty"`
+	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`

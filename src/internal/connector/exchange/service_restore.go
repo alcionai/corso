@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"reflect"
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
@@ -74,7 +73,13 @@ func RestoreExchangeContact(
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
-	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
+	response, err := service.Client().
+		Users().
+		ByUserId(user).
+		ContactFolders().
+		ByContactFolderId(destination).
+		Contacts().
+		Post(ctx, contact, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "uploading Contact")
 	}
@@ -122,7 +127,13 @@ func RestoreExchangeEvent(
 		transformedEvent.SetAttachments([]models.Attachmentable{})
 	}
 
-	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
+	response, err := service.Client().
+		Users().
+		ByUserId(user).
+		Calendars().
+		ByCalendarId(destination).
+		Events().
+		Post(ctx, transformedEvent, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "uploading event")
 	}
@@ -223,10 +234,19 @@ func RestoreMailMessage(
 	return info, nil
 }
 
-// attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
-// TODO: Revisit how we retrieve/persist attachment content during backup so this is not needed
-func attachmentBytes(attachment models.Attachmentable) []byte {
-	return reflect.Indirect(reflect.ValueOf(attachment)).FieldByName("contentBytes").Bytes()
+// GetAttachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
+func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
+	bi, err := attachment.GetBackingStore().Get("contentBytes")
+	if err != nil {
+		return nil, err
+	}
+
+	bts, ok := bi.([]byte)
+	if !ok {
+		return nil, clues.New(fmt.Sprintf("unexpected type for attachment content: %T", bi))
+	}
+
+	return bts, nil
 }
 
 // SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
@@ -245,7 +265,13 @@ func SendMailToBackStore(
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	message.SetAttachments([]models.Attachmentable{})
 
-	response, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
+	response, err := service.Client().
+		Users().
+		ByUserId(user).
+		MailFolders().
+		ByMailFolderId(destination).
+		Messages().
+		Post(ctx, message, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "restoring mail")
 	}

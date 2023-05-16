@@ -23,6 +23,7 @@ type addedAndRemovedItemIDsGetter interface {
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
 		immutableIDs bool,
+		canMakeDeltaQueries bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -85,8 +86,8 @@ func filterContainersAndFillCollections(
 
 		var (
 			dp          = dps[cID]
-			prevDelta   = dp.delta
-			prevPathStr = dp.path // do not log: pii; log prevPath instead
+			prevDelta   = dp.Delta
+			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
@@ -119,7 +120,8 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner.ID(),
 			cID,
 			prevDelta,
-			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs)
+			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+			!ctrlOpts.ToggleFeatures.DisableDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -243,7 +245,7 @@ func makeTombstones(dps DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
-		r[id] = v.path
+		r[id] = v.Path
 	}
 
 	return r

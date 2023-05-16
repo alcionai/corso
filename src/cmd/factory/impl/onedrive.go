@@ -7,20 +7,21 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var filesCmd = &cobra.Command{
+var odFilesCmd = &cobra.Command{
 	Use:   "files",
 	Short: "Generate OneDrive files",
 	RunE:  handleOneDriveFileFactory,
 }
 
 func AddOneDriveCommands(cmd *cobra.Command) {
-	cmd.AddCommand(filesCmd)
+	cmd.AddCommand(odFilesCmd)
 }
 
 func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
@@ -35,20 +36,23 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, inp, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, inp, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	deets, err := generateAndRestoreOnedriveItems(
+	sel := selectors.NewOneDriveBackup([]string{User}).Selector
+	sel.SetDiscreteOwnerIDName(inp.ID(), inp.Name())
+
+	deets, err := generateAndRestoreDriveItems(
 		gc,
-		User,
 		inp.ID(),
+		SecondaryUser,
 		strings.ToLower(SecondaryUser),
 		acct,
 		service,
 		category,
-		selectors.NewOneDriveBackup([]string{User}).Selector,
+		sel,
 		Tenant,
 		Destination,
 		Count,

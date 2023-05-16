@@ -62,6 +62,9 @@ func (suite *ConcurrencyLimiterUnitTestSuite) TestConcurrencyLimiter() {
 
 			resp, err := client.Get(ts.URL)
 			require.NoError(t, err)
+
+			defer resp.Body.Close()
+
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 		}()
 	}

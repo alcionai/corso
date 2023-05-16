@@ -318,6 +318,7 @@ func (i *Item) ModTime() time.Time      { return i.info.Modified() }
 // getDriveItemContent fetch drive item's contents with retries
 func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
+	driveID string,
 	item models.DriveItemable,
 	errs *fault.Bus,
 ) (io.ReadCloser, error) {
@@ -338,14 +339,14 @@ func (oc *Collection) getDriveItemContent(
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
-			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
+			el.AddSkip(fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
-			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
+			el.AddSkip(fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
@@ -360,7 +361,7 @@ func (oc *Collection) getDriveItemContent(
 			// restore, or we have to handle it separately by somehow
 			// deleting the entire collection.
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
-			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
+			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
@@ -478,7 +479,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			ctx = clues.Add(
 				ctx,
 				"item_id", itemID,
-				"item_name", itemName,
+				"item_name", clues.Hide(itemName),
 				"item_size", itemSize)
 
 			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
@@ -528,7 +529,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				// attempts to read bytes.  Assumption is that kopia will check things
 				// like file modtimes before attempting to read.
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					itemData, err := oc.getDriveItemContent(ctx, item, errs)
+					itemData, err := oc.getDriveItemContent(ctx, oc.driveID, item, errs)
 					if err != nil {
 						return nil, err
 					}

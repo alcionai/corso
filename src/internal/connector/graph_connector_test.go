@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/exp/maps"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
@@ -407,66 +406,30 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 // Exchange Functions
 //-------------------------------------------------------------
 
-func getCollectionsAndExpected(
-	t *testing.T,
-	config configInfo,
-	testCollections []colInfo,
-	backupVersion int,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
-	t.Helper()
-
-	var (
-		collections     []data.RestoreCollection
-		expectedData    = map[string]map[string][]byte{}
-		totalItems      = 0
-		totalKopiaItems = 0
-	)
-
-	for _, owner := range config.resourceOwners {
-		numItems, kopiaItems, ownerCollections, userExpectedData := collectionsForInfo(
-			t,
-			config.service,
-			config.tenant,
-			owner,
-			config.dest,
-			testCollections,
-			backupVersion,
-		)
-
-		collections = append(collections, ownerCollections...)
-		totalItems += numItems
-		totalKopiaItems += kopiaItems
-
-		maps.Copy(expectedData, userExpectedData)
-	}
-
-	return totalItems, totalKopiaItems, collections, expectedData
-}
-
 func runRestore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config configInfo,
+	config ConfigInfo,
 	backupVersion int,
 	collections []data.RestoreCollection,
 	numRestoreItems int,
 ) {
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
-		config.dest.ContainerName,
-		config.resourceOwners)
+		config.Dest.ContainerName,
+		config.ResourceOwners)
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, config.resource)
-	restoreSel := getSelectorWith(t, config.service, config.resourceOwners, true)
+	restoreGC := loadConnector(ctx, t, config.Resource)
+	restoreSel := getSelectorWith(t, config.Service, config.ResourceOwners, true)
 	deets, err := restoreGC.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
-		config.acct,
+		config.Acct,
 		restoreSel,
-		config.dest,
-		config.opts,
+		config.Dest,
+		config.Opts,
 		collections,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -490,30 +453,30 @@ func runRestore(
 func runBackupAndCompare(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config configInfo,
+	config ConfigInfo,
 	expectedData map[string]map[string][]byte,
 	totalItems int,
 	totalKopiaItems int,
-	inputCollections []colInfo,
+	inputCollections []ColInfo,
 ) {
 	t.Helper()
 
 	// Run a backup and compare its output with what we put in.
 	cats := make(map[path.CategoryType]struct{}, len(inputCollections))
 	for _, c := range inputCollections {
-		cats[c.category] = struct{}{}
+		cats[c.Category] = struct{}{}
 	}
 
 	var (
-		expectedDests = make([]destAndCats, 0, len(config.resourceOwners))
+		expectedDests = make([]destAndCats, 0, len(config.ResourceOwners))
 		idToName      = map[string]string{}
 		nameToID      = map[string]string{}
 	)
 
-	for _, ro := range config.resourceOwners {
+	for _, ro := range config.ResourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
-			dest:          config.dest.ContainerName,
+			dest:          config.Dest.ContainerName,
 			cats:          cats,
 		})
 
@@ -521,10 +484,10 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupGC := loadConnector(ctx, t, config.resource)
+	backupGC := loadConnector(ctx, t, config.Resource)
 	backupGC.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
-	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
+	backupSel := backupSelectorForExpected(t, config.Service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
@@ -534,7 +497,7 @@ func runBackupAndCompare(
 		backupSel,
 		nil,
 		version.NoBackup,
-		config.opts,
+		config.Opts,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	// No excludes yet because this isn't an incremental backup.
@@ -550,8 +513,7 @@ func runBackupAndCompare(
 		totalKopiaItems,
 		expectedData,
 		dcs,
-		config.dest,
-		config.opts.RestorePermissions)
+		config)
 
 	status := backupGC.Wait()
 
@@ -572,21 +534,22 @@ func runRestoreBackupTest(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	config := configInfo{
-		acct:           acct,
-		opts:           opts,
-		resource:       test.resource,
-		service:        test.service,
-		tenant:         tenant,
-		resourceOwners: resourceOwners,
-		dest:           tester.DefaultTestRestoreDestination(""),
+	config := ConfigInfo{
+		Acct:           acct,
+		Opts:           opts,
+		Resource:       test.resource,
+		Service:        test.service,
+		Tenant:         tenant,
+		ResourceOwners: resourceOwners,
+		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	totalItems, totalKopiaItems, collections, expectedData := getCollectionsAndExpected(
-		t,
+	totalItems, totalKopiaItems, collections, expectedData, err := GetCollectionsAndExpected(
 		config,
 		test.collections,
 		version.Backup)
+
+	require.NoError(t, err)
 
 	runRestore(
 		t,
@@ -618,21 +581,21 @@ func runRestoreTestWithVerion(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	config := configInfo{
-		acct:           acct,
-		opts:           opts,
-		resource:       test.resource,
-		service:        test.service,
-		tenant:         tenant,
-		resourceOwners: resourceOwners,
-		dest:           tester.DefaultTestRestoreDestination(""),
+	config := ConfigInfo{
+		Acct:           acct,
+		Opts:           opts,
+		Resource:       test.resource,
+		Service:        test.service,
+		Tenant:         tenant,
+		ResourceOwners: resourceOwners,
+		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	totalItems, _, collections, _ := getCollectionsAndExpected(
-		t,
+	totalItems, _, collections, _, err := GetCollectionsAndExpected(
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
+	require.NoError(t, err)
 
 	runRestore(
 		t,
@@ -657,21 +620,21 @@ func runRestoreBackupTestVersions(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	config := configInfo{
-		acct:           acct,
-		opts:           opts,
-		resource:       test.resource,
-		service:        test.service,
-		tenant:         tenant,
-		resourceOwners: resourceOwners,
-		dest:           tester.DefaultTestRestoreDestination(""),
+	config := ConfigInfo{
+		Acct:           acct,
+		Opts:           opts,
+		Resource:       test.resource,
+		Service:        test.service,
+		Tenant:         tenant,
+		ResourceOwners: resourceOwners,
+		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	totalItems, _, collections, _ := getCollectionsAndExpected(
-		t,
+	totalItems, _, collections, _, err := GetCollectionsAndExpected(
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
+	require.NoError(t, err)
 
 	runRestore(
 		t,
@@ -682,11 +645,11 @@ func runRestoreBackupTestVersions(
 		totalItems)
 
 	// Get expected output for new version.
-	totalItems, totalKopiaItems, _, expectedData := getCollectionsAndExpected(
-		t,
+	totalItems, totalKopiaItems, _, expectedData, err := GetCollectionsAndExpected(
 		config,
 		test.collectionsLatest,
 		version.Backup)
+	require.NoError(t, err)
 
 	runBackupAndCompare(
 		t,
@@ -707,11 +670,11 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			name:     "EmailsWithAttachments",
 			service:  path.ExchangeService,
 			resource: Users,
-			collections: []colInfo{
+			collections: []ColInfo{
 				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
+					PathElements: []string{"Inbox"},
+					Category:     path.EmailCategory,
+					Items: []ItemInfo{
 						{
 							name: "someencodeditemID",
 							data: exchMock.MessageWithDirectAttachment(
@@ -734,11 +697,11 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			name:     "MultipleEmailsMultipleFolders",
 			service:  path.ExchangeService,
 			resource: Users,
-			collections: []colInfo{
+			collections: []ColInfo{
 				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
+					PathElements: []string{"Inbox"},
+					Category:     path.EmailCategory,
+					Items: []ItemInfo{
 						{
 							name: "someencodeditemID",
 							data: exchMock.MessageWithBodyBytes(
@@ -751,9 +714,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					pathElements: []string{"Work"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
+					PathElements: []string{"Work"},
+					Category:     path.EmailCategory,
+					Items: []ItemInfo{
 						{
 							name: "someencodeditemID2",
 							data: exchMock.MessageWithBodyBytes(
@@ -775,9 +738,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					pathElements: []string{"Work", "Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
+					PathElements: []string{"Work", "Inbox"},
+					Category:     path.EmailCategory,
+					Items: []ItemInfo{
 						{
 							name: "someencodeditemID4",
 							data: exchMock.MessageWithBodyBytes(
@@ -790,9 +753,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					pathElements: []string{"Work", "Inbox", "Work"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
+					PathElements: []string{"Work", "Inbox", "Work"},
+					Category:     path.EmailCategory,
+					Items: []ItemInfo{
 						{
 							name: "someencodeditemID5",
 							data: exchMock.MessageWithBodyBytes(
@@ -810,11 +773,11 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			name:     "MultipleContactsSingleFolder",
 			service:  path.ExchangeService,
 			resource: Users,
-			collections: []colInfo{
+			collections: []ColInfo{
 				{
-					pathElements: []string{"Contacts"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
+					PathElements: []string{"Contacts"},
+					Category:     path.ContactsCategory,
+					Items: []ItemInfo{
 						{
 							name:      "someencodeditemID",
 							data:      exchMock.ContactBytes("Ghimley"),
@@ -838,11 +801,11 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			name:     "MultipleContactsMultipleFolders",
 			service:  path.ExchangeService,
 			resource: Users,
-			collections: []colInfo{
+			collections: []ColInfo{
 				{
-					pathElements: []string{"Work"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
+					PathElements: []string{"Work"},
+					Category:     path.ContactsCategory,
+					Items: []ItemInfo{
 						{
 							name:      "someencodeditemID",
 							data:      exchMock.ContactBytes("Ghimley"),
@@ -861,9 +824,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					pathElements: []string{"Personal"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
+					PathElements: []string{"Personal"},
+					Category:     path.ContactsCategory,
+					Items: []ItemInfo{
 						{
 							name:      "someencodeditemID4",
 							data:      exchMock.ContactBytes("Argon"),
@@ -973,11 +936,11 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			name:     "Contacts",
 			service:  path.ExchangeService,
 			resource: Users,
-			collections: []colInfo{
+			collections: []ColInfo{
 				{
-					pathElements: []string{"Work"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
+					PathElements: []string{"Work"},
+					Category:     path.ContactsCategory,
+					Items: []ItemInfo{
 						{
 							name:      "someencodeditemID",
 							data:      exchMock.ContactBytes("Ghimley"),
@@ -986,9 +949,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				},
 				{
-					pathElements: []string{"Personal"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
+					PathElements: []string{"Personal"},
+					Category:     path.ContactsCategory,
+					Items: []ItemInfo{
 						{
 							name:      "someencodeditemID2",
 							data:      exchMock.ContactBytes("Irgot"),
@@ -1014,9 +977,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		// 			},
 		// 		},
 		// 		{
-		// 			pathElements: []string{"Personal"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Personal"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []ItemInfo{
 		// 				{
 		// 					name:      "someencodeditemID2",
 		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
@@ -1047,19 +1010,20 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					resourceOwner: suite.user,
 					dest:          dest.ContainerName,
 					cats: map[path.CategoryType]struct{}{
-						collection.category: {},
+						collection.Category: {},
 					},
 				})
 
-				totalItems, _, collections, expectedData := collectionsForInfo(
-					t,
+				totalItems, _, collections, expectedData, err := collectionsForInfo(
 					test.service,
 					suite.connector.tenant,
 					suite.user,
 					dest,
-					[]colInfo{collection},
+					[]ColInfo{collection},
 					version.Backup,
 				)
+				require.NoError(t, err)
+
 				allItems += totalItems
 
 				for k, v := range expectedData {
@@ -1125,17 +1089,15 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			t.Log("Backup enumeration complete")
 
+			ci := ConfigInfo{
+				Opts: control.Options{RestorePermissions: true},
+				// Alright to be empty, needed for OneDrive.
+				Dest: control.RestoreDestination{},
+			}
+
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			skipped := checkCollections(
-				t,
-				ctx,
-				allItems,
-				allExpectedData,
-				dcs,
-				// Alright to be empty, needed for OneDrive.
-				control.RestoreDestination{},
-				true)
+			skipped := checkCollections(t, ctx, allItems, allExpectedData, dcs, ci)
 
 			status := backupGC.Wait()
 			assert.Equal(t, allItems+skipped, status.Objects, "status.Objects")
@@ -1153,11 +1115,11 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 		name:     "EmailsWithLargeAttachments",
 		service:  path.ExchangeService,
 		resource: Users,
-		collections: []colInfo{
+		collections: []ColInfo{
 			{
-				pathElements: []string{"Inbox"},
-				category:     path.EmailCategory,
-				items: []itemInfo{
+				PathElements: []string{"Inbox"},
+				Category:     path.EmailCategory,
+				Items: []ItemInfo{
 					{
 						name:      "35mbAttachment",
 						data:      exchMock.MessageWithSizedAttachment(subjectText, 35),
