@@ -13,6 +13,17 @@ const (
 	SharingModeInherited
 )
 
+type GV2Type string
+
+const (
+	GV2App       GV2Type = "application"
+	GV2Device    GV2Type = "device"
+	GV2Group     GV2Type = "group"
+	GV2SiteUser  GV2Type = "site_user"
+	GV2SiteGroup GV2Type = "site_group"
+	GV2User      GV2Type = "user"
+)
+
 // FilePermission is used to store permissions of a specific resource owner
 // to a drive item.
 type Permission struct {
@@ -20,6 +31,7 @@ type Permission struct {
 	Roles      []string   `json:"role,omitempty"`
 	Email      string     `json:"email,omitempty"`    // DEPRECATED: Replaced with EntityID in newer backups
 	EntityID   string     `json:"entityId,omitempty"` // this is the resource owner's ID
+	EntityType GV2Type    `json:"entityType,omitempty"`
 	Expiration *time.Time `json:"expiration,omitempty"`
 }
 

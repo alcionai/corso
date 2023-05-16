@@ -51,6 +51,8 @@ func (suite *FiltersSuite) TestEquals() {
 		expectNF assert.BoolAssertionFunc
 	}{
 		{"foo", assert.True, assert.False},
+		{"FOO", assert.True, assert.False},
+		{" foo ", assert.True, assert.False},
 		{"bar", assert.False, assert.True},
 	}
 	for _, test := range table {
@@ -82,6 +84,30 @@ func (suite *FiltersSuite) TestEquals_any() {
 
 			test.expectF(t, f.CompareAny(test.input...), "filter")
 			test.expectNF(t, nf.CompareAny(test.input...), "negated filter")
+		})
+	}
+}
+
+func (suite *FiltersSuite) TestStrictEquals() {
+	f := filters.StrictEqual(foo)
+	nf := filters.NotStrictEqual(foo)
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"foo", assert.True, assert.False},
+		{"FOO", assert.False, assert.True},
+		{" foo ", assert.False, assert.True},
+		{"bar", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
 	}
 }
@@ -143,6 +169,7 @@ func (suite *FiltersSuite) TestContains() {
 	}{
 		{"murf", assert.True, assert.False},
 		{"frum", assert.False, assert.True},
+		{"ssmurfss", assert.False, assert.True},
 	}
 	for _, test := range table {
 		suite.Run(test.input, func() {
@@ -300,77 +327,134 @@ func (suite *FiltersSuite) TestSuffixes() {
 	}
 }
 
-func (suite *FiltersSuite) TestPathPrefix() {
-	table := []struct {
-		name     string
-		targets  []string
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"Exact - same case", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - different case", []string{"fa"}, "/fA", assert.True, assert.False},
-		{"Prefix - same case", []string{"fA"}, "/fA/fB", assert.True, assert.False},
-		{"Prefix - different case", []string{"fa"}, "/fA/fB", assert.True, assert.False},
-		{"Exact - multiple folders", []string{"fA/fB"}, "/fA/fB", assert.True, assert.False},
-		{"Prefix - single folder partial", []string{"f"}, "/fA/fB", assert.False, assert.True},
-		{"Prefix - multi folder partial", []string{"fA/f"}, "/fA/fB", assert.False, assert.True},
-		{"Target Longer - single folder", []string{"fA"}, "/f", assert.False, assert.True},
-		{"Target Longer - multi folder", []string{"fA/fB"}, "/fA/f", assert.False, assert.True},
-		{"Not prefix - single folder", []string{"fA"}, "/af", assert.False, assert.True},
-		{"Not prefix - multi folder", []string{"fA/fB"}, "/fA/bf", assert.False, assert.True},
-		{"Exact - target variations - none", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - prefix", []string{"/fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - suffix", []string{"fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - both", []string{"/fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - none", []string{"fA"}, "fA", assert.True, assert.False},
-		{"Exact - input variations - prefix", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - suffix", []string{"fA"}, "fA/", assert.True, assert.False},
-		{"Exact - input variations - both", []string{"fA"}, "/fA/", assert.True, assert.False},
-		{"Prefix - target variations - none", []string{"fA"}, "/fA/fb", assert.True, assert.False},
-		{"Prefix - target variations - prefix", []string{"/fA"}, "/fA/fb", assert.True, assert.False},
-		{"Prefix - target variations - suffix", []string{"fA/"}, "/fA/fb", assert.True, assert.False},
-		{"Prefix - target variations - both", []string{"/fA/"}, "/fA/fb", assert.True, assert.False},
-		{"Prefix - input variations - none", []string{"fA"}, "fA/fb", assert.True, assert.False},
-		{"Prefix - input variations - prefix", []string{"fA"}, "/fA/fb", assert.True, assert.False},
-		{"Prefix - input variations - suffix", []string{"fA"}, "fA/fb/", assert.True, assert.False},
-		{"Prefix - input variations - both", []string{"fA"}, "/fA/fb/", assert.True, assert.False},
-		{"Slice - one matches", []string{"foo", "fa/f", "fA"}, "/fA/fb", assert.True, assert.False},
-		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
+// ---------------------------------------------------------------------------
+// path comparators
+// ---------------------------------------------------------------------------
+
+var pathElemNormalizationTable = []struct {
+	name    string
+	targets []string
+	expect  []string
+}{
+	{"Single - no slash", []string{"fA"}, []string{"/fa/"}},
+	{"Single - pre slash", []string{"/fA"}, []string{"/fa/"}},
+	{"Single - suff slash", []string{"fA/"}, []string{"/fa/"}},
+	{"Single - both slashes", []string{"/fA/"}, []string{"/fa/"}},
+	{"Multipath - no slash", []string{"fA/fB"}, []string{"/fa/fb/"}},
+	{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fa/fb/"}},
+	{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fa/fb/"}},
+	{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fa/fb/"}},
+	{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fa/", "/fb/"}},
+	{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fa/", "/fb/"}},
+	{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fa/", "/fb/"}},
+	{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fa/", "/fb/"}},
+}
+
+type baf struct {
+	fn  assert.BoolAssertionFunc
+	yes bool
+}
+
+var (
+	yes = baf{
+		fn:  assert.True,
+		yes: true,
 	}
-	for _, test := range table {
+	no = baf{
+		fn:  assert.False,
+		yes: false,
+	}
+)
+
+var pathComparisonsTable = []struct {
+	name           string
+	targets        []string
+	input          string
+	expectContains baf
+	expectEquals   baf
+	expectPrefix   baf
+	expectSuffix   baf
+}{
+	{"single folder partial", []string{"f"}, "/fA", no, no, no, no},
+	{"single folder target partial", []string{"f"}, "/fA/fB", no, no, no, no},
+	{"multi folder input partial", []string{"A/f"}, "/fA/fB", no, no, no, no},
+	{"longer target - single folder", []string{"fA"}, "/f", no, no, no, no},
+	{"longer target - multi folder", []string{"fA/fB"}, "/fA/f", no, no, no, no},
+	{"non-matching - single folder", []string{"fA"}, "/af", no, no, no, no},
+	{"non-matching - multi folder", []string{"fA/fB"}, "/fA/bf", no, no, no, no},
+
+	{"Exact - same case", []string{"fA"}, "/fA", yes, yes, yes, yes},
+	{"Exact - different case", []string{"fa"}, "/fA", yes, yes, yes, yes},
+	{"Exact - multiple folders", []string{"fA/fB"}, "/fA/fB", yes, yes, yes, yes},
+	{"Exact - target slash variations - prefix", []string{"/fA"}, "/fA", yes, yes, yes, yes},
+	{"Exact - target slash variations - suffix", []string{"fA/"}, "/fA", yes, yes, yes, yes},
+	{"Exact - target slash variations - both", []string{"/fA/"}, "/fA", yes, yes, yes, yes},
+	{"Exact - input slash variations - none", []string{"fA"}, "fA", yes, yes, yes, yes},
+	{"Exact - input slash variations - prefix", []string{"fA"}, "/fA", yes, yes, yes, yes},
+	{"Exact - input slash variations - suffix", []string{"fA"}, "fA/", yes, yes, yes, yes},
+	{"Exact - input slash variations - both", []string{"fA"}, "/fA/", yes, yes, yes, yes},
+
+	{"Prefix - same case", []string{"fA"}, "/fA/fB", yes, no, yes, no},
+	{"Prefix - different case", []string{"fa"}, "/fA/fB", yes, no, yes, no},
+	{"Prefix - multiple folders", []string{"fa/fb"}, "/fA/fB/fC", yes, no, yes, no},
+	{"Prefix - target slash variations - none", []string{"fA"}, "/fA/fb", yes, no, yes, no},
+	{"Prefix - target slash variations - prefix", []string{"/fA"}, "/fA/fb", yes, no, yes, no},
+	{"Prefix - target slash variations - suffix", []string{"fA/"}, "/fA/fb", yes, no, yes, no},
+	{"Prefix - target slash variations - both", []string{"/fA/"}, "/fA/fb", yes, no, yes, no},
+	{"Prefix - input slash variations - none", []string{"fA"}, "fA/fb", yes, no, yes, no},
+	{"Prefix - input slash variations - prefix", []string{"fA"}, "/fA/fb", yes, no, yes, no},
+	{"Prefix - input slash variations - suffix", []string{"fA"}, "fA/fb/", yes, no, yes, no},
+	{"Prefix - input slash variations - both", []string{"fA"}, "/fA/fb/", yes, no, yes, no},
+
+	{"Suffix - same case", []string{"fB"}, "/fA/fB", yes, no, no, yes},
+	{"Suffix - different case", []string{"fb"}, "/fA/fB", yes, no, no, yes},
+	{"Suffix - multiple folders", []string{"fb/fc"}, "/fA/fB/fC", yes, no, no, yes},
+	{"Suffix - target slash variations - none", []string{"fB"}, "/fA/fb", yes, no, no, yes},
+	{"Suffix - target slash variations - prefix", []string{"/fB"}, "/fA/fb", yes, no, no, yes},
+	{"Suffix - target slash variations - suffix", []string{"fB/"}, "/fA/fb", yes, no, no, yes},
+	{"Suffix - target slash variations - both", []string{"/fB/"}, "/fA/fb", yes, no, no, yes},
+	{"Suffix - input slash variations - none", []string{"fB"}, "fA/fb", yes, no, no, yes},
+	{"Suffix - input slash variations - prefix", []string{"fB"}, "/fA/fb", yes, no, no, yes},
+	{"Suffix - input slash variations - suffix", []string{"fB"}, "fA/fb/", yes, no, no, yes},
+	{"Suffix - input slash variations - both", []string{"fB"}, "/fA/fb/", yes, no, no, yes},
+
+	{"Contains - same case", []string{"fB"}, "/fA/fB/fC", yes, no, no, no},
+	{"Contains - different case", []string{"fb"}, "/fA/fB/fC", yes, no, no, no},
+	{"Contains - multiple folders", []string{"fb/fc"}, "/fA/fB/fC/fD", yes, no, no, no},
+	{"Contains - target slash variations - none", []string{"fB"}, "/fA/fb/fc", yes, no, no, no},
+	{"Contains - target slash variations - prefix", []string{"/fB"}, "/fA/fb/fc", yes, no, no, no},
+	{"Contains - target slash variations - suffix", []string{"fB/"}, "/fA/fb/fc", yes, no, no, no},
+	{"Contains - target slash variations - both", []string{"/fB/"}, "/fA/fb/fc", yes, no, no, no},
+	{"Contains - input slash variations - none", []string{"fB"}, "fA/fb/fc", yes, no, no, no},
+	{"Contains - input slash variations - prefix", []string{"fB"}, "/fA/fb/fc/", yes, no, no, no},
+	{"Contains - input slash variations - suffix", []string{"fB"}, "fA/fb/fc/", yes, no, no, no},
+	{"Contains - input slash variations - both", []string{"fB"}, "/fA/fb/fc/", yes, no, no, no},
+
+	{"Slice - one exact matches", []string{"foo", "fa/f", "fA"}, "/fA", yes, yes, yes, yes},
+	{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA", no, no, no, no},
+}
+
+func (suite *FiltersSuite) TestPathPrefix() {
+	for _, test := range pathComparisonsTable {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			var (
+				t  = suite.T()
+				f  = filters.PathPrefix(test.targets)
+				nf = filters.NotPathPrefix(test.targets)
+			)
 
-			f := filters.PathPrefix(test.targets)
-			nf := filters.NotPathPrefix(test.targets)
-
-			test.expectF(t, f.Compare(test.input), "filter")
-			test.expectNF(t, nf.Compare(test.input), "negated filter")
+			test.expectPrefix.fn(t, f.Compare(test.input), "filter")
+			if test.expectPrefix.yes {
+				no.fn(t, nf.Compare(test.input), "negated filter")
+			} else {
+				yes.fn(t, nf.Compare(test.input), "negated filter")
+			}
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestPathPrefix_NormalizedTargets() {
-	table := []struct {
-		name    string
-		targets []string
-		expect  []string
-	}{
-		{"Single - no slash", []string{"fA"}, []string{"/fA/"}},
-		{"Single - pre slash", []string{"/fA"}, []string{"/fA/"}},
-		{"Single - suff slash", []string{"fA/"}, []string{"/fA/"}},
-		{"Single - both slashes", []string{"/fA/"}, []string{"/fA/"}},
-		{"Multipath - no slash", []string{"fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
-	}
-	for _, test := range table {
+	for _, test := range pathElemNormalizationTable {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
@@ -381,79 +465,26 @@ func (suite *FiltersSuite) TestPathPrefix_NormalizedTargets() {
 }
 
 func (suite *FiltersSuite) TestPathContains() {
-	table := []struct {
-		name     string
-		targets  []string
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"Exact - same case", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - different case", []string{"fa"}, "/fA", assert.True, assert.False},
-		{"Cont - same case single target", []string{"fA"}, "/Z/fA/B", assert.True, assert.False},
-		{"Cont - different case single target", []string{"fA"}, "/z/fa/b", assert.True, assert.False},
-		{"Cont - same case multi target", []string{"Z/fA"}, "/Z/fA/B", assert.True, assert.False},
-		{"Cont - different case multi target", []string{"fA/B"}, "/z/fa/b", assert.True, assert.False},
-		{"Exact - multiple folders", []string{"Z/fA/B"}, "/Z/fA/B", assert.True, assert.False},
-		{"Cont - single folder partial", []string{"folder"}, "/Z/fA/fB", assert.False, assert.True},
-		{"Cont - multi folder partial", []string{"fA/fold"}, "/Z/fA/fB", assert.False, assert.True},
-		{"Target Longer - single folder", []string{"fA"}, "/folder", assert.False, assert.True},
-		{"Target Longer - multi folder", []string{"fA/fB"}, "/fA/fold", assert.False, assert.True},
-		{"Not cont - single folder", []string{"fA"}, "/afolder", assert.False, assert.True},
-		{"Not cont - single target", []string{"fA"}, "/z/afolder/bfolder", assert.False, assert.True},
-		{"Not cont - multi folder", []string{"fA/fB"}, "/z/fA/bfolder", assert.False, assert.True},
-		{"Exact - target variations - none", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - prefix", []string{"/fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - suffix", []string{"fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - both", []string{"/fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - none", []string{"fA"}, "fA", assert.True, assert.False},
-		{"Exact - input variations - prefix", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - suffix", []string{"fA"}, "fA/", assert.True, assert.False},
-		{"Exact - input variations - both", []string{"fA"}, "/fA/", assert.True, assert.False},
-		{"Cont - target variations - none", []string{"fA"}, "/fA/fb", assert.True, assert.False},
-		{"Cont - target variations - prefix", []string{"/fA"}, "/fA/fb", assert.True, assert.False},
-		{"Cont - target variations - suffix", []string{"fA/"}, "/fA/fb", assert.True, assert.False},
-		{"Cont - target variations - both", []string{"/fA/"}, "/fA/fb", assert.True, assert.False},
-		{"Cont - input variations - none", []string{"fA"}, "fA/fb", assert.True, assert.False},
-		{"Cont - input variations - prefix", []string{"fA"}, "/fA/fb", assert.True, assert.False},
-		{"Cont - input variations - suffix", []string{"fA"}, "fA/fb/", assert.True, assert.False},
-		{"Cont - input variations - both", []string{"fA"}, "/fA/fb/", assert.True, assert.False},
-		{"Slice - one matches", []string{"foo", "fa/f", "fA"}, "/fA/fb", assert.True, assert.False},
-		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
-	}
-	for _, test := range table {
+	for _, test := range pathComparisonsTable {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			var (
+				t  = suite.T()
+				f  = filters.PathContains(test.targets)
+				nf = filters.NotPathContains(test.targets)
+			)
 
-			f := filters.PathContains(test.targets)
-			nf := filters.NotPathContains(test.targets)
-
-			test.expectF(t, f.Compare(test.input), "filter")
-			test.expectNF(t, nf.Compare(test.input), "negated filter")
+			test.expectContains.fn(t, f.Compare(test.input), "filter")
+			if test.expectContains.yes {
+				no.fn(t, nf.Compare(test.input), "negated filter")
+			} else {
+				yes.fn(t, nf.Compare(test.input), "negated filter")
+			}
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestPathContains_NormalizedTargets() {
-	table := []struct {
-		name    string
-		targets []string
-		expect  []string
-	}{
-		{"Single - no slash", []string{"fA"}, []string{"/fA/"}},
-		{"Single - pre slash", []string{"/fA"}, []string{"/fA/"}},
-		{"Single - suff slash", []string{"fA/"}, []string{"/fA/"}},
-		{"Single - both slashes", []string{"/fA/"}, []string{"/fA/"}},
-		{"Multipath - no slash", []string{"fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
-	}
-	for _, test := range table {
+	for _, test := range pathElemNormalizationTable {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
@@ -464,76 +495,26 @@ func (suite *FiltersSuite) TestPathContains_NormalizedTargets() {
 }
 
 func (suite *FiltersSuite) TestPathSuffix() {
-	table := []struct {
-		name     string
-		targets  []string
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"Exact - same case", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - different case", []string{"fa"}, "/fA", assert.True, assert.False},
-		{"Suffix - same case", []string{"fB"}, "/fA/fB", assert.True, assert.False},
-		{"Suffix - different case", []string{"fb"}, "/fA/fB", assert.True, assert.False},
-		{"Exact - multiple folders", []string{"fA/fB"}, "/fA/fB", assert.True, assert.False},
-		{"Suffix - single folder partial", []string{"f"}, "/fA/fB", assert.False, assert.True},
-		{"Suffix - multi folder partial", []string{"A/fB"}, "/fA/fB", assert.False, assert.True},
-		{"Target Longer - single folder", []string{"fA"}, "/f", assert.False, assert.True},
-		{"Target Longer - multi folder", []string{"fA/fB"}, "/fA/f", assert.False, assert.True},
-		{"Not suffix - single folder", []string{"fA"}, "/af", assert.False, assert.True},
-		{"Not suffix - multi folder", []string{"fA/fB"}, "/Af/fB", assert.False, assert.True},
-		{"Exact - target variations - none", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - prefix", []string{"/fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - suffix", []string{"fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - both", []string{"/fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - none", []string{"fA"}, "fA", assert.True, assert.False},
-		{"Exact - input variations - prefix", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - suffix", []string{"fA"}, "fA/", assert.True, assert.False},
-		{"Exact - input variations - both", []string{"fA"}, "/fA/", assert.True, assert.False},
-		{"Suffix - target variations - none", []string{"fb"}, "/fA/fb", assert.True, assert.False},
-		{"Suffix - target variations - prefix", []string{"/fb"}, "/fA/fb", assert.True, assert.False},
-		{"Suffix - target variations - suffix", []string{"fb/"}, "/fA/fb", assert.True, assert.False},
-		{"Suffix - target variations - both", []string{"/fb/"}, "/fA/fb", assert.True, assert.False},
-		{"Suffix - input variations - none", []string{"fb"}, "fA/fb", assert.True, assert.False},
-		{"Suffix - input variations - prefix", []string{"fb"}, "/fA/fb", assert.True, assert.False},
-		{"Suffix - input variations - suffix", []string{"fb"}, "fA/fb/", assert.True, assert.False},
-		{"Suffix - input variations - both", []string{"fb"}, "/fA/fb/", assert.True, assert.False},
-		{"Slice - one matches", []string{"foo", "fa/f", "fb"}, "/fA/fb", assert.True, assert.False},
-		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
-	}
-	for _, test := range table {
+	for _, test := range pathComparisonsTable {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			var (
+				t  = suite.T()
+				f  = filters.PathSuffix(test.targets)
+				nf = filters.NotPathSuffix(test.targets)
+			)
 
-			f := filters.PathSuffix(test.targets)
-			nf := filters.NotPathSuffix(test.targets)
-
-			test.expectF(t, f.Compare(test.input), "filter")
-			test.expectNF(t, nf.Compare(test.input), "negated filter")
+			test.expectSuffix.fn(t, f.Compare(test.input), "filter")
+			if test.expectSuffix.yes {
+				no.fn(t, nf.Compare(test.input), "negated filter")
+			} else {
+				yes.fn(t, nf.Compare(test.input), "negated filter")
+			}
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestPathSuffix_NormalizedTargets() {
-	table := []struct {
-		name    string
-		targets []string
-		expect  []string
-	}{
-		{"Single - no slash", []string{"fA"}, []string{"/fA/"}},
-		{"Single - pre slash", []string{"/fA"}, []string{"/fA/"}},
-		{"Single - suff slash", []string{"fA/"}, []string{"/fA/"}},
-		{"Single - both slashes", []string{"/fA/"}, []string{"/fA/"}},
-		{"Multipath - no slash", []string{"fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
-	}
-	for _, test := range table {
+	for _, test := range pathElemNormalizationTable {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
@@ -544,67 +525,26 @@ func (suite *FiltersSuite) TestPathSuffix_NormalizedTargets() {
 }
 
 func (suite *FiltersSuite) TestPathEquals() {
-	table := []struct {
-		name     string
-		targets  []string
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"Exact - same case", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - different case", []string{"fa"}, "/fA", assert.True, assert.False},
-		{"Exact - multiple folders", []string{"fA/fB"}, "/fA/fB", assert.True, assert.False},
-		{"Exact - target variations - none", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - prefix", []string{"/fA"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - suffix", []string{"fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - target variations - both", []string{"/fA/"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - none", []string{"fA"}, "fA", assert.True, assert.False},
-		{"Exact - input variations - prefix", []string{"fA"}, "/fA", assert.True, assert.False},
-		{"Exact - input variations - suffix", []string{"fA"}, "fA/", assert.True, assert.False},
-		{"Exact - input variations - both", []string{"fA"}, "/fA/", assert.True, assert.False},
-		{"Partial match", []string{"f"}, "/fA/", assert.False, assert.True},
-		{"Suffix - same case", []string{"fB"}, "/fA/fB", assert.False, assert.True},
-		{"Suffix - different case", []string{"fb"}, "/fA/fB", assert.False, assert.True},
-		{"Prefix - same case", []string{"fA"}, "/fA/fB", assert.False, assert.True},
-		{"Prefix - different case", []string{"fa"}, "/fA/fB", assert.False, assert.True},
-		{"Contains - same case", []string{"fB"}, "/fA/fB/fC", assert.False, assert.True},
-		{"Contains - different case", []string{"fb"}, "/fA/fB/fC", assert.False, assert.True},
-		{"Slice - one matches", []string{"foo", "/fA/fb", "fb"}, "/fA/fb", assert.True, assert.False},
-		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
-	}
-	for _, test := range table {
+	for _, test := range pathComparisonsTable {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			var (
+				t  = suite.T()
+				f  = filters.PathEquals(test.targets)
+				nf = filters.NotPathEquals(test.targets)
+			)
 
-			f := filters.PathEquals(test.targets)
-			nf := filters.NotPathEquals(test.targets)
-
-			test.expectF(t, f.Compare(test.input), "filter")
-			test.expectNF(t, nf.Compare(test.input), "negated filter")
+			test.expectEquals.fn(t, f.Compare(test.input), "filter")
+			if test.expectEquals.yes {
+				no.fn(t, nf.Compare(test.input), "negated filter")
+			} else {
+				yes.fn(t, nf.Compare(test.input), "negated filter")
+			}
 		})
 	}
 }
 
 func (suite *FiltersSuite) TestPathEquals_NormalizedTargets() {
-	table := []struct {
-		name    string
-		targets []string
-		expect  []string
-	}{
-		{"Single - no slash", []string{"fA"}, []string{"/fA/"}},
-		{"Single - pre slash", []string{"/fA"}, []string{"/fA/"}},
-		{"Single - suff slash", []string{"fA/"}, []string{"/fA/"}},
-		{"Single - both slashes", []string{"/fA/"}, []string{"/fA/"}},
-		{"Multipath - no slash", []string{"fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - pre slash", []string{"/fA/fB"}, []string{"/fA/fB/"}},
-		{"Multipath - suff slash", []string{"fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multipath - both slashes", []string{"/fA/fB/"}, []string{"/fA/fB/"}},
-		{"Multi input - no slash", []string{"fA", "fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - pre slash", []string{"/fA", "/fB"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - suff slash", []string{"fA/", "fB/"}, []string{"/fA/", "/fB/"}},
-		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
-	}
-	for _, test := range table {
+	for _, test := range pathElemNormalizationTable {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
@@ -613,6 +553,10 @@ func (suite *FiltersSuite) TestPathEquals_NormalizedTargets() {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// pii handling
+// ---------------------------------------------------------------------------
 
 func (suite *FiltersSuite) TestFilter_pii() {
 	targets := []string{"fnords", "smarf", "*"}
@@ -636,8 +580,8 @@ func (suite *FiltersSuite) TestFilter_pii() {
 		suite.Run(test.name, func() {
 			var (
 				t           = suite.T()
-				expect      = test.f.Comparator.String() + ":***,***,*"
-				expectPlain = test.f.Comparator.String() + ":" + strings.Join(targets, ",")
+				expect      = string(test.f.Comparator) + ":***,***,*"
+				expectPlain = string(test.f.Comparator) + ":" + strings.Join(targets, ",")
 			)
 
 			result := test.f.Conceal()
@@ -671,14 +615,14 @@ func (suite *FiltersSuite) TestFilter_pii() {
 		{
 			"identity",
 			filters.Identity("id"),
-			filters.IdentityValue.String() + ":***",
-			filters.IdentityValue.String() + ":id",
+			filters.IdentityValue + ":***",
+			filters.IdentityValue + ":id",
 		},
 		{
 			"identity",
 			filters.Identity("*"),
-			filters.IdentityValue.String() + ":*",
-			filters.IdentityValue.String() + ":*",
+			filters.IdentityValue + ":*",
+			filters.IdentityValue + ":*",
 		},
 	}
 	for _, test := range table2 {

@@ -170,6 +170,22 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			events.BackupID:  op.Results.BackupID,
 		})
 
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.BackupEnd,
+			map[string]any{
+				events.BackupID:   op.Results.BackupID,
+				events.DataStored: op.Results.BytesUploaded,
+				events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:    dttm.Format(op.Results.CompletedAt),
+				events.Resources:  op.Results.ResourceOwners,
+				events.Service:    op.Selectors.PathService().String(),
+				events.StartTime:  dttm.Format(op.Results.StartedAt),
+				events.Status:     op.Status.String(),
+			})
+	}()
+
 	// -----
 	// Execution
 	// -----
@@ -183,9 +199,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Results.BackupID)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running backup", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running backup")
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
@@ -870,20 +884,6 @@ func (op *BackupOperation) createBackupModels(
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
-
-	op.bus.Event(
-		ctx,
-		events.BackupEnd,
-		map[string]any{
-			events.BackupID:   b.ID,
-			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:    dttm.Format(op.Results.CompletedAt),
-			events.Resources:  op.Results.ResourceOwners,
-			events.Service:    op.Selectors.PathService().String(),
-			events.StartTime:  dttm.Format(op.Results.StartedAt),
-			events.Status:     op.Status.String(),
-		})
 
 	return nil
 }

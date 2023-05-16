@@ -67,9 +67,9 @@ func (suite *MockSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hyd
 
 	t := suite.T()
 	mdc := NewCollection(nil, nil, 3)
-	buf := &bytes.Buffer{}
 
 	for stream := range mdc.Items(ctx, fault.New(true)) {
+		buf := &bytes.Buffer{}
 		_, err := buf.ReadFrom(stream.ToReader())
 		assert.NoError(t, err, clues.ToCore(err))
 

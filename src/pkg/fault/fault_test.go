@@ -193,7 +193,7 @@ func (suite *FaultErrorsUnitSuite) TestAddSkip() {
 	n.AddRecoverable(assert.AnError)
 	assert.Len(t, n.Skipped(), 0)
 
-	n.AddSkip(fault.OwnerSkip(fault.SkipMalware, "id", "name", nil))
+	n.AddSkip(fault.OwnerSkip(fault.SkipMalware, "ns", "id", "name", nil))
 	assert.Len(t, n.Skipped(), 1)
 }
 
@@ -262,12 +262,12 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			name: "failure item",
 			errs: func() *fault.Errors {
 				b := fault.New(false)
-				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
+				b.Fail(fault.OwnerErr(ae, "ns", "id", "name", addtl))
 				b.AddRecoverable(ae)
 
 				return b.Errors()
 			},
-			expectItems:       []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectItems:       []fault.Item{*fault.OwnerErr(ae, "ns", "id", "name", addtl)},
 			expectRecoverable: noncore,
 		},
 		{
@@ -275,25 +275,40 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.OwnerErr(ae, "id", "name", addtl))
+				b.AddRecoverable(fault.OwnerErr(ae, "ns", "id", "name", addtl))
 
 				return b.Errors()
 			},
-			expectItems:       []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectItems:       []fault.Item{*fault.OwnerErr(ae, "ns", "id", "name", addtl)},
 			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "two items",
 			errs: func() *fault.Errors {
 				b := fault.New(false)
-				b.Fail(fault.OwnerErr(ae, "oid", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+				b.Fail(fault.OwnerErr(ae, "ns", "oid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name", addtl))
 
 				return b.Errors()
 			},
 			expectItems: []fault.Item{
-				*fault.OwnerErr(ae, "oid", "name", addtl),
-				*fault.FileErr(ae, "fid", "name", addtl),
+				*fault.OwnerErr(ae, "ns", "oid", "name", addtl),
+				*fault.FileErr(ae, "ns", "fid", "name", addtl),
+			},
+			expectRecoverable: []*clues.ErrCore{},
+		},
+		{
+			name: "two items - diff namespace same id",
+			errs: func() *fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "ns", "id", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "ns2", "id", "name", addtl))
+
+				return b.Errors()
+			},
+			expectItems: []fault.Item{
+				*fault.OwnerErr(ae, "ns", "id", "name", addtl),
+				*fault.FileErr(ae, "ns2", "id", "name", addtl),
 			},
 			expectRecoverable: []*clues.ErrCore{},
 		},
@@ -301,13 +316,13 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			name: "duplicate items - failure priority",
 			errs: func() *fault.Errors {
 				b := fault.New(false)
-				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "id", "name", addtl))
+				b.Fail(fault.OwnerErr(ae, "ns", "id", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "ns", "id", "name", addtl))
 
 				return b.Errors()
 			},
 			expectItems: []fault.Item{
-				*fault.OwnerErr(ae, "id", "name", addtl),
+				*fault.OwnerErr(ae, "ns", "id", "name", addtl),
 			},
 			expectRecoverable: []*clues.ErrCore{},
 		},
@@ -316,13 +331,13 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name2", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name2", addtl))
 
 				return b.Errors()
 			},
 			expectItems: []fault.Item{
-				*fault.FileErr(ae, "fid", "name2", addtl),
+				*fault.FileErr(ae, "ns", "fid", "name2", addtl),
 			},
 			expectRecoverable: []*clues.ErrCore{},
 		},
@@ -331,13 +346,13 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name", addtl))
 				b.AddRecoverable(ae)
 
 				return b.Errors()
 			},
 			expectItems: []fault.Item{
-				*fault.FileErr(ae, "fid", "name", addtl),
+				*fault.FileErr(ae, "ns", "fid", "name", addtl),
 			},
 			expectRecoverable: noncore,
 		},

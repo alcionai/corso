@@ -59,18 +59,18 @@ func LogFaultErrors(ctx context.Context, fe *fault.Errors, prefix string) {
 	}
 
 	if fe.Failure != nil {
-		log.With("error", fe.Failure).Error(pfxMsg + " primary failure")
+		log.With("error", fe.Failure).Errorf("%s primary failure: %s", pfxMsg, fe.Failure.Msg)
 	}
 
 	for i, item := range fe.Items {
-		log.With("failed_item", item).Errorf("%s item failure %d of %d", pfxMsg, i+1, li)
+		log.With("failed_item", item).Errorf("%s item failure %d of %d: %s", pfxMsg, i+1, li, item.Cause)
 	}
 
 	for i, item := range fe.Skipped {
-		log.With("skipped_item", item).Errorf("%s skipped item %d of %d", pfxMsg, i+1, ls)
+		log.With("skipped_item", item).Errorf("%s skipped item %d of %d: %s", pfxMsg, i+1, ls, item.Item.Cause)
 	}
 
 	for i, err := range fe.Recovered {
-		log.With("recovered_error", err).Errorf("%s recoverable error %d of %d", pfxMsg, i+1, lr)
+		log.With("recovered_error", err).Errorf("%s recoverable error %d of %d: %s", pfxMsg, i+1, lr, err.Msg)
 	}
 }

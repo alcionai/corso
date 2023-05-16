@@ -2,13 +2,15 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -18,9 +20,9 @@ import (
 
 func getParentMetadata(
 	parentPath path.Path,
-	metas map[string]metadata.Metadata,
+	parentDirToMeta map[string]metadata.Metadata,
 ) (metadata.Metadata, error) {
-	parentMeta, ok := metas[parentPath.String()]
+	parentMeta, ok := parentDirToMeta[parentPath.String()]
 	if !ok {
 		drivePath, err := path.ToDrivePath(parentPath)
 		if err != nil {
@@ -41,7 +43,7 @@ func getCollectionMetadata(
 	ctx context.Context,
 	drivePath *path.DrivePath,
 	dc data.RestoreCollection,
-	metas map[string]metadata.Metadata,
+	caches *restoreCaches,
 	backupVersion int,
 	restorePerms bool,
 ) (metadata.Metadata, error) {
@@ -50,8 +52,8 @@ func getCollectionMetadata(
 	}
 
 	var (
-		err            error
-		collectionPath = dc.FullPath()
+		err      error
+		fullPath = dc.FullPath()
 	)
 
 	if len(drivePath.Folders) == 0 {
@@ -60,7 +62,7 @@ func getCollectionMetadata(
 	}
 
 	if backupVersion < version.OneDrive4DirIncludesPermissions {
-		colMeta, err := getParentMetadata(collectionPath, metas)
+		colMeta, err := getParentMetadata(fullPath, caches.ParentDirToMeta)
 		if err != nil {
 			return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
 		}
@@ -68,8 +70,7 @@ func getCollectionMetadata(
 		return colMeta, nil
 	}
 
-	// Root folder doesn't have a metadata file associated with it.
-	folders := collectionPath.Folders()
+	folders := fullPath.Folders()
 	metaName := folders[len(folders)-1] + metadata.DirMetaFileSuffix
 
 	if backupVersion >= version.OneDrive5DirMetaNoName {
@@ -85,12 +86,14 @@ func getCollectionMetadata(
 }
 
 // computeParentPermissions computes the parent permissions by
-// traversing folderMetas and finding the first item with custom
-// permissions. folderMetas is expected to have all the parent
+// traversing parentMetas and finding the first item with custom
+// permissions. parentMetas is expected to have all the parent
 // directory metas for this to work.
 func computeParentPermissions(
-	itemPath path.Path,
-	folderMetas map[string]metadata.Metadata,
+	ctx context.Context,
+	originDir path.Path,
+	// map parent dir -> parent's metadata
+	parentMetas map[string]metadata.Metadata,
 ) (metadata.Metadata, error) {
 	var (
 		parent path.Path
@@ -100,26 +103,30 @@ func computeParentPermissions(
 		ok  bool
 	)
 
-	parent = itemPath
+	parent = originDir
 
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return metadata.Metadata{}, clues.New("getting parent")
+			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
 		}
+
+		fmt.Println("pd", parent)
+
+		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.New("get parent path")
+			return metadata.Metadata{}, clues.New("transforming dir to drivePath").WithClues(ictx)
 		}
 
 		if len(drivePath.Folders) == 0 {
 			return metadata.Metadata{}, nil
 		}
 
-		meta, ok = folderMetas[parent.String()]
+		meta, ok = parentMetas[parent.String()]
 		if !ok {
-			return metadata.Metadata{}, clues.New("no parent meta")
+			return metadata.Metadata{}, clues.New("no metadata found for parent folder: " + parent.String()).WithClues(ictx)
 		}
 
 		if meta.SharingMode == metadata.SharingModeCustom {
@@ -137,37 +144,50 @@ func UpdatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
-	permissionIDMappings map[string]string,
+	oldPermIDToNewID map[string]string,
 ) error {
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
 	for _, p := range permRemoved {
+		ictx := clues.Add(
+			ctx,
+			"permission_entity_type", p.EntityType,
+			"permission_entity_id", clues.Hide(p.EntityID))
+
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707
 		// this is bad citizenship, and could end up consuming a lot of
 		// system resources if servicers leak client connections (sockets, etc).
 		a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 		if err != nil {
-			return graph.Wrap(ctx, err, "creating delete client")
+			return graph.Wrap(ictx, err, "creating delete client")
 		}
 
-		pid, ok := permissionIDMappings[p.ID]
+		pid, ok := oldPermIDToNewID[p.ID]
 		if !ok {
 			return clues.New("no new permission id").WithClues(ctx)
 		}
 
 		err = graph.NewService(a).
 			Client().
-			DrivesById(driveID).
-			ItemsById(itemID).
-			PermissionsById(pid).
-			Delete(graph.ConsumeNTokens(ctx, graph.PermissionsLC), nil)
+			Drives().
+			ByDriveId(driveID).
+			Items().
+			ByDriveItemId(itemID).
+			Permissions().
+			ByPermissionId(pid).
+			Delete(graph.ConsumeNTokens(ictx, graph.PermissionsLC), nil)
 		if err != nil {
-			return graph.Wrap(ctx, err, "removing permissions")
+			return graph.Wrap(ictx, err, "removing permissions")
 		}
 	}
 
 	for _, p := range permAdded {
+		ictx := clues.Add(
+			ctx,
+			"permission_entity_type", p.EntityType,
+			"permission_entity_id", clues.Hide(p.EntityID))
+
 		// We are not able to restore permissions when there are no
 		// roles or for owner, this seems to be restriction in graph
 		roles := []string{}
@@ -178,11 +198,13 @@ func UpdatePermissions(
 			}
 		}
 
-		if len(roles) == 0 {
+		// TODO: sitegroup support.  Currently errors with "One or more users could not be resolved",
+		// likely due to the site group entityID consisting of a single integer (ex: 4)
+		if len(roles) == 0 || p.EntityType == metadata.GV2SiteGroup {
 			continue
 		}
 
-		pbody := msdrive.NewItemsItemInvitePostRequestBody()
+		pbody := drives.NewItemItemsItemInvitePostRequestBody()
 		pbody.SetRoles(roles)
 
 		if p.Expiration != nil {
@@ -190,14 +212,11 @@ func UpdatePermissions(
 			pbody.SetExpirationDateTime(&expiry)
 		}
 
-		si := false
-		pbody.SetSendInvitation(&si)
-
-		rs := true
-		pbody.SetRequireSignIn(&rs)
+		pbody.SetSendInvitation(ptr.To(false))
+		pbody.SetRequireSignIn(ptr.To(true))
 
 		rec := models.NewDriveRecipient()
-		if p.EntityID != "" {
+		if len(p.EntityID) > 0 {
 			rec.SetObjectId(&p.EntityID)
 		} else {
 			// Previous versions used to only store email for a
@@ -207,16 +226,12 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		np, err := service.Client().
-			DrivesById(driveID).
-			ItemsById(itemID).
-			Invite().
-			Post(graph.ConsumeNTokens(ctx, graph.PermissionsLC), pbody, nil)
+		newPerm, err := api.PostItemPermissionUpdate(ictx, service, driveID, itemID, pbody)
 		if err != nil {
-			return graph.Wrap(ctx, err, "setting permissions")
+			return clues.Stack(err)
 		}
 
-		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
+		oldPermIDToNewID[p.ID] = ptr.Val(newPerm.GetValue()[0].GetId())
 	}
 
 	return nil
@@ -233,22 +248,29 @@ func RestorePermissions(
 	driveID string,
 	itemID string,
 	itemPath path.Path,
-	meta metadata.Metadata,
-	folderMetas map[string]metadata.Metadata,
-	permissionIDMappings map[string]string,
+	current metadata.Metadata,
+	caches *restoreCaches,
 ) error {
-	if meta.SharingMode == metadata.SharingModeInherited {
+	if current.SharingMode == metadata.SharingModeInherited {
 		return nil
 	}
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
+	parents, err := computeParentPermissions(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "parent permissions").WithClues(ctx)
+		return clues.Wrap(err, "parent permissions")
 	}
 
-	permAdded, permRemoved := metadata.DiffPermissions(parentPermissions.Permissions, meta.Permissions)
+	permAdded, permRemoved := metadata.DiffPermissions(parents.Permissions, current.Permissions)
 
-	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
+	return UpdatePermissions(
+		ctx,
+		creds,
+		service,
+		driveID,
+		itemID,
+		permAdded,
+		permRemoved,
+		caches.OldPermIDToNewID)
 }

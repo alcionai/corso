@@ -463,11 +463,26 @@ func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
 // scope constructors
 // ---------------------------------------------------------------------------
 
+// constructs the default item-scope comparator options according
+// to the selector configuration.
+//   - if cfg.OnlyMatchItemNames == false, then comparison assumes item IDs,
+//     which are case sensitive, resulting in StrictEqualsMatch
+func defaultItemOptions(cfg Config) []option {
+	opts := []option{}
+
+	if !cfg.OnlyMatchItemNames {
+		opts = append(opts, StrictEqualMatch())
+	}
+
+	return opts
+}
+
 type scopeConfig struct {
-	usePathFilter   bool
-	usePrefixFilter bool
-	useSuffixFilter bool
-	useEqualsFilter bool
+	usePathFilter         bool
+	usePrefixFilter       bool
+	useSuffixFilter       bool
+	useEqualsFilter       bool
+	useStrictEqualsFilter bool
 }
 
 type option func(*scopeConfig)
@@ -496,9 +511,16 @@ func SuffixMatch() option {
 	}
 }
 
+// StrictEqualsMatch ensures the selector uses a StrictEquals comparator, instead
+// of contains.  Will not override a default Any() or None() comparator.
+func StrictEqualMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useStrictEqualsFilter = true
+	}
+}
+
 // ExactMatch ensures the selector uses an Equals comparator, instead
-// of contains.  Will not override a default Any() or None()
-// comparator.
+// of contains.  Will not override a default Any() or None() comparator.
 func ExactMatch() option {
 	return func(sc *scopeConfig) {
 		sc.useEqualsFilter = true
@@ -597,6 +619,10 @@ func filterize(
 
 	if sc.useSuffixFilter {
 		return filters.Suffix(targets)
+	}
+
+	if sc.useStrictEqualsFilter {
+		return filters.StrictEqual(targets)
 	}
 
 	if defaultFilter != nil {

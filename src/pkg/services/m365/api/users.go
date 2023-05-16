@@ -58,6 +58,7 @@ type MailboxInfo struct {
 	Language                   Language
 	WorkingHours               WorkingHours
 	ErrGetMailBoxSetting       []error
+	QuotaExceeded              bool
 }
 
 type AutomaticRepliesSettings struct {
@@ -107,6 +108,12 @@ func (ui *UserInfo) ServiceEnabled(service path.ServiceType) bool {
 	_, ok := ui.ServicesEnabled[service]
 
 	return ok
+}
+
+// Returns if we can run delta queries on a mailbox. We cannot run
+// them if the mailbox is full which is indicated by QuotaExceeded.
+func (ui *UserInfo) CanMakeDeltaQueries() bool {
+	return !ui.Mailbox.QuotaExceeded
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +171,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 		return nil, graph.Wrap(ctx, err, "getting all users")
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(
+	iter, err := msgraphgocore.NewPageIterator[models.Userable](
 		resp,
 		service.Adapter(),
 		models.CreateUserCollectionResponseFromDiscriminatorValue)
@@ -177,16 +184,16 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 		el = errs.Local()
 	)
 
-	iterator := func(item any) bool {
+	iterator := func(item models.Userable) bool {
 		if el.Failure() != nil {
 			return false
 		}
 
-		u, err := validateUser(item)
+		err := validateUser(item)
 		if err != nil {
 			el.AddRecoverable(graph.Wrap(ctx, err, "validating user"))
 		} else {
-			us = append(us, u)
+			us = append(us, item)
 		}
 
 		return true
@@ -207,7 +214,7 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 		err  error
 	)
 
-	resp, err = c.stable.Client().UsersById(identifier).Get(ctx, nil)
+	resp, err = c.stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -260,7 +267,8 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		QueryParameters: &requestParameters,
 	}
 
-	if _, err := c.GetMailFolders(ctx, userID, options); err != nil {
+	mfs, err := c.GetMailFolders(ctx, userID, options)
+	if err != nil {
 		if graph.IsErrUserNotFound(err) {
 			logger.CtxErr(ctx, err).Error("user not found")
 			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceOwnerNotFound, err))
@@ -295,6 +303,34 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	userInfo.Mailbox = mbxInfo
 
+	// TODO: This tries to determine if the user has hit their mailbox
+	// limit by trying to fetch an item and seeing if we get the quota
+	// exceeded error. Ideally(if available) we should convert this to
+	// pull the user's usage via an api and compare if they have used
+	// up their quota.
+	if mfs != nil {
+		mf := mfs.GetValue()[0] // we will always have one
+		options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
+				Top: ptr.To[int32](1), // just one item is enough
+			},
+		}
+		_, err = c.stable.Client().
+			Users().
+			ByUserId(userID).
+			MailFolders().
+			ByMailFolderId(ptr.Val(mf.GetId())).
+			Messages().
+			Delta().
+			Get(ctx, options)
+
+		if err != nil && !graph.IsErrQuotaExceeded(err) {
+			return nil, err
+		}
+
+		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
+	}
+
 	return userInfo, nil
 }
 
@@ -304,7 +340,7 @@ func (c Users) GetMailFolders(
 	userID string,
 	options users.ItemMailFoldersRequestBuilderGetRequestConfiguration,
 ) (models.MailFolderCollectionResponseable, error) {
-	mailFolders, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, &options)
+	mailFolders, err := c.stable.Client().Users().ByUserId(userID).MailFolders().Get(ctx, &options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")
 	}
@@ -314,7 +350,7 @@ func (c Users) GetMailFolders(
 
 // TODO: remove when drive api goes into this package
 func (c Users) GetDrives(ctx context.Context, userID string) (models.DriveCollectionResponseable, error) {
-	drives, err := c.stable.Client().UsersById(userID).Drives().Get(ctx, nil)
+	drives, err := c.stable.Client().Users().ByUserId(userID).Drives().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting drives")
 	}
@@ -463,22 +499,16 @@ func appendIfErr(errs []error, err error) []error {
 
 // validateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
-// returns the item as a Userable model.
-func validateUser(item any) (models.Userable, error) {
-	m, ok := item.(models.Userable)
-	if !ok {
-		return nil, clues.New(fmt.Sprintf("unexpected model: %T", item))
+func validateUser(item models.Userable) error {
+	if item.GetId() == nil {
+		return clues.New("missing ID")
 	}
 
-	if m.GetId() == nil {
-		return nil, clues.New("missing ID")
+	if item.GetUserPrincipalName() == nil {
+		return clues.New("missing principalName")
 	}
 
-	if m.GetUserPrincipalName() == nil {
-		return nil, clues.New("missing principalName")
-	}
-
-	return m, nil
+	return nil
 }
 
 func toString(ctx context.Context, key string, data map[string]any) (string, error) {

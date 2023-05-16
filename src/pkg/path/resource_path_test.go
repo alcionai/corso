@@ -547,7 +547,7 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 				suite.Run(test.name, func() {
 					t := suite.T()
 
-					newPath, err := suite.paths[m.isItem].Append(newElement, test.hasItem)
+					newPath, err := suite.paths[m.isItem].Append(test.hasItem, newElement)
 
 					// Items don't allow appending.
 					if m.isItem {

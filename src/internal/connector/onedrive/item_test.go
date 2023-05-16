@@ -151,7 +151,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			t := suite.T()
 			srv := suite.service
 
-			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
@@ -229,7 +229,7 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			t := suite.T()
 			srv := suite.service
 
-			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist
@@ -243,36 +243,56 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}
 }
 
-func getPermsUperms(permID, userID, entity string, scopes []string) (models.Permissionable, metadata.Permission) {
-	identity := models.NewIdentity()
-	identity.SetId(&userID)
-	identity.SetAdditionalData(map[string]any{"email": &userID})
+func getPermsAndResourceOwnerPerms(
+	permID, resourceOwner string,
+	gv2t metadata.GV2Type,
+	scopes []string,
+) (models.Permissionable, metadata.Permission) {
+	sharepointIdentitySet := models.NewSharePointIdentitySet()
 
-	sharepointIdentity := models.NewSharePointIdentitySet()
+	switch gv2t {
+	case metadata.GV2App, metadata.GV2Device, metadata.GV2Group, metadata.GV2User:
+		identity := models.NewIdentity()
+		identity.SetId(&resourceOwner)
+		identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
-	switch entity {
-	case "user":
-		sharepointIdentity.SetUser(identity)
-	case "group":
-		sharepointIdentity.SetGroup(identity)
-	case "application":
-		sharepointIdentity.SetApplication(identity)
-	case "device":
-		sharepointIdentity.SetDevice(identity)
+		switch gv2t {
+		case metadata.GV2User:
+			sharepointIdentitySet.SetUser(identity)
+		case metadata.GV2Group:
+			sharepointIdentitySet.SetGroup(identity)
+		case metadata.GV2App:
+			sharepointIdentitySet.SetApplication(identity)
+		case metadata.GV2Device:
+			sharepointIdentitySet.SetDevice(identity)
+		}
+
+	case metadata.GV2SiteUser, metadata.GV2SiteGroup:
+		spIdentity := models.NewSharePointIdentity()
+		spIdentity.SetId(&resourceOwner)
+		spIdentity.SetAdditionalData(map[string]any{"email": &resourceOwner})
+
+		switch gv2t {
+		case metadata.GV2SiteUser:
+			sharepointIdentitySet.SetSiteUser(spIdentity)
+		case metadata.GV2SiteGroup:
+			sharepointIdentitySet.SetSiteGroup(spIdentity)
+		}
 	}
 
 	perm := models.NewPermission()
 	perm.SetId(&permID)
 	perm.SetRoles([]string{"read"})
-	perm.SetGrantedToV2(sharepointIdentity)
+	perm.SetGrantedToV2(sharepointIdentitySet)
 
-	uperm := metadata.Permission{
-		ID:       permID,
-		Roles:    []string{"read"},
-		EntityID: userID,
+	ownersPerm := metadata.Permission{
+		ID:         permID,
+		Roles:      []string{"read"},
+		EntityID:   resourceOwner,
+		EntityType: gv2t,
 	}
 
-	return perm, uperm
+	return perm, ownersPerm
 }
 
 type ItemUnitTestSuite struct {
@@ -283,19 +303,29 @@ func TestItemUnitTestSuite(t *testing.T) {
 	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
-	permID := "fakePermId"
-	userID := "fakeuser@provider.com"
-	userID2 := "fakeuser2@provider.com"
+func (suite *ItemUnitTestSuite) TestDrivePermissionsFilter() {
+	var (
+		pID  = "fakePermId"
+		uID  = "fakeuser@provider.com"
+		uID2 = "fakeuser2@provider.com"
+		own  = []string{"owner"}
+		r    = []string{"read"}
+		rw   = []string{"read", "write"}
+	)
 
-	userOwnerPerm, userOwnerUperm := getPermsUperms(permID, userID, "user", []string{"owner"})
-	userReadPerm, userReadUperm := getPermsUperms(permID, userID, "user", []string{"read"})
-	userReadWritePerm, userReadWriteUperm := getPermsUperms(permID, userID2, "user", []string{"read", "write"})
+	userOwnerPerm, userOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2User, own)
+	userReadPerm, userReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2User, r)
+	userReadWritePerm, userReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2User, rw)
+	siteUserOwnerPerm, siteUserOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteUser, own)
+	siteUserReadPerm, siteUserReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteUser, r)
+	siteUserReadWritePerm, siteUserReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2SiteUser, rw)
 
-	groupReadPerm, groupReadUperm := getPermsUperms(permID, userID, "group", []string{"read"})
-	groupReadWritePerm, groupReadWriteUperm := getPermsUperms(permID, userID2, "group", []string{"read", "write"})
+	groupReadPerm, groupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2Group, r)
+	groupReadWritePerm, groupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2Group, rw)
+	siteGroupReadPerm, siteGroupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteGroup, r)
+	siteGroupReadWritePerm, siteGroupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2SiteGroup, rw)
 
-	noPerm, _ := getPermsUperms(permID, userID, "user", []string{"read"})
+	noPerm, _ := getPermsAndResourceOwnerPerms(pID, uID, "user", []string{"read"})
 	noPerm.SetGrantedToV2(nil) // eg: link shares
 
 	cases := []struct {
@@ -318,39 +348,78 @@ func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
 		{
 			name:              "user with read permissions",
 			graphPermissions:  []models.Permissionable{userReadPerm},
-			parsedPermissions: []metadata.Permission{userReadUperm},
+			parsedPermissions: []metadata.Permission{userReadROperm},
 		},
 		{
 			name:              "user with owner permissions",
 			graphPermissions:  []models.Permissionable{userOwnerPerm},
-			parsedPermissions: []metadata.Permission{userOwnerUperm},
+			parsedPermissions: []metadata.Permission{userOwnerROperm},
 		},
 		{
 			name:              "user with read and write permissions",
 			graphPermissions:  []models.Permissionable{userReadWritePerm},
-			parsedPermissions: []metadata.Permission{userReadWriteUperm},
+			parsedPermissions: []metadata.Permission{userReadWriteROperm},
 		},
 		{
 			name:              "multiple users with separate permissions",
 			graphPermissions:  []models.Permissionable{userReadPerm, userReadWritePerm},
-			parsedPermissions: []metadata.Permission{userReadUperm, userReadWriteUperm},
+			parsedPermissions: []metadata.Permission{userReadROperm, userReadWriteROperm},
+		},
+
+		// site-user
+		{
+			name:              "site user with read permissions",
+			graphPermissions:  []models.Permissionable{siteUserReadPerm},
+			parsedPermissions: []metadata.Permission{siteUserReadROperm},
+		},
+		{
+			name:              "site user with owner permissions",
+			graphPermissions:  []models.Permissionable{siteUserOwnerPerm},
+			parsedPermissions: []metadata.Permission{siteUserOwnerROperm},
+		},
+		{
+			name:              "site user with read and write permissions",
+			graphPermissions:  []models.Permissionable{siteUserReadWritePerm},
+			parsedPermissions: []metadata.Permission{siteUserReadWriteROperm},
+		},
+		{
+			name:              "multiple site users with separate permissions",
+			graphPermissions:  []models.Permissionable{siteUserReadPerm, siteUserReadWritePerm},
+			parsedPermissions: []metadata.Permission{siteUserReadROperm, siteUserReadWriteROperm},
 		},
 
 		// group
 		{
 			name:              "group with read permissions",
 			graphPermissions:  []models.Permissionable{groupReadPerm},
-			parsedPermissions: []metadata.Permission{groupReadUperm},
+			parsedPermissions: []metadata.Permission{groupReadROperm},
 		},
 		{
 			name:              "group with read and write permissions",
 			graphPermissions:  []models.Permissionable{groupReadWritePerm},
-			parsedPermissions: []metadata.Permission{groupReadWriteUperm},
+			parsedPermissions: []metadata.Permission{groupReadWriteROperm},
 		},
 		{
 			name:              "multiple groups with separate permissions",
 			graphPermissions:  []models.Permissionable{groupReadPerm, groupReadWritePerm},
-			parsedPermissions: []metadata.Permission{groupReadUperm, groupReadWriteUperm},
+			parsedPermissions: []metadata.Permission{groupReadROperm, groupReadWriteROperm},
+		},
+
+		// site-group
+		{
+			name:              "site group with read permissions",
+			graphPermissions:  []models.Permissionable{siteGroupReadPerm},
+			parsedPermissions: []metadata.Permission{siteGroupReadROperm},
+		},
+		{
+			name:              "site group with read and write permissions",
+			graphPermissions:  []models.Permissionable{siteGroupReadWritePerm},
+			parsedPermissions: []metadata.Permission{siteGroupReadWriteROperm},
+		},
+		{
+			name:              "multiple site groups with separate permissions",
+			graphPermissions:  []models.Permissionable{siteGroupReadPerm, siteGroupReadWritePerm},
+			parsedPermissions: []metadata.Permission{siteGroupReadROperm, siteGroupReadWriteROperm},
 		},
 	}
 	for _, tc := range cases {
