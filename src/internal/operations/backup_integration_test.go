@@ -983,7 +983,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				_, err := gc.Service.
 					Client().
 					Users().ByUserId(uidn.ID()).
-					MailFolders().ByMailFolderId(from.containerID).
+					MailFolders().
+					ByMailFolderId(from.containerID).
 					Move().
 					Post(ctx, body, nil)
 				require.NoError(t, err, clues.ToCore(err))
@@ -1661,7 +1662,8 @@ func runDriveIncrementalTest(
 			updateFiles: func(t *testing.T) {
 				_, err := gc.Service.
 					Client().
-					Drives().ByDriveId(driveID).
+					Drives().
+					ByDriveId(driveID).
 					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
 					Content().
 					Put(ctx, []byte("new content"), nil)
@@ -1685,7 +1687,8 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					Drives().ByDriveId(driveID).
+					Drives().
+					ByDriveId(driveID).
 					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
@@ -1707,7 +1710,8 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					Drives().ByDriveId(driveID).
+					Drives().
+					ByDriveId(driveID).
 					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
@@ -1728,7 +1732,8 @@ func runDriveIncrementalTest(
 				// https://github.com/alcionai/corso/issues/2707
 				err = newDeleteServicer(t).
 					Client().
-					Drives().ByDriveId(driveID).
+					Drives().
+					ByDriveId(driveID).
 					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
 					Delete(ctx, nil)
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
@@ -1752,8 +1757,10 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					Drives().ByDriveId(driveID).
-					Items().ByDriveItemId(child).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(child).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "moving folder", clues.ToCore(err))
 
@@ -1779,8 +1786,10 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					Drives().ByDriveId(driveID).
-					Items().ByDriveItemId(child).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(child).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "renaming folder", clues.ToCore(err))
 
@@ -1802,8 +1811,10 @@ func runDriveIncrementalTest(
 				// https://github.com/alcionai/corso/issues/2707
 				err = newDeleteServicer(t).
 					Client().
-					Drives().ByDriveId(driveID).
-					Items().ByDriveItemId(container).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(container).
 					Delete(ctx, nil)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
 

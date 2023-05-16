@@ -74,8 +74,10 @@ func RestoreExchangeContact(
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
 	response, err := service.Client().
-		Users().ByUserId(user).
-		ContactFolders().ByContactFolderId(destination).
+		Users().
+		ByUserId(user).
+		ContactFolders().
+		ByContactFolderId(destination).
 		Contacts().
 		Post(ctx, contact, nil)
 	if err != nil {
@@ -126,8 +128,10 @@ func RestoreExchangeEvent(
 	}
 
 	response, err := service.Client().
-		Users().ByUserId(user).
-		Calendars().ByCalendarId(destination).
+		Users().
+		ByUserId(user).
+		Calendars().
+		ByCalendarId(destination).
 		Events().
 		Post(ctx, transformedEvent, nil)
 	if err != nil {
@@ -262,8 +266,10 @@ func SendMailToBackStore(
 	message.SetAttachments([]models.Attachmentable{})
 
 	response, err := service.Client().
-		Users().ByUserId(user).
-		MailFolders().ByMailFolderId(destination).
+		Users().
+		ByUserId(user).
+		MailFolders().
+		ByMailFolderId(destination).
 		Messages().
 		Post(ctx, message, nil)
 	if err != nil {

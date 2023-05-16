@@ -194,7 +194,8 @@ func restoreListItem(
 	if len(contents) > 0 {
 		for _, lItem := range contents {
 			_, err := service.Client().
-				Sites().BySiteId(siteID).
+				Sites().
+				BySiteId(siteID).
 				Lists().ByListId(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)

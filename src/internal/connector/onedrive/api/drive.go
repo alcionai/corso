@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	onedrive "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -67,7 +68,8 @@ func NewItemPager(
 		driveID: driveID,
 		options: requestConfig,
 		builder: gs.Client().
-			Drives().ByDriveId(driveID).
+			Drives().
+			ByDriveId(driveID).
 			Items().ByDriveItemId(onedrive.RootID).Delta(),
 	}
 
@@ -98,8 +100,10 @@ func (p *driveItemPager) SetNext(link string) {
 
 func (p *driveItemPager) Reset() {
 	p.builder = p.gs.Client().
-		Drives().ByDriveId(p.driveID).
-		Items().ByDriveItemId(onedrive.RootID).
+		Drives().
+		ByDriveId(p.driveID).
+		Items().
+		ByDriveItemId(onedrive.RootID).
 		Delta()
 }
 
@@ -312,8 +316,10 @@ func GetDriveItem(
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
 	di, err := srv.Client().
-		Drives().ByDriveId(driveID).
-		Items().ByDriveItemId(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting item")
@@ -329,8 +335,10 @@ func GetItemPermission(
 ) (models.PermissionCollectionResponseable, error) {
 	perm, err := service.
 		Client().
-		Drives().ByDriveId(driveID).
-		Items().ByDriveItemId(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
@@ -346,7 +354,8 @@ func GetUsersDrive(
 	user string,
 ) (models.Driveable, error) {
 	d, err := srv.Client().
-		Users().ByUserId(user).
+		Users().
+		ByUserId(user).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -362,7 +371,8 @@ func GetSitesDefaultDrive(
 	site string,
 ) (models.Driveable, error) {
 	d, err := srv.Client().
-		Sites().BySiteId(site).
+		Sites().
+		BySiteId(site).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -429,8 +439,10 @@ func PostItemPermissionUpdate(
 	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
 
 	itm, err := service.Client().
-		Drives().ByDriveId(driveID).
-		Items().ByDriveItemId(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		Invite().
 		Post(ctx, body, nil)
 	if err != nil {

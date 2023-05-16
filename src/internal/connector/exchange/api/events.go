@@ -167,8 +167,10 @@ func (c Events) GetItem(
 
 		attached, err := c.LargeItem.
 			Client().
-			Users().ByUserId(user).
-			Events().ByEventId(itemID).
+			Users().
+			ByUserId(user).
+			Events().
+			ByEventId(itemID).
 			Attachments().
 			Get(ctx, options)
 		if err != nil {

@@ -170,9 +170,12 @@ func UpdatePermissions(
 
 		err = graph.NewService(a).
 			Client().
-			Drives().ByDriveId(driveID).
-			Items().ByDriveItemId(itemID).
-			Permissions().ByPermissionId(pid).
+			Drives().
+			ByDriveId(driveID).
+			Items().
+			ByDriveItemId(itemID).
+			Permissions().
+			ByPermissionId(pid).
 			Delete(graph.ConsumeNTokens(ictx, graph.PermissionsLC), nil)
 		if err != nil {
 			return graph.Wrap(ictx, err, "removing permissions")

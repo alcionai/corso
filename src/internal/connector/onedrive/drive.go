@@ -359,8 +359,10 @@ func DeleteItem(
 	itemID string,
 ) error {
 	err := gs.Client().
-		Drives().ByDriveId(driveID).
-		Items().ByDriveItemId(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)

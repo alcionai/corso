@@ -134,8 +134,10 @@ func (c Contacts) EnumerateContainers(
 
 	el := errs.Local()
 	builder := service.Client().
-		Users().ByUserId(userID).
-		ContactFolders().ByContactFolderId(baseDirID).
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		ByContactFolderId(baseDirID).
 		ChildFolders()
 
 	for {

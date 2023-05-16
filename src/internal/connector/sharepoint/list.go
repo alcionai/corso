@@ -271,9 +271,12 @@ func fetchColumns(
 		}
 	} else {
 		builder := gs.Client().
-			Sites().BySiteId(siteID).
-			Lists().ByListId(listID).
-			ContentTypes().ByContentTypeId(cTypeID).
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			ContentTypes().
+			ByContentTypeId(cTypeID).
 			Columns()
 
 		for {
@@ -368,9 +371,12 @@ func fetchColumnLinks(
 ) ([]models.ColumnLinkable, error) {
 	var (
 		builder = gs.Client().
-			Sites().BySiteId(siteID).
-			Lists().ByListId(listID).
-			ContentTypes().ByContentTypeId(cTypeID).
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			ContentTypes().
+			ByContentTypeId(cTypeID).
 			ColumnLinks()
 		links = make([]models.ColumnLinkable, 0)
 	)

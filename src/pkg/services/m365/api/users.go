@@ -316,7 +316,8 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 			},
 		}
 		_, err = c.stable.Client().
-			Users().ByUserId(userID).
+			Users().
+			ByUserId(userID).
 			MailFolders().ByMailFolderId(ptr.Val(mf.GetId())).
 			Messages().
 			Delta().
