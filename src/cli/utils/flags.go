@@ -182,7 +182,11 @@ func AddMaintenanceModeFlag(cmd *cobra.Command) {
 		&MaintenanceModeFV,
 		MaintenanceModeFN,
 		repository.CompleteMaintenance.String(),
-		"Run a faster maintenance that does minimal clean-up and optimization")
+		"Type of maintenance operation to run. Pass '"+
+			repository.MetadataMaintenance.String()+"' to run a faster maintenance "+
+			"that does minimal clean-up and optimization. Pass '"+
+			repository.CompleteMaintenance.String()+"' to fully compact existing "+
+			"data and delete unused data.")
 	cobra.CheckErr(fs.MarkHidden(MaintenanceModeFN))
 }
 
