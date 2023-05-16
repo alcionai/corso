@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
@@ -193,42 +192,41 @@ func deserializeMetadata(
 					continue
 				}
 
-				// This is conservative, but report an error if any of the items for
-				// any of the deserialized maps have duplicate drive IDs. This will
-				// cause the entire backup to fail, but it's not clear if higher
-				// layers would have caught this. Worst case if we don't handle this
-				// we end up in a situation where we're sourcing items from the wrong
-				// base in kopia wrapper.
-				if errors.Is(err, errExistingMapping) {
-					return nil, nil, clues.Wrap(err, "deserializing metadata file").WithClues(ictx)
+				// This is conservative, but report an error if either any of the items
+				// for any of the deserialized maps have duplicate drive IDs or there's
+				// some other problem deserializing things. This will cause the entire
+				// backup to fail, but it's not clear if higher layers would have caught
+				// these cases. We can make the logic for deciding when to continue vs.
+				// when to fail less strict in the future if needed.
+				if err != nil {
+					return nil, nil, clues.Stack(err).WithClues(ictx)
 				}
-
-				err = clues.Stack(err).WithClues(ictx)
-
-				el.AddRecoverable(err)
-				logger.CtxErr(ictx, err).Error("deserializing base backup metadata")
 			}
 		}
 
-		// Go through and remove partial results (i.e. path mapping but no delta URL
-		// or vice-versa).
-		for k, v := range prevDeltas {
-			// Remove entries with an empty delta token as it's not useful.
-			if len(v) == 0 {
-				delete(prevDeltas, k)
-				delete(prevFolders, k)
+		// Go through and remove delta tokens if we didn't have any paths for them
+		// or one or more paths are empty (incorrect somehow). This will ensure we
+		// don't accidentally try to pull in delta results when we should have
+		// enumerated everything instead.
+		//
+		// Loop over the set of previous deltas because it's alright to have paths
+		// without a delta but not to have a delta without paths. This way ensures
+		// we check at least all the path sets for the deltas we have.
+		for drive := range prevDeltas {
+			paths := prevFolders[drive]
+			if len(paths) == 0 {
+				delete(prevDeltas, drive)
 			}
 
-			// Remove entries without a folders map as we can't tell kopia the
-			// hierarchy changes.
-			if _, ok := prevFolders[k]; !ok {
-				delete(prevDeltas, k)
-			}
-		}
-
-		for k := range prevFolders {
-			if _, ok := prevDeltas[k]; !ok {
-				delete(prevFolders, k)
+			// Drives have only a single delta token. If we find any folder that
+			// seems like the path is bad we need to drop the entire token and start
+			// fresh. Since we know the token will be gone we can also stop checking
+			// for other possibly incorrect folder paths.
+			for _, prevPath := range paths {
+				if len(prevPath) == 0 {
+					delete(prevDeltas, drive)
+					break
+				}
 			}
 		}
 	}
