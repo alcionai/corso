@@ -14,21 +14,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var odFilesCmd = &cobra.Command{
+var spFilesCmd = &cobra.Command{
 	Use:   "files",
-	Short: "Generate OneDrive files",
-	RunE:  handleOneDriveFileFactory,
+	Short: "Generate SharePoint files",
+	RunE:  handleSharePointLibraryFileFactory,
 }
 
-func AddOneDriveCommands(cmd *cobra.Command) {
-	cmd.AddCommand(odFilesCmd)
+func AddSharePointCommands(cmd *cobra.Command) {
+	cmd.AddCommand(spFilesCmd)
 }
 
-func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
+func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error {
 	var (
 		ctx      = cmd.Context()
-		service  = path.OneDriveService
-		category = path.FilesCategory
+		service  = path.SharePointService
+		category = path.LibrariesCategory
 		errs     = fault.New(false)
 	)
 
@@ -36,12 +36,12 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, inp, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	gc, acct, inp, err := getGCAndVerifyResourceOwner(ctx, connector.Sites, Site)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	sel := selectors.NewOneDriveBackup([]string{User}).Selector
+	sel := selectors.NewSharePointBackup([]string{Site}).Selector
 	sel.SetDiscreteOwnerIDName(inp.ID(), inp.Name())
 
 	deets, err := generateAndRestoreDriveItems(
