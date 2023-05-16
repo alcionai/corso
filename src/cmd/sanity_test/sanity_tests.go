@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
+	stdpath "path"
 	"strings"
 	"time"
 
@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------
@@ -86,7 +87,7 @@ func main() {
 	case "onedrive":
 		checkOneDriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
 	case "sharepoint":
-		checkSharePointRestoration(ctx, client, testSite, folder, dataFolder, startTime)
+		checkSharePointRestoration(ctx, client, testSite, testUser, folder, dataFolder, startTime)
 	default:
 		fatal(ctx, "no service specified", nil)
 	}
@@ -225,7 +226,7 @@ func getAllMailSubFolders(
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			childFolderCount = ptr.Val(child.GetChildFolderCount())
 			//nolint:forbidigo
-			fullFolderName = path.Join(parentFolder, childDisplayName)
+			fullFolderName = stdpath.Join(parentFolder, childDisplayName)
 		)
 
 		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
@@ -274,7 +275,7 @@ func checkAllSubFolder(
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			//nolint:forbidigo
-			fullFolderName = path.Join(parentFolder, childDisplayName)
+			fullFolderName = stdpath.Join(parentFolder, childDisplayName)
 		)
 
 		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
@@ -312,7 +313,7 @@ func checkOneDriveRestoration(
 	checkDriveRestoration(
 		ctx,
 		client,
-		userID,
+		path.OneDriveService,
 		folderName,
 		ptr.Val(drive.GetId()),
 		ptr.Val(drive.GetName()),
@@ -328,7 +329,7 @@ func checkOneDriveRestoration(
 func checkSharePointRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	siteID, folderName, dataFolder string,
+	siteID, userID, folderName, dataFolder string,
 	startTime time.Time,
 ) {
 	drive, err := client.
@@ -342,7 +343,7 @@ func checkSharePointRestoration(
 	checkDriveRestoration(
 		ctx,
 		client,
-		siteID,
+		path.SharePointService,
 		folderName,
 		ptr.Val(drive.GetId()),
 		ptr.Val(drive.GetName()),
@@ -358,7 +359,7 @@ func checkSharePointRestoration(
 func checkDriveRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	resourceOwner,
+	service path.ServiceType,
 	folderName,
 	driveID,
 	driveName,
@@ -428,6 +429,7 @@ func checkDriveRestoration(
 
 	checkRestoredDriveItemPermissions(
 		ctx,
+		service,
 		skipPermissionTest,
 		folderPermissions,
 		restoredFolderPermissions)
@@ -450,6 +452,7 @@ func checkDriveRestoration(
 
 func checkRestoredDriveItemPermissions(
 	ctx context.Context,
+	service path.ServiceType,
 	skip bool,
 	folderPermissions map[string][]permissionInfo,
 	restoredFolderPermissions map[string][]permissionInfo,
@@ -457,6 +460,11 @@ func checkRestoredDriveItemPermissions(
 	if skip {
 		return
 	}
+
+	/**
+		TODO: replace this check with testElementsMatch
+		from internal/connecter/graph_connector_helper_test.go
+	**/
 
 	for folderName, permissions := range folderPermissions {
 		logAndPrint(ctx, "checking for folder: %s", folderName)
@@ -468,23 +476,32 @@ func checkRestoredDriveItemPermissions(
 			continue
 		}
 
+		permCheck := func() bool { return len(permissions) == len(restoreFolderPerm) }
+
+		if service == path.SharePointService {
+			permCheck = func() bool { return len(permissions) <= len(restoreFolderPerm) }
+		}
+
 		assert(
 			ctx,
-			func() bool { return len(permissions) == len(restoreFolderPerm) },
+			permCheck,
 			fmt.Sprintf("wrong number of restored permissions: %s", folderName),
 			permissions,
 			restoreFolderPerm)
 
-		for i, perm := range permissions {
-			// permissions should be sorted, so a by-index comparison works
-			restored := restoreFolderPerm[i]
+		for _, perm := range permissions {
+			eqID := func(pi permissionInfo) bool { return strings.EqualFold(pi.entityID, perm.entityID) }
+			i := slices.IndexFunc(restoreFolderPerm, eqID)
 
 			assert(
 				ctx,
-				func() bool { return strings.EqualFold(perm.entityID, restored.entityID) },
-				fmt.Sprintf("non-matching entity id: %s", folderName),
+				func() bool { return i >= 0 },
+				fmt.Sprintf("permission was restored in: %s", folderName),
 				perm.entityID,
-				restored.entityID)
+				restoreFolderPerm)
+
+			// permissions should be sorted, so a by-index comparison works
+			restored := restoreFolderPerm[i]
 
 			assert(
 				ctx,
@@ -612,6 +629,7 @@ func permissionIn(
 			entityID string
 		)
 
+		// TODO: replace with filterUserPermissions in onedrive item.go
 		if gv2.GetUser() != nil {
 			entityID = ptr.Val(gv2.GetUser().GetId())
 		} else if gv2.GetGroup() != nil {

@@ -8,8 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+### Fixed
+### Known Issues
+
+## [v0.8.0] (beta) - 2023-05-15
+
+### Added
 - Released the --mask-sensitive-data flag, which will automatically obscure private data in logs.
 - Added `--disable-delta` flag to disable delta based backups for Exchange
+- Permission support for SharePoint libraries.
 
 ### Fixed
 - Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
@@ -23,12 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refined oneDrive rate limiter controls to reduce throttling errors.
 - Fix handling of duplicate folders at the same hierarchy level in Exchange. Duplicate folders will be merged during restore operations.
 - Fix backup for mailboxes that has used up all their storage quota
+- Restored folders no longer appear in the Restore results. Only restored items will be displayed.
 
 ### Known Issues
 - Restore operations will merge duplicate Exchange folders at the same hierarchy level into a single folder.
-
- ### Known Issues
- - SharePoint document library data can't be restored after the library has been deleted.
+- Sharepoint SiteGroup permissions are not restored.
+- SharePoint document library data can't be restored after the library has been deleted.
 
 ## [v0.7.0] (beta) - 2023-05-02
 

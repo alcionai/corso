@@ -117,7 +117,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
 	}
 
-	ds.PrintEntries(ctx)
+	ds.Items().PrintEntries(ctx)
 
 	return nil
 }
