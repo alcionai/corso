@@ -222,13 +222,13 @@ func NewContactPager(
 	return &contactPager{gs, builder, options}, nil
 }
 
-func (p *contactPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return resp, nil
+	return api.EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
 }
 
 func (p *contactPager) setNext(nextLink string) {
@@ -301,7 +301,7 @@ func NewContactDeltaPager(
 	return &contactDeltaPager{gs, user, directoryID, builder, options}, nil
 }
 
-func (p *contactDeltaPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *contactDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
