@@ -55,14 +55,23 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 		op.Results.CompletedAt = time.Now()
 	}()
 
-	op.Results.StartedAt = time.Now()
+	err = op.do(ctx)
 
-	// TODO(ashmrtn): Send usage statistics?
+	return err
+}
 
-	err = op.operation.kopia.RepoMaintenance(ctx, op.mOpts)
+func (op *MaintenanceOperation) do(ctx context.Context) error {
+	defer func() {
+		op.Results.CompletedAt = time.Now()
+	}()
+
+	err := op.operation.kopia.RepoMaintenance(ctx, op.mOpts)
 	if err != nil {
+		op.Status = Failed
 		return clues.Wrap(err, "running maintenance operation")
 	}
+
+	op.Status = Completed
 
 	return nil
 }
