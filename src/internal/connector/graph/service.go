@@ -266,10 +266,10 @@ func kiotaMiddlewares(
 		mw = append(mw, concurrencyLim)
 	}
 
-	mw = append(mw, []khttp.Middleware{
+	mw = append(
+		mw,
 		&RateLimiterMiddleware{},
-		&MetricsMiddleware{},
-	}...)
+		&MetricsMiddleware{})
 
 	if len(cc.appendMiddleware) > 0 {
 		mw = append(mw, cc.appendMiddleware...)
