@@ -40,8 +40,10 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 		"https://www.corsobackup.io",
 		nil,
 		nil)
-
 	require.NoError(t, err, clues.ToCore(err))
+
+	defer resp.Body.Close()
+
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -108,8 +110,10 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 	hw := NewHTTPWrapper(appendMiddleware(&mwResp))
 
 	resp, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
-
 	require.NoError(t, err, clues.ToCore(err))
+
+	defer resp.Body.Close()
+
 	require.NotNil(t, resp)
 	// require.Equal(t, 1, calledCorrectly, "test server was called with expected path")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
