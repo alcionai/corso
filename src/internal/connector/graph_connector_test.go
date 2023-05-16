@@ -513,8 +513,7 @@ func runBackupAndCompare(
 		totalKopiaItems,
 		expectedData,
 		dcs,
-		config.Dest,
-		config.Opts.RestorePermissions)
+		config)
 
 	status := backupGC.Wait()
 
@@ -1099,17 +1098,15 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			t.Log("Backup enumeration complete")
 
+			ci := ConfigInfo{
+				Opts: control.Options{RestorePermissions: true},
+				// Alright to be empty, needed for OneDrive.
+				Dest: control.RestoreDestination{},
+			}
+
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			skipped := checkCollections(
-				t,
-				ctx,
-				allItems,
-				allExpectedData,
-				dcs,
-				// Alright to be empty, needed for OneDrive.
-				control.RestoreDestination{},
-				true)
+			skipped := checkCollections(t, ctx, allItems, allExpectedData, dcs, ci)
 
 			status := backupGC.Wait()
 			assert.Equal(t, allItems+skipped, status.Objects, "status.Objects")

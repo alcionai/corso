@@ -32,6 +32,7 @@ import (
 var (
 	Count         int
 	Destination   string
+	Site          string
 	Tenant        string
 	User          string
 	SecondaryUser string
@@ -105,9 +106,10 @@ func generateAndRestoreItems(
 // Common Helpers
 // ------------------------------------------------------------------------------------------
 
-func getGCAndVerifyUser(
+func getGCAndVerifyResourceOwner(
 	ctx context.Context,
-	userID string,
+	resource connector.Resource,
+	resourceOwner string,
 ) (
 	*connector.GraphConnector,
 	account.Account,
@@ -131,15 +133,12 @@ func getGCAndVerifyUser(
 		return nil, account.Account{}, nil, clues.Wrap(err, "finding m365 account details")
 	}
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
 
-	id, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, userID, nil)
+	id, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, resourceOwner, nil)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "verifying user")
 	}
@@ -209,7 +208,7 @@ var (
 	readPerm  = []string{"read"}
 )
 
-func generateAndRestoreOnedriveItems(
+func generateAndRestoreDriveItems(
 	gc *connector.GraphConnector,
 	resourceOwner, secondaryUserID, secondaryUserName string,
 	acct account.Account,
@@ -230,8 +229,24 @@ func generateAndRestoreOnedriveItems(
 	dest.ContainerName = destFldr
 	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
-	d, _ := gc.Service.Client().UsersById(resourceOwner).Drive().Get(ctx, nil)
-	driveID := ptr.Val(d.GetId())
+	var driveID string
+
+	switch service {
+	case path.SharePointService:
+		d, err := gc.Service.Client().SitesById(resourceOwner).Drive().Get(ctx, nil)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting site's default drive")
+		}
+
+		driveID = ptr.Val(d.GetId())
+	default:
+		d, err := gc.Service.Client().UsersById(resourceOwner).Drive().Get(ctx, nil)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting user's default drive")
+		}
+
+		driveID = ptr.Val(d.GetId())
+	}
 
 	var (
 		cols []connector.OnedriveColInfo

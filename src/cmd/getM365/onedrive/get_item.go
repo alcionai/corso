@@ -198,6 +198,7 @@ func getDriveItemContent(
 	if err != nil {
 		return nil, clues.New("downloading item").With("error", err)
 	}
+	defer resp.Body.Close()
 
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {

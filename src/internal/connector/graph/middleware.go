@@ -33,6 +33,7 @@ type LoggingMiddleware struct{}
 
 // well-known path names used by graph api calls
 // used to un-hide path elements in a pii.SafeURL
+// https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
 var SafeURLPathParams = pii.MapWithPlurals(
 	//nolint:misspell
 	"alltime",
@@ -46,11 +47,16 @@ var SafeURLPathParams = pii.MapWithPlurals(
 	"childfolder",
 	"children",
 	"clone",
+	"clutter",
 	"column",
+	"conflict",
 	"contactfolder",
 	"contact",
 	"contenttype",
+	"conversationhistory",
+	"deleteditem",
 	"delta",
+	"draft",
 	"drive",
 	"event",
 	"group",
@@ -59,18 +65,28 @@ var SafeURLPathParams = pii.MapWithPlurals(
 	"invitation",
 	"item",
 	"joinedteam",
+	"junkemail",
 	"label",
 	"list",
+	"localfailure",
 	"mailfolder",
 	"member",
 	"message",
+	"msgfolderroot",
 	"notification",
+	"outbox",
 	"page",
 	"primarychannel",
+	"recoverableitemsdeletion",
 	"root",
+	"scheduled",
+	"searchfolder",
 	"security",
+	"sentitem",
+	"serverfailure",
 	"site",
 	"subscription",
+	"syncissue",
 	"team",
 	"unarchive",
 	"user",
@@ -399,6 +415,10 @@ func (mw *MetricsMiddleware) Intercept(
 		status    = "nil-resp"
 	)
 
+	if resp == nil {
+		return resp, err
+	}
+
 	if resp != nil {
 		status = resp.Status
 	}
@@ -409,11 +429,6 @@ func (mw *MetricsMiddleware) Intercept(
 	events.Since(start, events.APICall, status)
 
 	// track the graph "resource cost" for each call (if not provided, assume 1)
-
-	// nil-pointer guard
-	if len(resp.Header) == 0 {
-		resp.Header = http.Header{}
-	}
 
 	// from msoft throttling documentation:
 	// x-ms-resource-unit - Indicates the resource unit used for this request. Values are positive integer

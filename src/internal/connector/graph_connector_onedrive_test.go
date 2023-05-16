@@ -151,11 +151,6 @@ func (si suiteInfoImpl) Resource() Resource {
 // SharePoint shares most of its libraries implementation with OneDrive so we
 // only test simple things here and leave the more extensive testing to
 // OneDrive.
-//
-// TODO(ashmrtn): SharePoint doesn't have permissions backup/restore enabled
-// right now. Adjust the tests here when that is enabled so we have at least
-// basic assurances that it's doing the right thing. We can leave the more
-// extensive permissions tests to OneDrive as well.
 
 type GraphConnectorSharePointIntegrationSuite struct {
 	tester.Suite
@@ -204,6 +199,23 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 
 func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
+	testPermissionsRestoreAndBackup(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+	testPermissionsBackupAndNoRestore(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
+	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
+	// No reason why it couldn't work with previous versions, but this is when it got introduced.
+	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
 }
 
 // ---------------------------------------------------------------------------
@@ -665,12 +677,11 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	}
 
 	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	require.NoError(suite.T(), err)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
@@ -755,12 +766,11 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 	}
 
 	expected, err := DataForInfo(suite.BackupService(), expectedCols, version.Backup)
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	require.NoError(suite.T(), err)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			input, err := DataForInfo(suite.BackupService(), inputCols, vn)
 			if err != nil {
@@ -937,12 +947,11 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	}
 
 	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	require.NoError(suite.T(), err)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
@@ -1057,12 +1066,11 @@ func testRestoreFolderNamedFolderRegression(
 	}
 
 	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	require.NoError(suite.T(), err)
+	bss := suite.BackupService().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
-		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			input, err := DataForInfo(suite.BackupService(), cols, vn)
 			if err != nil {
