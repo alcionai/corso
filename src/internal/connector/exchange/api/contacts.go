@@ -228,7 +228,7 @@ func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error)
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Contactable](resp), nil
+	return api.EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
 }
 
 func (p *contactPager) setNext(nextLink string) {

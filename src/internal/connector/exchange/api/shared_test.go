@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -31,13 +32,13 @@ func (v testPagerValue) GetAdditionalData() map[string]any {
 type testPage struct{}
 
 func (p testPage) GetOdataNextLink() *string {
-	next := "" // no next, just one page
-	return &next
+	// no next, just one page
+	return ptr.To("")
 }
 
 func (p testPage) GetOdataDeltaLink() *string {
-	delta := "" // delta is not tested here
-	return &delta
+	// delta is not tested here
+	return ptr.To("")
 }
 
 var _ itemPager = &testPager{}

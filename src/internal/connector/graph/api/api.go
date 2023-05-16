@@ -37,20 +37,15 @@ type PageLinkValuer[T any] interface {
 	Valuer[T]
 }
 
-// emptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
-type emptyDeltaLinker[T any] struct {
+// EmptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
+type EmptyDeltaLinker[T any] struct {
 	PageLinkValuer[T]
 }
 
-func (emptyDeltaLinker[T]) GetOdataDeltaLink() *string {
-	empty := ""
-	return &empty
+func (EmptyDeltaLinker[T]) GetOdataDeltaLink() *string {
+	return ptr.To("")
 }
 
-func EmptyDeltaLinker[T any](e PageLinkValuer[T]) emptyDeltaLinker[T] {
-	return emptyDeltaLinker[T]{e}
-}
-
-func (e emptyDeltaLinker[T]) GetValue() []T {
+func (e EmptyDeltaLinker[T]) GetValue() []T {
 	return e.PageLinkValuer.GetValue()
 }

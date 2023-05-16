@@ -289,7 +289,7 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Eventable](resp), nil
+	return api.EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
 }
 
 func (p *eventPager) setNext(nextLink string) {

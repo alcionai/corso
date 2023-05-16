@@ -391,7 +391,7 @@ func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Messageable](page), nil
+	return api.EmptyDeltaLinker[models.Messageable]{PageLinkValuer: page}, nil
 }
 
 func (p *mailPager) setNext(nextLink string) {
