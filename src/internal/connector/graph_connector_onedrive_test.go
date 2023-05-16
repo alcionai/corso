@@ -462,17 +462,13 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	}
 
 	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	require.NoError(suite.T(), err)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
 			input, err := DataForInfo(suite.BackupService(), cols, vn)
-			if err != nil {
-				assert.FailNow(suite.T(), err.Error())
-			}
+			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -687,9 +683,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
 			input, err := DataForInfo(suite.BackupService(), cols, vn)
-			if err != nil {
-				assert.FailNow(suite.T(), err.Error())
-			}
+			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -773,9 +767,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			input, err := DataForInfo(suite.BackupService(), inputCols, vn)
-			if err != nil {
-				assert.FailNow(suite.T(), err.Error())
-			}
+			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -957,9 +949,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
 			input, err := DataForInfo(suite.BackupService(), cols, vn)
-			if err != nil {
-				assert.FailNow(suite.T(), err.Error())
-			}
+			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),
@@ -1073,9 +1063,7 @@ func testRestoreFolderNamedFolderRegression(
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 			input, err := DataForInfo(suite.BackupService(), cols, vn)
-			if err != nil {
-				assert.FailNow(suite.T(), err.Error())
-			}
+			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.BackupService(),

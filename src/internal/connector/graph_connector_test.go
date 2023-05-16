@@ -548,9 +548,8 @@ func runRestoreBackupTest(
 		config,
 		test.collections,
 		version.Backup)
-	if err != nil {
-		assert.FailNow(t, "failed with error", err)
-	}
+
+	require.NoError(t, err)
 
 	runRestore(
 		t,
@@ -596,9 +595,7 @@ func runRestoreTestWithVerion(
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
-	if err != nil {
-		assert.FailNow(t, "failed with error", err)
-	}
+	require.NoError(t, err)
 
 	runRestore(
 		t,
@@ -637,9 +634,7 @@ func runRestoreBackupTestVersions(
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
-	if err != nil {
-		assert.FailNow(t, "failed with error", err)
-	}
+	require.NoError(t, err)
 
 	runRestore(
 		t,
@@ -654,9 +649,7 @@ func runRestoreBackupTestVersions(
 		config,
 		test.collectionsLatest,
 		version.Backup)
-	if err != nil {
-		assert.FailNow(t, "failed with error", err)
-	}
+	require.NoError(t, err)
 
 	runBackupAndCompare(
 		t,
@@ -1029,9 +1022,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					[]ColInfo{collection},
 					version.Backup,
 				)
-				if err != nil {
-					assert.FailNow(t, "failed with error", err)
-				}
+				require.NoError(t, err)
 
 				allItems += totalItems
 
