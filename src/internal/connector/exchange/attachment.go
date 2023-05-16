@@ -95,7 +95,7 @@ func uploadLargeAttachment(
 ) error {
 	bs, err := GetAttachmentBytes(attachment)
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	size := int64(len(bs))

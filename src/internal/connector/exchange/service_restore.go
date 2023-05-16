@@ -239,7 +239,7 @@ func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
 
 	bts, ok := bi.([]byte)
 	if !ok {
-		return nil, clues.New("attachment content is not a byte array")
+		return nil, clues.New(fmt.Sprintf("unexpected type for attachment content: %T", bi))
 	}
 
 	return bts, nil

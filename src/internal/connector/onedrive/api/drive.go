@@ -19,8 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-const rootID = "root" // root id for drive items
-
 func getValues[T any](l api.PageLinker) ([]T, error) {
 	page, ok := l.(interface{ GetValue() []T })
 	if !ok {
@@ -70,7 +68,7 @@ func NewItemPager(
 		options: requestConfig,
 		builder: gs.Client().
 			Drives().ByDriveId(driveID).
-			Items().ByDriveItemId(rootID).Delta(),
+			Items().ByDriveItemId(onedrive.RootID).Delta(),
 	}
 
 	if len(link) > 0 {
@@ -101,7 +99,7 @@ func (p *driveItemPager) SetNext(link string) {
 func (p *driveItemPager) Reset() {
 	p.builder = p.gs.Client().
 		Drives().ByDriveId(p.driveID).
-		Items().ByDriveItemId(rootID).
+		Items().ByDriveItemId(onedrive.RootID).
 		Delta()
 }
 
