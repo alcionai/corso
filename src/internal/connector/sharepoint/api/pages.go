@@ -91,7 +91,7 @@ func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Site
 		},
 	}
 
-	resp, err := gs.Client().SitesById(siteID).Get(ctx, options)
+	resp, err := gs.Client().Sites().BySiteId(siteID).Get(ctx, options)
 	if err != nil {
 		return nil, err
 	}

@@ -43,10 +43,10 @@ const (
 )
 
 func odErr(code string) *odataerrors.ODataError {
-	odErr := &odataerrors.ODataError{}
-	merr := odataerrors.MainError{}
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(&merr)
+	odErr.SetError(merr)
 
 	return odErr
 }

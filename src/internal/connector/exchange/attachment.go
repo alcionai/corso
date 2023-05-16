@@ -93,10 +93,12 @@ func uploadLargeAttachment(
 	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
-	var (
-		bs   = attachmentBytes(attachment)
-		size = int64(len(bs))
-	)
+	bs, err := GetAttachmentBytes(attachment)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
+	size := int64(len(bs))
 
 	session, err := uploader.uploadSession(ctx, ptr.Val(attachment.GetName()), size)
 	if err != nil {
