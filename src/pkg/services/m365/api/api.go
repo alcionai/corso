@@ -1,10 +1,7 @@
 package api
 
 import (
-	"context"
-
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -92,17 +89,3 @@ type DeltaUpdate struct {
 	// true if the old delta was marked as invalid
 	Reset bool
 }
-
-// GraphQuery represents functions which perform exchange-specific queries
-// into M365 backstore. Responses -> returned items will only contain the information
-// that is included in the options
-// TODO: use selector or path for granularity into specific folders or specific date ranges
-type GraphQuery func(ctx context.Context, userID string) (serialization.Parsable, error)
-
-// GraphRetrievalFunctions are functions from the Microsoft Graph API that retrieve
-// the default associated data of a M365 object. This varies by object. Additional
-// Queries must be run to obtain the omitted fields.
-type GraphRetrievalFunc func(
-	ctx context.Context,
-	user, m365ID string,
-) (serialization.Parsable, error)
