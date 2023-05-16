@@ -192,12 +192,12 @@ func deserializeMetadata(
 					continue
 				}
 
-				// This is conservative, but report an error if any of the items for
-				// any of the deserialized maps have duplicate drive IDs. This will
-				// cause the entire backup to fail, but it's not clear if higher
-				// layers would have caught this. Worst case if we don't handle this
-				// we end up in a situation where we're sourcing items from the wrong
-				// base in kopia wrapper.
+				// This is conservative, but report an error if either any of the items
+				// for any of the deserialized maps have duplicate drive IDs or there's
+				// some other problem deserializing things. This will cause the entire
+				// backup to fail, but it's not clear if higher layers would have caught
+				// these cases. We can make the logic for deciding when to continue vs.
+				// when to fail less strict in the future if needed.
 				if err != nil {
 					return nil, nil, clues.Stack(err).WithClues(ictx)
 				}
