@@ -40,6 +40,8 @@ github.com/Azure/azure-sdk-for-go/sdk/azcore v1.3.0 h1:VuHAcMq8pU1IWNT/m5yRaGqbK
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.3.0/go.mod h1:tZoQYdDZNOiIjdSn0dVWVfl0NEPGOJqVLzSrcFk4Is0=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.5.0 h1:xGLAFFd9D3iLGxYiUGPdITSzsFmU1K8VtfuUHWAoN7M=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.5.0/go.mod h1:bjGvMhVMb+EEm3VRNQawDMUyMMjo+S5ewNjflkep/0Q=
+github.com/Azure/azure-sdk-for-go/sdk/azcore v1.6.0 h1:8kDqDngH+DmVBiCtIjCFTGa7MBnsIOkF9IccInFEbjk=
+github.com/Azure/azure-sdk-for-go/sdk/azcore v1.6.0/go.mod h1:bjGvMhVMb+EEm3VRNQawDMUyMMjo+S5ewNjflkep/0Q=
 github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0 h1:t/W5MYAuQy81cvM8VUNfRLzhtKpXhVUAN7Cd7KVbTyc=
 github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0/go.mod h1:NBanQUfSWiWn3QEpWDTCU0IjBECKOYvl2R8xdRtMtiM=
 github.com/Azure/azure-sdk-for-go/sdk/internal v1.1.2 h1:+5VZ72z0Qan5Bog5C+ZkgSqUbeVUd9wgtHOrIKuc5b8=
@@ -307,6 +309,8 @@ github.com/microsoftgraph/msgraph-sdk-go v0.53.0 h1:HpQd1Nvr8yQNeqhDuiVSbqn1fkHs
 github.com/microsoftgraph/msgraph-sdk-go v0.53.0/go.mod h1:BZLyon4n4T4EuLIAlX+kJ5JgneFTXVQDah1AJuq3FRY=
 github.com/microsoftgraph/msgraph-sdk-go v1.0.0 h1:dGh406Loi5CoQ1VsoBkbi+mlozu58eT65YzoYsWX3Sk=
 github.com/microsoftgraph/msgraph-sdk-go v1.0.0/go.mod h1:GvurB1XYl22Ralx3wlQZUTOwPnZ55RoTfbRNIStgj94=
+github.com/microsoftgraph/msgraph-sdk-go v1.1.0 h1:NtFsFVIt8lpXcTlRbLG1WuCOTzltzS5j+U8Fecqdnr4=
+github.com/microsoftgraph/msgraph-sdk-go v1.1.0/go.mod h1:NIk9kSn7lQ5Hnhhn3FM4NrJWz54JfDHD0JvhJZky27g=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0 h1:cDL3ov/IZ2ZarUJdGGPsdR+46ALdd3CRAiDBIylLCoA=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0/go.mod h1:d0mU3PQAWnN/C4CwPJEZz2QhesrnR5UDnqRu2ODWPkI=
 github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0 h1:7NWTfyXvOjoizW7PmxNp3+8wCKPgpODs/D1cUZ3fkAY=
