@@ -12,6 +12,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -253,6 +254,11 @@ func runBackups(
 		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))
 
 		for i, e := range errs {
+			if strings.Contains(e.Error(), graph.ErrServiceNotEnabled.Error()) {
+				logger.Ctx(ctx).Debugf("Service not enabled for creating backup %d of %d", i+1, len(selectorSet))
+				continue
+			}
+
 			logger.CtxErr(ctx, e).Errorf("Backup %d of %d failed", i+1, len(selectorSet))
 			sb += "∙ " + e.Error() + "\n"
 		}
