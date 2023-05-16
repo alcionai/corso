@@ -139,11 +139,13 @@ func (suite *ConcurrencyMWUnitTestSuite) TestTimedFence_Block() {
 	start := time.Now()
 
 	var wg sync.WaitGroup
+
 	wg.Add(5)
 
 	for i := 0; i < 5; i++ {
 		go func(i int) {
 			defer wg.Done()
+
 			err := tf.Block(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 		}(i)
@@ -173,11 +175,13 @@ func (suite *ConcurrencyMWUnitTestSuite) TestTimedFence_Block_ctxDeadline() {
 	start := time.Now()
 
 	var wg sync.WaitGroup
+
 	wg.Add(5)
 
 	for i := 0; i < 5; i++ {
 		go func(i int) {
 			defer wg.Done()
+
 			err := tf.Block(ctx)
 			// should error from ctx deadline
 			require.Error(t, err, clues.ToCore(err))
