@@ -1,7 +1,6 @@
 package connector
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -17,44 +16,31 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-func mustToDataLayerPath(
-	t *testing.T,
-	service path.ServiceType,
-	tenant, resourceOwner string,
-	category path.CategoryType,
-	elements []string,
-	isItem bool,
-) path.Path {
-	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
-	require.NoError(t, err, clues.ToCore(err))
-
-	return res
-}
-
 func testElementsMatch[T any](
 	t *testing.T,
 	expected []T,
 	got []T,
+	subset bool,
 	equalityCheck func(expectedItem, gotItem T) bool,
 ) {
 	t.Helper()
 
 	pending := make([]*T, len(expected))
-	for i := 0; i < len(expected); i++ {
-		pending[i] = &expected[i]
+
+	for i := range expected {
+		ei := expected[i]
+		pending[i] = &ei
 	}
 
 	unexpected := []T{}
@@ -97,63 +83,33 @@ func testElementsMatch[T any](
 		return
 	}
 
+	if subset && len(missing) == 0 && len(unexpected) > 0 {
+		return
+	}
+
 	assert.Failf(
 		t,
-		"contain different elements",
-		"missing items: (%T)%v\nunexpected items: (%T)%v\n",
+		"elements differ",
+		"expected: (%T)%+v\ngot: (%T)%+v\nmissing: %+v\nextra: %+v\n",
 		expected,
-		missing,
+		expected,
 		got,
-		unexpected,
-	)
-}
-
-type configInfo struct {
-	acct           account.Account
-	opts           control.Options
-	resource       Resource
-	service        path.ServiceType
-	tenant         string
-	resourceOwners []string
-	dest           control.RestoreDestination
-}
-
-type itemInfo struct {
-	// lookupKey is a string that can be used to find this data from a set of
-	// other data in the same collection. This key should be something that will
-	// be the same before and after restoring the item in M365 and may not be
-	// the M365 ID. When restoring items out of place, the item is assigned a
-	// new ID making it unsuitable for a lookup key.
-	lookupKey string
-	name      string
-	data      []byte
-}
-
-type colInfo struct {
-	// Elements (in order) for the path representing this collection. Should
-	// only contain elements after the prefix that corso uses for the path. For
-	// example, a collection for the Inbox folder in exchange mail would just be
-	// "Inbox".
-	pathElements []string
-	category     path.CategoryType
-	items        []itemInfo
-	// auxItems are items that can be retrieved with Fetch but won't be returned
-	// by Items(). These files do not directly participate in comparisosn at the
-	// end of a test.
-	auxItems []itemInfo
+		got,
+		missing,
+		unexpected)
 }
 
 type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
-	collections []colInfo
+	collections []ColInfo
 	resource    Resource
 }
 
 type restoreBackupInfoMultiVersion struct {
 	service             path.ServiceType
-	collectionsLatest   []colInfo
-	collectionsPrevious []colInfo
+	collectionsLatest   []ColInfo
+	collectionsPrevious []ColInfo
 	resource            Resource
 	backupVersion       int
 }
@@ -162,11 +118,15 @@ func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
 ) bool {
-	// This is super hacky, but seems like it would be good to have a comparison
-	// of the actual content. I think the only other way to really get it is to
-	// serialize both structs to JSON and pull it from there or something though.
-	expectedData := reflect.Indirect(reflect.ValueOf(expected)).FieldByName("contentBytes").Bytes()
-	gotData := reflect.Indirect(reflect.ValueOf(got)).FieldByName("contentBytes").Bytes()
+	expectedData, err := exchange.GetAttachmentBytes(expected)
+	if err != nil {
+		return false
+	}
+
+	gotData, err := exchange.GetAttachmentBytes(got)
+	if err != nil {
+		return false
+	}
 
 	if !reflect.DeepEqual(expectedData, gotData) {
 		return false
@@ -211,7 +171,7 @@ func checkMessage(
 	expected models.Messageable,
 	got models.Messageable,
 ) {
-	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), attachmentEqual)
+	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), false, attachmentEqual)
 
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
@@ -289,7 +249,7 @@ func checkMessage(
 
 	assert.Equal(t, ptr.Val(expected.GetSubject()), ptr.Val(got.GetSubject()), "Subject")
 
-	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), recipientEqual)
+	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), false, recipientEqual)
 
 	// Skip WebLink as it's tied to this specific instance of the item.
 
@@ -535,10 +495,10 @@ func checkEvent(
 		t,
 		[]models.Locationable{expected.GetLocation()},
 		[]models.Locationable{got.GetLocation()},
-		locationEqual,
-	)
+		false,
+		locationEqual)
 
-	testElementsMatch(t, expected.GetLocations(), got.GetLocations(), locationEqual)
+	testElementsMatch(t, expected.GetLocations(), got.GetLocations(), false, locationEqual)
 
 	assert.Equal(t, expected.GetOnlineMeeting(), got.GetOnlineMeeting(), "OnlineMeeting")
 
@@ -726,7 +686,7 @@ func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
-	restorePermissions bool,
+	config ConfigInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
@@ -746,19 +706,15 @@ func compareDriveItem(
 		isMeta      = metadata.HasMetaSuffix(name)
 	)
 
-	if isMeta {
-		var itemType *metadata.Item
-
-		assert.IsType(t, itemType, item)
-	} else {
+	if !isMeta {
 		oitem := item.(*onedrive.Item)
 		info := oitem.Info()
 
-		// Don't need to check SharePoint because it was added after we stopped
-		// adding meta files to backup details.
 		if info.OneDrive != nil {
 			displayName = oitem.Info().OneDrive.ItemName
 
+			// Don't need to check SharePoint because it was added after we stopped
+			// adding meta files to backup details.
 			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
 		} else if info.SharePoint != nil {
 			displayName = oitem.Info().SharePoint.ItemName
@@ -768,6 +724,10 @@ func compareDriveItem(
 	}
 
 	if isMeta {
+		var itemType *metadata.Item
+
+		assert.IsType(t, itemType, item)
+
 		var (
 			itemMeta     metadata.Metadata
 			expectedMeta metadata.Metadata
@@ -806,7 +766,7 @@ func compareDriveItem(
 			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
 		}
 
-		if !restorePermissions {
+		if !config.Opts.RestorePermissions {
 			assert.Equal(t, 0, len(itemMeta.Permissions))
 			return true
 		}
@@ -824,6 +784,10 @@ func compareDriveItem(
 			t,
 			expectedMeta.Permissions,
 			itemPerms,
+			// sharepoint retrieves a superset of permissions
+			// (all site admins, site groups, built in by default)
+			// relative to the permissions changed by the test.
+			config.Service == path.SharePointService,
 			permissionEqual)
 
 		return true
@@ -865,7 +829,7 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
-	restorePermissions bool,
+	config ConfigInfo,
 	rootDir bool,
 ) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
@@ -886,7 +850,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		return compareDriveItem(t, expected, item, restorePermissions, rootDir)
+		return compareDriveItem(t, expected, item, config, rootDir)
 
 	case path.SharePointService:
 		if category != path.LibrariesCategory {
@@ -894,7 +858,7 @@ func compareItem(
 		}
 
 		// SharePoint libraries reuses OneDrive code.
-		return compareDriveItem(t, expected, item, restorePermissions, rootDir)
+		return compareDriveItem(t, expected, item, config, rootDir)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
@@ -918,7 +882,36 @@ func checkHasCollections(
 	}
 
 	for _, g := range got {
-		gotNames = append(gotNames, g.FullPath().String())
+		// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
+		// interface.
+		if !assert.Implements(t, (*data.LocationPather)(nil), g) {
+			continue
+		}
+
+		fp := g.FullPath()
+		loc := g.(data.LocationPather).LocationPath()
+
+		if fp.Service() == path.OneDriveService ||
+			(fp.Service() == path.SharePointService && fp.Category() == path.LibrariesCategory) {
+			dp, err := path.ToDrivePath(fp)
+			if !assert.NoError(t, err, clues.ToCore(err)) {
+				continue
+			}
+
+			loc = path.BuildDriveLocation(dp.DriveID, loc.Elements()...)
+		}
+
+		p, err := loc.ToDataLayerPath(
+			fp.Tenant(),
+			fp.ResourceOwner(),
+			fp.Service(),
+			fp.Category(),
+			false)
+		if !assert.NoError(t, err, clues.ToCore(err)) {
+			continue
+		}
+
+		gotNames = append(gotNames, p.String())
 	}
 
 	assert.ElementsMatch(t, expectedNames, gotNames, "returned collections")
@@ -930,8 +923,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
-	dest control.RestoreDestination,
-	restorePermissions bool,
+	config ConfigInfo,
 ) int {
 	collectionsWithItems := []data.BackupCollection{}
 
@@ -945,7 +937,7 @@ func checkCollections(
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == dest.ContainerName
+			rootDir         = folders[len(folders)-1] == config.Dest.ContainerName
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -978,7 +970,7 @@ func checkCollections(
 				service,
 				category,
 				item,
-				restorePermissions,
+				config,
 				rootDir) {
 				gotItems--
 			}
@@ -1124,127 +1116,6 @@ func backupSelectorForExpected(
 
 	// Fix compile error about no return. Should not reach here.
 	return selectors.Selector{}
-}
-
-// backupOutputPathFromRestore returns a path.Path denoting the location in
-// kopia the data will be placed at. The location is a data-type specific
-// combination of the location the data was recently restored to and where the
-// data was originally in the hierarchy.
-func backupOutputPathFromRestore(
-	t *testing.T,
-	restoreDest control.RestoreDestination,
-	inputPath path.Path,
-) path.Path {
-	base := []string{restoreDest.ContainerName}
-
-	// OneDrive has leading information like the drive ID.
-	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
-		folders := inputPath.Folders()
-		base = append(append([]string{}, folders[:3]...), restoreDest.ContainerName)
-
-		if len(folders) > 3 {
-			base = append(base, folders[3:]...)
-		}
-	}
-
-	if inputPath.Service() == path.ExchangeService && inputPath.Category() == path.EmailCategory {
-		base = append(base, inputPath.Folders()...)
-	}
-
-	return mustToDataLayerPath(
-		t,
-		inputPath.Service(),
-		inputPath.Tenant(),
-		inputPath.ResourceOwner(),
-		inputPath.Category(),
-		base,
-		false,
-	)
-}
-
-// TODO(ashmrtn): Make this an actual mock class that can be used in other
-// packages.
-type mockRestoreCollection struct {
-	data.Collection
-	auxItems map[string]data.Stream
-}
-
-func (rc mockRestoreCollection) Fetch(
-	ctx context.Context,
-	name string,
-) (data.Stream, error) {
-	res := rc.auxItems[name]
-	if res == nil {
-		return nil, data.ErrNotFound
-	}
-
-	return res, nil
-}
-
-func collectionsForInfo(
-	t *testing.T,
-	service path.ServiceType,
-	tenant, user string,
-	dest control.RestoreDestination,
-	allInfo []colInfo,
-	backupVersion int,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
-	var (
-		collections  = make([]data.RestoreCollection, 0, len(allInfo))
-		expectedData = make(map[string]map[string][]byte, len(allInfo))
-		totalItems   = 0
-		kopiaEntries = 0
-	)
-
-	for _, info := range allInfo {
-		pth := mustToDataLayerPath(
-			t,
-			service,
-			tenant,
-			user,
-			info.category,
-			info.pathElements,
-			false)
-
-		mc := exchMock.NewCollection(pth, pth, len(info.items))
-		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
-
-		baseExpected := expectedData[baseDestPath.String()]
-		if baseExpected == nil {
-			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
-			baseExpected = expectedData[baseDestPath.String()]
-		}
-
-		for i := 0; i < len(info.items); i++ {
-			mc.Names[i] = info.items[i].name
-			mc.Data[i] = info.items[i].data
-
-			baseExpected[info.items[i].lookupKey] = info.items[i].data
-
-			// We do not count metadata files against item count
-			if backupVersion > 0 &&
-				(service == path.OneDriveService || service == path.SharePointService) &&
-				metadata.HasMetaSuffix(info.items[i].name) {
-				continue
-			}
-
-			totalItems++
-		}
-
-		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
-
-		for _, aux := range info.auxItems {
-			c.auxItems[aux.name] = &exchMock.Data{
-				ID:     aux.name,
-				Reader: io.NopCloser(bytes.NewReader(aux.data)),
-			}
-		}
-
-		collections = append(collections, c)
-		kopiaEntries += len(info.items)
-	}
-
-	return totalItems, kopiaEntries, collections, expectedData
 }
 
 func getSelectorWith(

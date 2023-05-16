@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/alcionai/clues"
 
@@ -18,9 +17,16 @@ import (
 // ---------------------------------------------------------------------------
 
 type itemPager interface {
+	// getPage get a page with the specified options from graph
 	getPage(context.Context) (api.DeltaPageLinker, error)
+	// setNext is used to pass in the next url got from graph
 	setNext(string)
-	valuesIn(api.DeltaPageLinker) ([]getIDAndAddtler, error)
+	// reset is used to clear delta url in delta pagers. When
+	// reset is called, we reset the state(delta url) that we
+	// currently have and start a new delta query without the token.
+	reset(context.Context)
+	// valuesIn gets us the values in a page
+	valuesIn(api.PageLinker) ([]getIDAndAddtler, error)
 }
 
 type getIDAndAddtler interface {
@@ -54,6 +60,54 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	}
 
 	return r, nil
+}
+
+func getAddedAndRemovedItemIDs(
+	ctx context.Context,
+	service graph.Servicer,
+	pager itemPager,
+	deltaPager itemPager,
+	oldDelta string,
+	canMakeDeltaQueries bool,
+) ([]string, []string, DeltaUpdate, error) {
+	var (
+		pgr        itemPager
+		resetDelta bool
+	)
+
+	if canMakeDeltaQueries {
+		pgr = deltaPager
+		resetDelta = len(oldDelta) == 0
+	} else {
+		pgr = pager
+		resetDelta = true
+	}
+
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	// note: happy path, not the error condition
+	if err == nil {
+		return added, removed, DeltaUpdate{deltaURL, resetDelta}, err
+	}
+
+	// If we already tried with a non-delta url, we can return
+	if !canMakeDeltaQueries {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
+	// return error if invalid not delta error or oldDelta was empty
+	if !graph.IsErrInvalidDelta(err) || len(oldDelta) == 0 {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
+	// reset deltaPager
+	pgr.reset(ctx)
+
+	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
+	return added, removed, DeltaUpdate{deltaURL, true}, nil
 }
 
 // generic controller for retrieving all item ids in a container.
@@ -104,19 +158,14 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
-		nextLink, delta := api.NextAndDeltaLink(resp)
-		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(delta) {
-				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, delta)
-			}
-		}
+		nextLink, deltaLink := api.NextAndDeltaLink(resp)
 
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will
 		// produce a deltaLink instead (if supported), which we'll use on
 		// the next backup to only get the changes since this run.
-		if len(delta) > 0 {
-			deltaURL = delta
+		if len(deltaLink) > 0 {
+			deltaURL = deltaLink
 		}
 
 		// the nextLink is our page cursor within this query.

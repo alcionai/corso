@@ -87,6 +87,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		options.AddFetchParallelismFlag(c)
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
+		options.AddDisableDeltaFlag(c)
 		options.AddEnableImmutableIDFlag(c)
 		options.AddDisableConcurrencyLimiterFlag(c)
 

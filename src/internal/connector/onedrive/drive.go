@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -71,7 +72,7 @@ func pathPrefixerForSource(
 	}
 
 	return func(driveID string) (path.Path, error) {
-		return path.Build(tenantID, resourceOwner, serv, cat, false, "drives", driveID, "root:")
+		return path.Build(tenantID, resourceOwner, serv, cat, false, odConsts.DrivesPathDir, driveID, odConsts.RootPathDir)
 	}
 }
 
@@ -157,7 +158,8 @@ func collectItems(
 	}
 
 	for {
-		page, err := pager.GetPage(ctx)
+		// assume delta urls here, which allows single-token consumption
+		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
 
 		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
@@ -222,7 +224,7 @@ func CreateItem(
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-	builder := drive.NewItemsRequestBuilder(rawURL, service.Adapter())
+	builder := drives.NewItemItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -264,7 +266,7 @@ func GetAllFolders(
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drvs, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
@@ -274,7 +276,7 @@ func GetAllFolders(
 		el      = errs.Local()
 	)
 
-	for _, d := range drives {
+	for _, d := range drvs {
 		if el.Failure() != nil {
 			break
 		}
@@ -356,7 +358,12 @@ func DeleteItem(
 	driveID string,
 	itemID string,
 ) error {
-	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
+	err := gs.Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
+		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
 	}

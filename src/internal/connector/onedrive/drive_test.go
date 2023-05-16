@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -42,10 +43,10 @@ const (
 )
 
 func odErr(code string) *odataerrors.ODataError {
-	odErr := &odataerrors.ODataError{}
-	merr := odataerrors.MainError{}
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(&merr)
+	odErr.SetError(merr)
 
 	return odErr
 }
@@ -282,6 +283,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 type OneDriveIntgSuite struct {
 	tester.Suite
 	userID string
+	creds  account.M365Config
 }
 
 func TestOneDriveSuite(t *testing.T) {
@@ -293,7 +295,15 @@ func TestOneDriveSuite(t *testing.T) {
 }
 
 func (suite *OneDriveIntgSuite) SetupSuite() {
-	suite.userID = tester.SecondaryM365UserID(suite.T())
+	t := suite.T()
+
+	suite.userID = tester.SecondaryM365UserID(t)
+
+	acct := tester.NewM365Account(t)
+	creds, err := acct.M365Config()
+	require.NoError(t, err)
+
+	suite.creds = creds
 }
 
 func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
@@ -334,17 +344,25 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	restoreFolders := path.Builder{}.Append(folderElements...)
+	restoreDir := path.Builder{}.Append(folderElements...)
+	drivePath := path.DrivePath{
+		DriveID: driveID,
+		Root:    "root:",
+		Folders: folderElements,
+	}
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	caches := NewRestoreCaches()
+	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
+
+	folderID, err := createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
 	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
-	restoreFolders = restoreFolders.Append(folderName2)
+	restoreDir = restoreDir.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, ptr.Val(rootFolder.GetId()), restoreFolders, NewFolderCache())
+	folderID, err = createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)

@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"runtime/trace"
@@ -12,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -46,25 +46,36 @@ func RestoreCollections(
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
+	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		err            error
 		restoreMetrics support.CollectionMetrics
+		caches         = onedrive.NewRestoreCaches()
+		el             = errs.Local()
 	)
+
+	// Reorder collections so that the parents directories are created
+	// before the child directories; a requirement for permissions.
+	data.SortRestoreCollections(dcs)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
+		if el.Failure() != nil {
+			break
+		}
+
 		var (
+			err      error
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"destination", clues.Hide(dest.ContainerName),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
-			driveFolderCache = onedrive.NewFolderCache()
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"full_path", dc.FullPath())
 		)
 
 		switch dc.FullPath().Category() {
@@ -75,14 +86,11 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				map[string]metadata.Metadata{}, // Currently permission data is not stored for sharepoint
-				map[string]string{},
-				driveFolderCache,
-				nil,
+				caches,
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				false,
+				opts.RestorePermissions,
 				errs)
 
 		case path.ListsCategory:
@@ -110,6 +118,10 @@ func RestoreCollections(
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
+			el.AddRecoverable(err)
+		}
+
+		if errors.Is(err, context.Canceled) {
 			break
 		}
 	}
@@ -121,7 +133,7 @@ func RestoreCollections(
 		restoreMetrics,
 		dest.ContainerName)
 
-	return status, err
+	return status, el.Failure()
 }
 
 // restoreListItem utility function restores a List to the siteID.
@@ -172,7 +184,7 @@ func restoreListItem(
 	newList.SetItems(contents)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := service.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -182,8 +194,10 @@ func restoreListItem(
 	if len(contents) > 0 {
 		for _, lItem := range contents {
 			_, err := service.Client().
-				SitesById(siteID).
-				ListsById(ptr.Val(restoredList.GetId())).
+				Sites().
+				BySiteId(siteID).
+				Lists().
+				ByListId(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {
@@ -247,7 +261,7 @@ func RestoreListCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
@@ -335,7 +349,7 @@ func RestorePageCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue

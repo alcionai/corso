@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -18,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -48,7 +46,7 @@ func (c Events) CreateCalendar(
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	mdl, err := c.Stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	mdl, err := c.Stable.Client().Users().ByUserId(user).Calendars().Post(ctx, requestbody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar")
 	}
@@ -69,7 +67,7 @@ func (c Events) DeleteContainer(
 		return graph.Stack(ctx, err)
 	}
 
-	err = srv.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	err = srv.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -91,7 +89,7 @@ func (c Events) GetContainerByID(
 		return nil, graph.Wrap(ctx, err, "setting event calendar options")
 	}
 
-	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, ofc)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -113,7 +111,7 @@ func (c Events) GetContainerByName(
 
 	ctx = clues.Add(ctx, "calendar_name", name)
 
-	resp, err := c.Stable.Client().UsersById(userID).Calendars().Get(ctx, options)
+	resp, err := c.Stable.Client().Users().ByUserId(userID).Calendars().Get(ctx, options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -154,7 +152,7 @@ func (c Events) GetItem(
 		}
 	)
 
-	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, itemOpts)
+	event, err = c.Stable.Client().Users().ByUserId(user).Events().ByEventId(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -169,8 +167,10 @@ func (c Events) GetItem(
 
 		attached, err := c.LargeItem.
 			Client().
-			UsersById(user).
-			EventsById(itemID).
+			Users().
+			ByUserId(user).
+			Events().
+			ByEventId(itemID).
 			Attachments().
 			Get(ctx, options)
 		if err != nil {
@@ -205,7 +205,7 @@ func (c Events) EnumerateContainers(
 	}
 
 	el := errs.Local()
-	builder := service.Client().UsersById(userID).Calendars()
+	builder := service.Client().Users().ByUserId(userID).Calendars()
 
 	for {
 		if el.Failure() != nil {
@@ -254,20 +254,35 @@ func (c Events) EnumerateContainers(
 	return el.Failure()
 }
 
+const (
+	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
+)
+
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------
 
 var _ itemPager = &eventPager{}
 
-const (
-	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
-)
-
 type eventPager struct {
 	gs      graph.Servicer
-	builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
-	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
+	builder *users.ItemCalendarsItemEventsRequestBuilder
+	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
+}
+
+func NewEventPager(
+	ctx context.Context,
+	gs graph.Servicer,
+	user, calendarID string,
+	immutableIDs bool,
+) (itemPager, error) {
+	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(true, immutableIDs),
+	}
+
+	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
+
+	return &eventPager{gs, builder, options}, nil
 }
 
 func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
@@ -276,58 +291,62 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return resp, nil
+	return api.EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
 }
 
 func (p *eventPager) setNext(nextLink string) {
-	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
+// non delta pagers don't need reset
+func (p *eventPager) reset(context.Context) {}
+
+func (p *eventPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 
-func (c Events) GetAddedAndRemovedItemIDs(
+// ---------------------------------------------------------------------------
+// delta item pager
+// ---------------------------------------------------------------------------
+
+var _ itemPager = &eventDeltaPager{}
+
+type eventDeltaPager struct {
+	gs         graph.Servicer
+	user       string
+	calendarID string
+	builder    *users.ItemCalendarsItemEventsDeltaRequestBuilder
+	options    *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func NewEventDeltaPager(
 	ctx context.Context,
-	user, calendarID, oldDelta string,
+	gs graph.Servicer,
+	user, calendarID, deltaURL string,
 	immutableIDs bool,
-) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+) (itemPager, error) {
+	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
+		Headers: buildPreferHeaders(true, immutableIDs),
 	}
 
-	var (
-		resetDelta bool
-		opts       = &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-			Headers: buildPreferHeaders(true, immutableIDs),
-		}
-	)
+	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 
-	ctx = clues.Add(
-		ctx,
-		"container_id", calendarID)
-
-	if len(oldDelta) > 0 {
-		var (
-			builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
-			pgr     = &eventPager{service, builder, opts}
-		)
-
-		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
-		// note: happy path, not the error condition
-		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, nil
-		}
-		// only return on error if it is NOT a delta issue.
-		// on bad deltas we retry the call with the regular builder
-		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
-		}
-
-		resetDelta = true
+	if deltaURL == "" {
+		builder = getEventDeltaBuilder(ctx, gs, user, calendarID, options)
+	} else {
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(deltaURL, gs.Adapter())
 	}
 
+	return &eventDeltaPager{gs, user, calendarID, builder, options}, nil
+}
+
+func getEventDeltaBuilder(
+	ctx context.Context,
+	gs graph.Servicer,
+	user string,
+	calendarID string,
+	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration,
+) *users.ItemCalendarsItemEventsDeltaRequestBuilder {
 	// Graph SDK only supports delta queries against events on the beta version, so we're
 	// manufacturing use of the beta version url to make the call instead.
 	// See: https://learn.microsoft.com/ko-kr/graph/api/event-delta?view=graph-rest-beta&tabs=http
@@ -337,26 +356,58 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
-	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
-	pgr := &eventPager{service, builder, opts}
+	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
 
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, nil)
-		if err != nil {
-			logger.CtxErr(ctx, err).Error("getting builder info")
-		} else {
-			logger.Ctx(ctx).
-				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
-		}
+	return builder
+}
+
+func (p *eventDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
 	}
 
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	return resp, nil
+}
+
+func (p *eventDeltaPager) setNext(nextLink string) {
+	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *eventDeltaPager) reset(ctx context.Context) {
+	p.builder = getEventDeltaBuilder(ctx, p.gs, p.user, p.calendarID, p.options)
+}
+
+func (p *eventDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Eventable](pl)
+}
+
+func (c Events) GetAddedAndRemovedItemIDs(
+	ctx context.Context,
+	user, calendarID, oldDelta string,
+	immutableIDs bool,
+	canMakeDeltaQueries bool,
+) ([]string, []string, DeltaUpdate, error) {
+	service, err := c.service()
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	// Events don't have a delta endpoint so just return an empty string.
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
+	ctx = clues.Add(
+		ctx,
+		"container_id", calendarID)
+
+	pager, err := NewEventPager(ctx, service, user, calendarID, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
+	}
+
+	deltaPager, err := NewEventDeltaPager(ctx, service, user, calendarID, oldDelta, immutableIDs)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
+	}
+
+	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------

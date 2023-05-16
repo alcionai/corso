@@ -646,7 +646,7 @@ func (c *Collections) getCollectionPath(
 		if item.GetParentReference() == nil ||
 			item.GetParentReference().GetPath() == nil {
 			err := clues.New("no parent reference").
-				With("item_name", ptr.Val(item.GetName()))
+				With("item_name", clues.Hide(ptr.Val(item.GetName())))
 
 			return nil, err
 		}
@@ -677,7 +677,7 @@ func (c *Collections) getCollectionPath(
 		return nil, clues.New("folder with empty name")
 	}
 
-	collectionPath, err = collectionPath.Append(name, false)
+	collectionPath, err = collectionPath.Append(false, name)
 	if err != nil {
 		return nil, clues.Wrap(err, "making non-root folder path")
 	}
@@ -711,16 +711,16 @@ func (c *Collections) UpdateCollections(
 		var (
 			itemID   = ptr.Val(item.GetId())
 			itemName = ptr.Val(item.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
 			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
 
 		if item.GetMalware() != nil {
 			addtl := graph.ItemInfo(item)
-			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, addtl)
+			skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
 			if isFolder {
-				skip = fault.ContainerSkip(fault.SkipMalware, itemID, itemName, addtl)
+				skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 			}
 
 			errs.AddSkip(skip)
@@ -758,7 +758,7 @@ func (c *Collections) UpdateCollections(
 
 		// Skip items that don't match the folder selectors we were given.
 		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-			logger.Ctx(ictx).Debugw("Skipping drive path", "skipped_path", collectionPath.String())
+			logger.Ctx(ictx).Debugw("path not selected", "skipped_path", collectionPath.String())
 			continue
 		}
 

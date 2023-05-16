@@ -23,6 +23,7 @@ type addedAndRemovedItemIDsGetter interface {
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
 		immutableIDs bool,
+		canMakeDeltaQueries bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -56,10 +57,6 @@ func filterContainersAndFillCollections(
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 		category   = qp.Category
-
-		// Stop-gap: Track folders by LocationPath and if there's duplicates pick
-		// the one with the lexicographically larger ID.
-		dupPaths = map[string]string{}
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
@@ -89,8 +86,8 @@ func filterContainersAndFillCollections(
 
 		var (
 			dp          = dps[cID]
-			prevDelta   = dp.delta
-			prevPathStr = dp.path // do not log: pii; log prevPath instead
+			prevDelta   = dp.Delta
+			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
@@ -108,53 +105,6 @@ func filterContainersAndFillCollections(
 			continue
 		}
 
-		// This is a duplicate collection. Either the collection we're examining now
-		// should be skipped or the collection we previously added should be
-		// skipped.
-		//
-		// Calendars is already using folder IDs so we don't need to pick the
-		// "newest" folder for that.
-		if oldCID := dupPaths[locPath.String()]; category != path.EventsCategory && len(oldCID) > 0 {
-			if cID < oldCID {
-				logger.Ctx(ictx).Infow(
-					"skipping duplicate folder with lesser ID",
-					"previous_folder_id", clues.Hide(oldCID),
-					"current_folder_id", clues.Hide(cID),
-					"duplicate_path", locPath)
-
-				// Readd this entry to the tombstone map because we remove it first off.
-				if oldDP, ok := dps[cID]; ok {
-					tombstones[cID] = oldDP.path
-				}
-
-				// Continuing here ensures we don't add anything to the paths map or the
-				// delta map which is the behavior we want.
-				continue
-			}
-
-			logger.Ctx(ictx).Infow(
-				"switching duplicate folders as newer folder found",
-				"previous_folder_id", clues.Hide(oldCID),
-				"current_folder_id", clues.Hide(cID),
-				"duplicate_path", locPath)
-
-			// Remove the previous collection from the maps. This will make us think
-			// it's a new item and properly populate it if it ever:
-			//   * moves
-			//   * replaces the current entry (current entry moves/is deleted)
-			delete(collections, oldCID)
-			delete(deltaURLs, oldCID)
-			delete(currPaths, oldCID)
-
-			// Re-add the tombstone entry for the old folder so that it can be marked
-			// as deleted if need.
-			if oldDP, ok := dps[oldCID]; ok {
-				tombstones[oldCID] = oldDP.path
-			}
-		}
-
-		dupPaths[locPath.String()] = cID
-
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
 				logger.CtxErr(ictx, err).Error("parsing prev path")
@@ -170,7 +120,8 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner.ID(),
 			cID,
 			prevDelta,
-			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs)
+			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+			!ctrlOpts.ToggleFeatures.DisableDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -294,7 +245,7 @@ func makeTombstones(dps DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
-		r[id] = v.path
+		r[id] = v.Path
 	}
 
 	return r

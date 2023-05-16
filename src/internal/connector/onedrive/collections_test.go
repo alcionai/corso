@@ -2426,7 +2426,7 @@ func coreItem(
 	case isFolder:
 		item.SetFolder(models.NewFolder())
 	case isPackage:
-		item.SetPackage(models.NewPackage_escaped())
+		item.SetPackage(models.NewPackageEscaped())
 	}
 
 	return item
@@ -2493,7 +2493,7 @@ func delItem(
 	case isFolder:
 		item.SetFolder(models.NewFolder())
 	case isPackage:
-		item.SetPackage(models.NewPackage_escaped())
+		item.SetPackage(models.NewPackageEscaped())
 	}
 
 	return item
