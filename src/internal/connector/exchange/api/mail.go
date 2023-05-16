@@ -244,7 +244,8 @@ func (c Mail) GetItem(
 			ByUserId(user).
 			Messages().
 			ByMessageId(itemID).
-			Attachments().ByAttachmentId(ptr.Val(a.GetId())).
+			Attachments().
+			ByAttachmentId(ptr.Val(a.GetId())).
 			Get(ctx, options)
 		if err != nil {
 			return nil, nil,

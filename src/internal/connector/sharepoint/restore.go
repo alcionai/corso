@@ -196,7 +196,8 @@ func restoreListItem(
 			_, err := service.Client().
 				Sites().
 				BySiteId(siteID).
-				Lists().ByListId(ptr.Val(restoredList.GetId())).
+				Lists().
+				ByListId(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {

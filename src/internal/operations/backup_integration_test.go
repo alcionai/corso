@@ -982,7 +982,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 				_, err := gc.Service.
 					Client().
-					Users().ByUserId(uidn.ID()).
+					Users().
+					ByUserId(uidn.ID()).
 					MailFolders().
 					ByMailFolderId(from.containerID).
 					Move().
@@ -1664,7 +1665,8 @@ func runDriveIncrementalTest(
 					Client().
 					Drives().
 					ByDriveId(driveID).
-					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Content().
 					Put(ctx, []byte("new content"), nil)
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
@@ -1689,7 +1691,8 @@ func runDriveIncrementalTest(
 					Client().
 					Drives().
 					ByDriveId(driveID).
-					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
@@ -1712,7 +1715,8 @@ func runDriveIncrementalTest(
 					Client().
 					Drives().
 					ByDriveId(driveID).
-					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
 
@@ -1734,7 +1738,8 @@ func runDriveIncrementalTest(
 					Client().
 					Drives().
 					ByDriveId(driveID).
-					Items().ByDriveItemId(ptr.Val(newFile.GetId())).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Delete(ctx, nil)
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 
