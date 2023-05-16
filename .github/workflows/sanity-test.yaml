@@ -265,6 +265,43 @@ jobs:
 
 ##########################################################################################################################################
 
+# Post-Run cleanup
+
+      # unlike CI tests, sanity tests are not expected to run concurrently.
+      # we can purge all of the test-generated folders immediately after the run concludes.
+      - name: Set purge boundary
+        if: always()
+        run: |
+          echo "NOW=$(date +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
+
+      - name: Purge CI-Produced Folders for Users
+        uses: ./.github/actions/purge-m365-data
+        with:
+          user: ${TEST_USER}
+          folder-prefix: ${RESTORE_DEST_PFX}
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${AZURE_CLIENT_ID}
+          azure-client-secret: ${AZURE_CLIENT_SECRET}
+          azure-tenant-id: ${AZURE_TENANT_ID}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+      - name: Purge CI-Produced Folders for Sites
+        if: always()
+        uses: ./.github/actions/purge-m365-data
+        with:
+          site: ${TEST_SITE}
+          folder-prefix: ${RESTORE_DEST_PFX}
+          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${AZURE_CLIENT_ID}
+          azure-client-secret: ${AZURE_CLIENT_SECRET}
+          azure-tenant-id: ${AZURE_TENANT_ID}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+##########################################################################################################################################
+
 # Logging & Notifications
 
       # Upload the original go test output as an artifact for later review.
@@ -307,40 +344,3 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
-##########################################################################################################################################
-
-# Post-Run cleanup
-
-      # unlike CI tests, sanity tests are not expected to run concurrently.
-      # we can purge all of the test-generated folders immediately after the run concludes.
-      - name: Set purge boundary
-        if: always()
-        run: |
-          echo "NOW=$(date +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
-
-      - name: Purge CI-Produced Folders for Users
-        uses: ./.github/actions/purge-m365-data
-        with:
-          user: ${TEST_USER}
-          folder-prefix: ${RESTORE_DEST_PFX}
-          older-than: ${{ env.NOW }}
-          azure-client-id: ${AZURE_CLIENT_ID}
-          azure-client-secret: ${AZURE_CLIENT_SECRET}
-          azure-tenant-id: ${AZURE_TENANT_ID}
-          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
-          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
-
-      - name: Purge CI-Produced Folders for Sites
-        if: always()
-        uses: ./.github/actions/purge-m365-data
-        with:
-          site: ${TEST_SITE}
-          folder-prefix: ${RESTORE_DEST_PFX}
-          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
-          older-than: ${{ env.NOW }}
-          azure-client-id: ${AZURE_CLIENT_ID}
-          azure-client-secret: ${AZURE_CLIENT_SECRET}
-          azure-tenant-id: ${AZURE_TENANT_ID}
-          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
-          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
