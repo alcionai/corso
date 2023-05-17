@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - 3135-logic
   workflow_dispatch:
     inputs:
       user:
@@ -50,6 +49,10 @@ jobs:
       run:
         working-directory: ${{ env.WORKING_DIR }}
     steps:
+##########################################################################################################################################
+
+# setup
+
       - uses: actions/checkout@v3
 
       - name: Setup Golang with cache
@@ -57,11 +60,56 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: make build
+      - run: go build -o corso
       - run: go build -o sanity-test ./cmd/sanity_test
 
       - run: mkdir ${TEST_RESULT}
       - run: mkdir ${CORSO_LOG_DIR}
+
+##########################################################################################################################################
+
+# Pre-Run cleanup
+
+      # unlike CI tests, sanity tests are not expected to run concurrently.
+      # however, the sanity yaml concurrency is set to a maximum of 1 run, preferring
+      # the latest release.  If we wait to clean up the production til after the tests
+      # It would be possible to complete all the testing but cancel the run before
+      # cleanup occurs.  Setting the cleanup before the tests ensures we always begin
+      # with a clean slate, and cannot compound data production.
+      - name: Set purge boundary
+        if: always()
+        run: |
+          echo "NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+
+      - name: Purge CI-Produced Folders for Users
+        uses: ./.github/actions/purge-m365-data
+        with:
+          user: ${{ env.TEST_USER }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+      - name: Purge CI-Produced Folders for Sites
+        if: always()
+        uses: ./.github/actions/purge-m365-data
+        with:
+          site: ${{ env.TEST_SITE }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
+          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+##########################################################################################################################################
+
+# Repository commands
 
       - name: Version Test
         run: |
@@ -266,7 +314,7 @@ jobs:
 
 ##########################################################################################################################################
 
-# Logging & Notify
+# Logging & Notifications
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
