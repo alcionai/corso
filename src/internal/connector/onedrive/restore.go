@@ -7,6 +7,8 @@ import (
 	"runtime/trace"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -145,10 +147,13 @@ func RestoreCollection(
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
-		metrics    = support.CollectionMetrics{}
-		copyBuffer = make([]byte, copyBufferSize)
-		directory  = dc.FullPath()
-		el         = errs.Local()
+		metrics        = support.CollectionMetrics{}
+		directory      = dc.FullPath()
+		el             = errs.Local()
+		metricsObjects int64
+		metricsBytes   int64
+		metricsSuccess int64
+		wg             sync.WaitGroup
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -212,6 +217,28 @@ func RestoreCollection(
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
+	defer close(semaphoreCh)
+
+	deetsLock := sync.Mutex{}
+
+	updateDeets := func(
+		ctx context.Context,
+		repoRef path.Path,
+		locationRef *path.Builder,
+		updated bool,
+		info details.ItemInfo,
+	) {
+		deetsLock.Lock()
+		defer deetsLock.Unlock()
+
+		err = deets.Add(repoRef, locationRef, updated, info)
+		if err != nil {
+			// Not critical enough to need to stop restore operation.
+			logger.CtxErr(ctx, err).Infow("adding restored item to details")
+		}
+	}
+
 	for {
 		if el.Failure() != nil {
 			break
@@ -226,58 +253,66 @@ func RestoreCollection(
 				return metrics, nil
 			}
 
-			ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
+			semaphoreCh <- struct{}{}
+			wg.Add(1)
 
-			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
-				continue
-			}
+			go func(ctx context.Context, itemData data.Stream) {
+				defer wg.Done()
+				defer func() { <-semaphoreCh }()
 
-			itemInfo, skipped, err := restoreItem(
-				ictx,
-				creds,
-				dc,
-				backupVersion,
-				source,
-				service,
-				drivePath,
-				restoreFolderID,
-				copyBuffer,
-				caches,
-				restorePerms,
-				itemData,
-				itemPath)
+				copyBuffer := make([]byte, copyBufferSize)
+				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
-			// skipped items don't get counted, but they can error
-			if !skipped {
-				metrics.Objects++
-				metrics.Bytes += int64(len(copyBuffer))
-			}
+				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
+					return
+				}
 
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "restoring item"))
-				continue
-			}
+				itemInfo, skipped, err := restoreItem(
+					ictx,
+					creds,
+					dc,
+					backupVersion,
+					source,
+					service,
+					drivePath,
+					restoreFolderID,
+					copyBuffer,
+					caches,
+					restorePerms,
+					itemData,
+					itemPath)
 
-			if skipped {
-				logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
-				continue
-			}
+				// skipped items don't get counted, but they can error
+				if !skipped {
+					atomic.AddInt64(&metricsObjects, 1)
+					atomic.AddInt64(&metricsBytes, int64(len(copyBuffer)))
+				}
 
-			err = deets.Add(
-				itemPath,
-				&path.Builder{}, // TODO: implement locationRef
-				true,
-				itemInfo)
-			if err != nil {
-				// Not critical enough to need to stop restore operation.
-				logger.CtxErr(ictx, err).Infow("adding restored item to details")
-			}
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "restoring item"))
+					return
+				}
 
-			metrics.Successes++
+				if skipped {
+					logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
+					return
+				}
+
+				// TODO: implement locationRef
+				updateDeets(ictx, itemPath, &path.Builder{}, true, itemInfo)
+
+				atomic.AddInt64(&metricsSuccess, 1)
+			}(ctx, itemData)
 		}
 	}
+
+	wg.Wait()
+
+	metrics.Objects = int(metricsObjects)
+	metrics.Bytes = metricsBytes
+	metrics.Successes = int(metricsSuccess)
 
 	return metrics, el.Failure()
 }
