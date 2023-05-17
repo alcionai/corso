@@ -79,7 +79,7 @@ jobs:
       - name: Set purge boundary
         if: always()
         run: |
-          echo "NOW=$(date +"%Y-%m-%d_%H-%M-%S")" >> $GITHUB_ENV
+          echo "NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
       - name: Purge CI-Produced Folders for Users
         uses: ./.github/actions/purge-m365-data
