@@ -84,12 +84,12 @@ jobs:
       - name: Purge CI-Produced Folders for Users
         uses: ./.github/actions/purge-m365-data
         with:
-          user: ${TEST_USER}
-          folder-prefix: ${RESTORE_DEST_PFX}
+          user: ${{ env.TEST_USER }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           older-than: ${{ env.NOW }}
-          azure-client-id: ${AZURE_CLIENT_ID}
-          azure-client-secret: ${AZURE_CLIENT_SECRET}
-          azure-tenant-id: ${AZURE_TENANT_ID}
+          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
 
@@ -97,13 +97,13 @@ jobs:
         if: always()
         uses: ./.github/actions/purge-m365-data
         with:
-          site: ${TEST_SITE}
-          folder-prefix: ${RESTORE_DEST_PFX}
+          site: ${{ env.TEST_SITE }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.NOW }}
-          azure-client-id: ${AZURE_CLIENT_ID}
-          azure-client-secret: ${AZURE_CLIENT_SECRET}
-          azure-tenant-id: ${AZURE_TENANT_ID}
+          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
 
