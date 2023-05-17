@@ -173,7 +173,7 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category strin
 	assert.Contains(t, result, suite.m365UserID)
 }
 
-func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_ServiceNotEnables_email() {
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_ServiceNotEnabled_email() {
 	runExchangeBackupServiceNotEnabledTest(suite, "email")
 }
 
@@ -193,7 +193,7 @@ func runExchangeBackupServiceNotEnabledTest(suite *BackupExchangeE2ESuite, categ
 	cmd, ctx := buildExchangeBackupCmd(
 		ctx,
 		suite.cfgFP,
-		fmt.Sprintf("testevents@10rqc2.onmicrosoft.com,%s", suite.m365UserID),
+		fmt.Sprintf("%s,%s", tester.UnlicensedM365UserID(suite.T()), suite.m365UserID),
 		category,
 		&recorder)
 	err := cmd.ExecuteContext(ctx)

@@ -226,7 +226,7 @@ func runBackups(
 
 		err = bo.Run(ictx)
 		if err != nil {
-			if strings.Contains(err.Error(), graph.ErrServiceNotEnabled.Error()) {
+			if errors.Is(err, graph.ErrServiceNotEnabled) {
 				logger.Ctx(ctx).Debugf("Service not enabled for creating backup for %s", bo.ResourceOwner.Name())
 				Infof(ictx, "%v\n", err)
 
