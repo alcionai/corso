@@ -98,7 +98,7 @@ func (c Contacts) GetContainerByID(
 ) (graph.Container, error) {
 	queryParams := &users.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersContactFolderItemRequestBuilderGetQueryParameters{
-			Select: []string{"id", "displayName", "parentFolderId"},
+			Select: idAnd(displayName, parentFolderID),
 		},
 	}
 
@@ -128,7 +128,7 @@ func (c Contacts) EnumerateContainers(
 
 	queryParams := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{
-			Select: []string{"id", "displayName", "parentFolderId"},
+			Select: idAnd(displayName, parentFolderID),
 		},
 	}
 
