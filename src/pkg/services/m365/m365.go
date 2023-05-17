@@ -51,12 +51,12 @@ type UserNoInfo struct {
 func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 	errs := fault.New(true)
 
-	users, err := Users(ctx, acct, errs)
+	usersResult, err := Users(ctx, acct, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	return users, errs.Failure()
+	return usersResult, errs.Failure()
 }
 
 // UsersCompatNoInfo returns a list of users in the specified M365 tenant.
@@ -65,12 +65,12 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo, error) {
 	errs := fault.New(true)
 
-	users, err := usersNoInfo(ctx, acct, errs)
+	usersResult, err := usersNoInfo(ctx, acct, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	return users, errs.Failure()
+	return usersResult, errs.Failure()
 }
 
 // UserHasMailbox returns true if the user has any mailbox enabled
@@ -78,6 +78,7 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (*bool, error) {
 	uapi, err := makeUserAPI(acct)
 	result := false
+
 	if err != nil {
 		return nil, clues.Wrap(err, "getting mailbox").WithClues(ctx)
 	}
@@ -105,9 +106,12 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (*
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
+
 		return &result, nil
 	}
+
 	result = true
+
 	return &result, nil
 }
 
@@ -116,6 +120,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (*
 func UserHasDrives(ctx context.Context, acct account.Account, userID string) (*bool, error) {
 	uapi, err := makeUserAPI(acct)
 	result := false
+
 	if err != nil {
 		return nil, clues.Wrap(err, "getting drives").WithClues(ctx)
 	}
@@ -134,9 +139,12 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (*b
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a drive")
+
 		return &result, nil
 	}
+
 	result = true
+
 	return &result, nil
 }
 
@@ -149,14 +157,14 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
 	}
 
-	users, err := discovery.Users(ctx, uapi, errs)
+	usersResult, err := discovery.Users(ctx, uapi, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]*UserNoInfo, 0, len(users))
+	ret := make([]*UserNoInfo, 0, len(usersResult))
 
-	for _, u := range users {
+	for _, u := range usersResult {
 		pu, err := parseUser(u)
 		if err != nil {
 			return nil, clues.Wrap(err, "formatting user data")
@@ -181,14 +189,14 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
 	}
 
-	users, err := discovery.Users(ctx, uapi, errs)
+	usersResult, err := discovery.Users(ctx, uapi, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]*User, 0, len(users))
+	ret := make([]*User, 0, len(usersResult))
 
-	for _, u := range users {
+	for _, u := range usersResult {
 		pu, err := parseUser(u)
 		if err != nil {
 			return nil, clues.Wrap(err, "formatting user data")
