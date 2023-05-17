@@ -109,7 +109,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	ctx = clues.Add(ctx, "given_site_id", identifier)
 
 	if siteIDRE.MatchString(identifier) {
-		resp, err = c.stable.Client().Sites().BySiteId(identifier).Get(ctx, nil)
+		resp, err = c.Stable.Client().Sites().BySiteId(identifier).Get(ctx, nil)
 		if err != nil {
 			return nil, graph.Wrap(ctx, err, "getting site by id")
 		}
@@ -136,7 +136,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	rawURL := fmt.Sprintf(webURLGetTemplate, u.Host, path)
 
 	resp, err = sites.
-		NewItemSitesSiteItemRequestBuilder(rawURL, c.stable.Adapter()).
+		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting site by weburl")

@@ -1,10 +1,10 @@
 package mock
 
 import (
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/mock"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // NewClient produces a new exchange api client that can be
