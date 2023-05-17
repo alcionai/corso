@@ -228,11 +228,18 @@ func newTimedFence() *timedFence {
 // if no fence is up, return immediately.
 // returns if the ctx deadlines before the fence is let down.
 func (tf *timedFence) Block(ctx context.Context) error {
-	if tf.c != nil {
+	// set to a local var to avoid race panics from tf.c
+	// getting set to nil between the conditional check and
+	// the read case.  If c gets closed between those two
+	// points then the select case will exit immediately,
+	// as if we didn't block at all.
+	c := tf.c
+
+	if c != nil {
 		select {
 		case <-ctx.Done():
 			return clues.Wrap(ctx.Err(), "blocked on throttling fence")
-		case <-tf.c:
+		case <-c:
 		}
 	}
 
