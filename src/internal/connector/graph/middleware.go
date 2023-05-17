@@ -339,9 +339,7 @@ func (mw RetryMiddleware) retryRequest(
 
 var retryableRespCodes = []int{
 	http.StatusInternalServerError,
-	http.StatusServiceUnavailable,
 	http.StatusBadGateway,
-	http.StatusGatewayTimeout,
 }
 
 func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
