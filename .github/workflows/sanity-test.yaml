@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - sanity-test-yml-refs
   workflow_dispatch:
     inputs:
       user:
@@ -39,7 +38,7 @@ jobs:
       # don't forget: return to Corso_Test_Sanity_
       CORSO_LOG_DIR: testlog
       CORSO_LOG_FILE: testlog/testlogging.log
-      RESTORE_DEST_PFX: Corso_Test_Check_Sanity_
+      RESTORE_DEST_PFX: Corso_Test_Sanity_
       TEST_RESULT: test_results
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       # The default working directory doesn't seem to apply to things without
