@@ -60,7 +60,7 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: make build
+      - run: go build -o corso
       - run: go build -o sanity-test ./cmd/sanity_test
 
       - run: mkdir ${TEST_RESULT}
