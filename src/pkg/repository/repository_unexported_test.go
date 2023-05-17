@@ -434,8 +434,8 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	var (
 		err  = clues.Wrap(assert.AnError, "wrap")
 		cec  = err.Core()
-		item = fault.FileErr(err, "file-id", "file-name", map[string]any{"foo": "bar"})
-		skip = fault.FileSkip(fault.SkipMalware, "s-file-id", "s-file-name", map[string]any{"foo": "bar"})
+		item = fault.FileErr(err, "ns", "file-id", "file-name", map[string]any{"foo": "bar"})
+		skip = fault.FileSkip(fault.SkipMalware, "ns", "s-file-id", "s-file-name", map[string]any{"foo": "bar"})
 		info = details.ItemInfo{
 			Exchange: &details.ExchangeInfo{
 				ItemType: details.ExchangeMail,

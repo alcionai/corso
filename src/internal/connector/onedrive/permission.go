@@ -5,17 +5,17 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func getParentMetadata(
@@ -170,9 +170,12 @@ func UpdatePermissions(
 
 		err = graph.NewService(a).
 			Client().
-			DrivesById(driveID).
-			ItemsById(itemID).
-			PermissionsById(pid).
+			Drives().
+			ByDriveId(driveID).
+			Items().
+			ByDriveItemId(itemID).
+			Permissions().
+			ByPermissionId(pid).
 			Delete(graph.ConsumeNTokens(ictx, graph.PermissionsLC), nil)
 		if err != nil {
 			return graph.Wrap(ictx, err, "removing permissions")
@@ -201,7 +204,7 @@ func UpdatePermissions(
 			continue
 		}
 
-		pbody := drive.NewItemsItemInvitePostRequestBody()
+		pbody := drives.NewItemItemsItemInvitePostRequestBody()
 		pbody.SetRoles(roles)
 
 		if p.Expiration != nil {

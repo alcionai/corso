@@ -47,7 +47,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		return nil, graph.Wrap(ctx, err, "getting all sites")
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(
+	iter, err := msgraphgocore.NewPageIterator[models.Siteable](
 		resp,
 		service.Adapter(),
 		models.CreateSiteCollectionResponseFromDiscriminatorValue)
@@ -60,12 +60,12 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		el = errs.Local()
 	)
 
-	iterator := func(item any) bool {
+	iterator := func(item models.Siteable) bool {
 		if el.Failure() != nil {
 			return false
 		}
 
-		s, err := validateSite(item)
+		err := validateSite(item)
 		if errors.Is(err, errKnownSkippableCase) {
 			// safe to no-op
 			return true
@@ -76,7 +76,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 			return true
 		}
 
-		us = append(us, s)
+		us = append(us, item)
 
 		return true
 	}
@@ -109,7 +109,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	ctx = clues.Add(ctx, "given_site_id", identifier)
 
 	if siteIDRE.MatchString(identifier) {
-		resp, err = c.stable.Client().SitesById(identifier).Get(ctx, nil)
+		resp, err = c.Stable.Client().Sites().BySiteId(identifier).Get(ctx, nil)
 		if err != nil {
 			return nil, graph.Wrap(ctx, err, "getting site by id")
 		}
@@ -136,7 +136,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	rawURL := fmt.Sprintf(webURLGetTemplate, u.Host, path)
 
 	resp, err = sites.
-		NewItemSitesSiteItemRequestBuilder(rawURL, c.stable.Adapter()).
+		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting site by weburl")
@@ -168,38 +168,33 @@ const personalSitePath = "sharepoint.com/personal/"
 // validateSite ensures the item is a Siteable, and contains the necessary
 // identifiers that we handle with all users.
 // returns the item as a Siteable model.
-func validateSite(item any) (models.Siteable, error) {
-	m, ok := item.(models.Siteable)
-	if !ok {
-		return nil, clues.New(fmt.Sprintf("unexpected model: %T", item))
-	}
-
-	id := ptr.Val(m.GetId())
+func validateSite(item models.Siteable) error {
+	id := ptr.Val(item.GetId())
 	if len(id) == 0 {
-		return nil, clues.New("missing ID")
+		return clues.New("missing ID")
 	}
 
-	wURL := ptr.Val(m.GetWebUrl())
+	wURL := ptr.Val(item.GetWebUrl())
 	if len(wURL) == 0 {
-		return nil, clues.New("missing webURL").With("site_id", id) // TODO: pii
+		return clues.New("missing webURL").With("site_id", id) // TODO: pii
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	if strings.Contains(wURL, personalSitePath) {
-		return nil, clues.Stack(errKnownSkippableCase).
+		return clues.Stack(errKnownSkippableCase).
 			With("site_id", id, "site_web_url", wURL) // TODO: pii
 	}
 
-	name := ptr.Val(m.GetDisplayName())
+	name := ptr.Val(item.GetDisplayName())
 	if len(name) == 0 {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if strings.HasSuffix(wURL, "/search") {
-			return nil, clues.Stack(errKnownSkippableCase).
+			return clues.Stack(errKnownSkippableCase).
 				With("site_id", id, "site_web_url", wURL) // TODO: pii
 		}
 
-		return nil, clues.New("missing site display name").With("site_id", id)
+		return clues.New("missing site display name").With("site_id", id)
 	}
 
-	return m, nil
+	return nil
 }

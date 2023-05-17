@@ -36,9 +36,10 @@ func (suite *ItemUnitSuite) TestItem_Error() {
 func (suite *ItemUnitSuite) TestContainerErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := ContainerErr(clues.New("foo"), "id", "name", addtl)
+	i := ContainerErr(clues.New("foo"), "ns", "id", "name", addtl)
 
 	expect := Item{
+		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
 		Type:       ContainerType,
@@ -52,9 +53,10 @@ func (suite *ItemUnitSuite) TestContainerErr() {
 func (suite *ItemUnitSuite) TestFileErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := FileErr(clues.New("foo"), "id", "name", addtl)
+	i := FileErr(clues.New("foo"), "ns", "id", "name", addtl)
 
 	expect := Item{
+		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
 		Type:       FileType,
@@ -68,9 +70,10 @@ func (suite *ItemUnitSuite) TestFileErr() {
 func (suite *ItemUnitSuite) TestOwnerErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := OwnerErr(clues.New("foo"), "id", "name", addtl)
+	i := OwnerErr(clues.New("foo"), "ns", "id", "name", addtl)
 
 	expect := Item{
+		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
 		Type:       ResourceOwnerType,
@@ -127,17 +130,17 @@ func (suite *ItemUnitSuite) TestItem_HeadersValues() {
 	}{
 		{
 			name:   "file",
-			item:   FileErr(assert.AnError, "id", "name", addtl),
+			item:   FileErr(assert.AnError, "ns", "id", "name", addtl),
 			expect: []string{"Error", FileType.Printable(), "name", "cname", cause},
 		},
 		{
 			name:   "container",
-			item:   ContainerErr(assert.AnError, "id", "name", addtl),
+			item:   ContainerErr(assert.AnError, "ns", "id", "name", addtl),
 			expect: []string{"Error", ContainerType.Printable(), "name", "cname", cause},
 		},
 		{
 			name:   "owner",
-			item:   OwnerErr(assert.AnError, "id", "name", nil),
+			item:   OwnerErr(assert.AnError, "ns", "id", "name", nil),
 			expect: []string{"Error", ResourceOwnerType.Printable(), "name", "", cause},
 		},
 	}
@@ -169,9 +172,10 @@ func (suite *ItemUnitSuite) TestSkipped_String() {
 func (suite *ItemUnitSuite) TestContainerSkip() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := ContainerSkip(SkipMalware, "id", "name", addtl)
+	i := ContainerSkip(SkipMalware, "ns", "id", "name", addtl)
 
 	expect := Item{
+		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
 		Type:       ContainerType,
@@ -185,9 +189,10 @@ func (suite *ItemUnitSuite) TestContainerSkip() {
 func (suite *ItemUnitSuite) TestFileSkip() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := FileSkip(SkipMalware, "id", "name", addtl)
+	i := FileSkip(SkipMalware, "ns", "id", "name", addtl)
 
 	expect := Item{
+		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
 		Type:       FileType,
@@ -201,9 +206,10 @@ func (suite *ItemUnitSuite) TestFileSkip() {
 func (suite *ItemUnitSuite) TestOwnerSkip() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := OwnerSkip(SkipMalware, "id", "name", addtl)
+	i := OwnerSkip(SkipMalware, "ns", "id", "name", addtl)
 
 	expect := Item{
+		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
 		Type:       ResourceOwnerType,
@@ -227,17 +233,17 @@ func (suite *ItemUnitSuite) TestSkipped_HeadersValues() {
 	}{
 		{
 			name:   "file",
-			skip:   FileSkip(SkipMalware, "id", "name", addtl),
+			skip:   FileSkip(SkipMalware, "ns", "id", "name", addtl),
 			expect: []string{"Skip", FileType.Printable(), "name", "cname", string(SkipMalware)},
 		},
 		{
 			name:   "container",
-			skip:   ContainerSkip(SkipMalware, "id", "name", addtl),
+			skip:   ContainerSkip(SkipMalware, "ns", "id", "name", addtl),
 			expect: []string{"Skip", ContainerType.Printable(), "name", "cname", string(SkipMalware)},
 		},
 		{
 			name:   "owner",
-			skip:   OwnerSkip(SkipMalware, "id", "name", nil),
+			skip:   OwnerSkip(SkipMalware, "ns", "id", "name", nil),
 			expect: []string{"Skip", ResourceOwnerType.Printable(), "name", "", string(SkipMalware)},
 		},
 	}

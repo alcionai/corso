@@ -15,10 +15,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ItemIntegrationSuite struct {
@@ -151,7 +151,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			t := suite.T()
 			srv := suite.service
 
-			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
@@ -229,7 +229,7 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			t := suite.T()
 			srv := suite.service
 
-			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist

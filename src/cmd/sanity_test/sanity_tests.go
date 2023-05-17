@@ -109,7 +109,7 @@ func checkEmailRestoration(
 		restoreFolder    models.MailFolderable
 		itemCount        = make(map[string]int32)
 		restoreItemCount = make(map[string]int32)
-		builder          = client.UsersById(testUser).MailFolders()
+		builder          = client.Users().ByUserId(testUser).MailFolders()
 	)
 
 	for {
@@ -152,8 +152,10 @@ func checkEmailRestoration(
 		"restore_folder_name", folderName)
 
 	childFolder, err := client.
-		UsersById(testUser).
-		MailFoldersById(folderID).
+		Users().
+		ByUserId(testUser).
+		MailFolders().
+		ByMailFolderId(folderID).
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
@@ -213,8 +215,10 @@ func getAllMailSubFolders(
 	ctx = clues.Add(ctx, "parent_folder_id", folderID)
 
 	childFolder, err := client.
-		UsersById(testUser).
-		MailFoldersById(folderID).
+		Users().
+		ByUserId(testUser).
+		MailFolders().
+		ByMailFolderId(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -263,8 +267,10 @@ func checkAllSubFolder(
 	)
 
 	childFolder, err := client.
-		UsersById(testUser).
-		MailFoldersById(folderID).
+		Users().
+		ByUserId(testUser).
+		MailFolders().
+		ByMailFolderId(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -303,7 +309,8 @@ func checkOneDriveRestoration(
 	startTime time.Time,
 ) {
 	drive, err := client.
-		UsersById(userID).
+		Users().
+		ByUserId(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -333,7 +340,8 @@ func checkSharePointRestoration(
 	startTime time.Time,
 ) {
 	drive, err := client.
-		SitesById(siteID).
+		Sites().
+		BySiteId(siteID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -381,8 +389,10 @@ func checkDriveRestoration(
 	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 
 	response, err := client.
-		DrivesById(driveID).
-		Root().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId("root").
 		Children().
 		Get(ctx, nil)
 	if err != nil {
@@ -521,7 +531,7 @@ func getOneDriveChildFolder(
 	folderPermission map[string][]permissionInfo,
 	startTime time.Time,
 ) {
-	response, err := client.DrivesById(driveID).ItemsById(itemID).Children().Get(ctx, nil)
+	response, err := client.Drives().ByDriveId(driveID).Items().ByDriveItemId(itemID).Children().Get(ctx, nil)
 	if err != nil {
 		fatal(ctx, "getting child folder", err)
 	}
@@ -569,8 +579,10 @@ func getRestoredDrive(
 	startTime time.Time,
 ) {
 	restored, err := client.
-		DrivesById(driveID).
-		ItemsById(restoreFolderID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(restoreFolderID).
 		Children().
 		Get(ctx, nil)
 	if err != nil {
@@ -610,8 +622,10 @@ func permissionIn(
 	pi := []permissionInfo{}
 
 	pcr, err := client.
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {

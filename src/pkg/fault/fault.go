@@ -204,7 +204,7 @@ type Errors struct {
 
 	// Items are the reduction of all errors (both the failure and the
 	// recovered values) in the Errors struct into a slice of items,
-	// deduplicated by their ID.
+	// deduplicated by their Namespace + ID.
 	Items []Item `json:"items"`
 
 	// Skipped is the accumulation of skipped items.  Skipped items
@@ -218,7 +218,8 @@ type Errors struct {
 }
 
 // itemsIn reduces all errors (both the failure and recovered values)
-// in the Errors struct into a slice of items, deduplicated by their ID.
+// in the Errors struct into a slice of items, deduplicated by their
+// Namespace + ID.
 // Any non-item error is serialized to a clues.ErrCore and returned in
 // the second list.
 func itemsIn(failure error, recovered []error) ([]Item, []*clues.ErrCore) {
@@ -234,12 +235,12 @@ func itemsIn(failure error, recovered []error) ([]Item, []*clues.ErrCore) {
 			continue
 		}
 
-		is[ie.ID] = *ie
+		is[ie.dedupeID()] = *ie
 	}
 
 	var ie *Item
 	if errors.As(failure, &ie) {
-		is[ie.ID] = *ie
+		is[ie.dedupeID()] = *ie
 	}
 
 	return maps.Values(is), non

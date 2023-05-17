@@ -710,7 +710,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 				return item, nil
 			}
 
-			_, err := col.getDriveItemContent(ctx, item, errs)
+			_, err := col.getDriveItemContent(ctx, "driveID", item, errs)
 			if test.err == nil {
 				assert.NoError(t, err, clues.ToCore(err))
 				return
@@ -734,8 +734,8 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		gr      graph.Requester
 		driveID string
 		iorc    = io.NopCloser(bytes.NewReader([]byte("fnords")))
-		item    = &models.DriveItem{}
-		itemWID = &models.DriveItem{}
+		item    = models.NewDriveItem()
+		itemWID = models.NewDriveItem()
 	)
 
 	itemWID.SetId(ptr.To("brainhooldy"))

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -37,6 +38,9 @@ var (
 
 	// for selection of data by category.  eg: `--data email,contacts`
 	CategoryDataFV []string
+
+	MaintenanceModeFV  string
+	ForceMaintenanceFV bool
 )
 
 // common flag names (eg: FN)
@@ -59,6 +63,10 @@ const (
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
+
+	// Maintenance stuff.
+	MaintenanceModeFN  = "mode"
+	ForceMaintenanceFN = "force"
 )
 
 // well-known flag values
@@ -166,6 +174,30 @@ func AddSiteFlag(cmd *cobra.Command) {
 		&WebURLFV,
 		SiteFN, nil,
 		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
+}
+
+func AddMaintenanceModeFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(
+		&MaintenanceModeFV,
+		MaintenanceModeFN,
+		repository.CompleteMaintenance.String(),
+		"Type of maintenance operation to run. Pass '"+
+			repository.MetadataMaintenance.String()+"' to run a faster maintenance "+
+			"that does minimal clean-up and optimization. Pass '"+
+			repository.CompleteMaintenance.String()+"' to fully compact existing "+
+			"data and delete unused data.")
+	cobra.CheckErr(fs.MarkHidden(MaintenanceModeFN))
+}
+
+func AddForceMaintenanceFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&ForceMaintenanceFV,
+		ForceMaintenanceFN,
+		false,
+		"Force maintenance. Caution: user must ensure this is not run concurrently on a single repo")
+	cobra.CheckErr(fs.MarkHidden(ForceMaintenanceFN))
 }
 
 type PopulatedFlags map[string]struct{}

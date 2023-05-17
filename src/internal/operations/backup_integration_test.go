@@ -9,7 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
@@ -23,12 +23,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	exapi "github.com/alcionai/corso/src/internal/connector/exchange/api"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	odapi "github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -51,6 +49,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -763,7 +762,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	m365, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := exapi.NewClient(m365)
+	ac, err := api.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.
@@ -982,8 +981,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 				_, err := gc.Service.
 					Client().
-					UsersById(uidn.ID()).
-					MailFoldersById(from.containerID).
+					Users().
+					ByUserId(uidn.ID()).
+					MailFolders().
+					ByMailFolderId(from.containerID).
 					Move().
 					Post(ctx, body, nil)
 				require.NoError(t, err, clues.ToCore(err))
@@ -1078,7 +1079,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			name: "rename a folder",
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
-					cli := gc.Service.Client().UsersById(uidn.ID())
+					cli := gc.Service.Client().Users().ByUserId(uidn.ID())
 					containerID := d.dests[container3].containerID
 					newLoc := containerRename
 
@@ -1098,7 +1099,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 					switch category {
 					case path.EmailCategory:
-						cmf := cli.MailFoldersById(containerID)
+						cmf := cli.MailFolders().ByMailFolderId(containerID)
 
 						body, err := cmf.Get(ctx, nil)
 						require.NoError(t, err, "getting mail folder", clues.ToCore(err))
@@ -1108,7 +1109,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "updating mail folder name", clues.ToCore(err))
 
 					case path.ContactsCategory:
-						ccf := cli.ContactFoldersById(containerID)
+						ccf := cli.ContactFolders().ByContactFolderId(containerID)
 
 						body, err := ccf.Get(ctx, nil)
 						require.NoError(t, err, "getting contact folder", clues.ToCore(err))
@@ -1118,7 +1119,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "updating contact folder name", clues.ToCore(err))
 
 					case path.EventsCategory:
-						cbi := cli.CalendarsById(containerID)
+						cbi := cli.Calendars().ByCalendarId(containerID)
 
 						body, err := cbi.Get(ctx, nil)
 						require.NoError(t, err, "getting calendar", clues.ToCore(err))
@@ -1141,7 +1142,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
-					cli := gc.Service.Client().UsersById(uidn.ID())
+					cli := gc.Service.Client().Users().ByUserId(uidn.ID())
 
 					switch category {
 					case path.EmailCategory:
@@ -1149,7 +1150,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						body, err := support.CreateMessageFromBytes(itemData)
 						require.NoError(t, err, "transforming mail bytes to messageable", clues.ToCore(err))
 
-						itm, err := cli.MailFoldersById(containerID).Messages().Post(ctx, body, nil)
+						itm, err := cli.MailFolders().ByMailFolderId(containerID).Messages().Post(ctx, body, nil)
 						require.NoError(t, err, "posting email item", clues.ToCore(err))
 
 						expectDeets.AddItem(
@@ -1162,7 +1163,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						body, err := support.CreateContactFromBytes(itemData)
 						require.NoError(t, err, "transforming contact bytes to contactable", clues.ToCore(err))
 
-						itm, err := cli.ContactFoldersById(containerID).Contacts().Post(ctx, body, nil)
+						itm, err := cli.ContactFolders().ByContactFolderId(containerID).Contacts().Post(ctx, body, nil)
 						require.NoError(t, err, "posting contact item", clues.ToCore(err))
 
 						expectDeets.AddItem(
@@ -1175,7 +1176,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						body, err := support.CreateEventFromBytes(itemData)
 						require.NoError(t, err, "transforming event bytes to eventable", clues.ToCore(err))
 
-						itm, err := cli.CalendarsById(containerID).Events().Post(ctx, body, nil)
+						itm, err := cli.Calendars().ByCalendarId(containerID).Events().Post(ctx, body, nil)
 						require.NoError(t, err, "posting events item", clues.ToCore(err))
 
 						expectDeets.AddItem(
@@ -1195,7 +1196,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
-					cli := gc.Service.Client().UsersById(uidn.ID())
+					cli := gc.Service.Client().Users().ByUserId(uidn.ID())
 
 					switch category {
 					case path.EmailCategory:
@@ -1203,7 +1204,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "getting message ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "message ids in folder")
 
-						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
+						err = cli.Messages().ByMessageId(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting email item", clues.ToCore(err))
 
 						expectDeets.RemoveItem(
@@ -1216,7 +1217,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "getting contact ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "contact ids in folder")
 
-						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
+						err = cli.Contacts().ByContactId(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting contact item", clues.ToCore(err))
 
 						expectDeets.RemoveItem(
@@ -1229,7 +1230,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "getting event ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "event ids in folder")
 
-						err = cli.CalendarsById(ids[0]).Delete(ctx, nil)
+						err = cli.Calendars().ByCalendarId(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting calendar", clues.ToCore(err))
 
 						expectDeets.RemoveItem(
@@ -1331,7 +1332,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		ctx context.Context,
 		gs graph.Servicer,
 	) string {
-		d, err := odapi.GetUsersDrive(ctx, gs, suite.user)
+		d, err := api.GetUsersDrive(ctx, gs, suite.user)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
 				With("user", suite.user)
@@ -1370,7 +1371,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		ctx context.Context,
 		gs graph.Servicer,
 	) string {
-		d, err := odapi.GetSitesDefaultDrive(ctx, gs, suite.site)
+		d, err := api.GetSitesDefaultDrive(ctx, gs, suite.site)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
 				With("site", suite.site)
@@ -1499,8 +1500,8 @@ func runDriveIncrementalTest(
 		// Use path-based indexing to get the folder's ID. This is sourced from the
 		// onedrive package `getFolder` function.
 		itemURL := fmt.Sprintf("https://graph.microsoft.com/v1.0/drives/%s/root:/%s", driveID, destName)
-		resp, err := drive.
-			NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+		resp, err := drives.
+			NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
 			Get(ctx, nil)
 		require.NoError(t, err, "getting drive folder ID", "folder name", destName, clues.ToCore(err))
 
@@ -1659,10 +1660,12 @@ func runDriveIncrementalTest(
 		{
 			name: "update contents of a file",
 			updateFiles: func(t *testing.T) {
-				err := gc.Service.
+				_, err := gc.Service.
 					Client().
-					DrivesById(driveID).
-					ItemsById(ptr.Val(newFile.GetId())).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Content().
 					Put(ctx, []byte("new content"), nil)
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
@@ -1685,8 +1688,10 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					DrivesById(driveID).
-					ItemsById(ptr.Val(newFile.GetId())).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
@@ -1707,8 +1712,10 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					DrivesById(driveID).
-					ItemsById(ptr.Val(newFile.GetId())).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
 				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
 
@@ -1728,8 +1735,10 @@ func runDriveIncrementalTest(
 				// https://github.com/alcionai/corso/issues/2707
 				err = newDeleteServicer(t).
 					Client().
-					DrivesById(driveID).
-					ItemsById(ptr.Val(newFile.GetId())).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(ptr.Val(newFile.GetId())).
 					Delete(ctx, nil)
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 
@@ -1752,8 +1761,10 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					DrivesById(driveID).
-					ItemsById(child).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(child).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "moving folder", clues.ToCore(err))
 
@@ -1779,8 +1790,10 @@ func runDriveIncrementalTest(
 
 				_, err := gc.Service.
 					Client().
-					DrivesById(driveID).
-					ItemsById(child).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(child).
 					Patch(ctx, driveItem, nil)
 				require.NoError(t, err, "renaming folder", clues.ToCore(err))
 
@@ -1802,8 +1815,10 @@ func runDriveIncrementalTest(
 				// https://github.com/alcionai/corso/issues/2707
 				err = newDeleteServicer(t).
 					Client().
-					DrivesById(driveID).
-					ItemsById(container).
+					Drives().
+					ByDriveId(driveID).
+					Items().
+					ByDriveItemId(container).
 					Delete(ctx, nil)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
 
@@ -1833,7 +1848,7 @@ func runDriveIncrementalTest(
 					"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
 					driveID,
 					container3)
-				resp, err := drive.NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
 					Get(ctx, nil)
 				require.NoError(t, err, "getting drive folder ID", "folder name", container3, clues.ToCore(err))
 

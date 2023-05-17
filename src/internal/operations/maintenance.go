@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -49,20 +50,45 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 		if crErr := crash.Recovery(ctx, recover(), "maintenance"); crErr != nil {
 			err = crErr
 		}
-
-		// TODO(ashmrtn): Send success/failure usage stat?
-
-		op.Results.CompletedAt = time.Now()
 	}()
 
 	op.Results.StartedAt = time.Now()
 
-	// TODO(ashmrtn): Send usage statistics?
+	op.bus.Event(
+		ctx,
+		events.MaintenanceStart,
+		map[string]any{
+			events.StartTime: op.Results.StartedAt,
+		})
 
-	err = op.operation.kopia.RepoMaintenance(ctx, op.mOpts)
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.MaintenanceEnd,
+			map[string]any{
+				events.StartTime: op.Results.StartedAt,
+				events.Duration:  op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:   dttm.Format(op.Results.CompletedAt),
+				events.Status:    op.Status.String(),
+				events.Resources: op.mOpts.Type.String(),
+			})
+	}()
+
+	return op.do(ctx)
+}
+
+func (op *MaintenanceOperation) do(ctx context.Context) error {
+	defer func() {
+		op.Results.CompletedAt = time.Now()
+	}()
+
+	err := op.operation.kopia.RepoMaintenance(ctx, op.mOpts)
 	if err != nil {
+		op.Status = Failed
 		return clues.Wrap(err, "running maintenance operation")
 	}
+
+	op.Status = Completed
 
 	return nil
 }
