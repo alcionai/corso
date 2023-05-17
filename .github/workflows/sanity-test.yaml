@@ -86,8 +86,8 @@ jobs:
           user: ${{ env.TEST_USER }}
           folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           older-than: ${{ env.NOW }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
@@ -100,8 +100,8 @@ jobs:
           folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.NOW }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
