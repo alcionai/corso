@@ -120,7 +120,7 @@ func (c Contacts) EnumerateContainers(
 	fn func(graph.CacheFolder) error,
 	errs *fault.Bus,
 ) error {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -330,7 +330,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 	}
