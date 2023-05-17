@@ -123,9 +123,9 @@ func (c Mail) GetContainerByID(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	queryParams := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
+	config := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
-			Select: []string{"id", "displayName", "parentFolderId"},
+			Select: selectIDNameParentFolder(),
 		},
 	}
 
@@ -134,7 +134,7 @@ func (c Mail) GetContainerByID(
 		ByUserId(userID).
 		MailFolders().
 		ByMailFolderId(dirID).
-		Get(ctx, queryParams)
+		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -153,14 +153,17 @@ func (c Mail) GetItem(
 	var (
 		size     int64
 		mailBody models.ItemBodyable
+		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
+			Headers: newPreferHeaders(idTypeImmutable),
+		}
 	)
-	// Will need adjusted if attachments start allowing paging.
-	headers := buildPreferHeaders(false, immutableIDs)
-	itemOpts := &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
-		Headers: headers,
-	}
 
-	mail, err := c.Stable.Client().Users().ByUserId(user).Messages().ByMessageId(itemID).Get(ctx, itemOpts)
+	mail, err := c.Stable.Client().
+		Users().
+		ByUserId(user).
+		Messages().
+		ByMessageId(itemID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -177,11 +180,11 @@ func (c Mail) GetItem(
 		return mail, MailInfo(mail, size), nil
 	}
 
-	options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+	attachConfig := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
 		},
-		Headers: headers,
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
 	}
 
 	attached, err := c.LargeItem.
@@ -191,7 +194,7 @@ func (c Mail) GetItem(
 		Messages().
 		ByMessageId(itemID).
 		Attachments().
-		Get(ctx, options)
+		Get(ctx, attachConfig)
 	if err == nil {
 		for _, a := range attached.GetValue() {
 			attachSize := ptr.Val(a.GetSize())
@@ -215,7 +218,7 @@ func (c Mail) GetItem(
 	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
 
 	// Getting size just to log in case of error
-	options.QueryParameters.Select = []string{"id", "size"}
+	attachConfig.QueryParameters.Select = []string{"id", "size"}
 
 	attachments, err := c.LargeItem.
 		Client().
@@ -224,7 +227,7 @@ func (c Mail) GetItem(
 		Messages().
 		ByMessageId(itemID).
 		Attachments().
-		Get(ctx, options)
+		Get(ctx, attachConfig)
 	if err != nil {
 		return nil, nil, graph.Wrap(ctx, err, "getting mail attachment ids")
 	}
@@ -232,11 +235,11 @@ func (c Mail) GetItem(
 	atts := []models.Attachmentable{}
 
 	for _, a := range attachments.GetValue() {
-		options := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
+		attachConfig := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
-			Headers: headers,
+			Headers: newPreferHeaders(idTypeImmutable),
 		}
 
 		att, err := c.Stable.
@@ -247,11 +250,10 @@ func (c Mail) GetItem(
 			ByMessageId(itemID).
 			Attachments().
 			ByAttachmentId(ptr.Val(a.GetId())).
-			Get(ctx, options)
+			Get(ctx, attachConfig)
 		if err != nil {
-			return nil, nil,
-				graph.Wrap(ctx, err, "getting mail attachment").
-					With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
+			return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").
+				With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
 		}
 
 		atts = append(atts, att)
@@ -382,11 +384,11 @@ func NewMailPager(
 	user, directoryID string,
 	immutableIDs bool,
 ) itemPager {
-	queryParams := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
-			Select: []string{"id", "isRead"},
+			Select: idAnd("isRead"),
 		},
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
 	}
 
 	builder := gs.Client().
@@ -396,7 +398,7 @@ func NewMailPager(
 		ByMailFolderId(directoryID).
 		Messages()
 
-	return &mailPager{gs, builder, queryParams}
+	return &mailPager{gs, builder, config}
 }
 
 func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
@@ -457,11 +459,11 @@ func NewMailDeltaPager(
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
 ) itemPager {
-	queryParams := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+	config := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
-			Select: []string{"id", "isRead"},
+			Select: idAnd("isRead"),
 		},
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), idTypeImmutable),
 	}
 
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
@@ -469,10 +471,10 @@ func NewMailDeltaPager(
 	if len(oldDelta) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	} else {
-		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, queryParams)
+		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, config)
 	}
 
-	return &mailDeltaPager{gs, user, directoryID, builder, queryParams}
+	return &mailDeltaPager{gs, user, directoryID, builder, config}
 }
 
 func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {

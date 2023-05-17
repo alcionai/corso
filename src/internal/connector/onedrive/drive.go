@@ -100,29 +100,7 @@ func defaultItemPager(
 	servicer graph.Servicer,
 	driveID, link string,
 ) itemPager {
-	return api.NewItemPager(
-		servicer,
-		driveID,
-		link,
-		[]string{
-			"content.downloadUrl",
-			"createdBy",
-			"createdDateTime",
-			"file",
-			"folder",
-			"id",
-			"lastModifiedDateTime",
-			"name",
-			"package",
-			"parentReference",
-			"root",
-			"sharepointIds",
-			"size",
-			"deleted",
-			"malware",
-			"shared",
-		},
-	)
+	return api.NewItemPager(servicer, driveID, link, api.DriveItemSelectDefault())
 }
 
 // collectItems will enumerate all items in the specified drive and hand them to the

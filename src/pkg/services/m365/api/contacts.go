@@ -81,7 +81,7 @@ func (c Contacts) GetItem(
 	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
-		Headers: buildPreferHeaders(false, immutableIDs),
+		Headers: newPreferHeaders(idTypeImmutable),
 	}
 
 	cont, err := c.Stable.Client().Users().ByUserId(user).Contacts().ByContactId(itemID).Get(ctx, options)
@@ -96,13 +96,18 @@ func (c Contacts) GetContainerByID(
 	ctx context.Context,
 	userID, dirID string,
 ) (graph.Container, error) {
-	queryParams := &users.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
+	config := &users.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersContactFolderItemRequestBuilderGetQueryParameters{
-			Select: []string{"id", "displayName", "parentFolderId"},
+			Select: selectIDNameParentFolder(),
 		},
 	}
 
-	resp, err := c.Stable.Client().Users().ByUserId(userID).ContactFolders().ByContactFolderId(dirID).Get(ctx, queryParams)
+	resp, err := c.Stable.Client().
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		ByContactFolderId(dirID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -126,9 +131,9 @@ func (c Contacts) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
-	queryParams := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+	config := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{
-			Select: []string{"id", "displayName", "parentFolderId"},
+			Select: selectIDNameParentFolder(),
 		},
 	}
 
@@ -145,7 +150,7 @@ func (c Contacts) EnumerateContainers(
 			break
 		}
 
-		resp, err := builder.Get(ctx, queryParams)
+		resp, err := builder.Get(ctx, config)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
@@ -201,16 +206,21 @@ func NewContactPager(
 	user, directoryID string,
 	immutableIDs bool,
 ) itemPager {
-	queryParams := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
+	config := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
-			Select: []string{"id", "parentFolderId"},
+			Select: idAnd(parentFolderID),
 		},
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
 	}
 
-	builder := gs.Client().Users().ByUserId(user).ContactFolders().ByContactFolderId(directoryID).Contacts()
+	builder := gs.Client().
+		Users().
+		ByUserId(user).
+		ContactFolders().
+		ByContactFolderId(directoryID).
+		Contacts()
 
-	return &contactPager{gs, builder, queryParams}
+	return &contactPager{gs, builder, config}
 }
 
 func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
@@ -266,9 +276,9 @@ func NewContactDeltaPager(
 ) itemPager {
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
-			Select: []string{"id", "parentFolderId"},
+			Select: idAnd(parentFolderID),
 		},
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), idTypeImmutable),
 	}
 
 	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder

@@ -84,13 +84,18 @@ func (c Events) GetContainerByID(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	queryParams := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
+	config := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name", "owner"},
+			Select: idAnd("name", "owner"),
 		},
 	}
 
-	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, queryParams)
+	cal, err := service.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -145,25 +150,29 @@ func (c Events) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		err      error
-		event    models.Eventable
-		header   = buildPreferHeaders(false, immutableIDs)
-		itemOpts = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
-			Headers: header,
+		err    error
+		event  models.Eventable
+		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
+			Headers: newPreferHeaders(idTypeImmutable),
 		}
 	)
 
-	event, err = c.Stable.Client().Users().ByUserId(user).Events().ByEventId(itemID).Get(ctx, itemOpts)
+	event, err = c.Stable.Client().
+		Users().
+		ByUserId(user).
+		Events().
+		ByEventId(itemID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
 	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-		options := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+		config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
-			Headers: header,
+			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
 		}
 
 		attached, err := c.LargeItem.
@@ -173,7 +182,7 @@ func (c Events) GetItem(
 			Events().
 			ByEventId(itemID).
 			Attachments().
-			Get(ctx, options)
+			Get(ctx, config)
 		if err != nil {
 			return nil, nil, graph.Wrap(ctx, err, "event attachment download")
 		}
@@ -200,21 +209,25 @@ func (c Events) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
-	queryParams := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name"},
-		},
-	}
-
-	el := errs.Local()
-	builder := service.Client().Users().ByUserId(userID).Calendars()
+	var (
+		el     = errs.Local()
+		config = &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
+				Select: idAnd("name"),
+			},
+		}
+		builder = service.Client().
+			Users().
+			ByUserId(userID).
+			Calendars()
+	)
 
 	for {
 		if el.Failure() != nil {
 			break
 		}
 
-		resp, err := builder.Get(ctx, queryParams)
+		resp, err := builder.Get(ctx, config)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
@@ -279,7 +292,7 @@ func NewEventPager(
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
 	}
 
 	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
@@ -328,7 +341,7 @@ func NewEventDeltaPager(
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), idTypeImmutable),
 	}
 
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder

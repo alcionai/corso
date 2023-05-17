@@ -186,5 +186,10 @@ func CheckIDAndName(c Container) error {
 		return clues.New("container missing display name").With("container_id", id)
 	}
 
+	pfid := ptr.Val(c.GetParentFolderId())
+	if len(pfid) == 0 {
+		return clues.New("container missing parent folder id").With("container_id", id)
+	}
+
 	return nil
 }

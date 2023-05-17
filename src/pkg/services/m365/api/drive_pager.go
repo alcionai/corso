@@ -3,11 +3,9 @@ package api
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
-	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -34,22 +32,20 @@ type driveItemPager struct {
 func NewItemPager(
 	gs graph.Servicer,
 	driveID, link string,
-	fields []string,
+	selectFields []string,
 ) *driveItemPager {
-	headers := abstractions.NewRequestHeaders()
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
 		"deltatraversepermissiongaps",
 		"deltashowsharingchanges",
 		"hierarchicalsharing",
 	}
-	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
 	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
-		Headers: headers,
+		Headers: newPreferHeaders(preferHeaderItems...),
 		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
-			Top:    ptr.To(maxPageSize),
-			Select: fields,
+			Top:    ptr.To(maxDeltaPageSize),
+			Select: selectFields,
 		},
 	}
 
