@@ -33,6 +33,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
       AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
       AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       # re-used values
       # don't forget: return to Corso_Test_Sanity_
