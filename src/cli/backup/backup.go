@@ -12,6 +12,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -225,6 +226,13 @@ func runBackups(
 
 		err = bo.Run(ictx)
 		if err != nil {
+			if errors.Is(err, graph.ErrServiceNotEnabled) {
+				logger.Ctx(ctx).Debugf("Service not enabled for creating backup for %s", bo.ResourceOwner.Name())
+				Infof(ictx, "%v\n", err)
+
+				continue
+			}
+
 			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)
 

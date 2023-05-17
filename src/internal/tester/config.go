@@ -31,18 +31,20 @@ const (
 	TestCfgLoadTestUserID   = "loadtestm365userid"
 	TestCfgLoadTestOrgUsers = "loadtestm365orgusers"
 	TestCfgAccountProvider  = "account_provider"
+	TestCfgUnlicensedUserID = "unlicensedm365userid"
 )
 
 // test specific env vars
 const (
-	EnvCorsoM365TestSiteID          = "CORSO_M365_TEST_SITE_ID"
-	EnvCorsoM365TestSiteURL         = "CORSO_M365_TEST_SITE_URL"
-	EnvCorsoM365TestUserID          = "CORSO_M365_TEST_USER_ID"
-	EnvCorsoSecondaryM365TestUserID = "CORSO_SECONDARY_M365_TEST_USER_ID"
-	EnvCorsoTertiaryM365TestUserID  = "CORSO_TERTIARY_M365_TEST_USER_ID"
-	EnvCorsoM365LoadTestUserID      = "CORSO_M365_LOAD_TEST_USER_ID"
-	EnvCorsoM365LoadTestOrgUsers    = "CORSO_M365_LOAD_TEST_ORG_USERS"
-	EnvCorsoTestConfigFilePath      = "CORSO_TEST_CONFIG_FILE"
+	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
+	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
+	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
+	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
+	EnvCorsoTertiaryM365TestUserID   = "CORSO_TERTIARY_M365_TEST_USER_ID"
+	EnvCorsoM365LoadTestUserID       = "CORSO_M365_LOAD_TEST_USER_ID"
+	EnvCorsoM365LoadTestOrgUsers     = "CORSO_M365_LOAD_TEST_ORG_USERS"
+	EnvCorsoTestConfigFilePath       = "CORSO_TEST_CONFIG_FILE"
+	EnvCorsoUnlicensedM365TestUserID = "CORSO_M365_TEST_UNLICENSED_USER"
 )
 
 // global to hold the test config results.
@@ -152,6 +154,12 @@ func readTestConfig() (map[string]string, error) {
 		os.Getenv(EnvCorsoM365TestSiteURL),
 		vpr.GetString(TestCfgSiteURL),
 		"https://10rqc2.sharepoint.com/sites/CorsoCI")
+	fallbackTo(
+		testEnv,
+		TestCfgUnlicensedUserID,
+		os.Getenv(EnvCorsoUnlicensedM365TestUserID),
+		vpr.GetString(TestCfgUnlicensedUserID),
+		"testevents@10rqc2.onmicrosoft.com")
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 	testConfig = testEnv

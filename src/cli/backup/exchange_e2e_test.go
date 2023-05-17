@@ -173,6 +173,39 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category strin
 	assert.Contains(t, result, suite.m365UserID)
 }
 
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_ServiceNotEnabled_email() {
+	runExchangeBackupServiceNotEnabledTest(suite, "email")
+}
+
+func runExchangeBackupServiceNotEnabledTest(suite *BackupExchangeE2ESuite, category string) {
+	recorder := strings.Builder{}
+	recorder.Reset()
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
+
+	// run the command
+
+	cmd, ctx := buildExchangeBackupCmd(
+		ctx,
+		suite.cfgFP,
+		fmt.Sprintf("%s,%s", tester.UnlicensedM365UserID(suite.T()), suite.m365UserID),
+		category,
+		&recorder)
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	result := recorder.String()
+	t.Log("backup results", result)
+
+	// as an offhand check: the result should contain the m365 user id
+	assert.Contains(t, result, suite.m365UserID)
+}
+
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_email() {
 	runExchangeBackupUserNotFoundTest(suite, "email")
 }
