@@ -188,7 +188,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
+          name: ci-test-log
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
@@ -331,7 +331,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
+          name: fork-test-log
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
