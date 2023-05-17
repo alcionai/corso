@@ -137,6 +137,8 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
+      CORSO_LOG_FILE: ./src/testlog/suite-testlogging.log
+      LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
 
@@ -169,8 +171,6 @@ jobs:
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: ./src/testlog/testlogging.log
-          LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
           go test       \
@@ -184,7 +184,7 @@ jobs:
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: test-log
@@ -200,6 +200,9 @@ jobs:
     defaults:
       run:
         working-directory: src
+    env:
+      CORSO_LOG_FILE: ./src/testlog/unit-testlogging.log
+      LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
 
@@ -221,8 +224,6 @@ jobs:
           # something elsewhere.
           CORSO_M365_TEST_USER_ID: 'foo'
           CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
-          CORSO_LOG_FILE: ./src/testlog/testlogging.log
-          LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
           go test       \
@@ -236,11 +237,11 @@ jobs:
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: unit-test-log
-          path: src/testlog/*
+          path: .src/testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -252,6 +253,9 @@ jobs:
     defaults:
       run:
         working-directory: src
+    env:
+      CORSO_LOG_FILE: ./src/testlog/fork-testlogging.log
+      LOG_GRAPH_REQUESTS: true
     steps:
       - name: Fail check if not repository_dispatch
         if: github.event_name != 'repository_dispatch'
@@ -311,7 +315,6 @@ jobs:
           CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: ./src/testlog/testlogging.log
         run: |
           set -euo pipefail
           go test \
@@ -322,18 +325,18 @@ jobs:
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: test-log
-          path: src/testlog/*
+          path: .src/testlog/*
           if-no-files-found: error
           retention-days: 14
 
       # Update check run called "Test-Suite-Fork"
       - uses: actions/github-script@v6
         id: update-check-run
-        if: ${{ always() }}
+        if: always()
         env:
           number: ${{ github.event.client_payload.pull_request.number }}
           job: ${{ github.job }}
