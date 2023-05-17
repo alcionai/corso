@@ -79,7 +79,7 @@ func (c Events) GetContainerByID(
 	ctx context.Context,
 	userID, containerID string,
 ) (graph.Container, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -194,7 +194,7 @@ func (c Events) EnumerateContainers(
 	fn func(graph.CacheFolder) error,
 	errs *fault.Bus,
 ) error {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -388,7 +388,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

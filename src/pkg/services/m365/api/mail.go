@@ -63,7 +63,7 @@ func (c Mail) CreateMailFolderWithParent(
 	ctx context.Context,
 	user, folder, parentID string,
 ) (models.MailFolderable, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -118,7 +118,7 @@ func (c Mail) GetContainerByID(
 	ctx context.Context,
 	userID, dirID string,
 ) (graph.Container, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -311,7 +311,7 @@ func (c Mail) EnumerateContainers(
 	fn func(graph.CacheFolder) error,
 	errs *fault.Bus,
 ) error {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -529,7 +529,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
