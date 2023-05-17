@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -223,13 +222,13 @@ func NewContactPager(
 	return &contactPager{gs, builder, config}
 }
 
-func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *contactPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
+	return EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
 }
 
 func (p *contactPager) setNext(nextLink string) {
@@ -239,7 +238,7 @@ func (p *contactPager) setNext(nextLink string) {
 // non delta pagers don't need reset
 func (p *contactPager) reset(context.Context) {}
 
-func (p *contactPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *contactPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
@@ -291,7 +290,7 @@ func NewContactDeltaPager(
 	return &contactDeltaPager{gs, user, directoryID, builder, options}
 }
 
-func (p *contactDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *contactDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -308,7 +307,7 @@ func (p *contactDeltaPager) reset(ctx context.Context) {
 	p.builder = getContactDeltaBuilder(ctx, p.gs, p.user, p.directoryID, p.options)
 }
 
-func (p *contactDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *contactDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 

@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -279,7 +278,7 @@ func NewMailFolderPager(service graph.Servicer, user string) mailFolderPager {
 	return mailFolderPager{service, builder}
 }
 
-func (p *mailFolderPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *mailFolderPager) getPage(ctx context.Context) (PageLinker, error) {
 	page, err := p.builder.Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -292,7 +291,7 @@ func (p *mailFolderPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.service.Adapter())
 }
 
-func (p *mailFolderPager) valuesIn(pl api.PageLinker) ([]models.MailFolderable, error) {
+func (p *mailFolderPager) valuesIn(pl PageLinker) ([]models.MailFolderable, error) {
 	// Ideally this should be `users.ItemMailFoldersResponseable`, but
 	// that is not a thing as stable returns different result
 	page, ok := pl.(models.MailFolderCollectionResponseable)
@@ -406,13 +405,13 @@ func NewMailPager(
 	return &mailPager{gs, builder, config}
 }
 
-func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *mailPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Messageable]{PageLinkValuer: page}, nil
+	return EmptyDeltaLinker[models.Messageable]{PageLinkValuer: page}, nil
 }
 
 func (p *mailPager) setNext(nextLink string) {
@@ -422,7 +421,7 @@ func (p *mailPager) setNext(nextLink string) {
 // non delta pagers don't have reset
 func (p *mailPager) reset(context.Context) {}
 
-func (p *mailPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *mailPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 
@@ -482,7 +481,7 @@ func NewMailDeltaPager(
 	return &mailDeltaPager{gs, user, directoryID, builder, config}
 }
 
-func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *mailDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -505,7 +504,7 @@ func (p *mailDeltaPager) reset(ctx context.Context) {
 		Delta()
 }
 
-func (p *mailDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *mailDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 

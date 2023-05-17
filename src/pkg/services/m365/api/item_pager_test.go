@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
@@ -11,9 +12,29 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/tester"
 )
+
+// ---------------------------------------------------------------------------
+// mock impls & stubs
+// ---------------------------------------------------------------------------
+
+type nextLink struct {
+	nextLink *string
+}
+
+func (l nextLink) GetOdataNextLink() *string {
+	return l.nextLink
+}
+
+type deltaNextLink struct {
+	nextLink
+	deltaLink *string
+}
+
+func (l deltaNextLink) GetOdataDeltaLink() *string {
+	return l.deltaLink
+}
 
 type testPagerValue struct {
 	id      string
@@ -51,7 +72,7 @@ type testPager struct {
 	needsReset bool
 }
 
-func (p *testPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *testPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	if p.errorCode != "" {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
@@ -74,7 +95,7 @@ func (p *testPager) reset(context.Context) {
 	p.errorCode = ""
 }
 
-func (p *testPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *testPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	items := []getIDAndAddtler{}
 
 	for _, id := range p.added {
@@ -88,15 +109,19 @@ func (p *testPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
 	return items, nil
 }
 
-type SharedAPIUnitSuite struct {
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+type ItemPagerUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharedAPIUnitSuite(t *testing.T) {
-	suite.Run(t, &SharedAPIUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestItemPagerUnitSuite(t *testing.T) {
+	suite.Run(t, &ItemPagerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
+func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	tests := []struct {
 		name                string
 		pagerGetter         func(context.Context, graph.Servicer, string, string, bool) (itemPager, error)
@@ -257,6 +282,113 @@ func (suite *SharedAPIUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			require.EqualValues(suite.T(), tt.added, added, "added item IDs")
 			require.EqualValues(suite.T(), tt.removed, removed, "removed item IDs")
 			require.Equal(suite.T(), tt.deltaUpdate, deltaUpdate, "delta update")
+		})
+	}
+}
+
+type testInput struct {
+	name         string
+	inputLink    *string
+	expectedLink string
+}
+
+// Needs to be var not const so we can take the address of it.
+var (
+	emptyLink = ""
+	link      = "foo"
+	link2     = "bar"
+
+	nextLinkInputs = []testInput{
+		{
+			name:         "empty",
+			inputLink:    &emptyLink,
+			expectedLink: "",
+		},
+		{
+			name:         "nil",
+			inputLink:    nil,
+			expectedLink: "",
+		},
+		{
+			name:         "non_empty",
+			inputLink:    &link,
+			expectedLink: link,
+		},
+	}
+)
+
+func (suite *ItemPagerUnitSuite) TestNextAndDeltaLink() {
+	deltaTable := []testInput{
+		{
+			name:         "empty",
+			inputLink:    &emptyLink,
+			expectedLink: "",
+		},
+		{
+			name:         "nil",
+			inputLink:    nil,
+			expectedLink: "",
+		},
+		{
+			name: "non_empty",
+			// Use a different link so we can see if the results get swapped or something.
+			inputLink:    &link2,
+			expectedLink: link2,
+		},
+	}
+
+	for _, next := range nextLinkInputs {
+		for _, delta := range deltaTable {
+			name := strings.Join([]string{next.name, "next", delta.name, "delta"}, "_")
+
+			suite.Run(name, func() {
+				t := suite.T()
+
+				l := deltaNextLink{
+					nextLink:  nextLink{nextLink: next.inputLink},
+					deltaLink: delta.inputLink,
+				}
+				gotNext, gotDelta := NextAndDeltaLink(l)
+
+				assert.Equal(t, next.expectedLink, gotNext)
+				assert.Equal(t, delta.expectedLink, gotDelta)
+			})
+		}
+	}
+}
+
+// TestIsLinkValid check to verify is nextLink guard check for logging
+// Related to: https://github.com/alcionai/corso/issues/2520
+//
+//nolint:lll
+func (suite *ItemPagerUnitSuite) TestIsLinkValid() {
+	invalidString := `https://graph.microsoft.com/v1.0/users//mailFolders//messages/microsoft.graph.delta()?$select=id%2CisRead`
+	tests := []struct {
+		name        string
+		inputString string
+		isValid     assert.BoolAssertionFunc
+	}{
+		{
+			name:        "Empty",
+			inputString: emptyLink,
+			isValid:     assert.True,
+		},
+		{
+			name:        "Invalid",
+			inputString: invalidString,
+			isValid:     assert.False,
+		},
+		{
+			name:        "Valid",
+			inputString: `https://graph.microsoft.com/v1.0/users/aPerson/mailFolders/AMessage/messages/microsoft.graph.delta()?$select=id%2CisRead`,
+			isValid:     assert.True,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			got := IsNextLinkValid(test.inputString)
+			test.isValid(suite.T(), got)
 		})
 	}
 }

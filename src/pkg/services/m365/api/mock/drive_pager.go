@@ -6,14 +6,14 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type PageLinker struct {
+type PageLink struct {
 	Link *string
 }
 
-func (pl *PageLinker) GetOdataNextLink() *string {
+func (pl *PageLink) GetOdataNextLink() *string {
 	return pl.Link
 }
 
@@ -36,7 +36,7 @@ func (p *DrivePager) GetPage(context.Context) (api.PageLinker, error) {
 	idx := p.GetIdx
 	p.GetIdx++
 
-	return &PageLinker{p.ToReturn[idx].NextLink}, p.ToReturn[idx].Err
+	return &PageLink{p.ToReturn[idx].NextLink}, p.ToReturn[idx].Err
 }
 
 func (p *DrivePager) SetNext(string) {}
