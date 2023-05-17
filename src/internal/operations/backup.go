@@ -351,7 +351,7 @@ func (op *BackupOperation) do(
 
 func Precheck(
 	ctx context.Context,
-	account account.Account,
+	acc account.Account,
 	service path.ServiceType,
 	userID string,
 ) error {
@@ -360,7 +360,7 @@ func Precheck(
 		return nil
 	}
 
-	cred, err := account.M365Config()
+	cred, err := acc.M365Config()
 	if err != nil {
 		return clues.Wrap(err, "getting creds")
 	}
