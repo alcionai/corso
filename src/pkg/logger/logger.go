@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/str"
 )
 
 // Default location for writing logs, initialized in platform specific files
@@ -256,7 +256,7 @@ func (s Settings) EnsureDefaults() Settings {
 
 	algs := []piiAlg{PIIPlainText, PIIMask, PIIHash}
 	if len(set.PIIHandling) == 0 || !slices.Contains(algs, set.PIIHandling) {
-		set.PIIHandling = piiAlg(common.First(piiHandling, string(PIIPlainText)))
+		set.PIIHandling = piiAlg(str.First(piiHandling, string(PIIPlainText)))
 	}
 
 	if len(set.File) == 0 {

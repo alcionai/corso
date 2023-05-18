@@ -11,10 +11,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
@@ -116,7 +116,7 @@ func getGCAndVerifyResourceOwner(
 	idname.Provider,
 	error,
 ) {
-	tid := common.First(Tenant, os.Getenv(account.AzureTenantID))
+	tid := str.First(Tenant, os.Getenv(account.AzureTenantID))
 
 	if len(Tenant) == 0 {
 		Tenant = tid

@@ -19,8 +19,8 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -57,7 +57,7 @@ func handleOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	tid := common.First(tenant, os.Getenv(account.AzureTenantID))
+	tid := str.First(tenant, os.Getenv(account.AzureTenantID))
 
 	ctx := clues.Add(
 		cmd.Context(),
