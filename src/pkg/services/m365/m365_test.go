@@ -114,8 +114,7 @@ func (suite *M365IntegrationSuite) TestUserHasMailbox() {
 
 	enabled, err := m365.UserHasMailbox(ctx, acct, uid)
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotNil(t, enabled)
-	require.True(t, *enabled)
+	assert.True(t, enabled)
 }
 
 func (suite *M365IntegrationSuite) TestUserHasDrive() {
@@ -130,8 +129,7 @@ func (suite *M365IntegrationSuite) TestUserHasDrive() {
 
 	enabled, err := m365.UserHasDrives(ctx, acct, uid)
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotNil(t, enabled)
-	require.True(t, *enabled)
+	assert.True(t, enabled)
 }
 
 func (suite *M365IntegrationSuite) TestSites() {
