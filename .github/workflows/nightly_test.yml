@@ -140,10 +140,10 @@ jobs:
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
+          name: nightly-test-log
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
