@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -30,7 +29,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -352,44 +350,6 @@ func (op *BackupOperation) do(
 	logger.Ctx(ctx).Debug(opStats.gc)
 
 	return deets, nil
-}
-
-func Precheck(
-	ctx context.Context,
-	acc account.Account,
-	service path.ServiceType,
-	userID string,
-) error {
-	if service == path.SharePointService {
-		// No "enabled" check required for sharepoint
-		return nil
-	}
-
-	cred, err := acc.M365Config()
-	if err != nil {
-		return clues.Wrap(err, "getting creds")
-	}
-
-	client, err := api.NewClient(cred)
-	if err != nil {
-		return clues.Wrap(err, "constructing api client")
-	}
-
-	ui, err := client.Users().GetInfo(ctx, userID)
-	if err != nil {
-		return clues.Wrap(err, "unable to get user info")
-	}
-
-	if ui == nil || len(ui.ServicesEnabled) == 0 {
-		return graph.ErrServiceNotEnabled
-	}
-
-	_, ok := ui.ServicesEnabled[service]
-	if !ok {
-		return graph.ErrServiceNotEnabled
-	}
-
-	return nil
 }
 
 func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
