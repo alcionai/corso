@@ -122,28 +122,20 @@ func (mw *LoggingMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	ctx := clues.Add(
-		req.Context(),
-		"method", req.Method,
-		"url", LoggableURL(req.URL.String()),
-		"request_len", req.ContentLength)
-
 	// call the next middleware
 	resp, err := pipeline.Next(req, middlewareIndex)
-
-	if strings.Contains(req.URL.String(), "users//") {
-		logger.Ctx(ctx).Error("malformed request url: missing resource")
-	}
-
 	if resp == nil {
 		return resp, err
 	}
 
-	ctx = clues.Add(
-		ctx,
-		"status", resp.Status,
-		"statusCode", resp.StatusCode,
-		"content_len", resp.ContentLength)
+	ctx := clues.Add(
+		req.Context(),
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()),
+		"request_content_len", req.ContentLength,
+		"resp_status", resp.Status,
+		"resp_status_code", resp.StatusCode,
+		"resp_content_len", resp.ContentLength)
 
 	var (
 		log       = logger.Ctx(ctx)
@@ -153,6 +145,10 @@ func (mw *LoggingMiddleware) Intercept(
 
 	// special case: always info log 429 responses
 	if resp.StatusCode == http.StatusTooManyRequests {
+		if logExtra {
+			log = log.With("response", getRespDump(ctx, resp, true))
+		}
+
 		log.Infow(
 			"graph api throttling",
 			"limit", resp.Header.Get(rateLimitHeader),
@@ -180,16 +176,16 @@ func (mw *LoggingMiddleware) Intercept(
 			log.Infow("2xx graph api resp", "response", dump)
 		}
 	case 3:
-		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
+		log = log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
 
 		if logExtra {
-			log.With("response", getRespDump(ctx, resp, false))
+			log = log.With("response", getRespDump(ctx, resp, false))
 		}
 
 		log.Info("graph api redirect: " + resp.Status)
 	default:
 		if logExtra {
-			log.With("response", getRespDump(ctx, resp, true))
+			log = log.With("response", getRespDump(ctx, resp, true))
 		}
 
 		log.Error("graph api error: " + resp.Status)
@@ -343,9 +339,7 @@ func (mw RetryMiddleware) retryRequest(
 
 var retryableRespCodes = []int{
 	http.StatusInternalServerError,
-	http.StatusServiceUnavailable,
 	http.StatusBadGateway,
-	http.StatusGatewayTimeout,
 }
 
 func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
