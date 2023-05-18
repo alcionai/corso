@@ -225,6 +225,8 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 	adpt, err := mockAdapter(suite.creds, mw)
 	require.NoError(t, err, clues.ToCore(err))
 
+	// no api package needed here, this is a mocked request that works
+	// independent of the query.
 	_, err = NewService(adpt).
 		Client().
 		Users().

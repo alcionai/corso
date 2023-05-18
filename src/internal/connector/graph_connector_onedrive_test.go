@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var (
@@ -54,9 +55,9 @@ func mustGetDefaultDriveID(
 
 	switch backupService {
 	case path.OneDriveService:
-		d, err = service.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
+		d, err = api.GetUsersDrive(ctx, service, resourceOwner)
 	case path.SharePointService:
-		d, err = service.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
+		d, err = api.GetSitesDefaultDrive(ctx, service, resourceOwner)
 	default:
 		assert.FailNowf(t, "unknown service type %s", backupService.String())
 	}

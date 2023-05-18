@@ -326,24 +326,3 @@ func GetAllFolders(
 
 	return res, el.Failure()
 }
-
-// deletes require unique http clients
-// https://github.com/alcionai/corso/issues/2707
-func DeleteItem(
-	ctx context.Context,
-	gs graph.Servicer,
-	driveID string,
-	itemID string,
-) error {
-	err := gs.Client().
-		Drives().
-		ByDriveId(driveID).
-		Items().
-		ByDriveItemId(itemID).
-		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
-	}
-
-	return nil
-}

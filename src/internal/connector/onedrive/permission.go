@@ -158,27 +158,20 @@ func UpdatePermissions(
 		// https://github.com/alcionai/corso/issues/2707
 		// this is bad citizenship, and could end up consuming a lot of
 		// system resources if servicers leak client connections (sockets, etc).
-		a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
-		if err != nil {
-			return graph.Wrap(ictx, err, "creating delete client")
-		}
 
 		pid, ok := oldPermIDToNewID[p.ID]
 		if !ok {
 			return clues.New("no new permission id").WithClues(ctx)
 		}
 
-		err = graph.NewService(a).
-			Client().
-			Drives().
-			ByDriveId(driveID).
-			Items().
-			ByDriveItemId(itemID).
-			Permissions().
-			ByPermissionId(pid).
-			Delete(graph.ConsumeNTokens(ictx, graph.PermissionsLC), nil)
+		err := api.DeleteDriveItemPermission(
+			ictx,
+			creds,
+			driveID,
+			itemID,
+			pid)
 		if err != nil {
-			return graph.Wrap(ictx, err, "removing permissions")
+			return clues.Stack(err)
 		}
 	}
 

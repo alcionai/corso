@@ -151,7 +151,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			t := suite.T()
 			srv := suite.service
 
-			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
+			root, err := api.GetDriveRoot(ctx, srv, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
@@ -229,7 +229,7 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			t := suite.T()
 			srv := suite.service
 
-			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
+			root, err := api.GetDriveRoot(ctx, srv, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist

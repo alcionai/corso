@@ -1660,14 +1660,12 @@ func runDriveIncrementalTest(
 		{
 			name: "update contents of a file",
 			updateFiles: func(t *testing.T) {
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Content().
-					Put(ctx, []byte("new content"), nil)
+				err := api.PutDriveItemContent(
+					ctx,
+					gc.Service,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					[]byte("new content"))
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
 				// no expectedDeets: neither file id nor location changed
 			},
@@ -1686,13 +1684,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&container)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					driveItem)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
@@ -1710,13 +1707,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&dest)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					driveItem)
 				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
 
 				expectDeets.MoveItem(
@@ -1731,15 +1727,11 @@ func runDriveIncrementalTest(
 		{
 			name: "delete file",
 			updateFiles: func(t *testing.T) {
-				// deletes require unique http clients
-				// https://github.com/alcionai/corso/issues/2707
-				err = newDeleteServicer(t).
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Delete(ctx, nil)
+				err := api.DeleteDriveItem(
+					ctx,
+					newDeleteServicer(t),
+					driveID,
+					ptr.Val(newFile.GetId()))
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 
 				expectDeets.RemoveItem(driveID, makeLocRef(container2), ptr.Val(newFile.GetId()))
@@ -1759,13 +1751,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(child).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					child,
+					driveItem)
 				require.NoError(t, err, "moving folder", clues.ToCore(err))
 
 				expectDeets.MoveLocation(
@@ -1788,13 +1779,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(child).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					child,
+					driveItem)
 				require.NoError(t, err, "renaming folder", clues.ToCore(err))
 
 				containerIDs[containerRename] = containerIDs[container2]
@@ -1811,15 +1801,11 @@ func runDriveIncrementalTest(
 			name: "delete a folder",
 			updateFiles: func(t *testing.T) {
 				container := containerIDs[containerRename]
-				// deletes require unique http clients
-				// https://github.com/alcionai/corso/issues/2707
-				err = newDeleteServicer(t).
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(container).
-					Delete(ctx, nil)
+				err := api.DeleteDriveItem(
+					ctx,
+					newDeleteServicer(t),
+					driveID,
+					container)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
 
 				expectDeets.RemoveLocation(driveID, makeLocRef(container1, containerRename))
