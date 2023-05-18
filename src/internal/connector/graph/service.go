@@ -268,6 +268,7 @@ func kiotaMiddlewares(
 
 	mw = append(
 		mw,
+		&throttlingMiddleware{newTimedFence()},
 		&RateLimiterMiddleware{},
 		&MetricsMiddleware{})
 

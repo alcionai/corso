@@ -123,9 +123,10 @@ func (c Mail) GetContainerByID(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	ofmf, err := optionsForMailFoldersItem([]string{"displayName", "parentFolderId"})
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "setting mail folder options")
+	queryParams := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
+			Select: []string{"id", "displayName", "parentFolderId"},
+		},
 	}
 
 	resp, err := service.Client().
@@ -133,7 +134,7 @@ func (c Mail) GetContainerByID(
 		ByUserId(userID).
 		MailFolders().
 		ByMailFolderId(dirID).
-		Get(ctx, ofmf)
+		Get(ctx, queryParams)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -380,23 +381,12 @@ func NewMailPager(
 	gs graph.Servicer,
 	user, directoryID string,
 	immutableIDs bool,
-) (itemPager, error) {
-	selecting, err := buildOptions([]string{"isRead"}, fieldsForMessages)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-
-	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-		Headers:         buildPreferHeaders(true, immutableIDs),
-	}
-
-	if err != nil {
-		return &mailPager{}, err
+) itemPager {
+	queryParams := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+			Select: []string{"id", "isRead"},
+		},
+		Headers: buildPreferHeaders(true, immutableIDs),
 	}
 
 	builder := gs.Client().
@@ -406,7 +396,7 @@ func NewMailPager(
 		ByMailFolderId(directoryID).
 		Messages()
 
-	return &mailPager{gs, builder, options}, nil
+	return &mailPager{gs, builder, queryParams}
 }
 
 func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
@@ -466,23 +456,12 @@ func NewMailDeltaPager(
 	gs graph.Servicer,
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
-) (itemPager, error) {
-	selecting, err := buildOptions([]string{"isRead"}, fieldsForMessages)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-
-	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-		Headers:         buildPreferHeaders(true, immutableIDs),
-	}
-
-	if err != nil {
-		return &mailDeltaPager{}, err
+) itemPager {
+	queryParams := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
+			Select: []string{"id", "isRead"},
+		},
+		Headers: buildPreferHeaders(true, immutableIDs),
 	}
 
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
@@ -490,10 +469,10 @@ func NewMailDeltaPager(
 	if len(oldDelta) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	} else {
-		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, options)
+		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, queryParams)
 	}
 
-	return &mailDeltaPager{gs, user, directoryID, builder, options}, nil
+	return &mailDeltaPager{gs, user, directoryID, builder, queryParams}
 }
 
 func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
@@ -539,15 +518,8 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", directoryID)
 
-	pager, err := NewMailPager(ctx, service, user, directoryID, immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
-	}
-
-	deltaPager, err := NewMailDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
-	}
+	pager := NewMailPager(ctx, service, user, directoryID, immutableIDs)
+	deltaPager := NewMailDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
 
 	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
