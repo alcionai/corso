@@ -56,19 +56,21 @@ func newUrlCache(driveEnumerator driveEnumeratorFunc) *urlCache {
 func (uc *urlCache) getDownloadUrl(
 	ctx context.Context,
 	svc graph.Servicer,
-	itemID string) (string, bool) {
+	itemID string) (string, error) {
 	// TODO: move map read/write to helpers
 	// for safety
 	uc.cacheLock.RLock()
 	val, ok := uc.urlMap[itemID]
 	uc.cacheLock.RUnlock()
 	if !ok {
-		// TODO: refresh cache locking
-		uc.refreshCache(ctx, svc)
+		// Let client drive the refresh rather than us
+		// doing it.
+		// TODO: cache errors
+		return "", nil
 	}
 
 	// TODO: handle deleted items
-	return val.downloadUrl, ok
+	return val.downloadUrl, nil
 }
 
 // refreshCache refreshes the URL cache by performing a delta query
@@ -83,6 +85,8 @@ func (uc *urlCache) refreshCache(
 	if err != nil {
 		return err
 	}
+
+	// TODO: DI to download URL map
 
 	return nil
 }
