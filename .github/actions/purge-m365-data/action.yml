@@ -91,3 +91,41 @@ runs:
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
         ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+
+    ################################################################################################################
+    # Notifications on failure
+    #
+
+    - name: SHA info
+      id: sha-info
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      if: failure()
+      run: |
+        echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+        echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+        echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+      
+    - name: Send Github Action failure to Slack
+      id: slack-notification
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      if: failure()
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        payload: |
+          {
+            "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "[FAILED] Purge M365 User Data :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ github.event.pull_request.html_url || github.event.head_commit.url }}|[Base]>"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
