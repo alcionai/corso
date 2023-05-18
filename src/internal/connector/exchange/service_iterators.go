@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -16,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type addedAndRemovedItemIDsGetter interface {
@@ -23,6 +23,7 @@ type addedAndRemovedItemIDsGetter interface {
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
 		immutableIDs bool,
+		canMakeDeltaQueries bool,
 	) ([]string, []string, api.DeltaUpdate, error)
 }
 
@@ -31,19 +32,24 @@ type addedAndRemovedItemIDsGetter interface {
 // into a BackupCollection. Messages outside of those directories are omitted.
 // @param collection is filled with during this function.
 // Supports all exchange applications: Contacts, Events, and Mail
+//
+// TODO(ashmrtn): This should really return []data.BackupCollection but
+// unfortunately some of our tests rely on being able to lookup returned
+// collections by ID and it would be non-trivial to change them.
 func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	getter addedAndRemovedItemIDsGetter,
-	collections map[string]data.BackupCollection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) error {
+) (map[string]data.BackupCollection, error) {
 	var (
+		// folder ID -> BackupCollection.
+		collections = map[string]data.BackupCollection{}
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -60,19 +66,19 @@ func filterContainersAndFillCollections(
 	// But this will work for the short term.
 	ac, err := api.NewClient(qp.Credentials)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ibt, err := itemerByType(ac, category)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	el := errs.Local()
 
 	for _, c := range resolver.Items() {
 		if el.Failure() != nil {
-			return el.Failure()
+			return nil, el.Failure()
 		}
 
 		cID := ptr.Val(c.GetId())
@@ -80,8 +86,8 @@ func filterContainersAndFillCollections(
 
 		var (
 			dp          = dps[cID]
-			prevDelta   = dp.delta
-			prevPathStr = dp.path // do not log: pii; log prevPath instead
+			prevDelta   = dp.Delta
+			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
@@ -114,7 +120,8 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner.ID(),
 			cID,
 			prevDelta,
-			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs)
+			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+			!ctrlOpts.ToggleFeatures.DisableDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -171,7 +178,7 @@ func filterContainersAndFillCollections(
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
 		if el.Failure() != nil {
-			return el.Failure()
+			return nil, el.Failure()
 		}
 
 		ictx := clues.Add(ctx, "tombstone_id", id)
@@ -223,12 +230,12 @@ func filterContainersAndFillCollections(
 		},
 		statusUpdater)
 	if err != nil {
-		return clues.Wrap(err, "making metadata collection")
+		return nil, clues.Wrap(err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
 
-	return el.Failure()
+	return collections, el.Failure()
 }
 
 // produces a set of id:path pairs from the deltapaths map.
@@ -238,7 +245,7 @@ func makeTombstones(dps DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
-		r[id] = v.path
+		r[id] = v.Path
 	}
 
 	return r

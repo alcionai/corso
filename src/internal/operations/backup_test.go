@@ -14,7 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/mock"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -45,16 +47,28 @@ type mockRestoreProducer struct {
 	onRestore restoreFunc
 }
 
-type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
+type restoreFunc func(
+	id string,
+	ps []path.RestorePaths,
+) ([]data.RestoreCollection, error)
 
 func (mr *mockRestoreProducer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
 ) {
-	mr.onRestore = func(id string, ps []path.Path) ([]data.RestoreCollection, error) {
+	mr.onRestore = func(
+		id string,
+		ps []path.RestorePaths,
+	) ([]data.RestoreCollection, error) {
+		gotPaths := make([]path.Path, 0, len(ps))
+
+		for _, rp := range ps {
+			gotPaths = append(gotPaths, rp.StoragePath)
+		}
+
 		assert.Equal(t, oid, id, "manifest id")
-		checkPaths(t, ops, ps)
+		checkPaths(t, ops, gotPaths)
 
 		return mr.colls, mr.err
 	}
@@ -63,11 +77,13 @@ func (mr *mockRestoreProducer) buildRestoreFunc(
 func (mr *mockRestoreProducer) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
-	paths []path.Path,
+	paths []path.RestorePaths,
 	bc kopia.ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	mr.gotPaths = append(mr.gotPaths, paths...)
+	for _, ps := range paths {
+		mr.gotPaths = append(mr.gotPaths, ps.StoragePath)
+	}
 
 	if mr.onRestore != nil {
 		return mr.onRestore(snapshotID, paths)
@@ -98,7 +114,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
-	excluded map[string]map[string]struct{},
+	excluded prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
@@ -271,10 +287,10 @@ func makeFolderEntry(
 	size int64,
 	modTime time.Time,
 	dt details.ItemType,
-) *details.DetailsEntry {
+) *details.Entry {
 	t.Helper()
 
-	return &details.DetailsEntry{
+	return &details.Entry{
 		RepoRef:     pb.String(),
 		ShortRef:    pb.ShortRef(),
 		ParentRef:   pb.Dir().ShortRef(),
@@ -308,7 +324,7 @@ func makeDetailsEntry(
 	l *path.Builder,
 	size int,
 	updated bool,
-) *details.DetailsEntry {
+) *details.Entry {
 	t.Helper()
 
 	var lr string
@@ -316,7 +332,7 @@ func makeDetailsEntry(
 		lr = l.String()
 	}
 
-	res := &details.DetailsEntry{
+	res := &details.Entry{
 		RepoRef:     p.String(),
 		ShortRef:    p.ShortRef(),
 		ParentRef:   p.ToBuilder().Dir().ShortRef(),
@@ -451,7 +467,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.Options{},
+				control.Defaults(),
 				kw,
 				sw,
 				gc,
@@ -642,15 +658,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				path.OneDriveService.String(),
 				ro,
 				path.FilesCategory.String(),
-				"drives",
+				odConsts.DrivesPathDir,
 				"drive-id",
-				"root:",
+				odConsts.RootPathDir,
 				"work",
 				"item1",
 			},
 			true,
 		)
-		locationPath1 = path.Builder{}.Append("root:", "work-display-name")
+		locationPath1 = path.Builder{}.Append(odConsts.RootPathDir, "work-display-name")
 		itemPath2     = makePath(
 			suite.T(),
 			[]string{
@@ -658,15 +674,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				path.OneDriveService.String(),
 				ro,
 				path.FilesCategory.String(),
-				"drives",
+				odConsts.DrivesPathDir,
 				"drive-id",
-				"root:",
+				odConsts.RootPathDir,
 				"personal",
 				"item2",
 			},
 			true,
 		)
-		locationPath2 = path.Builder{}.Append("root:", "personal-display-name")
+		locationPath2 = path.Builder{}.Append(odConsts.RootPathDir, "personal-display-name")
 		itemPath3     = makePath(
 			suite.T(),
 			[]string{
@@ -718,20 +734,20 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		mdm              *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
-		expectedEntries []*details.DetailsEntry
+		expectedEntries []*details.Entry
 	}{
 		{
 			name:     "NilShortRefsFromPrevBackup",
 			errCheck: assert.NoError,
 			// Use empty slice so we don't error out on nil != empty.
-			expectedEntries: []*details.DetailsEntry{},
+			expectedEntries: []*details.Entry{},
 		},
 		{
 			name:     "EmptyShortRefsFromPrevBackup",
 			mdm:      newMockDetailsMergeInfoer(),
 			errCheck: assert.NoError,
 			// Use empty slice so we don't error out on nil != empty.
-			expectedEntries: []*details.DetailsEntry{},
+			expectedEntries: []*details.Entry{},
 		},
 		{
 			name: "BackupIDNotFound",
@@ -800,7 +816,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
@@ -836,7 +852,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
@@ -866,7 +882,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							{
 								RepoRef: stdpath.Join(
 									append(
@@ -928,7 +944,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
@@ -958,14 +974,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
+			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
@@ -991,14 +1007,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
+			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
@@ -1024,7 +1040,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 							*makeDetailsEntry(suite.T(), itemPath2, locationPath2, 84, false),
 						},
@@ -1032,7 +1048,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				},
 			},
 			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
+			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
@@ -1058,14 +1074,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
+			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath2, locationPath2, 42, true),
 			},
 		},
@@ -1099,14 +1115,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 				backup2.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							// This entry should not be picked due to a mismatch on Reasons.
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 84, false),
 							// This item should be picked.
@@ -1116,7 +1132,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				},
 			},
 			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
+			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 				makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
 			},
@@ -1150,14 +1166,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 				backup2.DetailsID: {
 					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
+						Entries: []details.Entry{
 							// This entry should not be picked due to being incomplete.
 							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 84, false),
 						},
@@ -1165,7 +1181,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				},
 			},
 			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
+			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
@@ -1265,12 +1281,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	populatedDetails := map[string]*details.Details{
 		backup1.DetailsID: {
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{*itemDetails},
+				Entries: []details.Entry{*itemDetails},
 			},
 		},
 	}
 
-	expectedEntries := []details.DetailsEntry{*itemDetails}
+	expectedEntries := []details.Entry{*itemDetails}
 
 	// update the details
 	itemDetails.Exchange.Modified = now
@@ -1312,7 +1328,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 // assert.elementsMatch to fail.
 func compareDeetEntries(
 	t *testing.T,
-	expect, result []details.DetailsEntry,
+	expect, result []details.Entry,
 ) {
 	if !assert.Equal(t, len(expect), len(result), "entry slices should be equal len") {
 		require.ElementsMatch(t, expect, result)
@@ -1321,8 +1337,8 @@ func compareDeetEntries(
 	var (
 		// repoRef -> modified time
 		eMods = map[string]time.Time{}
-		es    = make([]details.DetailsEntry, 0, len(expect))
-		rs    = make([]details.DetailsEntry, 0, len(expect))
+		es    = make([]details.Entry, 0, len(expect))
+		rs    = make([]details.Entry, 0, len(expect))
 	)
 
 	for _, e := range expect {
@@ -1347,7 +1363,7 @@ func compareDeetEntries(
 	assert.ElementsMatch(t, es, rs)
 }
 
-func withoutModified(de details.DetailsEntry) details.DetailsEntry {
+func withoutModified(de details.Entry) details.Entry {
 	switch {
 	case de.Exchange != nil:
 		de.Exchange.Modified = time.Time{}

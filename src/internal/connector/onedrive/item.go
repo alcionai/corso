@@ -14,18 +14,17 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/uploadsession"
-	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-const (
-	// downloadUrlKey is used to find the download URL in a
-	// DriveItem response
-	downloadURLKey = "@microsoft.graph.downloadUrl"
-)
+// downloadUrlKeys is used to find the download URL in a DriveItem response.
+var downloadURLKeys = []string{
+	"@microsoft.graph.downloadUrl",
+	"@content.downloadUrl",
+}
 
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
@@ -33,12 +32,12 @@ const (
 // TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	resp, err := downloadItem(ctx, hc, item)
+	resp, err := downloadItem(ctx, client, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
+		return details.ItemInfo{}, nil, clues.Wrap(err, "sharepoint reader")
 	}
 
 	dii := details.ItemInfo{
@@ -74,18 +73,18 @@ func baseItemMetaReader(
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
 	var (
-		perms []UserPermission
+		perms []metadata.Permission
 		err   error
-		meta  = Metadata{FileName: ptr.Val(item.GetName())}
+		meta  = metadata.Metadata{FileName: ptr.Val(item.GetName())}
 	)
 
 	if item.GetShared() == nil {
-		meta.SharingMode = SharingModeInherited
+		meta.SharingMode = metadata.SharingModeInherited
 	} else {
-		meta.SharingMode = SharingModeCustom
+		meta.SharingMode = metadata.SharingModeCustom
 	}
 
-	if meta.SharingMode == SharingModeCustom {
+	if meta.SharingMode == metadata.SharingModeCustom {
 		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
@@ -107,7 +106,7 @@ func baseItemMetaReader(
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	var (
@@ -116,9 +115,9 @@ func oneDriveItemReader(
 	)
 
 	if isFile {
-		resp, err := downloadItem(ctx, hc, item)
+		resp, err := downloadItem(ctx, client, item)
 		if err != nil {
-			return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
+			return details.ItemInfo{}, nil, clues.Wrap(err, "onedrive reader")
 		}
 
 		rc = resp.Body
@@ -131,38 +130,35 @@ func oneDriveItemReader(
 	return dii, rc, nil
 }
 
-func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemable) (*http.Response, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
+func downloadItem(
+	ctx context.Context,
+	client graph.Requester,
+	item models.DriveItemable,
+) (*http.Response, error) {
+	var url string
+
+	for _, key := range downloadURLKeys {
+		tmp, ok := item.GetAdditionalData()[key].(*string)
+		if ok {
+			url = ptr.Val(tmp)
+			break
+		}
+	}
+
+	if len(url) == 0 {
 		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
 	}
 
-	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	resp, err := client.Request(ctx, http.MethodGet, url, nil, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "new item download request")
-	}
-
-	//nolint:lll
-	// Decorate the traffic
-	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
-	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
-
-	resp, err := hc.Do(req)
-	if err != nil {
-		cerr := graph.Wrap(ctx, err, "downloading item")
-
-		if graph.IsMalware(err) {
-			cerr = cerr.Label(graph.LabelsMalware)
-		}
-
-		return nil, cerr
+		return nil, err
 	}
 
 	if (resp.StatusCode / 100) == 2 {
 		return resp, nil
 	}
 
-	if graph.IsMalwareResp(context.Background(), resp) {
+	if graph.IsMalwareResp(ctx, resp) {
 		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 
@@ -215,7 +211,7 @@ func driveItemPermissionInfo(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-) ([]UserPermission, error) {
+) ([]metadata.Permission, error) {
 	perm, err := api.GetItemPermission(ctx, service, driveID, itemID)
 	if err != nil {
 		return nil, err
@@ -226,8 +222,8 @@ func driveItemPermissionInfo(
 	return uperms, nil
 }
 
-func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []UserPermission {
-	up := []UserPermission{}
+func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []metadata.Permission {
+	up := []metadata.Permission{}
 
 	for _, p := range perms {
 		if p.GetGrantedToV2() == nil {
@@ -236,33 +232,44 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			continue
 		}
 
-		gv2 := p.GetGrantedToV2()
-
-		// Below are the mapping from roles to "Advanced" permissions
-		// screen entries:
-		//
-		// owner - Full Control
-		// write - Design | Edit | Contribute (no difference in /permissions api)
-		// read  - Read
-		// empty - Restricted View
-		roles := p.GetRoles()
-
-		entityID := ""
-		if gv2.GetUser() != nil {
-			entityID = ptr.Val(gv2.GetUser().GetId())
-		} else if gv2.GetGroup() != nil {
-			entityID = ptr.Val(gv2.GetGroup().GetId())
-		} else {
-			// TODO Add application permissions when adding permissions for SharePoint
+		var (
+			// Below are the mapping from roles to "Advanced" permissions
+			// screen entries:
+			//
+			// owner - Full Control
+			// write - Design | Edit | Contribute (no difference in /permissions api)
+			// read  - Read
+			// empty - Restricted View
+			//
+			// helpful docs:
 			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
-			logm := logger.Ctx(ctx)
-			if gv2.GetApplication() != nil {
-				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
-			}
-			if gv2.GetDevice() != nil {
-				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
-			}
-			logm.Info("untracked permission")
+			roles    = p.GetRoles()
+			gv2      = p.GetGrantedToV2()
+			entityID string
+			gv2t     metadata.GV2Type
+		)
+
+		switch true {
+		case gv2.GetUser() != nil:
+			gv2t = metadata.GV2User
+			entityID = ptr.Val(gv2.GetUser().GetId())
+		case gv2.GetSiteUser() != nil:
+			gv2t = metadata.GV2SiteUser
+			entityID = ptr.Val(gv2.GetSiteUser().GetId())
+		case gv2.GetGroup() != nil:
+			gv2t = metadata.GV2Group
+			entityID = ptr.Val(gv2.GetGroup().GetId())
+		case gv2.GetSiteGroup() != nil:
+			gv2t = metadata.GV2SiteGroup
+			entityID = ptr.Val(gv2.GetSiteGroup().GetId())
+		case gv2.GetApplication() != nil:
+			gv2t = metadata.GV2App
+			entityID = ptr.Val(gv2.GetApplication().GetId())
+		case gv2.GetDevice() != nil:
+			gv2t = metadata.GV2Device
+			entityID = ptr.Val(gv2.GetDevice().GetId())
+		default:
+			logger.Ctx(ctx).Info("untracked permission")
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the
@@ -272,10 +279,11 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			continue
 		}
 
-		up = append(up, UserPermission{
+		up = append(up, metadata.Permission{
 			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
 			EntityID:   entityID,
+			EntityType: gv2t,
 			Expiration: p.GetExpirationDateTime(),
 		})
 	}
@@ -312,7 +320,7 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 	}
 
 	return &details.SharePointInfo{
-		ItemType:  details.OneDriveItem,
+		ItemType:  details.SharePointLibrary,
 		ItemName:  ptr.Val(di.GetName()),
 		Created:   ptr.Val(di.GetCreatedDateTime()),
 		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
@@ -336,7 +344,13 @@ func driveItemWriter(
 	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
-	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
+	r, err := service.Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
+		CreateUploadSession().
+		Post(ctx, session, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating item upload session")
 	}
@@ -345,7 +359,7 @@ func driveItemWriter(
 
 	url := ptr.Val(r.GetUploadUrl())
 
-	return uploadsession.NewWriter(itemID, url, itemSize), nil
+	return graph.NewLargeItemWriter(itemID, url, itemSize), nil
 }
 
 // constructWebURL helper function for recreating the webURL

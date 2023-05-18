@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -21,7 +21,7 @@ type ExchangeOptionsTest struct {
 	Name         string
 	Opts         utils.ExchangeOpts
 	BackupGetter *MockBackupGetter
-	Expected     []details.DetailsEntry
+	Expected     []details.Entry
 }
 
 var (
@@ -138,39 +138,39 @@ var (
 			Name:     "EmailsFolderPrefixMatch",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder(false)},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation()},
 			},
 		},
 		{
 			Name:     "EmailsFolderPrefixMatchTrailingSlash",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder(false) + "/"},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation() + "/"},
 			},
 		},
 		{
 			Name: "EmailsFolderWithSlashPrefixMatch",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.ExchangeEmailItems[1],
 				testdata.ExchangeEmailItems[2],
 			},
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder(false)},
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation()},
 			},
 		},
 		{
 			Name: "EmailsFolderWithSlashPrefixMatchTrailingSlash",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.ExchangeEmailItems[1],
 				testdata.ExchangeEmailItems[2],
 			},
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder(false) + "/"},
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation() + "/"},
 			},
 		},
 		{
 			Name: "EmailsBySubject",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.ExchangeEmailItems[0],
 				testdata.ExchangeEmailItems[1],
 			},
@@ -183,7 +183,7 @@ var (
 			Expected: append(
 				append(
 					append(
-						[]details.DetailsEntry{},
+						[]details.Entry{},
 						testdata.ExchangeEmailItems...,
 					),
 					testdata.ExchangeContactsItems...,
@@ -193,41 +193,43 @@ var (
 		},
 		{
 			Name:     "MailReceivedTime",
-			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
-				EmailReceivedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+				EmailReceivedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
 			},
 		},
 		{
-			Name:     "MailItemRef",
-			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			Name:     "MailShortRef",
+			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
+			Opts: utils.ExchangeOpts{
+				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
+			},
+		},
+		{
+			Name: "BadMailItemRef",
+			// no matches are expected, since exchange ItemRefs
+			// are not matched when using the CLI's selectors.
+			Expected: []details.Entry{},
 			Opts: utils.ExchangeOpts{
 				Email: []string{testdata.ExchangeEmailItems[0].ItemRef},
 			},
 		},
 		{
-			Name:     "MailShortRef",
-			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
-			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
-			},
-		},
-		{
 			Name: "MultipleMailShortRef",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.ExchangeEmailItems[0],
 				testdata.ExchangeEmailItems[1],
 			},
 			Opts: utils.ExchangeOpts{
 				Email: []string{
-					testdata.ExchangeEmailItemPath1.ShortRef(),
-					testdata.ExchangeEmailItemPath2.ShortRef(),
+					testdata.ExchangeEmailItemPath1.RR.ShortRef(),
+					testdata.ExchangeEmailItemPath2.RR.ShortRef(),
 				},
 			},
 		},
 		{
 			Name:     "AllEventsAndMailWithSubject",
-			Expected: []details.DetailsEntry{testdata.ExchangeEmailItems[0]},
+			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
 			Opts: utils.ExchangeOpts{
 				EmailSubject: "foo",
 				Event:        selectors.Any(),
@@ -235,7 +237,7 @@ var (
 		},
 		{
 			Name:     "EventsAndMailWithSubject",
-			Expected: []details.DetailsEntry{},
+			Expected: []details.Entry{},
 			Opts: utils.ExchangeOpts{
 				EmailSubject: "foo",
 				EventSubject: "foo",
@@ -243,13 +245,13 @@ var (
 		},
 		{
 			Name: "EventsAndMailByShortRef",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.ExchangeEmailItems[0],
 				testdata.ExchangeEventsItems[0],
 			},
 			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.ShortRef()},
-				Event: []string{testdata.ExchangeEventsItemPath1.ShortRef()},
+				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
+				Event: []string{testdata.ExchangeEventsItemPath1.RR.ShortRef()},
 			},
 		},
 	}
@@ -259,7 +261,7 @@ type OneDriveOptionsTest struct {
 	Name         string
 	Opts         utils.OneDriveOpts
 	BackupGetter *MockBackupGetter
-	Expected     []details.DetailsEntry
+	Expected     []details.Entry
 }
 
 var (
@@ -355,6 +357,13 @@ var (
 			},
 		},
 		{
+			Name:     "FilesWithSingleSlash",
+			Expected: testdata.OneDriveItems,
+			Opts: utils.OneDriveOpts{
+				FolderPath: []string{"/"},
+			},
+		},
+		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
@@ -376,8 +385,15 @@ var (
 			},
 		},
 		{
+			Name:     "FolderRepoRefMatchesNothing",
+			Expected: []details.Entry{},
+			Opts: utils.OneDriveOpts{
+				FolderPath: []string{testdata.OneDriveFolderPath.RR.Folder(true)},
+			},
+		},
+		{
 			Name: "ShortRef",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.OneDriveItems[0],
 				testdata.OneDriveItems[1],
 			},
@@ -390,7 +406,7 @@ var (
 		},
 		{
 			Name:     "SingleItem",
-			Expected: []details.DetailsEntry{testdata.OneDriveItems[0]},
+			Expected: []details.Entry{testdata.OneDriveItems[0]},
 			Opts: utils.OneDriveOpts{
 				FileName: []string{
 					testdata.OneDriveItems[0].OneDrive.ItemName,
@@ -399,7 +415,7 @@ var (
 		},
 		{
 			Name: "MultipleItems",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.OneDriveItems[0],
 				testdata.OneDriveItems[1],
 			},
@@ -412,7 +428,7 @@ var (
 		},
 		{
 			Name:     "ItemRefMatchesNothing",
-			Expected: []details.DetailsEntry{},
+			Expected: []details.Entry{},
 			Opts: utils.OneDriveOpts{
 				FileName: []string{
 					testdata.OneDriveItems[0].ItemRef,
@@ -421,9 +437,9 @@ var (
 		},
 		{
 			Name:     "CreatedBefore",
-			Expected: []details.DetailsEntry{testdata.OneDriveItems[1]},
+			Expected: []details.Entry{testdata.OneDriveItems[1]},
 			Opts: utils.OneDriveOpts{
-				FileCreatedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+				FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
 			},
 		},
 	}
@@ -433,7 +449,7 @@ type SharePointOptionsTest struct {
 	Name         string
 	Opts         utils.SharePointOpts
 	BackupGetter *MockBackupGetter
-	Expected     []details.DetailsEntry
+	Expected     []details.Entry
 }
 
 var (
@@ -474,6 +490,13 @@ var (
 			},
 		},
 		{
+			Name:     "LibraryItemsWithSingleSlash",
+			Expected: testdata.SharePointLibraryItems,
+			Opts: utils.SharePointOpts{
+				FolderPath: []string{"/"},
+			},
+		},
+		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
@@ -495,8 +518,15 @@ var (
 			},
 		},
 		{
+			Name:     "FolderRepoRefMatchesNothing",
+			Expected: []details.Entry{},
+			Opts: utils.SharePointOpts{
+				FolderPath: []string{testdata.SharePointLibraryPath.RR.Folder(true)},
+			},
+		},
+		{
 			Name: "ShortRef",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.SharePointLibraryItems[0],
 				testdata.SharePointLibraryItems[1],
 			},
@@ -509,7 +539,7 @@ var (
 		},
 		{
 			Name:     "SingleItem",
-			Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[0]},
+			Expected: []details.Entry{testdata.SharePointLibraryItems[0]},
 			Opts: utils.SharePointOpts{
 				FileName: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
@@ -518,7 +548,7 @@ var (
 		},
 		{
 			Name: "MultipleItems",
-			Expected: []details.DetailsEntry{
+			Expected: []details.Entry{
 				testdata.SharePointLibraryItems[0],
 				testdata.SharePointLibraryItems[1],
 			},
@@ -531,7 +561,7 @@ var (
 		},
 		{
 			Name:     "ItemRefMatchesNothing",
-			Expected: []details.DetailsEntry{},
+			Expected: []details.Entry{},
 			Opts: utils.SharePointOpts{
 				FileName: []string{
 					testdata.SharePointLibraryItems[0].ItemRef,
@@ -542,7 +572,7 @@ var (
 		// 	Name:     "CreatedBefore",
 		// 	Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[1]},
 		// 	Opts: utils.SharePointOpts{
-		// 		FileCreatedBefore: common.FormatTime(testdata.Time1.Add(time.Second)),
+		// 		FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
 		// 	},
 		// },
 	}

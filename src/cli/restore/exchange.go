@@ -6,14 +6,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -46,18 +44,19 @@ const (
 	exchangeServiceCommand          = "exchange"
 	exchangeServiceCommandUseSuffix = "--backup <backupId>"
 
-	exchangeServiceCommandRestoreExamples = `# Restore emails with ID 98765abcdef and 12345abcdef from a specific backup
+	//nolint:lll
+	exchangeServiceCommandRestoreExamples = `# Restore emails with ID 98765abcdef and 12345abcdef from Alice's last backup (1234abcd...)
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --email 98765abcdef,12345abcdef
 
-# Restore Alice's emails with subject containing "Hello world" in "Inbox" from a specific backup
+# Restore emails with subject containing "Hello world" in the "Inbox"
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --email-subject "Hello world" --email-folder Inbox
+    --email-subject "Hello world" --email-folder Inbox
 
-# Restore Bobs's entire calendar from a specific backup
+# Restore an entire calendar
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user bob@example.com --event-calendar Calendar
+    --event-calendar Calendar
 
-# Restore contact with ID abdef0101 from a specific backup
+# Restore the contact with ID abdef0101
 corso restore exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --contact abdef0101`
 )
 
@@ -90,19 +89,14 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
-	}
-
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTime)
+	dest := control.DefaultRestoreDestination(dttm.HumanReadable)
 	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
@@ -122,7 +116,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	ds.PrintEntries(ctx)
+	ds.Items().PrintEntries(ctx)
 
 	return nil
 }

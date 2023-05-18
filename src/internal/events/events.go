@@ -28,13 +28,15 @@ const (
 	tenantIDDeprecated = "m365_tenant_hash_deprecated"
 
 	// Event Keys
-	CorsoStart   = "Corso Start"
-	RepoInit     = "Repo Init"
-	RepoConnect  = "Repo Connect"
-	BackupStart  = "Backup Start"
-	BackupEnd    = "Backup End"
-	RestoreStart = "Restore Start"
-	RestoreEnd   = "Restore End"
+	CorsoStart       = "Corso Start"
+	RepoInit         = "Repo Init"
+	RepoConnect      = "Repo Connect"
+	BackupStart      = "Backup Start"
+	BackupEnd        = "Backup End"
+	RestoreStart     = "Restore Start"
+	RestoreEnd       = "Restore End"
+	MaintenanceStart = "Maintenance Start"
+	MaintenanceEnd   = "Maintenance End"
 
 	// Event Data Keys
 	BackupCreateTime = "backup_creation_time"
@@ -188,10 +190,12 @@ func tenantHash(tenID string) string {
 // metrics aggregation
 // ---------------------------------------------------------------------------
 
-type m string
+type metricsCategory string
 
 // metrics collection bucket
-const APICall m = "api_call"
+const (
+	APICall metricsCategory = "api_call"
+)
 
 // configurations
 const (
@@ -256,13 +260,19 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 }
 
 // Inc increments the given category by 1.
-func Inc(cat m, keys ...string) {
+func Inc(cat metricsCategory, keys ...string) {
 	cats := append([]string{string(cat)}, keys...)
 	metrics.IncrCounter(cats, 1)
 }
 
+// IncN increments the given category by N.
+func IncN(n int, cat metricsCategory, keys ...string) {
+	cats := append([]string{string(cat)}, keys...)
+	metrics.IncrCounter(cats, float32(n))
+}
+
 // Since records the duration between the provided time and now, in millis.
-func Since(start time.Time, cat m, keys ...string) {
+func Since(start time.Time, cat metricsCategory, keys ...string) {
 	cats := append([]string{string(cat)}, keys...)
 	metrics.MeasureSince(cats, start)
 }

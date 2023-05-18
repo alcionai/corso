@@ -18,6 +18,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -69,7 +70,7 @@ func NewConn(s storage.Storage) *conn {
 	}
 }
 
-func (w *conn) Initialize(ctx context.Context) error {
+func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -92,6 +93,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 
 	err = w.commonConnect(
 		ctx,
+		opts,
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
@@ -108,7 +110,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (w *conn) Connect(ctx context.Context) error {
+func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -122,6 +124,7 @@ func (w *conn) Connect(ctx context.Context) error {
 
 	return w.commonConnect(
 		ctx,
+		opts,
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
@@ -131,16 +134,21 @@ func (w *conn) Connect(ctx context.Context) error {
 
 func (w *conn) commonConnect(
 	ctx context.Context,
+	opts repository.Options,
 	configDir string,
 	bst blob.Storage,
 	password, compressor string,
 ) error {
-	var opts *repo.ConnectOptions
+	kopiaOpts := &repo.ConnectOptions{
+		ClientOptions: repo.ClientOptions{
+			Username: opts.User,
+			Hostname: opts.Host,
+		},
+	}
+
 	if len(configDir) > 0 {
-		opts = &repo.ConnectOptions{
-			CachingOptions: content.CachingOptions{
-				CacheDirectory: configDir,
-			},
+		kopiaOpts.CachingOptions = content.CachingOptions{
+			CacheDirectory: configDir,
 		}
 	} else {
 		configDir = defaultKopiaConfigDir
@@ -154,7 +162,7 @@ func (w *conn) commonConnect(
 		cfgFile,
 		bst,
 		password,
-		opts,
+		kopiaOpts,
 	); err != nil {
 		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
 	}

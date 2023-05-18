@@ -2,20 +2,26 @@ package kopia
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
+	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -134,7 +140,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
@@ -146,7 +152,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	ctx, end := diagnostics.Span(ctx, "kopia:consumeBackupCollections")
 	defer end()
 
-	if len(collections) == 0 && len(globalExcludeSet) == 0 {
+	if len(collections) == 0 && (globalExcludeSet == nil || globalExcludeSet.Empty()) {
 		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
@@ -321,26 +327,24 @@ func (w Wrapper) getSnapshotRoot(
 	return rootDirEntry, nil
 }
 
-// getItemStream looks up the item at the given path starting from snapshotRoot.
-// If the item is a file in kopia then it returns a data.Stream of the item. If
-// the item does not exist in kopia or is not a file an error is returned. The
-// UUID of the returned data.Stream will be the name of the kopia file the data
-// is sourced from.
-func getItemStream(
+// getDir looks up the directory at the given path starting from snapshotRoot.
+// If the item is a directory in kopia then it returns the kopia fs.Directory
+// handle. If the item does not exist in kopia or is not a directory an error is
+// returned.
+func getDir(
 	ctx context.Context,
-	itemPath path.Path,
+	dirPath path.Path,
 	snapshotRoot fs.Entry,
-	bcounter ByteCounter,
-) (data.Stream, error) {
-	if itemPath == nil {
-		return nil, clues.Wrap(errNoRestorePath, "getting item stream").WithClues(ctx)
+) (fs.Directory, error) {
+	if dirPath == nil {
+		return nil, clues.Wrap(errNoRestorePath, "getting directory").WithClues(ctx)
 	}
 
 	// GetNestedEntry handles nil properly.
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
 		snapshotRoot,
-		encodeElements(itemPath.PopFront().Elements()...))
+		encodeElements(dirPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
 			err = clues.Stack(data.ErrNotFound, err)
@@ -349,37 +353,117 @@ func getItemStream(
 		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
 	}
 
-	f, ok := e.(fs.File)
+	f, ok := e.(fs.Directory)
 	if !ok {
-		return nil, clues.New("requested object is not a file").WithClues(ctx)
+		return nil, clues.New("requested object is not a directory").WithClues(ctx)
 	}
 
-	if bcounter != nil {
-		bcounter.Count(f.Size())
-	}
-
-	r, err := f.Open(ctx)
-	if err != nil {
-		return nil, clues.Wrap(err, "opening file").WithClues(ctx)
-	}
-
-	decodedName, err := decodeElement(f.Name())
-	if err != nil {
-		return nil, clues.Wrap(err, "decoding file name").WithClues(ctx)
-	}
-
-	return &kopiaDataStream{
-		uuid: decodedName,
-		reader: &restoreStreamReader{
-			ReadCloser:      r,
-			expectedVersion: serializationVersion,
-		},
-		size: f.Size() - int64(versionSize),
-	}, nil
+	return f, nil
 }
 
 type ByteCounter interface {
 	Count(numBytes int64)
+}
+
+type restoreCollection struct {
+	restorePath path.Path
+	storageDirs map[string]*dirAndItems
+}
+
+type dirAndItems struct {
+	dir   path.Path
+	items []string
+}
+
+// loadDirsAndItems takes a set of ShortRef -> (directory path, []item names)
+// and creates a collection for each tuple in the set. Non-fatal errors are
+// accumulated into bus. Any fatal errors will stop processing and return the
+// error directly.
+//
+// All data is loaded from the given snapshot.
+func loadDirsAndItems(
+	ctx context.Context,
+	snapshotRoot fs.Entry,
+	bcounter ByteCounter,
+	toLoad map[string]*restoreCollection,
+	bus *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	var (
+		el        = bus.Local()
+		res       = make([]data.RestoreCollection, 0, len(toLoad))
+		loadCount = 0
+	)
+
+	for _, col := range toLoad {
+		if el.Failure() != nil {
+			return nil, el.Failure()
+		}
+
+		ictx := clues.Add(ctx, "restore_path", col.restorePath)
+
+		mergeCol := &mergeCollection{fullPath: col.restorePath}
+		res = append(res, mergeCol)
+
+		for _, dirItems := range col.storageDirs {
+			if el.Failure() != nil {
+				return nil, el.Failure()
+			}
+
+			ictx = clues.Add(ictx, "storage_directory_path", dirItems.dir)
+
+			dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "loading storage directory").
+					WithClues(ictx).
+					Label(fault.LabelForceNoBackupCreation))
+
+				continue
+			}
+
+			dc := &kopiaDataCollection{
+				path:            col.restorePath,
+				dir:             dir,
+				counter:         bcounter,
+				expectedVersion: serializationVersion,
+			}
+
+			if err := mergeCol.addCollection(dirItems.dir.String(), dc); err != nil {
+				el.AddRecoverable(clues.Wrap(err, "adding collection to merge collection").
+					WithClues(ctx).
+					Label(fault.LabelForceNoBackupCreation))
+
+				continue
+			}
+
+			for _, item := range dirItems.items {
+				if el.Failure() != nil {
+					return nil, el.Failure()
+				}
+
+				err := dc.addStream(ictx, item)
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "loading item").
+						WithClues(ictx).
+						Label(fault.LabelForceNoBackupCreation))
+
+					continue
+				}
+
+				loadCount++
+				if loadCount%1000 == 0 {
+					logger.Ctx(ctx).Infow(
+						"loading items from kopia",
+						"loaded_items", loadCount)
+				}
+			}
+		}
+	}
+
+	logger.Ctx(ctx).Infow(
+		"done loading items from kopia",
+		"loaded_items", loadCount)
+
+	return res, el.Failure()
 }
 
 // ProduceRestoreCollections looks up all paths- assuming each is an item declaration,
@@ -392,7 +476,7 @@ type ByteCounter interface {
 func (w Wrapper) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
-	paths []path.Path,
+	paths []path.RestorePaths,
 	bcounter ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
@@ -403,57 +487,76 @@ func (w Wrapper) ProduceRestoreCollections(
 		return nil, clues.Stack(errNoRestorePath).WithClues(ctx)
 	}
 
+	// Used later on, but less confusing to follow error propagation if we just
+	// load it here.
 	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "loading snapshot root")
 	}
 
 	var (
-		// Maps short ID of parent path to data collection for that folder.
-		cols = map[string]*kopiaDataCollection{}
-		el   = errs.Local()
+		loadCount int
+		// RestorePath -> []StoragePath directory -> set of items to load from the
+		// directory.
+		dirsToItems = map[string]*restoreCollection{}
+		el          = errs.Local()
 	)
 
-	for _, itemPath := range paths {
+	for _, itemPaths := range paths {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
 
-		ictx := clues.Add(ctx, "item_path", itemPath.String())
+		// Group things by RestorePath and then StoragePath so we can load multiple
+		// items from a single directory instance lower down.
+		ictx := clues.Add(
+			ctx,
+			"item_path", itemPaths.StoragePath.String(),
+			"restore_path", itemPaths.RestorePath.String())
 
-		ds, err := getItemStream(ictx, itemPath, snapshotRoot, bcounter)
+		parentStoragePath, err := itemPaths.StoragePath.Dir()
 		if err != nil {
-			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
-
-		parentPath, err := itemPath.Dir()
-		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "making directory collection").
+			el.AddRecoverable(clues.Wrap(err, "getting storage directory path").
 				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
 
 			continue
 		}
 
-		c, ok := cols[parentPath.ShortRef()]
-		if !ok {
-			cols[parentPath.ShortRef()] = &kopiaDataCollection{
-				path:         parentPath,
-				snapshotRoot: snapshotRoot,
-				counter:      bcounter,
+		// Find the location this item is restored to.
+		rc := dirsToItems[itemPaths.RestorePath.ShortRef()]
+		if rc == nil {
+			dirsToItems[itemPaths.RestorePath.ShortRef()] = &restoreCollection{
+				restorePath: itemPaths.RestorePath,
+				storageDirs: map[string]*dirAndItems{},
 			}
-			c = cols[parentPath.ShortRef()]
+			rc = dirsToItems[itemPaths.RestorePath.ShortRef()]
 		}
 
-		c.streams = append(c.streams, ds)
+		// Find the collection this item is sourced from.
+		di := rc.storageDirs[parentStoragePath.ShortRef()]
+		if di == nil {
+			rc.storageDirs[parentStoragePath.ShortRef()] = &dirAndItems{
+				dir: parentStoragePath,
+			}
+			di = rc.storageDirs[parentStoragePath.ShortRef()]
+		}
+
+		di.items = append(di.items, itemPaths.StoragePath.Item())
+
+		loadCount++
+		if loadCount%1000 == 0 {
+			logger.Ctx(ctx).Infow(
+				"grouping items to load from kopia",
+				"group_items", loadCount)
+		}
 	}
 
-	// Can't use the maps package to extract the values because we need to convert
-	// from *kopiaDataCollection to data.RestoreCollection too.
-	res := make([]data.RestoreCollection, 0, len(cols))
-	for _, c := range cols {
-		res = append(res, c)
+	// Now that we've grouped everything, go through and load each directory and
+	// then load the items from the directory.
+	res, err := loadDirsAndItems(ctx, snapshotRoot, bcounter, dirsToItems, errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "loading items")
 	}
 
 	return res, el.Failure()
@@ -512,6 +615,137 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 }
 
 func isErrEntryNotFound(err error) bool {
+	// Calling Child on a directory may return this.
+	if errors.Is(err, fs.ErrEntryNotFound) {
+		return true
+	}
+
+	// This is returned when walking the hierarchy of a backup.
 	return strings.Contains(err.Error(), "entry not found") &&
 		!strings.Contains(err.Error(), "parent is not a directory")
+}
+
+func (w Wrapper) RepoMaintenance(
+	ctx context.Context,
+	opts repository.Maintenance,
+) error {
+	kopiaSafety, err := translateSafety(opts.Safety)
+	if err != nil {
+		return clues.Wrap(err, "identifying safety level")
+	}
+
+	mode, err := translateMode(opts.Type)
+	if err != nil {
+		return clues.Wrap(err, "identifying maintenance mode")
+	}
+
+	currentOwner := w.c.ClientOptions().UsernameAtHost()
+
+	ctx = clues.Add(
+		ctx,
+		"kopia_safety", kopiaSafety,
+		"kopia_maintenance_mode", mode,
+		"force", opts.Force,
+		"current_local_owner", clues.Hide(currentOwner))
+
+	dr, ok := w.c.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.New("unable to get valid handle to repo").WithClues(ctx)
+	}
+
+	// Below write session options pulled from kopia's CLI code that runs
+	// maintenance.
+	err = repo.DirectWriteSession(
+		ctx,
+		dr,
+		repo.WriteSessionOptions{
+			Purpose: "Corso maintenance",
+		},
+		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
+			params, err := maintenance.GetParams(ctx, w.c)
+			if err != nil {
+				return clues.Wrap(err, "getting maintenance user@host").WithClues(ctx)
+			}
+
+			// Need to do some fixup here as the user/host may not have been set.
+			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
+				observe.Message(
+					ctx,
+					"updating maintenance user@host to ",
+					clues.Hide(currentOwner))
+
+				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
+					return clues.Wrap(err, "updating maintenance parameters").
+						WithClues(ctx)
+				}
+			}
+
+			ctx = clues.Add(ctx, "expected_owner", clues.Hide(params.Owner))
+
+			logger.Ctx(ctx).Info("running kopia maintenance")
+
+			err = snapshotmaintenance.Run(ctx, dw, mode, opts.Force, kopiaSafety)
+			if err != nil {
+				return clues.Wrap(err, "running kopia maintenance").WithClues(ctx)
+			}
+
+			return nil
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func translateSafety(
+	s repository.MaintenanceSafety,
+) (maintenance.SafetyParameters, error) {
+	switch s {
+	case repository.FullMaintenanceSafety:
+		return maintenance.SafetyFull, nil
+	case repository.NoMaintenanceSafety:
+		return maintenance.SafetyNone, nil
+	default:
+		return maintenance.SafetyParameters{}, clues.New("bad safety value").
+			With("input_safety", s.String())
+	}
+}
+
+func translateMode(t repository.MaintenanceType) (maintenance.Mode, error) {
+	switch t {
+	case repository.CompleteMaintenance:
+		return maintenance.ModeFull, nil
+
+	case repository.MetadataMaintenance:
+		return maintenance.ModeQuick, nil
+
+	default:
+		return maintenance.ModeNone, clues.New("bad maintenance type").
+			With("input_maintenance_type", t.String())
+	}
+}
+
+// setMaintenanceUserHost sets the user and host for maintenance to the the
+// user and host in the kopia config.
+func (w Wrapper) setMaintenanceParams(
+	ctx context.Context,
+	drw repo.DirectRepositoryWriter,
+	p *maintenance.Params,
+	userAtHost string,
+) error {
+	// This will source user/host from the kopia config file or fallback to
+	// fetching the values from the OS.
+	p.Owner = userAtHost
+	// Disable automatic maintenance for now since it can start matching on the
+	// user/host of at least one machine now.
+	p.QuickCycle.Enabled = false
+	p.FullCycle.Enabled = false
+
+	err := maintenance.SetParams(ctx, drw, p)
+	if err != nil {
+		return clues.Wrap(err, "setting maintenance user/host")
+	}
+
+	return nil
 }

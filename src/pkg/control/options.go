@@ -1,21 +1,30 @@
 package control
 
 import (
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision            CollisionPolicy `json:"-"`
-	DisableMetrics       bool            `json:"disableMetrics"`
-	FailureHandling      FailureBehavior `json:"failureHandling"`
-	ItemFetchParallelism int             `json:"itemFetchParallelism"`
-	RestorePermissions   bool            `json:"restorePermissions"`
-	SkipReduce           bool            `json:"skipReduce"`
-	ToggleFeatures       Toggles         `json:"ToggleFeatures"`
+	Collision          CollisionPolicy    `json:"-"`
+	DisableMetrics     bool               `json:"disableMetrics"`
+	FailureHandling    FailureBehavior    `json:"failureHandling"`
+	RestorePermissions bool               `json:"restorePermissions"`
+	SkipReduce         bool               `json:"skipReduce"`
+	ToggleFeatures     Toggles            `json:"toggleFeatures"`
+	Parallelism        Parallelism        `json:"parallelism"`
+	Repo               repository.Options `json:"repo"`
 }
 
 type FailureBehavior string
+
+type Parallelism struct {
+	// sets the collection buffer size before blocking.
+	CollectionBuffer int
+	// sets the parallelism of item population within a collection.
+	ItemFetch int
+}
 
 const (
 	// fails and exits the run immediately
@@ -31,6 +40,10 @@ func Defaults() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
 		ToggleFeatures:  Toggles{},
+		Parallelism: Parallelism{
+			CollectionBuffer: 4,
+			ItemFetch:        4,
+		},
 	}
 }
 
@@ -70,9 +83,9 @@ type RestoreDestination struct {
 	ContainerName string
 }
 
-func DefaultRestoreDestination(timeFormat common.TimeFormat) RestoreDestination {
+func DefaultRestoreDestination(timeFormat dttm.TimeFormat) RestoreDestination {
 	return RestoreDestination{
-		ContainerName: defaultRestoreLocation + common.FormatNow(timeFormat),
+		ContainerName: defaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
 }
 
@@ -88,8 +101,22 @@ type Toggles struct {
 	// DisableIncrementals prevents backups from using incremental lookups,
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+	// DisableDelta prevents backups from using delta based lookups,
+	// forcing a backup by enumerating all items. This is different
+	// from DisableIncrementals in that this does not even makes use of
+	// delta endpoints with or without a delta token. This is necessary
+	// when the user has filled up the mailbox storage available to the
+	// user as Microsoft prevents the API from being able to make calls
+	// to delta endpoints.
+	DisableDelta bool `json:"exchangeDelta,omitempty"`
 	// ExchangeImmutableIDs denotes whether Corso should store items with
 	// immutable Exchange IDs. This is only safe to set if the previous backup for
 	// incremental backups used immutable IDs or if a full backup is being done.
 	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
+
+	RunMigrations bool `json:"runMigrations"`
+
+	// DisableConcurrencyLimiter removes concurrency limits when communicating with
+	// graph API. This flag is only relevant for exchange backups for now
+	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
 }

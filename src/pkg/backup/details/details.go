@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -133,31 +133,42 @@ func NewSharePointLocationIDer(
 
 // DetailsModel describes what was stored in a Backup
 type DetailsModel struct {
-	Entries []DetailsEntry `json:"entries"`
+	Entries []Entry `json:"entries"`
 }
 
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	if print.JSONFormat() {
-		printJSON(ctx, dm)
+	printEntries(ctx, dm.Entries)
+}
+
+type infoer interface {
+	Entry | *Entry
+	// Need this here so we can access the infoType function without a type
+	// assertion. See https://stackoverflow.com/a/71378366 for more details.
+	infoType() ItemType
+}
+
+func printEntries[T infoer](ctx context.Context, entries []T) {
+	if print.DisplayJSONFormat() {
+		printJSON(ctx, entries)
 	} else {
-		printTable(ctx, dm)
+		printTable(ctx, entries)
 	}
 }
 
-func printTable(ctx context.Context, dm DetailsModel) {
+func printTable[T infoer](ctx context.Context, entries []T) {
 	perType := map[ItemType][]print.Printable{}
 
-	for _, de := range dm.Entries {
-		it := de.infoType()
+	for _, ent := range entries {
+		it := ent.infoType()
 		ps, ok := perType[it]
 
 		if !ok {
 			ps = []print.Printable{}
 		}
 
-		perType[it] = append(ps, print.Printable(de))
+		perType[it] = append(ps, print.Printable(ent))
 	}
 
 	for _, ps := range perType {
@@ -165,10 +176,10 @@ func printTable(ctx context.Context, dm DetailsModel) {
 	}
 }
 
-func printJSON(ctx context.Context, dm DetailsModel) {
+func printJSON[T infoer](ctx context.Context, entries []T) {
 	ents := []print.Printable{}
 
-	for _, ent := range dm.Entries {
+	for _, ent := range entries {
 		ents = append(ents, print.Printable(ent))
 	}
 
@@ -194,8 +205,8 @@ func (dm DetailsModel) Paths() []string {
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
 // paths, and we want to slice out metadata.
-func (dm DetailsModel) Items() []*DetailsEntry {
-	res := make([]*DetailsEntry, 0, len(dm.Entries))
+func (dm DetailsModel) Items() entrySet {
+	res := make([]*Entry, 0, len(dm.Entries))
 
 	for i := 0; i < len(dm.Entries); i++ {
 		ent := dm.Entries[i]
@@ -213,7 +224,7 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 // .meta files removed from the entries.
 func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	d2 := DetailsModel{
-		Entries: []DetailsEntry{},
+		Entries: []Entry{},
 	}
 
 	for _, ent := range dm.Entries {
@@ -226,11 +237,11 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 }
 
 // Check if a file is a metadata file. These are used to store
-// additional data like permissions in case of OneDrive and are not to
-// be treated as regular files.
-func (de DetailsEntry) isMetaFile() bool {
-	// TODO: Add meta file filtering to SharePoint as well once we add
-	// meta files for SharePoint.
+// additional data like permissions (in case of Drive items) and are
+// not to be treated as regular files.
+func (de Entry) isMetaFile() bool {
+	// sharepoint types not needed, since sharepoint permissions were
+	// added after IsMeta was deprecated.
 	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
@@ -241,8 +252,8 @@ func (de DetailsEntry) isMetaFile() bool {
 // Builder should be used to create a details model.
 type Builder struct {
 	d            Details
-	mu           sync.Mutex              `json:"-"`
-	knownFolders map[string]DetailsEntry `json:"-"`
+	mu           sync.Mutex       `json:"-"`
+	knownFolders map[string]Entry `json:"-"`
 }
 
 func (b *Builder) Add(
@@ -276,7 +287,7 @@ func (b *Builder) Add(
 
 func (b *Builder) addFolderEntries(
 	repoRef, locationRef *path.Builder,
-	entry DetailsEntry,
+	entry Entry,
 ) error {
 	if len(repoRef.Elements()) < len(locationRef.Elements()) {
 		return clues.New("RepoRef shorter than LocationRef").
@@ -284,7 +295,7 @@ func (b *Builder) addFolderEntries(
 	}
 
 	if b.knownFolders == nil {
-		b.knownFolders = map[string]DetailsEntry{}
+		b.knownFolders = map[string]Entry{}
 	}
 
 	// Need a unique location because we want to have separate folders for
@@ -317,7 +328,7 @@ func (b *Builder) addFolderEntries(
 		if !ok {
 			loc := uniqueLoc.InDetails().String()
 
-			folder = DetailsEntry{
+			folder = Entry{
 				RepoRef:     rr,
 				ShortRef:    shortRef,
 				ParentRef:   parentRef,
@@ -380,12 +391,12 @@ func (d *Details) add(
 	locationRef *path.Builder,
 	updated bool,
 	info ItemInfo,
-) (DetailsEntry, error) {
+) (Entry, error) {
 	if locationRef == nil {
-		return DetailsEntry{}, clues.New("nil LocationRef").With("repo_ref", repoRef)
+		return Entry{}, clues.New("nil LocationRef").With("repo_ref", repoRef)
 	}
 
-	entry := DetailsEntry{
+	entry := Entry{
 		RepoRef:     repoRef.String(),
 		ShortRef:    repoRef.ShortRef(),
 		ParentRef:   repoRef.ToBuilder().Dir().ShortRef(),
@@ -457,8 +468,15 @@ func withoutMetadataSuffix(id string) string {
 // Entry
 // --------------------------------------------------------------------------------
 
-// DetailsEntry describes a single item stored in a Backup
-type DetailsEntry struct {
+// Add a new type so we can transparently use PrintAll in different situations.
+type entrySet []*Entry
+
+func (ents entrySet) PrintEntries(ctx context.Context) {
+	printEntries(ctx, ents)
+}
+
+// Entry describes a single item stored in a Backup
+type Entry struct {
 	// RepoRef is the full storage path of the item in Kopia
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
@@ -490,7 +508,7 @@ type DetailsEntry struct {
 // ToLocationIDer takes a backup version and produces the unique location for
 // this entry if possible. Reasons it may not be possible to produce the unique
 // location include an unsupported backup version or missing information.
-func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
+func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 	if len(de.LocationRef) > 0 {
 		baseLoc, err := path.Builder{}.SplitUnescapeAppend(de.LocationRef)
 		if err != nil {
@@ -522,9 +540,9 @@ func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		return nil, clues.Wrap(err, "getting item RepoRef")
 	}
 
-	p, err := path.ToOneDrivePath(rr)
+	p, err := path.ToDrivePath(rr)
 	if err != nil {
-		return nil, clues.New("converting RepoRef to OneDrive path")
+		return nil, clues.New("converting RepoRef to drive path")
 	}
 
 	baseLoc := path.Builder{}.Append(p.Root).Append(p.Folders...)
@@ -538,17 +556,17 @@ func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 // --------------------------------------------------------------------------------
 
 // interface compliance checks
-var _ print.Printable = &DetailsEntry{}
+var _ print.Printable = &Entry{}
 
 // MinimumPrintable DetailsEntries is a passthrough func, because no
 // reduction is needed for the json output.
-func (de DetailsEntry) MinimumPrintable() any {
+func (de Entry) MinimumPrintable() any {
 	return de
 }
 
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
-func (de DetailsEntry) Headers() []string {
+func (de Entry) Headers() []string {
 	hs := []string{"ID"}
 
 	if de.ItemInfo.Folder != nil {
@@ -571,7 +589,7 @@ func (de DetailsEntry) Headers() []string {
 }
 
 // Values returns the values matching the Headers list.
-func (de DetailsEntry) Values() []string {
+func (de Entry) Values() []string {
 	vs := []string{de.ShortRef}
 
 	if de.ItemInfo.Folder != nil {
@@ -626,20 +644,21 @@ const (
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(newLocPath *path.Builder)
+	// Can't switch based on infoType because that's been unstable.
+	if item.Exchange != nil {
+		item.Exchange.UpdateParentPath(newLocPath)
+	} else if item.SharePoint != nil {
+		// SharePoint used to store library items with the OneDriveItem ItemType.
+		// Start switching them over as we see them since there's no point in
+		// keeping the old format.
+		if item.SharePoint.ItemType == OneDriveItem {
+			item.SharePoint.ItemType = SharePointLibrary
+		}
 
-	switch item.infoType() {
-	case ExchangeContact, ExchangeEvent, ExchangeMail:
-		updatePath = item.Exchange.UpdateParentPath
-	case SharePointLibrary:
-		updatePath = item.SharePoint.UpdateParentPath
-	case OneDriveItem:
-		updatePath = item.OneDrive.UpdateParentPath
-	default:
-		return
+		item.SharePoint.UpdateParentPath(newLocPath)
+	} else if item.OneDrive != nil {
+		item.OneDrive.UpdateParentPath(newLocPath)
 	}
-
-	updatePath(newLocPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -804,8 +823,8 @@ func (i ExchangeInfo) Values() []string {
 		return []string{
 			i.Organizer,
 			i.Subject,
-			common.FormatTabularDisplayTime(i.EventStart),
-			common.FormatTabularDisplayTime(i.EventEnd),
+			dttm.FormatToTabularDisplay(i.EventStart),
+			dttm.FormatToTabularDisplay(i.EventEnd),
 			strconv.FormatBool(i.EventRecurs),
 		}
 
@@ -815,7 +834,7 @@ func (i ExchangeInfo) Values() []string {
 	case ExchangeMail:
 		return []string{
 			i.Sender, i.ParentPath, i.Subject,
-			common.FormatTabularDisplayTime(i.Received),
+			dttm.FormatToTabularDisplay(i.Received),
 		}
 	}
 
@@ -865,7 +884,7 @@ type SharePointInfo struct {
 	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `josn:"modified,omitempty"`
+	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
@@ -887,8 +906,8 @@ func (i SharePointInfo) Values() []string {
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
+		dttm.FormatToTabularDisplay(i.Created),
+		dttm.FormatToTabularDisplay(i.Modified),
 	}
 }
 
@@ -944,8 +963,8 @@ func (i OneDriveInfo) Values() []string {
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
+		dttm.FormatToTabularDisplay(i.Created),
+		dttm.FormatToTabularDisplay(i.Modified),
 	}
 }
 

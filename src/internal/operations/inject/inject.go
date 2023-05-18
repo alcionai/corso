@@ -3,12 +3,14 @@ package inject
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -18,12 +20,13 @@ type (
 	BackupProducer interface {
 		ProduceBackupCollections(
 			ctx context.Context,
-			resourceOwner common.IDNamer,
+			resourceOwner idname.Provider,
 			sels selectors.Selector,
 			metadata []data.RestoreCollection,
+			lastBackupVersion int,
 			ctrlOpts control.Options,
 			errs *fault.Bus,
-		) ([]data.BackupCollection, map[string]map[string]struct{}, error)
+		) ([]data.BackupCollection, prefixmatcher.StringSetReader, error)
 
 		Wait() *data.CollectionStats
 	}
@@ -33,7 +36,7 @@ type (
 			ctx context.Context,
 			bases []kopia.IncrementalBase,
 			cs []data.BackupCollection,
-			excluded map[string]map[string]struct{},
+			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,
 			buildTreeWithBase bool,
 			errs *fault.Bus,
@@ -44,7 +47,7 @@ type (
 		ProduceRestoreCollections(
 			ctx context.Context,
 			snapshotID string,
-			paths []path.Path,
+			paths []path.RestorePaths,
 			bc kopia.ByteCounter,
 			errs *fault.Bus,
 		) ([]data.RestoreCollection, error)
@@ -63,5 +66,9 @@ type (
 		) (*details.Details, error)
 
 		Wait() *data.CollectionStats
+	}
+
+	RepoMaintenancer interface {
+		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
 	}
 )

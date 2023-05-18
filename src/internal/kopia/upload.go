@@ -21,6 +21,7 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -346,7 +347,7 @@ func collectionEntries(
 			seen[encodedName] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
-			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
+			itemPath, err := streamedEnts.FullPath().AppendItem(e.UUID())
 			if err != nil {
 				err = clues.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(err)
@@ -413,7 +414,7 @@ func streamBaseEntries(
 	locationPath *path.Builder,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) error {
 	if dir == nil {
@@ -421,19 +422,18 @@ func streamBaseEntries(
 	}
 
 	var (
+		longest    string
 		excludeSet map[string]struct{}
-		curPrefix  string
 	)
 
-	ctx = clues.Add(ctx, "current_item_path", curPath)
-
-	for prefix, excludes := range globalExcludeSet {
-		// Select the set with the longest prefix to be most precise.
-		if strings.HasPrefix(curPath.String(), prefix) && len(prefix) >= len(curPrefix) {
-			excludeSet = excludes
-			curPrefix = prefix
-		}
+	if globalExcludeSet != nil {
+		longest, excludeSet, _ = globalExcludeSet.LongestPrefix(curPath.String())
 	}
+
+	ctx = clues.Add(
+		ctx,
+		"current_item_path", curPath,
+		"longest_prefix", longest)
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
 		if err := innerCtx.Err(); err != nil {
@@ -464,7 +464,7 @@ func streamBaseEntries(
 		}
 
 		// For now assuming that item IDs don't need escaping.
-		itemPath, err := curPath.Append(entName, true)
+		itemPath, err := curPath.AppendItem(entName)
 		if err != nil {
 			return clues.Wrap(err, "getting full item path for base entry")
 		}
@@ -473,7 +473,7 @@ func streamBaseEntries(
 		// backup details. If the item moved and we had only the new path, we'd be
 		// unable to find it in the old backup details because we wouldn't know what
 		// to look for.
-		prevItemPath, err := prevPath.Append(entName, true)
+		prevItemPath, err := prevPath.AppendItem(entName)
 		if err != nil {
 			return clues.Wrap(err, "getting previous full item path for base entry")
 		}
@@ -521,7 +521,7 @@ func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.BackupCollection,
 	baseDir fs.Directory,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -569,7 +569,7 @@ func getStreamItemFunc(
 func buildKopiaDirs(
 	dirName string,
 	dir *treeMap,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
@@ -727,7 +727,7 @@ func inflateCollectionTree(
 	toMerge *mergeDetails,
 ) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
-	// Contains the old path for collections that have been moved or renamed.
+	// Contains the old path for collections that are not new.
 	// Allows resolving what the new path should be when walking the base
 	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
 	updatedPaths := make(map[string]path.Path)
@@ -776,6 +776,14 @@ func inflateCollectionTree(
 			if err := addMergeLocation(s, toMerge); err != nil {
 				return nil, nil, clues.Wrap(err, "adding merge location").WithClues(ictx)
 			}
+		case data.NotMovedState:
+			p := s.PreviousPath().String()
+			if _, ok := updatedPaths[p]; ok {
+				return nil, nil, clues.New("multiple previous state changes to collection").
+					WithClues(ictx)
+			}
+
+			updatedPaths[p] = s.FullPath()
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
@@ -1003,15 +1011,20 @@ func inflateBaseTree(
 			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
 		}
 
-		// We're assuming here that the prefix for the path has not changed (i.e.
-		// all of tenant, service, resource owner, and category are the same in the
-		// old snapshot (snap) and the snapshot we're currently trying to make.
+		// This ensures that a migration on the directory prefix can complete.
+		// The prefix is the tenant/service/owner/category set, which remains
+		// otherwise unchecked in tree inflation below this point.
+		newSubtreePath := subtreePath
+		if p, ok := updatedPaths[subtreePath.String()]; ok {
+			newSubtreePath = p.ToBuilder()
+		}
+
 		if err = traverseBaseDir(
 			ictx,
 			0,
 			updatedPaths,
 			subtreePath.Dir(),
-			subtreePath.Dir(),
+			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
 		); err != nil {
@@ -1040,7 +1053,7 @@ func inflateDirTree(
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]map[string]struct{},
+	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	roots, updatedPaths, err := inflateCollectionTree(ctx, collections, progress.toMerge)

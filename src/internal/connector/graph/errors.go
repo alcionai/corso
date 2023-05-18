@@ -14,10 +14,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -25,19 +25,33 @@ import (
 // Error Interpretation Helpers
 // ---------------------------------------------------------------------------
 
+type errorCode string
+
 const (
-	errCodeActivityLimitReached        = "activityLimitReached"
-	errCodeItemNotFound                = "ErrorItemNotFound"
-	errCodeItemNotFoundShort           = "itemNotFound"
-	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
-	errCodeResyncRequired              = "ResyncRequired" // alt: resyncRequired
-	errCodeMalwareDetected             = "malwareDetected"
-	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
-	errCodeSyncStateNotFound           = "SyncStateNotFound"
-	errCodeSyncStateInvalid            = "SyncStateInvalid"
-	errCodeResourceNotFound            = "ResourceNotFound"
-	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
-	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
+	activityLimitReached        errorCode = "activityLimitReached"
+	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
+	errorAccessDenied           errorCode = "ErrorAccessDenied"
+	itemNotFound                errorCode = "ErrorItemNotFound"
+	itemNotFoundShort           errorCode = "itemNotFound"
+	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
+	malwareDetected             errorCode = "malwareDetected"
+	requestResourceNotFound     errorCode = "Request_ResourceNotFound"
+	quotaExceeded               errorCode = "ErrorQuotaExceeded"
+	resourceNotFound            errorCode = "ResourceNotFound"
+	resyncRequired              errorCode = "ResyncRequired" // alt: resyncRequired
+	syncFolderNotFound          errorCode = "ErrorSyncFolderNotFound"
+	syncStateInvalid            errorCode = "SyncStateInvalid"
+	syncStateNotFound           errorCode = "SyncStateNotFound"
+	// This error occurs when an attempt is made to create a folder that has
+	// the same name as another folder in the same parent. Such duplicate folder
+	// names are not allowed by graph.
+	folderExists errorCode = "ErrorFolderExists"
+)
+
+type errorMessage string
+
+const (
+	IOErrDuringRead errorMessage = "IO error during request payload read"
 )
 
 const (
@@ -83,9 +97,9 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if hasErrorCode(
 		err,
-		errCodeItemNotFound,
-		errCodeItemNotFoundShort,
-		errCodeSyncFolderNotFound,
+		itemNotFound,
+		itemNotFoundShort,
+		syncFolderNotFound,
 	) {
 		return true
 	}
@@ -94,16 +108,28 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired, errCodeSyncStateInvalid) ||
+	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
+func IsErrQuotaExceeded(err error) bool {
+	return hasErrorCode(err, quotaExceeded)
+}
+
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
+	return hasErrorCode(err, resourceNotFound, mailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
-	return hasErrorCode(err, errCodeRequestResourceNotFound)
+	return hasErrorCode(err, requestResourceNotFound)
+}
+
+func IsErrResourceNotFound(err error) bool {
+	return hasErrorCode(err, resourceNotFound)
+}
+
+func IsErrAccessDenied(err error) bool {
+	return hasErrorCode(err, errorAccessDenied) || clues.HasLabel(err, LabelStatus(http.StatusForbidden))
 }
 
 func IsErrTimeout(err error) bool {
@@ -138,7 +164,7 @@ func LabelStatus(statusCode int) string {
 
 // IsMalware is true if the graphAPI returns a "malware detected" error code.
 func IsMalware(err error) bool {
-	return hasErrorCode(err, errCodeMalwareDetected)
+	return hasErrorCode(err, malwareDetected)
 }
 
 func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
@@ -154,18 +180,22 @@ func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
 		return false
 	}
 
-	if strings.Contains(string(respDump), errCodeMalwareDetected) {
+	if strings.Contains(string(respDump), string(malwareDetected)) {
 		return true
 	}
 
 	return false
 }
 
+func IsErrFolderExists(err error) bool {
+	return hasErrorCode(err, folderExists)
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
 
-func hasErrorCode(err error, codes ...string) bool {
+func hasErrorCode(err error, codes ...errorCode) bool {
 	if err == nil {
 		return false
 	}
@@ -175,16 +205,17 @@ func hasErrorCode(err error, codes ...string) bool {
 		return false
 	}
 
-	if oDataError.GetError().GetCode() == nil {
+	code, ok := ptr.ValOK(oDataError.GetError().GetCode())
+	if !ok {
 		return false
 	}
 
-	lcodes := []string{}
-	for _, c := range codes {
-		lcodes = append(lcodes, strings.ToLower(c))
+	cs := make([]string, len(codes))
+	for i, c := range codes {
+		cs[i] = string(c)
 	}
 
-	return slices.Contains(lcodes, strings.ToLower(*oDataError.GetError().GetCode()))
+	return filters.Equal(cs).Compare(code)
 }
 
 // Wrap is a helper function that extracts ODataError metadata from
@@ -229,6 +260,29 @@ func Stack(ctx context.Context, e error) *clues.Err {
 	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
 }
 
+// stackReq is a helper function that extracts ODataError metadata from
+// the error, plus http req/resp data.  If the error is not an ODataError
+// type, returns the error with only the req/resp values.
+func stackReq(
+	ctx context.Context,
+	req *http.Request,
+	resp *http.Response,
+	e error,
+) *clues.Err {
+	if e == nil {
+		return nil
+	}
+
+	se := Stack(ctx, e).
+		WithMap(reqData(req)).
+		WithMap(respData(resp))
+
+	return se
+}
+
+// Checks for the following conditions and labels the error accordingly:
+// * mysiteNotFound | mysiteURLNotFound
+// * malware
 func setLabels(err *clues.Err, msg string) *clues.Err {
 	if err == nil {
 		return nil
@@ -237,6 +291,10 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 	ml := strings.ToLower(msg)
 	if strings.Contains(ml, mysiteNotFound) || strings.Contains(ml, mysiteURLNotFound) {
 		err = err.Label(LabelsMysiteNotFound)
+	}
+
+	if IsMalware(err) {
+		err = err.Label(LabelsMalware)
 	}
 
 	return err
@@ -271,6 +329,34 @@ func errData(err odataerrors.ODataErrorable) (string, []any, string) {
 	return mainMsg, data, strings.ToLower(msgConcat)
 }
 
+func reqData(req *http.Request) map[string]any {
+	if req == nil {
+		return nil
+	}
+
+	r := map[string]any{}
+	r["req_method"] = req.Method
+	r["req_len"] = req.ContentLength
+
+	if req.URL != nil {
+		r["req_url"] = LoggableURL(req.URL.String())
+	}
+
+	return r
+}
+
+func respData(resp *http.Response) map[string]any {
+	if resp == nil {
+		return nil
+	}
+
+	r := map[string]any{}
+	r["resp_status"] = resp.Status
+	r["resp_len"] = resp.ContentLength
+
+	return r
+}
+
 func appendIf(a []any, k string, v *string) []any {
 	if v == nil {
 		return a
@@ -298,6 +384,15 @@ func ItemInfo(item models.DriveItemable) map[string]any {
 	if parent != nil {
 		m[fault.AddtlContainerID] = ptr.Val(parent.GetId())
 		m[fault.AddtlContainerName] = ptr.Val(parent.GetName())
+		containerPath := ""
+
+		// Remove the "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:" prefix
+		splitPath := strings.SplitN(ptr.Val(parent.GetPath()), ":", 2)
+		if len(splitPath) > 1 {
+			containerPath = splitPath[1]
+		}
+
+		m[fault.AddtlContainerPath] = containerPath
 	}
 
 	malware := item.GetMalware()

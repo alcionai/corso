@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -41,7 +42,7 @@ func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+	require.NoError(t, k.Initialize(ctx, repository.Options{}))
 
 	suite.kcloser = func() { k.Close(ctx) }
 
@@ -107,8 +108,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
 				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
@@ -136,8 +137,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
 				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe

@@ -12,9 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -176,10 +174,12 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
 func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
+	t := suite.T()
+	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/490
+	t.Skip("disabled until upstream issue with list restore is fixed.")
+
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	t := suite.T()
 
 	service := createTestService(t, suite.creds)
 	listing := spMock.ListDefault("Mock List")
@@ -194,7 +194,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
 
-	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
+	destName := tester.DefaultTestRestoreDestination("").ContainerName
 
 	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -202,7 +202,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	// Clean-Up
 	var (
-		builder  = service.Client().SitesById(suite.siteID).Lists()
+		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
 		isFound  bool
 		deleteID string
 	)
@@ -232,31 +232,4 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		err := DeleteList(ctx, service, suite.siteID, deleteID)
 		assert.NoError(t, err, clues.ToCore(err))
 	}
-}
-
-// TestRestoreLocation temporary test for greater restore operation
-// TODO delete after full functionality tested in GraphConnector
-func (suite *SharePointCollectionSuite) TestRestoreLocation() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-
-	service := createTestService(t, suite.creds)
-	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
-	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
-	require.NoError(t, err, clues.ToCore(err))
-	t.Log("FolderID: " + folderID)
-
-	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
-	require.NoError(t, err, clues.ToCore(err))
-
-	// CleanUp
-	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	driveID := ptr.Val(siteDrive.GetId())
-
-	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
-	assert.NoError(t, err, clues.ToCore(err))
 }

@@ -9,13 +9,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -198,7 +195,7 @@ func runBackups(
 	r repository.Repository,
 	serviceName, resourceOwnerType string,
 	selectorSet []selectors.Selector,
-	ins common.IDNameSwapper,
+	ins idname.Cacher,
 ) error {
 	var (
 		bIDs []string
@@ -210,7 +207,7 @@ func runBackups(
 
 		var (
 			owner = discSel.DiscreteOwner
-			ictx  = clues.Add(ctx, "resource_owner", owner)
+			ictx  = clues.Add(ctx, "resource_owner_selected", owner)
 		)
 
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
@@ -221,6 +218,11 @@ func runBackups(
 			continue
 		}
 
+		ictx = clues.Add(
+			ctx,
+			"resource_owner_id", bo.ResourceOwner.ID(),
+			"resource_owner_name", bo.ResourceOwner.Name())
+
 		err = bo.Run(ictx)
 		if err != nil {
 			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
@@ -230,7 +232,13 @@ func runBackups(
 		}
 
 		bIDs = append(bIDs, string(bo.Results.BackupID))
-		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+
+		if !DisplayJSONFormat() {
+			Infof(ctx, "Done\n")
+			printBackupStats(ctx, r, string(bo.Results.BackupID))
+		} else {
+			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+		}
 	}
 
 	bups, berrs := r.Backups(ctx, bIDs)
@@ -264,7 +272,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -285,7 +293,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType, args []string) error {
 	ctx := cmd.Context()
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -318,20 +326,16 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 	return nil
 }
 
-func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
-	}
-
-	return r, &cfg.Account, nil
-}
-
 func ifShow(flag string) bool {
 	return strings.ToLower(strings.TrimSpace(flag)) == "show"
+}
+
+func printBackupStats(ctx context.Context, r repository.Repository, bid string) {
+	b, err := r.Backup(ctx, bid)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
+	}
+
+	b.ToPrintable().Stats.Print(ctx)
+	Info(ctx, " ")
 }

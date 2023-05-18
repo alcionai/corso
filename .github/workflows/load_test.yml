@@ -1,10 +1,8 @@
 name: Nightly Load Testing
 on:
   schedule:
-    # every day at 01:59 (01:59am) UTC
-    # - cron: "59 1 * * *"
-    # temp, for testing: every 4 hours
-    - cron: "0 */4 * * *"
+    # every day at 03:59 GMT (roughly 8pm PST)
+    - cron: "59 3 * * *"
 
 permissions:
   # required to retrieve AWS credentials
@@ -20,6 +18,10 @@ jobs:
   Load-Tests:
     environment: Load Testing
     runs-on: ubuntu-latest
+    # Skipping load testing for now.  They need some love to get up and
+    # running properly, and it's better to not fight for resources with
+    # tests that are guaranteed to fail.
+    if: false
     defaults:
       run:
         working-directory: src
@@ -57,7 +59,7 @@ jobs:
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
           CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          IGNORE_LOAD_TEST_USER_ID: ${{ secrets.EXT_SDK_TEST_USER_ID }}
+          IGNORE_LOAD_TEST_USER_ID: ${{ vars.EXT_SDK_TEST_USER_ID }}
           LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail

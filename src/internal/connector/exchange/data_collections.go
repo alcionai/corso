@@ -6,8 +6,8 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // MetadataFileNames produces the category-specific set of filenames used to
@@ -40,7 +41,7 @@ func (dps DeltaPaths) AddDelta(k, d string) {
 		dp = DeltaPath{}
 	}
 
-	dp.delta = d
+	dp.Delta = d
 	dps[k] = dp
 }
 
@@ -50,13 +51,13 @@ func (dps DeltaPaths) AddPath(k, p string) {
 		dp = DeltaPath{}
 	}
 
-	dp.path = p
+	dp.Path = p
 	dps[k] = dp
 }
 
 type DeltaPath struct {
-	delta string
-	path  string
+	Delta string
+	Path  string
 }
 
 // ParseMetadataCollections produces a map of structs holding delta
@@ -147,7 +148,7 @@ func parseMetadataCollections(
 	// complete backup on the next run.
 	for _, dps := range cdp {
 		for k, dp := range dps {
-			if len(dp.delta) == 0 || len(dp.path) == 0 {
+			if len(dp.Path) == 0 {
 				delete(dps, k)
 			}
 		}
@@ -163,14 +164,14 @@ func parseMetadataCollections(
 //	Add iota to this call -> mail, contacts, calendar,  etc.
 func DataCollections(
 	ctx context.Context,
-	user common.IDNamer,
 	selector selectors.Selector,
+	user idname.Provider,
 	metadata []data.RestoreCollection,
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
@@ -181,6 +182,12 @@ func DataCollections(
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
 	)
+
+	// Turn on concurrency limiter middleware for exchange backups
+	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
+	if !ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter {
+		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
+	}
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
 	if err != nil {
@@ -214,6 +221,7 @@ func DataCollections(
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
+			collections,
 			acct.AzureTenantID,
 			user.ID(),
 			path.ExchangeService,
@@ -249,7 +257,7 @@ func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedIte
 func createCollections(
 	ctx context.Context,
 	creds account.M365Config,
-	user common.IDNamer,
+	user idname.Provider,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
@@ -269,9 +277,6 @@ func createCollections(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	// Create collection of ExchangeDataCollection
-	collections := make(map[string]data.BackupCollection)
-
 	qp := graph.QueryParams{
 		Category:      category,
 		ResourceOwner: user,
@@ -289,11 +294,10 @@ func createCollections(
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
-	err = filterContainersAndFillCollections(
+	collections, err := filterContainersAndFillCollections(
 		ctx,
 		qp,
 		getter,
-		collections,
 		su,
 		resolver,
 		scope,

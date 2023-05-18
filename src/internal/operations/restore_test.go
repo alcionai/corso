@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -27,8 +27,9 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -54,7 +55,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 	)
 
 	table := []struct {
@@ -107,7 +108,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			op, err := NewRestoreOperation(
 				ctx,
-				control.Options{},
+				control.Defaults(),
 				kw,
 				sw,
 				gc,
@@ -175,7 +176,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	suite.acct = tester.NewM365Account(t)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -214,15 +215,17 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
-	kw := &kopia.Wrapper{}
-	sw := &store.Wrapper{}
-	gc := &mock.GraphConnector{}
-	acct := tester.NewM365Account(suite.T())
-	dest := tester.DefaultTestRestoreDestination()
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		gc   = &mock.GraphConnector{}
+		acct = tester.NewM365Account(suite.T())
+		dest = tester.DefaultTestRestoreDestination("")
+		opts = control.Defaults()
+	)
 
 	table := []struct {
 		name     string
-		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		rc       inject.RestoreConsumer
@@ -230,10 +233,10 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing restore consumer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"good", kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
+		{"missing restore consumer", kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -242,7 +245,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 
 			_, err := NewRestoreOperation(
 				ctx,
-				test.opts,
+				opts,
 				test.kw,
 				test.sw,
 				test.rc,
@@ -268,37 +271,26 @@ func setupExchangeBackup(
 
 	var (
 		users = []string{owner}
-		bsel  = selectors.NewExchangeBackup(users)
+		esel  = selectors.NewExchangeBackup(users)
 	)
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Users,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
+	esel.DiscreteOwner = owner
+	esel.Include(
+		esel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+		esel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
+		esel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	bsel.DiscreteOwner = owner
-	bsel.Include(
-		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
-	)
-
-	bsel.SetDiscreteOwnerIDName(id, name)
+	gc, sel := GCWithSelector(t, ctx, acct, connector.Users, esel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
-		control.Options{},
+		control.Defaults(),
 		kw,
 		sw,
 		gc,
 		acct,
-		bsel.Selector,
-		bsel.Selector,
+		sel,
+		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -329,37 +321,27 @@ func setupSharePointBackup(
 
 	var (
 		sites = []string{owner}
-		spsel = selectors.NewSharePointBackup(sites)
+		ssel  = selectors.NewSharePointBackup(sites)
 	)
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Sites,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	spsel.DiscreteOwner = owner
 	// assume a folder name "test" exists in the drive.
 	// this is brittle, and requires us to backfill anytime
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
-	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+	ssel.Include(ssel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+	ssel.DiscreteOwner = owner
 
-	spsel.SetDiscreteOwnerIDName(id, name)
+	gc, sel := GCWithSelector(t, ctx, acct, connector.Sites, ssel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
-		control.Options{},
+		control.Defaults(),
 		kw,
 		sw,
 		gc,
 		acct,
-		spsel.Selector,
-		spsel.Selector,
+		sel,
+		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -410,7 +392,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:  "Exchange_Restore",
 			owner: tester.M365UserID(suite.T()),
-			dest:  tester.DefaultTestRestoreDestination(),
+			dest:  tester.DefaultTestRestoreDestination(""),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewExchangeRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -422,7 +404,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:  "SharePoint_Restore",
 			owner: tester.M365SiteID(suite.T()),
-			dest:  control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
+			dest:  control.DefaultRestoreDestination(dttm.SafeForTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -476,13 +458,13 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	}
 }
 
-func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
+func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	var (
 		t    = suite.T()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination("")
 		mb   = evmock.NewBus()
 	)
 
@@ -492,13 +474,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		suite.acct,
-		connector.Users,
-		fault.New(true))
+		connector.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(
 		ctx,
-		control.Options{},
+		control.Defaults(),
 		suite.kw,
 		suite.sw,
 		gc,
@@ -514,6 +495,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 	require.Nil(t, ds, "restoreOp.Run() should not produce details")
 	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
 	assert.Zero(t, ro.Results.BytesRead, "bytes read")
-	assert.Zero(t, mb.TimesCalled[events.RestoreStart], "restore-start events")
-	assert.Zero(t, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+	// no restore start, because we'd need to find the backup first.
+	assert.Equal(t, 0, mb.TimesCalled[events.RestoreStart], "restore-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }

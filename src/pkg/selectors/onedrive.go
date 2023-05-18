@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -223,8 +223,7 @@ func (s *oneDrive) Folders(folders []string, opts ...option) []OneDriveScope {
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveFolder, folders, os...),
-	)
+		makeScope[OneDriveScope](OneDriveFolder, folders, os...))
 
 	return scopes
 }
@@ -239,9 +238,8 @@ func (s *oneDrive) Items(folders, items []string, opts ...option) []OneDriveScop
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveItem, items).
-			set(OneDriveFolder, folders, opts...),
-	)
+		makeScope[OneDriveScope](OneDriveItem, items, defaultItemOptions(s.Cfg)...).
+			set(OneDriveFolder, folders, opts...))
 
 	return scopes
 }
@@ -391,7 +389,7 @@ func (c oneDriveCategory) isLeaf() bool {
 // => {odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	if ent.OneDrive == nil {
@@ -399,7 +397,7 @@ func (c oneDriveCategory) pathValues(
 	}
 
 	// Ignore `drives/<driveID>/root:` for folder comparison
-	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
+	rFld := ent.OneDrive.ParentPath
 
 	item := ent.ItemRef
 	if len(item) == 0 {
@@ -543,9 +541,9 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 
 	switch infoCat {
 	case FileInfoCreatedAfter, FileInfoCreatedBefore:
-		i = common.FormatTime(info.Created)
+		i = dttm.Format(info.Created)
 	case FileInfoModifiedAfter, FileInfoModifiedBefore:
-		i = common.FormatTime(info.Modified)
+		i = dttm.Format(info.Modified)
 	}
 
 	return s.Matches(infoCat, i)

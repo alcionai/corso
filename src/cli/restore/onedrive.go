@@ -6,14 +6,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -48,19 +46,19 @@ const (
 	oneDriveServiceCommand          = "onedrive"
 	oneDriveServiceCommandUseSuffix = "--backup <backupId>"
 
-	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's last backup (1234abcd...)
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore file with ID 98765abcdef along with its associated permissions
+# Restore the file with ID 98765abcdef along with its associated permissions
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
 
-# Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
+# Restore files named "FY2021 Planning.xlsx" in "Documents/Finance Reports"
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
-# Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
+# Restore all files and folders in folder "Documents/Finance Reports" that were created before 2020
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`
@@ -92,19 +90,14 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
-	}
-
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
+	dest := control.DefaultRestoreDestination(dttm.HumanReadableDriveItem)
 	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
@@ -124,7 +117,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
 	}
 
-	ds.PrintEntries(ctx)
+	ds.Items().PrintEntries(ctx)
 
 	return nil
 }

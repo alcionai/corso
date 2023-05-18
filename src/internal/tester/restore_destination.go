@@ -1,11 +1,26 @@
 package tester
 
 import (
-	"github.com/alcionai/corso/src/internal/common"
+	"strings"
+
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control"
 )
 
-func DefaultTestRestoreDestination() control.RestoreDestination {
-	// Use microsecond granularity to help reduce collisions.
-	return control.DefaultRestoreDestination(common.SimpleTimeTesting)
+const RestoreFolderPrefix = "Corso_Test"
+
+func DefaultTestRestoreDestination(namespace string) control.RestoreDestination {
+	var (
+		dest = control.DefaultRestoreDestination(dttm.SafeForTesting)
+		sft  = dttm.FormatNow(dttm.SafeForTesting)
+	)
+
+	parts := []string{RestoreFolderPrefix, namespace, sft}
+	if len(namespace) == 0 {
+		parts = []string{RestoreFolderPrefix, sft}
+	}
+
+	dest.ContainerName = strings.Join(parts, "_")
+
+	return dest
 }

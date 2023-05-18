@@ -13,16 +13,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 // Unit tests
@@ -40,10 +43,10 @@ const (
 )
 
 func odErr(code string) *odataerrors.ODataError {
-	odErr := &odataerrors.ODataError{}
-	merr := odataerrors.MainError{}
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(&merr)
+	odErr.SetError(merr)
 
 	return odErr
 }
@@ -277,32 +280,40 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 
 // Integration tests
 
-type OneDriveSuite struct {
+type OneDriveIntgSuite struct {
 	tester.Suite
 	userID string
+	creds  account.M365Config
 }
 
-func TestOneDriveDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{
+func TestOneDriveSuite(t *testing.T) {
+	suite.Run(t, &OneDriveIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *OneDriveSuite) SetupSuite() {
-	suite.userID = tester.SecondaryM365UserID(suite.T())
+func (suite *OneDriveIntgSuite) SetupSuite() {
+	t := suite.T()
+
+	suite.userID = tester.SecondaryM365UserID(t)
+
+	acct := tester.NewM365Account(t)
+	creds, err := acct.M365Config()
+	require.NoError(t, err)
+
+	suite.creds = creds
 }
 
-func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
+func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	var (
 		t              = suite.T()
 		folderIDs      = []string{}
-		folderName1    = "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
+		folderName1    = "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 		folderElements = []string{folderName1}
 		gs             = loadTestService(t)
 	)
@@ -330,15 +341,28 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		}
 	}()
 
-	folderID, err := CreateRestoreFolders(ctx, gs, driveID, folderElements)
+	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	restoreDir := path.Builder{}.Append(folderElements...)
+	drivePath := path.DrivePath{
+		DriveID: driveID,
+		Root:    "root:",
+		Folders: folderElements,
+	}
+
+	caches := NewRestoreCaches()
+	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
+
+	folderID, err := createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
-	folderName2 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
-	folderElements = append(folderElements, folderName2)
+	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
+	restoreDir = restoreDir.Append(folderName2)
 
-	folderID, err = CreateRestoreFolders(ctx, gs, driveID, folderElements)
+	folderID, err = createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -391,11 +415,11 @@ func (fm testFolderMatcher) IsAny() bool {
 	return fm.scope.IsAny(selectors.OneDriveFolder)
 }
 
-func (fm testFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, path)
+func (fm testFolderMatcher) Matches(p string) bool {
+	return fm.scope.Matches(selectors.OneDriveFolder, p)
 }
 
-func (suite *OneDriveSuite) TestOneDriveNewCollections() {
+func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -426,7 +450,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				creds.AzureTenantID,
 				test.user,
 				OneDriveSource,
@@ -437,10 +461,12 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 					ToggleFeatures: control.Toggles{},
 				})
 
-			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))
+			ssmb := prefixmatcher.NewStringSetBuilder()
+
+			odcs, err := colls.Get(ctx, nil, ssmb, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			// Don't expect excludes as this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, ssmb.Empty())
 
 			for _, entry := range odcs {
 				assert.NotEmpty(t, entry.FullPath())

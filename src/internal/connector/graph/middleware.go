@@ -2,7 +2,7 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -13,12 +13,16 @@ import (
 	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
-	"golang.org/x/time/rate"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
+
+type nexter interface {
+	Next(req *http.Request, middlewareIndex int) (*http.Response, error)
+}
 
 // ---------------------------------------------------------------------------
 // Logging
@@ -29,6 +33,7 @@ type LoggingMiddleware struct{}
 
 // well-known path names used by graph api calls
 // used to un-hide path elements in a pii.SafeURL
+// https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
 var SafeURLPathParams = pii.MapWithPlurals(
 	//nolint:misspell
 	"alltime",
@@ -42,11 +47,16 @@ var SafeURLPathParams = pii.MapWithPlurals(
 	"childfolder",
 	"children",
 	"clone",
+	"clutter",
 	"column",
+	"conflict",
 	"contactfolder",
 	"contact",
 	"contenttype",
+	"conversationhistory",
+	"deleteditem",
 	"delta",
+	"draft",
 	"drive",
 	"event",
 	"group",
@@ -55,18 +65,28 @@ var SafeURLPathParams = pii.MapWithPlurals(
 	"invitation",
 	"item",
 	"joinedteam",
+	"junkemail",
 	"label",
 	"list",
+	"localfailure",
 	"mailfolder",
 	"member",
 	"message",
+	"msgfolderroot",
 	"notification",
+	"outbox",
 	"page",
 	"primarychannel",
+	"recoverableitemsdeletion",
 	"root",
+	"scheduled",
+	"searchfolder",
 	"security",
+	"sentitem",
+	"serverfailure",
 	"site",
 	"subscription",
+	"syncissue",
 	"team",
 	"unarchive",
 	"user",
@@ -94,64 +114,82 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
-func (handler *LoggingMiddleware) Intercept(
+// 1 MB
+const logMBLimit = 1 * 1048576
+
+func (mw *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	ctx := clues.Add(
-		req.Context(),
-		"method", req.Method,
-		"url", LoggableURL(req.URL.String()),
-		"request_len", req.ContentLength)
-
 	// call the next middleware
 	resp, err := pipeline.Next(req, middlewareIndex)
-
-	if strings.Contains(req.URL.String(), "users//") {
-		logger.Ctx(ctx).Error("malformed request url: missing resource")
-	}
-
 	if resp == nil {
 		return resp, err
 	}
 
-	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
-	log := logger.Ctx(ctx)
+	ctx := clues.Add(
+		req.Context(),
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()),
+		"request_content_len", req.ContentLength,
+		"resp_status", resp.Status,
+		"resp_status_code", resp.StatusCode,
+		"resp_content_len", resp.ContentLength)
 
-	// Return immediately if the response is good (2xx).
-	// If api logging is toggled, log a body-less dump of the request/resp.
-	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPIFV || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
+	var (
+		log       = logger.Ctx(ctx)
+		respClass = resp.StatusCode / 100
+		logExtra  = logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != ""
+	)
+
+	// special case: always info log 429 responses
+	if resp.StatusCode == http.StatusTooManyRequests {
+		if logExtra {
+			log = log.With("response", getRespDump(ctx, resp, true))
 		}
 
-		return resp, err
-	}
-
-	// Log errors according to api debugging configurations.
-	// When debugging is toggled, every non-2xx is recorded with a response dump.
-	// Otherwise, throttling cases and other non-2xx responses are logged
-	// with a slimmer reference for telemetry/supportability purposes.
-	if logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != "" {
-		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
-		return resp, err
-	}
-
-	msg := fmt.Sprintf("graph api error: %s", resp.Status)
-
-	// special case for supportability: log all throttling cases.
-	if resp.StatusCode == http.StatusTooManyRequests {
-		log = log.With(
+		log.Infow(
+			"graph api throttling",
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
-	} else if resp.StatusCode/100 == 4 || resp.StatusCode == http.StatusServiceUnavailable {
-		log = log.With("response", getRespDump(ctx, resp, true))
+
+		return resp, err
 	}
 
-	log.Info(msg)
+	// special case: always dump status-400-bad-request
+	if resp.StatusCode == http.StatusBadRequest {
+		log.With("response", getRespDump(ctx, resp, true)).
+			Error("graph api error: " + resp.Status)
+
+		return resp, err
+	}
+
+	// Log api calls according to api debugging configurations.
+	switch respClass {
+	case 2:
+		if logExtra {
+			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
+			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
+			log.Infow("2xx graph api resp", "response", dump)
+		}
+	case 3:
+		log = log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
+
+		if logExtra {
+			log = log.With("response", getRespDump(ctx, resp, false))
+		}
+
+		log.Info("graph api redirect: " + resp.Status)
+	default:
+		if logExtra {
+			log = log.With("response", getRespDump(ctx, resp, true))
+		}
+
+		log.Error("graph api error: " + resp.Status)
+	}
 
 	return resp, err
 }
@@ -169,15 +207,53 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 // Retry & Backoff
 // ---------------------------------------------------------------------------
 
-// RetryHandler handles transient HTTP responses and retries the request given the retry options
-type RetryHandler struct {
+// RetryMiddleware handles transient HTTP responses and retries the request given the retry options
+type RetryMiddleware struct {
 	// The maximum number of times a request can be retried
 	MaxRetries int
 	// The delay in seconds between retries
 	Delay time.Duration
 }
 
-func (middleware RetryHandler) retryRequest(
+// Intercept implements the interface and evaluates whether to retry a failed request.
+func (mw RetryMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	ctx := req.Context()
+
+	resp, err := pipeline.Next(req, middlewareIndex)
+	if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
+		return resp, stackReq(ctx, req, resp, err)
+	}
+
+	if resp != nil && resp.StatusCode/100 != 4 && resp.StatusCode/100 != 5 {
+		return resp, err
+	}
+
+	exponentialBackOff := backoff.NewExponentialBackOff()
+	exponentialBackOff.InitialInterval = mw.Delay
+	exponentialBackOff.Reset()
+
+	resp, err = mw.retryRequest(
+		ctx,
+		pipeline,
+		middlewareIndex,
+		req,
+		resp,
+		0,
+		0,
+		exponentialBackOff,
+		err)
+	if err != nil {
+		return nil, stackReq(ctx, req, resp, err)
+	}
+
+	return resp, nil
+}
+
+func (mw RetryMiddleware) retryRequest(
 	ctx context.Context,
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -186,15 +262,31 @@ func (middleware RetryHandler) retryRequest(
 	executionCount int,
 	cumulativeDelay time.Duration,
 	exponentialBackoff *backoff.ExponentialBackOff,
-	respErr error,
+	priorErr error,
 ) (*http.Response, error) {
-	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
-		middleware.isRetriableRequest(req) &&
-		executionCount < middleware.MaxRetries {
+	status := "unknown_resp_status"
+	statusCode := -1
+
+	if resp != nil {
+		status = resp.Status
+		statusCode = resp.StatusCode
+	}
+
+	ctx = clues.Add(
+		ctx,
+		"prev_resp_status", status,
+		"retry_count", executionCount)
+
+	// only retry under certain conditions:
+	// 1, there was an error.  2, the resp and/or status code match retriable conditions.
+	// 3, the request is retriable.
+	// 4, we haven't hit our max retries already.
+	if (priorErr != nil || mw.isRetriableRespCode(ctx, resp, statusCode)) &&
+		mw.isRetriableRequest(req) &&
+		executionCount < mw.MaxRetries {
 		executionCount++
 
-		delay := middleware.getRetryDelay(req, resp, exponentialBackoff)
-
+		delay := mw.getRetryDelay(req, resp, exponentialBackoff)
 		cumulativeDelay += delay
 
 		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
@@ -205,41 +297,70 @@ func (middleware RetryHandler) retryRequest(
 		case <-ctx.Done():
 			// Don't retry if the context is marked as done, it will just error out
 			// when we attempt to send the retry anyway.
-			return resp, ctx.Err()
+			return resp, clues.Stack(ctx.Err()).WithClues(ctx)
 
-		// Will exit switch-block so the remainder of the code doesn't need to be
-		// indented.
 		case <-timer.C:
 		}
 
-		response, err := pipeline.Next(req, middlewareIndex)
-		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-			return response, Stack(ctx, err).With("retry_count", executionCount)
+		// we have to reset the original body reader for each retry, or else the graph
+		// compressor will produce a 0 length body following an error response such
+		// as a 500.
+		if req.Body != nil {
+			if s, ok := req.Body.(io.Seeker); ok {
+				_, err := s.Seek(0, io.SeekStart)
+				if err != nil {
+					return nil, Wrap(ctx, err, "resetting request body reader")
+				}
+			}
 		}
 
-		return middleware.retryRequest(ctx,
+		nextResp, err := pipeline.Next(req, middlewareIndex)
+		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
+			return nextResp, stackReq(ctx, req, nextResp, err)
+		}
+
+		return mw.retryRequest(ctx,
 			pipeline,
 			middlewareIndex,
 			req,
-			response,
+			nextResp,
 			executionCount,
 			cumulativeDelay,
 			exponentialBackoff,
 			err)
 	}
 
-	if respErr != nil {
-		return nil, Stack(ctx, respErr).With("retry_count", executionCount)
+	if priorErr != nil {
+		return nil, stackReq(ctx, req, nil, priorErr)
 	}
 
 	return resp, nil
 }
 
-func (middleware RetryHandler) isRetriableErrorCode(req *http.Request, code int) bool {
-	return code == http.StatusInternalServerError || code == http.StatusServiceUnavailable
+var retryableRespCodes = []int{
+	http.StatusInternalServerError,
+	http.StatusBadGateway,
 }
 
-func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
+func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
+	if slices.Contains(retryableRespCodes, code) {
+		return true
+	}
+
+	// prevent the body dump below in case of a 2xx response.
+	// There's no reason to check the body on a healthy status.
+	if code/100 != 4 && code/100 != 5 {
+		return false
+	}
+
+	// not a status code, but the message itself might indicate a connectivity issue that
+	// can be retried independent of the status code.
+	return strings.Contains(
+		strings.ToLower(getRespDump(ctx, resp, true)),
+		strings.ToLower(string(IOErrDuringRead)))
+}
+
+func (mw RetryMiddleware) isRetriableRequest(req *http.Request) bool {
 	isBodiedMethod := req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH"
 	if isBodiedMethod && req.Body != nil {
 		return req.ContentLength != -1
@@ -248,7 +369,7 @@ func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
 	return true
 }
 
-func (middleware RetryHandler) getRetryDelay(
+func (mw RetryMiddleware) getRetryDelay(
 	req *http.Request,
 	resp *http.Response,
 	exponentialBackoff *backoff.ExponentialBackOff,
@@ -268,88 +389,16 @@ func (middleware RetryHandler) getRetryDelay(
 	return exponentialBackoff.NextBackOff()
 }
 
-// Intercept implements the interface and evaluates whether to retry a failed request.
-func (middleware RetryHandler) Intercept(
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	req *http.Request,
-) (*http.Response, error) {
-	ctx := req.Context()
-
-	response, err := pipeline.Next(req, middlewareIndex)
-	if err != nil && !IsErrTimeout(err) {
-		return response, Stack(ctx, err)
-	}
-
-	exponentialBackOff := backoff.NewExponentialBackOff()
-	exponentialBackOff.InitialInterval = middleware.Delay
-	exponentialBackOff.Reset()
-
-	response, err = middleware.retryRequest(
-		ctx,
-		pipeline,
-		middlewareIndex,
-		req,
-		response,
-		0,
-		0,
-		exponentialBackOff,
-		err)
-	if err != nil {
-		return nil, Stack(ctx, err)
-	}
-
-	return response, nil
-}
-
-// We're trying to keep calls below the 10k-per-10-minute threshold.
-// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
-// which is a bit below the mark.
-// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
-// We'll have built up 900 tokens in reserve, so the first 900 calls go through
-// immediately.  Over the next 10 minutes, we'll partition out the other calls
-// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
-// the volume keeps up after that, we'll always stay between 9000 and 9900 out
-// of 10k.
-const (
-	perSecond = 15
-	maxCap    = 900
-)
-
-// Single, global rate limiter at this time.  Refinements for method (creates,
-// versus reads) or service can come later.
-var limiter = rate.NewLimiter(perSecond, maxCap)
-
-// QueueRequest will allow the request to occur immediately if we're under the
-// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
-// the next token set is available.
-func QueueRequest(ctx context.Context) {
-	if err := limiter.Wait(ctx); err != nil {
-		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
-	}
-}
-
 // ---------------------------------------------------------------------------
-// Rate Limiting
+// Metrics
 // ---------------------------------------------------------------------------
-
-// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
-// request limits.
-type ThrottleControlMiddleware struct{}
-
-func (handler *ThrottleControlMiddleware) Intercept(
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	req *http.Request,
-) (*http.Response, error) {
-	QueueRequest(req.Context())
-	return pipeline.Next(req, middlewareIndex)
-}
 
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}
 
-func (handler *MetricsMiddleware) Intercept(
+const xmruHeader = "x-ms-resource-unit"
+
+func (mw *MetricsMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
@@ -360,6 +409,10 @@ func (handler *MetricsMiddleware) Intercept(
 		status    = "nil-resp"
 	)
 
+	if resp == nil {
+		return resp, err
+	}
+
 	if resp != nil {
 		status = resp.Status
 	}
@@ -368,6 +421,19 @@ func (handler *MetricsMiddleware) Intercept(
 	events.Inc(events.APICall, status)
 	events.Since(start, events.APICall)
 	events.Since(start, events.APICall, status)
+
+	// track the graph "resource cost" for each call (if not provided, assume 1)
+
+	// from msoft throttling documentation:
+	// x-ms-resource-unit - Indicates the resource unit used for this request. Values are positive integer
+	xmru := resp.Header.Get(xmruHeader)
+	xmrui, e := strconv.Atoi(xmru)
+
+	if len(xmru) == 0 || e != nil {
+		xmrui = 1
+	}
+
+	events.IncN(xmrui, events.APICall, xmruHeader)
 
 	return resp, err
 }

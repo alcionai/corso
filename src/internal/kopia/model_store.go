@@ -130,7 +130,7 @@ func putInner(
 		base.ID = model.StableID(uuid.NewString())
 	}
 
-	tmpTags, err := tagsForModelWithID(s, base.ID, base.Version, base.Tags)
+	tmpTags, err := tagsForModelWithID(s, base.ID, base.ModelVersion, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
 		return clues.Stack(err).WithClues(ctx)
@@ -158,7 +158,7 @@ func (ms *ModelStore) Put(
 		return clues.Stack(errUnrecognizedSchema)
 	}
 
-	m.Base().Version = ms.modelVersion
+	m.Base().ModelVersion = ms.modelVersion
 
 	err := repo.WriteSession(
 		ctx,
@@ -205,7 +205,7 @@ func (ms ModelStore) populateBaseModelFromMetadata(
 
 	base.ModelStoreID = m.ID
 	base.ID = model.StableID(id)
-	base.Version = v
+	base.ModelVersion = v
 	base.Tags = m.Labels
 
 	stripHiddenTags(base.Tags)
@@ -424,7 +424,7 @@ func (ms *ModelStore) Update(
 		return clues.Stack(errNoModelStoreID).WithClues(ctx)
 	}
 
-	base.Version = ms.modelVersion
+	base.ModelVersion = ms.modelVersion
 
 	// TODO(ashmrtnz): Can remove if bottleneck.
 	if err := ms.checkPrevModelVersion(ctx, s, base); err != nil {

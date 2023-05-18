@@ -6,13 +6,13 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var ErrFolderNotFound = clues.New("folder not found")
@@ -137,21 +137,15 @@ func includeContainer(
 		directory = locPath.Folder(false)
 	}
 
-	var (
-		ok      bool
-		pathRes path.Path
-	)
+	var ok bool
 
 	switch category {
 	case path.EmailCategory:
 		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
-		pathRes = locPath
 	case path.ContactsCategory:
 		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
-		pathRes = locPath
 	case path.EventsCategory:
 		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
-		pathRes = dirPath
 	default:
 		return nil, nil, false
 	}
@@ -162,5 +156,5 @@ func includeContainer(
 		"matches_input", directory,
 	).Debug("backup folder selection filter")
 
-	return pathRes, loc, ok
+	return dirPath, loc, ok
 }

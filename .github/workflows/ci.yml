@@ -52,38 +52,7 @@ jobs:
 
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    environment: Testing
-    runs-on: ubuntu-latest
-    outputs:
-      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
-      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
-      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
-    steps:
-      - name: Figure out which client id to use
-        id: roundrobin
-        run: |
-          slot=$((GITHUB_RUN_NUMBER % 4))
-          echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
-
-          case $slot in
-
-            0)
-              echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
-              ;;
-            1)
-              echo "CLIENT_ID_ENV=CLIENT_ID_2" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_2" >> $GITHUB_OUTPUT
-              ;;
-            2)
-              echo "CLIENT_ID_ENV=CLIENT_ID_3" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_3" >> $GITHUB_OUTPUT
-              ;;
-            3)
-              echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
-              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
-              ;;
-          esac
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
 
   SetEnv:
     environment: Testing
@@ -168,6 +137,8 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
+      CORSO_LOG_FILE: ./src/testlog/suite-testlogging.log
+      LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
 
@@ -197,11 +168,9 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
-          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
-          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
+          CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
+          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: ./src/testlog/testlogging.log
-          LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
           go test       \
@@ -211,14 +180,15 @@ jobs:
           -failfast     \
           -p 1          \
           -timeout 15m  \
-          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+          ./... \
+          2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
+          name: ci-test-log
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
@@ -231,6 +201,9 @@ jobs:
     defaults:
       run:
         working-directory: src
+    env:
+      CORSO_LOG_FILE: ./src/testlog/unit-testlogging.log
+      LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
 
@@ -252,8 +225,6 @@ jobs:
           # something elsewhere.
           CORSO_M365_TEST_USER_ID: 'foo'
           CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
-          CORSO_LOG_FILE: ./src/testlog/testlogging.log
-          LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
           go test       \
@@ -263,7 +234,8 @@ jobs:
           -failfast     \
           -p 1          \
           -timeout 15m  \
-          ./... 2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
+          ./... \
+          2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -283,6 +255,9 @@ jobs:
     defaults:
       run:
         working-directory: src
+    env:
+      CORSO_LOG_FILE: ./src/testlog/fork-testlogging.log
+      LOG_GRAPH_REQUESTS: true
     steps:
       - name: Fail check if not repository_dispatch
         if: github.event_name != 'repository_dispatch'
@@ -340,23 +315,23 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
-          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+          CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: ./src/testlog/testlogging.log
         run: |
           set -euo pipefail
           go test \
           -json   \
           -v      \
           -timeout 15m  \
-          ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+          ./... \
+          2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: test-log
+          name: fork-test-log
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
@@ -364,7 +339,7 @@ jobs:
       # Update check run called "Test-Suite-Fork"
       - uses: actions/github-script@v6
         id: update-check-run
-        if: ${{ always() }}
+        if: failure()
         env:
           number: ${{ github.event.client_payload.pull_request.number }}
           job: ${{ github.job }}
@@ -395,7 +370,7 @@ jobs:
   # --- Source Code Linting ----------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
-  Linting:
+  Source-Code-Linting:
     needs: [Precheck, Checkout]
     environment: Testing
     runs-on: ubuntu-latest
@@ -416,7 +391,7 @@ jobs:
         with:
           # Keep pinned to a verson as sometimes updates will add new lint
           # failures in unchanged code.
-          version: v1.50.1
+          version: v1.52.2
           working-directory: src
           skip-pkg-cache: true
           skip-build-cache: true
@@ -436,81 +411,52 @@ jobs:
 
 
   # ----------------------------------------------------------------------------------------------------
+  # --- GitHub Actions Linting -------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Actions-Lint:
+    needs: [Precheck]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: needs.precheck.outputs.actionsfileschanged == 'true'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: actionlint
+        uses: raven-actions/actionlint@v1
+        with:
+          fail-on-error: true
+          cache: true
+          # Ignore
+          #   * combining commands into a subshell and using single output
+          #     redirect
+          #   * various variable quoting patterns
+          #   * possible ineffective echo commands
+          flags: "-ignore SC2129 -ignore SC2086 -ignore SC2046 -ignore 2116"
+
+  # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
   Publish-Binary:
-    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
-    defaults:
-      run:
-        working-directory: src
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # needed to pull changelog
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+      - name: Publish Binary
+        uses: ./.github/actions/publish-binary
         with:
-          go-version-file: src/go.mod
-
-      - name: Decide goreleaser release mode
-        shell: bash
-        run: |
-          if test '${{ github.ref }}' = "refs/heads/main"; then
-            echo "grflags=--snapshot" >> $GITHUB_ENV
-          else
-            echo "grflags=" >> $GITHUB_ENV
-          fi
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v4
-        with:
-          version: latest
-          args: release --rm-dist --timeout 500m --parallelism 1 ${{ env.grflags }}
-          workdir: src
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUDDERSTACK_CORSO_WRITE_KEY: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
-          RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
-          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
-
-      - name: Upload darwin arm64
-        uses: actions/upload-artifact@v3
-        with:
-          name: corso_Darwin_arm64
-          path: src/dist/corso_darwin_arm64/corso
-
-      - name: Upload linux arm64
-        uses: actions/upload-artifact@v3
-        with:
-          name: corso_Linux_arm64
-          path: src/dist/corso_linux_arm64/corso
-
-      - name: Upload darwin amd64
-        uses: actions/upload-artifact@v3
-        with:
-          name: corso_Darwin_amd64
-          path: src/dist/corso_darwin_amd64_v1/corso
-
-      - name: Upload linux amd64
-        uses: actions/upload-artifact@v3
-        with:
-          name: corso_Linux_amd64
-          path: src/dist/corso_linux_amd64_v1/corso
-
-      - name: Upload windows amd64
-        uses: actions/upload-artifact@v3
-        with:
-          name: corso_Windows_amd64
-          path: src/dist/corso_windows_amd64_v1/corso.exe
+          version: ${{ needs.SetEnv.outputs.version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          rudderstack_write_key: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
+          rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
 
   Publish-Image:
-    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -652,7 +598,7 @@ jobs:
           ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Publish-Website-Test:
-    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'

@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"runtime/trace"
@@ -45,24 +46,36 @@ func RestoreCollections(
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
+	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		err            error
 		restoreMetrics support.CollectionMetrics
+		caches         = onedrive.NewRestoreCaches()
+		el             = errs.Local()
 	)
+
+	// Reorder collections so that the parents directories are created
+	// before the child directories; a requirement for permissions.
+	data.SortRestoreCollections(dcs)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
+		if el.Failure() != nil {
+			break
+		}
+
 		var (
+			err      error
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"destination", clues.Hide(dest.ContainerName),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"full_path", dc.FullPath())
 		)
 
 		switch dc.FullPath().Category() {
@@ -73,13 +86,13 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				map[string]onedrive.Metadata{}, // Currently permission data is not stored for sharepoint
-				map[string]string{},
+				caches,
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				false,
+				opts.RestorePermissions,
 				errs)
+
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(
 				ictx,
@@ -88,6 +101,7 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errs)
+
 		case path.PagesCategory:
 			metrics, err = RestorePageCollection(
 				ictx,
@@ -96,13 +110,18 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errs)
+
 		default:
-			return nil, clues.Wrap(clues.New(category.String()), "category not supported")
+			return nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
+			el.AddRecoverable(err)
+		}
+
+		if errors.Is(err, context.Canceled) {
 			break
 		}
 	}
@@ -114,28 +133,11 @@ func RestoreCollections(
 		restoreMetrics,
 		dest.ContainerName)
 
-	return status, err
-}
-
-// createRestoreFolders creates the restore folder hierarchy in the specified drive and returns the folder ID
-// of the last folder entry given in the hierarchy
-func createRestoreFolders(
-	ctx context.Context,
-	service graph.Servicer,
-	siteID string,
-	restoreFolders []string,
-) (string, error) {
-	// Get Main Drive for Site, Documents
-	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
-	if err != nil {
-		return "", graph.Wrap(ctx, err, "getting site drive root")
-	}
-
-	return onedrive.CreateRestoreFolders(ctx, service, ptr.Val(mainDrive.GetId()), restoreFolders)
+	return status, el.Failure()
 }
 
 // restoreListItem utility function restores a List to the siteID.
-// The name is changed to to Corso_Restore_{timeStame}_name
+// The name is changed to to {DestName}_{name}
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
 // Restored List can be verified within the Site contents.
 func restoreListItem(
@@ -182,7 +184,7 @@ func restoreListItem(
 	newList.SetItems(contents)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := service.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -192,8 +194,10 @@ func restoreListItem(
 	if len(contents) > 0 {
 		for _, lItem := range contents {
 			_, err := service.Client().
-				SitesById(siteID).
-				ListsById(ptr.Val(restoredList.GetId())).
+				Sites().
+				BySiteId(siteID).
+				Lists().
+				ByListId(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {
@@ -257,7 +261,7 @@ func RestoreListCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
@@ -345,7 +349,7 @@ func RestorePageCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue

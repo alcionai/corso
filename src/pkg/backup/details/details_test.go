@@ -13,7 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -34,19 +35,19 @@ func TestDetailsUnitSuite(t *testing.T) {
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	initial := time.Now()
-	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
-	now, err := common.ParseTime(nowStr)
+	nowStr := dttm.FormatTo(initial, dttm.TabularOutput)
+	now, err := dttm.ParseTime(nowStr)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name     string
-		entry    DetailsEntry
+		entry    Entry
 		expectHs []string
 		expectVs []string
 	}{
 		{
 			name: "no info",
-			entry: DetailsEntry{
+			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
@@ -57,7 +58,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exchange event info",
-			entry: DetailsEntry{
+			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
@@ -78,7 +79,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exchange contact info",
-			entry: DetailsEntry{
+			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
@@ -95,7 +96,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exchange mail info",
-			entry: DetailsEntry{
+			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
@@ -116,7 +117,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "sharepoint info",
-			entry: DetailsEntry{
+			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
@@ -148,7 +149,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "oneDrive info",
-			entry: DetailsEntry{
+			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
@@ -181,7 +182,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	}
 }
 
-func exchangeEntry(t *testing.T, id string, size int, it ItemType) DetailsEntry {
+func exchangeEntry(t *testing.T, id string, size int, it ItemType) Entry {
 	rr := makeItemPath(
 		t,
 		path.ExchangeService,
@@ -190,7 +191,7 @@ func exchangeEntry(t *testing.T, id string, size int, it ItemType) DetailsEntry 
 		"user-id",
 		[]string{"Inbox", "folder1", id})
 
-	return DetailsEntry{
+	return Entry{
 		RepoRef:     rr.String(),
 		ShortRef:    rr.ShortRef(),
 		ParentRef:   rr.ToBuilder().Dir().ShortRef(),
@@ -206,7 +207,7 @@ func exchangeEntry(t *testing.T, id string, size int, it ItemType) DetailsEntry 
 	}
 }
 
-func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) DetailsEntry {
+func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) Entry {
 	service := path.OneDriveService
 	category := path.FilesCategory
 	info := ItemInfo{
@@ -242,9 +243,9 @@ func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) DetailsEnt
 		"tenant-id",
 		"user-id",
 		[]string{
-			"drives",
+			odConsts.DrivesPathDir,
 			"drive-id",
-			"root:",
+			odConsts.RootPathDir,
 			"Inbox",
 			"folder1",
 			id,
@@ -252,7 +253,7 @@ func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) DetailsEnt
 
 	loc := path.Builder{}.Append(rr.Folders()...).PopFront().PopFront()
 
-	return DetailsEntry{
+	return Entry{
 		RepoRef:     rr.String(),
 		ShortRef:    rr.ShortRef(),
 		ParentRef:   rr.ToBuilder().Dir().ShortRef(),
@@ -268,7 +269,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 	t := suite.T()
 	table := []struct {
 		name  string
-		entry DetailsEntry
+		entry Entry
 		// shortRefEqual allows checking that OneDrive and SharePoint have their
 		// ShortRef updated in the returned entry.
 		//
@@ -293,7 +294,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 		},
 		{
 			name: "Legacy SharePoint File",
-			entry: func() DetailsEntry {
+			entry: func() Entry {
 				res := oneDriveishEntry(t, itemID, 42, SharePointLibrary)
 				res.SharePoint.ItemType = OneDriveItem
 
@@ -360,7 +361,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 	exchangeMail2 := exchangeEntry(t, "foo2", 43, ExchangeMail)
 	exchangeContact1 := exchangeEntry(t, "foo3", 44, ExchangeContact)
 
-	exchangeFolders := []DetailsEntry{
+	exchangeFolders := []Entry{
 		{
 			ItemInfo: ItemInfo{
 				Folder: &FolderInfo{
@@ -382,7 +383,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 	}
 
-	exchangeContactFolders := []DetailsEntry{
+	exchangeContactFolders := []Entry{
 		{
 			ItemInfo: ItemInfo{
 				Folder: &FolderInfo{
@@ -404,11 +405,11 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 	}
 
-	oneDriveishFolders := []DetailsEntry{
+	oneDriveishFolders := []Entry{
 		{
 			ItemInfo: ItemInfo{
 				Folder: &FolderInfo{
-					DisplayName: "root:",
+					DisplayName: odConsts.RootPathDir,
 					ItemType:    FolderItem,
 					DriveName:   "drive-name",
 					DriveID:     "drive-id",
@@ -416,7 +417,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			LocationRef: "root:",
+			LocationRef: odConsts.RootPathDir,
 			ItemInfo: ItemInfo{
 				Folder: &FolderInfo{
 					DisplayName: "Inbox",
@@ -441,20 +442,20 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 
 	table := []struct {
 		name         string
-		entries      func() []DetailsEntry
-		expectedDirs func() []DetailsEntry
+		entries      func() []Entry
+		expectedDirs func() []Entry
 	}{
 		{
 			name: "One Exchange Email None Updated",
-			entries: func() []DetailsEntry {
+			entries: func() []Entry {
 				e := exchangeMail1
 				ei := *exchangeMail1.Exchange
 				e.Exchange = &ei
 
-				return []DetailsEntry{e}
+				return []Entry{e}
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range exchangeFolders {
 					e := entry
@@ -472,16 +473,16 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "One Exchange Email Updated",
-			entries: func() []DetailsEntry {
+			entries: func() []Entry {
 				e := exchangeMail1
 				ei := *exchangeMail1.Exchange
 				e.Exchange = &ei
 				e.Updated = true
 
-				return []DetailsEntry{e}
+				return []Entry{e}
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range exchangeFolders {
 					e := entry
@@ -500,10 +501,10 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "Two Exchange Emails None Updated",
-			entries: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			entries: func() []Entry {
+				res := []Entry{}
 
-				for _, entry := range []DetailsEntry{exchangeMail1, exchangeMail2} {
+				for _, entry := range []Entry{exchangeMail1, exchangeMail2} {
 					e := entry
 					ei := *entry.Exchange
 					e.Exchange = &ei
@@ -513,8 +514,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 
 				return res
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range exchangeFolders {
 					e := entry
@@ -532,10 +533,10 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "Two Exchange Emails One Updated",
-			entries: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			entries: func() []Entry {
+				res := []Entry{}
 
-				for i, entry := range []DetailsEntry{exchangeMail1, exchangeMail2} {
+				for i, entry := range []Entry{exchangeMail1, exchangeMail2} {
 					e := entry
 					ei := *entry.Exchange
 					e.Exchange = &ei
@@ -546,8 +547,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 
 				return res
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range exchangeFolders {
 					e := entry
@@ -566,10 +567,10 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "One Email And One Contact None Updated",
-			entries: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			entries: func() []Entry {
+				res := []Entry{}
 
-				for _, entry := range []DetailsEntry{exchangeMail1, exchangeContact1} {
+				for _, entry := range []Entry{exchangeMail1, exchangeContact1} {
 					e := entry
 					ei := *entry.Exchange
 					e.Exchange = &ei
@@ -579,8 +580,8 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 
 				return res
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range exchangeFolders {
 					e := entry
@@ -609,15 +610,15 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "One OneDrive Item None Updated",
-			entries: func() []DetailsEntry {
+			entries: func() []Entry {
 				e := oneDrive1
 				ei := *oneDrive1.OneDrive
 				e.OneDrive = &ei
 
-				return []DetailsEntry{e}
+				return []Entry{e}
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range oneDriveishFolders {
 					e := entry
@@ -636,15 +637,15 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "One SharePoint Item None Updated",
-			entries: func() []DetailsEntry {
+			entries: func() []Entry {
 				e := sharePoint1
 				ei := *sharePoint1.SharePoint
 				e.SharePoint = &ei
 
-				return []DetailsEntry{e}
+				return []Entry{e}
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range oneDriveishFolders {
 					e := entry
@@ -663,15 +664,15 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		},
 		{
 			name: "One SharePoint Legacy Item None Updated",
-			entries: func() []DetailsEntry {
+			entries: func() []Entry {
 				e := sharePoint1
 				ei := *sharePoint1.SharePoint
 				e.SharePoint = &ei
 
-				return []DetailsEntry{e}
+				return []Entry{e}
 			},
-			expectedDirs: func() []DetailsEntry {
-				res := []DetailsEntry{}
+			expectedDirs: func() []Entry {
+				res := []Entry{}
 
 				for _, entry := range oneDriveishFolders {
 					e := entry
@@ -707,7 +708,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			}
 
 			deets := db.Details()
-			gotDirs := []DetailsEntry{}
+			gotDirs := []Entry{}
 
 			for _, entry := range deets.Entries {
 				// Other test checks items are populated properly.
@@ -730,7 +731,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 
 var pathItemsTable = []struct {
 	name               string
-	ents               []DetailsEntry
+	ents               []Entry
 	expectRepoRefs     []string
 	expectLocationRefs []string
 }{
@@ -742,7 +743,7 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "single entry",
-		ents: []DetailsEntry{
+		ents: []Entry{
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
@@ -754,7 +755,7 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "multiple entries",
-		ents: []DetailsEntry{
+		ents: []Entry{
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
@@ -771,7 +772,7 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "multiple entries with folder",
-		ents: []DetailsEntry{
+		ents: []Entry{
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
@@ -797,7 +798,7 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "multiple entries with meta file",
-		ents: []DetailsEntry{
+		ents: []Entry{
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
@@ -824,7 +825,7 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "multiple entries with folder and meta file",
-		ents: []DetailsEntry{
+		ents: []Entry{
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
@@ -908,7 +909,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 	t := suite.T()
 
 	d := &DetailsModel{
-		Entries: []DetailsEntry{
+		Entries: []Entry{
 			{
 				RepoRef: "a.data",
 				ItemInfo: ItemInfo{
@@ -958,7 +959,7 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_shortRefsUniqueFromFolder() {
 		"a-user",
 		[]string{
 			"drive-id",
-			"root:",
+			odConsts.RootPathDir,
 			"folder",
 			name + "-id",
 		})
@@ -971,7 +972,7 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_shortRefsUniqueFromFolder() {
 		"a-user",
 		[]string{
 			"drive-id",
-			"root:",
+			odConsts.RootPathDir,
 			"folder",
 			name + "-id",
 			name,
@@ -1060,7 +1061,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	)
 
 	newExchangePB := path.Builder{}.Append(folder2)
-	newOneDrivePB := path.Builder{}.Append("root:", folder2)
+	newOneDrivePB := path.Builder{}.Append(odConsts.RootPathDir, folder2)
 
 	table := []struct {
 		name         string
@@ -1147,6 +1148,28 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder2,
 				},
 			},
+		},
+		{
+			name: "SharePoint Old Format",
+			input: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   OneDriveItem,
+					ParentPath: folder1,
+				},
+			},
+			locPath: newOneDrivePB,
+			expectedItem: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   SharePointLibrary,
+					ParentPath: folder2,
+				},
+			},
+		},
+		{
+			name:         "Empty Item Doesn't Fail",
+			input:        ItemInfo{},
+			locPath:      newOneDrivePB,
+			expectedItem: ItemInfo{},
 		},
 	}
 
@@ -1360,7 +1383,7 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			entry := DetailsEntry{
+			entry := Entry{
 				RepoRef:  fmt.Sprintf(rrString, test.service, test.category),
 				ItemInfo: test.itemInfo,
 			}

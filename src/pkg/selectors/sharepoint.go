@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -245,8 +245,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 		scopes,
 		makeScope[SharePointScope](SharePointLibraryFolder, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
-		makeScope[SharePointScope](SharePointPageFolder, Any()),
-	)
+		makeScope[SharePointScope](SharePointPageFolder, Any()))
 
 	return scopes
 }
@@ -276,9 +275,8 @@ func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePoi
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointListItem, items).
-			set(SharePointList, lists, opts...),
-	)
+		makeScope[SharePointScope](SharePointListItem, items, defaultItemOptions(s.Cfg)...).
+			set(SharePointList, lists, opts...))
 
 	return scopes
 }
@@ -312,8 +310,7 @@ func (s *sharePoint) LibraryFolders(libraryFolders []string, opts ...option) []S
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...),
-	)
+		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...))
 
 	return scopes
 }
@@ -328,9 +325,8 @@ func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []S
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryItem, items).
-			set(SharePointLibraryFolder, libraries, opts...),
-	)
+		makeScope[SharePointScope](SharePointLibraryItem, items, defaultItemOptions(s.Cfg)...).
+			set(SharePointLibraryFolder, libraries, opts...))
 
 	return scopes
 }
@@ -361,8 +357,7 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 	scopes = append(
 		scopes,
 		makeScope[SharePointScope](SharePointPage, items).
-			set(SharePointPageFolder, pages, opts...),
-	)
+			set(SharePointPageFolder, pages, opts...))
 
 	return scopes
 }
@@ -516,13 +511,13 @@ func (c sharePointCategory) isLeaf() bool {
 // => {spFolder: folder, spItemID: itemID}
 func (c sharePointCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	var (
-		folderCat, itemCat    categorizer
-		dropDriveFolderPrefix bool
-		itemID                string
+		folderCat, itemCat categorizer
+		itemID             string
+		rFld               string
 	)
 
 	switch c {
@@ -531,23 +526,19 @@ func (c sharePointCategory) pathValues(
 			return nil, clues.New("no SharePoint ItemInfo in details")
 		}
 
-		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
+		rFld = ent.SharePoint.ParentPath
 
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+		rFld = ent.LocationRef
 
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
+		rFld = ent.LocationRef
 
 	default:
 		return nil, clues.New("unrecognized sharePointCategory").With("category", c)
-	}
-
-	rFld := repo.Folder(false)
-	if dropDriveFolderPrefix {
-		// like onedrive, ignore `drives/<driveID>/root:` for library folder comparison
-		rFld = path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 	}
 
 	item := ent.ItemRef
@@ -566,10 +557,6 @@ func (c sharePointCategory) pathValues(
 
 	if len(itemID) > 0 {
 		result[itemCat] = append(result[itemCat], itemID)
-	}
-
-	if len(ent.LocationRef) > 0 {
-		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
 	return result, nil
@@ -711,9 +698,9 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	case SharePointWebURL:
 		i = info.WebURL
 	case SharePointInfoCreatedAfter, SharePointInfoCreatedBefore:
-		i = common.FormatTime(info.Created)
+		i = dttm.Format(info.Created)
 	case SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
-		i = common.FormatTime(info.Modified)
+		i = dttm.Format(info.Modified)
 	case SharePointInfoLibraryDrive:
 		ds := []string{}
 

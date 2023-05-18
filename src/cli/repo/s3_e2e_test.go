@@ -25,7 +25,6 @@ func TestS3E2ESuite(t *testing.T) {
 	suite.Run(t, &S3E2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCITests,
 	)})
 }
 
@@ -194,7 +193,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			ctx = config.SetViper(ctx, vpr)
 
 			// init the repo first
-			_, err = repository.Initialize(ctx, account.Account{}, st, control.Options{})
+			_, err = repository.Initialize(ctx, account.Account{}, st, control.Defaults())
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -48,9 +48,7 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &RestoreExchangeE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -77,13 +75,8 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	var (
-		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
-		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
-		ins      = common.IDsNames{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		users = []string{suite.m365UserID}
+		ins   = idname.NewCache(map[string]string{suite.m365UserID: suite.m365UserID})
 	)
 
 	// init the repo first

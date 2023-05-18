@@ -18,19 +18,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type DiscoveryIntegrationSuite struct {
+type DiscoveryIntgSuite struct {
 	tester.Suite
 }
 
-func TestDiscoveryIntegrationSuite(t *testing.T) {
-	suite.Run(t, &DiscoveryIntegrationSuite{
+func TestDiscoveryIntgSuite(t *testing.T) {
+	suite.Run(t, &DiscoveryIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUsers() {
+func (suite *DiscoveryIntgSuite) TestUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -55,7 +55,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	assert.NotEmpty(t, users)
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
+func (suite *DiscoveryIntgSuite) TestUsers_InvalidCredentials() {
 	table := []struct {
 		name string
 		acct func(t *testing.T) account.Account
@@ -101,7 +101,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
 	}
 }
 
-func (suite *DiscoveryIntegrationSuite) TestSites() {
+func (suite *DiscoveryIntgSuite) TestSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -120,7 +120,7 @@ func (suite *DiscoveryIntegrationSuite) TestSites() {
 	assert.NotEmpty(t, sites)
 }
 
-func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
+func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -171,10 +171,9 @@ func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
 	}
 }
 
-func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
+func (suite *DiscoveryIntgSuite) TestUserInfo() {
 	t := suite.T()
 	acct := tester.NewM365Account(t)
-	userID := tester.M365UserID(t)
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err)
@@ -185,26 +184,86 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 	uapi := cli.Users()
 
 	table := []struct {
-		name   string
-		user   string
-		expect *api.UserInfo
+		name      string
+		user      string
+		expect    *api.UserInfo
+		expectErr require.ErrorAssertionFunc
 	}{
 		{
 			name: "standard test user",
-			user: userID,
+			user: tester.M365UserID(t),
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{
+				ServicesEnabled: map[path.ServiceType]struct{}{
 					path.ExchangeService: {},
 					path.OneDriveService: {},
 				},
+				Mailbox: api.MailboxInfo{
+					Purpose:              "user",
+					ErrGetMailBoxSetting: nil,
+				},
 			},
+			expectErr: require.NoError,
 		},
 		{
 			name: "user does not exist",
 			user: uuid.NewString(),
 			expect: &api.UserInfo{
-				DiscoveredServices: map[path.ServiceType]struct{}{
-					path.OneDriveService: {}, // currently statically populated
+				ServicesEnabled: map[path.ServiceType]struct{}{},
+				Mailbox:         api.MailboxInfo{},
+			},
+			expectErr: require.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			result, err := discovery.UserInfo(ctx, uapi, test.user)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expect.ServicesEnabled, result.ServicesEnabled)
+		})
+	}
+}
+
+func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
+	t := suite.T()
+	acct := tester.NewM365Account(t)
+	userID := tester.M365UserID(t)
+
+	table := []struct {
+		name   string
+		user   string
+		expect *api.UserInfo
+	}{
+		{
+			name: "user without drive and exchange",
+			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: &api.UserInfo{
+				ServicesEnabled: map[path.ServiceType]struct{}{},
+				Mailbox: api.MailboxInfo{
+					ErrGetMailBoxSetting: []error{api.ErrMailBoxSettingsNotFound},
+				},
+			},
+		},
+		{
+			name: "user with drive and exchange",
+			user: userID,
+			expect: &api.UserInfo{
+				ServicesEnabled: map[path.ServiceType]struct{}{
+					path.ExchangeService: {},
+					path.OneDriveService: {},
+				},
+				Mailbox: api.MailboxInfo{
+					Purpose:              "user",
+					ErrGetMailBoxSetting: []error{},
 				},
 			},
 		},
@@ -216,9 +275,11 @@ func (suite *DiscoveryIntegrationSuite) TestUserInfo() {
 
 			t := suite.T()
 
-			result, err := discovery.UserInfo(ctx, uapi, test.user)
+			result, err := discovery.GetUserInfo(ctx, acct, test.user, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect, result)
+			assert.Equal(t, test.expect.ServicesEnabled, result.ServicesEnabled)
+			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting, result.Mailbox.ErrGetMailBoxSetting)
+			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
 		})
 	}
 }

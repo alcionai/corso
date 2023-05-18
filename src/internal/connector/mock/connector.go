@@ -3,8 +3,10 @@ package mock
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -12,9 +14,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+var _ inject.BackupProducer = &GraphConnector{}
+
 type GraphConnector struct {
 	Collections []data.BackupCollection
-	Exclude     map[string]map[string]struct{}
+	Exclude     *prefixmatcher.StringSetMatcher
 
 	Deets *details.Details
 
@@ -25,14 +29,15 @@ type GraphConnector struct {
 
 func (gc GraphConnector) ProduceBackupCollections(
 	_ context.Context,
-	_ common.IDNamer,
+	_ idname.Provider,
 	_ selectors.Selector,
 	_ []data.RestoreCollection,
+	_ int,
 	_ control.Options,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
-	map[string]map[string]struct{},
+	prefixmatcher.StringSetReader,
 	error,
 ) {
 	return gc.Collections, gc.Exclude, gc.Err

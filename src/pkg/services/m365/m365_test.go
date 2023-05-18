@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
@@ -46,6 +47,31 @@ func (suite *M365IntegrationSuite) TestUsers() {
 			assert.NotEmpty(t, u.ID)
 			assert.NotEmpty(t, u.PrincipalName)
 			assert.NotEmpty(t, u.Name)
+			assert.NotEmpty(t, u.Info)
+		})
+	}
+}
+
+func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(suite.T())
+	)
+
+	users, err := m365.UsersCompatNoInfo(ctx, acct)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, users)
+
+	for _, u := range users {
+		suite.Run("user_"+u.ID, func() {
+			t := suite.T()
+
+			assert.NotEmpty(t, u.ID)
+			assert.NotEmpty(t, u.PrincipalName)
+			assert.NotEmpty(t, u.Name)
 		})
 	}
 }
@@ -65,13 +91,15 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 	require.NotNil(t, info)
 	require.NotEmpty(t, info)
 
-	expect := &m365.UserInfo{
-		ServicesEnabled: m365.ServiceAccess{
-			Exchange: true,
-		},
+	expectEnabled := map[path.ServiceType]struct{}{
+		path.ExchangeService: {},
+		path.OneDriveService: {},
 	}
 
-	assert.Equal(t, expect, info)
+	assert.NotEmpty(t, info.ServicesEnabled)
+	assert.NotEmpty(t, info.Mailbox)
+	assert.Equal(t, expectEnabled, info.ServicesEnabled)
+	assert.Equal(t, "user", info.Mailbox.Purpose)
 }
 
 func (suite *M365IntegrationSuite) TestSites() {

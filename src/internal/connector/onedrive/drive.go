@@ -6,19 +6,19 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
-
-var errFolderNotFound = clues.New("folder not found")
 
 const (
 	maxDrivesRetries = 3
@@ -27,7 +27,6 @@ const (
 	// graph response
 	nextLinkKey           = "@odata.nextLink"
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode = "itemNotFound"
 )
 
@@ -55,6 +54,25 @@ func PagerForSource(
 		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
 		return nil, clues.New("unrecognized drive data source")
+	}
+}
+
+type pathPrefixerFunc func(driveID string) (path.Path, error)
+
+func pathPrefixerForSource(
+	tenantID, resourceOwner string,
+	source driveSource,
+) pathPrefixerFunc {
+	cat := path.FilesCategory
+	serv := path.OneDriveService
+
+	if source == SharePointSource {
+		cat = path.LibrariesCategory
+		serv = path.SharePointService
+	}
+
+	return func(driveID string) (path.Path, error) {
+		return path.Build(tenantID, resourceOwner, serv, cat, false, odConsts.DrivesPathDir, driveID, odConsts.RootPathDir)
 	}
 }
 
@@ -140,7 +158,8 @@ func collectItems(
 	}
 
 	for {
-		page, err := pager.GetPage(ctx)
+		// assume delta urls here, which allows single-token consumption
+		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
 
 		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
@@ -195,42 +214,6 @@ func collectItems(
 	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil
 }
 
-// getFolder will lookup the specified folder name under `parentFolderID`
-func getFolder(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, parentFolderID, folderName string,
-) (models.DriveItemable, error) {
-	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
-	// will be sub-optimal.
-	// Instead, we leverage OneDrive path-based addressing -
-	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
-	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
-	builder := drive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
-
-	var (
-		foundItem models.DriveItemable
-		err       error
-	)
-
-	foundItem, err = builder.Get(ctx, nil)
-	if err != nil {
-		if graph.IsErrDeletedInFlight(err) {
-			return nil, graph.Stack(ctx, clues.Stack(errFolderNotFound, err))
-		}
-
-		return nil, graph.Wrap(ctx, err, "getting folder")
-	}
-
-	// Check if the item found is a folder, fail the call if not
-	if foundItem.GetFolder() == nil {
-		return nil, graph.Stack(ctx, errFolderNotFound)
-	}
-
-	return foundItem, nil
-}
-
 // Create a new item in the specified folder
 func CreateItem(
 	ctx context.Context,
@@ -241,7 +224,7 @@ func CreateItem(
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-	builder := drive.NewItemsRequestBuilder(rawURL, service.Adapter())
+	builder := drives.NewItemItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -283,7 +266,7 @@ func GetAllFolders(
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drvs, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
@@ -293,7 +276,7 @@ func GetAllFolders(
 		el      = errs.Local()
 	)
 
-	for _, d := range drives {
+	for _, d := range drvs {
 		if el.Failure() != nil {
 			break
 		}
@@ -375,7 +358,12 @@ func DeleteItem(
 	driveID string,
 	itemID string,
 ) error {
-	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
+	err := gs.Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
+		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
 	}

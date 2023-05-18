@@ -25,10 +25,10 @@ func TestGraphErrorsUnitSuite(t *testing.T) {
 }
 
 func odErr(code string) *odataerrors.ODataError {
-	odErr := &odataerrors.ODataError{}
-	merr := odataerrors.MainError{}
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(&merr)
+	odErr.SetError(merr)
 
 	return odErr
 }
@@ -90,12 +90,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(errCodeItemNotFound),
+			err:    odErr(string(itemNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync-not-found oDataErr",
-			err:    odErr(errCodeSyncFolderNotFound),
+			err:    odErr(string(syncFolderNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -134,12 +134,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		},
 		{
 			name:   "resync-required oDataErr",
-			err:    odErr(errCodeResyncRequired),
+			err:    odErr(string(resyncRequired)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync state invalid oDataErr",
-			err:    odErr(errCodeSyncStateInvalid),
+			err:    odErr(string(syncStateInvalid)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
@@ -157,6 +157,45 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrInvalidDelta(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrQuotaExceeded() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "as",
+			err:    ErrInvalidDelta,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "quota-exceeded oDataErr",
+			err:    odErr("ErrorQuotaExceeded"),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrQuotaExceeded(test.err))
 		})
 	}
 }
@@ -184,7 +223,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		},
 		{
 			name:   "request resource not found oDataErr",
-			err:    odErr(errCodeRequestResourceNotFound),
+			err:    odErr(string(requestResourceNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -261,38 +300,87 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 
 func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 	var (
-		i       = models.DriveItem{}
-		cb      = models.User{}
-		cbID    = "created-by"
-		lm      = models.User{}
-		lmID    = "last-mod-by"
-		ref     = models.ItemReference{}
-		refCID  = "container-id"
-		refCN   = "container-name"
-		mal     = models.Malware{}
-		malDesc = "malware-description"
+		i        = models.NewDriveItem()
+		cb       = models.NewUser()
+		cbID     = "created-by"
+		lm       = models.NewUser()
+		lmID     = "last-mod-by"
+		ref      = models.NewItemReference()
+		refCID   = "container-id"
+		refCN    = "container-name"
+		refCP    = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
+		refCPexp = "/Folder/container-name"
+		mal      = models.NewMalware()
+		malDesc  = "malware-description"
 	)
 
 	cb.SetId(&cbID)
-	i.SetCreatedByUser(&cb)
+	i.SetCreatedByUser(cb)
 
 	lm.SetId(&lmID)
-	i.SetLastModifiedByUser(&lm)
+	i.SetLastModifiedByUser(lm)
 
 	ref.SetId(&refCID)
 	ref.SetName(&refCN)
-	i.SetParentReference(&ref)
+	ref.SetPath(&refCP)
+	i.SetParentReference(ref)
 
 	mal.SetDescription(&malDesc)
-	i.SetMalware(&mal)
+	i.SetMalware(mal)
 
 	expect := map[string]any{
 		fault.AddtlCreatedBy:     cbID,
 		fault.AddtlLastModBy:     lmID,
 		fault.AddtlContainerID:   refCID,
 		fault.AddtlContainerName: refCN,
+		fault.AddtlContainerPath: refCPexp,
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
-	assert.Equal(suite.T(), expect, ItemInfo(&i))
+	assert.Equal(suite.T(), expect, ItemInfo(i))
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("folder doesn't exist"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr",
+			err:    odErr(string(folderExists)),
+			expect: assert.True,
+		},
+		// next two tests are to make sure the checks are case insensitive
+		{
+			name:   "oDataErr camelcase",
+			err:    odErr("ErrorFolderExists"),
+			expect: assert.True,
+		},
+		{
+			name:   "oDataErr lowercase",
+			err:    odErr("errorfolderexists"),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrFolderExists(test.err))
+		})
+	}
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -54,7 +54,6 @@ func TestNoBackupExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCITests,
 	)})
 }
 
@@ -120,7 +119,6 @@ func TestBackupExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCITests,
 	)})
 }
 
@@ -235,7 +233,6 @@ func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &PreparedBackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCITests,
 	)})
 }
 
@@ -256,13 +253,8 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
-		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
-		ins      = common.IDsNames{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		users = []string{suite.m365UserID}
+		ins   = idname.NewCache(map[string]string{suite.m365UserID: suite.m365UserID})
 	)
 
 	for _, set := range []path.CategoryType{email, contacts, events} {
@@ -495,7 +487,6 @@ func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
 		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
 		),
 	})
 }

@@ -1,14 +1,16 @@
 package backup_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -50,7 +52,7 @@ func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 		},
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
-			CompletedAt: t,
+			CompletedAt: t.Add(1 * time.Minute),
 		},
 		SkippedCounts: stats.SkippedCounts{
 			TotalSkippedItems: 1,
@@ -63,21 +65,26 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 	var (
 		t        = suite.T()
 		now      = time.Now()
+		later    = now.Add(1 * time.Minute)
 		b        = stubBackup(now, "id", "name")
 		expectHs = []string{
-			"Started At",
 			"ID",
+			"Started At",
+			"Duration",
 			"Status",
 			"Resource Owner",
 		}
-		nowFmt   = common.FormatTabularDisplayTime(now)
+		nowFmt   = dttm.FormatToTabularDisplay(now)
 		expectVs = []string{
-			nowFmt,
 			"id",
+			nowFmt,
+			"1m0s",
 			"status (2 errors, 1 skipped: 1 malware)",
 			"test",
 		}
 	)
+
+	b.StartAndEndTime.CompletedAt = later
 
 	// single skipped malware
 	hs := b.Headers()
@@ -182,7 +189,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			result := test.bup.Values()
-			assert.Equal(suite.T(), test.expect, result[2], "status value")
+			assert.Equal(suite.T(), test.expect, result[3], "status value")
 		})
 	}
 }
@@ -197,10 +204,57 @@ func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	require.True(t, ok)
 
 	assert.Equal(t, b.ID, result.ID, "id")
-	assert.Equal(t, 2, result.ErrorCount, "error count")
-	assert.Equal(t, now, result.StartedAt, "started at")
+	assert.Equal(t, 2, result.Stats.ErrorCount, "error count")
+	assert.Equal(t, now, result.Stats.StartedAt, "started at")
 	assert.Equal(t, b.Status, result.Status, "status")
-	assert.Equal(t, b.BytesRead, result.BytesRead, "size")
-	assert.Equal(t, b.BytesUploaded, result.BytesUploaded, "stored size")
+	assert.Equal(t, b.BytesRead, result.Stats.BytesRead, "size")
+	assert.Equal(t, b.BytesUploaded, result.Stats.BytesUploaded, "stored size")
 	assert.Equal(t, b.Selector.DiscreteOwner, result.Owner, "owner")
+}
+
+func (suite *BackupUnitSuite) TestStats() {
+	var (
+		t     = suite.T()
+		start = time.Now()
+		b     = stubBackup(start, "owner", "ownername")
+		s     = b.ToPrintable().Stats
+	)
+
+	assert.Equal(t, b.BytesRead, s.BytesRead, "bytes read")
+	assert.Equal(t, b.BytesUploaded, s.BytesUploaded, "bytes uploaded")
+	assert.Equal(t, b.CompletedAt, s.EndedAt, "completion time")
+	assert.Equal(t, b.ErrorCount, s.ErrorCount, "error count")
+	assert.Equal(t, b.ItemsRead, s.ItemsRead, "items read")
+	assert.Equal(t, b.TotalSkippedItems, s.ItemsSkipped, "items skipped")
+	assert.Equal(t, b.ItemsWritten, s.ItemsWritten, "items written")
+	assert.Equal(t, b.StartedAt, s.StartedAt, "started at")
+}
+
+func (suite *BackupUnitSuite) TestStats_headersValues() {
+	var (
+		t     = suite.T()
+		start = time.Now()
+		b     = stubBackup(start, "owner", "ownername")
+		s     = b.ToPrintable().Stats
+	)
+
+	expectHeaders := []string{
+		"ID",
+		"Bytes Uploaded",
+		"Items Uploaded",
+		"Items Skipped",
+		"Errors",
+	}
+
+	assert.Equal(t, expectHeaders, s.Headers())
+
+	expectValues := []string{
+		"id",
+		humanize.Bytes(uint64(b.BytesUploaded)),
+		strconv.Itoa(b.ItemsWritten),
+		strconv.Itoa(b.TotalSkippedItems),
+		strconv.Itoa(b.ErrorCount),
+	}
+
+	assert.Equal(t, expectValues, s.Values())
 }

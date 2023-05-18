@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"reflect"
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -24,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // RestoreExchangeObject directs restore pipeline towards restore function
@@ -74,7 +73,13 @@ func RestoreExchangeContact(
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
-	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
+	response, err := service.Client().
+		Users().
+		ByUserId(user).
+		ContactFolders().
+		ByContactFolderId(destination).
+		Contacts().
+		Post(ctx, contact, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "uploading Contact")
 	}
@@ -122,7 +127,13 @@ func RestoreExchangeEvent(
 		transformedEvent.SetAttachments([]models.Attachmentable{})
 	}
 
-	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
+	response, err := service.Client().
+		Users().
+		ByUserId(user).
+		Calendars().
+		ByCalendarId(destination).
+		Events().
+		Post(ctx, transformedEvent, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "uploading event")
 	}
@@ -194,7 +205,7 @@ func RestoreMailMessage(
 
 	if clone.GetSentDateTime() != nil {
 		sv2 := models.NewSingleValueLegacyExtendedProperty()
-		sendPropertyValue := common.FormatLegacyTime(ptr.Val(clone.GetSentDateTime()))
+		sendPropertyValue := dttm.FormatToLegacy(ptr.Val(clone.GetSentDateTime()))
 		sendPropertyTag := MailSendDateTimeOverrideProperty
 		sv2.SetId(&sendPropertyTag)
 		sv2.SetValue(&sendPropertyValue)
@@ -204,7 +215,7 @@ func RestoreMailMessage(
 
 	if clone.GetReceivedDateTime() != nil {
 		sv3 := models.NewSingleValueLegacyExtendedProperty()
-		recvPropertyValue := common.FormatLegacyTime(ptr.Val(clone.GetReceivedDateTime()))
+		recvPropertyValue := dttm.FormatToLegacy(ptr.Val(clone.GetReceivedDateTime()))
 		recvPropertyTag := MailReceiveDateTimeOverriveProperty
 		sv3.SetId(&recvPropertyTag)
 		sv3.SetValue(&recvPropertyValue)
@@ -218,16 +229,24 @@ func RestoreMailMessage(
 		return nil, err
 	}
 
-	info := api.MailInfo(clone)
-	info.Size = int64(len(bits))
+	info := api.MailInfo(clone, int64(len(bits)))
 
 	return info, nil
 }
 
-// attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
-// TODO: Revisit how we retrieve/persist attachment content during backup so this is not needed
-func attachmentBytes(attachment models.Attachmentable) []byte {
-	return reflect.Indirect(reflect.ValueOf(attachment)).FieldByName("contentBytes").Bytes()
+// GetAttachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
+func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
+	bi, err := attachment.GetBackingStore().Get("contentBytes")
+	if err != nil {
+		return nil, err
+	}
+
+	bts, ok := bi.([]byte)
+	if !ok {
+		return nil, clues.New(fmt.Sprintf("unexpected type for attachment content: %T", bi))
+	}
+
+	return bts, nil
 }
 
 // SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
@@ -246,7 +265,13 @@ func SendMailToBackStore(
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	message.SetAttachments([]models.Attachmentable{})
 
-	response, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
+	response, err := service.Client().
+		Users().
+		ByUserId(user).
+		MailFolders().
+		ByMailFolderId(destination).
+		Messages().
+		Post(ctx, message, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "restoring mail")
 	}
@@ -436,16 +461,13 @@ func restoreCollection(
 			metrics.Bytes += int64(len(byteArray))
 			metrics.Successes++
 
-			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
 				errs.AddRecoverable(clues.Wrap(err, "building full path with item").WithClues(ctx))
 				continue
 			}
 
-			locationRef := &path.Builder{}
-			if category == path.ContactsCategory {
-				locationRef = locationRef.Append(itemPath.Folders()...)
-			}
+			locationRef := path.Builder{}.Append(itemPath.Folders()...)
 
 			err = deets.Add(
 				itemPath,
@@ -689,8 +711,18 @@ func establishEventsRestoreLocation(
 	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
 	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
-	if err != nil {
+	if err != nil && !graph.IsErrFolderExists(err) {
 		return "", err
+	}
+
+	// 409 handling: Fetch folder if it exists and add to cache.
+	// This is rare, but may happen if CreateCalendar() POST fails with 5xx,
+	// potentially leaving dirty state in graph.
+	if graph.IsErrFolderExists(err) {
+		temp, err = ac.Events().GetContainerByName(ctx, user, folders[0])
+		if err != nil {
+			return "", err
+		}
 	}
 
 	folderID := ptr.Val(temp.GetId())

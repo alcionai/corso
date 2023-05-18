@@ -7,8 +7,10 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -18,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -33,11 +36,18 @@ import (
 type BackupOperation struct {
 	operation
 
-	ResourceOwner common.IDNamer
+	ResourceOwner idname.Provider
 
 	Results   BackupResults      `json:"results"`
 	Selectors selectors.Selector `json:"selectors"`
 	Version   string             `json:"version"`
+
+	// backupVersion ONLY controls the value that gets persisted to the
+	// backup model after operation.  It does NOT modify the operation behavior
+	// to match the version.  Its inclusion here is, unfortunately, purely to
+	// facilitate integration testing that requires a certain backup version, and
+	// should be removed when we have a more controlled workaround.
+	backupVersion int
 
 	account account.Account
 	bp      inject.BackupProducer
@@ -62,7 +72,7 @@ func NewBackupOperation(
 	bp inject.BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
-	owner common.IDNamer,
+	owner idname.Provider,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
@@ -70,6 +80,7 @@ func NewBackupOperation(
 		ResourceOwner: owner,
 		Selectors:     selector,
 		Version:       "v0",
+		backupVersion: version.Backup,
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
 		bp:            bp,
@@ -115,7 +126,7 @@ type backupStats struct {
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "backup"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -159,6 +170,22 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			events.BackupID:  op.Results.BackupID,
 		})
 
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.BackupEnd,
+			map[string]any{
+				events.BackupID:   op.Results.BackupID,
+				events.DataStored: op.Results.BytesUploaded,
+				events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:    dttm.Format(op.Results.CompletedAt),
+				events.Resources:  op.Results.ResourceOwners,
+				events.Service:    op.Selectors.PathService().String(),
+				events.StartTime:  dttm.Format(op.Results.StartedAt),
+				events.Status:     op.Status.String(),
+			})
+	}()
+
 	// -----
 	// Execution
 	// -----
@@ -172,9 +199,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Results.BackupID)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running backup", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running backup")
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
@@ -210,6 +235,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
+		op.backupVersion,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
@@ -230,11 +256,15 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	var (
-		reasons         = selectorToReasons(op.Selectors, false)
-		fallbackReasons = makeFallbackReasons(op.Selectors)
+		reasons           = selectorToReasons(op.Selectors, false)
+		fallbackReasons   = makeFallbackReasons(op.Selectors)
+		lastBackupVersion = version.NoBackup
 	)
 
-	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
+	logger.Ctx(ctx).With(
+		"control_options", op.Options,
+		"selectors", op.Selectors).
+		Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
@@ -250,12 +280,20 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	cs, excludes, err := produceBackupDataCollections(
+	if canUseMetaData {
+		_, lastBackupVersion, err = lastCompleteBackups(ctx, op.store, mans)
+		if err != nil {
+			return nil, clues.Wrap(err, "retrieving prior backups")
+		}
+	}
+
+	cs, ssmb, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
 		op.Selectors,
 		mdColls,
+		lastBackupVersion,
 		op.Options,
 		op.Errors)
 	if err != nil {
@@ -271,7 +309,7 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
-		excludes,
+		ssmb,
 		backupID,
 		op.incremental && canUseMetaData,
 		op.Errors)
@@ -312,14 +350,7 @@ func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
-	enabled := !opts.ToggleFeatures.DisableIncrementals
-
-	if sel.Service == selectors.ServiceExchange ||
-		sel.Service == selectors.ServiceOneDrive {
-		return enabled
-	}
-
-	return false
+	return !opts.ToggleFeatures.DisableIncrementals
 }
 
 // ---------------------------------------------------------------------------
@@ -330,12 +361,13 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp inject.BackupProducer,
-	resourceOwner common.IDNamer,
+	resourceOwner idname.Provider,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
+	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
@@ -343,7 +375,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, lastBackupVersion, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +439,7 @@ func consumeBackupCollections(
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.BackupCollection,
-	excludes map[string]map[string]struct{},
+	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
@@ -480,7 +512,7 @@ func consumeBackupCollections(
 		ctx,
 		bases,
 		cs,
-		excludes,
+		pmr,
 		tags,
 		isIncremental,
 		errs)
@@ -494,11 +526,16 @@ func consumeBackupCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	if kopiaStats.ErrorCount > 0 ||
-		(kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount) {
-		err = clues.New("building kopia snapshot").With(
-			"kopia_errors", kopiaStats.ErrorCount,
-			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
+	ctx = clues.Add(
+		ctx,
+		"kopia_errors", kopiaStats.ErrorCount,
+		"kopia_ignored_errors", kopiaStats.IgnoredErrorCount,
+		"kopia_expected_ignored_errors", kopiaStats.ExpectedIgnoredErrorCount)
+
+	if kopiaStats.ErrorCount > 0 {
+		err = clues.New("building kopia snapshot").WithClues(ctx)
+	} else if kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount {
+		err = clues.New("downloading items for persistence").WithClues(ctx)
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
@@ -523,7 +560,7 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 //  4. any errors encountered
 func getNewPathRefs(
 	dataFromBackup kopia.DetailsMergeInfoer,
-	entry *details.DetailsEntry,
+	entry *details.Entry,
 	repoRef path.Path,
 	backupVersion int,
 ) (path.Path, *path.Builder, bool, error) {
@@ -582,6 +619,56 @@ func getNewPathRefs(
 	return newPath, newLoc, updated, nil
 }
 
+func lastCompleteBackups(
+	ctx context.Context,
+	ms *store.Wrapper,
+	mans []*kopia.ManifestEntry,
+) (map[string]*backup.Backup, int, error) {
+	var (
+		oldestVersion = version.NoBackup
+		result        = map[string]*backup.Backup{}
+	)
+
+	if len(mans) == 0 {
+		return result, -1, nil
+	}
+
+	for _, man := range mans {
+		// For now skip snapshots that aren't complete. We will need to revisit this
+		// when we tackle restartability.
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		var (
+			mctx    = clues.Add(ctx, "base_manifest_id", man.ID)
+			reasons = man.Reasons
+		)
+
+		bID, ok := man.GetTag(kopia.TagBackupID)
+		if !ok {
+			return result, oldestVersion, clues.New("no backup ID in snapshot manifest").WithClues(mctx)
+		}
+
+		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
+
+		bup, err := getBackupFromID(mctx, model.StableID(bID), ms)
+		if err != nil {
+			return result, oldestVersion, err
+		}
+
+		for _, r := range reasons {
+			result[r.Key()] = bup
+		}
+
+		if oldestVersion == -1 || bup.Version < oldestVersion {
+			oldestVersion = bup.Version
+		}
+	}
+
+	return result, oldestVersion, nil
+}
+
 func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
@@ -624,7 +711,7 @@ func mergeDetails(
 			detailsStore,
 			errs)
 		if err != nil {
-			return clues.New("fetching base details for backup").WithClues(mctx)
+			return clues.New("fetching base details for backup")
 		}
 
 		for _, entry := range baseDeets.Items() {
@@ -690,12 +777,14 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	if addedEntries != dataFromBackup.ItemsToMerge() {
+	checkCount := dataFromBackup.ItemsToMerge()
+
+	if addedEntries != checkCount {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
 			With(
 				"item_count", addedEntries,
-				"expected_item_count", dataFromBackup.ItemsToMerge())
+				"expected_item_count", checkCount)
 	}
 
 	return nil
@@ -746,6 +835,7 @@ func (op *BackupOperation) createBackupModels(
 	sscw streamstore.CollectorWriter,
 	snapID string,
 	backupID model.StableID,
+	backupVersion int,
 	deets *details.Details,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
@@ -780,6 +870,7 @@ func (op *BackupOperation) createBackupModels(
 	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
+		backupVersion,
 		backupID,
 		op.Selectors,
 		op.ResourceOwner.ID(),
@@ -793,20 +884,6 @@ func (op *BackupOperation) createBackupModels(
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
-
-	op.bus.Event(
-		ctx,
-		events.BackupEnd,
-		map[string]any{
-			events.BackupID:   b.ID,
-			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
-			events.Resources:  op.Results.ResourceOwners,
-			events.Service:    op.Selectors.PathService().String(),
-			events.StartTime:  common.FormatTime(op.Results.StartedAt),
-			events.Status:     op.Status.String(),
-		})
 
 	return nil
 }

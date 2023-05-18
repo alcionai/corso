@@ -1,12 +1,21 @@
 package repo
 
 import (
+	"strings"
+
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
+
+	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
 const (
-	initCommand    = "init"
-	connectCommand = "connect"
+	initCommand        = "init"
+	connectCommand     = "connect"
+	maintenanceCommand = "maintenance"
 )
 
 var repoCommands = []func(cmd *cobra.Command) *cobra.Command{
@@ -18,14 +27,23 @@ func AddCommands(cmd *cobra.Command) {
 	var (
 		// Get new instances so that setting the context during tests works
 		// properly.
-		repoCmd    = repoCmd()
-		initCmd    = initCmd()
-		connectCmd = connectCmd()
+		repoCmd        = repoCmd()
+		initCmd        = initCmd()
+		connectCmd     = connectCmd()
+		maintenanceCmd = maintenanceCmd()
 	)
 
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
+
+	utils.AddCommand(
+		repoCmd,
+		maintenanceCmd,
+		utils.HideCommand(),
+		utils.MarkPreReleaseCommand())
+	utils.AddMaintenanceModeFlag(maintenanceCmd)
+	utils.AddForceMaintenanceFlag(maintenanceCmd)
 
 	for _, addRepoTo := range repoCommands {
 		addRepoTo(initCmd)
@@ -83,4 +101,66 @@ func connectCmd() *cobra.Command {
 // Handler for calls to `corso repo connect`.
 func handleConnectCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
+}
+
+func maintenanceCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   maintenanceCommand,
+		Short: "Run maintenance on an existing repository",
+		Long:  `Run maintenance on an existing repository to optimize performance and storage use`,
+		RunE:  handleMaintenanceCmd,
+		Args:  cobra.NoArgs,
+	}
+}
+
+func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	t, err := getMaintenanceType(utils.MaintenanceModeFV)
+	if err != nil {
+		return err
+	}
+
+	r, _, err := utils.GetAccountAndConnect(ctx)
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	m, err := r.NewMaintenance(
+		ctx,
+		repository.Maintenance{
+			Type:   t,
+			Safety: repository.FullMaintenanceSafety,
+			Force:  utils.ForceMaintenanceFV,
+		})
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	err = m.Run(ctx)
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	return nil
+}
+
+func getMaintenanceType(t string) (repository.MaintenanceType, error) {
+	res, ok := repository.StringToMaintenanceType[t]
+	if !ok {
+		modes := maps.Keys(repository.StringToMaintenanceType)
+		allButLast := []string{}
+
+		for i := 0; i < len(modes)-1; i++ {
+			allButLast = append(allButLast, string(modes[i]))
+		}
+
+		valuesStr := strings.Join(allButLast, ", ") + " or " + string(modes[len(modes)-1])
+
+		return res, clues.New(t + " is an unrecognized maintenance mode; must be one of " + valuesStr)
+	}
+
+	return res, nil
 }

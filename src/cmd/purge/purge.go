@@ -12,6 +12,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -48,7 +49,11 @@ var ErrPurging = clues.New("not all items were successfully purged")
 // ------------------------------------------------------------------------------------------
 
 func main() {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
+	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
 	ctx = SetRootCmd(ctx, purgeCmd)
 
 	defer logger.Flush(ctx)
@@ -226,8 +231,8 @@ func purgeFolders(
 		// compare the folder time to the deletion boundary time first
 		displayName := *fld.GetDisplayName()
 
-		dnTime, err := common.ExtractTime(displayName)
-		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+		dnTime, err := dttm.ExtractTime(displayName)
+		if err != nil && !errors.Is(err, dttm.ErrNoTimeString) {
 			err = clues.Wrap(err, "!! Error: parsing container: "+displayName)
 			Info(ctx, err)
 
@@ -266,11 +271,7 @@ func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, err
 		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "finding m365 account details"))
 	}
 
-	// build a graph connector
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
 		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "connecting to graph api"))
 	}
@@ -286,7 +287,7 @@ func getBoundaryTime(ctx context.Context) (time.Time, error) {
 	)
 
 	if len(before) > 0 {
-		boundaryTime, err = common.ParseTime(before)
+		boundaryTime, err = dttm.ParseTime(before)
 		if err != nil {
 			return time.Time{}, Only(ctx, clues.Wrap(err, "parsing before flag to time"))
 		}

@@ -16,12 +16,13 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -44,9 +45,7 @@ func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -148,9 +147,7 @@ func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -171,17 +168,12 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	var (
 		m365UserID = tester.M365UserID(t)
 		users      = []string{m365UserID}
-		idToName   = map[string]string{m365UserID: m365UserID}
-		nameToID   = map[string]string{m365UserID: m365UserID}
-		ins        = common.IDsNames{
-			IDToName: idToName,
-			NameToID: nameToID,
-		}
+		ins        = idname.NewCache(map[string]string{m365UserID: m365UserID})
 	)
 
 	// some tests require an existing backup
 	sel := selectors.NewOneDriveBackup(users)
-	sel.Include(sel.Folders(selectors.Any()))
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
 	backupOp, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))

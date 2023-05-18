@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -50,20 +49,20 @@ corso backup create exchange --mailbox '*'`
 	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	exchangeServiceCommandDetailsExamples = `# Explore Alice's items in backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --mailbox alice@example.com
+	exchangeServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Explore Alice's emails with subject containing "Hello world" in folder "Inbox" from a specific backup 
+# Explore emails in the folder "Inbox" with subject containing "Hello world"
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --mailbox alice@example.com --email-subject "Hello world" --email-folder Inbox
+    --email-subject "Hello world" --email-folder Inbox
 
-# Explore Bobs's events occurring after start of 2022 from a specific backup
+# Explore calendar events occurring after start of 2022
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --mailbox bob@example.com --event-starts-after 2022-01-01T00:00:00
+    --event-starts-after 2022-01-01T00:00:00
 
-# Explore Alice's contacts with name containing Andy from a specific backup
+# Explore contacts named Andy
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --mailbox alice@example.com --contact-name Andy`
+    --contact-name Andy`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -88,7 +87,9 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		options.AddFetchParallelismFlag(c)
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
+		options.AddDisableDeltaFlag(c)
 		options.AddEnableImmutableIDFlag(c)
+		options.AddDisableConcurrencyLimiterFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
@@ -152,7 +153,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := getAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -161,10 +162,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(utils.UserFV, utils.CategoryDataFV)
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	ins, err := m365.UsersMap(ctx, *acct, errs)
+	ins, err := utils.UsersMap(ctx, *acct, fault.New(true))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -264,7 +262,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}

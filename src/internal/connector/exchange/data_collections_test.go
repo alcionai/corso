@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -67,7 +68,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			data: []fileValues{
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect: map[string]DeltaPath{
+				"key": {
+					Delta: "delta-link",
+					Path:  "prev-path",
+				},
+			},
 			expectError: assert.NoError,
 		},
 		{
@@ -86,8 +92,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "delta-link",
-					path:  "prev-path",
+					Delta: "delta-link",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -107,7 +113,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, ""},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect: map[string]DeltaPath{
+				"key": {
+					Delta: "delta-link",
+					Path:  "prev-path",
+				},
+			},
 			expectError: assert.NoError,
 		},
 		{
@@ -118,8 +129,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "`!@#$%^&*()_[]{}/\"\\",
-					path:  "prev-path",
+					Delta: "`!@#$%^&*()_[]{}/\"\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -132,8 +143,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
-					path:  "prev-path",
+					Delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -149,8 +160,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			},
 			expect: map[string]DeltaPath{
 				"key": {
-					delta: "\\n",
-					path:  "prev-path",
+					Delta: "\\n",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -190,8 +201,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			assert.Len(t, emails, len(test.expect))
 
 			for k, v := range emails {
-				assert.Equal(t, v.delta, emails[k].delta, "delta")
-				assert.Equal(t, v.path, emails[k].path, "path")
+				assert.Equal(t, v.Delta, emails[k].Delta, "delta")
+				assert.Equal(t, v.Path, emails[k].Path, "path")
 			}
 		})
 	}
@@ -239,15 +250,15 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
-		ss        = selectors.Selector{}.SetDiscreteOwnerIDName(userID, userID)
 	)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
-		name        string
-		scope       selectors.ExchangeScope
-		folderNames map[string]struct{}
+		name                string
+		scope               selectors.ExchangeScope
+		folderNames         map[string]struct{}
+		canMakeDeltaQueries bool
 	}{
 		{
 			name: "Folder Iterative Check Mail",
@@ -258,6 +269,18 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 			folderNames: map[string]struct{}{
 				DefaultMailFolder: {},
 			},
+			canMakeDeltaQueries: true,
+		},
+		{
+			name: "Folder Iterative Check Mail Non-Delta",
+			scope: selectors.NewExchangeBackup(users).MailFolders(
+				[]string{DefaultMailFolder},
+				selectors.PrefixMatch(),
+			)[0],
+			folderNames: map[string]struct{}{
+				DefaultMailFolder: {},
+			},
+			canMakeDeltaQueries: false,
 		},
 	}
 
@@ -265,13 +288,16 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctrlOpts := control.Defaults()
+			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
+
 			collections, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				ctrlOpts,
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -282,9 +308,18 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				}
 
 				require.NotEmpty(t, c.FullPath().Folder(false))
-				folder := c.FullPath().Folder(false)
 
-				delete(test.folderNames, folder)
+				// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
+				// interface.
+				if !assert.Implements(t, (*data.LocationPather)(nil), c) {
+					continue
+				}
+
+				loc := c.(data.LocationPather).LocationPath().String()
+
+				require.NotEmpty(t, loc)
+
+				delete(test.folderNames, loc)
 			}
 
 			assert.Empty(t, test.folderNames)
@@ -300,7 +335,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
-		ss        = selectors.Selector{}.SetDiscreteOwnerIDName(userID, userID)
 	)
 
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -339,10 +373,10 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -370,10 +404,10 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err = createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(userID, userID),
 				test.scope,
 				dps,
-				control.Options{},
+				control.Defaults(),
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -405,7 +439,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		t     = suite.T()
 		wg    sync.WaitGroup
 		users = []string{suite.user}
-		ss    = selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 	)
 
 	acct, err := tester.NewM365Account(t).M365Config()
@@ -417,10 +450,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	collections, err := createCollections(
 		ctx,
 		acct,
-		ss,
+		inMock.NewProvider(suite.user, suite.user),
 		sel.Scopes()[0],
 		DeltaPaths{},
-		control.Options{},
+		control.Defaults(),
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -467,7 +500,6 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	users := []string{suite.user}
-	ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 	tests := []struct {
 		name  string
@@ -491,10 +523,10 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 			edcs, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -528,7 +560,16 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 					continue
 				}
 
-				assert.Equal(t, edc.FullPath().Folder(false), DefaultContactFolder)
+				// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
+				// interface.
+				if !assert.Implements(t, (*data.LocationPather)(nil), edc) {
+					continue
+				}
+
+				assert.Equal(
+					t,
+					edc.(data.LocationPather).LocationPath().String(),
+					DefaultContactFolder)
 				assert.NotZero(t, count)
 			}
 
@@ -555,8 +596,6 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		calID  string
 		bdayID string
 	)
-
-	ss := selectors.Selector{}.SetDiscreteOwnerIDName(suite.user, suite.user)
 
 	fn := func(gcf graph.CacheFolder) error {
 		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
@@ -605,10 +644,10 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			collections, err := createCollections(
 				ctx,
 				acct,
-				ss,
+				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.Options{},
+				control.Defaults(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))

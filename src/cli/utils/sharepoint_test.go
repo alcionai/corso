@@ -7,8 +7,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -30,6 +31,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{string(path.PathSeparator)}
 	)
 
 	table := []struct {
@@ -182,6 +184,13 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			},
 			expectIncludeLen: 2,
 		},
+		{
+			name: "folder with just /",
+			opts: utils.SharePointOpts{
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -280,10 +289,10 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				WebURL:             []string{"www.corsobackup.io/sites/foo"},
-				FileCreatedAfter:   common.Now(),
-				FileCreatedBefore:  common.Now(),
-				FileModifiedAfter:  common.Now(),
-				FileModifiedBefore: common.Now(),
+				FileCreatedAfter:   dttm.Now(),
+				FileCreatedBefore:  dttm.Now(),
+				FileModifiedAfter:  dttm.Now(),
+				FileModifiedBefore: dttm.Now(),
 				Populated: utils.PopulatedFlags{
 					utils.SiteFN:               {},
 					utils.FileCreatedAfterFN:   {},

@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -44,16 +43,16 @@ corso backup create onedrive --user '*'`
 	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	oneDriveServiceCommandDetailsExamples = `# Explore Alice's files from backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+	oneDriveServiceCommandDetailsExamples = `# Explore items in Bob's latest backup (1234abcd...)
+corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Explore Alice or Bob's files with name containing "Fiscal 22" in folder "Reports"
+# Explore files in the folder "Reports" named "Fiscal 22"
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
+    --file-name "Fiscal 22" --folder "Reports"
 
-# Explore Alice's files created before end of 2015 from a specific backup
+# Explore files created before the end of 2015
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --file-created-before 2015-01-01T00:00:00`
+    --file-created-before 2015-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -135,7 +134,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := getAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -144,10 +143,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	sel := oneDriveBackupCreateSelectors(utils.UserFV)
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	ins, err := m365.UsersMap(ctx, *acct, errs)
+	ins, err := utils.UsersMap(ctx, *acct, fault.New(true))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -224,7 +220,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, err := getAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}

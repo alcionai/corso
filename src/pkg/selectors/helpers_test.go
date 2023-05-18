@@ -59,7 +59,7 @@ func (mc mockCategorizer) isLeaf() bool {
 
 func (mc mockCategorizer) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	return map[categorizer][]string{
@@ -144,6 +144,14 @@ func stubInfoScope(match string) mockScope {
 	sc[scopeKeyInfoCategory] = filters.Identity("true")
 
 	return sc
+}
+
+func makeStubScope(cfg Config, match []string) mockScope {
+	return makeScope[mockScope](leafCatStub, match, defaultItemOptions(cfg)...)
+}
+
+func (s mockScope) Matches(cat mockCategorizer, target string) bool {
+	return matches(s, cat, target)
 }
 
 // ---------------------------------------------------------------------------

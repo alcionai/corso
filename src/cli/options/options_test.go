@@ -28,10 +28,12 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		Run: func(cmd *cobra.Command, args []string) {
 			assert.True(t, failFastFV, FailFastFN)
 			assert.True(t, disableIncrementalsFV, DisableIncrementalsFN)
+			assert.True(t, disableDeltaFV, DisableDeltaFN)
 			assert.True(t, noStatsFV, NoStatsFN)
 			assert.True(t, restorePermissionsFV, RestorePermissionsFN)
 			assert.True(t, skipReduceFV, SkipReduceFN)
 			assert.Equal(t, 2, fetchParallelismFV, FetchParallelismFN)
+			assert.True(t, disableConcurrencyLimiterFV, DisableConcurrencyLimiterFN)
 		},
 	}
 
@@ -40,21 +42,23 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 
 	AddFailFastFlag(cmd)
 	AddDisableIncrementalsFlag(cmd)
+	AddDisableDeltaFlag(cmd)
 	AddRestorePermissionsFlag(cmd)
 	AddSkipReduceFlag(cmd)
-
 	AddFetchParallelismFlag(cmd)
+	AddDisableConcurrencyLimiterFlag(cmd)
 
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
 		"--" + FailFastFN,
 		"--" + DisableIncrementalsFN,
+		"--" + DisableDeltaFN,
 		"--" + NoStatsFN,
 		"--" + RestorePermissionsFN,
 		"--" + SkipReduceFN,
-
 		"--" + FetchParallelismFN, "2",
+		"--" + DisableConcurrencyLimiterFN,
 	})
 
 	err := cmd.Execute()

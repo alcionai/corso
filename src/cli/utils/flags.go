@@ -8,8 +8,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // common flag vars (eg: FV)
@@ -36,6 +38,9 @@ var (
 
 	// for selection of data by category.  eg: `--data email,contacts`
 	CategoryDataFV []string
+
+	MaintenanceModeFV  string
+	ForceMaintenanceFV bool
 )
 
 // common flag names (eg: FN)
@@ -58,6 +63,10 @@ const (
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
+
+	// Maintenance stuff.
+	MaintenanceModeFN  = "mode"
+	ForceMaintenanceFN = "force"
 )
 
 // well-known flag values
@@ -167,6 +176,30 @@ func AddSiteFlag(cmd *cobra.Command) {
 		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
 }
 
+func AddMaintenanceModeFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(
+		&MaintenanceModeFV,
+		MaintenanceModeFN,
+		repository.CompleteMaintenance.String(),
+		"Type of maintenance operation to run. Pass '"+
+			repository.MetadataMaintenance.String()+"' to run a faster maintenance "+
+			"that does minimal clean-up and optimization. Pass '"+
+			repository.CompleteMaintenance.String()+"' to fully compact existing "+
+			"data and delete unused data.")
+	cobra.CheckErr(fs.MarkHidden(MaintenanceModeFN))
+}
+
+func AddForceMaintenanceFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&ForceMaintenanceFV,
+		ForceMaintenanceFN,
+		false,
+		"Force maintenance. Caution: user must ensure this is not run concurrently on a single repo")
+	cobra.CheckErr(fs.MarkHidden(ForceMaintenanceFN))
+}
+
 type PopulatedFlags map[string]struct{}
 
 func (fs PopulatedFlags) populate(pf *pflag.Flag) {
@@ -198,7 +231,7 @@ func GetPopulatedFlags(cmd *cobra.Command) PopulatedFlags {
 // IsValidTimeFormat returns true if the input is recognized as a
 // supported format by the common time parser.
 func IsValidTimeFormat(in string) bool {
-	_, err := common.ParseTime(in)
+	_, err := dttm.ParseTime(in)
 	return err == nil
 }
 
@@ -215,6 +248,11 @@ func trimFolderSlash(folders []string) []string {
 	res := make([]string, 0, len(folders))
 
 	for _, p := range folders {
+		if p == string(path.PathSeparator) {
+			res = selectors.Any()
+			break
+		}
+
 		// Use path package because it has logic to handle escaping already.
 		res = append(res, path.TrimTrailingSlash(p))
 	}

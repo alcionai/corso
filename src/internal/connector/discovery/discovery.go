@@ -69,6 +69,22 @@ func Users(
 	return users, nil
 }
 
+// UserDetails fetches detailed info like - userPurpose for all users in the tenant.
+func GetUserInfo(
+	ctx context.Context,
+	acct account.Account,
+	userID string,
+	errs *fault.Bus,
+) (*api.UserInfo, error) {
+	client, err := apiClient(ctx, acct)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Users().GetInfo(ctx, userID)
+}
+
+// User fetches a single user's data.
 func User(
 	ctx context.Context,
 	gwi getWithInfoer,
@@ -77,7 +93,7 @@ func User(
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			return nil, nil, clues.Stack(graph.ErrResourceOwnerNotFound).With("user_id", userID)
+			return nil, nil, clues.Stack(graph.ErrResourceOwnerNotFound, err).With("user_id", userID)
 		}
 
 		return nil, nil, clues.Wrap(err, "getting user")

@@ -5,6 +5,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -51,7 +52,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -71,7 +72,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 				subject, body, body,
 				now, now, now, now)
 		},
-		control.Options{},
+		control.Defaults(),
 		errs)
 	if err != nil {
 		return Only(ctx, err)
@@ -98,7 +99,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -117,7 +118,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 				User, subject, body, body,
 				now, now, exchMock.NoRecurrence, exchMock.NoAttendees, false)
 		},
-		control.Options{},
+		control.Defaults(),
 		errs)
 	if err != nil {
 		return Only(ctx, err)
@@ -144,7 +145,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	gc, acct, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -168,7 +169,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 				"123-456-7890",
 			)
 		},
-		control.Options{},
+		control.Defaults(),
 		errs)
 	if err != nil {
 		return Only(ctx, err)

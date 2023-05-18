@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
+	stdpath "path"
 	"strings"
 	"time"
 
@@ -15,12 +15,13 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------
@@ -63,6 +64,7 @@ func main() {
 	var (
 		client           = msgraphsdk.NewGraphServiceClient(adapter)
 		testUser         = tester.GetM365UserID(ctx)
+		testSite         = tester.GetM365SiteID(ctx)
 		testService      = os.Getenv("SANITY_RESTORE_SERVICE")
 		folder           = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
 		startTime, _     = mustGetTimeFromName(ctx, folder)
@@ -83,7 +85,9 @@ func main() {
 	case "exchange":
 		checkEmailRestoration(ctx, client, testUser, folder, dataFolder, baseBackupFolder, startTime)
 	case "onedrive":
-		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
+		checkOneDriveRestoration(ctx, client, testUser, folder, dataFolder, startTime)
+	case "sharepoint":
+		checkSharePointRestoration(ctx, client, testSite, testUser, folder, dataFolder, startTime)
 	default:
 		fatal(ctx, "no service specified", nil)
 	}
@@ -105,7 +109,7 @@ func checkEmailRestoration(
 		restoreFolder    models.MailFolderable
 		itemCount        = make(map[string]int32)
 		restoreItemCount = make(map[string]int32)
-		builder          = client.UsersById(testUser).MailFolders()
+		builder          = client.Users().ByUserId(testUser).MailFolders()
 	)
 
 	for {
@@ -148,8 +152,10 @@ func checkEmailRestoration(
 		"restore_folder_name", folderName)
 
 	childFolder, err := client.
-		UsersById(testUser).
-		MailFoldersById(folderID).
+		Users().
+		ByUserId(testUser).
+		MailFolders().
+		ByMailFolderId(folderID).
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
@@ -209,8 +215,10 @@ func getAllMailSubFolders(
 	ctx = clues.Add(ctx, "parent_folder_id", folderID)
 
 	childFolder, err := client.
-		UsersById(testUser).
-		MailFoldersById(folderID).
+		Users().
+		ByUserId(testUser).
+		MailFolders().
+		ByMailFolderId(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -222,7 +230,7 @@ func getAllMailSubFolders(
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			childFolderCount = ptr.Val(child.GetChildFolderCount())
 			//nolint:forbidigo
-			fullFolderName = path.Join(parentFolder, childDisplayName)
+			fullFolderName = stdpath.Join(parentFolder, childDisplayName)
 		)
 
 		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
@@ -259,8 +267,10 @@ func checkAllSubFolder(
 	)
 
 	childFolder, err := client.
-		UsersById(testUser).
-		MailFoldersById(folderID).
+		Users().
+		ByUserId(testUser).
+		MailFolders().
+		ByMailFolderId(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -271,7 +281,7 @@ func checkAllSubFolder(
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			//nolint:forbidigo
-			fullFolderName = path.Join(parentFolder, childDisplayName)
+			fullFolderName = stdpath.Join(parentFolder, childDisplayName)
 		)
 
 		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
@@ -292,41 +302,97 @@ func checkAllSubFolder(
 // oneDrive
 // ---------------------------------------------------------------------------
 
-func checkOnedriveRestoration(
+func checkOneDriveRestoration(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	testUser,
-	folderName string,
+	userID, folderName, dataFolder string,
 	startTime time.Time,
 ) {
-	var (
-		// map itemID -> item size
-		fileSizes = make(map[string]int64)
-		// map itemID -> permission id -> []permission roles
-		folderPermission        = make(map[string][]permissionInfo)
-		restoreFile             = make(map[string]int64)
-		restoreFolderPermission = make(map[string][]permissionInfo)
-	)
-
 	drive, err := client.
-		UsersById(testUser).
+		Users().
+		ByUserId(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
 		fatal(ctx, "getting the drive:", err)
 	}
 
+	checkDriveRestoration(
+		ctx,
+		client,
+		path.OneDriveService,
+		folderName,
+		ptr.Val(drive.GetId()),
+		ptr.Val(drive.GetName()),
+		dataFolder,
+		startTime,
+		false)
+}
+
+// ---------------------------------------------------------------------------
+// sharePoint
+// ---------------------------------------------------------------------------
+
+func checkSharePointRestoration(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	siteID, userID, folderName, dataFolder string,
+	startTime time.Time,
+) {
+	drive, err := client.
+		Sites().
+		BySiteId(siteID).
+		Drive().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting the drive:", err)
+	}
+
+	checkDriveRestoration(
+		ctx,
+		client,
+		path.SharePointService,
+		folderName,
+		ptr.Val(drive.GetId()),
+		ptr.Val(drive.GetName()),
+		dataFolder,
+		startTime,
+		true)
+}
+
+// ---------------------------------------------------------------------------
+// shared drive tests
+// ---------------------------------------------------------------------------
+
+func checkDriveRestoration(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	service path.ServiceType,
+	folderName,
+	driveID,
+	driveName,
+	dataFolder string,
+	startTime time.Time,
+	skipPermissionTest bool,
+) {
 	var (
-		driveID         = ptr.Val(drive.GetId())
-		driveName       = ptr.Val(drive.GetName())
-		restoreFolderID string
+		// map itemID -> item size
+		fileSizes = make(map[string]int64)
+		// map itemID -> permission id -> []permission roles
+		folderPermissions         = make(map[string][]permissionInfo)
+		restoreFile               = make(map[string]int64)
+		restoredFolderPermissions = make(map[string][]permissionInfo)
 	)
+
+	var restoreFolderID string
 
 	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 
 	response, err := client.
-		DrivesById(driveID).
-		Root().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId("root").
 		Children().
 		Get(ctx, nil)
 	if err != nil {
@@ -337,7 +403,6 @@ func checkOnedriveRestoration(
 		var (
 			itemID   = ptr.Val(driveItem.GetId())
 			itemName = ptr.Val(driveItem.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
 		)
 
 		if itemName == folderName {
@@ -345,8 +410,8 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
-		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+		if itemName != dataFolder {
+			logAndPrint(ctx, "test data for folder: %s", dataFolder)
 			continue
 		}
 
@@ -362,59 +427,26 @@ func checkOnedriveRestoration(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			logger.Ctx(ctx).Info("skipped empty folder: ", itemName)
-			fmt.Println("skipped empty folder: ", itemName)
-
+			logAndPrint(ctx, "skipped empty folder: %s", itemName)
 			continue
 		}
 
-		folderPermission[itemName] = permissionIn(ctx, client, driveID, itemID)
-		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
+		folderPermissions[itemName] = permissionIn(ctx, client, driveID, itemID)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermissions, startTime)
 	}
 
-	getRestoredDrive(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
+	getRestoredDrive(ctx, client, driveID, restoreFolderID, restoreFile, restoredFolderPermissions, startTime)
 
-	for folderName, permissions := range folderPermission {
-		logger.Ctx(ctx).Info("checking for folder: ", folderName)
-		fmt.Printf("checking for folder: %s\n", folderName)
-
-		restoreFolderPerm := restoreFolderPermission[folderName]
-
-		if len(permissions) < 1 {
-			logger.Ctx(ctx).Info("no permissions found in:", folderName)
-			fmt.Println("no permissions found in:", folderName)
-
-			continue
-		}
-
-		assert(
-			ctx,
-			func() bool { return len(permissions) == len(restoreFolderPerm) },
-			fmt.Sprintf("wrong number of restored permissions: %s", folderName),
-			permissions,
-			restoreFolderPerm)
-
-		for i, perm := range permissions {
-			// permissions should be sorted, so a by-index comparison works
-			restored := restoreFolderPerm[i]
-
-			assert(
-				ctx,
-				func() bool { return strings.EqualFold(perm.entityID, restored.entityID) },
-				fmt.Sprintf("non-matching entity id: %s", folderName),
-				perm.entityID,
-				restored.entityID)
-
-			assert(
-				ctx,
-				func() bool { return slices.Equal(perm.roles, restored.roles) },
-				fmt.Sprintf("different roles restored: %s", folderName),
-				perm.roles,
-				restored.roles)
-		}
-	}
+	checkRestoredDriveItemPermissions(
+		ctx,
+		service,
+		skipPermissionTest,
+		folderPermissions,
+		restoredFolderPermissions)
 
 	for fileName, expected := range fileSizes {
+		logAndPrint(ctx, "checking for file: %s", fileName)
+
 		got := restoreFile[fileName]
 
 		assert(
@@ -428,6 +460,69 @@ func checkOnedriveRestoration(
 	fmt.Println("Success")
 }
 
+func checkRestoredDriveItemPermissions(
+	ctx context.Context,
+	service path.ServiceType,
+	skip bool,
+	folderPermissions map[string][]permissionInfo,
+	restoredFolderPermissions map[string][]permissionInfo,
+) {
+	if skip {
+		return
+	}
+
+	/**
+		TODO: replace this check with testElementsMatch
+		from internal/connecter/graph_connector_helper_test.go
+	**/
+
+	for folderName, permissions := range folderPermissions {
+		logAndPrint(ctx, "checking for folder: %s", folderName)
+
+		restoreFolderPerm := restoredFolderPermissions[folderName]
+
+		if len(permissions) < 1 {
+			logAndPrint(ctx, "no permissions found in: %s", folderName)
+			continue
+		}
+
+		permCheck := func() bool { return len(permissions) == len(restoreFolderPerm) }
+
+		if service == path.SharePointService {
+			permCheck = func() bool { return len(permissions) <= len(restoreFolderPerm) }
+		}
+
+		assert(
+			ctx,
+			permCheck,
+			fmt.Sprintf("wrong number of restored permissions: %s", folderName),
+			permissions,
+			restoreFolderPerm)
+
+		for _, perm := range permissions {
+			eqID := func(pi permissionInfo) bool { return strings.EqualFold(pi.entityID, perm.entityID) }
+			i := slices.IndexFunc(restoreFolderPerm, eqID)
+
+			assert(
+				ctx,
+				func() bool { return i >= 0 },
+				fmt.Sprintf("permission was restored in: %s", folderName),
+				perm.entityID,
+				restoreFolderPerm)
+
+			// permissions should be sorted, so a by-index comparison works
+			restored := restoreFolderPerm[i]
+
+			assert(
+				ctx,
+				func() bool { return slices.Equal(perm.roles, restored.roles) },
+				fmt.Sprintf("different roles restored: %s", folderName),
+				perm.roles,
+				restored.roles)
+		}
+	}
+}
+
 func getOneDriveChildFolder(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
@@ -436,7 +531,7 @@ func getOneDriveChildFolder(
 	folderPermission map[string][]permissionInfo,
 	startTime time.Time,
 ) {
-	response, err := client.DrivesById(driveID).ItemsById(itemID).Children().Get(ctx, nil)
+	response, err := client.Drives().ByDriveId(driveID).Items().ByDriveItemId(itemID).Children().Get(ctx, nil)
 	if err != nil {
 		fatal(ctx, "getting child folder", err)
 	}
@@ -465,8 +560,7 @@ func getOneDriveChildFolder(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			logger.Ctx(ctx).Info("skipped empty folder: ", fullName)
-			fmt.Println("skipped empty folder: ", fullName)
+			logAndPrint(ctx, "skipped empty folder: %s", fullName)
 
 			continue
 		}
@@ -485,8 +579,10 @@ func getRestoredDrive(
 	startTime time.Time,
 ) {
 	restored, err := client.
-		DrivesById(driveID).
-		ItemsById(restoreFolderID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(restoreFolderID).
 		Children().
 		Get(ctx, nil)
 	if err != nil {
@@ -526,8 +622,10 @@ func permissionIn(
 	pi := []permissionInfo{}
 
 	pcr, err := client.
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
@@ -545,6 +643,7 @@ func permissionIn(
 			entityID string
 		)
 
+		// TODO: replace with filterUserPermissions in onedrive item.go
 		if gv2.GetUser() != nil {
 			entityID = ptr.Val(gv2.GetUser().GetId())
 		} else if gv2.GetGroup() != nil {
@@ -577,12 +676,12 @@ func fatal(ctx context.Context, msg string, err error) {
 }
 
 func mustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
-	t, err := common.ExtractTime(name)
-	if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+	t, err := dttm.ExtractTime(name)
+	if err != nil && !errors.Is(err, dttm.ErrNoTimeString) {
 		fatal(ctx, "extracting time from name: "+name, err)
 	}
 
-	return t, !errors.Is(err, common.ErrNoTimeString)
+	return t, !errors.Is(err, dttm.ErrNoTimeString)
 }
 
 func isWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool) bool {
@@ -632,4 +731,9 @@ func assert(
 	fmt.Println(got)
 
 	os.Exit(1)
+}
+
+func logAndPrint(ctx context.Context, tmpl string, vs ...any) {
+	logger.Ctx(ctx).Infof(tmpl, vs...)
+	fmt.Printf(tmpl+"\n", vs...)
 }

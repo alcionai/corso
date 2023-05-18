@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -112,7 +111,7 @@ func configureStorage(
 	}
 
 	// ensure required properties are present
-	if err := utils.RequireProps(map[string]string{
+	if err := requireProps(map[string]string{
 		storage.Bucket:              s3Cfg.Bucket,
 		credentials.CorsoPassphrase: corso.CorsoPassphrase,
 	}); err != nil {

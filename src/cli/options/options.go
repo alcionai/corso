@@ -18,8 +18,10 @@ func Control() control.Options {
 	opt.RestorePermissions = restorePermissionsFV
 	opt.SkipReduce = skipReduceFV
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementalsFV
+	opt.ToggleFeatures.DisableDelta = disableDeltaFV
 	opt.ToggleFeatures.ExchangeImmutableIDs = enableImmutableID
-	opt.ItemFetchParallelism = fetchParallelismFV
+	opt.ToggleFeatures.DisableConcurrencyLimiter = disableConcurrencyLimiterFV
+	opt.Parallelism.ItemFetch = fetchParallelismFV
 
 	return opt
 }
@@ -29,13 +31,15 @@ func Control() control.Options {
 // ---------------------------------------------------------------------------
 
 const (
-	FailFastFN            = "fail-fast"
-	FetchParallelismFN    = "fetch-parallelism"
-	NoStatsFN             = "no-stats"
-	RestorePermissionsFN  = "restore-permissions"
-	SkipReduceFN          = "skip-reduce"
-	DisableIncrementalsFN = "disable-incrementals"
-	EnableImmutableIDFN   = "enable-immutable-id"
+	FailFastFN                  = "fail-fast"
+	FetchParallelismFN          = "fetch-parallelism"
+	NoStatsFN                   = "no-stats"
+	RestorePermissionsFN        = "restore-permissions"
+	SkipReduceFN                = "skip-reduce"
+	DisableDeltaFN              = "disable-delta"
+	DisableIncrementalsFN       = "disable-incrementals"
+	EnableImmutableIDFN         = "enable-immutable-id"
+	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
 )
 
 var (
@@ -90,7 +94,10 @@ func AddFetchParallelismFlag(cmd *cobra.Command) {
 // Feature Flags
 // ---------------------------------------------------------------------------
 
-var disableIncrementalsFV bool
+var (
+	disableIncrementalsFV bool
+	disableDeltaFV        bool
+)
 
 // Adds the hidden '--disable-incrementals' cli flag which, when set, disables
 // incremental backups.
@@ -102,6 +109,18 @@ func AddDisableIncrementalsFlag(cmd *cobra.Command) {
 		false,
 		"Disable incremental data retrieval in backups.")
 	cobra.CheckErr(fs.MarkHidden(DisableIncrementalsFN))
+}
+
+// Adds the hidden '--disable-delta' cli flag which, when set, disables
+// delta based backups.
+func AddDisableDeltaFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&disableDeltaFV,
+		DisableDeltaFN,
+		false,
+		"Disable delta based data retrieval in backups.")
+	cobra.CheckErr(fs.MarkHidden(DisableDeltaFN))
 }
 
 var enableImmutableID bool
@@ -116,4 +135,19 @@ func AddEnableImmutableIDFlag(cmd *cobra.Command) {
 		false,
 		"Enable exchange immutable ID.")
 	cobra.CheckErr(fs.MarkHidden(EnableImmutableIDFN))
+}
+
+var disableConcurrencyLimiterFV bool
+
+// AddDisableConcurrencyLimiterFlag adds a hidden cli flag which, when set,
+// removes concurrency limits when communicating with graph API. This
+// flag is only relevant for exchange backups for now
+func AddDisableConcurrencyLimiterFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&disableConcurrencyLimiterFV,
+		DisableConcurrencyLimiterFN,
+		false,
+		"Disable concurrency limiter middleware. Default: false")
+	cobra.CheckErr(fs.MarkHidden(DisableConcurrencyLimiterFN))
 }

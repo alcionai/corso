@@ -5,17 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -24,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type driveSource int
@@ -73,7 +72,7 @@ type folderMatcher interface {
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
 	// configured to handle large item downloads
-	itemClient *http.Client
+	itemClient graph.Requester
 
 	tenant        string
 	resourceOwner string
@@ -101,6 +100,7 @@ type Collections struct {
 		servicer graph.Servicer,
 		driveID, link string,
 	) itemPager
+	servicePathPfxFunc pathPrefixerFunc
 
 	// Track stats from drive enumeration. Represents the items backed up.
 	NumItems      int
@@ -109,7 +109,7 @@ type Collections struct {
 }
 
 func NewCollections(
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	tenant string,
 	resourceOwner string,
 	source driveSource,
@@ -119,17 +119,18 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		itemClient:     itemClient,
-		tenant:         tenant,
-		resourceOwner:  resourceOwner,
-		source:         source,
-		matcher:        matcher,
-		CollectionMap:  map[string]map[string]*Collection{},
-		drivePagerFunc: PagerForSource,
-		itemPagerFunc:  defaultItemPager,
-		service:        service,
-		statusUpdater:  statusUpdater,
-		ctrl:           ctrlOpts,
+		itemClient:         itemClient,
+		tenant:             tenant,
+		resourceOwner:      resourceOwner,
+		source:             source,
+		matcher:            matcher,
+		CollectionMap:      map[string]map[string]*Collection{},
+		drivePagerFunc:     PagerForSource,
+		itemPagerFunc:      defaultItemPager,
+		servicePathPfxFunc: pathPrefixerForSource(tenant, resourceOwner, source),
+		service:            service,
+		statusUpdater:      statusUpdater,
+		ctrl:               ctrlOpts,
 	}
 }
 
@@ -191,42 +192,41 @@ func deserializeMetadata(
 					continue
 				}
 
-				// This is conservative, but report an error if any of the items for
-				// any of the deserialized maps have duplicate drive IDs. This will
-				// cause the entire backup to fail, but it's not clear if higher
-				// layers would have caught this. Worst case if we don't handle this
-				// we end up in a situation where we're sourcing items from the wrong
-				// base in kopia wrapper.
-				if errors.Is(err, errExistingMapping) {
-					return nil, nil, clues.Wrap(err, "deserializing metadata file").WithClues(ictx)
+				// This is conservative, but report an error if either any of the items
+				// for any of the deserialized maps have duplicate drive IDs or there's
+				// some other problem deserializing things. This will cause the entire
+				// backup to fail, but it's not clear if higher layers would have caught
+				// these cases. We can make the logic for deciding when to continue vs.
+				// when to fail less strict in the future if needed.
+				if err != nil {
+					return nil, nil, clues.Stack(err).WithClues(ictx)
 				}
-
-				err = clues.Stack(err).WithClues(ictx)
-
-				el.AddRecoverable(err)
-				logger.CtxErr(ictx, err).Error("deserializing base backup metadata")
 			}
 		}
 
-		// Go through and remove partial results (i.e. path mapping but no delta URL
-		// or vice-versa).
-		for k, v := range prevDeltas {
-			// Remove entries with an empty delta token as it's not useful.
-			if len(v) == 0 {
-				delete(prevDeltas, k)
-				delete(prevFolders, k)
+		// Go through and remove delta tokens if we didn't have any paths for them
+		// or one or more paths are empty (incorrect somehow). This will ensure we
+		// don't accidentally try to pull in delta results when we should have
+		// enumerated everything instead.
+		//
+		// Loop over the set of previous deltas because it's alright to have paths
+		// without a delta but not to have a delta without paths. This way ensures
+		// we check at least all the path sets for the deltas we have.
+		for drive := range prevDeltas {
+			paths := prevFolders[drive]
+			if len(paths) == 0 {
+				delete(prevDeltas, drive)
 			}
 
-			// Remove entries without a folders map as we can't tell kopia the
-			// hierarchy changes.
-			if _, ok := prevFolders[k]; !ok {
-				delete(prevDeltas, k)
-			}
-		}
-
-		for k := range prevFolders {
-			if _, ok := prevDeltas[k]; !ok {
-				delete(prevFolders, k)
+			// Drives have only a single delta token. If we find any folder that
+			// seems like the path is bad we need to drop the entire token and start
+			// fresh. Since we know the token will be gone we can also stop checking
+			// for other possibly incorrect folder paths.
+			for _, prevPath := range paths {
+				if len(prevPath) == 0 {
+					delete(prevDeltas, drive)
+					break
+				}
 			}
 		}
 	}
@@ -272,11 +272,18 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
+	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
+) ([]data.BackupCollection, error) {
 	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	driveTombstones := map[string]struct{}{}
+
+	for driveID := range oldPathsByDriveID {
+		driveTombstones[driveID] = struct{}{}
 	}
 
 	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
@@ -286,12 +293,12 @@ func (c *Collections) Get(
 	// Enumerate drives for the specified resourceOwner
 	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var (
@@ -299,9 +306,6 @@ func (c *Collections) Get(
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
-		// Items that should be excluded when sourcing data from the base backup.
-		// Parent Path -> item ID -> {}
-		excludedItems = map[string]map[string]struct{}{}
 	)
 
 	for _, d := range drives {
@@ -313,6 +317,8 @@ func (c *Collections) Get(
 			numOldDelta = 0
 			ictx        = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 		)
+
+		delete(driveTombstones, driveID)
 
 		if _, ok := c.CollectionMap[driveID]; !ok {
 			c.CollectionMap[driveID] = map[string]*Collection{}
@@ -337,7 +343,7 @@ func (c *Collections) Get(
 			prevDelta,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		// Used for logging below.
@@ -377,19 +383,10 @@ func (c *Collections) Get(
 				c.resourceOwner,
 				c.source)
 			if err != nil {
-				return nil, nil,
-					clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+				return nil, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
 
-			pstr := p.String()
-
-			eidi, ok := excludedItems[pstr]
-			if !ok {
-				eidi = map[string]struct{}{}
-			}
-
-			maps.Copy(eidi, excluded)
-			excludedItems[pstr] = eidi
+			ssmb.Add(p.String(), excluded)
 
 			continue
 		}
@@ -414,12 +411,12 @@ func (c *Collections) Get(
 			prevPath, err := path.FromDataLayerPath(p, false)
 			if err != nil {
 				err = clues.Wrap(err, "invalid previous path").WithClues(ictx).With("deleted_path", p)
-				return nil, map[string]map[string]struct{}{}, err
+				return nil, err
 			}
 
 			col, err := NewCollection(
 				c.itemClient,
-				nil,
+				nil, // delete the folder
 				prevPath,
 				driveID,
 				c.service,
@@ -429,7 +426,7 @@ func (c *Collections) Get(
 				CollectionScopeUnknown,
 				true)
 			if err != nil {
-				return nil, map[string]map[string]struct{}{}, clues.Wrap(err, "making collection").WithClues(ictx)
+				return nil, clues.Wrap(err, "making collection").WithClues(ictx)
 			}
 
 			c.CollectionMap[driveID][fldID] = col
@@ -438,15 +435,41 @@ func (c *Collections) Get(
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
-	// Add an extra for the metadata collection.
 	collections := []data.BackupCollection{}
 
+	// add all the drives we found
 	for _, driveColls := range c.CollectionMap {
 		for _, coll := range driveColls {
 			collections = append(collections, coll)
 		}
 	}
 
+	// generate tombstones for drives that were removed.
+	for driveID := range driveTombstones {
+		prevDrivePath, err := c.servicePathPfxFunc(driveID)
+		if err != nil {
+			return nil, clues.Wrap(err, "making drive tombstone previous path").WithClues(ctx)
+		}
+
+		coll, err := NewCollection(
+			c.itemClient,
+			nil, // delete the drive
+			prevDrivePath,
+			driveID,
+			c.service,
+			c.statusUpdater,
+			c.source,
+			c.ctrl,
+			CollectionScopeUnknown,
+			true)
+		if err != nil {
+			return nil, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
+		}
+
+		collections = append(collections, coll)
+	}
+
+	// add metadata collections
 	service, category := c.source.toPathServiceCat()
 	md, err := graph.MakeMetadataCollection(
 		c.tenant,
@@ -468,8 +491,7 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
-	// TODO(ashmrtn): Track and return the set of items to exclude.
-	return collections, excludedItems, nil
+	return collections, nil
 }
 
 func updateCollectionPaths(
@@ -622,7 +644,7 @@ func (c *Collections) getCollectionPath(
 		if item.GetParentReference() == nil ||
 			item.GetParentReference().GetPath() == nil {
 			err := clues.New("no parent reference").
-				With("item_name", ptr.Val(item.GetName()))
+				With("item_name", clues.Hide(ptr.Val(item.GetName())))
 
 			return nil, err
 		}
@@ -653,7 +675,7 @@ func (c *Collections) getCollectionPath(
 		return nil, clues.New("folder with empty name")
 	}
 
-	collectionPath, err = collectionPath.Append(name, false)
+	collectionPath, err = collectionPath.Append(false, name)
 	if err != nil {
 		return nil, clues.Wrap(err, "making non-root folder path")
 	}
@@ -687,16 +709,16 @@ func (c *Collections) UpdateCollections(
 		var (
 			itemID   = ptr.Val(item.GetId())
 			itemName = ptr.Val(item.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
 			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
 
 		if item.GetMalware() != nil {
 			addtl := graph.ItemInfo(item)
-			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, addtl)
+			skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
 			if isFolder {
-				skip = fault.ContainerSkip(fault.SkipMalware, itemID, itemName, addtl)
+				skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 			}
 
 			errs.AddSkip(skip)
@@ -734,7 +756,7 @@ func (c *Collections) UpdateCollections(
 
 		// Skip items that don't match the folder selectors we were given.
 		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-			logger.Ctx(ictx).Debugw("Skipping drive path", "skipped_path", collectionPath.String())
+			logger.Ctx(ictx).Debugw("path not selected", "skipped_path", collectionPath.String())
 			continue
 		}
 

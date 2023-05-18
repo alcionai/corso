@@ -6,14 +6,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -35,6 +33,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddBackupIDFlag(c, true)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
+
+		options.AddRestorePermissionsFlag(c)
 		options.AddFailFastFlag(c)
 	}
 
@@ -46,20 +46,24 @@ const (
 	sharePointServiceCommandUseSuffix = "--backup <backupId>"
 
 	//nolint:lll
-	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's latest backup (1234abcd...)
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore a file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets".
+# Restore the file with ID 98765abcdef along with its associated permissions
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --file 98765abcdef --restore-permissions
+
+# Restore files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets".
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
-# Restore all files that were created before 2020.
+# Restore all files in the folder "Display Templates/Style Sheets" that were created before 2020.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
     --file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets"
 
-# Restore all files in a certain library.
+# Restore all files in the "Documents" library.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --library documents --folder "Display Templates/Style Sheets" `
+    --library Documents --folder "Display Templates/Style Sheets" `
 )
 
 // `corso restore sharepoint [<flag>...]`
@@ -91,19 +95,14 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	r, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
-	}
-
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
+	dest := control.DefaultRestoreDestination(dttm.HumanReadableDriveItem)
 	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
@@ -123,7 +122,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint restore"))
 	}
 
-	ds.PrintEntries(ctx)
+	ds.Items().PrintEntries(ctx)
 
 	return nil
 }

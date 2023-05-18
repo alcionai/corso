@@ -1,5 +1,6 @@
 name: CI Test Cleanup
 on:
+  workflow_dispatch:
   schedule:
     # every half hour
     - cron: "*/30 * * * *"
@@ -27,7 +28,7 @@ jobs:
       - name: Purge CI-Produced Folders for Users
         uses: ./.github/actions/purge-m365-data
         with:
-          user: ${{ secrets[matrix.user] }}
+          user: ${{ vars[matrix.user] }}
           folder-prefix: ${{ vars.CORSO_M365_TEST_PREFIXES }}
           older-than: ${{ env.HALF_HOUR_AGO }}
           azure-client-id: ${{ secrets.CLIENT_ID }}
@@ -58,7 +59,7 @@ jobs:
       - name: Purge CI-Produced Folders for Sites
         uses: ./.github/actions/purge-m365-data
         with:
-          site: ${{ secrets[matrix.site] }}
+          site: ${{ vars[matrix.site] }}
           folder-prefix: ${{ vars.CORSO_M365_TEST_PREFIXES }} 
           libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.HALF_HOUR_AGO }}

@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -72,7 +71,7 @@ func configureAccount(
 	}
 
 	// ensure required properties are present
-	if err := utils.RequireProps(map[string]string{
+	if err := requireProps(map[string]string{
 		credentials.AzureClientID:     m365Cfg.AzureClientID,
 		credentials.AzureClientSecret: m365Cfg.AzureClientSecret,
 		account.AzureTenantID:         m365Cfg.AzureTenantID,

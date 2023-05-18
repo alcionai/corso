@@ -70,7 +70,7 @@ func (suite *GraphUnitSuite) TestHTTPClient() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			cli := HTTPClient(test.opts...)
+			cli := KiotaHTTPClient(test.opts...)
 			assert.NotNil(t, cli)
 			test.check(t, cli)
 		})

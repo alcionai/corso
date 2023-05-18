@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -183,16 +184,22 @@ func expectDirs(
 ) {
 	t.Helper()
 
-	if exactly {
-		require.Len(t, entries, len(dirs))
-	}
-
-	names := make([]string, 0, len(entries))
+	ents := make([]string, 0, len(entries))
 	for _, e := range entries {
-		names = append(names, e.Name())
+		ents = append(ents, e.Name())
 	}
 
-	assert.Subset(t, names, dirs)
+	dd, err := decodeElements(dirs...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	de, err := decodeElements(ents...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	if exactly {
+		require.Lenf(t, entries, len(dirs), "expected exactly %+v\ngot %+v", dd, de)
+	}
+
+	assert.Subsetf(t, dirs, ents, "expected at least %+v\ngot %+v", dd, de)
 }
 
 func getDirEntriesForEntry(
@@ -702,7 +709,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, pmMock.NewPrefixMap(nil), progress)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -799,7 +806,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 				errs:    fault.New(true),
 			}
 
-			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, pmMock.NewPrefixMap(nil), progress)
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -905,7 +912,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 				errs:    fault.New(true),
 			}
 
-			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, pmMock.NewPrefixMap(nil), progress)
 			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -922,15 +929,18 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 func mockIncrementalBase(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
-	category path.CategoryType,
+	categories ...path.CategoryType,
 ) IncrementalBase {
+	stps := []*path.Builder{}
+	for _, c := range categories {
+		stps = append(stps, path.Builder{}.Append(tenant, service.String(), resourceOwner, c.String()))
+	}
+
 	return IncrementalBase{
 		Manifest: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
-		SubtreePaths: []*path.Builder{
-			path.Builder{}.Append(tenant, service.String(), resourceOwner, category.String()),
-		},
+		SubtreePaths: stps,
 	}
 }
 
@@ -1018,7 +1028,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 				cols = append(cols, mc)
 			}
 
-			_, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
+			_, err := inflateDirTree(ctx, nil, nil, cols, pmMock.NewPrefixMap(nil), progress)
 			require.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -1102,6 +1112,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			name: "AddsNewItems",
 			inputCollections: func() []data.BackupCollection {
 				mc := exchMock.NewCollection(storePath, locPath, 1)
+				mc.PrevPath = storePath
 				mc.Names[0] = testFileName2
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
@@ -1137,6 +1148,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			name: "SkipsUpdatedItems",
 			inputCollections: func() []data.BackupCollection {
 				mc := exchMock.NewCollection(storePath, locPath, 1)
+				mc.PrevPath = storePath
 				mc.Names[0] = testFileName
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
@@ -1301,9 +1313,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
-				nil,
-				progress,
-			)
+				pmMock.NewPrefixMap(nil),
+				progress)
 			require.NoError(t, err, clues.ToCore(err))
 
 			expectTree(t, ctx, test.expected, dirTree)
@@ -1422,7 +1433,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	table := []struct {
 		name             string
 		inputCollections func(t *testing.T) []data.BackupCollection
-		inputExcludes    map[string]map[string]struct{}
+		inputExcludes    *pmMock.PrefixMap
 		expected         *expectedNode
 	}{
 		{
@@ -1430,11 +1441,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			inputCollections: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
-			inputExcludes: map[string]map[string]struct{}{
+			inputExcludes: pmMock.NewPrefixMap(map[string]map[string]struct{}{
 				"": {
 					inboxFileName1: {},
 				},
-			},
+			}),
 			expected: expectedTreeWithChildren(
 				[]string{
 					testTenant,
@@ -2054,6 +2065,150 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				},
 			),
 		},
+		{
+			// This could happen if a subfolder is moved out of the parent, the parent
+			// is deleted, a new folder at the same location as the parent is created,
+			// and then the subfolder is moved back to the same location.
+			name: "Delete Parent But Child Marked Not Moved Explicit New Parent",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				inbox := exchMock.NewCollection(nil, inboxLocPath, 0)
+				inbox.PrevPath = inboxStorePath
+				inbox.ColState = data.DeletedState
+
+				inbox2 := exchMock.NewCollection(inboxStorePath, inboxLocPath, 1)
+				inbox2.PrevPath = nil
+				inbox2.ColState = data.NewState
+				inbox2.Names[0] = workFileName1
+
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
+				personal.PrevPath = personalStorePath
+				personal.ColState = data.NotMovedState
+
+				return []data.BackupCollection{inbox, inbox2, personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name:     workFileName1,
+								children: []*expectedNode{},
+							},
+							{
+								name: personalID,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			// This could happen if a subfolder is moved out of the parent, the parent
+			// is deleted, a new folder at the same location as the parent is created,
+			// and then the subfolder is moved back to the same location.
+			name: "Delete Parent But Child Marked Not Moved Implicit New Parent",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				inbox := exchMock.NewCollection(nil, inboxLocPath, 0)
+				inbox.PrevPath = inboxStorePath
+				inbox.ColState = data.DeletedState
+
+				// New folder not explicitly listed as it may not have had new items.
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
+				personal.PrevPath = personalStorePath
+				personal.ColState = data.NotMovedState
+
+				return []data.BackupCollection{inbox, personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name: personalID,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			// This could happen if a subfolder is moved out of the parent, the parent
+			// is deleted, a new folder at the same location as the parent is created,
+			// and then the subfolder is moved back to the same location.
+			name: "Delete Parent But Child Marked Not Moved Implicit New Parent Child Do Not Merge",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				inbox := exchMock.NewCollection(nil, inboxLocPath, 0)
+				inbox.PrevPath = inboxStorePath
+				inbox.ColState = data.DeletedState
+
+				// New folder not explicitly listed as it may not have had new items.
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 1)
+				personal.PrevPath = personalStorePath
+				personal.ColState = data.NotMovedState
+				personal.DoNotMerge = true
+				personal.Names[0] = workFileName1
+
+				return []data.BackupCollection{inbox, personal}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name: personalID,
+								children: []*expectedNode{
+									{
+										name:     workFileName1,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
 	}
 
 	for _, test := range table {
@@ -2074,6 +2229,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				snapshotRoot: getBaseSnapshot(),
 			}
 
+			ie := pmMock.NewPrefixMap(nil)
+			if test.inputExcludes != nil {
+				ie = test.inputExcludes
+			}
+
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
@@ -2081,7 +2241,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
-				test.inputExcludes,
+				ie,
 				progress)
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -2245,7 +2405,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
-		nil,
+		pmMock.NewPrefixMap(nil),
 		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -2350,7 +2510,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
-		nil,
+		pmMock.NewPrefixMap(nil),
 		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -2601,9 +2761,172 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 			mockIncrementalBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
-		nil,
-		progress,
+		pmMock.NewPrefixMap(nil),
+		progress)
+	require.NoError(t, err, clues.ToCore(err))
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubtrees() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	const (
+		contactsDir  = "contacts"
+		migratedUser = "user_migrate"
 	)
+
+	oldPrefixPathEmail, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	newPrefixPathEmail, err := path.ServicePrefix(testTenant, migratedUser, path.ExchangeService, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	oldPrefixPathCont, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.ContactsCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	newPrefixPathCont, err := path.ServicePrefix(testTenant, migratedUser, path.ExchangeService, path.ContactsCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		inboxFileName1 = testFileName
+
+		inboxFileData1 = testFileData
+		// inboxFileData1v2 = testFileData5
+
+		contactsFileName1 = testFileName3
+		contactsFileData1 = testFileData3
+	)
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once.
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchange
+	//     - user1
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file2
+	getBaseSnapshot1 := func() fs.Entry {
+		return baseWithChildren(
+			[]string{testTenant, service, testUser},
+			[]fs.Entry{
+				virtualfs.NewStaticDirectory(
+					encodeElements(category)[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(testInboxID)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(inboxFileName1)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1)))),
+							}),
+					}),
+				virtualfs.NewStaticDirectory(
+					encodeElements(path.ContactsCategory.String())[0],
+					[]fs.Entry{
+						virtualfs.NewStaticDirectory(
+							encodeElements(contactsDir)[0],
+							[]fs.Entry{
+								virtualfs.StreamingFileWithModTimeFromReader(
+									encodeElements(contactsFileName1)[0],
+									time.Time{},
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(contactsFileData1)))),
+							}),
+					}),
+			},
+		)
+	}
+
+	// Check the following:
+	//   * contacts pulled from base1 unchanged even if no collections reference
+	//     it
+	//   * email pulled from base2
+	//
+	// Expected output:
+	// - a-tenant
+	//   - exchange
+	//     - user1new
+	//       - email
+	//         - Inbox
+	//           - file1
+	//       - contacts
+	//         - contacts
+	//           - file1
+	expected := expectedTreeWithChildren(
+		[]string{testTenant, service, migratedUser},
+		[]*expectedNode{
+			{
+				name: category,
+				children: []*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+								data:     inboxFileData1,
+							},
+						},
+					},
+				},
+			},
+			{
+				name: path.ContactsCategory.String(),
+				children: []*expectedNode{
+					{
+						name: contactsDir,
+						children: []*expectedNode{
+							{
+								name:     contactsFileName1,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
+		errs:    fault.New(true),
+	}
+
+	mce := exchMock.NewCollection(newPrefixPathEmail, nil, 0)
+	mce.PrevPath = oldPrefixPathEmail
+	mce.ColState = data.MovedState
+
+	mcc := exchMock.NewCollection(newPrefixPathCont, nil, 0)
+	mcc.PrevPath = oldPrefixPathCont
+	mcc.ColState = data.MovedState
+
+	msw := &mockMultiSnapshotWalker{
+		snaps: map[string]fs.Entry{"id1": getBaseSnapshot1()},
+	}
+
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]IncrementalBase{
+			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		},
+		[]data.BackupCollection{mce, mcc},
+		pmMock.NewPrefixMap(nil),
+		progress)
 	require.NoError(t, err, clues.ToCore(err))
 
 	expectTree(t, ctx, expected, dirTree)

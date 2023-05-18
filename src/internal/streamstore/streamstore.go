@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -232,7 +233,7 @@ func write(
 		ctx,
 		nil,
 		dbcs,
-		nil,
+		prefixmatcher.NopReader[map[string]struct{}](),
 		nil,
 		false,
 		errs)
@@ -261,12 +262,22 @@ func read(
 		return clues.Stack(err).WithClues(ctx)
 	}
 
+	pd, err := p.Dir()
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
 	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
 
 	cs, err := rer.ProduceRestoreCollections(
 		ctx,
 		snapshotID,
-		[]path.Path{p},
+		[]path.RestorePaths{
+			{
+				StoragePath: p,
+				RestorePath: pd,
+			},
+		},
 		&stats.ByteCounter{},
 		errs)
 	if err != nil {

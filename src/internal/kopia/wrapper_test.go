@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
@@ -17,12 +18,14 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -56,14 +59,12 @@ var (
 	testFileData6 = testFileData
 )
 
-//revive:disable:context-as-argument
 func testForFiles(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expected map[string][]byte,
 	collections []data.RestoreCollection,
 ) {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	count := 0
@@ -72,7 +73,7 @@ func testForFiles(
 		for s := range c.Items(ctx, fault.New(true)) {
 			count++
 
-			fullPath, err := c.FullPath().Append(s.UUID(), true)
+			fullPath, err := c.FullPath().AppendItem(s.UUID())
 			require.NoError(t, err, clues.ToCore(err))
 
 			expected, ok := expected[fullPath.String()]
@@ -102,6 +103,19 @@ func checkSnapshotTags(
 	man, err := snapshot.LoadSnapshot(ctx, rep, manifest.ID(snapshotID))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, expectedTags, man.Tags)
+}
+
+func toRestorePaths(t *testing.T, paths ...path.Path) []path.RestorePaths {
+	res := make([]path.RestorePaths, 0, len(paths))
+
+	for _, p := range paths {
+		dir, err := p.Dir()
+		require.NoError(t, err, clues.ToCore(err))
+
+		res = append(res, path.RestorePaths{StoragePath: p, RestorePath: dir})
+	}
+
+	return res
 }
 
 // ---------------
@@ -143,7 +157,127 @@ func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 }
 
 // ---------------
-// integration tests that use kopia
+// integration tests that use kopia.
+// ---------------
+type BasicKopiaIntegrationSuite struct {
+	tester.Suite
+}
+
+func TestBasicKopiaIntegrationSuite(t *testing.T) {
+	suite.Run(t, &BasicKopiaIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+		),
+	})
+}
+
+// TestMaintenance checks that different username/hostname pairs will or won't
+// cause maintenance to run. It treats kopia maintenance as a black box and
+// only checks the returned error.
+func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	opts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	err = w.RepoMaintenance(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	// This will set the user.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var notOwnedErr maintenance.NotOwnedError
+
+	err = w.RepoMaintenance(ctx, mOpts)
+	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
+}
+
+func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeeds() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	// This will set the user.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	mOpts.Force = true
+
+	// This will set the user.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	mOpts.Force = false
+
+	// Running without force should succeed now.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+// ---------------
+// integration tests that use kopia and initialize a repo
 // ---------------
 type KopiaIntegrationSuite struct {
 	tester.Suite
@@ -555,10 +689,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	dc1 := exchMock.NewCollection(suite.storePath1, suite.locPath1, 1)
 	dc2 := exchMock.NewCollection(suite.storePath2, suite.locPath2, 1)
 
-	fp1, err := suite.storePath1.Append(dc1.Names[0], true)
+	fp1, err := suite.storePath1.AppendItem(dc1.Names[0])
 	require.NoError(t, err, clues.ToCore(err))
 
-	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
+	fp2, err := suite.storePath2.AppendItem(dc2.Names[0])
 	require.NoError(t, err, clues.ToCore(err))
 
 	stats, _, _, err := w.ConsumeBackupCollections(
@@ -582,10 +716,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	result, err := w.ProduceRestoreCollections(
 		ctx,
 		string(stats.SnapshotID),
-		[]path.Path{
-			fp1,
-			fp2,
-		},
+		toRestorePaths(t, fp1, fp2),
 		nil,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -620,7 +751,7 @@ func (c mockBackupCollection) FullPath() path.Path {
 }
 
 func (c mockBackupCollection) PreviousPath() path.Path {
-	return nil
+	return c.path
 }
 
 func (c mockBackupCollection) LocationPath() *path.Builder {
@@ -707,7 +838,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// 5 file and 2 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+2)
 
-	failedPath, err := suite.storePath2.Append(testFileName4, true)
+	failedPath, err := suite.storePath2.AppendItem(testFileName4)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ic := i64counter{}
@@ -715,7 +846,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	_, err = suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(stats.SnapshotID),
-		[]path.Path{failedPath},
+		toRestorePaths(t, failedPath),
 		&ic,
 		fault.New(true))
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
@@ -856,7 +987,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 	}
 
 	for _, item := range filesInfo {
-		pth, err := item.parentPath.Append(item.name, true)
+		pth, err := item.parentPath.AppendItem(item.name)
 		require.NoError(suite.T(), err, clues.ToCore(err))
 
 		mapKey := item.parentPath.String()
@@ -875,8 +1006,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	t := suite.T()
 	expectedDirs := 6
 	expectedFiles := len(suite.filesByPath)
+
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
 	//nolint:forbidigo
-	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+	suite.ctx, _ = logger.CtxOrSeed(context.Background(), ls)
 
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -1034,6 +1170,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					suite.testPath1,
 					1)
 				c.ColState = data.NotMovedState
+				c.PrevPath = suite.testPath1
 
 				return []data.BackupCollection{c}
 			},
@@ -1055,14 +1192,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				prefix = itemPath.ToBuilder().Dir().Dir().String()
 			}
 
-			var excluded map[string]map[string]struct{}
+			excluded := pmMock.NewPrefixMap(nil)
 			if test.excludeItem {
-				excluded = map[string]map[string]struct{}{
+				excluded = pmMock.NewPrefixMap(map[string]map[string]struct{}{
 					// Add a prefix if needed.
 					prefix: {
 						itemPath.Item(): {},
 					},
-				}
+				})
 			}
 
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
@@ -1095,9 +1232,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			_, err = suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(stats.SnapshotID),
-				[]path.Path{
-					suite.files[suite.testPath1.String()][0].itemPath,
-				},
+				toRestorePaths(t, suite.files[suite.testPath1.String()][0].itemPath),
 				&ic,
 				fault.New(true))
 			test.restoreCheck(t, err, clues.ToCore(err))
@@ -1198,7 +1333,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 			result, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(suite.snapshotID),
-				test.inputPaths,
+				toRestorePaths(t, test.inputPaths...),
 				&ic,
 				fault.New(true))
 			test.expectedErr(t, err, clues.ToCore(err))
@@ -1214,14 +1349,201 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	}
 }
 
+// TestProduceRestoreCollections_PathChanges tests that having different
+// Restore and Storage paths works properly. Having the same Restore and Storage
+// paths is tested by TestProduceRestoreCollections.
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_PathChanges() {
+	rp1, err := path.Build(
+		testTenant,
+		testUser,
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"corso_restore", "Inbox")
+	require.NoError(suite.T(), err)
+
+	rp2, err := path.Build(
+		testTenant,
+		testUser,
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"corso_restore", "Archive")
+	require.NoError(suite.T(), err)
+
+	// Expected items is generated during the test by looking up paths in the
+	// suite's map of files.
+	table := []struct {
+		name                string
+		inputPaths          []path.RestorePaths
+		expectedCollections int
+	}{
+		{
+			name: "SingleItem",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+			},
+			expectedCollections: 1,
+		},
+		{
+			name: "MultipleItemsSameCollection",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+				{
+					StoragePath: suite.files[suite.testPath1.String()][1].itemPath,
+					RestorePath: rp1,
+				},
+			},
+			expectedCollections: 1,
+		},
+		{
+			name: "MultipleItemsDifferentCollections",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+				{
+					StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+					RestorePath: rp2,
+				},
+			},
+			expectedCollections: 2,
+		},
+		{
+			name: "Multiple Items From Different Collections To Same Collection",
+			inputPaths: []path.RestorePaths{
+				{
+					StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+				{
+					StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+					RestorePath: rp1,
+				},
+			},
+			expectedCollections: 1,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+			expected := make(map[string][]byte, len(test.inputPaths))
+
+			for _, pth := range test.inputPaths {
+				item, ok := suite.filesByPath[pth.StoragePath.String()]
+				require.True(t, ok, "getting expected file data")
+
+				itemPath, err := pth.RestorePath.AppendItem(pth.StoragePath.Item())
+				require.NoError(t, err, "getting expected item path")
+
+				expected[itemPath.String()] = item.data
+			}
+
+			ic := i64counter{}
+
+			result, err := suite.w.ProduceRestoreCollections(
+				suite.ctx,
+				string(suite.snapshotID),
+				test.inputPaths,
+				&ic,
+				fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Len(t, result, test.expectedCollections)
+			assert.Less(t, int64(0), ic.i)
+			testForFiles(t, ctx, expected, result)
+		})
+	}
+}
+
+// TestProduceRestoreCollections_Fetch tests that the Fetch function still works
+// properly even with different Restore and Storage paths and items from
+// different kopia directories.
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetch() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	rp1, err := path.Build(
+		testTenant,
+		testUser,
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"corso_restore", "Inbox")
+	require.NoError(suite.T(), err)
+
+	inputPaths := []path.RestorePaths{
+		{
+			StoragePath: suite.files[suite.testPath1.String()][0].itemPath,
+			RestorePath: rp1,
+		},
+		{
+			StoragePath: suite.files[suite.testPath2.String()][0].itemPath,
+			RestorePath: rp1,
+		},
+	}
+
+	// Really only interested in getting the collection so we can call fetch on
+	// it.
+	ic := i64counter{}
+
+	result, err := suite.w.ProduceRestoreCollections(
+		suite.ctx,
+		string(suite.snapshotID),
+		inputPaths,
+		&ic,
+		fault.New(true))
+	require.NoError(t, err, "getting collection", clues.ToCore(err))
+	require.Len(t, result, 1)
+
+	// Item from first kopia directory.
+	f := suite.files[suite.testPath1.String()][0]
+
+	item, err := result[0].Fetch(ctx, f.itemPath.Item())
+	require.NoError(t, err, "fetching file", clues.ToCore(err))
+
+	r := item.ToReader()
+
+	buf, err := io.ReadAll(r)
+	require.NoError(t, err, "reading file data", clues.ToCore(err))
+
+	assert.Equal(t, f.data, buf)
+
+	// Item from second kopia directory.
+	f = suite.files[suite.testPath2.String()][0]
+
+	item, err = result[0].Fetch(ctx, f.itemPath.Item())
+	require.NoError(t, err, "fetching file", clues.ToCore(err))
+
+	r = item.ToReader()
+
+	buf, err = io.ReadAll(r)
+	require.NoError(t, err, "reading file data", clues.ToCore(err))
+
+	assert.Equal(t, f.data, buf)
+}
+
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Errors() {
-	itemPath, err := suite.testPath1.Append(testFileName, true)
+	itemPath, err := suite.testPath1.AppendItem(testFileName)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name       string
 		snapshotID string
-		paths      []path.Path
+		paths      []path.RestorePaths
 	}{
 		{
 			"NilPaths",
@@ -1231,12 +1553,12 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Erro
 		{
 			"EmptyPaths",
 			string(suite.snapshotID),
-			[]path.Path{},
+			[]path.RestorePaths{},
 		},
 		{
 			"NoSnapshot",
 			"foo",
-			[]path.Path{itemPath},
+			toRestorePaths(suite.T(), itemPath),
 		},
 	}
 
@@ -1269,7 +1591,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	c, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(suite.snapshotID),
-		[]path.Path{itemPath},
+		toRestorePaths(t, itemPath),
 		&ic,
 		fault.New(true))
 	assert.Error(t, err, "snapshot should be deleted", clues.ToCore(err))

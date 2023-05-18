@@ -14,16 +14,18 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-//revive:disable:context-as-argument
-func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	//revive:enable:context-as-argument
+func openKopiaRepo(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (*conn, error) {
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx); err != nil {
+	if err := k.Initialize(ctx, repository.Options{}); err != nil {
 		return nil, err
 	}
 
@@ -77,13 +79,13 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Initialize(ctx)
+	err = k.Initialize(ctx, repository.Options{})
 	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
@@ -97,7 +99,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, repository.Options{})
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -109,7 +111,7 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Connect(ctx)
+	err := k.Connect(ctx, repository.Options{})
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -356,7 +358,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 			err = k.Close(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = k.Connect(ctx)
+			err = k.Connect(ctx, repository.Options{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			defer func() {
@@ -384,8 +386,62 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Re-open with Connect.
-	err = k.Connect(ctx)
+	err = k.Connect(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
+
+	t := suite.T()
+	st := tester.NewPrefixedS3Storage(t)
+	k := NewConn(st)
+
+	err := k.Initialize(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts := k.ClientOptions()
+	require.Equal(t, opts.User, kopiaOpts.Username)
+	require.Equal(t, opts.Host, kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Re-open with Connect and a different user/hostname.
+	opts.User = "hello"
+	opts.Host = "world"
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts = k.ClientOptions()
+	require.Equal(t, opts.User, kopiaOpts.Username)
+	require.Equal(t, opts.Host, kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Make sure not setting the values uses the kopia defaults.
+	opts.User = ""
+	opts.Host = ""
+
+	err = k.Connect(ctx, opts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts = k.ClientOptions()
+	assert.NotEmpty(t, kopiaOpts.Username)
+	assert.NotEqual(t, "hello", kopiaOpts.Username)
+	assert.NotEmpty(t, kopiaOpts.Hostname)
+	assert.NotEqual(t, "world", kopiaOpts.Hostname)
 
 	err = k.Close(ctx)
 	assert.NoError(t, err, clues.ToCore(err))

@@ -8,6 +8,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cmd/factory/impl"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -29,21 +30,38 @@ var oneDriveCmd = &cobra.Command{
 	RunE:  handleOneDriveFactory,
 }
 
+var sharePointCmd = &cobra.Command{
+	Use:   "sharepoint",
+	Short: "Generate shareopint data",
+	RunE:  handleSharePointFactory,
+}
+
 // ------------------------------------------------------------------------------------------
 // CLI command handlers
 // ------------------------------------------------------------------------------------------
 
 func main() {
-	ctx, _ := logger.SeedLevel(context.Background(), logger.Development)
+	ls := logger.Settings{
+		Level:  logger.LLDebug,
+		Format: logger.LFText,
+	}
+	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
 	ctx = SetRootCmd(ctx, factoryCmd)
 
-	defer logger.Flush(ctx)
+	defer func() {
+		if err := crash.Recovery(ctx, recover(), "backup"); err != nil {
+			logger.CtxErr(ctx, err).Error("panic in factory")
+		}
+
+		logger.Flush(ctx)
+	}()
 
 	// persistent flags that are common to all use cases
 	fs := factoryCmd.PersistentFlags()
 	fs.StringVar(&impl.Tenant, "tenant", "", "m365 tenant containing the user")
+	fs.StringVar(&impl.Site, "site", "", "sharepoint site owning the new data")
 	fs.StringVar(&impl.User, "user", "", "m365 user owning the new data")
-	cobra.CheckErr(factoryCmd.MarkPersistentFlagRequired("user"))
+	fs.StringVar(&impl.SecondaryUser, "secondaryuser", "", "m365 secondary user owning the new data")
 	fs.IntVar(&impl.Count, "count", 0, "count of items to produce")
 	cobra.CheckErr(factoryCmd.MarkPersistentFlagRequired("count"))
 	fs.StringVar(&impl.Destination, "destination", "", "destination of the new data (will create as needed)")
@@ -53,6 +71,8 @@ func main() {
 	impl.AddExchangeCommands(exchangeCmd)
 	factoryCmd.AddCommand(oneDriveCmd)
 	impl.AddOneDriveCommands(oneDriveCmd)
+	factoryCmd.AddCommand(sharePointCmd)
+	impl.AddSharePointCommands(sharePointCmd)
 
 	if err := factoryCmd.ExecuteContext(ctx); err != nil {
 		logger.Flush(ctx)
@@ -71,6 +91,11 @@ func handleExchangeFactory(cmd *cobra.Command, args []string) error {
 }
 
 func handleOneDriveFactory(cmd *cobra.Command, args []string) error {
+	Err(cmd.Context(), impl.ErrNotYetImplemented)
+	return cmd.Help()
+}
+
+func handleSharePointFactory(cmd *cobra.Command, args []string) error {
 	Err(cmd.Context(), impl.ErrNotYetImplemented)
 	return cmd.Help()
 }

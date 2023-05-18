@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -216,9 +216,8 @@ func (s *exchange) Contacts(folders, contacts []string, opts ...option) []Exchan
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContact, contacts).
-			set(ExchangeContactFolder, folders, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeContact, contacts, defaultItemOptions(s.Cfg)...).
+			set(ExchangeContactFolder, folders, opts...))
 
 	return scopes
 }
@@ -236,8 +235,7 @@ func (s *exchange) ContactFolders(folders []string, opts ...option) []ExchangeSc
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...),
-	)
+		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...))
 
 	return scopes
 }
@@ -252,9 +250,8 @@ func (s *exchange) Events(calendars, events []string, opts ...option) []Exchange
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEvent, events).
-			set(ExchangeEventCalendar, calendars, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeEvent, events, defaultItemOptions(s.Cfg)...).
+			set(ExchangeEventCalendar, calendars, opts...))
 
 	return scopes
 }
@@ -273,8 +270,7 @@ func (s *exchange) EventCalendars(events []string, opts ...option) []ExchangeSco
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...),
-	)
+		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...))
 
 	return scopes
 }
@@ -289,9 +285,8 @@ func (s *exchange) Mails(folders, mails []string, opts ...option) []ExchangeScop
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMail, mails).
-			set(ExchangeMailFolder, folders, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeMail, mails, defaultItemOptions(s.Cfg)...).
+			set(ExchangeMailFolder, folders, opts...))
 
 	return scopes
 }
@@ -309,8 +304,7 @@ func (s *exchange) MailFolders(folders []string, opts ...option) []ExchangeScope
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...),
-	)
+		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...))
 
 	return scopes
 }
@@ -326,8 +320,7 @@ func (s *exchange) AllData() []ExchangeScope {
 	scopes = append(scopes,
 		makeScope[ExchangeScope](ExchangeContactFolder, Any()),
 		makeScope[ExchangeScope](ExchangeEventCalendar, Any()),
-		makeScope[ExchangeScope](ExchangeMailFolder, Any()),
-	)
+		makeScope[ExchangeScope](ExchangeMailFolder, Any()))
 
 	return scopes
 }
@@ -593,7 +586,7 @@ func (ec exchangeCategory) isLeaf() bool {
 // => {exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
 	cfg Config,
 ) (map[categorizer][]string, error) {
 	var folderCat, itemCat categorizer
@@ -617,13 +610,25 @@ func (ec exchangeCategory) pathValues(
 		item = repo.Item()
 	}
 
-	result := map[categorizer][]string{
-		folderCat: {repo.Folder(false)},
-		itemCat:   {item, ent.ShortRef},
+	items := []string{ent.ShortRef, item}
+
+	// only include the item ID when the user is NOT matching
+	// item names. Exchange data does not contain an item name,
+	// only an ID, and we don't want to mix up the two.
+	if cfg.OnlyMatchItemNames {
+		items = []string{ent.ShortRef}
 	}
 
-	if len(ent.LocationRef) > 0 {
-		result[folderCat] = append(result[folderCat], ent.LocationRef)
+	// Will hit the if-condition when we're at a top-level folder, but we'll get
+	// the same result when we extract from the RepoRef.
+	folder := ent.LocationRef
+	if len(folder) == 0 {
+		folder = repo.Folder(true)
+	}
+
+	result := map[categorizer][]string{
+		folderCat: {folder},
+		itemCat:   items,
 	}
 
 	return result, nil
@@ -773,7 +778,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoEventRecurs:
 		i = strconv.FormatBool(info.EventRecurs)
 	case ExchangeInfoEventStartsAfter, ExchangeInfoEventStartsBefore:
-		i = common.FormatTime(info.EventStart)
+		i = dttm.Format(info.EventStart)
 	case ExchangeInfoEventSubject:
 		i = info.Subject
 	case ExchangeInfoMailSender:
@@ -781,7 +786,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoMailSubject:
 		i = info.Subject
 	case ExchangeInfoMailReceivedAfter, ExchangeInfoMailReceivedBefore:
-		i = common.FormatTime(info.Received)
+		i = dttm.Format(info.Received)
 	}
 
 	return s.Matches(infoCat, i)

@@ -10,15 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -93,44 +95,57 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 	}
 
 	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
+		for _, canMakeDeltaQueries := range []bool{true, false} {
+			name := test.name
 
-			sel := test.getSelector(t)
-
-			collections, excludes, err := exchange.DataCollections(
-				ctx,
-				sel,
-				sel,
-				nil,
-				connector.credentials,
-				connector.UpdateStatus,
-				control.Options{},
-				fault.New(true))
-			require.NoError(t, err, clues.ToCore(err))
-			assert.Empty(t, excludes)
-
-			for range collections {
-				connector.incrementAwaitingMessages()
+			if canMakeDeltaQueries {
+				name += "-delta"
+			} else {
+				name += "-non-delta"
 			}
 
-			// Categories with delta endpoints will produce a collection for metadata
-			// as well as the actual data pulled, and the "temp" root collection.
-			assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
-			assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
+			suite.Run(name, func() {
+				t := suite.T()
 
-			for _, col := range collections {
-				for object := range col.Items(ctx, fault.New(true)) {
-					buf := &bytes.Buffer{}
-					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "received a buf.Read error", clues.ToCore(err))
+				sel := test.getSelector(t)
+
+				ctrlOpts := control.Defaults()
+				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
+
+				collections, excludes, err := exchange.DataCollections(
+					ctx,
+					sel,
+					sel,
+					nil,
+					connector.credentials,
+					connector.UpdateStatus,
+					ctrlOpts,
+					fault.New(true))
+				require.NoError(t, err, clues.ToCore(err))
+				assert.True(t, excludes.Empty())
+
+				for range collections {
+					connector.incrementAwaitingMessages()
 				}
-			}
 
-			status := connector.Wait()
-			assert.NotZero(t, status.Successes)
-			t.Log(status.String())
-		})
+				// Categories with delta endpoints will produce a collection for metadata
+				// as well as the actual data pulled, and the "temp" root collection.
+				assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
+				assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
+
+				for _, col := range collections {
+					for object := range col.Items(ctx, fault.New(true)) {
+						buf := &bytes.Buffer{}
+						_, err := buf.ReadFrom(object.ToReader())
+						assert.NoError(t, err, "received a buf.Read error", clues.ToCore(err))
+					}
+				}
+
+				status := connector.Wait()
+				assert.NotZero(t, status.Successes)
+				t.Log(status.String())
+			})
+		}
 	}
 }
 
@@ -158,7 +173,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "Invalid onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup(owners)
-				sel.Include(sel.Folders(selectors.Any()))
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -166,7 +181,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "Invalid sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(testdata.SharePointBackupFolderScope(sel))
+				sel.Include(selTD.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -183,7 +198,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "missing onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup(owners)
-				sel.Include(sel.Folders(selectors.Any()))
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -192,7 +207,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			name: "missing sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(testdata.SharePointBackupFolderScope(sel))
+				sel.Include(selTD.SharePointBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -208,11 +223,12 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				test.getSelector(t),
 				test.getSelector(t),
 				nil,
-				control.Options{},
+				version.NoBackup,
+				control.Defaults(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, collections)
-			assert.Empty(t, excludes)
+			assert.Nil(t, excludes)
 		})
 	}
 }
@@ -236,7 +252,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			name: "Libraries",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(testdata.SharePointBackupFolderScope(sel))
+				sel.Include(selTD.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -258,16 +274,18 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NewNoTimeoutHTTPWrapper(),
 				sel,
+				sel,
+				nil,
 				connector.credentials,
 				connector.Service,
 				connector,
-				control.Options{},
+				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			// Not expecting excludes as this isn't an incremental backup.
-			assert.Empty(t, excludes)
+			assert.True(t, excludes.Empty())
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -342,15 +360,16 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		sel.Selector,
+		inMock.NewProvider(id, name),
 		sel.Selector,
 		nil,
-		control.Options{},
+		version.NoBackup,
+		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
-	assert.Empty(t, excludes)
+	assert.True(t, excludes.Empty())
 
 	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
 	assert.Equal(
@@ -386,15 +405,16 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		sel.Selector,
+		inMock.NewProvider(id, name),
 		sel.Selector,
 		nil,
-		control.Options{},
+		version.NoBackup,
+		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
-	assert.Empty(t, excludes)
+	assert.True(t, excludes.Empty())
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
