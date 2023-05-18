@@ -228,7 +228,6 @@ func runBackups(
 		if err != nil {
 			if errors.Is(err, graph.ErrServiceNotEnabled) {
 				logger.Ctx(ctx).Debugf("Service not enabled for creating backup for %s", bo.ResourceOwner.Name())
-				Infof(ictx, "%v\n", err)
 
 				continue
 			}
