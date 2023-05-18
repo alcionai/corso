@@ -227,7 +227,7 @@ jobs:
 
           go run . onedrive files  \
             --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
             --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
             --count 4
@@ -250,7 +250,7 @@ jobs:
         run: |
           go run . onedrive files  \
             --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
             --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} \
             --count 4
@@ -279,7 +279,7 @@ jobs:
           go run . sharepoint files  \
             --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
             --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
             --count 4
@@ -303,7 +303,7 @@ jobs:
           go run . sharepoint files  \
             --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
             --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
             --count 4
