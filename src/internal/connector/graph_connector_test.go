@@ -498,6 +498,7 @@ func runBackupAndCompare(
 		nil,
 		version.NoBackup,
 		config.Opts,
+		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	// No excludes yet because this isn't an incremental backup.
@@ -1082,6 +1083,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
 				},
+				true,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			// No excludes yet because this isn't an incremental backup.
@@ -1237,6 +1239,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{},
 				},
+				true,
 				fault.New(true))
 			require.NoError(t, err)
 			// No excludes yet because this isn't an incremental backup.

@@ -25,8 +25,10 @@ type (
 			metadata []data.RestoreCollection,
 			lastBackupVersion int,
 			ctrlOpts control.Options,
+			canMakeDeltaQueries bool,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, error)
+		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, bool, error)
 
 		Wait() *data.CollectionStats
 	}
