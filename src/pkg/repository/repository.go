@@ -184,6 +184,7 @@ func Connect(
 	ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
+	repo string,
 	opts control.Options,
 ) (r Repository, err error) {
 	ctx = clues.Add(
@@ -229,23 +230,21 @@ func Connect(
 		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
-	rm := &repositoryModel{}
-
 	// Do not query repo ID if metrics are disabled
 	if !opts.DisableMetrics {
-		rm, err = getRepoModel(ctx, ms)
-		if err != nil {
-			return nil, clues.New("retrieving repo info")
+		repoID := "not_found"
+		if len(repo) > 0 {
+			repoID = repo
 		}
 
-		bus.SetRepoID(string(rm.ID))
+		bus.SetRepoID(repoID)
 	}
 
 	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
-		ID:         string(rm.ID),
+		ID:         repo,
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
@@ -259,9 +258,10 @@ func Connect(
 func ConnectAndSendConnectEvent(ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
+	repoid string,
 	opts control.Options,
 ) (Repository, error) {
-	repo, err := Connect(ctx, acct, s, opts)
+	repo, err := Connect(ctx, acct, s, repoid, opts)
 	if err != nil {
 		return nil, err
 	}

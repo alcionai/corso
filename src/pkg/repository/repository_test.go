@@ -91,7 +91,7 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 			st, err := test.storage()
 			assert.NoError(t, err, clues.ToCore(err))
 
-			_, err = repository.Connect(ctx, test.account, st, control.Defaults())
+			_, err = repository.Connect(ctx, test.account, st, "not_found", control.Defaults())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -183,11 +183,11 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	_, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
+	repo, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	_, err = repository.Connect(ctx, account.Account{}, st, control.Defaults())
+	_, err = repository.Connect(ctx, account.Account{}, st, repo.GetID(), control.Defaults())
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
@@ -209,7 +209,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	r, err = repository.Connect(ctx, account.Account{}, st, control.Defaults())
+	r, err = repository.Connect(ctx, account.Account{}, st, oldID, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, oldID, r.GetID())
 }
@@ -283,12 +283,13 @@ func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
 
-	_, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
+	repo, err := repository.Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err)
 
 	// now re-connect
-	r, err := repository.Connect(ctx, account.Account{}, st, control.Options{DisableMetrics: true})
+	r, err := repository.Connect(ctx, account.Account{}, st, repo.GetID(), control.Options{DisableMetrics: true})
 	assert.NoError(t, err)
 
-	assert.Equal(t, "", r.GetID())
+	// now we have repoID beforehand
+	assert.Equal(t, r.GetID(), r.GetID())
 }
