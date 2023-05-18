@@ -52,11 +52,11 @@ func RestoreItem(
 
 	switch category {
 	case path.EmailCategory:
-		return RestoreMessage(ctx, bits, ac.Mail(), gs, control.Copy, destination, user, errs)
+		return RestoreMessage(ctx, bits, ac.Mail(), ac.Mail(), gs, control.Copy, destination, user, errs)
 	case path.ContactsCategory:
 		return RestoreContact(ctx, bits, ac.Contacts(), control.Copy, destination, user)
 	case path.EventsCategory:
-		return RestoreEvent(ctx, bits, ac.Events(), gs, control.Copy, destination, user, errs)
+		return RestoreEvent(ctx, bits, ac.Events(), ac.Events(), gs, control.Copy, destination, user, errs)
 	default:
 		return nil, clues.Wrap(clues.New(category.String()), "not supported for Exchange restore")
 	}
@@ -92,7 +92,8 @@ func RestoreContact(
 func RestoreEvent(
 	ctx context.Context,
 	bits []byte,
-	cli itemPoster[models.Eventable],
+	itemCli itemPoster[models.Eventable],
+	attachmentCli attachmentPoster,
 	gs graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
@@ -117,24 +118,26 @@ func RestoreEvent(
 		transformedEvent.SetAttachments([]models.Attachmentable{})
 	}
 
-	item, err := cli.PostItem(ctx, user, destination, event)
+	item, err := itemCli.PostItem(ctx, user, destination, event)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
 
-	uploader := &eventAttachmentUploader{
-		calendarID: destination,
-		userID:     user,
-		service:    gs,
-		itemID:     ptr.Val(item.GetId()),
-	}
-
-	for _, attach := range attached {
+	for _, a := range attached {
 		if el.Failure() != nil {
 			break
 		}
 
-		if err := uploadAttachment(ctx, uploader, attach); err != nil {
+		err := uploadAttachment(
+			ctx,
+			attachmentCli,
+			user,
+			destination,
+			ptr.Val(item.GetId()),
+			ptr.Val(a.GetName()),
+			ptr.Val(a.GetSize()),
+			a)
+		if err != nil {
 			el.AddRecoverable(err)
 		}
 	}
@@ -149,7 +152,8 @@ func RestoreEvent(
 func RestoreMessage(
 	ctx context.Context,
 	bits []byte,
-	cli itemPoster[models.Messageable],
+	itemCli itemPoster[models.Messageable],
+	attachmentCli attachmentPoster,
 	gs graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
@@ -201,13 +205,38 @@ func RestoreMessage(
 
 	clone.SetSingleValueExtendedProperties(svlep)
 
-	if err := CreateMessage(ctx, cli, gs, user, destination, clone, errs); err != nil {
-		return nil, err
+	attached := clone.GetAttachments()
+
+	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
+	clone.SetAttachments([]models.Attachmentable{})
+
+	item, err := itemCli.PostItem(ctx, user, destination, clone)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "restoring mail message")
 	}
 
-	info := api.MailInfo(clone, int64(len(bits)))
+	el := errs.Local()
 
-	return info, nil
+	for _, a := range attached {
+		if el.Failure() != nil {
+			return nil, el.Failure()
+		}
+
+		err := uploadAttachment(
+			ctx,
+			attachmentCli,
+			user,
+			destination,
+			ptr.Val(item.GetId()),
+			ptr.Val(a.GetName()),
+			ptr.Val(a.GetSize()),
+			a)
+		if err != nil {
+			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment"))
+		}
+	}
+
+	return api.MailInfo(clone, int64(len(bits))), el.Failure()
 }
 
 // GetAttachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
@@ -223,61 +252,6 @@ func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
 	}
 
 	return bts, nil
-}
-
-// CreateMessage wraps the api call to mail().PostItem()
-func CreateMessage(
-	ctx context.Context,
-	cli itemPoster[models.Messageable],
-	gs graph.Servicer,
-	user, destination string,
-	message models.Messageable,
-	errs *fault.Bus,
-) error {
-	attached := message.GetAttachments()
-
-	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
-	message.SetAttachments([]models.Attachmentable{})
-
-	item, err := cli.PostItem(ctx, user, destination, message)
-	if err != nil {
-		return graph.Wrap(ctx, err, "restoring mail")
-	}
-
-	var (
-		el       = errs.Local()
-		id       = ptr.Val(item.GetId())
-		uploader = &mailAttachmentUploader{
-			userID:   user,
-			folderID: destination,
-			itemID:   id,
-			service:  gs,
-		}
-	)
-
-	for _, attachment := range attached {
-		if el.Failure() != nil {
-			break
-		}
-
-		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
-			if ptr.Val(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
-				name := ptr.Val(attachment.GetName())
-
-				logger.CtxErr(ctx, err).
-					With("attachment_name", name).
-					Info("mail upload failed")
-
-				continue
-			}
-
-			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment"))
-
-			break
-		}
-	}
-
-	return el.Failure()
 }
 
 // RestoreCollections restores M365 objects in data.RestoreCollection to MSFT

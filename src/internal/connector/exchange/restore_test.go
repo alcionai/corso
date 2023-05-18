@@ -138,6 +138,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestoreEvent() {
 				ctx,
 				test.bytes,
 				suite.ac.Events(),
+				suite.ac.Events(),
 				suite.gs,
 				control.Copy,
 				calendarID,
