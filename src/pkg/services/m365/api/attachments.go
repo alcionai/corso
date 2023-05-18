@@ -3,8 +3,9 @@ package api
 import (
 	"strings"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 func HasAttachments(body models.ItemBodyable) bool {

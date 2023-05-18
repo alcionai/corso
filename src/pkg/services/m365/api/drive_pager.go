@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	onedrive "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
-	"github.com/alcionai/corso/src/pkg/logger"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	onedrive "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
