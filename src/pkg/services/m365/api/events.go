@@ -42,12 +42,17 @@ type Events struct {
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
 func (c Events) CreateCalendar(
 	ctx context.Context,
-	user, calendarName string,
+	userID, containerName string,
 ) (models.Calendarable, error) {
-	requestbody := models.NewCalendar()
-	requestbody.SetName(&calendarName)
+	body := models.NewCalendar()
+	body.SetName(&containerName)
 
-	mdl, err := c.Stable.Client().Users().ByUserId(user).Calendars().Post(ctx, requestbody, nil)
+	mdl, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		Post(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar")
 	}
@@ -59,7 +64,7 @@ func (c Events) CreateCalendar(
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
 func (c Events) DeleteContainer(
 	ctx context.Context,
-	user, calendarID string,
+	userID, containerID string,
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
@@ -68,7 +73,12 @@ func (c Events) DeleteContainer(
 		return graph.Stack(ctx, err)
 	}
 
-	err = srv.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Delete(ctx, nil)
+	err = srv.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -83,18 +93,14 @@ func (c Events) GetCalendar(
 	ctx context.Context,
 	userID, containerID string,
 ) (models.Calendarable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
 	config := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
 			Select: idAnd("name", "owner"),
 		},
 	}
 
-	resp, err := service.Client().
+	resp, err := c.Stable.
+		Client().
 		Users().
 		ByUserId(userID).
 		Calendars().
@@ -110,9 +116,9 @@ func (c Events) GetCalendar(
 // interface-compliant wrapper of GetCalendar
 func (c Events) GetContainerByID(
 	ctx context.Context,
-	userID, dirID string,
+	userID, containerID string,
 ) (graph.Container, error) {
-	cal, err := c.GetCalendar(ctx, userID, dirID)
+	cal, err := c.GetCalendar(ctx, userID, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,18 +129,23 @@ func (c Events) GetContainerByID(
 // GetContainerByName fetches a calendar by name
 func (c Events) GetContainerByName(
 	ctx context.Context,
-	userID, name string,
+	userID, containerName string,
 ) (models.Calendarable, error) {
-	filter := fmt.Sprintf("name eq '%s'", name)
+	filter := fmt.Sprintf("name eq '%s'", containerName)
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
 			Filter: &filter,
 		},
 	}
 
-	ctx = clues.Add(ctx, "calendar_name", name)
+	ctx = clues.Add(ctx, "calendar_name", containerName)
 
-	resp, err := c.Stable.Client().Users().ByUserId(userID).Calendars().Get(ctx, options)
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		Get(ctx, options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -164,12 +175,8 @@ func (c Events) PatchCalendar(
 	userID, containerID string,
 	body models.Calendarable,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	_, err = service.Client().
+	_, err := c.Stable.
+		Client().
 		Users().
 		ByUserId(userID).
 		Calendars().
@@ -193,15 +200,10 @@ func (c Events) PatchCalendar(
 // not contain historical data.
 func (c Events) EnumerateContainers(
 	ctx context.Context,
-	userID, baseDirID string,
+	userID, baseContainerID string,
 	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
 	var (
 		el     = errs.Local()
 		config = &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
@@ -209,7 +211,8 @@ func (c Events) EnumerateContainers(
 				Select: idAnd("name"),
 			},
 		}
-		builder = service.Client().
+		builder = c.Stable.
+			Client().
 			Users().
 			ByUserId(userID).
 			Calendars()
@@ -256,7 +259,7 @@ func (c Events) EnumerateContainers(
 			break
 		}
 
-		builder = users.NewItemCalendarsRequestBuilder(link, service.Adapter())
+		builder = users.NewItemCalendarsRequestBuilder(link, c.Stable.Adapter())
 	}
 
 	return el.Failure()
@@ -273,7 +276,7 @@ const (
 // GetItem retrieves an Eventable item.
 func (c Events) GetItem(
 	ctx context.Context,
-	user, itemID string,
+	userID, itemID string,
 	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
@@ -285,9 +288,10 @@ func (c Events) GetItem(
 		}
 	)
 
-	event, err = c.Stable.Client().
+	event, err = c.Stable.
+		Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		Events().
 		ByEventId(itemID).
 		Get(ctx, config)
@@ -306,7 +310,7 @@ func (c Events) GetItem(
 		attached, err := c.LargeItem.
 			Client().
 			Users().
-			ByUserId(user).
+			ByUserId(userID).
 			Events().
 			ByEventId(itemID).
 			Attachments().
@@ -326,12 +330,8 @@ func (c Events) PostItem(
 	userID, containerID string,
 	body models.Eventable,
 ) (models.Eventable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	itm, err := service.Client().
+	itm, err := c.Stable.
+		Client().
 		Users().
 		ByUserId(userID).
 		Calendars().
@@ -351,12 +351,13 @@ func (c Events) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	service, err := c.Service()
+	srv, err := c.Service()
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
 
-	err = service.Client().
+	err = srv.
+		Client().
 		Users().
 		ByUserId(userID).
 		Events().
@@ -374,12 +375,8 @@ func (c Events) PostSmallAttachment(
 	userID, containerID, parentItemID string,
 	body models.Attachmentable,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	_, err = service.Client().
+	_, err := c.Stable.
+		Client().
 		Users().
 		ByUserId(userID).
 		Calendars().
@@ -397,7 +394,7 @@ func (c Events) PostSmallAttachment(
 
 func (c Events) PostLargeAttachment(
 	ctx context.Context,
-	userID, containerID, parentItemID, name string,
+	userID, containerID, parentItemID, itemName string,
 	size int64,
 	body models.Attachmentable,
 ) (models.UploadSessionable, error) {
@@ -407,7 +404,7 @@ func (c Events) PostLargeAttachment(
 	}
 
 	session := users.NewItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
-	session.SetAttachmentItem(makeSessionAttachment(name, size))
+	session.SetAttachmentItem(makeSessionAttachment(itemName, size))
 
 	us, err := c.LargeItem.
 		Client().
@@ -451,14 +448,20 @@ type eventPager struct {
 func NewEventPager(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, calendarID string,
+	userID, containerID string,
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
-	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
+	builder := gs.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events()
 
 	return &eventPager{gs, builder, options}, nil
 }
@@ -490,17 +493,17 @@ func (p *eventPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 var _ itemPager = &eventDeltaPager{}
 
 type eventDeltaPager struct {
-	gs         graph.Servicer
-	user       string
-	calendarID string
-	builder    *users.ItemCalendarsItemEventsDeltaRequestBuilder
-	options    *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
+	gs          graph.Servicer
+	userID      string
+	containerID string
+	builder     *users.ItemCalendarsItemEventsDeltaRequestBuilder
+	options     *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewEventDeltaPager(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, calendarID, deltaURL string,
+	userID, containerID, oldDelta string,
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
@@ -509,20 +512,19 @@ func NewEventDeltaPager(
 
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 
-	if deltaURL == "" {
-		builder = getEventDeltaBuilder(ctx, gs, user, calendarID, options)
+	if oldDelta == "" {
+		builder = getEventDeltaBuilder(ctx, gs, userID, containerID, options)
 	} else {
-		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(deltaURL, gs.Adapter())
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, gs.Adapter())
 	}
 
-	return &eventDeltaPager{gs, user, calendarID, builder, options}, nil
+	return &eventDeltaPager{gs, userID, containerID, builder, options}, nil
 }
 
 func getEventDeltaBuilder(
 	ctx context.Context,
 	gs graph.Servicer,
-	user string,
-	calendarID string,
+	userID, containerID string,
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemCalendarsItemEventsDeltaRequestBuilder {
 	// Graph SDK only supports delta queries against events on the beta version, so we're
@@ -533,7 +535,7 @@ func getEventDeltaBuilder(
 	// response body parses properly into the v1.0 structs and complies with our wanted interfaces.
 	// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
-	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
+	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, userID, containerID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
 
 	return builder
@@ -553,7 +555,7 @@ func (p *eventDeltaPager) setNext(nextLink string) {
 }
 
 func (p *eventDeltaPager) reset(ctx context.Context) {
-	p.builder = getEventDeltaBuilder(ctx, p.gs, p.user, p.calendarID, p.options)
+	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
 }
 
 func (p *eventDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
@@ -562,41 +564,42 @@ func (p *eventDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
-	user, calendarID, oldDelta string,
+	userID, calendarID, oldDelta string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
-	}
+	ctx = clues.Add(ctx, "container_id", calendarID)
 
-	ctx = clues.Add(
-		ctx,
-		"container_id", calendarID)
-
-	pager, err := NewEventPager(ctx, service, user, calendarID, immutableIDs)
+	pager, err := NewEventPager(ctx, c.Stable, userID, calendarID, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
 	}
 
-	deltaPager, err := NewEventDeltaPager(ctx, service, user, calendarID, oldDelta, immutableIDs)
+	deltaPager, err := NewEventDeltaPager(ctx, c.Stable, userID, calendarID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
 
-	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
+	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------
 // Serialization
 // ---------------------------------------------------------------------------
 
-// Serialize transforms the event into a byte slice.
+func BytesToEventable(body []byte) (models.Eventable, error) {
+	v, err := createFromBytes(body, models.CreateEventFromDiscriminatorValue)
+	if err != nil {
+		return nil, clues.Wrap(err, "deserializing bytes to event")
+	}
+
+	return v.(models.Eventable), nil
+}
+
 func (c Events) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,
-	user, itemID string,
+	userID, itemID string,
 ) ([]byte, error) {
 	event, ok := item.(models.Eventable)
 	if !ok {
@@ -605,14 +608,10 @@ func (c Events) Serialize(
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
-	var (
-		err    error
-		writer = kjson.NewJsonSerializationWriter()
-	)
-
+	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	if err = writer.WriteObjectValue("", event); err != nil {
+	if err := writer.WriteObjectValue("", event); err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 

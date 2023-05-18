@@ -483,7 +483,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 					continue
 				}
 
-				message, err := support.CreateMessageFromBytes(buf.Bytes())
+				message, err := api.BytesToMessageable(buf.Bytes())
 				assert.NotNil(t, message)
 				assert.NoError(t, err, clues.ToCore(err))
 			}
@@ -553,7 +553,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 						continue
 					}
 
-					contact, err := support.CreateContactFromBytes(buf.Bytes())
+					contact, err := api.BytesToContactable(buf.Bytes())
 					assert.NotNil(t, contact)
 					assert.NoError(t, err, "converting contact bytes: "+buf.String(), clues.ToCore(err))
 					count++
@@ -683,7 +683,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 						continue
 					}
 
-					event, err := support.CreateEventFromBytes(buf.Bytes())
+					event, err := api.BytesToEventable(buf.Bytes())
 					assert.NotNil(t, event)
 					assert.NoError(t, err, "creating event from bytes: "+buf.String(), clues.ToCore(err))
 				}

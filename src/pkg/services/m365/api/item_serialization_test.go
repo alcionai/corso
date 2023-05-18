@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -50,7 +49,7 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 				return bs
 			},
 			deserializeAndGetField: func(t *testing.T, bs []byte) string {
-				item, err := support.CreateMessageFromBytes(bs)
+				item, err := api.BytesToMessageable(bs)
 				require.NoError(
 					t,
 					err,
@@ -75,7 +74,7 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 				return bs
 			},
 			deserializeAndGetField: func(t *testing.T, bs []byte) string {
-				item, err := support.CreateEventFromBytes(bs)
+				item, err := api.BytesToEventable(bs)
 				require.NoError(
 					t,
 					err,
@@ -100,7 +99,7 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 				return bs
 			},
 			deserializeAndGetField: func(t *testing.T, bs []byte) string {
-				item, err := support.CreateContactFromBytes(bs)
+				item, err := api.BytesToContactable(bs)
 				require.NoError(
 					t,
 					err,
