@@ -327,7 +327,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: "test-logs"
+          name: sanity-test-log
           path: ${{ env.WORKING_DIR }}/${{ env.CORSO_LOG_DIR }}/
           if-no-files-found: error
           retention-days: 14
