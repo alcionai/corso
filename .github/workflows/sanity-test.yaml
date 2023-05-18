@@ -27,20 +27,20 @@ jobs:
     environment: Testing
     runs-on: ubuntu-latest
     env:
+      # Need these in the local env so that corso can read them
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
       AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
       AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      # re-used values
+      # don't forget: return to Corso_Test_Sanity_
       CORSO_LOG_DIR: testlog
       CORSO_LOG_FILE: testlog/testlogging.log
-      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       RESTORE_DEST_PFX: Corso_Test_Sanity_
       TEST_RESULT: test_results
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
-      TEST_SITE: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
-      SECONDARY_TEST_USER : ${{  secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
       # The default working directory doesn't seem to apply to things without
       # the 'run' directive. https://stackoverflow.com/a/67845456
       WORKING_DIR: src
@@ -87,9 +87,9 @@ jobs:
           user: ${{ env.TEST_USER }}
           folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           older-than: ${{ env.NOW }}
-          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
-          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
 
@@ -97,13 +97,13 @@ jobs:
         if: always()
         uses: ./.github/actions/purge-m365-data
         with:
-          site: ${{ env.TEST_SITE }}
+          site: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
           folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.NOW }}
-          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
-          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
 
@@ -122,10 +122,13 @@ jobs:
         run: |
           set -euo pipefail
           prefix=$(date +"%Y-%m-%d-%T")
-          echo -e "\nRepo init test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
           ./corso repo init s3 \
-            --no-stats --hide-progress --prefix $prefix \
-            --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt
+            --no-stats \
+            --hide-progress \
+            --prefix $prefix \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee $TEST_RESULT/initrepo.txt
 
           if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt
           then
@@ -138,10 +141,13 @@ jobs:
       - name: Repo connect test
         run: |
           set -euo pipefail
-          echo -e "\nRepo connect test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
           ./corso repo connect s3 \
-            --no-stats --hide-progress --prefix ${{ steps.repo-init.outputs.result }} \
-            --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ steps.repo-init.outputs.result }} \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee $TEST_RESULT/connect.txt
 
           if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt
           then
@@ -159,9 +165,9 @@ jobs:
         working-directory: ./src/cmd/factory
         run: |
           go run . exchange emails \
-          --user ${TEST_USER} \
-          --tenant ${AZURE_TENANT_ID} \
-          --destination ${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }} \
+          --user ${{ env.TEST_USER }} \
+          --tenant ${{ secrets.TENANT_ID }} \
+          --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }} \
           --count 4
 
       - name: Exchange - Backup
@@ -170,9 +176,9 @@ jobs:
         with:
           service: exchange
           kind: backup
-          backup-args: '--mailbox "${TEST_USER}" --data "email"'
-          restore-args: '--email-folder ${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
 
       - name: Exchange - Incremental backup
         id: exchange-backup-incremental
@@ -180,9 +186,9 @@ jobs:
         with:
           service: exchange
           kind: backup-incremental
-          backup-args: '--mailbox "${TEST_USER}" --data "email"'
-          restore-args: '--email-folder ${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
 
       - name: Exchange - Non delta backup
@@ -191,9 +197,9 @@ jobs:
         with:
           service: exchange
           kind: backup-non-delta
-          backup-args: '--mailbox "${TEST_USER}" --data "email" --disable-delta'
-          restore-args: '--email-folder ${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
 
       - name: Exchange - Incremental backup after non-delta
@@ -202,9 +208,9 @@ jobs:
         with:
           service: exchange
           kind: backup-incremental-after-non-delta
-          backup-args: '--mailbox "${TEST_USER}" --data "email"'
-          restore-args: '--email-folder ${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.repo-init.outputs.result }}'
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
 
 
@@ -220,10 +226,10 @@ jobs:
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
           go run . onedrive files  \
-            --user ${TEST_USER} \
-            --secondaryuser  ${SECONDARY_TEST_USER} \
-            --tenant ${AZURE_TENANT_ID} \
-            --destination ${RESTORE_DEST_PFX}$suffix \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
             --count 4
 
           echo result="${suffix}" >> $GITHUB_OUTPUT
@@ -234,19 +240,19 @@ jobs:
         with:
           service: onedrive
           kind: backup
-          backup-args: '--user "${TEST_USER}"'
-          restore-args: '--folder ${RESTORE_DEST_PFX}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          backup-args: '--user "${{ env.TEST_USER }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
 
       # generate some more enteries for incremental check
       - name: OneDrive - Create new data (for incremental)
         working-directory: ./src/cmd/factory
         run: |
           go run . onedrive files  \
-            --user ${TEST_USER} \
-            --secondaryuser  ${SECONDARY_TEST_USER} \
-            --tenant ${AZURE_TENANT_ID} \
-            --destination ${RESTORE_DEST_PFX}${{ steps.new-data-creation-onedrive.outputs.result }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} \
             --count 4
 
       - name: OneDrive - Incremental backup
@@ -255,9 +261,9 @@ jobs:
         with:
           service: onedrive
           kind: incremental
-          backup-args: '--user "${TEST_USER}"'
-          restore-args: '--folder ${RESTORE_DEST_PFX}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          backup-args: '--user "${{ env.TEST_USER }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
 
 ##########################################################################################################################################
 
@@ -271,11 +277,11 @@ jobs:
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
           go run . sharepoint files  \
-            --site ${TEST_SITE} \
-            --user ${TEST_USER} \
-            --secondaryuser  ${SECONDARY_TEST_USER} \
-            --tenant ${AZURE_TENANT_ID} \
-            --destination ${RESTORE_DEST_PFX}$suffix \
+            --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
             --count 4
 
           echo result="${suffix}" >> $GITHUB_OUTPUT
@@ -286,20 +292,20 @@ jobs:
         with:
           service: sharepoint
           kind: backup
-          backup-args: '--site "${TEST_SITE}"'
-          restore-args: '--folder ${RESTORE_DEST_PFX}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
 
       # generate some more enteries for incremental check
       - name: SharePoint - Create new data (for incremental)
         working-directory: ./src/cmd/factory
         run: |
           go run . sharepoint files  \
-            --site ${TEST_SITE} \
-            --user ${TEST_USER} \
-            --secondaryuser  ${SECONDARY_TEST_USER} \
-            --tenant ${AZURE_TENANT_ID} \
-            --destination ${RESTORE_DEST_PFX}${{ steps.new-data-creation-sharepoint.outputs.result }} \
+            --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
             --count 4
 
       - name: SharePoint - Incremental backup
@@ -308,9 +314,9 @@ jobs:
         with:
           service: sharepoint
           kind: incremental
-          backup-args: '--site "${TEST_SITE}"'
-          restore-args: '--folder ${RESTORE_DEST_PFX}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
-          test-folder: '${RESTORE_DEST_PFX}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
 
 ##########################################################################################################################################
 
