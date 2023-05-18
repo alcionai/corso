@@ -130,7 +130,7 @@ func (c Events) GetContainerByName(
 	cal := resp.GetValue()[0]
 	cd := CalendarDisplayable{Calendarable: cal}
 
-	if err := checkIDAndName(cd); err != nil {
+	if err := graph.CheckIDAndName(cd); err != nil {
 		return nil, err
 	}
 
@@ -225,7 +225,7 @@ func (c Events) EnumerateContainers(
 			}
 
 			cd := CalendarDisplayable{Calendarable: cal}
-			if err := checkIDAndName(cd); err != nil {
+			if err := graph.CheckIDAndName(cd); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}

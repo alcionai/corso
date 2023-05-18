@@ -155,7 +155,7 @@ func (c Contacts) EnumerateContainers(
 				return el.Failure()
 			}
 
-			if err := checkIDAndName(fold); err != nil {
+			if err := graph.CheckIDAndName(fold); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}

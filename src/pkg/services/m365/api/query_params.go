@@ -7,14 +7,12 @@ import (
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 )
 
-const deltaMaxPageSize = 200
-
 // buildPreferHeaders returns the headers we add to item delta page requests.
 func buildPreferHeaders(pageSize, immutableID bool) *abstractions.RequestHeaders {
 	var allHeaders []string
 
 	if pageSize {
-		allHeaders = append(allHeaders, fmt.Sprintf("odata.maxpagesize=%d", deltaMaxPageSize))
+		allHeaders = append(allHeaders, fmt.Sprintf("odata.maxpagesize=%d", maxPageSize))
 	}
 
 	if immutableID {
