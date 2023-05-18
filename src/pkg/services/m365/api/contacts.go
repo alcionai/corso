@@ -31,7 +31,7 @@ type Contacts struct {
 }
 
 // ---------------------------------------------------------------------------
-// methods
+// containers
 // ---------------------------------------------------------------------------
 
 // CreateContactFolder makes a contact folder with the displayName of folderName.
@@ -72,40 +72,29 @@ func (c Contacts) DeleteContainer(
 	return nil
 }
 
-// GetItem retrieves a Contactable item.
-func (c Contacts) GetItem(
+// prefer GetContainerByID where possible.
+// use this only in cases where the models.ContactFolderable
+// is required.
+func (c Contacts) GetFolder(
 	ctx context.Context,
-	user, itemID string,
-	immutableIDs bool,
-	_ *fault.Bus, // no attachments to iterate over, so this goes unused
-) (serialization.Parsable, *details.ExchangeInfo, error) {
-	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
-	}
-
-	cont, err := c.Stable.Client().Users().ByUserId(user).Contacts().ByContactId(itemID).Get(ctx, options)
+	userID, containerID string,
+) (models.ContactFolderable, error) {
+	service, err := c.Service()
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, graph.Stack(ctx, err)
 	}
 
-	return cont, ContactInfo(cont), nil
-}
-
-func (c Contacts) GetContainerByID(
-	ctx context.Context,
-	userID, dirID string,
-) (graph.Container, error) {
 	config := &users.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersContactFolderItemRequestBuilderGetQueryParameters{
 			Select: idAnd(displayName, parentFolderID),
 		},
 	}
 
-	resp, err := c.Stable.Client().
+	resp, err := service.Client().
 		Users().
 		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderId(dirID).
+		ByContactFolderId(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -113,6 +102,41 @@ func (c Contacts) GetContainerByID(
 
 	return resp, nil
 }
+
+// interface-compliant wrapper of GetFolder
+func (c Contacts) GetContainerByID(
+	ctx context.Context,
+	userID, dirID string,
+) (graph.Container, error) {
+	return c.GetFolder(ctx, userID, dirID)
+}
+
+func (c Contacts) PatchFolder(
+	ctx context.Context,
+	userID, containerID string,
+	body models.ContactFolderable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		ByContactFolderId(containerID).
+		Patch(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "patching contact folder")
+	}
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// container pager
+// ---------------------------------------------------------------------------
 
 // EnumerateContainers iterates through all of the users current
 // contacts folders, converting each to a graph.CacheFolder, and calling
@@ -185,6 +209,77 @@ func (c Contacts) EnumerateContainers(
 	}
 
 	return el.Failure()
+}
+
+// ---------------------------------------------------------------------------
+// items
+// ---------------------------------------------------------------------------
+
+// GetItem retrieves a Contactable item.
+func (c Contacts) GetItem(
+	ctx context.Context,
+	user, itemID string,
+	immutableIDs bool,
+	_ *fault.Bus, // no attachments to iterate over, so this goes unused
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
+		Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+	}
+
+	cont, err := c.Stable.Client().Users().ByUserId(user).Contacts().ByContactId(itemID).Get(ctx, options)
+	if err != nil {
+		return nil, nil, graph.Stack(ctx, err)
+	}
+
+	return cont, ContactInfo(cont), nil
+}
+
+func (c Contacts) PostItem(
+	ctx context.Context,
+	userID, containerID string,
+	body models.Contactable,
+) (models.Contactable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	itm, err := service.Client().
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		ByContactFolderId(containerID).
+		Contacts().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating contact")
+	}
+
+	return itm, nil
+}
+
+func (c Contacts) DeleteItem(
+	ctx context.Context,
+	userID, itemID string,
+) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = service.Client().
+		Users().
+		ByUserId(userID).
+		Contacts().
+		ByContactId(itemID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting contact")
+	}
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------
