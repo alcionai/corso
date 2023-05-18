@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -93,17 +92,13 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 	_, err = uapi.GetMailFolders(ctx, userID, options)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			logger.CtxErr(ctx, err).Error("user not found")
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
 		if !graph.IsErrExchangeMailFolderNotFound(err) ||
 			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
-			logger.CtxErr(ctx, err).Error("getting user's mail folder")
 			return false, err
 		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
 
 		return false, nil
 	}
@@ -122,17 +117,13 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 	_, err = uapi.GetDrives(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			logger.CtxErr(ctx, err).Error("user not found")
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
 		if !graph.IsErrExchangeMailFolderNotFound(err) ||
 			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
-			logger.CtxErr(ctx, err).Error("getting user's drives")
 			return false, err
 		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a drive")
 
 		return false, nil
 	}
