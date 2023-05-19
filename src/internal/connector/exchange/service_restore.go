@@ -3,13 +3,11 @@ package exchange
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -25,6 +23,20 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+type restoreHandler interface {
+	itemRestorer
+	containerCreator
+}
+
+type itemRestorer interface {
+	restore(
+		ctx context.Context,
+		body []byte,
+		destinationID string,
+		errs *fault.Bus,
+	) (*details.ExchangeInfo, error)
+}
+
 type itemPoster[T any] interface {
 	PostItem(
 		ctx context.Context,
@@ -33,218 +45,20 @@ type itemPoster[T any] interface {
 	) (T, error)
 }
 
-// RestoreItem directs restore pipeline towards restore function
-// based on the path.CategoryType. All input params are necessary to perform
-// the type-specific restore function.
-func RestoreItem(
-	ctx context.Context,
-	bits []byte,
-	category path.CategoryType,
-	policy control.CollisionPolicy,
-	ac api.Client,
-	gs graph.Servicer,
-	destination, user string,
-	errs *fault.Bus,
-) (*details.ExchangeInfo, error) {
-	if policy != control.Copy {
-		return nil, clues.Wrap(clues.New(policy.String()), "policy not supported for Exchange restore").WithClues(ctx)
-	}
+type containerCreator interface {
+	newContainerCache() graph.ContainerResolver
+	CreateContainer(
+		ctx context.Context,
+		userID, containerName, parentContainerID string,
+	) (graph.Container, error)
 
-	switch category {
-	case path.EmailCategory:
-		return RestoreMessage(ctx, bits, ac.Mail(), ac.Mail(), gs, control.Copy, destination, user, errs)
-	case path.ContactsCategory:
-		return RestoreContact(ctx, bits, ac.Contacts(), control.Copy, destination, user)
-	case path.EventsCategory:
-		return RestoreEvent(ctx, bits, ac.Events(), ac.Events(), gs, control.Copy, destination, user, errs)
-	default:
-		return nil, clues.Wrap(clues.New(category.String()), "not supported for Exchange restore")
-	}
-}
-
-// RestoreContact wraps api.Contacts().PostItem()
-func RestoreContact(
-	ctx context.Context,
-	body []byte,
-	cli itemPoster[models.Contactable],
-	cp control.CollisionPolicy,
-	destination, user string,
-) (*details.ExchangeInfo, error) {
-	contact, err := api.BytesToContactable(body)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
-	}
-
-	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
-
-	_, err = cli.PostItem(ctx, user, destination, contact)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	info := api.ContactInfo(contact)
-	info.Size = int64(len(body))
-
-	return info, nil
-}
-
-// RestoreEvent wraps api.Events().PostItem()
-func RestoreEvent(
-	ctx context.Context,
-	body []byte,
-	itemCli itemPoster[models.Eventable],
-	attachmentCli attachmentPoster,
-	gs graph.Servicer,
-	cp control.CollisionPolicy,
-	destination, user string,
-	errs *fault.Bus,
-) (*details.ExchangeInfo, error) {
-	event, err := api.BytesToEventable(body)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating event from bytes").WithClues(ctx)
-	}
-
-	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
-
-	var (
-		el               = errs.Local()
-		transformedEvent = toEventSimplified(event)
-		attached         []models.Attachmentable
-	)
-
-	if ptr.Val(event.GetHasAttachments()) {
-		attached = event.GetAttachments()
-
-		transformedEvent.SetAttachments([]models.Attachmentable{})
-	}
-
-	item, err := itemCli.PostItem(ctx, user, destination, event)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	for _, a := range attached {
-		if el.Failure() != nil {
-			break
-		}
-
-		err := uploadAttachment(
-			ctx,
-			attachmentCli,
-			user,
-			destination,
-			ptr.Val(item.GetId()),
-			a)
-		if err != nil {
-			el.AddRecoverable(err)
-		}
-	}
-
-	info := api.EventInfo(event)
-	info.Size = int64(len(body))
-
-	return info, el.Failure()
-}
-
-// RestoreMessage wraps api.Mail().PostItem(), handling attachment creation along the way
-func RestoreMessage(
-	ctx context.Context,
-	body []byte,
-	itemCli itemPoster[models.Messageable],
-	attachmentCli attachmentPoster,
-	gs graph.Servicer,
-	cp control.CollisionPolicy,
-	destination, user string,
-	errs *fault.Bus,
-) (*details.ExchangeInfo, error) {
-	// Creates messageable object from original bytes
-	msg, err := api.BytesToMessageable(body)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating mail from bytes").WithClues(ctx)
-	}
-
-	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
-
-	var (
-		clone       = toMessage(msg)
-		valueID     = MailRestorePropertyTag
-		enableValue = RestoreCanonicalEnableValue
-	)
-
-	// Set Extended Properties:
-	// 1st: No transmission
-	// 2nd: Send Date
-	// 3rd: Recv Date
-	svlep := make([]models.SingleValueLegacyExtendedPropertyable, 0)
-	sv1 := models.NewSingleValueLegacyExtendedProperty()
-	sv1.SetId(&valueID)
-	sv1.SetValue(&enableValue)
-	svlep = append(svlep, sv1)
-
-	if clone.GetSentDateTime() != nil {
-		sv2 := models.NewSingleValueLegacyExtendedProperty()
-		sendPropertyValue := dttm.FormatToLegacy(ptr.Val(clone.GetSentDateTime()))
-		sendPropertyTag := MailSendDateTimeOverrideProperty
-		sv2.SetId(&sendPropertyTag)
-		sv2.SetValue(&sendPropertyValue)
-
-		svlep = append(svlep, sv2)
-	}
-
-	if clone.GetReceivedDateTime() != nil {
-		sv3 := models.NewSingleValueLegacyExtendedProperty()
-		recvPropertyValue := dttm.FormatToLegacy(ptr.Val(clone.GetReceivedDateTime()))
-		recvPropertyTag := MailReceiveDateTimeOverriveProperty
-		sv3.SetId(&recvPropertyTag)
-		sv3.SetValue(&recvPropertyValue)
-
-		svlep = append(svlep, sv3)
-	}
-
-	clone.SetSingleValueExtendedProperties(svlep)
-
-	attached := clone.GetAttachments()
-
-	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
-	clone.SetAttachments([]models.Attachmentable{})
-
-	item, err := itemCli.PostItem(ctx, user, destination, clone)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring mail message")
-	}
-
-	el := errs.Local()
-
-	for _, a := range attached {
-		if el.Failure() != nil {
-			return nil, el.Failure()
-		}
-
-		err := uploadAttachment(
-			ctx,
-			attachmentCli,
-			user,
-			destination,
-			ptr.Val(item.GetId()),
-			a)
-		if err != nil {
-			// FIXME: I don't know why we're swallowing this error case.
-			// It needs investigation: https://github.com/alcionai/corso/issues/3498
-			if ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
-				name := ptr.Val(a.GetName())
-
-				logger.CtxErr(ctx, err).
-					With("attachment_name", name).
-					Info("mail upload failed")
-
-				continue
-			}
-
-			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment"))
-		}
-	}
-
-	return api.MailInfo(clone, int64(len(body))), el.Failure()
+	GetContainerByName(
+		ctx context.Context,
+		userID, containerName string,
+	) (graph.Container, error)
+	// TODO: remove when all handlers support GetContainerByName
+	// as a create-collision fallback
+	CanGetContainerByName() bool
 }
 
 // RestoreCollections restores M365 objects in data.RestoreCollection to MSFT
@@ -259,44 +73,70 @@ func RestoreCollections(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
+	if len(dcs) == 0 {
+		return support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
+	}
+
 	var (
-		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
-		metrics         support.CollectionMetrics
-		userID          string
+		userID         = dcs[0].FullPath().ResourceOwner()
+		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
+		handlers       = map[path.CategoryType]restoreHandler{
+			path.ContactsCategory: newContactRestoreHandler(ac, userID),
+			path.EmailCategory:    newMailRestoreHandler(ac, userID),
+			path.EventsCategory:   newEventRestoreHandler(ac, userID),
+		}
+		metrics support.CollectionMetrics
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 		el     = errs.Local()
 	)
 
-	if len(dcs) > 0 {
-		userID = dcs[0].FullPath().ResourceOwner()
-		ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
-	}
+	ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
 
 	for _, dc := range dcs {
 		if el.Failure() != nil {
 			break
 		}
 
-		userCaches := directoryCaches[userID]
-		if userCaches == nil {
-			directoryCaches[userID] = make(map[path.CategoryType]graph.ContainerResolver)
-			userCaches = directoryCaches[userID]
+		var (
+			category = dc.FullPath().Category()
+			ictx     = clues.Add(
+				ctx,
+				"restore_category", category,
+				"restore_full_path", dc.FullPath())
+		)
+
+		handler, ok := handlers[category]
+		if !ok {
+			el.AddRecoverable(clues.New("unsupported restore path category").WithClues(ictx))
 		}
 
-		containerID, err := CreateContainerDestination(
-			ctx,
-			creds,
+		containerID, dcc, err := createDestination(
+			ictx,
+			handler,
 			dc.FullPath(),
+			userID,
 			dest.ContainerName,
-			userCaches,
+			directoryCache[category],
 			errs)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "creating destination").WithClues(ctx))
+			el.AddRecoverable(err)
 			continue
 		}
 
-		temp, canceled := restoreCollection(ctx, ac, gs, dc, containerID, policy, deets, errs)
+		directoryCache[category] = dcc
+
+		ictx = clues.Add(ictx, "restore_destination_id", containerID)
+
+		temp, canceled := restoreCollection(
+			ictx,
+			handler,
+			dc,
+			userID,
+			containerID,
+			policy,
+			deets,
+			errs)
 
 		metrics = support.CombineMetrics(metrics, temp)
 
@@ -318,10 +158,9 @@ func RestoreCollections(
 // restoreCollection handles restoration of an individual collection.
 func restoreCollection(
 	ctx context.Context,
-	ac api.Client,
-	gs graph.Servicer,
+	ir itemRestorer,
 	dc data.RestoreCollection,
-	folderID string,
+	userID, destinationID string,
 	policy control.CollisionPolicy,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -330,24 +169,16 @@ func restoreCollection(
 	defer end()
 
 	var (
-		metrics   support.CollectionMetrics
-		items     = dc.Items(ctx, errs)
-		directory = dc.FullPath()
-		service   = directory.Service()
-		category  = directory.Category()
-		user      = directory.ResourceOwner()
+		metrics  support.CollectionMetrics
+		items    = dc.Items(ctx, errs)
+		fullPath = dc.FullPath()
+		category = fullPath.Category()
 	)
-
-	ctx = clues.Add(
-		ctx,
-		"full_path", directory,
-		"service", service,
-		"category", category)
 
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		category.String(),
-		clues.Hide(directory.Folder(false)))
+		clues.Hide(fullPath.Folder(false)))
 	defer closer()
 	defer close(colProgress)
 
@@ -374,29 +205,22 @@ func restoreCollection(
 				continue
 			}
 
-			byteArray := buf.Bytes()
+			body := buf.Bytes()
 
-			info, err := RestoreItem(
-				ictx,
-				byteArray,
-				category,
-				policy,
-				ac,
-				gs,
-				folderID,
-				user,
-				errs)
+			info, err := ir.restore(ictx, body, destinationID, errs)
 			if err != nil {
 				errs.AddRecoverable(err)
 				continue
 			}
 
-			metrics.Bytes += int64(len(byteArray))
+			metrics.Bytes += int64(len(body))
 			metrics.Successes++
 
-			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+			// FIXME: this may be the incorrect path.  If we restored within a top-level
+			// destination folder, then the restore path no longer matches the fullPath.
+			itemPath, err := fullPath.AppendItem(itemData.UUID())
 			if err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "building full path with item").WithClues(ctx))
+				errs.AddRecoverable(clues.Wrap(err, "adding item to collection path").WithClues(ctx))
 				continue
 			}
 
@@ -410,7 +234,8 @@ func restoreCollection(
 					Exchange: info,
 				})
 			if err != nil {
-				// Not critical enough to need to stop restore operation.
+				// These deets additions are for cli display purposes only.
+				// no need to fail out on error.
 				logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
 			}
 
@@ -419,257 +244,142 @@ func restoreCollection(
 	}
 }
 
-// CreateContainerDestination builds the destination into the container
-// at the provided path.  As a precondition, the destination cannot
-// already exist.  If it does then an error is returned.  The provided
-// containerResolver is updated with the new destination.
-// @ returns the container ID of the new destination container.
-func CreateContainerDestination(
+// createDestination creates folders in sequence
+// [root leaf1 leaf2] similar to a linked list.
+// @param directory is the desired path from the root to the container
+// that the items will be restored into.
+// @param destinationName will be prepended onto the directory path
+// for non-destructive restores.
+func createDestination(
 	ctx context.Context,
-	creds account.M365Config,
+	cc containerCreator,
 	directory path.Path,
-	destination string,
-	caches map[path.CategoryType]graph.ContainerResolver,
+	userID, destinationName string,
+	gcr graph.ContainerResolver,
 	errs *fault.Bus,
-) (string, error) {
+) (string, graph.ContainerResolver, error) {
 	var (
-		newCache       = false
-		user           = directory.ResourceOwner()
-		category       = directory.Category()
-		directoryCache = caches[category]
+		containers  = append([]string{destinationName}, directory.Folders()...)
+		cache       = gcr
+		containerID = rootFolderAlias
+		pb          = &path.Builder{}
+		isNewCache  bool
 	)
 
-	// TODO(rkeepers): pass the api client into this func, rather than generating one.
-	ac, err := api.NewClient(creds)
-	if err != nil {
-		return "", clues.Stack(err).WithClues(ctx)
+	if gcr == nil {
+		cache = cc.newContainerCache()
+		isNewCache = true
 	}
-
-	switch category {
-	case path.EmailCategory:
-		folders := append([]string{destination}, directory.Folders()...)
-
-		if directoryCache == nil {
-			acm := ac.Mail()
-			mfc := &mailFolderCache{
-				userID: user,
-				enumer: acm,
-				getter: acm,
-			}
-
-			caches[category] = mfc
-			newCache = true
-			directoryCache = mfc
-		}
-
-		return establishMailRestoreLocation(
-			ctx,
-			ac,
-			folders,
-			directoryCache,
-			user,
-			newCache,
-			errs)
-
-	case path.ContactsCategory:
-		folders := append([]string{destination}, directory.Folders()...)
-
-		if directoryCache == nil {
-			acc := ac.Contacts()
-			cfc := &contactFolderCache{
-				userID: user,
-				enumer: acc,
-				getter: acc,
-			}
-			caches[category] = cfc
-			newCache = true
-			directoryCache = cfc
-		}
-
-		return establishContactsRestoreLocation(
-			ctx,
-			ac,
-			folders,
-			directoryCache,
-			user,
-			newCache,
-			errs)
-
-	case path.EventsCategory:
-		dest := destination
-
-		if directoryCache == nil {
-			ace := ac.Events()
-			ecc := &eventCalendarCache{
-				userID: user,
-				getter: ace,
-				enumer: ace,
-			}
-			caches[category] = ecc
-			newCache = true
-			directoryCache = ecc
-		}
-
-		folders := append([]string{dest}, directory.Folders()...)
-
-		return establishEventsRestoreLocation(
-			ctx,
-			ac,
-			folders,
-			directoryCache,
-			user,
-			newCache,
-			errs)
-
-	default:
-		return "", clues.New(fmt.Sprintf("type not supported: %T", category)).WithClues(ctx)
-	}
-}
-
-// establishMailRestoreLocation creates Mail folders in sequence
-// [root leaf1 leaf2] in a similar to a linked list.
-// @param folders is the desired path from the root to the container
-// that the items will be restored into
-// @param isNewCache identifies if the cache is created and not populated
-func establishMailRestoreLocation(
-	ctx context.Context,
-	ac api.Client,
-	folders []string,
-	mfc graph.ContainerResolver,
-	user string,
-	isNewCache bool,
-	errs *fault.Bus,
-) (string, error) {
-	// Process starts with the root folder in order to recreate
-	// the top-level folder with the same tactic
-	folderID := rootFolderAlias
-	pb := path.Builder{}
 
 	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
-	for _, folder := range folders {
-		pb = *pb.Append(folder)
+	for _, container := range containers {
+		pb = pb.Append(container)
 
-		cached, ok := mfc.LocationInCache(pb.String())
-		if ok {
-			folderID = cached
-			continue
-		}
-
-		temp, err := ac.Mail().CreateMailFolderWithParent(ctx, user, folder, folderID)
+		fid, err := getOrPopulateContainer(
+			ctx,
+			cc,
+			cache,
+			pb,
+			userID,
+			container,
+			containerID,
+			isNewCache,
+			errs)
 		if err != nil {
-			// Should only error if cache malfunctions or incorrect parameters
-			return "", err
+			return "", cache, clues.Stack(err)
 		}
 
-		folderID = ptr.Val(temp.GetId())
-
-		// Only populate the cache if we actually had to create it. Since we set
-		// newCache to false in this we'll only try to populate it once per function
-		// call even if we make a new cache.
-		if isNewCache {
-			if err := mfc.Populate(ctx, errs, rootFolderAlias); err != nil {
-				return "", clues.Wrap(err, "populating folder cache")
-			}
-
-			isNewCache = false
-		}
-
-		// NOOP if the folder is already in the cache.
-		if err = mfc.AddToCache(ctx, temp); err != nil {
-			return "", clues.Wrap(err, "adding folder to cache")
-		}
+		containerID = fid
 	}
 
-	return folderID, nil
+	return containerID, cache, nil
 }
 
-// establishContactsRestoreLocation creates Contact Folders in sequence
-// and updates the container resolver appropriately. Contact Folders are
-// displayed in a flat representation. Therefore, only the root can be populated and all content
-// must be restored into the root location.
-// @param folders is the list of intended folders from root to leaf (e.g. [root ...])
-// @param isNewCache bool representation of whether Populate function needs to be run
-func establishContactsRestoreLocation(
+func getOrPopulateContainer(
 	ctx context.Context,
-	ac api.Client,
-	folders []string,
-	cfc graph.ContainerResolver,
-	user string,
+	cc containerCreator,
+	gcr graph.ContainerResolver,
+	pb *path.Builder,
+	userID, containerParentID, containerName string,
 	isNewCache bool,
 	errs *fault.Bus,
 ) (string, error) {
-	cached, ok := cfc.LocationInCache(folders[0])
+	cached, ok := gcr.LocationInCache(pb.String())
 	if ok {
 		return cached, nil
 	}
 
-	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
+	c, err := cc.CreateContainer(ctx, userID, containerName, containerParentID)
 
-	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
+	// 409 handling case:
+	// attempt to fetch the container by name and add that result to the cache.
+	// This is rare, but may happen if CreateContainer() POST fails with 5xx:
+	// sometimes the backend will create the folder despite the 5xx response,
+	// leaving our local containerResolver with inconsistent state.
+	if graph.IsErrFolderExists(err) && cc.CanGetContainerByName() {
+		c, err = cc.GetContainerByName(ctx, userID, containerName)
+	}
+
 	if err != nil {
 		return "", err
 	}
 
-	folderID := ptr.Val(temp.GetId())
+	folderID := ptr.Val(c.GetId())
 
+	// Only populate the cache if we actually had to create it. Since we set
+	// newCache to false in this we'll only try to populate it once per function
+	// call even if we make a new cache.
 	if isNewCache {
-		if err := cfc.Populate(ctx, errs, folderID, folders[0]); err != nil {
-			return "", clues.Wrap(err, "populating contact cache")
+		if err := gcr.Populate(ctx, errs, rootFolderAlias); err != nil {
+			return "", clues.Wrap(err, "populating container cache")
 		}
+	}
 
-		if err = cfc.AddToCache(ctx, temp); err != nil {
-			return "", clues.Wrap(err, "adding contact folder to cache")
-		}
+	if err = gcr.AddToCache(ctx, c); err != nil {
+		return "", clues.Wrap(err, "adding container to cache")
 	}
 
 	return folderID, nil
 }
 
-func establishEventsRestoreLocation(
+func uploadAttachments(
 	ctx context.Context,
-	ac api.Client,
-	folders []string,
-	ecc graph.ContainerResolver, // eventCalendarCache
-	user string,
-	isNewCache bool,
+	ap attachmentPoster,
+	as []models.Attachmentable,
+	userID, destinationID, itemID string,
 	errs *fault.Bus,
-) (string, error) {
-	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
-	cached, ok := ecc.LocationInCache(folders[0])
-	if ok {
-		return cached, nil
-	}
+) error {
+	el := errs.Local()
 
-	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
+	for _, a := range as {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
 
-	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
-	if err != nil && !graph.IsErrFolderExists(err) {
-		return "", err
-	}
-
-	// 409 handling: Fetch folder if it exists and add to cache.
-	// This is rare, but may happen if CreateCalendar() POST fails with 5xx,
-	// potentially leaving dirty state in graph.
-	if graph.IsErrFolderExists(err) {
-		temp, err = ac.Events().GetContainerByName(ctx, user, folders[0])
+		err := uploadAttachment(
+			ctx,
+			ap,
+			userID,
+			destinationID,
+			itemID,
+			a)
 		if err != nil {
-			return "", err
+			// FIXME: I don't know why we're swallowing this error case.
+			// It needs investigation: https://github.com/alcionai/corso/issues/3498
+			if ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
+				name := ptr.Val(a.GetName())
+
+				logger.CtxErr(ctx, err).
+					With("attachment_name", name).
+					Info("mail upload failed")
+
+				continue
+			}
+
+			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment").WithClues(ctx))
 		}
 	}
 
-	folderID := ptr.Val(temp.GetId())
-
-	if isNewCache {
-		if err = ecc.Populate(ctx, errs, folderID, folders[0]); err != nil {
-			return "", clues.Wrap(err, "populating event cache")
-		}
-
-		displayable := api.CalendarDisplayable{Calendarable: temp}
-		if err = ecc.AddToCache(ctx, displayable); err != nil {
-			return "", clues.Wrap(err, "adding new calendar to cache")
-		}
-	}
-
-	return folderID, nil
+	return el.Failure()
 }
