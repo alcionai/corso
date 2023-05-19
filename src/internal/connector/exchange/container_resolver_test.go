@@ -458,14 +458,14 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncesto
 	gone := containers[len(containers)-2]
 	last := containers[len(containers)-1]
 
-	expected := &(*last)
+	expected := *last
 	expected.parentID = other.id
 	expected.expectedPath = stdpath.Join(other.expectedPath, expected.id)
 	expected.expectedLocation = stdpath.Join(other.expectedLocation, expected.displayName)
 
 	refresher := mockContainerRefresher{
 		entries: map[string]refreshResult{
-			last.id: {c: expected},
+			last.id: {c: &expected},
 		},
 	}
 
