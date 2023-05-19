@@ -13,58 +13,42 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var (
-	_ containerCreator = &contactRestoreHandler{}
-	_ itemRestorer     = &contactRestoreHandler{}
-)
+var _ itemRestorer = &contactRestoreHandler{}
 
 type contactRestoreHandler struct {
-	ac     api.Contacts
-	ip     itemPoster[models.Contactable]
-	userID string
+	ac api.Contacts
+	ip itemPoster[models.Contactable]
 }
 
 func newContactRestoreHandler(
 	ac api.Client,
-	userID string,
 ) contactRestoreHandler {
 	return contactRestoreHandler{
-		ac:     ac.Contacts(),
-		ip:     ac.Contacts(),
-		userID: userID,
+		ac: ac.Contacts(),
+		ip: ac.Contacts(),
 	}
 }
 
-func (h contactRestoreHandler) newContainerCache() graph.ContainerResolver {
+func (h contactRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
 	return &contactFolderCache{
-		userID: h.userID,
+		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,
 	}
 }
 
-func (h contactRestoreHandler) CreateContainer(
-	ctx context.Context,
-	userID, containerName, parentContainerID string,
-) (graph.Container, error) {
-	return h.ac.CreateContainer(ctx, userID, containerName, parentContainerID)
+func (h contactRestoreHandler) containerFactory() containerCreator {
+	return h.ac
 }
 
-func (h contactRestoreHandler) CanGetContainerByName() bool {
-	return false
-}
-
-func (h contactRestoreHandler) GetContainerByName(
-	ctx context.Context,
-	userID, parentContainerID string,
-) (graph.Container, error) {
-	return nil, clues.New("not supported yet")
+func (h contactRestoreHandler) containerSearcher() (containerByNamer, bool) {
+	return nil, false
 }
 
 func (h contactRestoreHandler) restore(
 	ctx context.Context,
 	body []byte,
-	destinationID string,
+	userID, destinationID string,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	contact, err := api.BytesToContactable(body)
@@ -74,7 +58,7 @@ func (h contactRestoreHandler) restore(
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
-	item, err := h.ip.PostItem(ctx, h.userID, destinationID, contact)
+	item, err := h.ip.PostItem(ctx, userID, destinationID, contact)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "restoring mail message")
 	}

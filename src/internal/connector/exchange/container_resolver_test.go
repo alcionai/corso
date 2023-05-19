@@ -677,7 +677,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 
 func runCreateDestinationTest(
 	t *testing.T,
-	handler containerCreator,
+	handler containerCacheHandler,
 	category path.CategoryType,
 	tenantID, userID, destinationName string,
 	containerNames1 []string,

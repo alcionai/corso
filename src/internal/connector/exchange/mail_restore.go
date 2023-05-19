@@ -14,62 +14,46 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var (
-	_ containerCreator = &mailRestoreHandler{}
-	_ itemRestorer     = &mailRestoreHandler{}
-)
+var _ itemRestorer = &mailRestoreHandler{}
 
 type mailRestoreHandler struct {
-	ac     api.Mail
-	ip     itemPoster[models.Messageable]
-	ap     attachmentPoster
-	userID string
+	ac api.Mail
+	ip itemPoster[models.Messageable]
+	ap attachmentPoster
 }
 
 func newMailRestoreHandler(
 	ac api.Client,
-	userID string,
 ) mailRestoreHandler {
 	acm := ac.Mail()
 
 	return mailRestoreHandler{
-		ac:     acm,
-		ip:     acm,
-		ap:     acm,
-		userID: userID,
+		ac: acm,
+		ip: acm,
+		ap: acm,
 	}
 }
 
-func (h mailRestoreHandler) newContainerCache() graph.ContainerResolver {
+func (h mailRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
 	return &mailFolderCache{
-		userID: h.userID,
+		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,
 	}
 }
 
-func (h mailRestoreHandler) CreateContainer(
-	ctx context.Context,
-	userID, containerName, parentContainerID string,
-) (graph.Container, error) {
-	return h.ac.CreateContainer(ctx, userID, containerName, parentContainerID)
+func (h mailRestoreHandler) containerFactory() containerCreator {
+	return h.ac
 }
 
-func (h mailRestoreHandler) CanGetContainerByName() bool {
-	return false
-}
-
-func (h mailRestoreHandler) GetContainerByName(
-	ctx context.Context,
-	userID, parentContainerID string,
-) (graph.Container, error) {
-	return nil, clues.New("not supported yet")
+func (h mailRestoreHandler) containerSearcher() (containerByNamer, bool) {
+	return nil, false
 }
 
 func (h mailRestoreHandler) restore(
 	ctx context.Context,
 	body []byte,
-	destinationID string,
+	userID, destinationID string,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	msg, err := api.BytesToMessageable(body)
@@ -85,7 +69,7 @@ func (h mailRestoreHandler) restore(
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	msg.SetAttachments([]models.Attachmentable{})
 
-	item, err := h.ip.PostItem(ctx, h.userID, destinationID, msg)
+	item, err := h.ip.PostItem(ctx, userID, destinationID, msg)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "restoring mail message")
 	}
@@ -94,7 +78,7 @@ func (h mailRestoreHandler) restore(
 		ctx,
 		h.ap,
 		attachments,
-		h.userID,
+		userID,
 		destinationID,
 		ptr.Val(item.GetId()),
 		errs)

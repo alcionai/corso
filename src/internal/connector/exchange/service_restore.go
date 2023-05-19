@@ -23,44 +23,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type restoreHandler interface {
-	itemRestorer
-	containerCreator
-}
-
-type itemRestorer interface {
-	restore(
-		ctx context.Context,
-		body []byte,
-		destinationID string,
-		errs *fault.Bus,
-	) (*details.ExchangeInfo, error)
-}
-
-type itemPoster[T any] interface {
-	PostItem(
-		ctx context.Context,
-		userID, dirID string,
-		body T,
-	) (T, error)
-}
-
-type containerCreator interface {
-	newContainerCache() graph.ContainerResolver
-	CreateContainer(
-		ctx context.Context,
-		userID, containerName, parentContainerID string,
-	) (graph.Container, error)
-
-	GetContainerByName(
-		ctx context.Context,
-		userID, containerName string,
-	) (graph.Container, error)
-	// TODO: remove when all handlers support GetContainerByName
-	// as a create-collision fallback
-	CanGetContainerByName() bool
-}
-
 // RestoreCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.
 func RestoreCollections(
@@ -80,12 +42,8 @@ func RestoreCollections(
 	var (
 		userID         = dcs[0].FullPath().ResourceOwner()
 		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
-		handlers       = map[path.CategoryType]restoreHandler{
-			path.ContactsCategory: newContactRestoreHandler(ac, userID),
-			path.EmailCategory:    newMailRestoreHandler(ac, userID),
-			path.EventsCategory:   newEventRestoreHandler(ac, userID),
-		}
-		metrics support.CollectionMetrics
+		handlers       = restoreHandlers(ac)
+		metrics        support.CollectionMetrics
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 		el     = errs.Local()
@@ -207,7 +165,7 @@ func restoreCollection(
 
 			body := buf.Bytes()
 
-			info, err := ir.restore(ictx, body, destinationID, errs)
+			info, err := ir.restore(ictx, body, userID, destinationID, errs)
 			if err != nil {
 				errs.AddRecoverable(err)
 				continue
@@ -252,7 +210,7 @@ func restoreCollection(
 // for non-destructive restores.
 func createDestination(
 	ctx context.Context,
-	cc containerCreator,
+	cch containerCacheHandler,
 	directory path.Path,
 	userID, destinationName string,
 	gcr graph.ContainerResolver,
@@ -267,7 +225,7 @@ func createDestination(
 	)
 
 	if gcr == nil {
-		cache = cc.newContainerCache()
+		cache = cch.newContainerCache(userID)
 		isNewCache = true
 	}
 
@@ -278,7 +236,7 @@ func createDestination(
 
 		fid, err := getOrPopulateContainer(
 			ctx,
-			cc,
+			cch,
 			cache,
 			pb,
 			userID,
@@ -298,7 +256,7 @@ func createDestination(
 
 func getOrPopulateContainer(
 	ctx context.Context,
-	cc containerCreator,
+	cch containerCacheHandler,
 	gcr graph.ContainerResolver,
 	pb *path.Builder,
 	userID, containerParentID, containerName string,
@@ -310,15 +268,18 @@ func getOrPopulateContainer(
 		return cached, nil
 	}
 
-	c, err := cc.CreateContainer(ctx, userID, containerName, containerParentID)
+	c, err := cch.containerFactory().CreateContainer(ctx, userID, containerName, containerParentID)
 
 	// 409 handling case:
 	// attempt to fetch the container by name and add that result to the cache.
 	// This is rare, but may happen if CreateContainer() POST fails with 5xx:
 	// sometimes the backend will create the folder despite the 5xx response,
 	// leaving our local containerResolver with inconsistent state.
-	if graph.IsErrFolderExists(err) && cc.CanGetContainerByName() {
-		c, err = cc.GetContainerByName(ctx, userID, containerName)
+	if graph.IsErrFolderExists(err) {
+		cbn, ok := cch.containerSearcher()
+		if ok {
+			c, err = cbn.GetContainerByName(ctx, userID, containerName)
+		}
 	}
 
 	if err != nil {

@@ -13,62 +13,46 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var (
-	_ containerCreator = &eventRestoreHandler{}
-	_ itemRestorer     = &eventRestoreHandler{}
-)
+var _ itemRestorer = &eventRestoreHandler{}
 
 type eventRestoreHandler struct {
-	ac     api.Events
-	ip     itemPoster[models.Eventable]
-	ap     attachmentPoster
-	userID string
+	ac api.Events
+	ip itemPoster[models.Eventable]
+	ap attachmentPoster
 }
 
 func newEventRestoreHandler(
 	ac api.Client,
-	userID string,
 ) eventRestoreHandler {
 	ace := ac.Events()
 
 	return eventRestoreHandler{
-		ac:     ace,
-		ip:     ace,
-		ap:     ace,
-		userID: userID,
+		ac: ace,
+		ip: ace,
+		ap: ace,
 	}
 }
 
-func (h eventRestoreHandler) newContainerCache() graph.ContainerResolver {
+func (h eventRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
 	return &eventCalendarCache{
-		userID: h.userID,
+		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,
 	}
 }
 
-func (h eventRestoreHandler) CreateContainer(
-	ctx context.Context,
-	userID, containerName, parentContainerID string,
-) (graph.Container, error) {
-	return h.ac.CreateContainer(ctx, userID, containerName, parentContainerID)
+func (h eventRestoreHandler) containerFactory() containerCreator {
+	return h.ac
 }
 
-func (h eventRestoreHandler) CanGetContainerByName() bool {
-	return true
-}
-
-func (h eventRestoreHandler) GetContainerByName(
-	ctx context.Context,
-	userID, containerName string,
-) (graph.Container, error) {
-	return h.ac.GetContainerByName(ctx, userID, containerName)
+func (h eventRestoreHandler) containerSearcher() (containerByNamer, bool) {
+	return h.ac, false
 }
 
 func (h eventRestoreHandler) restore(
 	ctx context.Context,
 	body []byte,
-	destinationID string,
+	userID, destinationID string,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
@@ -87,7 +71,7 @@ func (h eventRestoreHandler) restore(
 		event.SetAttachments([]models.Attachmentable{})
 	}
 
-	item, err := h.ip.PostItem(ctx, h.userID, destinationID, event)
+	item, err := h.ip.PostItem(ctx, userID, destinationID, event)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "restoring mail message")
 	}
@@ -96,7 +80,7 @@ func (h eventRestoreHandler) restore(
 		ctx,
 		h.ap,
 		attachments,
-		h.userID,
+		userID,
 		destinationID,
 		ptr.Val(item.GetId()),
 		errs)
