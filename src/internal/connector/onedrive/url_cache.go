@@ -31,6 +31,7 @@ type itemProperties struct {
 }
 
 // urlCache caches download URLs for drive items
+// Scope: per drive
 type urlCache struct {
 	// Item ID -> download URL map
 	urlMap map[string]itemProperties
@@ -38,9 +39,9 @@ type urlCache struct {
 	lastRefreshTime time.Time
 	// refresh interval
 	refreshInterval time.Duration
-	// RW lock for the URL map and lastRefreshTime
+	// rw lock for URL map and lastRefreshTime
 	rwLock sync.RWMutex
-	// semaphore for limiting the number of concurrent cache refreshes to 1
+	// semaphore for limiting the number of concurrent cache refreshes
 	refreshSemaphore chan struct{}
 
 	driveID         string
@@ -64,14 +65,15 @@ type driveEnumeratorFunc func(
 	errs *fault.Bus,
 ) error
 
-// updateCacheFunc is a callback function that is called for each page of items
+// collectorFunc is a callback function that is called by driveEnumeratorFunc
+// for each page of items
 type collectorFunc func(
 	ctx context.Context,
 	items []models.DriveItemable,
 	errs *fault.Bus,
 ) error
 
-// NewURLache creates a new URL cache for the specified drive
+// newURLache creates a new URL cache for the specified drive
 func newURLCache(
 	driveID, driveName string,
 	refreshInterval time.Duration,
@@ -82,9 +84,7 @@ func newURLCache(
 	) itemPager,
 ) *urlCache {
 	return &urlCache{
-		urlMap: make(map[string]itemProperties),
-		// TODO: use a mutex instead of a semaphore since it's
-		// size is just 1?
+		urlMap:           make(map[string]itemProperties),
 		refreshSemaphore: make(chan struct{}, 1),
 		driveID:          driveID,
 		driveEnumerator:  driveEnumerator,
@@ -96,7 +96,7 @@ func newURLCache(
 // getDownloadUrl returns the download URL for the specified drive item
 // TODO: Any cache error should not be treated as a fatal error by client
 // TODO: How to convey deleted item to client?
-// TODO: bail on 3 consecutive errors
+// TODO: Move graph.Servicer to urlCache struct?
 func (uc *urlCache) getDownloadURL(
 	ctx context.Context,
 	svc graph.Servicer,
