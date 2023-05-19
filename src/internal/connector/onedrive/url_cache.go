@@ -109,27 +109,8 @@ func (uc *urlCache) getDownloadURL(
 	return url, nil
 }
 
-// getFromCache returns the download URL for the specified item
-func (uc *urlCache) readCache(itemID string) (string, error) {
-	uc.rwLock.RLock()
-	defer uc.rwLock.RUnlock()
-
-	val, ok := uc.urlMap[itemID]
-	if !ok {
-		// TODO: improve clues
-		return "", clues.New("item not found in cache")
-	}
-
-	if val.isDeleted {
-		// TODO: standardize error
-		return "", clues.New("item is deleted")
-	}
-
-	return val.downloadURL, nil
-}
-
-// refreshCache refreshes the URL cache if it is empty or if it has been more
-// than an hour since the last refresh
+// needsRefresh returns true if the cache is empty or if > 1 hr has elapsed since
+// last refresh
 // TODO: make it 55 mins to avoid 401s from possibly stale cache hits?
 func (uc *urlCache) needsRefresh() bool {
 	uc.rwLock.RLock()
@@ -145,11 +126,15 @@ func (uc *urlCache) refreshCache(
 	svc graph.Servicer,
 ) error {
 	// semaphore to limit the number of concurrent cache refreshes to 1
+	if uc.refreshSemaphore == nil {
+		return clues.New("refresh semaphore is nil")
+	}
+
 	uc.refreshSemaphore <- struct{}{}
 	defer func() { <-uc.refreshSemaphore }()
 
 	// If the cache was refreshed by another thread while we were waiting
-	// for the semaphore, bail.
+	// to acquire semaphore, return
 	if !uc.needsRefresh() {
 		return nil
 	}
@@ -163,6 +148,7 @@ func (uc *urlCache) refreshCache(
 }
 
 // TODO: Check if this function is adding any value?
+// Remove it and use collectDriveItems directly
 func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 	svc graph.Servicer,
@@ -241,6 +227,25 @@ func (uc *urlCache) collectDriveItems(
 	}
 
 	return nil
+}
+
+// getFromCache returns the download URL for the specified item
+func (uc *urlCache) readCache(itemID string) (string, error) {
+	uc.rwLock.RLock()
+	defer uc.rwLock.RUnlock()
+
+	val, ok := uc.urlMap[itemID]
+	if !ok {
+		// TODO: improve clues
+		return "", clues.New("item not found in cache")
+	}
+
+	if val.isDeleted {
+		// TODO: standardize error
+		return "", clues.New("item is deleted")
+	}
+
+	return val.downloadURL, nil
 }
 
 // updateCache is a callback function that is called for each page of items
