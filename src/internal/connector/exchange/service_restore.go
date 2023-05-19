@@ -65,12 +65,12 @@ func RestoreItem(
 // RestoreContact wraps api.Contacts().PostItem()
 func RestoreContact(
 	ctx context.Context,
-	bytes []byte,
+	body []byte,
 	cli itemPoster[models.Contactable],
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
-	contact, err := api.BytesToContactable(bytes)
+	contact, err := api.BytesToContactable(body)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
 	}
@@ -83,7 +83,7 @@ func RestoreContact(
 	}
 
 	info := api.ContactInfo(contact)
-	info.Size = int64(len(bytes))
+	info.Size = int64(len(body))
 
 	return info, nil
 }
@@ -91,7 +91,7 @@ func RestoreContact(
 // RestoreEvent wraps api.Events().PostItem()
 func RestoreEvent(
 	ctx context.Context,
-	bytes []byte,
+	body []byte,
 	itemCli itemPoster[models.Eventable],
 	attachmentCli attachmentPoster,
 	gs graph.Servicer,
@@ -99,7 +99,7 @@ func RestoreEvent(
 	destination, user string,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
-	event, err := api.BytesToEventable(bytes)
+	event, err := api.BytesToEventable(body)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating event from bytes").WithClues(ctx)
 	}
@@ -114,6 +114,7 @@ func RestoreEvent(
 
 	if ptr.Val(event.GetHasAttachments()) {
 		attached = event.GetAttachments()
+
 		transformedEvent.SetAttachments([]models.Attachmentable{})
 	}
 
@@ -140,7 +141,7 @@ func RestoreEvent(
 	}
 
 	info := api.EventInfo(event)
-	info.Size = int64(len(bytes))
+	info.Size = int64(len(body))
 
 	return info, el.Failure()
 }
@@ -148,7 +149,7 @@ func RestoreEvent(
 // RestoreMessage wraps api.Mail().PostItem(), handling attachment creation along the way
 func RestoreMessage(
 	ctx context.Context,
-	bytes []byte,
+	body []byte,
 	itemCli itemPoster[models.Messageable],
 	attachmentCli attachmentPoster,
 	gs graph.Servicer,
@@ -157,7 +158,7 @@ func RestoreMessage(
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
-	msg, err := api.BytesToMessageable(bytes)
+	msg, err := api.BytesToMessageable(body)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating mail from bytes").WithClues(ctx)
 	}
@@ -243,7 +244,7 @@ func RestoreMessage(
 		}
 	}
 
-	return api.MailInfo(clone, int64(len(bytes))), el.Failure()
+	return api.MailInfo(clone, int64(len(body))), el.Failure()
 }
 
 // RestoreCollections restores M365 objects in data.RestoreCollection to MSFT
