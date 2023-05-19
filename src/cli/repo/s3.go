@@ -186,9 +186,15 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	repoID := "not_found"
+
 	cfg, err := config.GetConfigRepoDetails(ctx, true, S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	if len(cfg.RepoID) > 0 {
+		repoID = cfg.RepoID
 	}
 
 	s3Cfg, err := cfg.Storage.S3Config()
@@ -208,7 +214,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, cfg.RepoID, options.Control())
+	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}

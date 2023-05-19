@@ -184,7 +184,7 @@ func Connect(
 	ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
-	repo string,
+	repoid string,
 	opts control.Options,
 ) (r Repository, err error) {
 	ctx = clues.Add(
@@ -232,19 +232,14 @@ func Connect(
 
 	// Do not query repo ID if metrics are disabled
 	if !opts.DisableMetrics {
-		repoID := "not_found"
-		if len(repo) > 0 {
-			repoID = repo
-		}
-
-		bus.SetRepoID(repoID)
+		bus.SetRepoID(repoid)
 	}
 
 	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
-		ID:         repo,
+		ID:         repoid,
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
