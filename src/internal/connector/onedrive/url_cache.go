@@ -15,6 +15,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+type urlCacher interface {
+	// getDownloadURL returns the download URL for the specified drive item
+	getDownloadURL(
+		ctx context.Context,
+		itemID string,
+	) (string, error)
+}
+
 type itemProperties struct {
 	downloadURL string
 	isDeleted   bool
@@ -81,7 +89,7 @@ func newURLCache(
 	}
 }
 
-// getDownloadUrl returns the download URL for the specified item
+// getDownloadUrl returns the download URL for the specified drive item
 // TODO: Any cache error should not be treated as a fatal error by client
 // TODO: How to convey deleted item to client?
 // TODO: bail on 3 consecutive errors
@@ -125,7 +133,6 @@ func (uc *urlCache) refreshCache(
 	ctx context.Context,
 	svc graph.Servicer,
 ) error {
-	// semaphore to limit the number of concurrent cache refreshes to 1
 	if uc.refreshSemaphore == nil {
 		return clues.New("refresh semaphore is nil")
 	}
