@@ -125,7 +125,7 @@ func (c Mail) GetContainerByID(
 
 	config := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
-			Select: selectIDNameParentFolder(),
+			Select: idAnd(displayName, parentFolderID),
 		},
 	}
 

@@ -56,13 +56,6 @@ func newEventualConsistencyHeaders() *abstractions.RequestHeaders {
 	return headers
 }
 
-func selectIDNameParentFolder() []string {
-	// displayName and Name are both provided here to reduce code
-	// duplication.  selecting for non-existing params does not
-	// alter the response.
-	return idAnd("displayName", "name", parentFolderID)
-}
-
 // makes a slice with []string{"id", s...}
 func idAnd(ss ...string) []string {
 	return append([]string{"id"}, ss...)
