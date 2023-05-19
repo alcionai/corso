@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 	stdpath "path"
 	"testing"
@@ -232,7 +233,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			fc := newContainerResolver()
+			fc := newContainerResolver(nil)
 			err := fc.addFolder(&test.cf)
 			test.check(suite.T(), err, clues.ToCore(err))
 		})
@@ -293,13 +294,44 @@ func resolverWithContainers(numContainers int, useIDInPath bool) (*containerReso
 		containers[i].expectedLocation = stdpath.Join(containers[i-1].expectedLocation, dn)
 	}
 
-	resolver := newContainerResolver()
+	resolver := newContainerResolver(nil)
 
 	for _, c := range containers {
 		resolver.cache[c.id] = c
 	}
 
 	return resolver, containers
+}
+
+// ---------------------------------------------------------------------------
+// mock container refresher
+// ---------------------------------------------------------------------------
+
+type refreshResult struct {
+	err error
+	c   graph.CachedContainer
+}
+
+type mockContainerRefresher struct {
+	// Folder ID -> result
+	entries map[string]refreshResult
+}
+
+func (r mockContainerRefresher) refreshContainer(
+	ctx context.Context,
+	id string,
+) (graph.CachedContainer, error) {
+	rr, ok := r.entries[id]
+	if !ok {
+		// May not be this precise error, but it's easy to get a handle on.
+		return nil, graph.ErrDeletedInFlight
+	}
+
+	if rr.err != nil {
+		return nil, rr.err
+	}
+
+	return rr.c, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +358,160 @@ func TestConfiguredFolderCacheUnitSuite(t *testing.T) {
 	suite.Run(t, &ConfiguredFolderCacheUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshParent() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	resolver, containers := resolverWithContainers(4, true)
+	almostLast := containers[len(containers)-2]
+	last := containers[len(containers)-1]
+
+	refresher := mockContainerRefresher{
+		entries: map[string]refreshResult{
+			almostLast.id: {c: almostLast},
+			last.id:       {c: last},
+		},
+	}
+
+	resolver.refresher = refresher
+
+	delete(resolver.cache, almostLast.id)
+
+	ferrs := fault.New(true)
+	err := resolver.populatePaths(ctx, ferrs)
+	require.NoError(t, err, "populating paths", clues.ToCore(err))
+
+	p, l, err := resolver.IDToPath(ctx, last.id)
+	require.NoError(t, err, "getting paths", clues.ToCore(err))
+
+	assert.Equal(t, last.expectedPath, p.String())
+	assert.Equal(t, last.expectedLocation, l.String())
+}
+
+func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshParent_NotFoundDeletes() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	resolver, containers := resolverWithContainers(4, true)
+	almostLast := containers[len(containers)-2]
+	last := containers[len(containers)-1]
+
+	refresher := mockContainerRefresher{
+		entries: map[string]refreshResult{
+			last.id: {c: last},
+		},
+	}
+
+	resolver.refresher = refresher
+
+	delete(resolver.cache, almostLast.id)
+
+	ferrs := fault.New(true)
+	err := resolver.populatePaths(ctx, ferrs)
+	require.NoError(t, err, "populating paths", clues.ToCore(err))
+
+	_, _, err = resolver.IDToPath(ctx, last.id)
+	assert.Error(t, err, "getting paths", clues.ToCore(err))
+}
+
+func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncestor_NotFoundDeletes() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	resolver, containers := resolverWithContainers(4, true)
+	gone := containers[0]
+	child := containers[1]
+	last := containers[len(containers)-1]
+
+	refresher := mockContainerRefresher{
+		entries: map[string]refreshResult{
+			child.id: {c: child},
+		},
+	}
+
+	resolver.refresher = refresher
+
+	delete(resolver.cache, gone.id)
+
+	ferrs := fault.New(true)
+	err := resolver.populatePaths(ctx, ferrs)
+	require.NoError(t, err, "populating paths", clues.ToCore(err))
+
+	_, _, err = resolver.IDToPath(ctx, last.id)
+	assert.Error(t, err, "getting paths", clues.ToCore(err))
+}
+
+func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncestor_NewParent() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	resolver, containers := resolverWithContainers(4, true)
+	other := containers[len(containers)-3]
+	gone := containers[len(containers)-2]
+	last := containers[len(containers)-1]
+
+	expected := &(*last)
+	expected.parentID = other.id
+	expected.expectedPath = stdpath.Join(other.expectedPath, expected.id)
+	expected.expectedLocation = stdpath.Join(other.expectedLocation, expected.displayName)
+
+	refresher := mockContainerRefresher{
+		entries: map[string]refreshResult{
+			last.id: {c: expected},
+		},
+	}
+
+	resolver.refresher = refresher
+
+	delete(resolver.cache, gone.id)
+
+	ferrs := fault.New(true)
+	err := resolver.populatePaths(ctx, ferrs)
+	require.NoError(t, err, "populating paths", clues.ToCore(err))
+
+	p, l, err := resolver.IDToPath(ctx, last.id)
+	require.NoError(t, err, "getting paths", clues.ToCore(err))
+
+	assert.Equal(t, expected.expectedPath, p.String())
+	assert.Equal(t, expected.expectedLocation, l.String())
+}
+
+func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshFolder_FolderDeleted() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	resolver, containers := resolverWithContainers(4, true)
+	parent := containers[len(containers)-2]
+	last := containers[len(containers)-1]
+
+	refresher := mockContainerRefresher{
+		entries: map[string]refreshResult{
+			parent.id: {c: parent},
+		},
+	}
+
+	resolver.refresher = refresher
+
+	delete(resolver.cache, parent.id)
+
+	ferrs := fault.New(true)
+	err := resolver.populatePaths(ctx, ferrs)
+	require.NoError(t, err, "populating paths", clues.ToCore(err))
+
+	_, _, err = resolver.IDToPath(ctx, last.id)
+	assert.Error(t, err, "getting paths", clues.ToCore(err))
+}
+
 func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -350,7 +536,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			resolver, containers := resolverWithContainers(test.numContainers, false)
-			_, _, err := resolver.IDToPath(ctx, containers[len(containers)-1].id)
+			_, _, _, _, err := resolver.idToPath(ctx, containers[len(containers)-1].id, 0)
 			test.check(suite.T(), err, clues.ToCore(err))
 		})
 	}
@@ -384,6 +570,9 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	err := suite.fc.populatePaths(ctx, fault.New(true))
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
 	for _, c := range suite.allContainers {
 		suite.Run(ptr.Val(c.GetDisplayName()), func() {
 			t := suite.T()
@@ -396,9 +585,13 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	}
 }
 
+// TODO(ashmrtn): Remove this since the same cache can do IDs or locations.
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached_useID() {
 	ctx, flush := tester.NewContext()
 	defer flush()
+
+	err := suite.fcWithID.populatePaths(ctx, fault.New(true))
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	for _, c := range suite.containersWithID {
 		suite.Run(ptr.Val(c.GetDisplayName()), func() {
@@ -419,6 +612,9 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths()
 	t := suite.T()
 	c := suite.allContainers[len(suite.allContainers)-1]
 
+	err := suite.fc.populatePaths(ctx, fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
 	p, l, err := suite.fc.IDToPath(ctx, c.id)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, c.expectedPath, p.String())
@@ -432,12 +628,16 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths()
 	assert.Equal(t, c.expectedLocation, l.String())
 }
 
+// TODO(ashmrtn): Remove this since the same cache can do IDs or locations.
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths_useID() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	t := suite.T()
 	c := suite.containersWithID[len(suite.containersWithID)-1]
+
+	err := suite.fcWithID.populatePaths(ctx, fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
 
 	p, l, err := suite.fcWithID.IDToPath(ctx, c.id)
 	require.NoError(t, err, clues.ToCore(err))
@@ -457,12 +657,21 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentN
 	defer flush()
 
 	t := suite.T()
-	last := suite.allContainers[len(suite.allContainers)-1]
 	almostLast := suite.allContainers[len(suite.allContainers)-2]
 
 	delete(suite.fc.cache, almostLast.id)
 
-	_, _, err := suite.fc.IDToPath(ctx, last.id)
+	err := suite.fc.populatePaths(ctx, fault.New(true))
+	assert.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolder_Errors_PathsNotBuilt() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	_, _, err := suite.fc.IDToPath(ctx, suite.allContainers[len(suite.allContainers)-1].id)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
