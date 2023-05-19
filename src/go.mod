@@ -27,7 +27,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.6
@@ -117,7 +117,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/net v0.10.0
 	golang.org/x/sync v0.2.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
