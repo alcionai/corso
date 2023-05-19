@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,8 +30,10 @@ import (
 
 type DataCollectionIntgSuite struct {
 	tester.Suite
-	user string
-	site string
+	user     string
+	site     string
+	tenantID string
+	ac       api.Client
 }
 
 func TestDataCollectionIntgSuite(t *testing.T) {
@@ -44,6 +47,15 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 func (suite *DataCollectionIntgSuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
+
+	acct := tester.NewM365Account(suite.T())
+	creds, err := acct.M365Config()
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	suite.tenantID = creds.AzureTenantID
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -117,10 +129,11 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 				collections, excludes, err := exchange.DataCollections(
 					ctx,
+					suite.ac,
 					sel,
+					suite.tenantID,
 					sel,
 					nil,
-					connector.credentials,
 					connector.UpdateStatus,
 					ctrlOpts,
 					fault.New(true))

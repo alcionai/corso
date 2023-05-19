@@ -222,8 +222,10 @@ func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.Con
 
 type DataCollectionsIntegrationSuite struct {
 	tester.Suite
-	user string
-	site string
+	user     string
+	site     string
+	tenantID string
+	ac       api.Client
 }
 
 func TestDataCollectionsIntegrationSuite(t *testing.T) {
@@ -239,17 +241,24 @@ func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 
+	acct := tester.NewM365Account(suite.T())
+	creds, err := acct.M365Config()
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	suite.tenantID = creds.AzureTenantID
+
 	tester.LogTimeOfTest(suite.T())
 }
 
 func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 	var (
-		userID    = tester.M365UserID(suite.T())
-		users     = []string{userID}
-		acct, err = tester.NewM365Account(suite.T()).M365Config()
+		userID   = tester.M365UserID(suite.T())
+		users    = []string{userID}
+		handlers = BackupHandlers(suite.ac)
 	)
-
-	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name                string
@@ -293,7 +302,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 
 			collections, err := createCollections(
 				ctx,
-				acct,
+				handlers,
+				suite.tenantID,
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
@@ -329,12 +339,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 
 func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 	var (
-		userID    = tester.M365UserID(suite.T())
-		users     = []string{userID}
-		acct, err = tester.NewM365Account(suite.T()).M365Config()
+		userID   = tester.M365UserID(suite.T())
+		users    = []string{userID}
+		handlers = BackupHandlers(suite.ac)
 	)
-
-	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name  string
@@ -372,7 +380,8 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			// get collections without providing any delta history (ie: full backup)
 			collections, err := createCollections(
 				ctx,
-				acct,
+				handlers,
+				suite.tenantID,
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
@@ -403,7 +412,8 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			// which should only contain the difference.
 			collections, err = createCollections(
 				ctx,
-				acct,
+				handlers,
+				suite.tenantID,
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				dps,
@@ -438,19 +448,18 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	defer flush()
 
 	var (
-		wg    sync.WaitGroup
-		users = []string{suite.user}
+		wg       sync.WaitGroup
+		users    = []string{suite.user}
+		handlers = BackupHandlers(suite.ac)
 	)
-
-	acct, err := tester.NewM365Account(t).M365Config()
-	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
 
 	collections, err := createCollections(
 		ctx,
-		acct,
+		handlers,
+		suite.tenantID,
 		inMock.NewProvider(suite.user, suite.user),
 		sel.Scopes()[0],
 		DeltaPaths{},
@@ -497,10 +506,10 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression() {
-	acct, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err, clues.ToCore(err))
-
-	users := []string{suite.user}
+	var (
+		users    = []string{suite.user}
+		handlers = BackupHandlers(suite.ac)
+	)
 
 	tests := []struct {
 		name  string
@@ -525,7 +534,8 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 
 			edcs, err := createCollections(
 				ctx,
-				acct,
+				handlers,
+				suite.tenantID,
 				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
@@ -589,17 +599,11 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct, err := tester.NewM365Account(t).M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	users := []string{suite.user}
-
-	ac, err := api.NewClient(acct)
-	require.NoError(t, err, "creating client", clues.ToCore(err))
-
 	var (
-		calID  string
-		bdayID string
+		users    = []string{suite.user}
+		handlers = BackupHandlers(suite.ac)
+		calID    string
+		bdayID   string
 	)
 
 	fn := func(gcf graph.CachedContainer) error {
@@ -614,7 +618,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		return nil
 	}
 
-	err = ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true))
+	err := suite.ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	tests := []struct {
@@ -650,7 +654,8 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 			collections, err := createCollections(
 				ctx,
-				acct,
+				handlers,
+				suite.tenantID,
 				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
