@@ -47,7 +47,7 @@ func (suite *EventsRestoreIntgSuite) SetupSuite() {
 func (suite *EventsRestoreIntgSuite) TestCreateContainerDestination() {
 	runCreateDestinationTest(
 		suite.T(),
-		newMailRestoreHandler(suite.ac, suite.userID),
+		newMailRestoreHandler(suite.ac),
 		path.EmailCategory,
 		suite.creds.AzureTenantID,
 		suite.userID,

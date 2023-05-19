@@ -47,7 +47,7 @@ func (suite *ContactsRestoreIntgSuite) SetupSuite() {
 func (suite *ContactsRestoreIntgSuite) TestCreateContainerDestination() {
 	runCreateDestinationTest(
 		suite.T(),
-		newMailRestoreHandler(suite.ac, suite.userID),
+		newMailRestoreHandler(suite.ac),
 		path.EmailCategory,
 		suite.creds.AzureTenantID,
 		suite.userID,
