@@ -26,7 +26,7 @@ type containersEnumerator interface {
 	EnumerateContainers(
 		ctx context.Context,
 		userID, baseDirID string,
-		fn func(graph.CacheFolder) error,
+		fn func(graph.CachedContainer) error,
 		errs *fault.Bus,
 	) error
 }
@@ -139,14 +139,14 @@ func (cr *containerResolver) LocationInCache(pathString string) (string, bool) {
 
 // addFolder adds a folder to the cache with the given ID. If the item is
 // already in the cache does nothing. The path for the item is not modified.
-func (cr *containerResolver) addFolder(cf graph.CacheFolder) error {
+func (cr *containerResolver) addFolder(cf graph.CachedContainer) error {
 	// Only require a non-nil non-empty parent if the path isn't already populated.
 	if cf.Path() != nil {
-		if err := checkIDAndName(cf.Container); err != nil {
+		if err := checkIDAndName(cf); err != nil {
 			return clues.Wrap(err, "adding item to cache")
 		}
 	} else {
-		if err := checkRequiredValues(cf.Container); err != nil {
+		if err := checkRequiredValues(cf); err != nil {
 			return clues.Wrap(err, "adding item to cache")
 		}
 	}
@@ -155,7 +155,7 @@ func (cr *containerResolver) addFolder(cf graph.CacheFolder) error {
 		return nil
 	}
 
-	cr.cache[ptr.Val(cf.GetId())] = &cf
+	cr.cache[ptr.Val(cf.GetId())] = cf
 
 	return nil
 }
@@ -176,7 +176,7 @@ func (cr *containerResolver) AddToCache(
 	ctx context.Context,
 	f graph.Container,
 ) error {
-	temp := graph.CacheFolder{
+	temp := &graph.CacheFolder{
 		Container: f,
 	}
 	if err := cr.addFolder(temp); err != nil {

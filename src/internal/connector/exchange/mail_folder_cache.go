@@ -52,7 +52,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 		// the user doesn't see in the regular UI for Exchange.
 		path.Builder{}.Append(), // path of IDs
 		path.Builder{}.Append()) // display location
-	if err := mc.addFolder(temp); err != nil {
+	if err := mc.addFolder(&temp); err != nil {
 		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 	}
 

@@ -49,7 +49,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 		f,
 		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
 		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
-	if err := ecc.addFolder(temp); err != nil {
+	if err := ecc.addFolder(&temp); err != nil {
 		return clues.Wrap(err, "initializing calendar resolver").WithClues(ctx)
 	}
 
@@ -98,7 +98,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
 		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 
-	if err := ecc.addFolder(temp); err != nil {
+	if err := ecc.addFolder(&temp); err != nil {
 		return clues.Wrap(err, "adding container").WithClues(ctx)
 	}
 

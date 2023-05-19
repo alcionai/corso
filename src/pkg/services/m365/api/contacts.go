@@ -118,7 +118,7 @@ func (c Contacts) GetContainerByID(
 func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
-	fn func(graph.CacheFolder) error,
+	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
 	service, err := c.Service()
@@ -166,7 +166,7 @@ func (c Contacts) EnumerateContainers(
 				"container_display_name", ptr.Val(fold.GetDisplayName()))
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
-			if err := fn(temp); err != nil {
+			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}

@@ -34,7 +34,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 		f,
 		path.Builder{}.Append(ptr.Val(f.GetId())),   // path of IDs
 		path.Builder{}.Append(baseContainerPath...)) // display location
-	if err := cfc.addFolder(temp); err != nil {
+	if err := cfc.addFolder(&temp); err != nil {
 		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 	}
 

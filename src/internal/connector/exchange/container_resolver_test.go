@@ -233,7 +233,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			fc := newContainerResolver()
-			err := fc.addFolder(test.cf)
+			err := fc.addFolder(&test.cf)
 			test.check(suite.T(), err, clues.ToCore(err))
 		})
 	}
