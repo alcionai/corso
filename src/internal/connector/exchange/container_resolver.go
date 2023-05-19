@@ -68,12 +68,12 @@ func (cr *containerResolver) IDToPath(
 
 	c, ok := cr.cache[folderID]
 	if !ok {
-		return nil, nil, clues.New("folder not cached").WithClues(ctx)
+		return nil, nil, clues.New("container not cached").WithClues(ctx)
 	}
 
 	p := c.Path()
 	if p == nil {
-		return nil, nil, clues.New("folder has no path").WithClues(ctx)
+		return nil, nil, clues.New("cached container has no path").WithClues(ctx)
 	}
 
 	return p, c.Location(), nil
@@ -87,7 +87,7 @@ func (cr *containerResolver) refreshContainer(
 	logger.Ctx(ctx).Debug("refreshing container")
 
 	if cr.refresher == nil {
-		return nil, false, clues.New("nil refresher")
+		return nil, false, clues.New("nil refresher").WithClues(ctx)
 	}
 
 	c, err := cr.refresher.refreshContainer(ctx, id)
@@ -154,7 +154,7 @@ func (cr *containerResolver) idToPath(
 	}
 
 	if !parentCached {
-		logger.Ctx(ctx).Debug("parent folder was refreshed")
+		logger.Ctx(ctx).Debug("parent container was refreshed")
 
 		newContainer, currentShouldDelete, err := cr.refreshContainer(ctx, folderID)
 		if err != nil {
@@ -162,7 +162,7 @@ func (cr *containerResolver) idToPath(
 		}
 
 		if currentShouldDelete {
-			logger.Ctx(ctx).Debug("refreshing folder showed it was deleted")
+			logger.Ctx(ctx).Debug("refreshing container showed it was deleted")
 			delete(cr.cache, folderID)
 
 			return nil, nil, true, true, nil
@@ -185,7 +185,7 @@ func (cr *containerResolver) idToPath(
 	// If the parent wasn't found and refreshing the folder itself showed it
 	// hadn't changed then just delete it.
 	if shouldDelete {
-		logger.Ctx(ctx).Debug("deleting folder since parent was deleted")
+		logger.Ctx(ctx).Debug("deleting container since parent was deleted")
 		delete(cr.cache, folderID)
 
 		return nil, nil, true, true, nil
