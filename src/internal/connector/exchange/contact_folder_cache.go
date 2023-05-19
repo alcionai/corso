@@ -99,7 +99,10 @@ func (cfc *contactFolderCache) init(
 	}
 
 	if cfc.containerResolver == nil {
-		cfc.containerResolver = newContainerResolver()
+		cfc.containerResolver = newContainerResolver(&contactRefresher{
+			userID: cfc.userID,
+			getter: cfc.getter,
+		})
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)

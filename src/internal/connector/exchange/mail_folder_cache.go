@@ -51,7 +51,10 @@ func (mc *mailFolderCache) init(
 	ctx context.Context,
 ) error {
 	if mc.containerResolver == nil {
-		mc.containerResolver = newContainerResolver()
+		mc.containerResolver = newContainerResolver(&mailRefresher{
+			userID: mc.userID,
+			getter: mc.getter,
+		})
 	}
 
 	return mc.populateMailRoot(ctx)

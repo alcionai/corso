@@ -27,7 +27,7 @@ func (ecc *eventCalendarCache) init(
 	ctx context.Context,
 ) error {
 	if ecc.containerResolver == nil {
-		ecc.containerResolver = newContainerResolver()
+		ecc.containerResolver = newContainerResolver(nil)
 	}
 
 	return ecc.populateEventRoot(ctx)

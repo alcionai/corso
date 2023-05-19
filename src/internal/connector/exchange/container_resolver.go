@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -47,33 +48,23 @@ type containerRefresher interface {
 // folders if each folder is only a single character.
 const maxIterations = 300
 
-func newContainerResolver() *containerResolver {
+func newContainerResolver(refresher containerRefresher) *containerResolver {
 	return &containerResolver{
-		cache: map[string]graph.CachedContainer{},
+		cache:     map[string]graph.CachedContainer{},
+		refresher: refresher,
 	}
 }
 
 type containerResolver struct {
-	cache map[string]graph.CachedContainer
+	cache     map[string]graph.CachedContainer
+	refresher containerRefresher
 }
 
 func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
 ) (*path.Builder, *path.Builder, error) {
-	return cr.idToPath(ctx, folderID, 0)
-}
-
-func (cr *containerResolver) idToPath(
-	ctx context.Context,
-	folderID string,
-	depth int,
-) (*path.Builder, *path.Builder, error) {
 	ctx = clues.Add(ctx, "container_id", folderID)
-
-	if depth >= maxIterations {
-		return nil, nil, clues.New("path contains cycle or is too tall").WithClues(ctx)
-	}
 
 	c, ok := cr.cache[folderID]
 	if !ok {
@@ -81,16 +72,123 @@ func (cr *containerResolver) idToPath(
 	}
 
 	p := c.Path()
-	if p != nil {
-		return p, c.Location(), nil
+	if p == nil {
+		return nil, nil, clues.New("folder has no path").WithClues(ctx)
 	}
 
-	parentPath, parentLoc, err := cr.idToPath(
+	return p, c.Location(), nil
+}
+
+func (cr *containerResolver) refreshContainer(
+	ctx context.Context,
+	id string,
+) (graph.CachedContainer, bool, error) {
+	ctx = clues.Add(ctx, "refresh_container_id", id)
+	logger.Ctx(ctx).Debug("refreshing container")
+
+	if cr.refresher == nil {
+		return nil, false, clues.New("nil refresher")
+	}
+
+	c, err := cr.refresher.refreshContainer(ctx, id)
+	if err != nil && graph.IsErrDeletedInFlight(err) {
+		logger.Ctx(ctx).Debug("container deleted")
+		return nil, true, nil
+	} else if err != nil {
+		// This is some other error, just return it.
+		return nil, false, clues.Wrap(err, "refreshing container").WithClues(ctx)
+	}
+
+	return c, false, nil
+}
+
+func (cr *containerResolver) idToPath(
+	ctx context.Context,
+	folderID string,
+	depth int,
+) (*path.Builder, *path.Builder, bool, bool, error) {
+	ctx = clues.Add(ctx, "container_id", folderID)
+
+	if depth >= maxIterations {
+		return nil, nil, false, false, clues.New("path contains cycle or is too tall").WithClues(ctx)
+	}
+
+	c, ok := cr.cache[folderID]
+	if !ok {
+		c, shouldDelete, err := cr.refreshContainer(ctx, folderID)
+		if err != nil {
+			return nil, nil, false, false, clues.Wrap(err, "fetching uncached container")
+		}
+
+		if shouldDelete {
+			logger.Ctx(ctx).Debug("fetching uncached folder showed it was deleted")
+			return nil, nil, false, shouldDelete, err
+		}
+
+		if err := cr.addFolder(c); err != nil {
+			return nil, nil, false, false, clues.Wrap(err, "adding new folder").WithClues(ctx)
+		}
+
+		// Retry populating this container's paths.
+		// TODO(ashmrtn): May want to bump the depth here just so we don't get stuck
+		// retrying too much if for some reason things keep moving around?
+		pth, loc, _, shouldDelete, err := cr.idToPath(ctx, folderID, depth)
+		if err != nil {
+			err = clues.Wrap(err, "retry populating uncached folder")
+		}
+
+		return pth, loc, false, shouldDelete, err
+	}
+
+	p := c.Path()
+	if p != nil {
+		return p, c.Location(), true, false, nil
+	}
+
+	parentPath, parentLoc, parentCached, shouldDelete, err := cr.idToPath(
 		ctx,
 		ptr.Val(c.GetParentFolderId()),
 		depth+1)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "retrieving parent folder")
+		return nil, nil, true, false, clues.Wrap(err, "retrieving parent folder")
+	}
+
+	if !parentCached {
+		logger.Ctx(ctx).Debug("parent folder was refreshed")
+
+		newContainer, currentShouldDelete, err := cr.refreshContainer(ctx, folderID)
+		if err != nil {
+			return nil, nil, true, false, clues.Wrap(err, "refreshing container").WithClues(ctx)
+		}
+
+		if currentShouldDelete {
+			logger.Ctx(ctx).Debug("refreshing folder showed it was deleted")
+			delete(cr.cache, folderID)
+
+			return nil, nil, true, true, nil
+		}
+
+		// TODO(ashmrtn): May want to bump the depth here just so we don't get stuck
+		// retrying too much if for some reason things keep moving around?
+		if ptr.Val(newContainer.GetParentFolderId()) != ptr.Val(c.GetParentFolderId()) ||
+			ptr.Val(newContainer.GetDisplayName()) != ptr.Val(c.GetDisplayName()) {
+			delete(cr.cache, folderID)
+
+			if err := cr.addFolder(newContainer); err != nil {
+				return nil, nil, false, false, clues.Wrap(err, "updating cached folder").WithClues(ctx)
+			}
+
+			return cr.idToPath(ctx, folderID, depth)
+		}
+	}
+
+	// If the parent wasn't found and refreshing the folder itself showed it
+	// hadn't changed then just delete it.
+	if shouldDelete {
+		logger.Ctx(ctx).Debug("deleting folder since parent was deleted")
+		delete(cr.cache, folderID)
+
+		return nil, nil, true, true, nil
 	}
 
 	fullPath := parentPath.Append(ptr.Val(c.GetId()))
@@ -99,7 +197,7 @@ func (cr *containerResolver) idToPath(
 	locPath := parentLoc.Append(ptr.Val(c.GetDisplayName()))
 	c.SetLocation(locPath)
 
-	return fullPath, locPath, nil
+	return fullPath, locPath, true, false, nil
 }
 
 // PathInCache is a utility function to return m365ID of a folder if the
@@ -192,7 +290,7 @@ func (cr *containerResolver) AddToCache(
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()))
+	_, _, _, _, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
 	if err != nil {
 		return clues.Wrap(err, "adding cache entry")
 	}
@@ -215,7 +313,7 @@ func (cr *containerResolver) populatePaths(
 			return el.Failure()
 		}
 
-		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()))
+		_, _, _, _, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
 		if err != nil {
 			err = clues.Wrap(err, "populating path")
 			el.AddRecoverable(err)
