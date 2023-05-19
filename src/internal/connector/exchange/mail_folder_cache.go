@@ -10,7 +10,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &mailFolderCache{}
+var (
+	_ graph.ContainerResolver = &mailFolderCache{}
+	_ containerRefresher      = &mailRefresher{}
+)
+
+type mailRefresher struct {
+	getter containerGetter
+	userID string
+}
+
+func (r *mailRefresher) refreshContainer(
+	ctx context.Context,
+	id string,
+) (graph.CachedContainer, error) {
+	c, err := r.getter.GetContainerByID(ctx, r.userID, id)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	f := graph.NewCacheFolder(c, nil, nil)
+
+	return &f, nil
+}
 
 // mailFolderCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID

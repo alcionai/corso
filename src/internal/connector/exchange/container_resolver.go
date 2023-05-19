@@ -31,6 +31,13 @@ type containersEnumerator interface {
 	) error
 }
 
+type containerRefresher interface {
+	refreshContainer(
+		ctx context.Context,
+		dirID string,
+	) (graph.CachedContainer, error)
+}
+
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------

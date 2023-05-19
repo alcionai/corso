@@ -11,7 +11,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &contactFolderCache{}
+var (
+	_ graph.ContainerResolver = &contactFolderCache{}
+	_ containerRefresher      = &contactRefresher{}
+)
+
+type contactRefresher struct {
+	getter containerGetter
+	userID string
+}
+
+func (r *contactRefresher) refreshContainer(
+	ctx context.Context,
+	id string,
+) (graph.CachedContainer, error) {
+	c, err := r.getter.GetContainerByID(ctx, r.userID, id)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	f := graph.NewCacheFolder(c, nil, nil)
+
+	return &f, nil
+}
 
 type contactFolderCache struct {
 	*containerResolver
