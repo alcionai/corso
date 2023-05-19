@@ -1,11 +1,11 @@
 package exchange
 
 import (
-	//stdpath "path"
+	stdpath "path"
 	"testing"
 
 	"github.com/alcionai/clues"
-	//"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -52,7 +52,7 @@ func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 }
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
-	//suite.T().Skipf("Test depends on hardcoded folder names. Skipping till that is fixed")
+	suite.T().Skipf("Test depends on hardcoded folder names. Skipping till that is fixed")
 
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -66,15 +66,15 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			name: "Default Root",
 			root: rootFolderAlias,
 		},
-		//{
-		//	name: "Node Root",
-		//	root: topFolderID,
-		//},
-		//{
-		//	name: "Node Root Non-empty Path",
-		//	root: topFolderID,
-		//	path: []string{"some", "leading", "path"},
-		//},
+		{
+			name: "Node Root",
+			root: topFolderID,
+		},
+		{
+			name: "Node Root Non-empty Path",
+			root: topFolderID,
+			path: []string{"some", "leading", "path"},
+		},
 	}
 	userID := tester.M365UserID(suite.T())
 
@@ -96,16 +96,16 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			err = mfc.Populate(ctx, fault.New(true), test.root, test.path...)
 			require.NoError(t, err, clues.ToCore(err))
 
-			//p, l, err := mfc.IDToPath(ctx, testFolderID)
-			//require.NoError(t, err, clues.ToCore(err))
-			//t.Logf("Path: %s\n", p.String())
-			//t.Logf("Location: %s\n", l.String())
+			p, l, err := mfc.IDToPath(ctx, testFolderID)
+			require.NoError(t, err, clues.ToCore(err))
+			t.Logf("Path: %s\n", p.String())
+			t.Logf("Location: %s\n", l.String())
 
-			//expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
-			//assert.Equal(t, expectedPath, p.String())
-			//identifier, ok := mfc.LocationInCache(p.String())
-			//assert.True(t, ok)
-			//assert.NotEmpty(t, identifier)
+			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
+			assert.Equal(t, expectedPath, p.String())
+			identifier, ok := mfc.LocationInCache(p.String())
+			assert.True(t, ok)
+			assert.NotEmpty(t, identifier)
 		})
 	}
 }
