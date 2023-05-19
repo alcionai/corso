@@ -536,7 +536,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			resolver, containers := resolverWithContainers(test.numContainers, false)
-			_, _, _, _, err := resolver.idToPath(ctx, containers[len(containers)-1].id, 0)
+			_, err := resolver.idToPath(ctx, containers[len(containers)-1].id, 0)
 			test.check(suite.T(), err, clues.ToCore(err))
 		})
 	}

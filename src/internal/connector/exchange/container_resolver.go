@@ -79,6 +79,10 @@ func (cr *containerResolver) IDToPath(
 	return p, c.Location(), nil
 }
 
+// refreshContainer attempts to fetch the container with the given ID from Graph
+// API. Returns a graph.CachedContainer if the container was found. If the
+// container was deleted, returns nil, true, nil to note the container should
+// be removed from the cache.
 func (cr *containerResolver) refreshContainer(
 	ctx context.Context,
 	id string,
@@ -102,72 +106,137 @@ func (cr *containerResolver) refreshContainer(
 	return c, false, nil
 }
 
+// recoverContainer attempts to fetch a missing container from Graph API and
+// populate the path for it. It returns
+//   - the ID path for the folder
+//   - the display name path for the folder
+//   - if the folder was deleted
+//   - any error that occurred
+//
+// If the folder is marked as deleted, child folders of this folder should be
+// deleted if they haven't been moved to another folder.
+func (cr *containerResolver) recoverContainer(
+	ctx context.Context,
+	folderID string,
+	depth int,
+) (*path.Builder, *path.Builder, bool, error) {
+	c, deleted, err := cr.refreshContainer(ctx, folderID)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "fetching uncached container")
+	}
+
+	if deleted {
+		logger.Ctx(ctx).Debug("fetching uncached container showed it was deleted")
+		return nil, nil, deleted, err
+	}
+
+	if err := cr.addFolder(c); err != nil {
+		return nil, nil, false, clues.Wrap(err, "adding new container").WithClues(ctx)
+	}
+
+	// Retry populating this container's paths.
+	//
+	// TODO(ashmrtn): May want to bump the depth here just so we don't get stuck
+	// retrying too much if for some reason things keep moving around?
+	resolved, err := cr.idToPath(ctx, folderID, depth)
+	if err != nil {
+		err = clues.Wrap(err, "repopulating uncached container")
+	}
+
+	return resolved.idPath, resolved.locPath, resolved.deleted, err
+}
+
+type resolvedPath struct {
+	idPath  *path.Builder
+	locPath *path.Builder
+	cached  bool
+	deleted bool
+}
+
 func (cr *containerResolver) idToPath(
 	ctx context.Context,
 	folderID string,
 	depth int,
-) (*path.Builder, *path.Builder, bool, bool, error) {
+) (resolvedPath, error) {
 	ctx = clues.Add(ctx, "container_id", folderID)
 
 	if depth >= maxIterations {
-		return nil, nil, false, false, clues.New("path contains cycle or is too tall").WithClues(ctx)
+		return resolvedPath{
+			idPath:  nil,
+			locPath: nil,
+			cached:  false,
+			deleted: false,
+		}, clues.New("path contains cycle or is too tall").WithClues(ctx)
 	}
 
 	c, ok := cr.cache[folderID]
 	if !ok {
-		c, shouldDelete, err := cr.refreshContainer(ctx, folderID)
+		pth, loc, deleted, err := cr.recoverContainer(ctx, folderID, depth)
 		if err != nil {
-			return nil, nil, false, false, clues.Wrap(err, "fetching uncached container")
+			err = clues.Stack(err)
 		}
 
-		if shouldDelete {
-			logger.Ctx(ctx).Debug("fetching uncached folder showed it was deleted")
-			return nil, nil, false, shouldDelete, err
-		}
-
-		if err := cr.addFolder(c); err != nil {
-			return nil, nil, false, false, clues.Wrap(err, "adding new folder").WithClues(ctx)
-		}
-
-		// Retry populating this container's paths.
-		// TODO(ashmrtn): May want to bump the depth here just so we don't get stuck
-		// retrying too much if for some reason things keep moving around?
-		pth, loc, _, shouldDelete, err := cr.idToPath(ctx, folderID, depth)
-		if err != nil {
-			err = clues.Wrap(err, "retry populating uncached folder")
-		}
-
-		return pth, loc, false, shouldDelete, err
+		return resolvedPath{
+			idPath:  pth,
+			locPath: loc,
+			cached:  false,
+			deleted: deleted,
+		}, err
 	}
 
 	p := c.Path()
 	if p != nil {
-		return p, c.Location(), true, false, nil
+		return resolvedPath{
+			idPath:  p,
+			locPath: c.Location(),
+			cached:  true,
+			deleted: false,
+		}, nil
 	}
 
-	parentPath, parentLoc, parentCached, shouldDelete, err := cr.idToPath(
+	resolved, err := cr.idToPath(
 		ctx,
 		ptr.Val(c.GetParentFolderId()),
 		depth+1)
 	if err != nil {
-		return nil, nil, true, false, clues.Wrap(err, "retrieving parent folder")
+		return resolvedPath{
+			idPath:  nil,
+			locPath: nil,
+			cached:  true,
+			deleted: false,
+		}, clues.Wrap(err, "retrieving parent container")
 	}
 
-	if !parentCached {
+	if !resolved.cached {
 		logger.Ctx(ctx).Debug("parent container was refreshed")
 
-		newContainer, currentShouldDelete, err := cr.refreshContainer(ctx, folderID)
+		newContainer, shouldDelete, err := cr.refreshContainer(ctx, folderID)
 		if err != nil {
-			return nil, nil, true, false, clues.Wrap(err, "refreshing container").WithClues(ctx)
+			return resolvedPath{
+				idPath:  nil,
+				locPath: nil,
+				cached:  true,
+				deleted: false,
+			}, clues.Wrap(err, "refreshing container").WithClues(ctx)
 		}
 
-		if currentShouldDelete {
+		if shouldDelete {
 			logger.Ctx(ctx).Debug("refreshing container showed it was deleted")
 			delete(cr.cache, folderID)
 
-			return nil, nil, true, true, nil
+			return resolvedPath{
+				idPath:  nil,
+				locPath: nil,
+				cached:  true,
+				deleted: true,
+			}, nil
 		}
 
+		// See if the newer version of the current container we got back has
+		// changed. If it has then it could be that the container was moved prior to
+		// deleting the parent and we just hit some eventual consistency case in
+		// Graph.
+		//
 		// TODO(ashmrtn): May want to bump the depth here just so we don't get stuck
 		// retrying too much if for some reason things keep moving around?
 		if ptr.Val(newContainer.GetParentFolderId()) != ptr.Val(c.GetParentFolderId()) ||
@@ -175,29 +244,47 @@ func (cr *containerResolver) idToPath(
 			delete(cr.cache, folderID)
 
 			if err := cr.addFolder(newContainer); err != nil {
-				return nil, nil, false, false, clues.Wrap(err, "updating cached folder").WithClues(ctx)
+				return resolvedPath{
+					idPath:  nil,
+					locPath: nil,
+					cached:  false,
+					deleted: false,
+				}, clues.Wrap(err, "updating cached container").WithClues(ctx)
 			}
 
 			return cr.idToPath(ctx, folderID, depth)
 		}
 	}
 
-	// If the parent wasn't found and refreshing the folder itself showed it
-	// hadn't changed then just delete it.
-	if shouldDelete {
+	// If the parent wasn't found and refreshing the current container produced no
+	// diffs then delete the current container on the assumption that the parent
+	// was deleted and the current container will later get deleted via eventual
+	// consistency. If w're wrong then the container will get picked up again on
+	// the next backup.
+	if resolved.deleted {
 		logger.Ctx(ctx).Debug("deleting container since parent was deleted")
 		delete(cr.cache, folderID)
 
-		return nil, nil, true, true, nil
+		return resolvedPath{
+			idPath:  nil,
+			locPath: nil,
+			cached:  true,
+			deleted: true,
+		}, nil
 	}
 
-	fullPath := parentPath.Append(ptr.Val(c.GetId()))
+	fullPath := resolved.idPath.Append(ptr.Val(c.GetId()))
 	c.SetPath(fullPath)
 
-	locPath := parentLoc.Append(ptr.Val(c.GetDisplayName()))
+	locPath := resolved.locPath.Append(ptr.Val(c.GetDisplayName()))
 	c.SetLocation(locPath)
 
-	return fullPath, locPath, true, false, nil
+	return resolvedPath{
+		idPath:  fullPath,
+		locPath: locPath,
+		cached:  true,
+		deleted: false,
+	}, nil
 }
 
 // PathInCache is a utility function to return m365ID of a folder if the
@@ -290,7 +377,7 @@ func (cr *containerResolver) AddToCache(
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, _, _, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
+	_, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
 	if err != nil {
 		return clues.Wrap(err, "adding cache entry")
 	}
@@ -313,7 +400,7 @@ func (cr *containerResolver) populatePaths(
 			return el.Failure()
 		}
 
-		_, _, _, _, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
+		_, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
 		if err != nil {
 			err = clues.Wrap(err, "populating path")
 			el.AddRecoverable(err)
