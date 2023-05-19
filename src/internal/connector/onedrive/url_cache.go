@@ -26,7 +26,7 @@ type urlCacher interface {
 type itemProperties struct {
 	downloadURL string
 	isDeleted   bool
-	// temporary
+	// TODO: remove this field
 	driveItem *models.DriveItem
 }
 
@@ -36,6 +36,8 @@ type urlCache struct {
 	urlMap map[string]itemProperties
 	// time of last cache  refresh
 	lastRefreshTime time.Time
+	// refresh interval
+	refreshInterval time.Duration
 	// RW lock for the URL map and lastRefreshTime
 	rwLock sync.RWMutex
 	// semaphore for limiting the number of concurrent cache refreshes to 1
@@ -69,9 +71,10 @@ type collectorFunc func(
 	errs *fault.Bus,
 ) error
 
-// NewUrlCache creates a new URL cache for the specified drive
+// NewURLache creates a new URL cache for the specified drive
 func newURLCache(
 	driveID, driveName string,
+	refreshInterval time.Duration,
 	driveEnumerator driveEnumeratorFunc,
 	itemPagerFunc func(
 		servicer graph.Servicer,
@@ -86,6 +89,7 @@ func newURLCache(
 		driveID:          driveID,
 		driveEnumerator:  driveEnumerator,
 		itemPagerFunc:    itemPagerFunc,
+		refreshInterval:  refreshInterval,
 	}
 }
 
@@ -146,7 +150,17 @@ func (uc *urlCache) refreshCache(
 		return nil
 	}
 
+	startTime := time.Now()
+
 	err := uc.deltaQuery(ctx, svc)
+	if err != nil {
+		return err
+	}
+
+	// If the delta query is very large, it may take a long time to complete.
+	// Set last refresh time to the start time of the delta query to allow
+	// issuing next refresh sooner
+	err = uc.updateRefreshTime(startTime)
 	if err != nil {
 		return err
 	}
@@ -177,6 +191,19 @@ func (uc *urlCache) deltaQuery(
 	if err != nil {
 		return clues.Wrap(err, "delta query failed").WithClues(ictx)
 	}
+
+	return nil
+}
+
+func (uc *urlCache) updateRefreshTime(t time.Time) error {
+	uc.rwLock.Lock()
+	defer uc.rwLock.Unlock()
+
+	if uc.lastRefreshTime.After(t) {
+		return clues.New("last refresh time is after the specified time")
+	}
+
+	uc.lastRefreshTime = t
 
 	return nil
 }
