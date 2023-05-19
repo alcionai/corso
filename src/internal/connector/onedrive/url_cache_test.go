@@ -3,8 +3,9 @@ package onedrive
 import (
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 // Unit tests for urlCache
