@@ -11,8 +11,8 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -263,7 +263,7 @@ func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, err
 	// get account info
 	m365Cfg := account.M365Config{
 		M365:          credentials.GetM365(),
-		AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
+		AzureTenantID: str.First(tenant, os.Getenv(account.AzureTenantID)),
 	}
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)

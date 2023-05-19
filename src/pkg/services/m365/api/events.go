@@ -84,12 +84,13 @@ func (c Events) GetContainerByID(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "setting event calendar options")
+	queryParams := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "owner"},
+		},
 	}
 
-	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, ofc)
+	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, queryParams)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -129,7 +130,7 @@ func (c Events) GetContainerByName(
 	cal := resp.GetValue()[0]
 	cd := CalendarDisplayable{Calendarable: cal}
 
-	if err := checkIDAndName(cd); err != nil {
+	if err := graph.CheckIDAndName(cd); err != nil {
 		return nil, err
 	}
 
@@ -199,9 +200,10 @@ func (c Events) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendars([]string{"name"})
-	if err != nil {
-		return graph.Wrap(ctx, err, "setting calendar options")
+	queryParams := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name"},
+		},
 	}
 
 	el := errs.Local()
@@ -212,7 +214,7 @@ func (c Events) EnumerateContainers(
 			break
 		}
 
-		resp, err := builder.Get(ctx, ofc)
+		resp, err := builder.Get(ctx, queryParams)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
@@ -223,7 +225,7 @@ func (c Events) EnumerateContainers(
 			}
 
 			cd := CalendarDisplayable{Calendarable: cal}
-			if err := checkIDAndName(cd); err != nil {
+			if err := graph.CheckIDAndName(cd); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}

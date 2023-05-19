@@ -3,7 +3,9 @@ package graph
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -199,4 +201,145 @@ func (mw *RateLimiterMiddleware) Intercept(
 ) (*http.Response, error) {
 	QueueRequest(req.Context())
 	return pipeline.Next(req, middlewareIndex)
+}
+
+// ---------------------------------------------------------------------------
+// global throttle fencing
+// ---------------------------------------------------------------------------
+
+// timedFence sets up a fence for a certain amount of time.
+// the time can be extended arbitrarily.  All processes blocked at
+// the fence will be let through when all timer extensions conclude.
+type timedFence struct {
+	mu     sync.Mutex
+	c      chan struct{}
+	timers map[int64]*time.Timer
+}
+
+func newTimedFence() *timedFence {
+	return &timedFence{
+		mu:     sync.Mutex{},
+		c:      nil,
+		timers: map[int64]*time.Timer{},
+	}
+}
+
+// Block until the fence is let down.
+// if no fence is up, return immediately.
+// returns if the ctx deadlines before the fence is let down.
+func (tf *timedFence) Block(ctx context.Context) error {
+	// set to a local var to avoid race panics from tf.c
+	// getting set to nil between the conditional check and
+	// the read case.  If c gets closed between those two
+	// points then the select case will exit immediately,
+	// as if we didn't block at all.
+	c := tf.c
+
+	if c != nil {
+		select {
+		case <-ctx.Done():
+			return clues.Wrap(ctx.Err(), "blocked on throttling fence")
+		case <-c:
+		}
+	}
+
+	return nil
+}
+
+// RaiseFence puts up a fence to block requests for the provided
+// duration of time.  Seconds are always added to the current time.
+// Multiple calls to RaiseFence are not additive. ie: calling
+// `RaiseFence(5); RaiseFence(1)` will keep the fence up until
+// now+5 seconds, not now+6 seconds.  When the last remaining fence
+// is dropped, all currently blocked calls are allowed through.
+func (tf *timedFence) RaiseFence(seconds time.Duration) {
+	tf.mu.Lock()
+	defer tf.mu.Unlock()
+
+	if seconds < 1 {
+		return
+	}
+
+	if tf.c == nil {
+		tf.c = make(chan struct{})
+	}
+
+	timer := time.NewTimer(seconds)
+	tid := time.Now().Add(seconds).UnixMilli()
+	tf.timers[tid] = timer
+
+	go func(c <-chan time.Time, id int64) {
+		// wait for the timeout
+		<-c
+
+		tf.mu.Lock()
+		defer tf.mu.Unlock()
+
+		// remove the timer
+		delete(tf.timers, id)
+
+		// if no timers remain, close the channel to drop the fence
+		// and set the fenc channel to nil
+		if len(tf.timers) == 0 && tf.c != nil {
+			close(tf.c)
+			tf.c = nil
+		}
+	}(timer.C, tid)
+}
+
+// throttlingMiddleware is used to ensure we don't overstep per-min request limits.
+type throttlingMiddleware struct {
+	tf *timedFence
+}
+
+func (mw *throttlingMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	err := mw.tf.Block(req.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := pipeline.Next(req, middlewareIndex)
+	if resp == nil || err != nil {
+		return resp, err
+	}
+
+	seconds := getRetryAfterHeader(resp)
+	if seconds < 1 {
+		return resp, nil
+	}
+
+	// if all prior conditions pass, we need to add a fence that blocks
+	// calls, globally, from progressing until the timeout retry-after
+	// passes.
+	mw.tf.RaiseFence(time.Duration(seconds) * time.Second)
+
+	return resp, nil
+}
+
+func getRetryAfterHeader(resp *http.Response) int {
+	if resp == nil || len(resp.Header) == 0 {
+		return -1
+	}
+
+	if resp.StatusCode != http.StatusTooManyRequests {
+		return -1
+	}
+
+	rah := resp.Header.Get(retryAfterHeader)
+	if len(rah) == 0 {
+		return -1
+	}
+
+	seconds, err := strconv.Atoi(rah)
+	if err != nil {
+		// the error itself is irrelevant, we only want
+		// to wait if we have a clear length of time to wait until.
+		return -1
+	}
+
+	return seconds
 }
