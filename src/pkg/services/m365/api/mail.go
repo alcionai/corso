@@ -64,10 +64,10 @@ func (c Mail) CreateMailFolder(
 	return mdl, nil
 }
 
-func (c Mail) CreateMailFolderWithParent(
+func (c Mail) CreateContainer(
 	ctx context.Context,
 	userID, containerName, parentContainerID string,
-) (models.MailFolderable, error) {
+) (graph.Container, error) {
 	isHidden := false
 	body := models.NewMailFolder()
 	body.SetDisplayName(&containerName)

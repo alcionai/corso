@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -16,18 +15,6 @@ import (
 )
 
 var ErrFolderNotFound = clues.New("folder not found")
-
-func createService(credentials account.M365Config) (*graph.Service, error) {
-	adapter, err := graph.CreateAdapter(
-		credentials.AzureTenantID,
-		credentials.AzureClientID,
-		credentials.AzureClientSecret)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating microsoft graph service for exchange")
-	}
-
-	return graph.NewService(adapter), nil
-}
 
 // populateExchangeContainerResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other

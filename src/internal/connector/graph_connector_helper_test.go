@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
@@ -111,6 +112,20 @@ type restoreBackupInfoMultiVersion struct {
 	collectionsPrevious []ColInfo
 	resource            Resource
 	backupVersion       int
+}
+
+func getAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
+	ibs, err := attachment.GetBackingStore().Get("contentBytes")
+	if err != nil {
+		return nil, err
+	}
+
+	bs, ok := ibs.([]byte)
+	if !ok {
+		return nil, clues.New(fmt.Sprintf("unexpected attachment type: %T", ibs))
+	}
+
+	return bs, nil
 }
 
 func attachmentEqual(
