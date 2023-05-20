@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -17,26 +16,19 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	onedrive "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-func getValues[T any](l api.PageLinker) ([]T, error) {
-	page, ok := l.(interface{ GetValue() []T })
-	if !ok {
-		return nil, clues.New("page does not comply with GetValue() interface").With("page_item_type", fmt.Sprintf("%T", l))
-	}
-
-	return page.GetValue(), nil
-}
-
-// max we can do is 999
-const pageSize = int32(999)
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
 
 type driveItemPager struct {
 	gs      graph.Servicer
 	driveID string
-	builder *drives.ItemRootDeltaRequestBuilder
-	options *drives.ItemRootDeltaRequestBuilderGetRequestConfiguration
+	builder *drives.ItemItemsItemDeltaRequestBuilder
+	options *drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewItemPager(
@@ -44,8 +36,6 @@ func NewItemPager(
 	driveID, link string,
 	fields []string,
 ) *driveItemPager {
-	pageCount := pageSize
-
 	headers := abstractions.NewRequestHeaders()
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
@@ -55,10 +45,10 @@ func NewItemPager(
 	}
 	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
-	requestConfig := &drives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
 		Headers: headers,
-		QueryParameters: &drives.ItemRootDeltaRequestBuilderGetQueryParameters{
-			Top:    &pageCount,
+		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
+			Top:    ptr.To(maxPageSize),
 			Select: fields,
 		},
 	}
@@ -67,11 +57,14 @@ func NewItemPager(
 		gs:      gs,
 		driveID: driveID,
 		options: requestConfig,
-		builder: gs.Client().DrivesById(driveID).Root().Delta(),
+		builder: gs.Client().
+			Drives().
+			ByDriveId(driveID).
+			Items().ByDriveItemId(onedrive.RootID).Delta(),
 	}
 
 	if len(link) > 0 {
-		res.builder = drives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
+		res.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, gs.Adapter())
 	}
 
 	return res
@@ -92,16 +85,25 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 }
 
 func (p *driveItemPager) SetNext(link string) {
-	p.builder = drives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
+	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *driveItemPager) Reset() {
-	p.builder = p.gs.Client().DrivesById(p.driveID).Root().Delta()
+	p.builder = p.gs.Client().
+		Drives().
+		ByDriveId(p.driveID).
+		Items().
+		ByDriveItemId(onedrive.RootID).
+		Delta()
 }
 
 func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable, error) {
 	return getValues[models.DriveItemable](l)
 }
+
+// ---------------------------------------------------------------------------
+// user pager
+// ---------------------------------------------------------------------------
 
 type userDrivePager struct {
 	userID  string
@@ -125,7 +127,7 @@ func NewUserDrivePager(
 		userID:  userID,
 		gs:      gs,
 		options: requestConfig,
-		builder: gs.Client().UsersById(userID).Drives(),
+		builder: gs.Client().Users().ByUserId(userID).Drives(),
 	}
 
 	return res
@@ -143,7 +145,7 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 		err  error
 	)
 
-	d, err := p.gs.Client().UsersById(p.userID).Drive().Get(ctx, nil)
+	d, err := p.gs.Client().Users().ByUserId(p.userID).Drive().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -179,6 +181,10 @@ func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) 
 	return []models.Driveable{nl.drive}, nil
 }
 
+// ---------------------------------------------------------------------------
+// site pager
+// ---------------------------------------------------------------------------
+
 type siteDrivePager struct {
 	gs      graph.Servicer
 	builder *sites.ItemDrivesRequestBuilder
@@ -204,7 +210,7 @@ func NewSiteDrivePager(
 	res := &siteDrivePager{
 		gs:      gs,
 		options: requestConfig,
-		builder: gs.Client().SitesById(siteID).Drives(),
+		builder: gs.Client().Sites().BySiteId(siteID).Drives(),
 	}
 
 	return res
@@ -231,6 +237,10 @@ func (p *siteDrivePager) SetNext(link string) {
 func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
 	return getValues[models.Driveable](l)
 }
+
+// ---------------------------------------------------------------------------
+// drive pager
+// ---------------------------------------------------------------------------
 
 // DrivePager pages through different types of drive owners
 type DrivePager interface {
@@ -301,140 +311,15 @@ func GetAllDrives(
 	return ds, nil
 }
 
-// generic drive item getter
-func GetDriveItem(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID, itemID string,
-) (models.DriveItemable, error) {
-	di, err := srv.Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item")
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func getValues[T any](l api.PageLinker) ([]T, error) {
+	page, ok := l.(interface{ GetValue() []T })
+	if !ok {
+		return nil, clues.New("page does not comply with GetValue() interface").With("page_item_type", fmt.Sprintf("%T", l))
 	}
 
-	return di, nil
-}
-
-func GetItemPermission(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
-) (models.PermissionCollectionResponseable, error) {
-	perm, err := service.
-		Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Permissions().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
-	}
-
-	return perm, nil
-}
-
-func GetUsersDrive(
-	ctx context.Context,
-	srv graph.Servicer,
-	user string,
-) (models.Driveable, error) {
-	d, err := srv.Client().
-		UsersById(user).
-		Drive().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user's drive")
-	}
-
-	return d, nil
-}
-
-func GetSitesDefaultDrive(
-	ctx context.Context,
-	srv graph.Servicer,
-	site string,
-) (models.Driveable, error) {
-	d, err := srv.Client().
-		SitesById(site).
-		Drive().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting site's drive")
-	}
-
-	return d, nil
-}
-
-func GetDriveRoot(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID string,
-) (models.DriveItemable, error) {
-	root, err := srv.Client().
-		DrivesById(driveID).
-		Root().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting drive root")
-	}
-
-	return root, nil
-}
-
-const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-
-var ErrFolderNotFound = clues.New("folder not found")
-
-// GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
-func GetFolderByName(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, parentFolderID, folder string,
-) (models.DriveItemable, error) {
-	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
-	// will be sub-optimal.
-	// Instead, we leverage OneDrive path-based addressing -
-	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
-	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folder)
-	builder := drive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
-
-	foundItem, err := builder.Get(ctx, nil)
-	if err != nil {
-		if graph.IsErrDeletedInFlight(err) {
-			return nil, graph.Stack(ctx, clues.Stack(ErrFolderNotFound, err))
-		}
-
-		return nil, graph.Wrap(ctx, err, "getting folder")
-	}
-
-	// Check if the item found is a folder, fail the call if not
-	if foundItem.GetFolder() == nil {
-		return nil, graph.Wrap(ctx, ErrFolderNotFound, "item is not a folder")
-	}
-
-	return foundItem, nil
-}
-
-func PostItemPermissionUpdate(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, itemID string,
-	body *drive.ItemsItemInvitePostRequestBody,
-) (drives.ItemItemsItemInviteResponseable, error) {
-	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
-
-	itm, err := service.Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Invite().
-		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "posting permissions")
-	}
-
-	return itm, nil
+	return page.GetValue(), nil
 }

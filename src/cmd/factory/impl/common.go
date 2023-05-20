@@ -11,10 +11,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
@@ -116,7 +116,7 @@ func getGCAndVerifyResourceOwner(
 	idname.Provider,
 	error,
 ) {
-	tid := common.First(Tenant, os.Getenv(account.AzureTenantID))
+	tid := str.First(Tenant, os.Getenv(account.AzureTenantID))
 
 	if len(Tenant) == 0 {
 		Tenant = tid
@@ -233,14 +233,14 @@ func generateAndRestoreDriveItems(
 
 	switch service {
 	case path.SharePointService:
-		d, err := gc.Service.Client().SitesById(resourceOwner).Drive().Get(ctx, nil)
+		d, err := gc.Service.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting site's default drive")
 		}
 
 		driveID = ptr.Val(d.GetId())
 	default:
-		d, err := gc.Service.Client().UsersById(resourceOwner).Drive().Get(ctx, nil)
+		d, err := gc.Service.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user's default drive")
 		}

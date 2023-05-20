@@ -6,7 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
@@ -64,7 +64,7 @@ func configureAccount(
 
 	m365Cfg = account.M365Config{
 		M365: m365,
-		AzureTenantID: common.First(
+		AzureTenantID: str.First(
 			overrides[account.AzureTenantID],
 			m365Cfg.AzureTenantID,
 			os.Getenv(account.AzureTenantID)),

@@ -14,11 +14,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
-	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -346,8 +345,10 @@ func driveItemWriter(
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
 	r, err := service.Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
@@ -358,7 +359,7 @@ func driveItemWriter(
 
 	url := ptr.Val(r.GetUploadUrl())
 
-	return uploadsession.NewWriter(itemID, url, itemSize), nil
+	return graph.NewLargeItemWriter(itemID, url, itemSize), nil
 }
 
 // constructWebURL helper function for recreating the webURL

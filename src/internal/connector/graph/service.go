@@ -247,11 +247,6 @@ func kiotaMiddlewares(
 ) []khttp.Middleware {
 	mw := []khttp.Middleware{}
 
-	// Optionally add concurrency limiter middleware if it has been initialized
-	if concurrencyLim != nil {
-		mw = append(mw, concurrencyLim)
-	}
-
 	mw = append(mw, []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
 		&RetryMiddleware{
@@ -264,9 +259,18 @@ func kiotaMiddlewares(
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
-		&RateLimiterMiddleware{},
-		&MetricsMiddleware{},
 	}...)
+
+	// Optionally add concurrency limiter middleware if it has been initialized.
+	if concurrencyLim != nil {
+		mw = append(mw, concurrencyLim)
+	}
+
+	mw = append(
+		mw,
+		&throttlingMiddleware{newTimedFence()},
+		&RateLimiterMiddleware{},
+		&MetricsMiddleware{})
 
 	if len(cc.appendMiddleware) > 0 {
 		mw = append(mw, cc.appendMiddleware...)

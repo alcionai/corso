@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -117,11 +118,15 @@ func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
 ) bool {
-	// This is super hacky, but seems like it would be good to have a comparison
-	// of the actual content. I think the only other way to really get it is to
-	// serialize both structs to JSON and pull it from there or something though.
-	expectedData := reflect.Indirect(reflect.ValueOf(expected)).FieldByName("contentBytes").Bytes()
-	gotData := reflect.Indirect(reflect.ValueOf(got)).FieldByName("contentBytes").Bytes()
+	expectedData, err := exchange.GetAttachmentBytes(expected)
+	if err != nil {
+		return false
+	}
+
+	gotData, err := exchange.GetAttachmentBytes(got)
+	if err != nil {
+		return false
+	}
 
 	if !reflect.DeepEqual(expectedData, gotData) {
 		return false

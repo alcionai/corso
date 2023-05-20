@@ -46,7 +46,7 @@ func (c Events) CreateCalendar(
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	mdl, err := c.Stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	mdl, err := c.Stable.Client().Users().ByUserId(user).Calendars().Post(ctx, requestbody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar")
 	}
@@ -67,7 +67,7 @@ func (c Events) DeleteContainer(
 		return graph.Stack(ctx, err)
 	}
 
-	err = srv.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	err = srv.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -79,17 +79,18 @@ func (c Events) GetContainerByID(
 	ctx context.Context,
 	userID, containerID string,
 ) (graph.Container, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "setting event calendar options")
+	queryParams := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "owner"},
+		},
 	}
 
-	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, queryParams)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -111,7 +112,7 @@ func (c Events) GetContainerByName(
 
 	ctx = clues.Add(ctx, "calendar_name", name)
 
-	resp, err := c.Stable.Client().UsersById(userID).Calendars().Get(ctx, options)
+	resp, err := c.Stable.Client().Users().ByUserId(userID).Calendars().Get(ctx, options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -129,7 +130,7 @@ func (c Events) GetContainerByName(
 	cal := resp.GetValue()[0]
 	cd := CalendarDisplayable{Calendarable: cal}
 
-	if err := checkIDAndName(cd); err != nil {
+	if err := graph.CheckIDAndName(cd); err != nil {
 		return nil, err
 	}
 
@@ -152,7 +153,7 @@ func (c Events) GetItem(
 		}
 	)
 
-	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, itemOpts)
+	event, err = c.Stable.Client().Users().ByUserId(user).Events().ByEventId(itemID).Get(ctx, itemOpts)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -167,8 +168,10 @@ func (c Events) GetItem(
 
 		attached, err := c.LargeItem.
 			Client().
-			UsersById(user).
-			EventsById(itemID).
+			Users().
+			ByUserId(user).
+			Events().
+			ByEventId(itemID).
 			Attachments().
 			Get(ctx, options)
 		if err != nil {
@@ -189,28 +192,29 @@ func (c Events) GetItem(
 func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
-	fn func(graph.CacheFolder) error,
+	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendars([]string{"name"})
-	if err != nil {
-		return graph.Wrap(ctx, err, "setting calendar options")
+	queryParams := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name"},
+		},
 	}
 
 	el := errs.Local()
-	builder := service.Client().UsersById(userID).Calendars()
+	builder := service.Client().Users().ByUserId(userID).Calendars()
 
 	for {
 		if el.Failure() != nil {
 			break
 		}
 
-		resp, err := builder.Get(ctx, ofc)
+		resp, err := builder.Get(ctx, queryParams)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
@@ -221,7 +225,7 @@ func (c Events) EnumerateContainers(
 			}
 
 			cd := CalendarDisplayable{Calendarable: cal}
-			if err := checkIDAndName(cd); err != nil {
+			if err := graph.CheckIDAndName(cd); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
@@ -235,7 +239,7 @@ func (c Events) EnumerateContainers(
 				cd,
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
-			if err := fn(temp); err != nil {
+			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
@@ -278,7 +282,7 @@ func NewEventPager(
 		Headers: buildPreferHeaders(true, immutableIDs),
 	}
 
-	builder := gs.Client().UsersById(user).CalendarsById(calendarID).Events()
+	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
 
 	return &eventPager{gs, builder, options}, nil
 }
@@ -386,7 +390,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.service()
+	service, err := c.Service()
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

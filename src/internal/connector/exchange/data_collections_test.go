@@ -12,7 +12,6 @@ import (
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -21,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -597,7 +597,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		bdayID string
 	)
 
-	fn := func(gcf graph.CacheFolder) error {
+	fn := func(gcf graph.CachedContainer) error {
 		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
 			calID = ptr.Val(gcf.GetId())
 		}

@@ -54,9 +54,9 @@ func mustGetDefaultDriveID(
 
 	switch backupService {
 	case path.OneDriveService:
-		d, err = service.Client().UsersById(resourceOwner).Drive().Get(ctx, nil)
+		d, err = service.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
 	case path.SharePointService:
-		d, err = service.Client().SitesById(resourceOwner).Drive().Get(ctx, nil)
+		d, err = service.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
 	default:
 		assert.FailNowf(t, "unknown service type %s", backupService.String())
 	}
