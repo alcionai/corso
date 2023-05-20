@@ -192,7 +192,7 @@ func (c Events) GetItem(
 func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
-	fn func(graph.CacheFolder) error,
+	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
 	service, err := c.Service()
@@ -239,7 +239,7 @@ func (c Events) EnumerateContainers(
 				cd,
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
-			if err := fn(temp); err != nil {
+			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}

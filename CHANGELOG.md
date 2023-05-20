@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Fixed
+- Fix Exchange folder cache population error when parent folder isn't found.
+
 ### Known Issues
 
 ## [v0.8.0] (beta) - 2023-05-15
