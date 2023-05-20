@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -13,6 +14,8 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
+	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 )
 
 type OneDriveUnitSuite struct {
@@ -137,18 +140,26 @@ func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	for _, test := range testdata.OneDriveOptionDetailLookups {
-		suite.Run(test.Name, func() {
-			t := suite.T()
+	for v := 0; v <= version.Backup; v++ {
+		suite.Run(fmt.Sprintf("version%d", v), func() {
+			for _, test := range testdata.OneDriveOptionDetailLookups {
+				suite.Run(test.Name, func() {
+					t := suite.T()
 
-			output, err := runDetailsOneDriveCmd(
-				ctx,
-				test.BackupGetter,
-				"backup-ID",
-				test.Opts,
-				false)
-			assert.NoError(t, err, clues.ToCore(err))
-			assert.ElementsMatch(t, test.Expected, output.Entries)
+					bg := testdata.VersionedBackupGetter{
+						Details: dtd.GetDetailsSetForVersion(t, v),
+					}
+
+					output, err := runDetailsOneDriveCmd(
+						ctx,
+						bg,
+						"backup-ID",
+						test.Opts(t, v),
+						false)
+					assert.NoError(t, err, clues.ToCore(err))
+					assert.ElementsMatch(t, test.Expected(t, v), output.Entries)
+				})
+			}
 		})
 	}
 }
@@ -165,7 +176,7 @@ func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
+				test.Opts(t, version.Backup),
 				false)
 			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, output)
