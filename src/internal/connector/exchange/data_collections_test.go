@@ -597,7 +597,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		bdayID string
 	)
 
-	fn := func(gcf graph.CacheFolder) error {
+	fn := func(gcf graph.CachedContainer) error {
 		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
 			calID = ptr.Val(gcf.GetId())
 		}
