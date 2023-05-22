@@ -36,7 +36,7 @@ type Mail struct {
 }
 
 // ---------------------------------------------------------------------------
-// methods
+// containers
 // ---------------------------------------------------------------------------
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
@@ -113,10 +113,13 @@ func (c Mail) DeleteContainer(
 	return nil
 }
 
-func (c Mail) GetContainerByID(
+// prefer GetContainerByID where possible.
+// use this only in cases where the models.MailFolderable
+// is required.
+func (c Mail) GetFolder(
 	ctx context.Context,
-	userID, dirID string,
-) (graph.Container, error) {
+	userID, containerID string,
+) (models.MailFolderable, error) {
 	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -132,7 +135,7 @@ func (c Mail) GetContainerByID(
 		Users().
 		ByUserId(userID).
 		MailFolders().
-		ByMailFolderId(dirID).
+		ByMailFolderId(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -140,6 +143,175 @@ func (c Mail) GetContainerByID(
 
 	return resp, nil
 }
+
+// interface-compliant wrapper of GetFolder
+func (c Mail) GetContainerByID(
+	ctx context.Context,
+	userID, dirID string,
+) (graph.Container, error) {
+	return c.GetFolder(ctx, userID, dirID)
+}
+
+func (c Mail) MoveContainer(
+	ctx context.Context,
+	userID, containerID string,
+	body users.ItemMailFoldersItemMovePostRequestBodyable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Move().
+		Post(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "moving mail folder")
+	}
+
+	return nil
+}
+
+func (c Mail) PatchFolder(
+	ctx context.Context,
+	userID, containerID string,
+	body models.MailFolderable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Patch(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "patching mail folder")
+	}
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// container pager
+// ---------------------------------------------------------------------------
+
+type mailFolderPager struct {
+	service graph.Servicer
+	builder *users.ItemMailFoldersRequestBuilder
+}
+
+func NewMailFolderPager(service graph.Servicer, user string) mailFolderPager {
+	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
+	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, user)
+	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
+
+	return mailFolderPager{service, builder}
+}
+
+func (p *mailFolderPager) getPage(ctx context.Context) (PageLinker, error) {
+	page, err := p.builder.Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return page, nil
+}
+
+func (p *mailFolderPager) setNext(nextLink string) {
+	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.service.Adapter())
+}
+
+func (p *mailFolderPager) valuesIn(pl PageLinker) ([]models.MailFolderable, error) {
+	// Ideally this should be `users.ItemMailFoldersResponseable`, but
+	// that is not a thing as stable returns different result
+	page, ok := pl.(models.MailFolderCollectionResponseable)
+	if !ok {
+		return nil, clues.New("converting to ItemMailFoldersResponseable")
+	}
+
+	return page.GetValue(), nil
+}
+
+// EnumerateContainers iterates through all of the users current
+// mail folders, converting each to a graph.CacheFolder, and calling
+// fn(cf) on each one.
+// Folder hierarchy is represented in its current state, and does
+// not contain historical data.
+func (c Mail) EnumerateContainers(
+	ctx context.Context,
+	userID, baseDirID string,
+	fn func(graph.CachedContainer) error,
+	errs *fault.Bus,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	el := errs.Local()
+
+	pgr := NewMailFolderPager(service, userID)
+
+	for {
+		if el.Failure() != nil {
+			break
+		}
+
+		page, err := pgr.getPage(ctx)
+		if err != nil {
+			return graph.Stack(ctx, err)
+		}
+
+		resp, err := pgr.valuesIn(page)
+		if err != nil {
+			return graph.Stack(ctx, err)
+		}
+
+		for _, fold := range resp {
+			if el.Failure() != nil {
+				break
+			}
+
+			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
+				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				continue
+			}
+
+			fctx := clues.Add(
+				ctx,
+				"container_id", ptr.Val(fold.GetId()),
+				"container_name", ptr.Val(fold.GetDisplayName()))
+
+			temp := graph.NewCacheFolder(fold, nil, nil)
+			if err := fn(&temp); err != nil {
+				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
+				continue
+			}
+		}
+
+		link, ok := ptr.ValOK(page.GetOdataNextLink())
+		if !ok {
+			break
+		}
+
+		pgr.setNext(link)
+	}
+
+	return el.Failure()
+}
+
+// ---------------------------------------------------------------------------
+// items
+// ---------------------------------------------------------------------------
 
 // GetItem retrieves a Messageable item.  If the item contains an attachment, that
 // attachment is also downloaded.
@@ -265,109 +437,56 @@ func (c Mail) GetItem(
 	return mail, MailInfo(mail, size), nil
 }
 
-type mailFolderPager struct {
-	service graph.Servicer
-	builder *users.ItemMailFoldersRequestBuilder
-}
-
-func NewMailFolderPager(service graph.Servicer, user string) mailFolderPager {
-	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
-	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, user)
-	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
-
-	return mailFolderPager{service, builder}
-}
-
-func (p *mailFolderPager) getPage(ctx context.Context) (PageLinker, error) {
-	page, err := p.builder.Get(ctx, nil)
+func (c Mail) PostItem(
+	ctx context.Context,
+	userID, containerID string,
+	body models.Messageable,
+) (models.Messageable, error) {
+	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return page, nil
-}
-
-func (p *mailFolderPager) setNext(nextLink string) {
-	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.service.Adapter())
-}
-
-func (p *mailFolderPager) valuesIn(pl PageLinker) ([]models.MailFolderable, error) {
-	// Ideally this should be `users.ItemMailFoldersResponseable`, but
-	// that is not a thing as stable returns different result
-	page, ok := pl.(models.MailFolderCollectionResponseable)
-	if !ok {
-		return nil, clues.New("converting to ItemMailFoldersResponseable")
+	itm, err := service.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating mail message")
 	}
 
-	return page.GetValue(), nil
+	if itm == nil {
+		return nil, clues.New("nil response mail message creation").WithClues(ctx)
+	}
+
+	return itm, nil
 }
 
-// EnumerateContainers iterates through all of the users current
-// mail folders, converting each to a graph.CacheFolder, and calling
-// fn(cf) on each one.
-// Folder hierarchy is represented in its current state, and does
-// not contain historical data.
-func (c Mail) EnumerateContainers(
+func (c Mail) DeleteItem(
 	ctx context.Context,
-	userID, baseDirID string,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
+	userID, itemID string,
 ) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
 	service, err := c.Service()
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
 
-	el := errs.Local()
-
-	pgr := NewMailFolderPager(service, userID)
-
-	for {
-		if el.Failure() != nil {
-			break
-		}
-
-		page, err := pgr.getPage(ctx)
-		if err != nil {
-			return graph.Stack(ctx, err)
-		}
-
-		resp, err := pgr.valuesIn(page)
-		if err != nil {
-			return graph.Stack(ctx, err)
-		}
-
-		for _, fold := range resp {
-			if el.Failure() != nil {
-				break
-			}
-
-			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
-				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-
-			fctx := clues.Add(
-				ctx,
-				"container_id", ptr.Val(fold.GetId()),
-				"container_name", ptr.Val(fold.GetDisplayName()))
-
-			temp := graph.NewCacheFolder(fold, nil, nil)
-			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-		}
-
-		link, ok := ptr.ValOK(page.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		pgr.setNext(link)
+	err = service.Client().
+		Users().
+		ByUserId(userID).
+		Messages().
+		ByMessageId(itemID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting mail message")
 	}
 
-	return el.Failure()
+	return nil
 }
 
 // ---------------------------------------------------------------------------
