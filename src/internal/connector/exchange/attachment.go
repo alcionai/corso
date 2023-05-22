@@ -1,18 +1,30 @@
 package exchange
 
 import (
-	"bytes"
 	"context"
-	"io"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
+
+type attachmentPoster interface {
+	PostSmallAttachment(
+		ctx context.Context,
+		userID, containerID, itemID string,
+		body models.Attachmentable,
+	) error
+	PostLargeAttachment(
+		ctx context.Context,
+		userID, containerID, itemID, name string,
+		size int64,
+		body models.Attachmentable,
+	) (models.UploadSessionable, error)
+}
 
 const (
 	// Use large attachment logic for attachments > 3MB
@@ -43,23 +55,24 @@ func attachmentType(attachment models.Attachmentable) models.AttachmentType {
 // uploadAttachment will upload the specified message attachment to M365
 func uploadAttachment(
 	ctx context.Context,
-	uploader attachmentUploadable,
+	cli attachmentPoster,
+	userID, containerID, itemID, name string,
+	size int32,
 	attachment models.Attachmentable,
 ) error {
 	attachmentType := attachmentType(attachment)
 
 	ctx = clues.Add(
 		ctx,
-		"attachment_size", ptr.Val(attachment.GetSize()),
-		"attachment_id", ptr.Val(attachment.GetId()),
-		"attachment_name", clues.Hide(ptr.Val(attachment.GetName())),
+		"attachment_size", size,
+		"attachment_id", itemID,
+		"attachment_name", clues.Hide(name),
 		"attachment_type", attachmentType,
-		"internal_item_type", getItemAttachmentItemType(attachment),
-		"uploader_item_id", uploader.getItemID())
+		"internal_item_type", getItemAttachmentItemType(attachment))
 
 	logger.Ctx(ctx).Debug("uploading attachment")
 
-	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
+	// reference attachments that are inline() do not need to be recreated. The contents are part of the body.
 	if attachmentType == models.REFERENCE_ATTACHMENTTYPE && ptr.Val(attachment.GetIsInline()) {
 		logger.Ctx(ctx).Debug("skip uploading inline reference attachment")
 		return nil
@@ -69,54 +82,22 @@ func uploadAttachment(
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
 		a, err := support.ToItemAttachment(attachment)
 		if err != nil {
-			logger.CtxErr(ctx, err).Info("item attachment restore not supported for this type. skipping upload.")
-
+			logger.CtxErr(ctx, err).Info(fmt.Sprintf("item attachment type not supported: %v", attachmentType))
 			return nil
 		}
 
 		attachment = a
 	}
 
-	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
+	// for Item/Reference attachments *or* file attachments < 3MB
 	if attachmentType != models.FILE_ATTACHMENTTYPE || ptr.Val(attachment.GetSize()) < largeAttachmentSize {
-		return uploader.uploadSmallAttachment(ctx, attachment)
+		return cli.PostSmallAttachment(ctx, userID, containerID, itemID, attachment)
 	}
 
-	return uploadLargeAttachment(ctx, uploader, attachment)
-}
+	// for all other attachments
+	_, err := cli.PostLargeAttachment(ctx, userID, containerID, itemID, name, int64(size), attachment)
 
-// uploadLargeAttachment will upload the specified attachment by creating an upload session and
-// doing a chunked upload
-func uploadLargeAttachment(
-	ctx context.Context,
-	uploader attachmentUploadable,
-	attachment models.Attachmentable,
-) error {
-	bs, err := GetAttachmentBytes(attachment)
-	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	size := int64(len(bs))
-
-	session, err := uploader.uploadSession(ctx, ptr.Val(attachment.GetName()), size)
-	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	url := ptr.Val(session.GetUploadUrl())
-	aw := graph.NewLargeItemWriter(uploader.getItemID(), url, size)
-	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", graph.LoggableURL(url))
-
-	// Upload the stream data
-	copyBuffer := make([]byte, attachmentChunkSize)
-
-	_, err = io.CopyBuffer(aw, bytes.NewReader(bs), copyBuffer)
-	if err != nil {
-		return clues.Wrap(err, "uploading large attachment").WithClues(ctx)
-	}
-
-	return nil
+	return err
 }
 
 func getItemAttachmentItemType(query models.Attachmentable) string {

@@ -23,3 +23,13 @@ func HasAttachments(body models.ItemBodyable) bool {
 
 	return strings.Contains(ptr.Val(body.GetContent()), "src=\"cid:")
 }
+
+func makeSessionAttachment(name string, size int64) *models.AttachmentItem {
+	attItem := models.NewAttachmentItem()
+	attType := models.FILE_ATTACHMENTTYPE
+	attItem.SetAttachmentType(&attType)
+	attItem.SetName(&name)
+	attItem.SetSize(&size)
+
+	return attItem
+}

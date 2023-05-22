@@ -489,6 +489,59 @@ func (c Mail) DeleteItem(
 	return nil
 }
 
+func (c Mail) PostSmallAttachment(
+	ctx context.Context,
+	userID, containerID, itemID string,
+	body models.Attachmentable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages().
+		ByMessageId(itemID).
+		Attachments().
+		Post(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "uploading small mail attachment")
+	}
+
+	return nil
+}
+
+func (c Mail) PostLargeAttachment(
+	ctx context.Context,
+	userID, containerID, itemID, name string,
+	size int64,
+	body models.Attachmentable,
+) (models.UploadSessionable, error) {
+	session := users.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
+	session.SetAttachmentItem(makeSessionAttachment(name, size))
+
+	itm, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages().
+		ByMessageId(itemID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "uploading large mail attachment")
+	}
+
+	return itm, nil
+}
+
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------

@@ -367,6 +367,59 @@ func (c Events) DeleteItem(
 	return nil
 }
 
+func (c Events) PostSmallAttachment(
+	ctx context.Context,
+	userID, containerID, itemID string,
+	body models.Attachmentable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events().
+		ByEventId(itemID).
+		Attachments().
+		Post(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "uploading small event attachment")
+	}
+
+	return nil
+}
+
+func (c Events) PostLargeAttachment(
+	ctx context.Context,
+	userID, containerID, itemID, name string,
+	size int64,
+	body models.Attachmentable,
+) (models.UploadSessionable, error) {
+	session := users.NewItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
+	session.SetAttachmentItem(makeSessionAttachment(name, size))
+
+	itm, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events().
+		ByEventId(itemID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "uploading large event attachment")
+	}
+
+	return itm, nil
+}
+
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------
