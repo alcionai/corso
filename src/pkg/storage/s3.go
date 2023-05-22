@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/str"
 )
 
 type S3Config struct {
@@ -68,8 +69,8 @@ func (s Storage) S3Config() (S3Config, error) {
 		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
 		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
 		c.Prefix = orEmptyString(s.Config[keyS3Prefix])
-		c.DoNotUseTLS = common.ParseBool(s.Config[keyS3DoNotUseTLS])
-		c.DoNotVerifyTLS = common.ParseBool(s.Config[keyS3DoNotVerifyTLS])
+		c.DoNotUseTLS = str.ParseBool(s.Config[keyS3DoNotUseTLS])
+		c.DoNotVerifyTLS = str.ParseBool(s.Config[keyS3DoNotVerifyTLS])
 	}
 
 	return c, c.validate()
