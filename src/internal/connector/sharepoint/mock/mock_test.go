@@ -32,7 +32,10 @@ func (suite *MockSuite) TestMockByteHydration() {
 			transformation: func(t *testing.T) error {
 				emptyMap := make(map[string]string)
 				temp := List(subject, "Artist", emptyMap)
+
 				writer := kioser.NewJsonSerializationWriter()
+				defer writer.Close()
+
 				err := writer.WriteObjectValue("", temp)
 				require.NoError(t, err, clues.ToCore(err))
 

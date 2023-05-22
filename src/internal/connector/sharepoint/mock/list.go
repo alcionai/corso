@@ -10,6 +10,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -153,7 +154,12 @@ func ListBytes(title string) ([]byte, error) {
 		return nil, err
 	}
 
-	return objectWriter.GetSerializedContent()
+	bs, err := objectWriter.GetSerializedContent()
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return slices.Clone(bs), nil
 }
 
 // ListStream returns the data.Stream representation

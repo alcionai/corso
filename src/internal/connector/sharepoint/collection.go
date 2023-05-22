@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -182,6 +183,8 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 		writer  = kjson.NewJsonSerializationWriter()
 	)
 
+	defer writer.Close()
+
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
@@ -340,5 +343,5 @@ func serializeContent(
 		return nil, graph.Wrap(ctx, err, "getting content from writer")
 	}
 
-	return byteArray, nil
+	return slices.Clone(byteArray), nil
 }

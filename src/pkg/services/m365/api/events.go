@@ -10,6 +10,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -457,7 +458,10 @@ func (c Events) Serialize(
 		return nil, graph.Wrap(ctx, err, "serializing event")
 	}
 
-	return bs, nil
+	// Return a defensive copy here since the kiota library gives us an alias to
+	// the underlying byte buffer they're using and that could change while we're
+	// uploading data.
+	return slices.Clone(bs), nil
 }
 
 // ---------------------------------------------------------------------------

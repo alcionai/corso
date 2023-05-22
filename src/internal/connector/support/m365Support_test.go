@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
@@ -213,13 +214,15 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 				pg.SetWebUrl(&title)
 
 				writer := kioser.NewJsonSerializationWriter()
+				defer writer.Close()
+
 				err := writer.WriteObjectValue("", pg)
 				require.NoError(t, err, clues.ToCore(err))
 
 				byteArray, err := writer.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
-				return byteArray
+				return slices.Clone(byteArray)
 			},
 		},
 	}

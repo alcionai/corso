@@ -191,6 +191,7 @@ func (suite *MailAPIIntgSuite) SetupSuite() {
 
 func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interface{} {
 	sw := kjson.NewJsonSerializationWriter()
+	defer sw.Close()
 
 	err := sw.WriteObjectValue("", thing)
 	require.NoError(t, err, "serialize")

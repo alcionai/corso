@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -95,6 +96,8 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, name string) *Item {
 				ow := kioser.NewJsonSerializationWriter()
+				defer ow.Close()
+
 				listing := spMock.ListDefault(name)
 				listing.SetDisplayName(&name)
 
@@ -106,7 +109,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 				data := &Item{
 					id:   name,
-					data: io.NopCloser(bytes.NewReader(byteArray)),
+					data: io.NopCloser(bytes.NewReader(slices.Clone(byteArray))),
 					info: sharePointListInfo(listing, int64(len(byteArray))),
 				}
 

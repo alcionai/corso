@@ -9,6 +9,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -366,7 +367,10 @@ func (c Contacts) Serialize(
 		return nil, graph.Wrap(ctx, err, "serializing contact")
 	}
 
-	return bs, nil
+	// Return a defensive copy here since the kiota library gives us an alias to
+	// the underlying byte buffer they're using and that could change while we're
+	// uploading data.
+	return slices.Clone(bs), nil
 }
 
 // ---------------------------------------------------------------------------

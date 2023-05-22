@@ -10,6 +10,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 )
@@ -735,13 +736,15 @@ func MessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject
 
 func serialize(t *testing.T, item serialization.Parsable) []byte {
 	wtr := kjson.NewJsonSerializationWriter()
+	defer wtr.Close()
+
 	err := wtr.WriteObjectValue("", item)
 	require.NoError(t, err, clues.ToCore(err))
 
 	byteArray, err := wtr.GetSerializedContent()
 	require.NoError(t, err, clues.ToCore(err))
 
-	return byteArray
+	return slices.Clone(byteArray)
 }
 
 func hydrateMessage(byteArray []byte) (models.Messageable, error) {
