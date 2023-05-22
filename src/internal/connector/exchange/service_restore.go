@@ -25,15 +25,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// RestoreExchangeObject directs restore pipeline towards restore function
+type itemPoster[T any] interface {
+	PostItem(
+		ctx context.Context,
+		userID, dirID string,
+		body T,
+	) (T, error)
+}
+
+// RestoreItem directs restore pipeline towards restore function
 // based on the path.CategoryType. All input params are necessary to perform
 // the type-specific restore function.
-func RestoreExchangeObject(
+func RestoreItem(
 	ctx context.Context,
 	bits []byte,
 	category path.CategoryType,
 	policy control.CollisionPolicy,
-	service graph.Servicer,
+	ac api.Client,
+	gs graph.Servicer,
 	destination, user string,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
@@ -43,26 +52,21 @@ func RestoreExchangeObject(
 
 	switch category {
 	case path.EmailCategory:
-		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user, errs)
+		return RestoreMessage(ctx, bits, ac.Mail(), gs, control.Copy, destination, user, errs)
 	case path.ContactsCategory:
-		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
+		return RestoreContact(ctx, bits, ac.Contacts(), control.Copy, destination, user)
 	case path.EventsCategory:
-		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user, errs)
+		return RestoreEvent(ctx, bits, ac.Events(), gs, control.Copy, destination, user, errs)
 	default:
 		return nil, clues.Wrap(clues.New(category.String()), "not supported for Exchange restore")
 	}
 }
 
-// RestoreExchangeContact restores a contact to the @bits byte
-// representation of M365 contact object.
-// @destination M365 ID representing a M365 Contact_Folder
-// Returns an error if the input bits do not parse into a models.Contactable object
-// or if an error is encountered sending data to the M365 account.
-// Post details: https://docs.microsoft.com/en-us/graph/api/user-post-contacts?view=graph-rest-1.0&tabs=go
-func RestoreExchangeContact(
+// RestoreContact wraps api.Contacts().PostItem()
+func RestoreContact(
 	ctx context.Context,
 	bits []byte,
-	service graph.Servicer,
+	cli itemPoster[models.Contactable],
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -73,19 +77,9 @@ func RestoreExchangeContact(
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
-	response, err := service.Client().
-		Users().
-		ByUserId(user).
-		ContactFolders().
-		ByContactFolderId(destination).
-		Contacts().
-		Post(ctx, contact, nil)
+	_, err = cli.PostItem(ctx, user, destination, contact)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "uploading Contact")
-	}
-
-	if response == nil {
-		return nil, clues.New("nil response from post").WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	info := api.ContactInfo(contact)
@@ -94,16 +88,12 @@ func RestoreExchangeContact(
 	return info, nil
 }
 
-// RestoreExchangeEvent restores a contact to the @bits byte
-// representation of M365 event object.
-// @param destination is the M365 ID representing Calendar that will receive the event.
-// Returns an error if input byte array doesn't parse into models.Eventable object
-// or if an error occurs during sending data to M365 account.
-// Post details: https://docs.microsoft.com/en-us/graph/api/user-post-events?view=graph-rest-1.0&tabs=http
-func RestoreExchangeEvent(
+// RestoreEvent wraps api.Events().PostItem()
+func RestoreEvent(
 	ctx context.Context,
 	bits []byte,
-	service graph.Servicer,
+	cli itemPoster[models.Eventable],
+	gs graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 	errs *fault.Bus,
@@ -127,26 +117,16 @@ func RestoreExchangeEvent(
 		transformedEvent.SetAttachments([]models.Attachmentable{})
 	}
 
-	response, err := service.Client().
-		Users().
-		ByUserId(user).
-		Calendars().
-		ByCalendarId(destination).
-		Events().
-		Post(ctx, transformedEvent, nil)
+	item, err := cli.PostItem(ctx, user, destination, event)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "uploading event")
-	}
-
-	if response == nil {
-		return nil, clues.New("nil response from post").WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	uploader := &eventAttachmentUploader{
 		calendarID: destination,
 		userID:     user,
-		service:    service,
-		itemID:     ptr.Val(response.GetId()),
+		service:    gs,
+		itemID:     ptr.Val(item.GetId()),
 	}
 
 	for _, attach := range attached {
@@ -165,30 +145,26 @@ func RestoreExchangeEvent(
 	return info, el.Failure()
 }
 
-// RestoreMailMessage utility function to place an exchange.Mail
-// message into the user's M365 Exchange account.
-// @param bits - byte array representation of exchange.Message from Corso backstore
-// @param service - connector to M365 graph
-// @param cp - collision policy that directs restore workflow
-// @param destination - M365 Folder ID. Verified and sent by higher function. `copy` policy can use directly
-func RestoreMailMessage(
+// RestoreMessage wraps api.Mail().PostItem(), handling attachment creation along the way
+func RestoreMessage(
 	ctx context.Context,
 	bits []byte,
-	service graph.Servicer,
+	cli itemPoster[models.Messageable],
+	gs graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
-	originalMessage, err := support.CreateMessageFromBytes(bits)
+	msg, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating mail from bytes").WithClues(ctx)
 	}
 
-	ctx = clues.Add(ctx, "item_id", ptr.Val(originalMessage.GetId()))
+	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
 
 	var (
-		clone       = support.ToMessage(originalMessage)
+		clone       = support.ToMessage(msg)
 		valueID     = MailRestorePropertyTag
 		enableValue = RestoreCanonicalEnableValue
 	)
@@ -225,7 +201,7 @@ func RestoreMailMessage(
 
 	clone.SetSingleValueExtendedProperties(svlep)
 
-	if err := SendMailToBackStore(ctx, service, user, destination, clone, errs); err != nil {
+	if err := CreateMessage(ctx, cli, gs, user, destination, clone, errs); err != nil {
 		return nil, err
 	}
 
@@ -249,13 +225,11 @@ func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
 	return bts, nil
 }
 
-// SendMailToBackStore function for transporting in-memory messageable item to M365 backstore
-// @param user string represents M365 ID of user within the tenant
-// @param destination represents M365 ID of a folder within the users's space
-// @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
-func SendMailToBackStore(
+// CreateMessage wraps the api call to mail().PostItem()
+func CreateMessage(
 	ctx context.Context,
-	service graph.Servicer,
+	cli itemPoster[models.Messageable],
+	gs graph.Servicer,
 	user, destination string,
 	message models.Messageable,
 	errs *fault.Bus,
@@ -265,29 +239,19 @@ func SendMailToBackStore(
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	message.SetAttachments([]models.Attachmentable{})
 
-	response, err := service.Client().
-		Users().
-		ByUserId(user).
-		MailFolders().
-		ByMailFolderId(destination).
-		Messages().
-		Post(ctx, message, nil)
+	item, err := cli.PostItem(ctx, user, destination, message)
 	if err != nil {
 		return graph.Wrap(ctx, err, "restoring mail")
 	}
 
-	if response == nil {
-		return clues.New("nil response from post").WithClues(ctx)
-	}
-
 	var (
 		el       = errs.Local()
-		id       = ptr.Val(response.GetId())
+		id       = ptr.Val(item.GetId())
 		uploader = &mailAttachmentUploader{
 			userID:   user,
 			folderID: destination,
 			itemID:   id,
-			service:  service,
+			service:  gs,
 		}
 	)
 
@@ -316,12 +280,12 @@ func SendMailToBackStore(
 	return el.Failure()
 }
 
-// RestoreExchangeDataCollections restores M365 objects in data.RestoreCollection to MSFT
+// RestoreCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.
-// @param dest:  container destination to M365
-func RestoreExchangeDataCollections(
+func RestoreCollections(
 	ctx context.Context,
 	creds account.M365Config,
+	ac api.Client,
 	gs graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
@@ -365,7 +329,7 @@ func RestoreExchangeDataCollections(
 			continue
 		}
 
-		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errs)
+		temp, canceled := restoreCollection(ctx, ac, gs, dc, containerID, policy, deets, errs)
 
 		metrics = support.CombineMetrics(metrics, temp)
 
@@ -387,6 +351,7 @@ func RestoreExchangeDataCollections(
 // restoreCollection handles restoration of an individual collection.
 func restoreCollection(
 	ctx context.Context,
+	ac api.Client,
 	gs graph.Servicer,
 	dc data.RestoreCollection,
 	folderID string,
@@ -444,11 +409,12 @@ func restoreCollection(
 
 			byteArray := buf.Bytes()
 
-			info, err := RestoreExchangeObject(
+			info, err := RestoreItem(
 				ictx,
 				byteArray,
 				category,
 				policy,
+				ac,
 				gs,
 				folderID,
 				user,

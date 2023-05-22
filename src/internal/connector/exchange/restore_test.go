@@ -79,10 +79,10 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	info, err := RestoreExchangeContact(
+	info, err := RestoreContact(
 		ctx,
 		exchMock.ContactBytes("Corso TestContact"),
-		suite.gs,
+		suite.ac.Contacts(),
 		control.Copy,
 		folderID,
 		userID)
@@ -135,9 +135,10 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			info, err := RestoreExchangeEvent(
+			info, err := RestoreEvent(
 				ctx,
 				test.bytes,
+				suite.ac.Events(),
 				suite.gs,
 				control.Copy,
 				calendarID,
@@ -365,11 +366,12 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			defer flush()
 
 			destination := test.destination(t, ctx)
-			info, err := RestoreExchangeObject(
+			info, err := RestoreItem(
 				ctx,
 				test.bytes,
 				test.category,
 				control.Copy,
+				suite.ac,
 				service,
 				destination,
 				userID,

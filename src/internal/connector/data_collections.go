@@ -233,7 +233,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
+		status, err = exchange.RestoreCollections(ctx, creds, gc.Discovery, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, creds, backupVersion, gc.Service, dest, opts, dcs, deets, errs)
 	case selectors.ServiceSharePoint:
