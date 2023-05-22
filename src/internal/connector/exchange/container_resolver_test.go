@@ -342,16 +342,13 @@ func (r mockContainerRefresher) refreshContainer(
 type ConfiguredFolderCacheUnitSuite struct {
 	tester.Suite
 
-	fc       *containerResolver
-	fcWithID *containerResolver
+	fc *containerResolver
 
-	allContainers    []*mockCachedContainer
-	containersWithID []*mockCachedContainer
+	allContainers []*mockCachedContainer
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) SetupTest() {
 	suite.fc, suite.allContainers = resolverWithContainers(4, false)
-	suite.fcWithID, suite.containersWithID = resolverWithContainers(4, true)
 }
 
 func TestConfiguredFolderCacheUnitSuite(t *testing.T) {
@@ -585,26 +582,6 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	}
 }
 
-// TODO(ashmrtn): Remove this since the same cache can do IDs or locations.
-func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached_useID() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	err := suite.fcWithID.populatePaths(ctx, fault.New(true))
-	require.NoError(suite.T(), err, clues.ToCore(err))
-
-	for _, c := range suite.containersWithID {
-		suite.Run(ptr.Val(c.GetDisplayName()), func() {
-			t := suite.T()
-
-			p, l, err := suite.fcWithID.IDToPath(ctx, c.id)
-			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, c.expectedPath, p.String())
-			assert.Equal(t, c.expectedLocation, l.String())
-		})
-	}
-}
-
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -623,30 +600,6 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths()
 	c.parentID = "foo"
 
 	p, l, err = suite.fc.IDToPath(ctx, c.id)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, c.expectedPath, p.String())
-	assert.Equal(t, c.expectedLocation, l.String())
-}
-
-// TODO(ashmrtn): Remove this since the same cache can do IDs or locations.
-func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths_useID() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	c := suite.containersWithID[len(suite.containersWithID)-1]
-
-	err := suite.fcWithID.populatePaths(ctx, fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	p, l, err := suite.fcWithID.IDToPath(ctx, c.id)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, c.expectedPath, p.String())
-	assert.Equal(t, c.expectedLocation, l.String())
-
-	c.parentID = "foo"
-
-	p, l, err = suite.fcWithID.IDToPath(ctx, c.id)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, c.expectedPath, p.String())
 	assert.Equal(t, c.expectedLocation, l.String())
