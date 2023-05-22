@@ -147,6 +147,7 @@ func internalMiddleware(cc *clientConfig) []khttp.Middleware {
 		},
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
+		&throttlingMiddleware{newTimedFence()},
 		&RateLimiterMiddleware{},
 		&MetricsMiddleware{},
 	}

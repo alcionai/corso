@@ -15,7 +15,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -54,7 +55,7 @@ func handleExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	tid := common.First(tenant, os.Getenv(account.AzureTenantID))
+	tid := str.First(tenant, os.Getenv(account.AzureTenantID))
 
 	ctx := clues.Add(
 		cmd.Context(),
@@ -111,9 +112,7 @@ func runDisplayM365JSON(
 		return err
 	}
 
-	str := string(bs)
-
-	err = sw.WriteStringValue("", &str)
+	err = sw.WriteStringValue("", ptr.To(string(bs)))
 	if err != nil {
 		return clues.Wrap(err, "Error writing string value: "+itemID)
 	}
