@@ -71,8 +71,8 @@ var (
 	ReadableLogsFV      bool
 	MaskSensitiveDataFV bool
 
-	LogFile     string // logFileFV after processing
-	piiHandling string // piiHandling after MaskSensitiveDataFV processing
+	ResolvedLogFile string // logFileFV after processing
+	piiHandling     string // piiHandling after MaskSensitiveDataFV processing
 )
 
 const (
@@ -184,7 +184,7 @@ func PreloadLoggingFlags(args []string) Settings {
 	}
 
 	set.File = GetLogFile(lffv)
-	LogFile = set.File
+	ResolvedLogFile = set.File
 
 	// retrieve the user's preferred PII handling algorithm
 	// defaults to "plaintext"
@@ -203,20 +203,30 @@ func PreloadLoggingFlags(args []string) Settings {
 // GetLogFile parses the log file.  Uses the provided value, if populated,
 // then falls back to the env var, and then defaults to stderr.
 func GetLogFile(logFileFlagVal string) string {
+	if len(ResolvedLogFile) > 0 {
+		fmt.Printf("\n-----\nalready resolved to: %+v\n-----\n", ResolvedLogFile)
+		return ResolvedLogFile
+	}
+
 	r := logFileFlagVal
+
+	fmt.Printf("\n-----\nflag val [%+v]\n-----\n", r)
 
 	// if not specified, attempt to fall back to env declaration.
 	if len(r) == 0 {
 		r = os.Getenv("CORSO_LOG_FILE")
+		fmt.Printf("\n-----\nuse env [%+v]\n-----\n", r)
 	}
 
 	// if no flag or env is specified, fall back to the default
 	if len(r) == 0 {
 		r = defaultLogLocation()
+		fmt.Printf("\n-----\nuse default [%+v]\n-----\n", r)
 	}
 
 	if r == "-" {
 		r = Stdout
+		fmt.Printf("\n-----\nuse stdout\n-----\n")
 	}
 
 	if r != Stdout && r != Stderr {
@@ -226,6 +236,8 @@ func GetLogFile(logFileFlagVal string) string {
 		if err != nil {
 			return Stderr
 		}
+
+		fmt.Printf("\n-----\nlogdir [%+v]\n-----\n", logdir)
 	}
 
 	return r
@@ -261,6 +273,7 @@ func (s Settings) EnsureDefaults() Settings {
 
 	if len(set.File) == 0 {
 		set.File = GetLogFile("")
+		ResolvedLogFile = set.File
 	}
 
 	return set
@@ -277,6 +290,8 @@ func genLogger(set Settings) (*zapcore.Core, *zap.SugaredLogger) {
 			set.Level = LLDebug
 		}
 	}
+
+	fmt.Printf("\n-----\nLOG SETTINGS FILE [%+v]\n-----\n", set.File)
 
 	var (
 		lgr  *zap.Logger

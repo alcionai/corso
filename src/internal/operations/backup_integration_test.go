@@ -708,6 +708,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				incBO.Results.BackupID, "incremental backupID pre-declaration")
 		})
 	}
+
+	assert.Fail(suite.T(), "forced failure")
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
