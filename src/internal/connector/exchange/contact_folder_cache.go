@@ -11,7 +11,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &contactFolderCache{}
+var (
+	_ graph.ContainerResolver = &contactFolderCache{}
+	_ containerRefresher      = &contactRefresher{}
+)
+
+type contactRefresher struct {
+	getter containerGetter
+	userID string
+}
+
+func (r *contactRefresher) refreshContainer(
+	ctx context.Context,
+	id string,
+) (graph.CachedContainer, error) {
+	c, err := r.getter.GetContainerByID(ctx, r.userID, id)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	f := graph.NewCacheFolder(c, nil, nil)
+
+	return &f, nil
+}
 
 type contactFolderCache struct {
 	*containerResolver
@@ -34,7 +56,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 		f,
 		path.Builder{}.Append(ptr.Val(f.GetId())),   // path of IDs
 		path.Builder{}.Append(baseContainerPath...)) // display location
-	if err := cfc.addFolder(temp); err != nil {
+	if err := cfc.addFolder(&temp); err != nil {
 		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 	}
 
@@ -77,7 +99,10 @@ func (cfc *contactFolderCache) init(
 	}
 
 	if cfc.containerResolver == nil {
-		cfc.containerResolver = newContainerResolver()
+		cfc.containerResolver = newContainerResolver(&contactRefresher{
+			userID: cfc.userID,
+			getter: cfc.getter,
+		})
 	}
 
 	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)

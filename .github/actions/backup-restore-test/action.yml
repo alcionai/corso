@@ -50,9 +50,11 @@ runs:
       run: |
         set -euo pipefail
         ./corso restore '${{ inputs.service }}' \
-            --no-stats --hide-progress \
+            --no-stats \
+            --hide-progress \
             ${{ inputs.restore-args }} \
-            --backup '${{ steps.backup.outputs.result }}' 2>&1 |
+            --backup '${{ steps.backup.outputs.result }}' \
+            2>&1 |
             tee /tmp/corsologs |
             grep -i -e 'Restoring to folder ' |
             sed "s/Restoring to folder /result=/" |
@@ -77,7 +79,9 @@ runs:
       run: |
         set -euo pipefail
         ./corso backup list ${{ inputs.service }} \
-          --no-stats --hide-progress 2>&1 |
+          --no-stats \
+          --hide-progress \
+          2>&1 |
           tee /tmp/corso-backup-list.log
 
         if ! grep -q  ${{ steps.backup.outputs.result }} /tmp/corso-backup-list.log 
@@ -92,8 +96,10 @@ runs:
       run: |
         set -euo pipefail
         ./corso backup list ${{ inputs.service }} \
-          --no-stats --hide-progress \
-          --backup "${{ steps.backup.outputs.result }}" 2>&1 |
+          --no-stats \
+          --hide-progress \
+          --backup "${{ steps.backup.outputs.result }}" \
+          2>&1 |
           tee /tmp/corso-backup-list-item.log
 
         if ! grep -q  ${{ steps.backup.outputs.result }} /tmp/corso-backup-list-item.log 

@@ -30,7 +30,12 @@ func GetAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 		return nil, nil, err
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
+	repoID := cfg.RepoID
+	if len(repoID) == 0 {
+		repoID = "not_found"
+	}
+
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
 	}

@@ -2,6 +2,7 @@ package testdata
 
 import (
 	"context"
+	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -13,15 +14,16 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	ftd "github.com/alcionai/corso/src/pkg/fault/testdata"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
 type ExchangeOptionsTest struct {
 	Name         string
-	Opts         utils.ExchangeOpts
+	Opts         func(t *testing.T, wantedVersion int) utils.ExchangeOpts
 	BackupGetter *MockBackupGetter
-	Expected     []details.Entry
+	Expected     func(t *testing.T, wantedVersion int) []details.Entry
 }
 
 var (
@@ -32,92 +34,112 @@ var (
 	BadExchangeOptionsFormats = []ExchangeOptionsTest{
 		{
 			Name: "BadEmailReceiveAfter",
-			Opts: utils.ExchangeOpts{
-				EmailReceivedAfter: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.EmailReceivedAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailReceivedAfter: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.EmailReceivedAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyEmailReceiveAfter",
-			Opts: utils.ExchangeOpts{
-				EmailReceivedAfter: "",
-				Populated: utils.PopulatedFlags{
-					utils.EmailReceivedAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailReceivedAfter: "",
+					Populated: utils.PopulatedFlags{
+						utils.EmailReceivedAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadEmailReceiveBefore",
-			Opts: utils.ExchangeOpts{
-				EmailReceivedBefore: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.EmailReceivedBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailReceivedBefore: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.EmailReceivedBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyEmailReceiveBefore",
-			Opts: utils.ExchangeOpts{
-				EmailReceivedBefore: "",
-				Populated: utils.PopulatedFlags{
-					utils.EmailReceivedBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailReceivedBefore: "",
+					Populated: utils.PopulatedFlags{
+						utils.EmailReceivedBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadEventRecurs",
-			Opts: utils.ExchangeOpts{
-				EventRecurs: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.EventRecursFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EventRecurs: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.EventRecursFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyEventRecurs",
-			Opts: utils.ExchangeOpts{
-				EventRecurs: "",
-				Populated: utils.PopulatedFlags{
-					utils.EventRecursFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EventRecurs: "",
+					Populated: utils.PopulatedFlags{
+						utils.EventRecursFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadEventStartsAfter",
-			Opts: utils.ExchangeOpts{
-				EventStartsAfter: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.EventStartsAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EventStartsAfter: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.EventStartsAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyEventStartsAfter",
-			Opts: utils.ExchangeOpts{
-				EventStartsAfter: "",
-				Populated: utils.PopulatedFlags{
-					utils.EventStartsAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EventStartsAfter: "",
+					Populated: utils.PopulatedFlags{
+						utils.EventStartsAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadEventStartsBefore",
-			Opts: utils.ExchangeOpts{
-				EventStartsBefore: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.EventStartsBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EventStartsBefore: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.EventStartsBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyEventStartsBefore",
-			Opts: utils.ExchangeOpts{
-				EventStartsBefore: "",
-				Populated: utils.PopulatedFlags{
-					utils.EventStartsBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EventStartsBefore: "",
+					Populated: utils.PopulatedFlags{
+						utils.EventStartsBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 	}
@@ -128,130 +150,274 @@ var (
 	// configured to return the full dataset listed in selectors/testdata.
 	ExchangeOptionDetailLookups = []ExchangeOptionsTest{
 		{
-			Name:     "Emails",
-			Expected: testdata.ExchangeEmailItems,
-			Opts: utils.ExchangeOpts{
-				Email: selectors.Any(),
+			Name: "Emails",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					Email: selectors.Any(),
+				}
 			},
 		},
 		{
-			Name:     "EmailsFolderPrefixMatch",
-			Expected: testdata.ExchangeEmailItems,
-			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation()},
+			Name: "EmailsFolderPrefixMatch",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation()},
+				}
 			},
 		},
 		{
-			Name:     "EmailsFolderPrefixMatchTrailingSlash",
-			Expected: testdata.ExchangeEmailItems,
-			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation() + "/"},
+			Name: "EmailsFolderPrefixMatchTrailingSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailFolder: []string{testdata.ExchangeEmailInboxPath.FolderLocation() + "/"},
+				}
 			},
 		},
 		{
 			Name: "EmailsFolderWithSlashPrefixMatch",
-			Expected: []details.Entry{
-				testdata.ExchangeEmailItems[1],
-				testdata.ExchangeEmailItems[2],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					1, 2)
 			},
-			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation()},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation()},
+				}
 			},
 		},
 		{
 			Name: "EmailsFolderWithSlashPrefixMatchTrailingSlash",
-			Expected: []details.Entry{
-				testdata.ExchangeEmailItems[1],
-				testdata.ExchangeEmailItems[2],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					1, 2)
 			},
-			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation() + "/"},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailFolder: []string{testdata.ExchangeEmailBasePath2.FolderLocation() + "/"},
+				}
 			},
 		},
 		{
 			Name: "EmailsBySubject",
-			Expected: []details.Entry{
-				testdata.ExchangeEmailItems[0],
-				testdata.ExchangeEmailItems[1],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					0, 1)
 			},
-			Opts: utils.ExchangeOpts{
-				EmailSender: "a-person",
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailSender: "a-person",
+				}
 			},
 		},
 		{
 			Name: "AllExchange",
-			Expected: append(
-				append(
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{}
+			},
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return append(
 					append(
-						[]details.Entry{},
-						testdata.ExchangeEmailItems...,
-					),
-					testdata.ExchangeContactsItems...,
-				),
-				testdata.ExchangeEventsItems...,
-			),
-		},
-		{
-			Name:     "MailReceivedTime",
-			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
-			Opts: utils.ExchangeOpts{
-				EmailReceivedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
+						testdata.GetItemsForVersion(
+							t,
+							path.ExchangeService,
+							path.EmailCategory,
+							wantedVersion,
+							-1),
+						testdata.GetItemsForVersion(
+							t,
+							path.ExchangeService,
+							path.EventsCategory,
+							wantedVersion,
+							-1)...),
+					testdata.GetItemsForVersion(
+						t,
+						path.ExchangeService,
+						path.ContactsCategory,
+						wantedVersion,
+						-1)...)
 			},
 		},
 		{
-			Name:     "MailShortRef",
-			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
-			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
+			Name: "MailReceivedTime",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					0)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailReceivedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
+				}
+			},
+		},
+		{
+			Name: "MailShortRef",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					0)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion)
+
+				return utils.ExchangeOpts{
+					Email: []string{deets[0].ShortRef},
+				}
 			},
 		},
 		{
 			Name: "BadMailItemRef",
 			// no matches are expected, since exchange ItemRefs
 			// are not matched when using the CLI's selectors.
-			Expected: []details.Entry{},
-			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItems[0].ItemRef},
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return []details.Entry{}
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion)
+
+				return utils.ExchangeOpts{
+					Email: []string{deets[0].ItemRef},
+				}
 			},
 		},
 		{
 			Name: "MultipleMailShortRef",
-			Expected: []details.Entry{
-				testdata.ExchangeEmailItems[0],
-				testdata.ExchangeEmailItems[1],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					0, 1)
 			},
-			Opts: utils.ExchangeOpts{
-				Email: []string{
-					testdata.ExchangeEmailItemPath1.RR.ShortRef(),
-					testdata.ExchangeEmailItemPath2.RR.ShortRef(),
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion)
+
+				return utils.ExchangeOpts{
+					Email: []string{
+						deets[0].ShortRef,
+						deets[1].ShortRef,
+					},
+				}
 			},
 		},
 		{
-			Name:     "AllEventsAndMailWithSubject",
-			Expected: []details.Entry{testdata.ExchangeEmailItems[0]},
-			Opts: utils.ExchangeOpts{
-				EmailSubject: "foo",
-				Event:        selectors.Any(),
+			Name: "AllEventsAndMailWithSubject",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion,
+					0)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailSubject: "foo",
+					Event:        selectors.Any(),
+				}
 			},
 		},
 		{
-			Name:     "EventsAndMailWithSubject",
-			Expected: []details.Entry{},
-			Opts: utils.ExchangeOpts{
-				EmailSubject: "foo",
-				EventSubject: "foo",
+			Name: "EventsAndMailWithSubject",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return []details.Entry{}
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				return utils.ExchangeOpts{
+					EmailSubject: "foo",
+					EventSubject: "foo",
+				}
 			},
 		},
 		{
 			Name: "EventsAndMailByShortRef",
-			Expected: []details.Entry{
-				testdata.ExchangeEmailItems[0],
-				testdata.ExchangeEventsItems[0],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return append(
+					testdata.GetItemsForVersion(
+						t,
+						path.ExchangeService,
+						path.EmailCategory,
+						wantedVersion,
+						0),
+					testdata.GetItemsForVersion(
+						t,
+						path.ExchangeService,
+						path.EventsCategory,
+						wantedVersion,
+						0)...)
 			},
-			Opts: utils.ExchangeOpts{
-				Email: []string{testdata.ExchangeEmailItemPath1.RR.ShortRef()},
-				Event: []string{testdata.ExchangeEventsItemPath1.RR.ShortRef()},
+			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
+				emailDeets := testdata.GetDeetsForVersion(
+					t,
+					path.ExchangeService,
+					path.EmailCategory,
+					wantedVersion)
+
+				eventDeets := testdata.GetDeetsForVersion(
+					t,
+					path.ExchangeService,
+					path.EventsCategory,
+					wantedVersion)
+
+				return utils.ExchangeOpts{
+					Email: []string{emailDeets[0].ShortRef},
+					Event: []string{eventDeets[0].ShortRef},
+				}
 			},
 		},
 	}
@@ -259,9 +425,9 @@ var (
 
 type OneDriveOptionsTest struct {
 	Name         string
-	Opts         utils.OneDriveOpts
+	Opts         func(t *testing.T, wantedVersion int) utils.OneDriveOpts
 	BackupGetter *MockBackupGetter
-	Expected     []details.Entry
+	Expected     func(t *testing.T, wantedVersion int) []details.Entry
 }
 
 var (
@@ -271,75 +437,91 @@ var (
 	BadOneDriveOptionsFormats = []OneDriveOptionsTest{
 		{
 			Name: "BadFileCreatedAfter",
-			Opts: utils.OneDriveOpts{
-				Users:            selectors.Any(),
-				FileCreatedAfter: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.FileCreatedAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					Users:            selectors.Any(),
+					FileCreatedAfter: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.FileCreatedAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyFileCreatedAfter",
-			Opts: utils.OneDriveOpts{
-				FileCreatedAfter: "",
-				Populated: utils.PopulatedFlags{
-					utils.FileCreatedAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileCreatedAfter: "",
+					Populated: utils.PopulatedFlags{
+						utils.FileCreatedAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadFileCreatedBefore",
-			Opts: utils.OneDriveOpts{
-				FileCreatedBefore: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.FileCreatedBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileCreatedBefore: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.FileCreatedBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyFileCreatedBefore",
-			Opts: utils.OneDriveOpts{
-				FileCreatedBefore: "",
-				Populated: utils.PopulatedFlags{
-					utils.FileCreatedBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileCreatedBefore: "",
+					Populated: utils.PopulatedFlags{
+						utils.FileCreatedBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadFileModifiedAfter",
-			Opts: utils.OneDriveOpts{
-				FileModifiedAfter: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.FileModifiedAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileModifiedAfter: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.FileModifiedAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyFileModifiedAfter",
-			Opts: utils.OneDriveOpts{
-				FileModifiedAfter: "",
-				Populated: utils.PopulatedFlags{
-					utils.FileModifiedAfterFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileModifiedAfter: "",
+					Populated: utils.PopulatedFlags{
+						utils.FileModifiedAfterFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "BadFileModifiedBefore",
-			Opts: utils.OneDriveOpts{
-				FileModifiedBefore: "foo",
-				Populated: utils.PopulatedFlags{
-					utils.FileModifiedBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileModifiedBefore: "foo",
+					Populated: utils.PopulatedFlags{
+						utils.FileModifiedBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 		{
 			Name: "EmptyFileModifiedBefore",
-			Opts: utils.OneDriveOpts{
-				FileModifiedBefore: "",
-				Populated: utils.PopulatedFlags{
-					utils.FileModifiedBeforeFN: struct{}{},
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileModifiedBefore: "",
+					Populated: utils.PopulatedFlags{
+						utils.FileModifiedBeforeFN: struct{}{},
+					},
+				}
 			},
 		},
 	}
@@ -350,96 +532,203 @@ var (
 	// configured to return the full dataset listed in selectors/testdata.
 	OneDriveOptionDetailLookups = []OneDriveOptionsTest{
 		{
-			Name:     "AllFiles",
-			Expected: testdata.OneDriveItems,
-			Opts: utils.OneDriveOpts{
-				FolderPath: selectors.Any(),
+			Name: "AllFiles",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FolderPath: selectors.Any(),
+				}
 			},
 		},
 		{
-			Name:     "FilesWithSingleSlash",
-			Expected: testdata.OneDriveItems,
-			Opts: utils.OneDriveOpts{
-				FolderPath: []string{"/"},
+			Name: "FilesWithSingleSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FolderPath: []string{"/"},
+				}
 			},
 		},
 		{
-			Name:     "FolderPrefixMatch",
-			Expected: testdata.OneDriveItems,
-			Opts: utils.OneDriveOpts{
-				FolderPath: []string{testdata.OneDriveFolderFolder},
+			Name: "FolderPrefixMatch",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FolderPath: []string{testdata.OneDriveFolderFolder},
+				}
 			},
 		},
 		{
-			Name:     "FolderPrefixMatchTrailingSlash",
-			Expected: testdata.OneDriveItems,
-			Opts: utils.OneDriveOpts{
-				FolderPath: []string{testdata.OneDriveFolderFolder + "/"},
+			Name: "FolderPrefixMatchTrailingSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FolderPath: []string{testdata.OneDriveFolderFolder + "/"},
+				}
 			},
 		},
 		{
-			Name:     "FolderPrefixMatchTrailingSlash",
-			Expected: testdata.OneDriveItems,
-			Opts: utils.OneDriveOpts{
-				FolderPath: []string{testdata.OneDriveFolderFolder + "/"},
+			Name: "FolderPrefixMatchTrailingSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FolderPath: []string{testdata.OneDriveFolderFolder + "/"},
+				}
 			},
 		},
 		{
-			Name:     "FolderRepoRefMatchesNothing",
-			Expected: []details.Entry{},
-			Opts: utils.OneDriveOpts{
-				FolderPath: []string{testdata.OneDriveFolderPath.RR.Folder(true)},
+			Name: "FolderRepoRefMatchesNothing",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return []details.Entry{}
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FolderPath: []string{testdata.OneDriveFolderPath.RR.Folder(true)},
+				}
 			},
 		},
 		{
 			Name: "ShortRef",
-			Expected: []details.Entry{
-				testdata.OneDriveItems[0],
-				testdata.OneDriveItems[1],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					0, 1)
 			},
-			Opts: utils.OneDriveOpts{
-				FileName: []string{
-					testdata.OneDriveItems[0].ShortRef,
-					testdata.OneDriveItems[1].ShortRef,
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion)
+
+				return utils.OneDriveOpts{
+					FileName: []string{
+						deets[0].ShortRef,
+						deets[1].ShortRef,
+					},
+				}
 			},
 		},
 		{
-			Name:     "SingleItem",
-			Expected: []details.Entry{testdata.OneDriveItems[0]},
-			Opts: utils.OneDriveOpts{
-				FileName: []string{
-					testdata.OneDriveItems[0].OneDrive.ItemName,
-				},
+			Name: "SingleItem",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					0)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion)
+
+				return utils.OneDriveOpts{
+					FileName: []string{
+						deets[0].OneDrive.ItemName,
+					},
+				}
 			},
 		},
 		{
 			Name: "MultipleItems",
-			Expected: []details.Entry{
-				testdata.OneDriveItems[0],
-				testdata.OneDriveItems[1],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					0, 1)
 			},
-			Opts: utils.OneDriveOpts{
-				FileName: []string{
-					testdata.OneDriveItems[0].OneDrive.ItemName,
-					testdata.OneDriveItems[1].OneDrive.ItemName,
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion)
+
+				return utils.OneDriveOpts{
+					FileName: []string{
+						deets[0].OneDrive.ItemName,
+						deets[1].OneDrive.ItemName,
+					},
+				}
 			},
 		},
 		{
-			Name:     "ItemRefMatchesNothing",
-			Expected: []details.Entry{},
-			Opts: utils.OneDriveOpts{
-				FileName: []string{
-					testdata.OneDriveItems[0].ItemRef,
-				},
+			Name: "ItemRefMatchesNothing",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return []details.Entry{}
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion)
+
+				return utils.OneDriveOpts{
+					FileName: []string{
+						deets[0].ItemRef,
+					},
+				}
 			},
 		},
 		{
-			Name:     "CreatedBefore",
-			Expected: []details.Entry{testdata.OneDriveItems[1]},
-			Opts: utils.OneDriveOpts{
-				FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
+			Name: "CreatedBefore",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.OneDriveService,
+					path.FilesCategory,
+					wantedVersion,
+					1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+				return utils.OneDriveOpts{
+					FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
+				}
 			},
 		},
 	}
@@ -447,9 +736,9 @@ var (
 
 type SharePointOptionsTest struct {
 	Name         string
-	Opts         utils.SharePointOpts
+	Opts         func(t *testing.T, wantedVersion int) utils.SharePointOpts
 	BackupGetter *MockBackupGetter
-	Expected     []details.Entry
+	Expected     func(t *testing.T, wantedVersion int) []details.Entry
 }
 
 var (
@@ -457,24 +746,28 @@ var (
 	// cause errors about the format of the input flag. Mocks are configured to
 	// allow the system to run if it doesn't throw an error on formatting.
 	BadSharePointOptionsFormats = []SharePointOptionsTest{
-		// {
-		// 	Name: "BadFileCreatedBefore",
-		// 	Opts: utils.OneDriveOpts{
-		// 		FileCreatedBefore: "foo",
-		// 		Populated: utils.PopulatedFlags{
-		// 			utils.FileCreatedBeforeFN: struct{}{},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	Name: "EmptyFileCreatedBefore",
-		// 	Opts: utils.OneDriveOpts{
-		// 		FileCreatedBefore: "",
-		// 		Populated: utils.PopulatedFlags{
-		// 			utils.FileCreatedBeforeFN: struct{}{},
-		// 		},
-		// 	},
-		// },
+		//{
+		//	Name: "BadFileCreatedBefore",
+		//	Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+		//		return utils.SharePointOpts{
+		//			FileCreatedBefore: "foo",
+		//			Populated: utils.PopulatedFlags{
+		//				utils.FileCreatedBeforeFN: struct{}{},
+		//			},
+		//		}
+		//	},
+		//},
+		//{
+		//	Name: "EmptyFileCreatedBefore",
+		//	Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
+		//		return utils.SharePointOpts{
+		//			FileCreatedBefore: "",
+		//			Populated: utils.PopulatedFlags{
+		//				utils.FileCreatedBeforeFN: struct{}{},
+		//			},
+		//		}
+		//	},
+		//},
 	}
 
 	// SharePointOptionDetailLookups contains flag inputs and expected results for
@@ -483,98 +776,205 @@ var (
 	// configured to return the full dataset listed in selectors/testdata.
 	SharePointOptionDetailLookups = []SharePointOptionsTest{
 		{
-			Name:     "AllLibraryItems",
-			Expected: testdata.SharePointLibraryItems,
-			Opts: utils.SharePointOpts{
-				FolderPath: selectors.Any(),
+			Name: "AllLibraryItems",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				return utils.SharePointOpts{
+					FolderPath: selectors.Any(),
+				}
 			},
 		},
 		{
-			Name:     "LibraryItemsWithSingleSlash",
-			Expected: testdata.SharePointLibraryItems,
-			Opts: utils.SharePointOpts{
-				FolderPath: []string{"/"},
+			Name: "LibraryItemsWithSingleSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				return utils.SharePointOpts{
+					FolderPath: []string{"/"},
+				}
 			},
 		},
 		{
-			Name:     "FolderPrefixMatch",
-			Expected: testdata.SharePointLibraryItems,
-			Opts: utils.SharePointOpts{
-				FolderPath: []string{testdata.SharePointLibraryFolder},
+			Name: "FolderPrefixMatch",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				return utils.SharePointOpts{
+					FolderPath: []string{testdata.SharePointLibraryFolder},
+				}
 			},
 		},
 		{
-			Name:     "FolderPrefixMatchTrailingSlash",
-			Expected: testdata.SharePointLibraryItems,
-			Opts: utils.SharePointOpts{
-				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
+			Name: "FolderPrefixMatchTrailingSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				return utils.SharePointOpts{
+					FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
+				}
 			},
 		},
 		{
-			Name:     "FolderPrefixMatchTrailingSlash",
-			Expected: testdata.SharePointLibraryItems,
-			Opts: utils.SharePointOpts{
-				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
+			Name: "FolderPrefixMatchTrailingSlash",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					-1)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				return utils.SharePointOpts{
+					FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
+				}
 			},
 		},
 		{
-			Name:     "FolderRepoRefMatchesNothing",
-			Expected: []details.Entry{},
-			Opts: utils.SharePointOpts{
-				FolderPath: []string{testdata.SharePointLibraryPath.RR.Folder(true)},
+			Name: "FolderRepoRefMatchesNothing",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return []details.Entry{}
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				return utils.SharePointOpts{
+					FolderPath: []string{testdata.SharePointLibraryPath.RR.Folder(true)},
+				}
 			},
 		},
 		{
 			Name: "ShortRef",
-			Expected: []details.Entry{
-				testdata.SharePointLibraryItems[0],
-				testdata.SharePointLibraryItems[1],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					0, 1)
 			},
-			Opts: utils.SharePointOpts{
-				FileName: []string{
-					testdata.SharePointLibraryItems[0].ShortRef,
-					testdata.SharePointLibraryItems[1].ShortRef,
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion)
+
+				return utils.SharePointOpts{
+					FileName: []string{
+						deets[0].ShortRef,
+						deets[1].ShortRef,
+					},
+				}
 			},
 		},
 		{
-			Name:     "SingleItem",
-			Expected: []details.Entry{testdata.SharePointLibraryItems[0]},
-			Opts: utils.SharePointOpts{
-				FileName: []string{
-					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
-				},
+			Name: "SingleItem",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					0)
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion)
+
+				return utils.SharePointOpts{
+					FileName: []string{
+						deets[0].SharePoint.ItemName,
+					},
+				}
 			},
 		},
 		{
 			Name: "MultipleItems",
-			Expected: []details.Entry{
-				testdata.SharePointLibraryItems[0],
-				testdata.SharePointLibraryItems[1],
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return testdata.GetItemsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion,
+					0, 1)
 			},
-			Opts: utils.SharePointOpts{
-				FileName: []string{
-					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
-					testdata.SharePointLibraryItems[1].SharePoint.ItemName,
-				},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion)
+
+				return utils.SharePointOpts{
+					FileName: []string{
+						deets[0].SharePoint.ItemName,
+						deets[1].SharePoint.ItemName,
+					},
+				}
 			},
 		},
 		{
-			Name:     "ItemRefMatchesNothing",
-			Expected: []details.Entry{},
-			Opts: utils.SharePointOpts{
-				FileName: []string{
-					testdata.SharePointLibraryItems[0].ItemRef,
-				},
+			Name: "ItemRefMatchesNothing",
+			Expected: func(t *testing.T, wantedVersion int) []details.Entry {
+				return []details.Entry{}
+			},
+			Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+				deets := testdata.GetDeetsForVersion(
+					t,
+					path.SharePointService,
+					path.LibrariesCategory,
+					wantedVersion)
+
+				return utils.SharePointOpts{
+					FileName: []string{
+						deets[0].ItemRef,
+					},
+				}
 			},
 		},
-		// {
-		// 	Name:     "CreatedBefore",
-		// 	Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[1]},
-		// 	Opts: utils.SharePointOpts{
-		// 		FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
-		// 	},
-		// },
+		//{
+		//	Name: "CreatedBefore",
+		//	Expected: func(t *testing.T, wantedVersion int) []details.DetailsEntry {
+		//		return testdata.GetItemsForVersion(
+		//			t,
+		//			path.SharePointService,
+		//			path.LibrariesCategory,
+		//			wantedVersion,
+		//			1)
+		//	},
+		//	Opts: func(t *testing.T, wantedVersion int) utils.SharePointOpts {
+		//		return utils.SharePointOpts{
+		//			FileCreatedBefore: dttm.Format(testdata.Time1.Add(time.Second)),
+		//		}
+		//	},
+		//},
 	}
 )
 
@@ -611,10 +1011,6 @@ func (bg *MockBackupGetter) GetBackupDetails(
 	ctx context.Context,
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Bus) {
-	if bg == nil {
-		return testdata.GetDetailsSet(), nil, fault.New(true)
-	}
-
 	return nil, nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
 }
 
@@ -628,4 +1024,16 @@ func (bg *MockBackupGetter) GetBackupErrors(
 	}
 
 	return nil, nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
+}
+
+type VersionedBackupGetter struct {
+	*MockBackupGetter
+	Details *details.Details
+}
+
+func (bg VersionedBackupGetter) GetBackupDetails(
+	ctx context.Context,
+	backupID string,
+) (*details.Details, *backup.Backup, *fault.Bus) {
+	return bg.Details, nil, fault.New(true)
 }
