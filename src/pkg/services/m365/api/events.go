@@ -84,12 +84,13 @@ func (c Events) GetContainerByID(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "setting event calendar options")
+	queryParams := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "owner"},
+		},
 	}
 
-	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, ofc)
+	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, queryParams)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -129,7 +130,7 @@ func (c Events) GetContainerByName(
 	cal := resp.GetValue()[0]
 	cd := CalendarDisplayable{Calendarable: cal}
 
-	if err := checkIDAndName(cd); err != nil {
+	if err := graph.CheckIDAndName(cd); err != nil {
 		return nil, err
 	}
 
@@ -191,7 +192,7 @@ func (c Events) GetItem(
 func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
-	fn func(graph.CacheFolder) error,
+	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
 	service, err := c.Service()
@@ -199,9 +200,10 @@ func (c Events) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendars([]string{"name"})
-	if err != nil {
-		return graph.Wrap(ctx, err, "setting calendar options")
+	queryParams := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name"},
+		},
 	}
 
 	el := errs.Local()
@@ -212,7 +214,7 @@ func (c Events) EnumerateContainers(
 			break
 		}
 
-		resp, err := builder.Get(ctx, ofc)
+		resp, err := builder.Get(ctx, queryParams)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
@@ -223,7 +225,7 @@ func (c Events) EnumerateContainers(
 			}
 
 			cd := CalendarDisplayable{Calendarable: cal}
-			if err := checkIDAndName(cd); err != nil {
+			if err := graph.CheckIDAndName(cd); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
@@ -237,7 +239,7 @@ func (c Events) EnumerateContainers(
 				cd,
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
-			if err := fn(temp); err != nil {
+			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
