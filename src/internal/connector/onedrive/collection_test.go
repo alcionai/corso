@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type CollectionUnitTestSuite struct {
@@ -211,6 +212,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
@@ -239,8 +241,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			}
 
 			coll.itemReader = test.itemReader
-			coll.itemMetaReader = func(_ context.Context,
-				_ graph.Servicer,
+			coll.itemMetaReader = func(
+				_ context.Context,
+				_ api.Drives,
 				_ string,
 				_ models.DriveItemable,
 			) (io.ReadCloser, int, error) {
@@ -350,6 +353,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
@@ -380,7 +384,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			}
 
 			coll.itemMetaReader = func(_ context.Context,
-				_ graph.Servicer,
+				_ api.Drives,
 				_ string,
 				_ models.DriveItemable,
 			) (io.ReadCloser, int, error) {
@@ -441,6 +445,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			require.NoError(t, err)
 
 			coll, err := NewCollection(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
@@ -465,9 +470,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			count := 0
 
 			coll.itemGetter = func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
+				_ context.Context,
+				_, _ string,
 			) (models.DriveItemable, error) {
 				return mockItem, nil
 			}
@@ -487,7 +491,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			}
 
 			coll.itemMetaReader = func(_ context.Context,
-				_ graph.Servicer,
+				_ api.Drives,
 				_ string,
 				_ models.DriveItemable,
 			) (io.ReadCloser, int, error) {
@@ -546,6 +550,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
@@ -579,7 +584,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			}
 
 			coll.itemMetaReader = func(_ context.Context,
-				_ graph.Servicer,
+				_ api.Drives,
 				_ string,
 				_ models.DriveItemable,
 			) (io.ReadCloser, int, error) {
@@ -707,9 +712,8 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			}
 
 			col.itemGetter = func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
+				_ context.Context,
+				_, _ string,
 			) (models.DriveItemable, error) {
 				// We are not testing this err here
 				return item, nil
@@ -762,7 +766,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name: "expired url redownloads",
-			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+			igf: func(context.Context, string, string) (models.DriveItemable, error) {
 				return itemWID, nil
 			},
 			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
@@ -788,7 +792,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name: "re-fetching the item fails",
-			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+			igf: func(context.Context, string, string) (models.DriveItemable, error) {
 				return nil, assert.AnError
 			},
 			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
@@ -801,7 +805,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name: "expired url fails redownload",
-			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+			igf: func(context.Context, string, string) (models.DriveItemable, error) {
 				return itemWID, nil
 			},
 			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {

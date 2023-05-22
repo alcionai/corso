@@ -45,6 +45,7 @@ var (
 type Collection struct {
 	// configured to handle large item downloads
 	itemClient graph.Requester
+	ad         api.Drives
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -95,7 +96,6 @@ type Collection struct {
 // itemGetterFunc gets a specified item
 type itemGetterFunc func(
 	ctx context.Context,
-	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.DriveItemable, error)
 
@@ -110,7 +110,7 @@ type itemReaderFunc func(
 // specified item
 type itemMetaReaderFunc func(
 	ctx context.Context,
-	service graph.Servicer,
+	ad api.Drives,
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error)
@@ -130,6 +130,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 
 // NewCollection creates a Collection
 func NewCollection(
+	ad api.Drives,
 	itemClient graph.Requester,
 	currPath path.Path,
 	prevPath path.Path,
@@ -156,6 +157,7 @@ func NewCollection(
 	}
 
 	c := newColl(
+		ad,
 		itemClient,
 		currPath,
 		prevPath,
@@ -174,6 +176,7 @@ func NewCollection(
 }
 
 func newColl(
+	ad api.Drives,
 	gr graph.Requester,
 	currPath path.Path,
 	prevPath path.Path,
@@ -186,8 +189,9 @@ func newColl(
 	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
+		ad:              ad,
 		itemClient:      gr,
-		itemGetter:      api.GetDriveItem,
+		itemGetter:      ad.GetItem,
 		folderPath:      currPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
@@ -400,7 +404,7 @@ func downloadContent(
 	// token, and that we've overrun the available window to
 	// download the actual file.  Re-downloading the item will
 	// refresh that download url.
-	di, err := igf(ctx, svc, driveID, ptr.Val(item.GetId()))
+	di, err := igf(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
@@ -499,11 +503,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			// Fetch metadata for the file
-			itemMeta, itemMetaSize, err = oc.itemMetaReader(
-				ctx,
-				oc.service,
-				oc.driveID,
-				item)
+			itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.ad, oc.driveID, item)
 
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))

@@ -112,6 +112,7 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 			)
 
 			c := onedrive.NewCollections(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				site,

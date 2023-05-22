@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 //----------------------------------------------------------------------------
@@ -42,6 +43,7 @@ import (
 func RestoreCollections(
 	ctx context.Context,
 	backupVersion int,
+	ac api.Client,
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
@@ -81,6 +83,7 @@ func RestoreCollections(
 		case path.LibrariesCategory:
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
+				ac,
 				creds,
 				backupVersion,
 				service,

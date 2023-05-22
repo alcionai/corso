@@ -782,6 +782,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
@@ -2322,6 +2323,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			}
 
 			c := NewCollections(
+				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
@@ -2329,8 +2331,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				testFolderMatcher{anyFolder},
 				&MockGraphService{},
 				func(*support.ConnectorOperationStatus) {},
-				control.Options{ToggleFeatures: control.Toggles{}},
-			)
+				control.Options{ToggleFeatures: control.Toggles{}})
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 

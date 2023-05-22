@@ -161,12 +161,11 @@ func (c Sites) GetIDAndName(ctx context.Context, siteID string) (string, string,
 // Info
 // ---------------------------------------------------------------------------
 
-func GetSitesDefaultDrive(
+func (c Sites) GetDefaultDrive(
 	ctx context.Context,
-	srv graph.Servicer,
 	site string,
 ) (models.Driveable, error) {
-	d, err := srv.
+	d, err := c.Stable.
 		Client().
 		Sites().
 		BySiteId(site).
