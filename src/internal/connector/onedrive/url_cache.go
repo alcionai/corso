@@ -124,12 +124,11 @@ func (uc *urlCache) getDownloadURL(
 
 // needsRefresh returns true if the cache is empty or if > 1 hr has elapsed since
 // last refresh
-// TODO: make it 55 mins to avoid 401s from possibly stale cache hits?
 func (uc *urlCache) needsRefresh() bool {
 	uc.rwLock.RLock()
 	defer uc.rwLock.RUnlock()
 
-	return len(uc.urlMap) == 0 || time.Since(uc.lastRefreshTime) > time.Hour
+	return len(uc.urlMap) == 0 || time.Since(uc.lastRefreshTime) > uc.refreshInterval
 }
 
 // refreshCache refreshes the URL cache by performing a delta query.
