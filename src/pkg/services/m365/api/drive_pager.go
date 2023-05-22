@@ -3,11 +3,9 @@ package api
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
-	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -15,7 +13,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	onedrive "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -34,22 +31,20 @@ type driveItemPager struct {
 func NewItemPager(
 	gs graph.Servicer,
 	driveID, link string,
-	fields []string,
+	selectFields []string,
 ) *driveItemPager {
-	headers := abstractions.NewRequestHeaders()
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
 		"deltatraversepermissiongaps",
 		"deltashowsharingchanges",
 		"hierarchicalsharing",
 	}
-	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
 	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
-		Headers: headers,
+		Headers: newPreferHeaders(preferHeaderItems...),
 		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
-			Top:    ptr.To(maxPageSize),
-			Select: fields,
+			Top:    ptr.To(maxDeltaPageSize),
+			Select: selectFields,
 		},
 	}
 
@@ -70,9 +65,9 @@ func NewItemPager(
 	return res
 }
 
-func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *driveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	var (
-		resp api.DeltaPageLinker
+		resp DeltaPageLinker
 		err  error
 	)
 
@@ -97,7 +92,7 @@ func (p *driveItemPager) Reset() {
 		Delta()
 }
 
-func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *driveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
 	return getValues[models.DriveItemable](l)
 }
 
@@ -139,9 +134,9 @@ type nopUserDrivePageLinker struct {
 
 func (nl nopUserDrivePageLinker) GetOdataNextLink() *string { return nil }
 
-func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
+func (p *userDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
 	var (
-		resp api.PageLinker
+		resp PageLinker
 		err  error
 	)
 
@@ -167,7 +162,7 @@ func (p *userDrivePager) SetNext(link string) {
 	p.builder = users.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
+func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 	nl, ok := l.(*nopUserDrivePageLinker)
 	if !ok || nl == nil {
 		return nil, clues.New(fmt.Sprintf("improper page linker struct for user drives: %T", l))
@@ -216,9 +211,9 @@ func NewSiteDrivePager(
 	return res
 }
 
-func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
+func (p *siteDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
 	var (
-		resp api.PageLinker
+		resp PageLinker
 		err  error
 	)
 
@@ -234,7 +229,7 @@ func (p *siteDrivePager) SetNext(link string) {
 	p.builder = sites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
+func (p *siteDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 	return getValues[models.Driveable](l)
 }
 
@@ -244,9 +239,9 @@ func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) 
 
 // DrivePager pages through different types of drive owners
 type DrivePager interface {
-	GetPage(context.Context) (api.PageLinker, error)
+	GetPage(context.Context) (PageLinker, error)
 	SetNext(nextLink string)
-	ValuesIn(api.PageLinker) ([]models.Driveable, error)
+	ValuesIn(PageLinker) ([]models.Driveable, error)
 }
 
 // GetAllDrives fetches all drives for the given pager
@@ -266,7 +261,7 @@ func GetAllDrives(
 	for {
 		var (
 			err  error
-			page api.PageLinker
+			page PageLinker
 		)
 
 		// Retry Loop for Drive retrieval. Request can timeout
@@ -315,7 +310,7 @@ func GetAllDrives(
 // Helpers
 // ---------------------------------------------------------------------------
 
-func getValues[T any](l api.PageLinker) ([]T, error) {
+func getValues[T any](l PageLinker) ([]T, error) {
 	page, ok := l.(interface{ GetValue() []T })
 	if !ok {
 		return nil, clues.New("page does not comply with GetValue() interface").With("page_item_type", fmt.Sprintf("%T", l))

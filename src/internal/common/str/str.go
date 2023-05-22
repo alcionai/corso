@@ -20,15 +20,15 @@ func ParseBool(v string) bool {
 	return s
 }
 
-func FromMapToAny(k string, m map[string]any) (string, error) {
+func AnyValueToString(k string, m map[string]any) (string, error) {
 	if len(m) == 0 {
 		return "", clues.New("missing entry").With("map_key", k)
 	}
 
-	return FromAny(m[k])
+	return AnyToString(m[k])
 }
 
-func FromAny(a any) (string, error) {
+func AnyToString(a any) (string, error) {
 	if a == nil {
 		return "", clues.New("missing value")
 	}
