@@ -387,7 +387,7 @@ func (c Events) PostSmallAttachment(
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
-		return graph.Wrap(ctx, err, "uploading small mail attachment")
+		return graph.Wrap(ctx, err, "uploading small event attachment")
 	}
 
 	return nil
@@ -414,7 +414,7 @@ func (c Events) PostLargeAttachment(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "uploading large mail attachment")
+		return nil, graph.Wrap(ctx, err, "uploading large event attachment")
 	}
 
 	return itm, nil
