@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	betaAPI "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -21,12 +21,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SharePointCollectionSuite struct {
 	tester.Suite
 	siteID string
 	creds  account.M365Config
+	ac     api.Client
 }
 
 func (suite *SharePointCollectionSuite) SetupSuite() {
@@ -38,6 +40,11 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
+
+	ac, err := api.NewClient(m365)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.ac = ac
 }
 
 func TestSharePointCollectionSuite(t *testing.T) {
@@ -67,9 +74,12 @@ func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
 func (suite *SharePointCollectionSuite) TestCollection_Items() {
-	tenant := "some"
-	user := "user"
-	dirRoot := "directory"
+	var (
+		tenant  = "some"
+		user    = "user"
+		dirRoot = "directory"
+	)
+
 	tables := []struct {
 		name, itemName string
 		category       DataCategory
@@ -130,13 +140,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, itemName string) *Item {
 				byteArray := spMock.Page(itemName)
-				page, err := api.CreatePageFromBytes(byteArray)
+				page, err := betaAPI.CreatePageFromBytes(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
 				data := &Item{
 					id:   itemName,
 					data: io.NopCloser(bytes.NewReader(byteArray)),
-					info: api.PageInfo(page, int64(len(byteArray))),
+					info: betaAPI.PageInfo(page, int64(len(byteArray))),
 				}
 
 				return data
@@ -151,7 +161,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := NewCollection(test.getDir(t), nil, test.category, nil, control.Defaults())
+			col := NewCollection(
+				test.getDir(t),
+				suite.ac,
+				nil,
+				test.category,
+				nil,
+				control.Defaults())
 			col.data <- test.getItem(t, test.itemName)
 
 			readItems := []data.Stream{}

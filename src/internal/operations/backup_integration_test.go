@@ -1318,7 +1318,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		ctx context.Context,
 		gs graph.Servicer,
 	) string {
-		d, err := api.GetUsersDrive(ctx, gs, suite.user)
+		d, err := api.GetUsersDefaultDrive(ctx, gs, suite.user)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
 				With("user", suite.user)

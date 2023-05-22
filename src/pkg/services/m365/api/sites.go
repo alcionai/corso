@@ -32,22 +32,8 @@ type Sites struct {
 }
 
 // ---------------------------------------------------------------------------
-// methods
+// api calls
 // ---------------------------------------------------------------------------
-
-// GetSite returns a minimal Site with the SiteID and the WebURL
-// TODO: delete in favor of sites.GetByID()
-func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Siteable, error) {
-	resp, err := gs.Client().
-		Sites().
-		BySiteId(siteID).
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
-}
 
 // GetAll retrieves all sites.
 func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error) {
@@ -169,6 +155,28 @@ func (c Sites) GetIDAndName(ctx context.Context, siteID string) (string, string,
 	}
 
 	return ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()), nil
+}
+
+// ---------------------------------------------------------------------------
+// Info
+// ---------------------------------------------------------------------------
+
+func GetSitesDefaultDrive(
+	ctx context.Context,
+	srv graph.Servicer,
+	site string,
+) (models.Driveable, error) {
+	d, err := srv.
+		Client().
+		Sites().
+		BySiteId(site).
+		Drive().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting site's default drive")
+	}
+
+	return d, nil
 }
 
 // ---------------------------------------------------------------------------

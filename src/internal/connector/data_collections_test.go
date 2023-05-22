@@ -298,6 +298,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
+				suite.ac,
 				graph.NewNoTimeoutHTTPWrapper(),
 				sel,
 				sel,

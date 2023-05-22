@@ -110,9 +110,9 @@ func runDisplayM365JSON(
 	srv graph.Servicer,
 	gr graph.Requester,
 	creds account.M365Config,
-	user, itemID string,
+	userID, itemID string,
 ) error {
-	drive, err := api.GetUsersDrive(ctx, srv, user)
+	drive, err := api.GetUsersDefaultDrive(ctx, srv, userID)
 	if err != nil {
 		return err
 	}

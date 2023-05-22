@@ -129,6 +129,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceSharePoint:
 		colls, ssmb, err = sharepoint.DataCollections(
 			ctx,
+			gc.Discovery,
 			gc.itemClient,
 			sels,
 			owner,
