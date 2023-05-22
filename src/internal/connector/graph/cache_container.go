@@ -186,9 +186,20 @@ func CheckIDAndName(c Container) error {
 		return clues.New("container missing display name").With("container_id", id)
 	}
 
+	return nil
+}
+
+// CheckIDNameAndParentFolderID is a validator that ensures the ID
+// and name are populated and not zero valued.
+func CheckIDNameAndParentFolderID(c Container) error {
+	err := CheckIDAndName(c)
+	if err != nil {
+		return err
+	}
+
 	pfid := ptr.Val(c.GetParentFolderId())
 	if len(pfid) == 0 {
-		return clues.New("container missing parent folder id").With("container_id", id)
+		return clues.New("container missing parent folder id").With("container_id", ptr.Val(c.GetId()))
 	}
 
 	return nil

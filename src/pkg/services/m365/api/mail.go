@@ -154,7 +154,7 @@ func (c Mail) GetItem(
 		size     int64
 		mailBody models.ItemBodyable
 		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
-			Headers: newPreferHeaders(idTypeImmutable),
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 	)
 
@@ -184,7 +184,7 @@ func (c Mail) GetItem(
 		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
 		},
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	attached, err := c.LargeItem.
@@ -239,7 +239,7 @@ func (c Mail) GetItem(
 			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
-			Headers: newPreferHeaders(idTypeImmutable),
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 
 		att, err := c.Stable.
@@ -338,17 +338,22 @@ func (c Mail) EnumerateContainers(
 			return graph.Stack(ctx, err)
 		}
 
-		for _, v := range resp {
+		for _, fold := range resp {
 			if el.Failure() != nil {
 				break
 			}
 
+			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
+				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				continue
+			}
+
 			fctx := clues.Add(
 				ctx,
-				"container_id", ptr.Val(v.GetId()),
-				"container_name", ptr.Val(v.GetDisplayName()))
+				"container_id", ptr.Val(fold.GetId()),
+				"container_name", ptr.Val(fold.GetDisplayName()))
 
-			temp := graph.NewCacheFolder(v, nil, nil)
+			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
@@ -388,7 +393,7 @@ func NewMailPager(
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
 		},
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	builder := gs.Client().
@@ -463,7 +468,7 @@ func NewMailDeltaPager(
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
 		},
-		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder

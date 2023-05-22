@@ -153,7 +153,7 @@ func (c Events) GetItem(
 		err    error
 		event  models.Eventable
 		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
-			Headers: newPreferHeaders(idTypeImmutable),
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 	)
 
@@ -172,7 +172,7 @@ func (c Events) GetItem(
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
-			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
+			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		}
 
 		attached, err := c.LargeItem.
@@ -292,7 +292,7 @@ func NewEventPager(
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
@@ -341,7 +341,7 @@ func NewEventDeltaPager(
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder

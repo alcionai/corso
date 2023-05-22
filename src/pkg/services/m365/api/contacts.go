@@ -81,7 +81,7 @@ func (c Contacts) GetItem(
 	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(idTypeImmutable),
+		Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 	}
 
 	cont, err := c.Stable.Client().Users().ByUserId(user).Contacts().ByContactId(itemID).Get(ctx, options)
@@ -160,7 +160,7 @@ func (c Contacts) EnumerateContainers(
 				return el.Failure()
 			}
 
-			if err := graph.CheckIDAndName(fold); err != nil {
+			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
@@ -210,7 +210,7 @@ func NewContactPager(
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
 		},
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	builder := gs.Client().
@@ -278,7 +278,7 @@ func NewContactDeltaPager(
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
 		},
-		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), idTypeImmutable),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder

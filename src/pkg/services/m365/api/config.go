@@ -42,9 +42,25 @@ func preferPageSize(size int32) string {
 	return fmt.Sprintf("odata.maxpagesize=%d", size)
 }
 
+func preferImmutableIDs(t bool) string {
+	if !t {
+		return ""
+	}
+
+	return idTypeImmutable
+}
+
 func newPreferHeaders(values ...string) *abstractions.RequestHeaders {
+	vs := []string{}
+
+	for _, v := range values {
+		if len(v) > 0 {
+			vs = append(vs, v)
+		}
+	}
+
 	headers := abstractions.NewRequestHeaders()
-	headers.Add(headerKeyPrefer, strings.Join(values, ","))
+	headers.Add(headerKeyPrefer, strings.Join(vs, ","))
 
 	return headers
 }
