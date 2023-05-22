@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -203,12 +204,16 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		a      = tester.NewM365Account(t)
 	)
 
-	account, err := a.M365Config()
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	ac, err := api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
 	col, err := collectPages(
 		ctx,
-		account,
+		creds,
+		ac,
 		nil,
 		mock.NewProvider(siteID, siteID),
 		&MockGraphService{},

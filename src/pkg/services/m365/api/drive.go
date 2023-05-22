@@ -13,41 +13,42 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Drives
+// Folders
 // ---------------------------------------------------------------------------
 
-func GetUsersDrive(
+const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+
+var ErrFolderNotFound = clues.New("folder not found")
+
+// GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
+func GetFolderByName(
 	ctx context.Context,
 	srv graph.Servicer,
-	user string,
-) (models.Driveable, error) {
-	d, err := srv.Client().
-		Users().
-		ByUserId(user).
-		Drive().
-		Get(ctx, nil)
+	driveID, parentFolderID, folder string,
+) (models.DriveItemable, error) {
+	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
+	// will be sub-optimal.
+	// Instead, we leverage OneDrive path-based addressing -
+	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
+	// - which allows us to lookup an item by its path relative to the parent ID
+	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folder)
+	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, srv.Adapter())
+
+	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user's drive")
+		if graph.IsErrDeletedInFlight(err) {
+			return nil, graph.Stack(ctx, clues.Stack(ErrFolderNotFound, err))
+		}
+
+		return nil, graph.Wrap(ctx, err, "getting folder")
 	}
 
-	return d, nil
-}
-
-func GetSitesDefaultDrive(
-	ctx context.Context,
-	srv graph.Servicer,
-	site string,
-) (models.Driveable, error) {
-	d, err := srv.Client().
-		Sites().
-		BySiteId(site).
-		Drive().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting site's drive")
+	// Check if the item found is a folder, fail the call if not
+	if foundItem.GetFolder() == nil {
+		return nil, graph.Wrap(ctx, ErrFolderNotFound, "item is not a folder")
 	}
 
-	return d, nil
+	return foundItem, nil
 }
 
 func GetDriveRoot(
@@ -68,7 +69,7 @@ func GetDriveRoot(
 }
 
 // ---------------------------------------------------------------------------
-// Drive Items
+// Items
 // ---------------------------------------------------------------------------
 
 // generic drive item getter
@@ -168,41 +169,6 @@ func DeleteDriveItem(
 	}
 
 	return nil
-}
-
-const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-
-var ErrFolderNotFound = clues.New("folder not found")
-
-// GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
-func GetFolderByName(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID, parentFolderID, folder string,
-) (models.DriveItemable, error) {
-	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
-	// will be sub-optimal.
-	// Instead, we leverage OneDrive path-based addressing -
-	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
-	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folder)
-	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, srv.Adapter())
-
-	foundItem, err := builder.Get(ctx, nil)
-	if err != nil {
-		if graph.IsErrDeletedInFlight(err) {
-			return nil, graph.Stack(ctx, clues.Stack(ErrFolderNotFound, err))
-		}
-
-		return nil, graph.Wrap(ctx, err, "getting folder")
-	}
-
-	// Check if the item found is a folder, fail the call if not
-	if foundItem.GetFolder() == nil {
-		return nil, graph.Wrap(ctx, ErrFolderNotFound, "item is not a folder")
-	}
-
-	return foundItem, nil
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type statusUpdater interface {
@@ -29,12 +30,13 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	ac api.Client,
 	itemClient graph.Requester,
 	selector selectors.Selector,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
 	creds account.M365Config,
-	serv graph.Servicer,
+	gs graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -73,7 +75,8 @@ func DataCollections(
 		case path.ListsCategory:
 			spcs, err = collectLists(
 				ctx,
-				serv,
+				ac,
+				gs,
 				creds.AzureTenantID,
 				site,
 				su,
@@ -88,7 +91,7 @@ func DataCollections(
 			spcs, err = collectLibraries(
 				ctx,
 				itemClient,
-				serv,
+				gs,
 				creds.AzureTenantID,
 				site,
 				metadata,
@@ -106,7 +109,8 @@ func DataCollections(
 			spcs, err = collectPages(
 				ctx,
 				creds,
-				serv,
+				ac,
+				gs,
 				site,
 				su,
 				ctrlOpts,
@@ -145,7 +149,8 @@ func DataCollections(
 
 func collectLists(
 	ctx context.Context,
-	serv graph.Servicer,
+	ac api.Client,
+	gs graph.Servicer,
 	tenantID string,
 	site idname.Provider,
 	updater statusUpdater,
@@ -159,7 +164,7 @@ func collectLists(
 		spcs = make([]data.BackupCollection, 0)
 	)
 
-	lists, err := preFetchLists(ctx, serv, site.ID())
+	lists, err := preFetchLists(ctx, gs, site.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +185,13 @@ func collectLists(
 			el.AddRecoverable(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
-		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
+		collection := NewCollection(
+			dir,
+			ac,
+			gs,
+			List,
+			updater.UpdateStatus,
+			ctrlOpts)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
@@ -232,6 +243,7 @@ func collectLibraries(
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
+	ac api.Client,
 	serv graph.Servicer,
 	site idname.Provider,
 	updater statusUpdater,
@@ -278,7 +290,13 @@ func collectPages(
 			el.AddRecoverable(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
-		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
+		collection := NewCollection(
+			dir,
+			ac,
+			serv,
+			Pages,
+			updater.UpdateStatus,
+			ctrlOpts)
 		collection.betaService = betaService
 		collection.AddJob(tuple.ID)
 

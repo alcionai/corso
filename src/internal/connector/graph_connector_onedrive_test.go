@@ -55,7 +55,7 @@ func mustGetDefaultDriveID(
 
 	switch backupService {
 	case path.OneDriveService:
-		d, err = api.GetUsersDrive(ctx, service, resourceOwner)
+		d, err = api.GetUsersDefaultDrive(ctx, service, resourceOwner)
 	case path.SharePointService:
 		d, err = api.GetSitesDefaultDrive(ctx, service, resourceOwner)
 	default:
