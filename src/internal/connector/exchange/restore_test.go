@@ -20,23 +20,22 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type ExchangeRestoreSuite struct {
+type RestoreIntgSuite struct {
 	tester.Suite
 	gs          graph.Servicer
 	credentials account.M365Config
 	ac          api.Client
 }
 
-func TestExchangeRestoreSuite(t *testing.T) {
-	suite.Run(t, &ExchangeRestoreSuite{
+func TestRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &RestoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *ExchangeRestoreSuite) SetupSuite() {
+func (suite *RestoreIntgSuite) SetupSuite() {
 	t := suite.T()
 
 	a := tester.NewM365Account(t)
@@ -58,7 +57,7 @@ func (suite *ExchangeRestoreSuite) SetupSuite() {
 
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
-func (suite *ExchangeRestoreSuite) TestRestoreContact() {
+func (suite *RestoreIntgSuite) TestRestoreContact() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -92,7 +91,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
-func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
+func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -153,7 +152,7 @@ type containerDeleter interface {
 }
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
-func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
+func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()

@@ -37,7 +37,7 @@ jobs:
       # re-used values
       # don't forget: return to Corso_Test_Sanity_
       CORSO_LOG_DIR: testlog
-      CORSO_LOG_FILE: testlog/testlogging.log
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
       RESTORE_DEST_PFX: Corso_Test_Sanity_
       TEST_RESULT: test_results
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
@@ -328,7 +328,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: sanity-test-log
-          path: ${{ env.WORKING_DIR }}/${{ env.CORSO_LOG_DIR }}/
+          path: ${{ github.workspace }}/${{ env.CORSO_LOG_DIR }}/
           if-no-files-found: error
           retention-days: 14
 

@@ -71,8 +71,8 @@ var (
 	ReadableLogsFV      bool
 	MaskSensitiveDataFV bool
 
-	LogFile     string // logFileFV after processing
-	piiHandling string // piiHandling after MaskSensitiveDataFV processing
+	ResolvedLogFile string // logFileFV after processing
+	piiHandling     string // piiHandling after MaskSensitiveDataFV processing
 )
 
 const (
@@ -184,7 +184,7 @@ func PreloadLoggingFlags(args []string) Settings {
 	}
 
 	set.File = GetLogFile(lffv)
-	LogFile = set.File
+	ResolvedLogFile = set.File
 
 	// retrieve the user's preferred PII handling algorithm
 	// defaults to "plaintext"
@@ -203,6 +203,10 @@ func PreloadLoggingFlags(args []string) Settings {
 // GetLogFile parses the log file.  Uses the provided value, if populated,
 // then falls back to the env var, and then defaults to stderr.
 func GetLogFile(logFileFlagVal string) string {
+	if len(ResolvedLogFile) > 0 {
+		return ResolvedLogFile
+	}
+
 	r := logFileFlagVal
 
 	// if not specified, attempt to fall back to env declaration.
@@ -261,6 +265,7 @@ func (s Settings) EnsureDefaults() Settings {
 
 	if len(set.File) == 0 {
 		set.File = GetLogFile("")
+		ResolvedLogFile = set.File
 	}
 
 	return set
