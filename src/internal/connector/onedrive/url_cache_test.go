@@ -111,7 +111,6 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	cache, err := newURLCache(
 		suite.driveID,
 		1*time.Hour,
-		collectDriveItems,
 		svc,
 		defaultItemPager)
 	require.NoError(t, err, clues.ToCore(err))

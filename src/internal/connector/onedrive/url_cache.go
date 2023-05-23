@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type itemProperties struct {
@@ -33,9 +32,8 @@ type urlCache struct {
 	refreshMutex    sync.Mutex
 	deltaQueryCount int
 
-	driveEnumerator driveEnumeratorFunc
-	svc             graph.Servicer
-	itemPagerFunc   func(
+	svc           graph.Servicer
+	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
 	) itemPager
@@ -43,36 +41,17 @@ type urlCache struct {
 	errors *fault.Bus
 }
 
-// driveEnumeratorFunc enumerates all items in the specified drive and hands
-// them to the provided collector method
-type driveEnumeratorFunc func(
-	ctx context.Context,
-	pager itemPager,
-	collector collectorFunc,
-	prevDelta string,
-	errs *fault.Bus,
-) error
-
-// collectorFunc is a callback function that is called by driveEnumeratorFunc
-// for each page of items
-type collectorFunc func(
-	ctx context.Context,
-	items []models.DriveItemable,
-	errs *fault.Bus,
-) error
-
 // newURLache creates a new URL cache for the specified drive ID
 func newURLCache(
 	driveID string,
 	refreshInterval time.Duration,
-	driveEnumerator driveEnumeratorFunc,
 	svc graph.Servicer,
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
 	) itemPager,
 ) (*urlCache, error) {
-	err := validateCacheParams(driveID, refreshInterval, driveEnumerator, svc, itemPagerFunc)
+	err := validateCacheParams(driveID, refreshInterval, svc, itemPagerFunc)
 	if err != nil {
 		return nil, clues.Wrap(err, "invalid cache parameters")
 	}
@@ -82,7 +61,6 @@ func newURLCache(
 			lastRefreshTime: time.Time{},
 			driveID:         driveID,
 			refreshInterval: refreshInterval,
-			driveEnumerator: driveEnumerator,
 			svc:             svc,
 			itemPagerFunc:   itemPagerFunc,
 			errors:          fault.New(false),
@@ -94,7 +72,6 @@ func newURLCache(
 func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
-	driveEnumerator driveEnumeratorFunc,
 	svc graph.Servicer,
 	itemPagerFunc func(
 		servicer graph.Servicer,
@@ -107,10 +84,6 @@ func validateCacheParams(
 
 	if refreshInterval < 0 {
 		return clues.New("invalid refresh interval")
-	}
-
-	if driveEnumerator == nil {
-		return clues.New("nil drive enumerator")
 	}
 
 	if svc == nil {
@@ -202,14 +175,15 @@ func (uc *urlCache) refreshCache(
 func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 ) error {
-	driveEnumerator := uc.driveEnumerator
-
 	logger.Ctx(ctx).Debugw("Starting delta query")
 
-	err := driveEnumerator(
+	_, _, _, err := collectItems(
 		ctx,
 		uc.itemPagerFunc(uc.svc, uc.driveID, ""),
+		uc.driveID,
+		"",
 		uc.updateCache,
+		map[string]string{},
 		"",
 		uc.errors,
 	)
@@ -218,63 +192,6 @@ func (uc *urlCache) deltaQuery(
 	}
 
 	uc.deltaQueryCount++
-
-	return nil
-}
-
-// collectDriveItems will enumerate all items in the specified drive and hand
-// them to the provided collector method
-// TODO: This is a clone of collectItems call. Refactor collectItems to remove
-// duplication
-func collectDriveItems(
-	ctx context.Context,
-	pager itemPager,
-	collector collectorFunc,
-	prevDelta string,
-	errs *fault.Bus,
-) error {
-	invalidPrevDelta := len(prevDelta) == 0
-
-	if !invalidPrevDelta {
-		pager.SetNext(prevDelta)
-	}
-
-	for {
-		// assume delta urls here, which allows single-token consumption
-		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
-
-		if graph.IsErrInvalidDelta(err) {
-			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
-
-			pager.Reset()
-
-			continue
-		}
-
-		if err != nil {
-			return graph.Wrap(ctx, err, "getting page")
-		}
-
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return graph.Wrap(ctx, err, "extracting items from response")
-		}
-
-		err = collector(ctx, vals, errs)
-		if err != nil {
-			return graph.Wrap(ctx, err, "collecting items")
-		}
-
-		nextLink, _ := api.NextAndDeltaLink(page)
-
-		// Check if there are more items
-		if len(nextLink) == 0 {
-			break
-		}
-
-		logger.Ctx(ctx).Debugw("Found nextLink", "link", nextLink)
-		pager.SetNext(nextLink)
-	}
 
 	return nil
 }
@@ -301,7 +218,13 @@ func (uc *urlCache) readCache(
 // It assumes that cacheLock is held by caller in write mode
 func (uc *urlCache) updateCache(
 	ctx context.Context,
+	_, _ string,
 	items []models.DriveItemable,
+	_ map[string]string,
+	_ map[string]string,
+	_ map[string]struct{},
+	_ map[string]map[string]string,
+	_ bool,
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
