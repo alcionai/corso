@@ -51,10 +51,10 @@ func (suite *BetaClientSuite) TestCreateBetaClient() {
 // be handled within the /internal/connector/sharepoint when
 // additional features are added.
 func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	adpt, err := graph.CreateAdapter(
 		suite.credentials.AzureTenantID,

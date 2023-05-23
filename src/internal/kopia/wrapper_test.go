@@ -148,7 +148,7 @@ func TestKopiaUnitSuite(t *testing.T) {
 
 func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 	assert.NotPanics(suite.T(), func() {
-		ctx, flush := tester.NewContext()
+		ctx, flush := tester.NewContext(suite.T())
 		defer flush()
 
 		w := &Wrapper{}
@@ -176,10 +176,10 @@ func TestBasicKopiaIntegrationSuite(t *testing.T) {
 // cause maintenance to run. It treats kopia maintenance as a black box and
 // only checks the returned error.
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -196,10 +196,10 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 }
 
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -233,10 +233,10 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 }
 
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeeds() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -328,7 +328,7 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
 	t := suite.T()
-	suite.ctx, suite.flush = tester.NewContext()
+	suite.ctx, suite.flush = tester.NewContext(t)
 
 	c, err := openKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -662,10 +662,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 }
 
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -880,7 +880,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			s, d, _, err := suite.w.ConsumeBackupCollections(
@@ -1309,10 +1309,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			// May slightly overallocate as only items that are actually in our map
 			// are expected. The rest are errors, but best-effort says it should carry
@@ -1434,10 +1434,11 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			expected := make(map[string][]byte, len(test.inputPaths))
 
 			for _, pth := range test.inputPaths {
@@ -1471,10 +1472,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 // properly even with different Restore and Storage paths and items from
 // different kopia directories.
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetch() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	rp1, err := path.Build(
 		testTenant,

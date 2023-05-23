@@ -54,9 +54,6 @@ func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	suite.T().Skipf("Test depends on hardcoded folder names. Skipping till that is fixed")
 
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	tests := []struct {
 		name string
 		root string
@@ -81,6 +78,9 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			ac, err := api.NewClient(suite.credentials)
 			require.NoError(t, err, clues.ToCore(err))

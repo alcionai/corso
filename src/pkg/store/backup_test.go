@@ -43,9 +43,6 @@ func TestStoreBackupUnitSuite(t *testing.T) {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackup() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name   string
 		mock   *mock.ModelStore
@@ -65,6 +62,10 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			sm := &store.Wrapper{Storer: test.mock}
 
 			result, err := sm.GetBackup(ctx, model.StableID(uuid.NewString()))
@@ -80,9 +81,6 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackups() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name   string
 		mock   *mock.ModelStore
@@ -102,6 +100,10 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			sm := &store.Wrapper{Storer: test.mock}
 
 			result, err := sm.GetBackups(ctx)
@@ -118,9 +120,6 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 }
 
 func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name   string
 		mock   *mock.ModelStore
@@ -140,6 +139,10 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			sm := &store.Wrapper{Storer: test.mock}
 
 			err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))

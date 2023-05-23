@@ -194,11 +194,12 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t          = suite.T()
 				wg         = sync.WaitGroup{}
 				collStatus = support.ConnectorOperationStatus{}
 				readItems  = []data.Stream{}
@@ -332,11 +333,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t          = suite.T()
 				testItemID = "fakeItemID"
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
@@ -422,11 +424,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t          = suite.T()
 				testItemID = "fakeItemID"
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
@@ -523,11 +526,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t            = suite.T()
 				testItemID   = "fakeItemID"
 				testItemName = "Fake Item"
 				testItemSize = int64(10)
@@ -679,11 +683,12 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t    = suite.T()
 				errs = fault.New(false)
 				item = models.NewDriveItem()
 				col  = &Collection{scope: test.colScope}
@@ -815,10 +820,10 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			r, err := downloadContent(ctx, svc, test.igf, test.irf, gr, item, driveID)
 

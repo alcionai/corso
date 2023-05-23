@@ -167,7 +167,9 @@ func TestGraphConnectorSharePointIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	si := suiteInfoImpl{
@@ -183,15 +185,15 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	si.resourceOwner = tester.M365SiteID(suite.T())
 
 	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
-	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
-	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	tertiaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.tertiaryUser)
-	require.NoError(suite.T(), err, "fetching user", si.tertiaryUser, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
 	suite.suiteInfo = si
@@ -236,14 +238,16 @@ func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), Users),
-		user:          tester.M365UserID(suite.T()),
-		secondaryUser: tester.SecondaryM365UserID(suite.T()),
-		acct:          tester.NewM365Account(suite.T()),
+		connector:     loadConnector(ctx, t, Users),
+		user:          tester.M365UserID(t),
+		secondaryUser: tester.SecondaryM365UserID(t),
+		acct:          tester.NewM365Account(t),
 		service:       path.OneDriveService,
 		resourceType:  Users,
 	}
@@ -251,11 +255,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	si.resourceOwner = si.user
 
 	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
-	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
-	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	suite.suiteInfo = si
@@ -300,14 +304,16 @@ func TestGraphConnectorOneDriveNightlySuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), Users),
-		user:          tester.M365UserID(suite.T()),
-		secondaryUser: tester.SecondaryM365UserID(suite.T()),
-		acct:          tester.NewM365Account(suite.T()),
+		connector:     loadConnector(ctx, t, Users),
+		user:          tester.M365UserID(t),
+		secondaryUser: tester.SecondaryM365UserID(t),
+		acct:          tester.NewM365Account(t),
 		service:       path.OneDriveService,
 		resourceType:  Users,
 	}
@@ -315,11 +321,11 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	si.resourceOwner = si.user
 
 	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
-	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
-	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
+	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	suite.suiteInfo = si
@@ -351,12 +357,14 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	suite oneDriveSuite,
 	startVersion int,
 ) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
-		suite.T(),
+		t,
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
@@ -493,14 +501,16 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 }
 
 func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
-		suite.T(),
+		t,
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
@@ -708,14 +718,16 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 }
 
 func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
-		suite.T(),
+		t,
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
@@ -794,7 +806,9 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 // This is similar to TestPermissionsRestoreAndBackup but tests purely
 // for inheritance and that too only with newer versions
 func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion int) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
@@ -802,7 +816,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
-		suite.T(),
+		t,
 		ctx,
 		suite.BackupService(),
 		suite.Service(),
@@ -977,7 +991,9 @@ func testRestoreFolderNamedFolderRegression(
 	suite oneDriveSuite,
 	startVersion int,
 ) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// Get the default drive ID for the test user.

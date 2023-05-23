@@ -151,10 +151,10 @@ func runComputeParentPermissionsTest(
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			m, err := computeParentPermissions(ctx, test.item, test.parentPerms)
 			require.NoError(t, err, "compute permissions")

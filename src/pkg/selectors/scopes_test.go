@@ -279,7 +279,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			errs := fault.New(true)
@@ -325,7 +325,7 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			ds := deets()

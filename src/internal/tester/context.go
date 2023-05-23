@@ -3,14 +3,14 @@ package tester
 import (
 	"context"
 	"os"
+	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-func NewContext() (context.Context, func()) {
+func NewContext(t *testing.T) (context.Context, func()) {
 	level := logger.LLInfo
 	format := logger.LFText
 
@@ -29,19 +29,27 @@ func NewContext() (context.Context, func()) {
 	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
 
 	// ensure logs can be easily associated with each test
-	// todo: replace with test name.  starting off with
-	// uuid to avoid million-line PR change.
-	ctx = clues.Add(ctx, "test_name", uuid.NewString())
+	if t != nil {
+		ctx = clues.Add(ctx, "test_name", t.Name())
+	}
 
 	return ctx, func() { logger.Flush(ctx) }
 }
 
-func WithContext(ctx context.Context) (context.Context, func()) {
+func WithContext(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (context.Context, func()) {
 	ls := logger.Settings{
 		Level:  logger.LLDebug,
 		Format: logger.LFText,
 	}
 	ctx, _ = logger.CtxOrSeed(ctx, ls)
+
+	// ensure logs can be easily associated with each test
+	// todo: replace with test name.  starting off with
+	// uuid to avoid million-line PR change.
+	ctx = clues.Add(ctx, "test_name", t.Name())
 
 	return ctx, func() { logger.Flush(ctx) }
 }

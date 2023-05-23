@@ -239,7 +239,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			paths := test.expectPaths(t, test.fileNames)
@@ -414,7 +414,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(suite.T())
 			defer flush()
 
 			err := verifyDistinctBases(ctx, test.mans)
@@ -670,7 +670,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			mans, dcs, b, err := produceManifestsAndMetadata(
@@ -979,7 +979,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			mainReasons := []kopia.Reason{}
@@ -1196,7 +1196,7 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_VerifyDistinctBases() 
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(suite.T())
 			defer flush()
 
 			err := verifyDistinctBases(ctx, test.input)
@@ -1315,7 +1315,7 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			mr := &mockRestoreProducer{}

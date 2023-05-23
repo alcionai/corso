@@ -31,11 +31,12 @@ func TestDiscoveryIntgSuite(t *testing.T) {
 }
 
 func (suite *DiscoveryIntgSuite) TestUsers() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		errs = fault.New(true)
 	)
@@ -82,10 +83,11 @@ func (suite *DiscoveryIntgSuite) TestUsers_InvalidCredentials() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			acct := test.acct(t)
 
 			creds, err := acct.M365Config()
@@ -102,11 +104,12 @@ func (suite *DiscoveryIntgSuite) TestUsers_InvalidCredentials() {
 }
 
 func (suite *DiscoveryIntgSuite) TestSites() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		errs = fault.New(true)
 	)
@@ -121,9 +124,6 @@ func (suite *DiscoveryIntgSuite) TestSites() {
 }
 
 func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name string
 		acct func(t *testing.T) account.Account
@@ -159,10 +159,13 @@ func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			var (
-				t    = suite.T()
-				a    = test.acct(t)
-				errs = fault.New(true)
+				t          = suite.T()
+				a          = test.acct(t)
+				errs       = fault.New(true)
+				ctx, flush = tester.NewContext(t)
 			)
+
+			defer flush()
 
 			sites, err := discovery.Sites(ctx, a, errs)
 			assert.Empty(t, sites, "returned some sites")
@@ -216,10 +219,10 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			result, err := discovery.UserInfo(ctx, uapi, test.user)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -270,10 +273,10 @@ func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			result, err := discovery.GetUserInfo(ctx, acct, test.user, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))

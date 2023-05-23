@@ -45,10 +45,11 @@ func TestOneDriveAPIs(t *testing.T) {
 }
 
 func (suite *OneDriveAPISuite) TestCreatePagerAndGetPage() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	siteID := tester.M365SiteID(t)
 	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"name"})
 	a, err := pager.GetPage(ctx)
