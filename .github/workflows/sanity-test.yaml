@@ -348,7 +348,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "text": "Sanity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
               "blocks": [
                 {
                   "type": "section",
