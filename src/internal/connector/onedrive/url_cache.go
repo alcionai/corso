@@ -32,8 +32,6 @@ type urlCache struct {
 	// refreshMutex serializes cache refresh attempts
 	refreshMutex    sync.Mutex
 	deltaQueryCount int
-	// TODO: Handle error bus properly
-	Errors *fault.Bus
 
 	driveEnumerator driveEnumeratorFunc
 	svc             graph.Servicer
@@ -41,6 +39,8 @@ type urlCache struct {
 		servicer graph.Servicer,
 		driveID, link string,
 	) itemPager
+
+	errors *fault.Bus
 }
 
 // driveEnumeratorFunc enumerates all items in the specified drive and hands
@@ -85,6 +85,7 @@ func newURLCache(
 			driveEnumerator: driveEnumerator,
 			svc:             svc,
 			itemPagerFunc:   itemPagerFunc,
+			errors:          fault.New(false),
 		},
 		nil
 }
@@ -195,16 +196,13 @@ func (uc *urlCache) refreshCache(
 	return nil
 }
 
-// deltaQuery will perform a delta query on the drive and update the cache
-// TODO: Check if this function is adding any value?
-// Remove it and use collectDriveItems directly
+// deltaQuery will perform a delta query on the drive. updateCache will be
+// called for each page of items returned by the delta query and the cache will
+// be updated with the results
 func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 ) error {
 	driveEnumerator := uc.driveEnumerator
-	if driveEnumerator == nil {
-		driveEnumerator = collectDriveItems
-	}
 
 	logger.Ctx(ctx).Debugw("Starting delta query")
 
@@ -213,7 +211,7 @@ func (uc *urlCache) deltaQuery(
 		uc.itemPagerFunc(uc.svc, uc.driveID, ""),
 		uc.updateCache,
 		"",
-		uc.Errors,
+		uc.errors,
 	)
 	if err != nil {
 		return clues.Wrap(err, "delta query failed").WithClues(ctx)
@@ -225,7 +223,7 @@ func (uc *urlCache) deltaQuery(
 }
 
 // collectDriveItems will enumerate all items in the specified drive and hand
-// them to the provided `collector` method
+// them to the provided collector method
 // TODO: This is a clone of collectItems call. Refactor collectItems to remove
 // duplication
 func collectDriveItems(
