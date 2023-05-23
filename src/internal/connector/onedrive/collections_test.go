@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -17,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -127,9 +127,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		pkg       = "/package"
 	)
 
-	testBaseDrivePath := fmt.Sprintf(rootDrivePattern, "driveID1")
-	expectedPath := getExpectedPathGenerator(suite.T(), tenant, user, testBaseDrivePath)
-	expectedStatePath := getExpectedStatePathGenerator(suite.T(), tenant, user, testBaseDrivePath)
+	bh := itemBackupHandler{}
+	testBaseDrivePath := odConsts.DriveFolderPrefixBuilder("driveID1").String()
+	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
+	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
 
 	tests := []struct {
 		testCase               string
@@ -1227,11 +1228,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	drive2.SetName(&driveID2)
 
 	var (
-		driveBasePath1 = fmt.Sprintf(rootDrivePattern, driveID1)
-		driveBasePath2 = fmt.Sprintf(rootDrivePattern, driveID2)
+		bh = itemBackupHandler{}
 
-		expectedPath1 = getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath1)
-		expectedPath2 = getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath2)
+		driveBasePath1 = odConsts.DriveFolderPrefixBuilder(driveID1).String()
+		driveBasePath2 = odConsts.DriveFolderPrefixBuilder(driveID2).String()
+
+		expectedPath1 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath1)
+		expectedPath2 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath2)
 
 		rootFolderPath1 = expectedPath1("")
 		folderPath1     = expectedPath1("/folder")

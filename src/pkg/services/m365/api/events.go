@@ -446,9 +446,8 @@ type eventPager struct {
 	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
 }
 
-func NewEventPager(
+func (c Events) NewEventPager(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, containerID string,
 	immutableIDs bool,
 ) (itemPager, error) {
@@ -456,7 +455,7 @@ func NewEventPager(
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
-	builder := gs.
+	builder := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -464,7 +463,7 @@ func NewEventPager(
 		ByCalendarId(containerID).
 		Events()
 
-	return &eventPager{gs, builder, options}, nil
+	return &eventPager{c.Stable, builder, options}, nil
 }
 
 func (p *eventPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
@@ -501,9 +500,8 @@ type eventDeltaPager struct {
 	options     *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func NewEventDeltaPager(
+func (c Events) NewEventDeltaPager(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
 ) (itemPager, error) {
@@ -514,12 +512,12 @@ func NewEventDeltaPager(
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 
 	if oldDelta == "" {
-		builder = getEventDeltaBuilder(ctx, gs, userID, containerID, options)
+		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID, options)
 	} else {
-		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, gs.Adapter())
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
 	}
 
-	return &eventDeltaPager{gs, userID, containerID, builder, options}, nil
+	return &eventDeltaPager{c.Stable, userID, containerID, builder, options}, nil
 }
 
 func getEventDeltaBuilder(
@@ -571,12 +569,12 @@ func (c Events) GetAddedAndRemovedItemIDs(
 ) ([]string, []string, DeltaUpdate, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
 
-	pager, err := NewEventPager(ctx, c.Stable, userID, containerID, immutableIDs)
+	pager, err := c.NewEventPager(ctx, userID, containerID, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
 	}
 
-	deltaPager, err := NewEventDeltaPager(ctx, c.Stable, userID, containerID, oldDelta, immutableIDs)
+	deltaPager, err := c.NewEventDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}

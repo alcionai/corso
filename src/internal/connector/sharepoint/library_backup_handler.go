@@ -41,5 +41,5 @@ func (h libraryBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType)
 func (h libraryBackupHandler) DrivePager(
 	resourceOwner string, fields []string,
 ) api.DrivePager {
-	return api.NewSiteDrivePager(nil, resourceOwner, fields)
+	return h.ac.NewSiteDrivePager(resourceOwner, fields)
 }
