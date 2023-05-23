@@ -137,7 +137,7 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: ${{ github.workspace }}/testlog/ci-testlogging.log
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/ci-testlogging.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
@@ -218,7 +218,7 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ${{ github.workspace }}/testlog/unit-testlogging.log
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/unit-testlogging.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
