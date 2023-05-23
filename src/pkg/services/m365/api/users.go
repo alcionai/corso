@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -261,29 +260,29 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	mfs, err := c.GetMailFolders(ctx, userID, options)
 	if err != nil {
+		logger.CtxErr(ctx, err).Error("getting user's mail folders")
+
 		if graph.IsErrUserNotFound(err) {
-			logger.CtxErr(ctx, err).Error("user not found")
-			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceOwnerNotFound, err))
+			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
-		if !graph.IsErrExchangeMailFolderNotFound(err) ||
-			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
-			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-			return nil, err
+		if !graph.IsErrExchangeMailFolderNotFound(err) {
+			return nil, clues.Stack(err)
 		}
 
-		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
 		delete(userInfo.ServicesEnabled, path.ExchangeService)
 	}
 
 	if _, err := c.GetDrives(ctx, userID); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
-			logger.CtxErr(ctx, err).Error("getting user's drives")
+		logger.CtxErr(ctx, err).Error("getting user's drives")
 
-			return nil, graph.Wrap(ctx, err, "getting user's drives")
+		if graph.IsErrUserNotFound(err) {
+			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
-		logger.Ctx(ctx).Info("resource owner does not have a drive")
+		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+			return nil, clues.Stack(err)
+		}
 
 		delete(userInfo.ServicesEnabled, path.OneDriveService)
 	}
