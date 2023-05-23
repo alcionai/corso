@@ -236,6 +236,14 @@ jobs:
           -timeout 15m  \
           ./... \
           2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
+            
+      - name: pwd
+        if: always()
+        run: pwd
+
+      - name: ls
+        if: always()
+        run: ls ./
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -325,6 +333,14 @@ jobs:
           -timeout 15m  \
           ./... \
           2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+      
+      - name: pwd
+        if: always()
+        run: pwd
+
+      - name: ls
+        if: always()
+        run: ls ./
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
