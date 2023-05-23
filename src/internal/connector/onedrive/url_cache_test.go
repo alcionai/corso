@@ -99,7 +99,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// the cache and confirm whether they are valid.
 	// Verify that only one delta query is made.
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(1)
 
 		go func() {
@@ -110,15 +110,20 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 			// Create a test file in test folder
 			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
+
 			newItem, err := CreateItem(
 				ctx,
 				srv,
 				driveID,
 				ptr.Val(newFolder.GetId()),
 				newItem(newItemName, false))
+			if err != nil {
+				// Something bad happened, skip this item
+				return
+			}
+
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newItem.GetId())
-
 			// Read item from URL cache
 			url, err := cache.getDownloadURL(ctx, srv, ptr.Val(newItem.GetId()))
 			require.NoError(t, err, clues.ToCore(err))

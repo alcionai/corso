@@ -21,7 +21,6 @@ type itemProperties struct {
 }
 
 // urlCache caches download URLs for drive items
-// Scope: per drive
 type urlCache struct {
 	// urlMap stores Item ID -> download URL map
 	urlMap          map[string]itemProperties
@@ -29,8 +28,8 @@ type urlCache struct {
 	refreshInterval time.Duration
 	// rwLock protects urlMap and lastRefreshTime
 	rwLock sync.RWMutex
-	// refreshSemaphore limits the number of concurrent cache refreshes
-	refreshSemaphore chan struct{}
+	// refreshMutex serializes concurrent cache refreshes
+	refreshMutex sync.Mutex
 
 	driveID         string
 	deltaQueryCount int
@@ -75,12 +74,13 @@ func newURLCache(
 	) itemPager,
 ) *urlCache {
 	return &urlCache{
-		urlMap:           make(map[string]itemProperties),
-		refreshSemaphore: make(chan struct{}, 1),
-		driveID:          driveID,
-		refreshInterval:  refreshInterval,
-		driveEnumerator:  driveEnumerator,
-		itemPagerFunc:    itemPagerFunc,
+		urlMap:          make(map[string]itemProperties),
+		lastRefreshTime: time.Time{},
+		driveID:         driveID,
+		refreshInterval: refreshInterval,
+		driveEnumerator: driveEnumerator,
+		itemPagerFunc:   itemPagerFunc,
+		refreshMutex:    sync.Mutex{},
 	}
 }
 
@@ -113,8 +113,8 @@ func (uc *urlCache) getDownloadURL(
 	return url, nil
 }
 
-// needsRefresh returns true if the cache is empty or if > 1 hr has elapsed since
-// last refresh
+// needsRefresh returns true if the cache is empty or if refresh interval has
+// elapsed
 func (uc *urlCache) needsRefresh() bool {
 	uc.rwLock.RLock()
 	defer uc.rwLock.RUnlock()
@@ -123,17 +123,14 @@ func (uc *urlCache) needsRefresh() bool {
 }
 
 // refreshCache refreshes the URL cache by performing a delta query.
-// It allows only one concurrent refresh at a time.
 func (uc *urlCache) refreshCache(
 	ctx context.Context,
 	svc graph.Servicer,
 ) error {
-	if uc.refreshSemaphore == nil {
-		return clues.New("refresh semaphore is nil")
-	}
-
-	uc.refreshSemaphore <- struct{}{}
-	defer func() { <-uc.refreshSemaphore }()
+	// Acquire binary semaphore to prevent multiple threads from refreshing the
+	// cache at the same time
+	uc.refreshMutex.Lock()
+	defer uc.refreshMutex.Unlock()
 
 	// If the cache was refreshed by another thread while we were waiting
 	// to acquire semaphore, return
@@ -141,20 +138,20 @@ func (uc *urlCache) refreshCache(
 		return nil
 	}
 
-	startTime := time.Now()
+	// Hold lock in write mode for the entire duration of the refresh.
+	// This is to prevent other threads from reading the cache while it is
+	// being updated
+	uc.rwLock.Lock()
+	defer uc.rwLock.Unlock()
 
+	// Issue a delta query to graph
 	err := uc.deltaQuery(ctx, svc)
 	if err != nil {
 		return err
 	}
 
-	// If the delta query is very large, it may take a long time to complete.
-	// Set last refresh time to the start time of the delta query to allow
-	// issuing next refresh sooner
-	err = uc.updateRefreshTime(startTime)
-	if err != nil {
-		return err
-	}
+	// Update last refresh time
+	uc.lastRefreshTime = time.Now()
 
 	return nil
 }
@@ -185,19 +182,6 @@ func (uc *urlCache) deltaQuery(
 	}
 
 	uc.deltaQueryCount++
-
-	return nil
-}
-
-func (uc *urlCache) updateRefreshTime(t time.Time) error {
-	uc.rwLock.Lock()
-	defer uc.rwLock.Unlock()
-
-	if uc.lastRefreshTime.After(t) {
-		return clues.New("last refresh time is after the specified time")
-	}
-
-	uc.lastRefreshTime = t
 
 	return nil
 }
@@ -283,15 +267,13 @@ func (uc *urlCache) readCache(
 }
 
 // updateCache will cache the download URL for each item
+// Assumes that rwLock is held by caller in write mode
 // TODO: Add debug logs and more error handling
 func (uc *urlCache) updateCache(
 	ctx context.Context,
 	items []models.DriveItemable,
 	errs *fault.Bus,
 ) error {
-	uc.rwLock.Lock()
-	defer uc.rwLock.Unlock()
-
 	el := errs.Local()
 
 	for _, item := range items {
