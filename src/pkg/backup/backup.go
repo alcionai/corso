@@ -167,21 +167,23 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID      model.StableID `json:"id"`
-	Status  string         `json:"status"`
-	Version string         `json:"version"`
-	Owner   string         `json:"owner"`
-	Stats   backupStats    `json:"stats"`
+	ID        model.StableID `json:"id"`
+	Status    string         `json:"status"`
+	Version   string         `json:"version"`
+	Owner     string         `json:"owner"`
+	OwnerName string         `json:"ownerName"`
+	Stats     backupStats    `json:"stats"`
 }
 
 // ToPrintable reduces the Backup to its minimally printable details.
 func (b Backup) ToPrintable() Printable {
 	return Printable{
-		ID:      b.ID,
-		Status:  b.Status,
-		Version: "0",
-		Owner:   b.Selector.DiscreteOwner,
-		Stats:   b.toStats(),
+		ID:        b.ID,
+		Status:    b.Status,
+		Version:   "0",
+		Owner:     b.Selector.DiscreteOwner,
+		OwnerName: b.Selector.DiscreteOwnerName,
+		Stats:     b.toStats(),
 	}
 }
 
