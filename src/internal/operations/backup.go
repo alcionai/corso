@@ -317,6 +317,14 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
+	noMetaDataFile := deets.Details().DetailsModel.FilterMetaFiles().Entries
+	writeStats.TotalFileCount = len(noMetaDataFile)
+	//TODO: get the size if its onedrive and put this code to another function
+	for _, file := range noMetaDataFile {
+		// if
+		writeStats.TotalUploadedBytes += file.ItemInfo.OneDrive.Size
+	}
+
 	opStats.k = writeStats
 
 	err = mergeDetails(
