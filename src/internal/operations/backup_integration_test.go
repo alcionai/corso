@@ -708,8 +708,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				incBO.Results.BackupID, "incremental backupID pre-declaration")
 		})
 	}
-
-	assert.Fail(suite.T(), "forced failure")
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
@@ -1319,8 +1317,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	_, expectDeets := deeTD.GetDeetsInBackup(t, ctx, bID, tenID, sel.ID(), svc, ws, ms, ss)
 	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets, false)
-
-	assert.Fail(t, "forced failure")
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
@@ -2057,8 +2053,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 	checkBackupIsInManifests(t, ctx, kw, &bo, sels, suite.site, path.LibrariesCategory)
-
-	assert.Fail(t, "forced failure")
 }
 
 // ---------------------------------------------------------------------------

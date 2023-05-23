@@ -169,8 +169,6 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 
 	userID := tester.M365UserID(suite.T())
 
-	assert.Fail(t, "forced fail")
-
 	tests := []struct {
 		name        string
 		bytes       []byte
