@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -90,39 +89,17 @@ type itemCollector func(
 ) error
 
 type itemPager interface {
-	GetPage(context.Context) (gapi.DeltaPageLinker, error)
+	GetPage(context.Context) (api.DeltaPageLinker, error)
 	SetNext(nextLink string)
 	Reset()
-	ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error)
+	ValuesIn(api.DeltaPageLinker) ([]models.DriveItemable, error)
 }
 
 func defaultItemPager(
 	servicer graph.Servicer,
 	driveID, link string,
 ) itemPager {
-	return api.NewItemPager(
-		servicer,
-		driveID,
-		link,
-		[]string{
-			"content.downloadUrl",
-			"createdBy",
-			"createdDateTime",
-			"file",
-			"folder",
-			"id",
-			"lastModifiedDateTime",
-			"name",
-			"package",
-			"parentReference",
-			"root",
-			"sharepointIds",
-			"size",
-			"deleted",
-			"malware",
-			"shared",
-		},
-	)
+	return api.NewItemPager(servicer, driveID, link, api.DriveItemSelectDefault())
 }
 
 // collectItems will enumerate all items in the specified drive and hand them to the
@@ -196,7 +173,7 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, err
 		}
 
-		nextLink, deltaLink := gapi.NextAndDeltaLink(page)
+		nextLink, deltaLink := api.NextAndDeltaLink(page)
 
 		if len(deltaLink) > 0 {
 			newDeltaURL = deltaLink

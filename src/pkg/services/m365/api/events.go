@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -84,12 +83,18 @@ func (c Events) GetContainerByID(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "setting event calendar options")
+	config := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
+			Select: idAnd("name", "owner"),
+		},
 	}
 
-	cal, err := service.Client().Users().ByUserId(userID).Calendars().ByCalendarId(containerID).Get(ctx, ofc)
+	cal, err := service.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -129,7 +134,7 @@ func (c Events) GetContainerByName(
 	cal := resp.GetValue()[0]
 	cd := CalendarDisplayable{Calendarable: cal}
 
-	if err := checkIDAndName(cd); err != nil {
+	if err := graph.CheckIDAndName(cd); err != nil {
 		return nil, err
 	}
 
@@ -144,25 +149,29 @@ func (c Events) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		err      error
-		event    models.Eventable
-		header   = buildPreferHeaders(false, immutableIDs)
-		itemOpts = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
-			Headers: header,
+		err    error
+		event  models.Eventable
+		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 	)
 
-	event, err = c.Stable.Client().Users().ByUserId(user).Events().ByEventId(itemID).Get(ctx, itemOpts)
+	event, err = c.Stable.Client().
+		Users().
+		ByUserId(user).
+		Events().
+		ByEventId(itemID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
 	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-		options := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+		config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
-			Headers: header,
+			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		}
 
 		attached, err := c.LargeItem.
@@ -172,7 +181,7 @@ func (c Events) GetItem(
 			Events().
 			ByEventId(itemID).
 			Attachments().
-			Get(ctx, options)
+			Get(ctx, config)
 		if err != nil {
 			return nil, nil, graph.Wrap(ctx, err, "event attachment download")
 		}
@@ -191,7 +200,7 @@ func (c Events) GetItem(
 func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
-	fn func(graph.CacheFolder) error,
+	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
 	service, err := c.Service()
@@ -199,20 +208,25 @@ func (c Events) EnumerateContainers(
 		return graph.Stack(ctx, err)
 	}
 
-	ofc, err := optionsForCalendars([]string{"name"})
-	if err != nil {
-		return graph.Wrap(ctx, err, "setting calendar options")
-	}
-
-	el := errs.Local()
-	builder := service.Client().Users().ByUserId(userID).Calendars()
+	var (
+		el     = errs.Local()
+		config = &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
+				Select: idAnd("name"),
+			},
+		}
+		builder = service.Client().
+			Users().
+			ByUserId(userID).
+			Calendars()
+	)
 
 	for {
 		if el.Failure() != nil {
 			break
 		}
 
-		resp, err := builder.Get(ctx, ofc)
+		resp, err := builder.Get(ctx, config)
 		if err != nil {
 			return graph.Stack(ctx, err)
 		}
@@ -223,7 +237,7 @@ func (c Events) EnumerateContainers(
 			}
 
 			cd := CalendarDisplayable{Calendarable: cal}
-			if err := checkIDAndName(cd); err != nil {
+			if err := graph.CheckIDAndName(cd); err != nil {
 				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
@@ -237,7 +251,7 @@ func (c Events) EnumerateContainers(
 				cd,
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
-			if err := fn(temp); err != nil {
+			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
@@ -277,7 +291,7 @@ func NewEventPager(
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	builder := gs.Client().Users().ByUserId(user).Calendars().ByCalendarId(calendarID).Events()
@@ -285,13 +299,13 @@ func NewEventPager(
 	return &eventPager{gs, builder, options}, nil
 }
 
-func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *eventPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
+	return EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
 }
 
 func (p *eventPager) setNext(nextLink string) {
@@ -301,7 +315,7 @@ func (p *eventPager) setNext(nextLink string) {
 // non delta pagers don't need reset
 func (p *eventPager) reset(context.Context) {}
 
-func (p *eventPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *eventPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 
@@ -326,7 +340,7 @@ func NewEventDeltaPager(
 	immutableIDs bool,
 ) (itemPager, error) {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
@@ -361,7 +375,7 @@ func getEventDeltaBuilder(
 	return builder
 }
 
-func (p *eventDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *eventDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -378,7 +392,7 @@ func (p *eventDeltaPager) reset(ctx context.Context) {
 	p.builder = getEventDeltaBuilder(ctx, p.gs, p.user, p.calendarID, p.options)
 }
 
-func (p *eventDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *eventDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 

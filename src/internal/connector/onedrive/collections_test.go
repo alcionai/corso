@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -1205,7 +1204,7 @@ type mockItemPager struct {
 	getIdx   int
 }
 
-func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
+func (p *mockItemPager) GetPage(context.Context) (api.DeltaPageLinker, error) {
 	if len(p.toReturn) <= p.getIdx {
 		return nil, assert.AnError
 	}
@@ -1222,7 +1221,7 @@ func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
 func (p *mockItemPager) SetNext(string) {}
 func (p *mockItemPager) Reset()         {}
 
-func (p *mockItemPager) ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *mockItemPager) ValuesIn(api.DeltaPageLinker) ([]models.DriveItemable, error) {
 	idx := p.getIdx
 	if idx > 0 {
 		// Return values lag by one since we increment in GetPage().

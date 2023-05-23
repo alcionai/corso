@@ -2,13 +2,16 @@ package m365
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -47,12 +50,12 @@ type UserNoInfo struct {
 func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 	errs := fault.New(true)
 
-	users, err := Users(ctx, acct, errs)
+	us, err := Users(ctx, acct, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	return users, errs.Failure()
+	return us, errs.Failure()
 }
 
 // UsersCompatNoInfo returns a list of users in the specified M365 tenant.
@@ -61,12 +64,72 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo, error) {
 	errs := fault.New(true)
 
-	users, err := usersNoInfo(ctx, acct, errs)
+	us, err := usersNoInfo(ctx, acct, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	return users, errs.Failure()
+	return us, errs.Failure()
+}
+
+// UserHasMailbox returns true if the user has an exchange mailbox enabled
+// false otherwise, and a nil pointer and an error in case of error
+func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
+	uapi, err := makeUserAPI(acct)
+	if err != nil {
+		return false, clues.Wrap(err, "getting mailbox").WithClues(ctx)
+	}
+
+	requestParameters := users.ItemMailFoldersRequestBuilderGetQueryParameters{
+		Select: []string{"id"},
+		Top:    ptr.To[int32](1), // if we get any folders, then we have access.
+	}
+
+	options := users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: &requestParameters,
+	}
+
+	_, err = uapi.GetMailFolders(ctx, userID, options)
+	if err != nil {
+		if graph.IsErrUserNotFound(err) {
+			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
+		if !graph.IsErrExchangeMailFolderNotFound(err) ||
+			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
+			return false, err
+		}
+
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// UserHasDrives returns true if the user has any drives
+// false otherwise, and a nil pointer and an error in case of error
+func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
+	uapi, err := makeUserAPI(acct)
+	if err != nil {
+		return false, clues.Wrap(err, "getting drives").WithClues(ctx)
+	}
+
+	_, err = uapi.GetDrives(ctx, userID)
+	if err != nil {
+		if graph.IsErrUserNotFound(err) {
+			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
+		if !graph.IsErrExchangeMailFolderNotFound(err) ||
+			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) ||
+			clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+			return false, err
+		}
+
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info
@@ -78,14 +141,14 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
 	}
 
-	users, err := discovery.Users(ctx, uapi, errs)
+	us, err := discovery.Users(ctx, uapi, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]*UserNoInfo, 0, len(users))
+	ret := make([]*UserNoInfo, 0, len(us))
 
-	for _, u := range users {
+	for _, u := range us {
 		pu, err := parseUser(u)
 		if err != nil {
 			return nil, clues.Wrap(err, "formatting user data")
@@ -110,14 +173,14 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
 	}
 
-	users, err := discovery.Users(ctx, uapi, errs)
+	us, err := discovery.Users(ctx, uapi, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]*User, 0, len(users))
+	ret := make([]*User, 0, len(us))
 
-	for _, u := range users {
+	for _, u := range us {
 		pu, err := parseUser(u)
 		if err != nil {
 			return nil, clues.Wrap(err, "formatting user data")

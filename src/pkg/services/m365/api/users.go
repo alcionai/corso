@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -120,12 +121,6 @@ func (ui *UserInfo) CanMakeDeltaQueries() bool {
 // methods
 // ---------------------------------------------------------------------------
 
-const (
-	userSelectID            = "id"
-	userSelectPrincipalName = "userPrincipalName"
-	userSelectDisplayName   = "displayName"
-)
-
 // Filter out both guest users, and (for on-prem installations) non-synced users.
 // The latter filter makes an assumption that no on-prem users are guests; this might
 // require more fine-tuned controls in the future.
@@ -143,13 +138,10 @@ var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
 var t = true
 
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
-	headers := abstractions.NewRequestHeaders()
-	headers.Add("ConsistencyLevel", "eventual")
-
 	return &users.UsersRequestBuilderGetRequestConfiguration{
-		Headers: headers,
+		Headers: newEventualConsistencyHeaders(),
 		QueryParameters: &users.UsersRequestBuilderGetQueryParameters{
-			Select: []string{userSelectID, userSelectPrincipalName, userSelectDisplayName},
+			Select: idAnd(userPrincipalName, displayName),
 			Filter: fs,
 			Count:  &t,
 		},
@@ -259,7 +251,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	userInfo := newUserInfo()
 
 	requestParameters := users.ItemMailFoldersRequestBuilderGetQueryParameters{
-		Select: []string{"id"},
+		Select: idAnd(),
 		Top:    ptr.To[int32](1), // if we get any folders, then we have access.
 	}
 
@@ -394,90 +386,90 @@ func (c Users) getMailboxSettings(
 
 	additionalData := settings.GetAdditionalData()
 
-	mi.ArchiveFolder, err = toString(ctx, "archiveFolder", additionalData)
+	mi.ArchiveFolder, err = str.AnyValueToString("archiveFolder", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.Timezone, err = toString(ctx, "timeZone", additionalData)
+	mi.Timezone, err = str.AnyValueToString("timeZone", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.DateFormat, err = toString(ctx, "dateFormat", additionalData)
+	mi.DateFormat, err = str.AnyValueToString("dateFormat", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.TimeFormat, err = toString(ctx, "timeFormat", additionalData)
+	mi.TimeFormat, err = str.AnyValueToString("timeFormat", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.Purpose, err = toString(ctx, "userPurpose", additionalData)
+	mi.Purpose, err = str.AnyValueToString("userPurpose", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.DelegateMeetMsgDeliveryOpt, err = toString(ctx, "delegateMeetingMessageDeliveryOptions", additionalData)
+	mi.DelegateMeetMsgDeliveryOpt, err = str.AnyValueToString("delegateMeetingMessageDeliveryOptions", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
 	// decode automatic replies settings
-	replySetting, err := toT[map[string]any](ctx, "automaticRepliesSetting", additionalData)
+	replySetting, err := tform.AnyValueToT[map[string]any]("automaticRepliesSetting", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.Status, err = toString(ctx, "status", replySetting)
+	mi.AutomaticRepliesSetting.Status, err = str.AnyValueToString("status", replySetting)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.ExternalAudience, err = toString(ctx, "externalAudience", replySetting)
+	mi.AutomaticRepliesSetting.ExternalAudience, err = str.AnyValueToString("externalAudience", replySetting)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.ExternalReplyMessage, err = toString(ctx, "externalReplyMessage", replySetting)
+	mi.AutomaticRepliesSetting.ExternalReplyMessage, err = str.AnyValueToString("externalReplyMessage", replySetting)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.InternalReplyMessage, err = toString(ctx, "internalReplyMessage", replySetting)
+	mi.AutomaticRepliesSetting.InternalReplyMessage, err = str.AnyValueToString("internalReplyMessage", replySetting)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
 	// decode scheduledStartDateTime
-	startDateTime, err := toT[map[string]any](ctx, "scheduledStartDateTime", replySetting)
+	startDateTime, err := tform.AnyValueToT[map[string]any]("scheduledStartDateTime", replySetting)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.ScheduledStartDateTime.DateTime, err = toString(ctx, "dateTime", startDateTime)
+	mi.AutomaticRepliesSetting.ScheduledStartDateTime.DateTime, err = str.AnyValueToString("dateTime", startDateTime)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.ScheduledStartDateTime.Timezone, err = toString(ctx, "timeZone", startDateTime)
+	mi.AutomaticRepliesSetting.ScheduledStartDateTime.Timezone, err = str.AnyValueToString("timeZone", startDateTime)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	endDateTime, err := toT[map[string]any](ctx, "scheduledEndDateTime", replySetting)
+	endDateTime, err := tform.AnyValueToT[map[string]any]("scheduledEndDateTime", replySetting)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.ScheduledEndDateTime.DateTime, err = toString(ctx, "dateTime", endDateTime)
+	mi.AutomaticRepliesSetting.ScheduledEndDateTime.DateTime, err = str.AnyValueToString("dateTime", endDateTime)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.AutomaticRepliesSetting.ScheduledEndDateTime.Timezone, err = toString(ctx, "timeZone", endDateTime)
+	mi.AutomaticRepliesSetting.ScheduledEndDateTime.Timezone, err = str.AnyValueToString("timeZone", endDateTime)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
 	// Language decode
-	language, err := toT[map[string]any](ctx, "language", additionalData)
+	language, err := tform.AnyValueToT[map[string]any]("language", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.Language.DisplayName, err = toString(ctx, "displayName", language)
+	mi.Language.DisplayName, err = str.AnyValueToString("displayName", language)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.Language.Locale, err = toString(ctx, "locale", language)
+	mi.Language.Locale, err = str.AnyValueToString("locale", language)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
 	// working hours
-	workingHours, err := toT[map[string]any](ctx, "workingHours", additionalData)
+	workingHours, err := tform.AnyValueToT[map[string]any]("workingHours", additionalData)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.WorkingHours.StartTime, err = toString(ctx, "startTime", workingHours)
+	mi.WorkingHours.StartTime, err = str.AnyValueToString("startTime", workingHours)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.WorkingHours.EndTime, err = toString(ctx, "endTime", workingHours)
+	mi.WorkingHours.EndTime, err = str.AnyValueToString("endTime", workingHours)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	timeZone, err := toT[map[string]any](ctx, "timeZone", workingHours)
+	timeZone, err := tform.AnyValueToT[map[string]any]("timeZone", workingHours)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	mi.WorkingHours.TimeZone.Name, err = toString(ctx, "name", timeZone)
+	mi.WorkingHours.TimeZone.Name, err = str.AnyValueToString("name", timeZone)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
-	days, err := toT[[]any](ctx, "daysOfWeek", workingHours)
+	days, err := tform.AnyValueToT[[]any]("daysOfWeek", workingHours)
 	mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 
 	for _, day := range days {
-		s, err := anyToString(ctx, "dayOfTheWeek", day)
+		s, err := str.AnyToString(day)
 		mi.ErrGetMailBoxSetting = appendIfErr(mi.ErrGetMailBoxSetting, err)
 		mi.WorkingHours.DaysOfWeek = append(mi.WorkingHours.DaysOfWeek, s)
 	}
@@ -509,54 +501,4 @@ func validateUser(item models.Userable) error {
 	}
 
 	return nil
-}
-
-func toString(ctx context.Context, key string, data map[string]any) (string, error) {
-	ctx = clues.Add(ctx, "setting_name", key)
-
-	if len(data) == 0 {
-		logger.Ctx(ctx).Info("not found: ", key)
-		return "", ErrMailBoxSettingsNotFound
-	}
-
-	return anyToString(ctx, key, data[key])
-}
-
-func anyToString(ctx context.Context, key string, val any) (string, error) {
-	if val == nil {
-		logger.Ctx(ctx).Info("nil value: ", key)
-		return "", ErrMailBoxSettingsNotFound
-	}
-
-	sp, ok := val.(*string)
-	if !ok {
-		logger.Ctx(ctx).Info("value is not a *string: ", key)
-		return "", ErrMailBoxSettingsNotFound
-	}
-
-	return ptr.Val(sp), nil
-}
-
-func toT[T any](ctx context.Context, key string, data map[string]any) (T, error) {
-	ctx = clues.Add(ctx, "setting_name", key)
-
-	if len(data) == 0 {
-		logger.Ctx(ctx).Info("not found: ", key)
-		return *new(T), ErrMailBoxSettingsNotFound
-	}
-
-	val := data[key]
-
-	if data == nil {
-		logger.Ctx(ctx).Info("nil value: ", key)
-		return *new(T), ErrMailBoxSettingsNotFound
-	}
-
-	value, ok := val.(T)
-	if !ok {
-		logger.Ctx(ctx).Info(fmt.Sprintf("unexpected type for %s: %T", key, val))
-		return *new(T), ErrMailBoxSettingsNotFound
-	}
-
-	return value, nil
 }

@@ -102,6 +102,36 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 	assert.Equal(t, "user", info.Mailbox.Purpose)
 }
 
+func (suite *M365IntegrationSuite) TestUserHasMailbox() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		uid  = tester.M365UserID(t)
+	)
+
+	enabled, err := m365.UserHasMailbox(ctx, acct, uid)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, enabled)
+}
+
+func (suite *M365IntegrationSuite) TestUserHasDrive() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		uid  = tester.M365UserID(t)
+	)
+
+	enabled, err := m365.UserHasDrives(ctx, acct, uid)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, enabled)
+}
+
 func (suite *M365IntegrationSuite) TestSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
