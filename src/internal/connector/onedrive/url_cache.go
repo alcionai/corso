@@ -35,8 +35,8 @@ type urlCache struct {
 	// TODO: Handle error bus properly
 	Errors *fault.Bus
 
-	// TODO: Couple two below together
 	driveEnumerator driveEnumeratorFunc
+	svc             graph.Servicer
 	itemPagerFunc   func(
 		servicer graph.Servicer,
 		driveID, link string,
@@ -66,26 +66,66 @@ func newURLCache(
 	driveID string,
 	refreshInterval time.Duration,
 	driveEnumerator driveEnumeratorFunc,
+	svc graph.Servicer,
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
 	) itemPager,
-) *urlCache {
-	return &urlCache{
-		urlMap:          make(map[string]itemProperties),
-		lastRefreshTime: time.Time{},
-		driveID:         driveID,
-		refreshInterval: refreshInterval,
-		driveEnumerator: driveEnumerator,
-		itemPagerFunc:   itemPagerFunc,
+) (*urlCache, error) {
+	err := validateCacheParams(driveID, refreshInterval, driveEnumerator, svc, itemPagerFunc)
+	if err != nil {
+		return nil, clues.Wrap(err, "invalid cache parameters")
 	}
+
+	return &urlCache{
+			urlMap:          make(map[string]itemProperties),
+			lastRefreshTime: time.Time{},
+			driveID:         driveID,
+			refreshInterval: refreshInterval,
+			driveEnumerator: driveEnumerator,
+			svc:             svc,
+			itemPagerFunc:   itemPagerFunc,
+		},
+		nil
+}
+
+// validateCacheParams validates the parameters passed to newURLCache
+func validateCacheParams(
+	driveID string,
+	refreshInterval time.Duration,
+	driveEnumerator driveEnumeratorFunc,
+	svc graph.Servicer,
+	itemPagerFunc func(
+		servicer graph.Servicer,
+		driveID, link string,
+	) itemPager,
+) error {
+	if len(driveID) == 0 {
+		return clues.New("drive id is empty")
+	}
+
+	if refreshInterval < 0 {
+		return clues.New("invalid refresh interval")
+	}
+
+	if driveEnumerator == nil {
+		return clues.New("nil drive enumerator")
+	}
+
+	if svc == nil {
+		return clues.New("nil graph servicer")
+	}
+
+	if itemPagerFunc == nil {
+		return clues.New("nil item pager")
+	}
+
+	return nil
 }
 
 // getItemProps returns the item properties for the specified drive item ID
-// TODO: Move graph.Servicer to urlCache struct?
 func (uc *urlCache) getItemProperties(
 	ctx context.Context,
-	svc graph.Servicer,
 	itemID string,
 ) (*itemProperties, error) {
 	if len(itemID) == 0 {
@@ -94,8 +134,9 @@ func (uc *urlCache) getItemProperties(
 
 	ctx = clues.Add(ctx, "drive_id", uc.driveID)
 
+	// Lazy refresh
 	if uc.needsRefresh() {
-		err := uc.refreshCache(ctx, svc)
+		err := uc.refreshCache(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -121,7 +162,6 @@ func (uc *urlCache) needsRefresh() bool {
 // refreshCache refreshes the URL cache by performing a delta query.
 func (uc *urlCache) refreshCache(
 	ctx context.Context,
-	svc graph.Servicer,
 ) error {
 	// Acquire mutex to prevent multiple threads from refreshing the
 	// cache at the same time
@@ -143,7 +183,7 @@ func (uc *urlCache) refreshCache(
 	// Issue a delta query to graph
 	logger.Ctx(ctx).Debugw("refreshing url cache")
 
-	err := uc.deltaQuery(ctx, svc)
+	err := uc.deltaQuery(ctx)
 	if err != nil {
 		return err
 	}
@@ -160,7 +200,6 @@ func (uc *urlCache) refreshCache(
 // Remove it and use collectDriveItems directly
 func (uc *urlCache) deltaQuery(
 	ctx context.Context,
-	svc graph.Servicer,
 ) error {
 	driveEnumerator := uc.driveEnumerator
 	if driveEnumerator == nil {
@@ -171,7 +210,7 @@ func (uc *urlCache) deltaQuery(
 
 	err := driveEnumerator(
 		ctx,
-		uc.itemPagerFunc(svc, uc.driveID, ""),
+		uc.itemPagerFunc(uc.svc, uc.driveID, ""),
 		uc.updateCache,
 		"",
 		uc.Errors,

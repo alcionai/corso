@@ -59,18 +59,18 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	defer flush()
 
 	t := suite.T()
-	srv := suite.service
+	svc := suite.service
 	driveID := suite.driveID
 
 	// Create a new test folder
-	root, err := srv.Client().Drives().ByDriveId(driveID).Root().Get(ctx, nil)
+	root, err := svc.Client().Drives().ByDriveId(driveID).Root().Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
 
 	newFolder, err := CreateItem(
 		ctx,
-		srv,
+		svc,
 		driveID,
 		ptr.Val(root.GetId()),
 		newItem(newFolderName, true))
@@ -95,7 +95,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 		item, err := CreateItem(
 			ctx,
-			srv,
+			svc,
 			driveID,
 			ptr.Val(newFolder.GetId()),
 			newItem(newItemName, false))
@@ -107,12 +107,14 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		items = append(items, item)
 	}
 
-	// Create a new URL cache
-	cache := newURLCache(
+	// Create a new URL cache with a long TTL
+	cache, err := newURLCache(
 		suite.driveID,
 		1*time.Hour,
 		collectDriveItems,
+		svc,
 		defaultItemPager)
+	require.NoError(t, err, clues.ToCore(err))
 
 	// Launch parallel requests to the cache, one per item
 	var wg sync.WaitGroup
@@ -125,7 +127,6 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			// Read item from URL cache
 			itemProps, err := cache.getItemProperties(
 				ctx,
-				srv,
 				ptr.Val(items[i].GetId()))
 
 			require.NoError(t, err, clues.ToCore(err))
