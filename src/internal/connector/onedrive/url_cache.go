@@ -23,13 +23,13 @@ type itemProperties struct {
 // urlCache caches download URLs for drive items
 type urlCache struct {
 	driveID string
-	// urlMap stores Item ID -> download URL map
+	// urlMap stores Item ID -> item property map
 	urlMap          map[string]itemProperties
 	lastRefreshTime time.Time
 	refreshInterval time.Duration
-	// rwLock protects urlMap and lastRefreshTime
-	rwLock sync.RWMutex
-	// refreshMutex serializes concurrent cache refreshes
+	// cacheLock protects urlMap and lastRefreshTime
+	cacheLock sync.RWMutex
+	// refreshMutex serializes cache refresh attempts
 	refreshMutex    sync.Mutex
 	deltaQueryCount int
 	// TODO: Handle error bus properly
@@ -61,8 +61,7 @@ type collectorFunc func(
 	errs *fault.Bus,
 ) error
 
-// newURLache creates a new URL cache for the specified drive
-// TODO: move graph servicer to cache
+// newURLache creates a new URL cache for the specified drive ID
 func newURLCache(
 	driveID string,
 	refreshInterval time.Duration,
@@ -79,34 +78,32 @@ func newURLCache(
 		refreshInterval: refreshInterval,
 		driveEnumerator: driveEnumerator,
 		itemPagerFunc:   itemPagerFunc,
-		refreshMutex:    sync.Mutex{},
 	}
 }
 
-// getDownloadUrl returns the download URL for the specified drive item
-// TODO: Any cache error should not be treated as a fatal error by client
-// TODO: How to convey deleted item to client?
+// getItemProps returns the item properties for the specified drive item ID
 // TODO: Move graph.Servicer to urlCache struct?
-// TODO: Add info logs
-func (uc *urlCache) getDownloadURL(
+func (uc *urlCache) getItemProperties(
 	ctx context.Context,
 	svc graph.Servicer,
 	itemID string,
-) (string, error) {
+) (*itemProperties, error) {
 	if len(itemID) == 0 {
-		return "", clues.New("item id is empty")
+		return nil, clues.New("item id is empty")
 	}
+
+	ctx = clues.Add(ctx, "drive_id", uc.driveID)
 
 	if uc.needsRefresh() {
 		err := uc.refreshCache(ctx, svc)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	url, err := uc.readCache(ctx, itemID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return url, nil
@@ -115,8 +112,8 @@ func (uc *urlCache) getDownloadURL(
 // needsRefresh returns true if the cache is empty or if refresh interval has
 // elapsed
 func (uc *urlCache) needsRefresh() bool {
-	uc.rwLock.RLock()
-	defer uc.rwLock.RUnlock()
+	uc.cacheLock.RLock()
+	defer uc.cacheLock.RUnlock()
 
 	return len(uc.urlMap) == 0 || time.Since(uc.lastRefreshTime) > uc.refreshInterval
 }
@@ -126,29 +123,32 @@ func (uc *urlCache) refreshCache(
 	ctx context.Context,
 	svc graph.Servicer,
 ) error {
-	// Acquire binary semaphore to prevent multiple threads from refreshing the
+	// Acquire mutex to prevent multiple threads from refreshing the
 	// cache at the same time
 	uc.refreshMutex.Lock()
 	defer uc.refreshMutex.Unlock()
 
 	// If the cache was refreshed by another thread while we were waiting
-	// to acquire semaphore, return
+	// to acquire mutex, return
 	if !uc.needsRefresh() {
 		return nil
 	}
 
-	// Hold lock in write mode for the entire duration of the refresh.
+	// Hold cache lock in write mode for the entire duration of the refresh.
 	// This is to prevent other threads from reading the cache while it is
-	// being updated
-	uc.rwLock.Lock()
-	defer uc.rwLock.Unlock()
+	// being updated page by page
+	uc.cacheLock.Lock()
+	defer uc.cacheLock.Unlock()
 
 	// Issue a delta query to graph
+	logger.Ctx(ctx).Debugw("refreshing url cache")
+
 	err := uc.deltaQuery(ctx, svc)
 	if err != nil {
 		return err
 	}
 
+	logger.Ctx(ctx).Debugw("url cache refresh complete")
 	// Update last refresh time
 	uc.lastRefreshTime = time.Now()
 
@@ -162,12 +162,12 @@ func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 	svc graph.Servicer,
 ) error {
-	ictx := clues.Add(ctx, "drive_id", uc.driveID)
-
 	driveEnumerator := uc.driveEnumerator
 	if driveEnumerator == nil {
 		driveEnumerator = collectDriveItems
 	}
+
+	logger.Ctx(ctx).Debugw("Starting delta query")
 
 	err := driveEnumerator(
 		ctx,
@@ -177,7 +177,7 @@ func (uc *urlCache) deltaQuery(
 		uc.Errors,
 	)
 	if err != nil {
-		return clues.Wrap(err, "delta query failed").WithClues(ictx)
+		return clues.Wrap(err, "delta query failed").WithClues(ctx)
 	}
 
 	uc.deltaQueryCount++
@@ -246,28 +246,22 @@ func collectDriveItems(
 func (uc *urlCache) readCache(
 	ctx context.Context,
 	itemID string,
-) (string, error) {
-	uc.rwLock.RLock()
-	defer uc.rwLock.RUnlock()
+) (*itemProperties, error) {
+	uc.cacheLock.RLock()
+	defer uc.cacheLock.RUnlock()
 
-	ictx := clues.Add(ctx, "item_id", itemID)
+	ctx = clues.Add(ctx, "item_id", itemID)
 
-	val, ok := uc.urlMap[itemID]
+	itemProps, ok := uc.urlMap[itemID]
 	if !ok {
-		return "", clues.New("item not found in cache").WithClues(ictx)
+		return nil, clues.New("item not found in cache").WithClues(ctx)
 	}
 
-	if val.isDeleted {
-		// TODO: standardize error
-		return "", clues.New("item is deleted").WithClues(ictx)
-	}
-
-	return val.downloadURL, nil
+	return &itemProps, nil
 }
 
-// updateCache will cache the download URL for each item
-// Assumes that rwLock is held by caller in write mode
-// TODO: Add debug logs and more error handling
+// updateCache consumes a slice of drive items and updates the url cache.
+// It assumes that cacheLock is held by caller in write mode
 func (uc *urlCache) updateCache(
 	ctx context.Context,
 	items []models.DriveItemable,
