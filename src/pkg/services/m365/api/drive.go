@@ -12,9 +12,44 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
-// ---------------------------------------------------------------------------
-// Drives
-// ---------------------------------------------------------------------------
+// generic drive item getter
+func GetDriveItem(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	di, err := srv.Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting item")
+	}
+
+	return di, nil
+}
+
+func GetItemPermission(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID, itemID string,
+) (models.PermissionCollectionResponseable, error) {
+	perm, err := service.
+		Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).
+		Permissions().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting item permissions").With("item_id", itemID)
+	}
+
+	return perm, nil
+}
 
 func GetUsersDrive(
 	ctx context.Context,
