@@ -51,7 +51,11 @@ func newURLCache(
 		driveID, link string,
 	) itemPager,
 ) (*urlCache, error) {
-	err := validateCacheParams(driveID, refreshInterval, svc, itemPagerFunc)
+	err := validateCacheParams(
+		driveID,
+		refreshInterval,
+		svc,
+		itemPagerFunc)
 	if err != nil {
 		return nil, clues.Wrap(err, "invalid cache parameters")
 	}
@@ -155,14 +159,14 @@ func (uc *urlCache) refreshCache(
 	defer uc.cacheLock.Unlock()
 
 	// Issue a delta query to graph
-	logger.Ctx(ctx).Debugw("refreshing url cache")
+	logger.Ctx(ctx).Debug("refreshing url cache")
 
 	err := uc.deltaQuery(ctx)
 	if err != nil {
 		return err
 	}
 
-	logger.Ctx(ctx).Debugw("url cache refresh complete")
+	logger.Ctx(ctx).Debug("url cache refresh complete")
 	// Update last refresh time
 	uc.lastRefreshTime = time.Now()
 
@@ -175,7 +179,7 @@ func (uc *urlCache) refreshCache(
 func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 ) error {
-	logger.Ctx(ctx).Debugw("Starting delta query")
+	logger.Ctx(ctx).Debug("starting delta query")
 
 	_, _, _, err := collectItems(
 		ctx,
@@ -192,6 +196,8 @@ func (uc *urlCache) deltaQuery(
 	}
 
 	uc.deltaQueryCount++
+
+	logger.Ctx(ctx).Debug("finished delta query")
 
 	return nil
 }
