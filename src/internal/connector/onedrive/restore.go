@@ -3,6 +3,7 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
@@ -33,7 +34,10 @@ import (
 // copyBufferSize is used for chunked upload
 // Microsoft recommends 5-10MB buffers
 // https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-const copyBufferSize = 5 * 1024 * 1024
+const (
+	copyBufferSize   = 5 * 1024 * 1024
+	maxUploadRetries = 3
+)
 
 type restoreCaches struct {
 	Folders               *folderCache
@@ -154,6 +158,7 @@ func RestoreCollection(
 		metricsBytes   int64
 		metricsSuccess int64
 		wg             sync.WaitGroup
+		complete       bool
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -240,7 +245,7 @@ func RestoreCollection(
 	}
 
 	for {
-		if el.Failure() != nil {
+		if el.Failure() != nil || complete {
 			break
 		}
 
@@ -250,11 +255,12 @@ func RestoreCollection(
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, nil
+				complete = true
+				break
 			}
 
-			semaphoreCh <- struct{}{}
 			wg.Add(1)
+			semaphoreCh <- struct{}{}
 
 			go func(ctx context.Context, itemData data.Stream) {
 				defer wg.Done()
@@ -343,6 +349,7 @@ func restoreItem(
 			source,
 			service,
 			drivePath,
+			dc,
 			restoreFolderID,
 			copyBuffer,
 			itemData)
@@ -434,6 +441,7 @@ func restoreV0File(
 	source driveSource,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
+	fetcher fileFetcher,
 	restoreFolderID string,
 	copyBuffer []byte,
 	itemData data.Stream,
@@ -441,6 +449,7 @@ func restoreV0File(
 	_, itemInfo, err := restoreData(
 		ctx,
 		service,
+		fetcher,
 		itemData.UUID(),
 		itemData,
 		drivePath.DriveID,
@@ -477,6 +486,7 @@ func restoreV1File(
 	itemID, itemInfo, err := restoreData(
 		ctx,
 		service,
+		fetcher,
 		trimmedName,
 		itemData,
 		drivePath.DriveID,
@@ -560,6 +570,7 @@ func restoreV6File(
 	itemID, itemInfo, err := restoreData(
 		ctx,
 		service,
+		fetcher,
 		meta.FileName,
 		itemData,
 		drivePath.DriveID,
@@ -708,6 +719,7 @@ func createRestoreFolders(
 func restoreData(
 	ctx context.Context,
 	service graph.Servicer,
+	fetcher fileFetcher,
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
@@ -731,26 +743,48 @@ func restoreData(
 		return "", details.ItemInfo{}, err
 	}
 
-	// Get a drive item writer
-	w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
-	if err != nil {
-		return "", details.ItemInfo{}, err
-	}
+	var written int64
 
-	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(
-		ctx,
-		iReader,
-		observe.ItemRestoreMsg,
-		clues.Hide(name),
-		ss.Size())
+	// This is just to retry file upload, the uploadSession creation is not retried here
+	// We need extra logic to retry file upload as we have to pull the file again from kopia
+	for i := 0; i < maxUploadRetries; i++ {
+		// Get a drive item writer
+		w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
+		if err != nil {
+			return "", details.ItemInfo{}, err
+		}
 
-	go closer()
+		pname := name
+		iReader := itemData.ToReader()
 
-	// Upload the stream data
-	written, err := io.CopyBuffer(w, progReader, copyBuffer)
-	if err != nil {
-		return "", details.ItemInfo{}, graph.Wrap(ctx, err, "writing item bytes")
+		if i > 0 {
+			pname = fmt.Sprintf("%s (retry %d)", name, i)
+
+			// If it is not the first try, we have to pull the file
+			// again from kopia. Ideally we could just seek the stream
+			// but we don't have a Seeker available here.
+			itemData, err := fetcher.Fetch(ctx, itemData.UUID())
+			if err != nil {
+				return "", details.ItemInfo{}, clues.Wrap(err, "getting data file")
+			}
+
+			iReader = itemData.ToReader()
+		}
+
+		progReader, closer := observe.ItemProgress(
+			ctx,
+			iReader,
+			observe.ItemRestoreMsg,
+			clues.Hide(pname),
+			ss.Size())
+
+		go closer()
+
+		// Upload the stream data
+		written, err = io.CopyBuffer(w, progReader, copyBuffer)
+		if err == nil {
+			break
+		}
 	}
 
 	dii := details.ItemInfo{}
