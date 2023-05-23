@@ -125,7 +125,7 @@ jobs:
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: src/testlog/testlogging.log
+          CORSO_LOG_FILE: ${{ github.workspace }}/testlog/testlogging.log
           LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
