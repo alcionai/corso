@@ -101,7 +101,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			newItem(newItemName, false))
 		if err != nil {
 			// Something bad happened, skip this item
-			return
+			continue
 		}
 
 		items = append(items, item)
