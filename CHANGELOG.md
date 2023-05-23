@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix Exchange folder cache population error when parent folder isn't found.
+- Fix Exchange backup issue caused by incorrect json serialization
 
 ### Known Issues
 
