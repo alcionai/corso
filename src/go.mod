@@ -127,3 +127,5 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/microsoft/kiota-serialization-json-go => github.com/alcionai/kiota-serialization-json-go v0.0.0-20230523031047-cee43f2283aa
