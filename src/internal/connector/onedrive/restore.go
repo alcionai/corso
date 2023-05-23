@@ -217,7 +217,7 @@ func RestoreCollection(
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
-	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).ItemUpload())
 	defer close(semaphoreCh)
 
 	deetsLock := sync.Mutex{}

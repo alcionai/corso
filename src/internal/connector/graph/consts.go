@@ -44,6 +44,8 @@ type parallelism struct {
 	collectionBuffer int
 	// sets the parallelism of item population within a collection.
 	item int
+	// sets the parallelism of concurrent uploads within a collection
+	itemUpload int
 }
 
 func (p parallelism) CollectionBufferSize() int {
@@ -88,6 +90,14 @@ func (p parallelism) Item() int {
 	return p.item
 }
 
+func (p parallelism) ItemUpload() int {
+	if p.itemUpload == 0 {
+		return 1
+	}
+
+	return p.itemUpload
+}
+
 // returns low <= v <= high
 // if high < low, returns low <= v
 func isWithin(low, high, v int) bool {
@@ -102,6 +112,7 @@ var sp = map[path.ServiceType]parallelism{
 	path.OneDriveService: {
 		collectionBuffer: 5,
 		item:             4,
+		itemUpload:       7,
 	},
 	// sharepoint libraries are considered "onedrive" parallelism.
 	// this only controls lists/pages.
