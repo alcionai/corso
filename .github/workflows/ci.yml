@@ -187,6 +187,10 @@ jobs:
         if: always()
         run: pwd
 
+      - name: clf
+        if: always()
+        run: echo ${{ env.CORSO_LOG_FILE }}
+
       - name: ls
         if: always()
         run: ls ./ -l
@@ -252,6 +256,10 @@ jobs:
       - name: pwd
         if: always()
         run: pwd
+
+      - name: clf
+        if: always()
+        run: echo ${{ env.CORSO_LOG_FILE }}
 
       - name: ls
         if: always()
