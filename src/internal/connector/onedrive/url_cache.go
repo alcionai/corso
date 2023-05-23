@@ -1,4 +1,3 @@
-//nolint:unused
 package onedrive
 
 import (
@@ -11,44 +10,34 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
-
-type urlCacher interface {
-	// getDownloadURL returns the download URL for the specified drive item
-	getDownloadURL(
-		ctx context.Context,
-		itemID string,
-	) (string, error)
-}
 
 type itemProperties struct {
 	downloadURL string
 	isDeleted   bool
-	// TODO: remove this field
-	driveItem *models.DriveItem
 }
 
 // urlCache caches download URLs for drive items
 // Scope: per drive
 type urlCache struct {
-	// Item ID -> download URL map
-	urlMap map[string]itemProperties
-	// time of last cache  refresh
+	// urlMap stores Item ID -> download URL map
+	urlMap          map[string]itemProperties
 	lastRefreshTime time.Time
-	// refresh interval
 	refreshInterval time.Duration
-	// rw lock for URL map and lastRefreshTime
+	// rwLock protects urlMap and lastRefreshTime
 	rwLock sync.RWMutex
-	// semaphore for limiting the number of concurrent cache refreshes
+	// refreshSemaphore limits the number of concurrent cache refreshes
 	refreshSemaphore chan struct{}
 
 	driveID         string
 	deltaQueryCount int
-	Errors          *fault.Bus
+	// TODO: Handle error bus properly
+	Errors *fault.Bus
 
+	// TODO: Couple two below together
 	driveEnumerator driveEnumeratorFunc
 	itemPagerFunc   func(
 		servicer graph.Servicer,
@@ -75,8 +64,9 @@ type collectorFunc func(
 ) error
 
 // newURLache creates a new URL cache for the specified drive
+// TODO: move graph servicer to cache
 func newURLCache(
-	driveID, driveName string,
+	driveID string,
 	refreshInterval time.Duration,
 	driveEnumerator driveEnumeratorFunc,
 	itemPagerFunc func(
@@ -88,9 +78,9 @@ func newURLCache(
 		urlMap:           make(map[string]itemProperties),
 		refreshSemaphore: make(chan struct{}, 1),
 		driveID:          driveID,
+		refreshInterval:  refreshInterval,
 		driveEnumerator:  driveEnumerator,
 		itemPagerFunc:    itemPagerFunc,
-		refreshInterval:  refreshInterval,
 	}
 }
 
@@ -98,6 +88,7 @@ func newURLCache(
 // TODO: Any cache error should not be treated as a fatal error by client
 // TODO: How to convey deleted item to client?
 // TODO: Move graph.Servicer to urlCache struct?
+// TODO: Add info logs
 func (uc *urlCache) getDownloadURL(
 	ctx context.Context,
 	svc graph.Servicer,
@@ -114,7 +105,7 @@ func (uc *urlCache) getDownloadURL(
 		}
 	}
 
-	url, err := uc.readCache(itemID)
+	url, err := uc.readCache(ctx, itemID)
 	if err != nil {
 		return "", err
 	}
@@ -168,6 +159,7 @@ func (uc *urlCache) refreshCache(
 	return nil
 }
 
+// deltaQuery will perform a delta query on the drive and update the cache
 // TODO: Check if this function is adding any value?
 // Remove it and use collectDriveItems directly
 func (uc *urlCache) deltaQuery(
@@ -178,7 +170,7 @@ func (uc *urlCache) deltaQuery(
 
 	driveEnumerator := uc.driveEnumerator
 	if driveEnumerator == nil {
-		driveEnumerator = uc.collectDriveItems
+		driveEnumerator = collectDriveItems
 	}
 
 	err := driveEnumerator(
@@ -191,6 +183,8 @@ func (uc *urlCache) deltaQuery(
 	if err != nil {
 		return clues.Wrap(err, "delta query failed").WithClues(ictx)
 	}
+
+	uc.deltaQueryCount++
 
 	return nil
 }
@@ -210,7 +204,9 @@ func (uc *urlCache) updateRefreshTime(t time.Time) error {
 
 // collectDriveItems will enumerate all items in the specified drive and hand
 // them to the provided `collector` method
-func (uc *urlCache) collectDriveItems(
+// TODO: This is a clone of collectItems call. Refactor collectItems to remove
+// duplication
+func collectDriveItems(
 	ctx context.Context,
 	pager itemPager,
 	collector collectorFunc,
@@ -249,7 +245,7 @@ func (uc *urlCache) collectDriveItems(
 			return graph.Wrap(ctx, err, "collecting items")
 		}
 
-		nextLink, _ := gapi.NextAndDeltaLink(page)
+		nextLink, _ := api.NextAndDeltaLink(page)
 
 		// Check if there are more items
 		if len(nextLink) == 0 {
@@ -263,27 +259,30 @@ func (uc *urlCache) collectDriveItems(
 	return nil
 }
 
-// getFromCache returns the download URL for the specified item
-func (uc *urlCache) readCache(itemID string) (string, error) {
+// readCache returns the download URL for the specified item
+func (uc *urlCache) readCache(
+	ctx context.Context,
+	itemID string,
+) (string, error) {
 	uc.rwLock.RLock()
 	defer uc.rwLock.RUnlock()
 
+	ictx := clues.Add(ctx, "item_id", itemID)
+
 	val, ok := uc.urlMap[itemID]
 	if !ok {
-		// TODO: improve clues
-		return "", clues.New("item not found in cache")
+		return "", clues.New("item not found in cache").WithClues(ictx)
 	}
 
 	if val.isDeleted {
 		// TODO: standardize error
-		return "", clues.New("item is deleted")
+		return "", clues.New("item is deleted").WithClues(ictx)
 	}
 
 	return val.downloadURL, nil
 }
 
-// updateCache is a callback function that is called for each page of items
-// It will cache the download URL for each item
+// updateCache will cache the download URL for each item
 // TODO: Add debug logs and more error handling
 func (uc *urlCache) updateCache(
 	ctx context.Context,
@@ -301,7 +300,7 @@ func (uc *urlCache) updateCache(
 		}
 
 		// Skip if not a file
-		if item.GetFile() != nil {
+		if item.GetFile() == nil {
 			continue
 		}
 
@@ -320,7 +319,6 @@ func (uc *urlCache) updateCache(
 		uc.urlMap[itemID] = itemProperties{
 			downloadURL: url,
 			isDeleted:   false,
-			driveItem:   item.(*models.DriveItem),
 		}
 
 		// Mark deleted items in cache
@@ -328,7 +326,6 @@ func (uc *urlCache) updateCache(
 			uc.urlMap[itemID] = itemProperties{
 				downloadURL: "",
 				isDeleted:   true,
-				driveItem:   item.(*models.DriveItem),
 			}
 		}
 	}
