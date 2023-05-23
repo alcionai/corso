@@ -138,6 +138,10 @@ jobs:
           -timeout 15m  \
           ./... 2>&1 | tee ./testlog/gotest-nightly.log | gotestfmt -hide successful-tests
 
+##########################################################################################################################################
+
+# Logging & Notifications
+
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: always()
@@ -147,3 +151,34 @@ jobs:
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
+
+      - name: SHA info
+        id: sha-info
+        if: failure()
+        run: |
+          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+
+      - name: Send Github Action failure to Slack
+        id: slack-notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Nightly test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "[FAILED] Nightly Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ github.event.pull_request.html_url || github.event.head_commit.url }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

@@ -68,7 +68,8 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	defer flush()
 
 	var driveItem models.DriveItemable
-	// This item collector tries to find "a" drive item that is a file to test the reader function
+	// This item collector tries to find "a" drive item that is a non-empty
+	// file to test the reader function
 	itemCollector := func(
 		_ context.Context,
 		_, _ string,
@@ -81,7 +82,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		_ *fault.Bus,
 	) error {
 		for _, item := range items {
-			if item.GetFile() != nil {
+			if item.GetFile() != nil && ptr.Val(item.GetSize()) > 0 {
 				driveItem = item
 				break
 			}
