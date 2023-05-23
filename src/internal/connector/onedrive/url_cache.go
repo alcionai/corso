@@ -22,6 +22,7 @@ type itemProperties struct {
 
 // urlCache caches download URLs for drive items
 type urlCache struct {
+	driveID string
 	// urlMap stores Item ID -> download URL map
 	urlMap          map[string]itemProperties
 	lastRefreshTime time.Time
@@ -29,9 +30,7 @@ type urlCache struct {
 	// rwLock protects urlMap and lastRefreshTime
 	rwLock sync.RWMutex
 	// refreshMutex serializes concurrent cache refreshes
-	refreshMutex sync.Mutex
-
-	driveID         string
+	refreshMutex    sync.Mutex
 	deltaQueryCount int
 	// TODO: Handle error bus properly
 	Errors *fault.Bus

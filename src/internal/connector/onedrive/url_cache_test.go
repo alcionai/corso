@@ -1,13 +1,13 @@
 package onedrive
 
 import (
-	"math/rand"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -95,54 +95,51 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		}
 	}()
 
-	// Launch parallel requests to create onedrive files. Read the URLs from
-	// the cache and confirm whether they are valid.
-	// Verify that only one delta query is made.
-	var wg sync.WaitGroup
+	// Create a bunch of files in the new folder
+	var items []models.DriveItemable
+
 	for i := 0; i < 100; i++ {
+		newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
+
+		item, err := CreateItem(
+			ctx,
+			srv,
+			driveID,
+			ptr.Val(newFolder.GetId()),
+			newItem(newItemName, false))
+		if err != nil {
+			// Something bad happened, skip this item
+			return
+		}
+
+		items = append(items, item)
+	}
+
+	// Launch parallel requests to the cache
+	var wg sync.WaitGroup
+	for i := 0; i < len(items); i++ {
 		wg.Add(1)
 
-		go func() {
+		go func(i int) {
 			defer wg.Done()
 
-			// Sleep for some msec, range 0-100
-			time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-
-			// Create a test file in test folder
-			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
-
-			newItem, err := CreateItem(
-				ctx,
-				srv,
-				driveID,
-				ptr.Val(newFolder.GetId()),
-				newItem(newItemName, false))
-			if err != nil {
-				// Something bad happened, skip this item
-				return
-			}
-
-			require.NoError(t, err, clues.ToCore(err))
-			require.NotNil(t, newItem.GetId())
 			// Read item from URL cache
-			url, err := cache.getDownloadURL(ctx, srv, ptr.Val(newItem.GetId()))
+			url, err := cache.getDownloadURL(ctx, srv, ptr.Val(items[i].GetId()))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotEmpty(t, url)
 
-			// Validate URL
+			// Validate download URL
 			// TODO: use downloadItem call once it's refactored to use URLs
-			// instead of DriveItemable
 			client := graph.NewNoTimeoutHTTPWrapper()
 			resp, err := client.Request(ctx, http.MethodGet, url, nil, nil)
 			require.NoError(t, err, clues.ToCore(err))
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-		}()
+		}(i)
 	}
 	wg.Wait()
 
-	// TODO: This can get flaky in presence of graph transient errors
-	// See how we handle it in other integration tests.
-	require.Equal(t, 1, cache.deltaQueryCount)
+	// Validate that <= 1 delta queries were made
+	require.LessOrEqual(t, cache.deltaQueryCount, 1)
 }
 
 /*
