@@ -236,6 +236,19 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	return d2
 }
 
+// FilterMetaFiles returns a copy of the Details with all of the
+// .meta files removed from the entries.
+func (dm DetailsModel) NonMetaFileSizes() int64 {
+	var size int64
+	for _, ent := range dm.Entries {
+		if !ent.isMetaFile() {
+			size += ent.size()
+		}
+	}
+
+	return size
+}
+
 // Check if a file is a metadata file. These are used to store
 // additional data like permissions (in case of Drive items) and are
 // not to be treated as regular files.

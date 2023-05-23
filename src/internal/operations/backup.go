@@ -317,14 +317,6 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
-	noMetaDataFile := deets.Details().DetailsModel.FilterMetaFiles().Entries
-	writeStats.TotalFileCount = len(noMetaDataFile)
-	//TODO: get the size if its onedrive and put this code to another function
-	for _, file := range noMetaDataFile {
-		// if
-		writeStats.TotalUploadedBytes += file.ItemInfo.OneDrive.Size
-	}
-
 	opStats.k = writeStats
 
 	err = mergeDetails(
@@ -334,6 +326,7 @@ func (op *BackupOperation) do(
 		mans,
 		toMerge,
 		deets,
+		writeStats,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -684,8 +677,15 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
+	writeStats *kopia.BackupStats,
 	errs *fault.Bus,
 ) error {
+	// getting the values in writeStats before anything else so that we don't get a return from
+	// conditions like no backup data.
+	noMetaDataFile := deets.Details().DetailsModel.FilterMetaFiles().Entries
+	writeStats.TotalFileCount = len(noMetaDataFile)
+	writeStats.TotalFileCount = int(deets.Details().DetailsModel.NonMetaFileSizes())
+
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
