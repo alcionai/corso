@@ -3,7 +3,6 @@ package api_test
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -121,18 +120,10 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 
 			t := suite.T()
 			output := make([][]byte, instances)
-			wg := sync.WaitGroup{}
-			wg.Add(instances)
 
 			for i := 0; i < instances; i++ {
-				go func(idx int) {
-					defer wg.Done()
-
-					output[idx] = test.serializer(t, ctx, idx)
-				}(i)
+				output[i] = test.serializer(t, ctx, i)
 			}
-
-			wg.Wait()
 
 			for i := 0; i < instances; i++ {
 				got := test.deserializeAndGetField(t, output[i])
