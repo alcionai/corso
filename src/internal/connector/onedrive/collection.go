@@ -506,28 +506,27 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				item)
 
 			if err != nil {
-				// Skip if the item was deleted by the time we attempted to get
-				// its permissions
-				if item.GetDeleted() != nil {
+				// Check if the item was deleted
+				di, e := oc.itemGetter(
+					ctx,
+					oc.service,
+					oc.driveID,
+					ptr.Val(item.GetId()))
+				if e != nil && !graph.IsErrDeletedInFlight(e) {
+					// something else happened, bail
+					logger.CtxErr(ctx, err).Error("getting item")
+				} else if graph.IsErrDeletedInFlight(e) ||
+					(e == nil && di.GetDeleted() != nil) {
 					logger.CtxErr(ctx, err).
 						With("skipped_reason", fault.SkipNotFound).
 						Info("item not found")
 
-					skip := fault.ContainerSkip(
+					skip := fault.FileSkip(
 						fault.SkipNotFound,
 						oc.driveID,
 						itemID,
 						itemName,
 						graph.ItemInfo(item))
-
-					if isFile {
-						skip = fault.FileSkip(
-							fault.SkipNotFound,
-							oc.driveID,
-							itemID,
-							itemName,
-							graph.ItemInfo(item))
-					}
 
 					el.AddSkip(skip)
 				} else {
