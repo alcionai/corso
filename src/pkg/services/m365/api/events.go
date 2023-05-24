@@ -369,7 +369,7 @@ func (c Events) DeleteItem(
 
 func (c Events) PostSmallAttachment(
 	ctx context.Context,
-	userID, containerID, itemID string,
+	userID, containerID, parentItemID string,
 	body models.Attachmentable,
 ) error {
 	service, err := c.Service()
@@ -383,7 +383,7 @@ func (c Events) PostSmallAttachment(
 		Calendars().
 		ByCalendarId(containerID).
 		Events().
-		ByEventId(itemID).
+		ByEventId(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -395,7 +395,7 @@ func (c Events) PostSmallAttachment(
 
 func (c Events) PostLargeAttachment(
 	ctx context.Context,
-	userID, containerID, itemID, name string,
+	userID, containerID, parentItemID, name string,
 	size int64,
 	body models.Attachmentable,
 ) (models.UploadSessionable, error) {
@@ -409,7 +409,7 @@ func (c Events) PostLargeAttachment(
 		Calendars().
 		ByCalendarId(containerID).
 		Events().
-		ByEventId(itemID).
+		ByEventId(parentItemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)

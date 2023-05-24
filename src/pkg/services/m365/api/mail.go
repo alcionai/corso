@@ -447,7 +447,8 @@ func (c Mail) PostItem(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	itm, err := service.Client().
+	itm, err := service.
+		Client().
 		Users().
 		ByUserId(userID).
 		MailFolders().
@@ -476,7 +477,8 @@ func (c Mail) DeleteItem(
 		return graph.Stack(ctx, err)
 	}
 
-	err = service.Client().
+	err = service.
+		Client().
 		Users().
 		ByUserId(userID).
 		Messages().
@@ -491,7 +493,7 @@ func (c Mail) DeleteItem(
 
 func (c Mail) PostSmallAttachment(
 	ctx context.Context,
-	userID, containerID, itemID string,
+	userID, containerID, parentItemID string,
 	body models.Attachmentable,
 ) error {
 	service, err := c.Service()
@@ -499,13 +501,14 @@ func (c Mail) PostSmallAttachment(
 		return graph.Stack(ctx, err)
 	}
 
-	_, err = service.Client().
+	_, err = service.
+		Client().
 		Users().
 		ByUserId(userID).
 		MailFolders().
 		ByMailFolderId(containerID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageId(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -517,7 +520,7 @@ func (c Mail) PostSmallAttachment(
 
 func (c Mail) PostLargeAttachment(
 	ctx context.Context,
-	userID, containerID, itemID, name string,
+	userID, containerID, parentItemID, name string,
 	size int64,
 	body models.Attachmentable,
 ) (models.UploadSessionable, error) {
@@ -531,7 +534,7 @@ func (c Mail) PostLargeAttachment(
 		MailFolders().
 		ByMailFolderId(containerID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageId(parentItemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)

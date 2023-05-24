@@ -134,8 +134,6 @@ func RestoreEvent(
 			user,
 			destination,
 			ptr.Val(item.GetId()),
-			ptr.Val(a.GetName()),
-			ptr.Val(a.GetSize()),
 			a)
 		if err != nil {
 			el.AddRecoverable(err)
@@ -228,8 +226,6 @@ func RestoreMessage(
 			user,
 			destination,
 			ptr.Val(item.GetId()),
-			ptr.Val(a.GetName()),
-			ptr.Val(a.GetSize()),
 			a)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment"))

@@ -56,18 +56,23 @@ func attachmentType(attachment models.Attachmentable) models.AttachmentType {
 func uploadAttachment(
 	ctx context.Context,
 	cli attachmentPoster,
-	userID, containerID, itemID, name string,
-	size int32,
+	userID, containerID, parentItemID string,
 	attachment models.Attachmentable,
 ) error {
-	attachmentType := attachmentType(attachment)
+	var (
+		attachmentType = attachmentType(attachment)
+		id             = ptr.Val(attachment.GetId())
+		name           = ptr.Val(attachment.GetName())
+		size           = ptr.Val(attachment.GetSize())
+	)
 
 	ctx = clues.Add(
 		ctx,
 		"attachment_size", size,
-		"attachment_id", itemID,
+		"attachment_id", id,
 		"attachment_name", clues.Hide(name),
 		"attachment_type", attachmentType,
+		"parent_item_id", parentItemID,
 		"internal_item_type", getItemAttachmentItemType(attachment))
 
 	logger.Ctx(ctx).Debug("uploading attachment")
@@ -90,12 +95,12 @@ func uploadAttachment(
 	}
 
 	// for Item/Reference attachments *or* file attachments < 3MB
-	if attachmentType != models.FILE_ATTACHMENTTYPE || ptr.Val(attachment.GetSize()) < largeAttachmentSize {
-		return cli.PostSmallAttachment(ctx, userID, containerID, itemID, attachment)
+	if attachmentType != models.FILE_ATTACHMENTTYPE || size < largeAttachmentSize {
+		return cli.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
 	}
 
 	// for all other attachments
-	_, err := cli.PostLargeAttachment(ctx, userID, containerID, itemID, name, int64(size), attachment)
+	_, err := cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, int64(size), attachment)
 
 	return err
 }
