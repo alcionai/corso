@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -41,7 +42,6 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
-	canMakeDeltaQueries bool,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	ctx, end := diagnostics.Span(
@@ -59,6 +59,20 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
+		ctx,
+		gc.Discovery.Users(),
+		path.ServiceType(sels.Service),
+		sels.DiscreteOwner,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !serviceEnabled {
+		return []data.BackupCollection{}, nil, nil
 	}
 
 	var (
@@ -146,28 +160,22 @@ func (gc *GraphConnector) IsBackupRunnable(
 	ctx context.Context,
 	service path.ServiceType,
 	resourceOwner string,
-) (bool, bool, error) {
+) (bool, error) {
 	if service == path.SharePointService {
 		// No "enabled" check required for sharepoint
-		return true, true, nil
+		return true, nil
 	}
 
 	info, err := gc.Discovery.Users().GetInfo(ctx, resourceOwner)
 	if err != nil {
-		return false, false, err
+		return false, err
 	}
 
 	if !info.ServiceEnabled(service) {
-		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
-	canMakeDeltaQueries := true
-	if service == path.ExchangeService {
-		// we currently can only check quota exceeded for exchange
-		canMakeDeltaQueries = info.CanMakeDeltaQueries()
-	}
-
-	return true, canMakeDeltaQueries, nil
+	return true, nil
 }
 
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
@@ -189,6 +197,35 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	}
 
 	return nil
+}
+
+func checkServiceEnabled(
+	ctx context.Context,
+	gi discovery.GetInfoer,
+	service path.ServiceType,
+	resource string,
+) (bool, bool, error) {
+	if service == path.SharePointService {
+		// No "enabled" check required for sharepoint
+		return true, true, nil
+	}
+
+	info, err := gi.GetInfo(ctx, resource)
+	if err != nil {
+		return false, false, err
+	}
+
+	if !info.ServiceEnabled(service) {
+		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+	}
+
+	canMakeDeltaQueries := true
+	if service == path.ExchangeService {
+		// we currently can only check quota exceeded for exchange
+		canMakeDeltaQueries = info.CanMakeDeltaQueries()
+	}
+
+	return true, canMakeDeltaQueries, nil
 }
 
 // ConsumeRestoreCollections restores data from the specified collections

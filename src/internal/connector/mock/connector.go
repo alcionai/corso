@@ -35,7 +35,6 @@ func (gc GraphConnector) ProduceBackupCollections(
 	_ []data.RestoreCollection,
 	_ int,
 	_ control.Options,
-	_ bool,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
@@ -51,10 +50,9 @@ func (gc GraphConnector) IsBackupRunnable(
 	_ string,
 ) (
 	bool,
-	bool,
 	error,
 ) {
-	return true, true, gc.Err
+	return true, gc.Err
 }
 
 func (gc GraphConnector) Wait() *data.CollectionStats {

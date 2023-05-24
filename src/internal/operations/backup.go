@@ -54,9 +54,6 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
-	// when false it indicates we can't run delta queries on the mailbox because
-	// mailbox is full which is indicated by QuotaExceeded.
-	canMakeDeltaQueries bool
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -145,8 +142,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	// IsBackupRunnable checks if the user has services enabled to run a backup.
 	// it also checks for conditions like mailbox full.
-	runnable, op.canMakeDeltaQueries, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
-	if err != nil && !runnable {
+	runnable, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
+	if err != nil || !runnable {
 		logger.CtxErr(ctx, err).Error("running backup")
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
@@ -308,7 +305,6 @@ func (op *BackupOperation) do(
 		mdColls,
 		lastBackupVersion,
 		op.Options,
-		op.canMakeDeltaQueries,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing backup data collections")
@@ -380,7 +376,6 @@ func produceBackupDataCollections(
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
-	canMakeDeltaQueries bool,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
@@ -397,7 +392,6 @@ func produceBackupDataCollections(
 		metadata,
 		lastBackupVersion,
 		ctrlOpts,
-		canMakeDeltaQueries,
 		errs)
 }
 

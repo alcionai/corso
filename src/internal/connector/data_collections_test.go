@@ -225,7 +225,6 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				nil,
 				version.NoBackup,
 				control.Defaults(),
-				true,
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, collections)
@@ -366,7 +365,6 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		nil,
 		version.NoBackup,
 		control.Defaults(),
-		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
@@ -412,7 +410,6 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		nil,
 		version.NoBackup,
 		control.Defaults(),
-		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(cols))
