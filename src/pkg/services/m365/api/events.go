@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -33,7 +35,7 @@ type Events struct {
 }
 
 // ---------------------------------------------------------------------------
-// methods
+// containers
 // ---------------------------------------------------------------------------
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
@@ -74,10 +76,13 @@ func (c Events) DeleteContainer(
 	return nil
 }
 
-func (c Events) GetContainerByID(
+// prefer GetContainerByID where possible.
+// use this only in cases where the models.Calendarable
+// is required.
+func (c Events) GetCalendar(
 	ctx context.Context,
 	userID, containerID string,
-) (graph.Container, error) {
+) (models.Calendarable, error) {
 	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -89,14 +94,27 @@ func (c Events) GetContainerByID(
 		},
 	}
 
-	cal, err := service.Client().
+	resp, err := service.Client().
 		Users().
 		ByUserId(userID).
 		Calendars().
 		ByCalendarId(containerID).
 		Get(ctx, config)
 	if err != nil {
-		return nil, graph.Stack(ctx, err).WithClues(ctx)
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
+// interface-compliant wrapper of GetCalendar
+func (c Events) GetContainerByID(
+	ctx context.Context,
+	userID, dirID string,
+) (graph.Container, error) {
+	cal, err := c.GetCalendar(ctx, userID, dirID)
+	if err != nil {
+		return nil, err
 	}
 
 	return graph.CalendarDisplayable{Calendarable: cal}, nil
@@ -141,56 +159,32 @@ func (c Events) GetContainerByName(
 	return cal, nil
 }
 
-// GetItem retrieves an Eventable item.
-func (c Events) GetItem(
+func (c Events) PatchCalendar(
 	ctx context.Context,
-	user, itemID string,
-	immutableIDs bool,
-	errs *fault.Bus,
-) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		err    error
-		event  models.Eventable
-		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
-			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
-		}
-	)
-
-	event, err = c.Stable.Client().
-		Users().
-		ByUserId(user).
-		Events().
-		ByEventId(itemID).
-		Get(ctx, config)
+	userID, containerID string,
+	body models.Calendarable,
+) error {
+	service, err := c.Service()
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return graph.Stack(ctx, err)
 	}
 
-	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-		config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
-				Expand: []string{"microsoft.graph.itemattachment/item"},
-			},
-			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
-		}
-
-		attached, err := c.LargeItem.
-			Client().
-			Users().
-			ByUserId(user).
-			Events().
-			ByEventId(itemID).
-			Attachments().
-			Get(ctx, config)
-		if err != nil {
-			return nil, nil, graph.Wrap(ctx, err, "event attachment download")
-		}
-
-		event.SetAttachments(attached.GetValue())
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Patch(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "patching event calendar")
 	}
 
-	return event, EventInfo(event), nil
+	return nil
 }
+
+// ---------------------------------------------------------------------------
+// container pager
+// ---------------------------------------------------------------------------
 
 // EnumerateContainers iterates through all of the users current
 // calendars, converting each to a graph.CacheFolder, and
@@ -271,6 +265,176 @@ func (c Events) EnumerateContainers(
 const (
 	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
 )
+
+// ---------------------------------------------------------------------------
+// items
+// ---------------------------------------------------------------------------
+
+// GetItem retrieves an Eventable item.
+func (c Events) GetItem(
+	ctx context.Context,
+	user, itemID string,
+	immutableIDs bool,
+	errs *fault.Bus,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	var (
+		err    error
+		event  models.Eventable
+		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+		}
+	)
+
+	event, err = c.Stable.Client().
+		Users().
+		ByUserId(user).
+		Events().
+		ByEventId(itemID).
+		Get(ctx, config)
+	if err != nil {
+		return nil, nil, graph.Stack(ctx, err)
+	}
+
+	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
+		config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		}
+
+		attached, err := c.LargeItem.
+			Client().
+			Users().
+			ByUserId(user).
+			Events().
+			ByEventId(itemID).
+			Attachments().
+			Get(ctx, config)
+		if err != nil {
+			return nil, nil, graph.Wrap(ctx, err, "event attachment download")
+		}
+
+		event.SetAttachments(attached.GetValue())
+	}
+
+	return event, EventInfo(event), nil
+}
+
+func (c Events) PostItem(
+	ctx context.Context,
+	userID, containerID string,
+	body models.Eventable,
+) (models.Eventable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	itm, err := service.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating calendar event")
+	}
+
+	return itm, nil
+}
+
+func (c Events) DeleteItem(
+	ctx context.Context,
+	userID, itemID string,
+) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = service.Client().
+		Users().
+		ByUserId(userID).
+		Events().
+		ByEventId(itemID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting calendar event")
+	}
+
+	return nil
+}
+
+func (c Events) PostSmallAttachment(
+	ctx context.Context,
+	userID, containerID, parentItemID string,
+	body models.Attachmentable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events().
+		ByEventId(parentItemID).
+		Attachments().
+		Post(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "uploading small event attachment")
+	}
+
+	return nil
+}
+
+func (c Events) PostLargeAttachment(
+	ctx context.Context,
+	userID, containerID, parentItemID, name string,
+	size int64,
+	body models.Attachmentable,
+) (models.UploadSessionable, error) {
+	bs, err := GetAttachmentContent(body)
+	if err != nil {
+		return nil, clues.Wrap(err, "serializing attachment content").WithClues(ctx)
+	}
+
+	session := users.NewItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
+	session.SetAttachmentItem(makeSessionAttachment(name, size))
+
+	us, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events().
+		ByEventId(parentItemID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "uploading large event attachment")
+	}
+
+	url := ptr.Val(us.GetUploadUrl())
+	w := graph.NewLargeItemWriter(parentItemID, url, size)
+	copyBuffer := make([]byte, graph.AttachmentChunkSize)
+
+	_, err = io.CopyBuffer(w, bytes.NewReader(bs), copyBuffer)
+	if err != nil {
+		return nil, clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
+	}
+
+	return us, nil
+}
 
 // ---------------------------------------------------------------------------
 // item pager

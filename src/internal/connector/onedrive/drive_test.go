@@ -337,7 +337,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 
 			// deletes require unique http clients
 			// https://github.com/alcionai/corso/issues/2707
-			err := DeleteItem(ictx, loadTestService(t), driveID, id)
+			err := api.DeleteDriveItem(ictx, loadTestService(t), driveID, id)
 			if err != nil {
 				logger.CtxErr(ictx, err).Errorw("deleting folder")
 			}

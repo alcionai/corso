@@ -983,14 +983,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				body := users.NewItemMailFoldersItemMovePostRequestBody()
 				body.SetDestinationId(ptr.To(to.containerID))
 
-				_, err := gc.Service.
-					Client().
-					Users().
-					ByUserId(uidn.ID()).
-					MailFolders().
-					ByMailFolderId(from.containerID).
-					Move().
-					Post(ctx, body, nil)
+				err := ac.Mail().MoveContainer(ctx, uidn.ID(), from.containerID, body)
 				require.NoError(t, err, clues.ToCore(err))
 
 				newLoc := expectDeets.MoveLocation(cat.String(), from.locRef, to.locRef)
@@ -1083,7 +1076,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			name: "rename a folder",
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
-					cli := gc.Service.Client().Users().ByUserId(uidn.ID())
 					containerID := d.dests[container3].containerID
 					newLoc := containerRename
 
@@ -1103,34 +1095,28 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 					switch category {
 					case path.EmailCategory:
-						cmf := cli.MailFolders().ByMailFolderId(containerID)
-
-						body, err := cmf.Get(ctx, nil)
-						require.NoError(t, err, "getting mail folder", clues.ToCore(err))
+						body, err := ac.Mail().GetFolder(ctx, uidn.ID(), containerID)
+						require.NoError(t, err, clues.ToCore(err))
 
 						body.SetDisplayName(&containerRename)
-						_, err = cmf.Patch(ctx, body, nil)
-						require.NoError(t, err, "updating mail folder name", clues.ToCore(err))
+						err = ac.Mail().PatchFolder(ctx, uidn.ID(), containerID, body)
+						require.NoError(t, err, clues.ToCore(err))
 
 					case path.ContactsCategory:
-						ccf := cli.ContactFolders().ByContactFolderId(containerID)
-
-						body, err := ccf.Get(ctx, nil)
-						require.NoError(t, err, "getting contact folder", clues.ToCore(err))
+						body, err := ac.Contacts().GetFolder(ctx, uidn.ID(), containerID)
+						require.NoError(t, err, clues.ToCore(err))
 
 						body.SetDisplayName(&containerRename)
-						_, err = ccf.Patch(ctx, body, nil)
-						require.NoError(t, err, "updating contact folder name", clues.ToCore(err))
+						err = ac.Contacts().PatchFolder(ctx, uidn.ID(), containerID, body)
+						require.NoError(t, err, clues.ToCore(err))
 
 					case path.EventsCategory:
-						cbi := cli.Calendars().ByCalendarId(containerID)
-
-						body, err := cbi.Get(ctx, nil)
-						require.NoError(t, err, "getting calendar", clues.ToCore(err))
+						body, err := ac.Events().GetCalendar(ctx, uidn.ID(), containerID)
+						require.NoError(t, err, clues.ToCore(err))
 
 						body.SetName(&containerRename)
-						_, err = cbi.Patch(ctx, body, nil)
-						require.NoError(t, err, "updating calendar name", clues.ToCore(err))
+						err = ac.Events().PatchCalendar(ctx, uidn.ID(), containerID, body)
+						require.NoError(t, err, clues.ToCore(err))
 					}
 				}
 			},
@@ -1146,16 +1132,15 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
-					cli := gc.Service.Client().Users().ByUserId(uidn.ID())
 
 					switch category {
 					case path.EmailCategory:
 						_, itemData := generateItemData(t, category, uidn.ID(), mailDBF)
 						body, err := support.CreateMessageFromBytes(itemData)
-						require.NoError(t, err, "transforming mail bytes to messageable", clues.ToCore(err))
+						require.NoErrorf(t, err, "transforming mail bytes to messageable: %+v", clues.ToCore(err))
 
-						itm, err := cli.MailFolders().ByMailFolderId(containerID).Messages().Post(ctx, body, nil)
-						require.NoError(t, err, "posting email item", clues.ToCore(err))
+						itm, err := ac.Mail().PostItem(ctx, uidn.ID(), containerID, body)
+						require.NoError(t, err, clues.ToCore(err))
 
 						expectDeets.AddItem(
 							category.String(),
@@ -1165,10 +1150,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 					case path.ContactsCategory:
 						_, itemData := generateItemData(t, category, uidn.ID(), contactDBF)
 						body, err := support.CreateContactFromBytes(itemData)
-						require.NoError(t, err, "transforming contact bytes to contactable", clues.ToCore(err))
+						require.NoErrorf(t, err, "transforming contact bytes to contactable: %+v", clues.ToCore(err))
 
-						itm, err := cli.ContactFolders().ByContactFolderId(containerID).Contacts().Post(ctx, body, nil)
-						require.NoError(t, err, "posting contact item", clues.ToCore(err))
+						itm, err := ac.Contacts().PostItem(ctx, uidn.ID(), containerID, body)
+						require.NoError(t, err, clues.ToCore(err))
 
 						expectDeets.AddItem(
 							category.String(),
@@ -1178,10 +1163,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 					case path.EventsCategory:
 						_, itemData := generateItemData(t, category, uidn.ID(), eventDBF)
 						body, err := support.CreateEventFromBytes(itemData)
-						require.NoError(t, err, "transforming event bytes to eventable", clues.ToCore(err))
+						require.NoErrorf(t, err, "transforming event bytes to eventable: %+v", clues.ToCore(err))
 
-						itm, err := cli.Calendars().ByCalendarId(containerID).Events().Post(ctx, body, nil)
-						require.NoError(t, err, "posting events item", clues.ToCore(err))
+						itm, err := ac.Events().PostItem(ctx, uidn.ID(), containerID, body)
+						require.NoError(t, err, clues.ToCore(err))
 
 						expectDeets.AddItem(
 							category.String(),
@@ -1200,7 +1185,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
-					cli := gc.Service.Client().Users().ByUserId(uidn.ID())
 
 					switch category {
 					case path.EmailCategory:
@@ -1208,7 +1192,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "getting message ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "message ids in folder")
 
-						err = cli.Messages().ByMessageId(ids[0]).Delete(ctx, nil)
+						err = ac.Mail().DeleteItem(ctx, uidn.ID(), ids[0])
 						require.NoError(t, err, "deleting email item", clues.ToCore(err))
 
 						expectDeets.RemoveItem(
@@ -1221,7 +1205,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "getting contact ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "contact ids in folder")
 
-						err = cli.Contacts().ByContactId(ids[0]).Delete(ctx, nil)
+						err = ac.Contacts().DeleteItem(ctx, uidn.ID(), ids[0])
 						require.NoError(t, err, "deleting contact item", clues.ToCore(err))
 
 						expectDeets.RemoveItem(
@@ -1234,7 +1218,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						require.NoError(t, err, "getting event ids", clues.ToCore(err))
 						require.NotEmpty(t, ids, "event ids in folder")
 
-						err = cli.Calendars().ByCalendarId(ids[0]).Delete(ctx, nil)
+						err = ac.Events().DeleteItem(ctx, uidn.ID(), ids[0])
 						require.NoError(t, err, "deleting calendar", clues.ToCore(err))
 
 						expectDeets.RemoveItem(
@@ -1666,14 +1650,12 @@ func runDriveIncrementalTest(
 		{
 			name: "update contents of a file",
 			updateFiles: func(t *testing.T) {
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Content().
-					Put(ctx, []byte("new content"), nil)
+				err := api.PutDriveItemContent(
+					ctx,
+					gc.Service,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					[]byte("new content"))
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
 				// no expectedDeets: neither file id nor location changed
 			},
@@ -1692,13 +1674,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&container)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					driveItem)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
@@ -1716,13 +1697,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&dest)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					driveItem)
 				require.NoErrorf(t, err, "moving file between folders %v", clues.ToCore(err))
 
 				expectDeets.MoveItem(
@@ -1737,15 +1717,11 @@ func runDriveIncrementalTest(
 		{
 			name: "delete file",
 			updateFiles: func(t *testing.T) {
-				// deletes require unique http clients
-				// https://github.com/alcionai/corso/issues/2707
-				err = newDeleteServicer(t).
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(ptr.Val(newFile.GetId())).
-					Delete(ctx, nil)
+				err := api.DeleteDriveItem(
+					ctx,
+					newDeleteServicer(t),
+					driveID,
+					ptr.Val(newFile.GetId()))
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 
 				expectDeets.RemoveItem(driveID, makeLocRef(container2), ptr.Val(newFile.GetId()))
@@ -1765,13 +1741,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(child).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					child,
+					driveItem)
 				require.NoError(t, err, "moving folder", clues.ToCore(err))
 
 				expectDeets.MoveLocation(
@@ -1794,13 +1769,12 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				_, err := gc.Service.
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(child).
-					Patch(ctx, driveItem, nil)
+				err := api.PatchDriveItem(
+					ctx,
+					gc.Service,
+					driveID,
+					child,
+					driveItem)
 				require.NoError(t, err, "renaming folder", clues.ToCore(err))
 
 				containerIDs[containerRename] = containerIDs[container2]
@@ -1817,15 +1791,11 @@ func runDriveIncrementalTest(
 			name: "delete a folder",
 			updateFiles: func(t *testing.T) {
 				container := containerIDs[containerRename]
-				// deletes require unique http clients
-				// https://github.com/alcionai/corso/issues/2707
-				err = newDeleteServicer(t).
-					Client().
-					Drives().
-					ByDriveId(driveID).
-					Items().
-					ByDriveItemId(container).
-					Delete(ctx, nil)
+				err := api.DeleteDriveItem(
+					ctx,
+					newDeleteServicer(t),
+					driveID,
+					container)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
 
 				expectDeets.RemoveLocation(driveID, makeLocRef(container1, containerRename))
