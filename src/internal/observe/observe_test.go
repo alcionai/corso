@@ -35,10 +35,10 @@ var (
 )
 
 func (suite *ObserveProgressUnitSuite) TestItemProgress() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	recorder := strings.Builder{}
 	SeedWriter(ctx, &recorder, nil)
@@ -88,12 +88,12 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 }
 
 func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	ctx, cancel := context.WithCancel(ctx)
-
-	t := suite.T()
 
 	recorder := strings.Builder{}
 	SeedWriter(ctx, &recorder, nil)
@@ -125,10 +125,10 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 }
 
 func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelClose() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	recorder := strings.Builder{}
 	SeedWriter(ctx, &recorder, nil)
@@ -158,7 +158,9 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
@@ -174,12 +176,14 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
 
 	Message(ctx, message)
 	Complete()
-	require.NotEmpty(suite.T(), recorder.String())
-	require.Contains(suite.T(), recorder.String(), message)
+	require.NotEmpty(t, recorder.String())
+	require.Contains(t, recorder.String(), message)
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
@@ -203,13 +207,15 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 
 	Complete()
 
-	require.NotEmpty(suite.T(), recorder.String())
-	require.Contains(suite.T(), recorder.String(), message)
-	require.Contains(suite.T(), recorder.String(), "done")
+	require.NotEmpty(t, recorder.String())
+	require.Contains(t, recorder.String(), message)
+	require.Contains(t, recorder.String(), "done")
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
@@ -233,13 +239,15 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 
 	Complete()
 
-	require.NotEmpty(suite.T(), recorder.String())
-	require.Contains(suite.T(), recorder.String(), message)
-	require.Contains(suite.T(), recorder.String(), "done")
+	require.NotEmpty(t, recorder.String())
+	require.Contains(t, recorder.String(), message)
+	require.Contains(t, recorder.String(), "done")
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -265,12 +273,14 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 
 	Complete()
 
-	require.NotEmpty(suite.T(), recorder.String())
-	require.Contains(suite.T(), recorder.String(), message)
+	require.NotEmpty(t, recorder.String())
+	require.Contains(t, recorder.String(), message)
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
@@ -297,13 +307,15 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 
 	Complete()
 
-	require.NotEmpty(suite.T(), recorder.String())
-	require.Contains(suite.T(), recorder.String(), message)
-	require.Contains(suite.T(), recorder.String(), fmt.Sprintf("%d/%d", count, count))
+	require.NotEmpty(t, recorder.String())
+	require.Contains(t, recorder.String(), message)
+	require.Contains(t, recorder.String(), fmt.Sprintf("%d/%d", count, count))
 }
 
 func (suite *ObserveProgressUnitSuite) TestrogressWithCountChannelClosed() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
@@ -328,17 +340,18 @@ func (suite *ObserveProgressUnitSuite) TestrogressWithCountChannelClosed() {
 
 	Complete()
 
-	require.NotEmpty(suite.T(), recorder.String())
-	require.Contains(suite.T(), recorder.String(), message)
-	require.Contains(suite.T(), recorder.String(), fmt.Sprintf("%d/%d", 0, count))
+	require.NotEmpty(t, recorder.String())
+	require.Contains(t, recorder.String(), message)
+	require.Contains(t, recorder.String(), fmt.Sprintf("%d/%d", 0, count))
 }
 
 func (suite *ObserveProgressUnitSuite) TestListen() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t     = suite.T()
 		ch    = make(chan struct{})
 		end   bool
 		onEnd = func() { end = true }
@@ -361,11 +374,12 @@ func (suite *ObserveProgressUnitSuite) TestListen() {
 }
 
 func (suite *ObserveProgressUnitSuite) TestListen_close() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t     = suite.T()
 		ch    = make(chan struct{})
 		end   bool
 		onEnd = func() { end = true }
@@ -385,13 +399,14 @@ func (suite *ObserveProgressUnitSuite) TestListen_close() {
 }
 
 func (suite *ObserveProgressUnitSuite) TestListen_cancel() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	ctx, cancelFn := context.WithCancel(ctx)
 
 	var (
-		t     = suite.T()
 		ch    = make(chan struct{})
 		end   bool
 		onEnd = func() { end = true }

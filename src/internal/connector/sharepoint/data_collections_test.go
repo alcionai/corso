@@ -93,11 +93,12 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 
 	for _, test := range tests {
 		suite.Run(test.testCase, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t         = suite.T()
 				paths     = map[string]string{}
 				newPaths  = map[string]string{}
 				excluded  = map[string]struct{}{}
@@ -192,11 +193,12 @@ func TestSharePointPagesSuite(t *testing.T) {
 }
 
 func (suite *SharePointPagesSuite) TestCollectPages() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t      = suite.T()
 		siteID = tester.M365SiteID(t)
 		a      = tester.NewM365Account(t)
 	)

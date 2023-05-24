@@ -40,9 +40,6 @@ func (suite *CacheResolverSuite) SetupSuite() {
 }
 
 func (suite *CacheResolverSuite) TestPopulate() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	ac, err := api.NewClient(suite.credentials)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -116,6 +113,10 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			resolver := test.resolverFunc(t)
 
 			err := resolver.Populate(ctx, fault.New(true), test.root, test.basePath)

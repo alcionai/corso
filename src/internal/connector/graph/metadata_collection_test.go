@@ -43,10 +43,10 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 }
 
 func (suite *MetadataCollectionUnitSuite) TestItems() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	itemNames := []string{
 		"a",
@@ -158,7 +158,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			col, err := MakeMetadataCollection(

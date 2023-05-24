@@ -28,13 +28,12 @@ func TestM365IntegrationSuite(t *testing.T) {
 }
 
 func (suite *M365IntegrationSuite) TestUsers() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(suite.T())
-	)
+	acct := tester.NewM365Account(suite.T())
 
 	users, err := m365.Users(ctx, acct, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
@@ -53,13 +52,12 @@ func (suite *M365IntegrationSuite) TestUsers() {
 }
 
 func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(suite.T())
-	)
+	acct := tester.NewM365Account(suite.T())
 
 	users, err := m365.UsersCompatNoInfo(ctx, acct)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -77,11 +75,12 @@ func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
 }
 
 func (suite *M365IntegrationSuite) TestGetUserInfo() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		uid  = tester.M365UserID(t)
 	)
@@ -103,11 +102,12 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 }
 
 func (suite *M365IntegrationSuite) TestUserHasMailbox() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		uid  = tester.M365UserID(t)
 	)
@@ -118,11 +118,12 @@ func (suite *M365IntegrationSuite) TestUserHasMailbox() {
 }
 
 func (suite *M365IntegrationSuite) TestUserHasDrive() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		uid  = tester.M365UserID(t)
 	)
@@ -133,13 +134,12 @@ func (suite *M365IntegrationSuite) TestUserHasDrive() {
 }
 
 func (suite *M365IntegrationSuite) TestSites() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(suite.T())
-	)
+	acct := tester.NewM365Account(suite.T())
 
 	sites, err := m365.Sites(ctx, acct, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))

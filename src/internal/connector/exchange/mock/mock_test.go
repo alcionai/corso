@@ -26,7 +26,9 @@ func TestMockSuite(t *testing.T) {
 }
 
 func (suite *MockSuite) TestMockExchangeCollection() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	mdc := NewCollection(nil, nil, 2)
@@ -34,18 +36,19 @@ func (suite *MockSuite) TestMockExchangeCollection() {
 
 	for item := range mdc.Items(ctx, fault.New(true)) {
 		_, err := io.ReadAll(item.ToReader())
-		assert.NoError(suite.T(), err, clues.ToCore(err))
+		assert.NoError(t, err, clues.ToCore(err))
 		messagesRead++
 	}
 
-	assert.Equal(suite.T(), 2, messagesRead)
+	assert.Equal(t, 2, messagesRead)
 }
 
 func (suite *MockSuite) TestMockExchangeCollectionItemSize() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	mdc := NewCollection(nil, nil, 2)
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
@@ -62,10 +65,11 @@ func (suite *MockSuite) TestMockExchangeCollectionItemSize() {
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
 func (suite *MockSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	mdc := NewCollection(nil, nil, 3)
 
 	for stream := range mdc.Items(ctx, fault.New(true)) {

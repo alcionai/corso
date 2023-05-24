@@ -46,9 +46,6 @@ func TestRestoreOpSuite(t *testing.T) {
 }
 
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
@@ -105,6 +102,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	for _, test := range table {
 		suite.Run(test.expectStatus.String(), func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			op, err := NewRestoreOperation(
 				ctx,
@@ -165,11 +165,12 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t  = suite.T()
 		st = tester.NewPrefixedS3Storage(t)
 		k  = kopia.NewConn(st)
 	)
@@ -198,7 +199,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	if suite.ms != nil {
@@ -240,7 +241,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(suite.T())
 			defer flush()
 
 			_, err := NewRestoreOperation(
@@ -266,7 +267,7 @@ func setupExchangeBackup(
 	acct account.Account,
 	owner string,
 ) bupResults {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
@@ -316,7 +317,7 @@ func setupSharePointBackup(
 	acct account.Account,
 	owner string,
 ) bupResults {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
@@ -379,9 +380,6 @@ func setupSharePointBackup(
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	tables := []struct {
 		name        string
 		owner       string
@@ -423,6 +421,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				bup = test.setup(t, suite.kw, suite.sw, suite.acct, test.owner)
 			)
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			require.NotZero(t, bup.items)
 			require.NotEmpty(t, bup.backupID)
 
@@ -459,11 +460,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		dest = tester.DefaultTestRestoreDestination("")
 		mb   = evmock.NewBus()
 	)

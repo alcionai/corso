@@ -122,10 +122,11 @@ func (suite *ConcurrencyMWUnitTestSuite) TestGenerateConcurrencyLimiter() {
 }
 
 func (suite *ConcurrencyMWUnitTestSuite) TestTimedFence_Block() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	tf := newTimedFence()
 
 	// raise multiple fences, the longest at 5 seconds
@@ -159,12 +160,13 @@ func (suite *ConcurrencyMWUnitTestSuite) TestTimedFence_Block() {
 }
 
 func (suite *ConcurrencyMWUnitTestSuite) TestTimedFence_Block_ctxDeadline() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	ctx, _ = context.WithDeadline(ctx, time.Now().Add(2*time.Second))
 
-	t := suite.T()
 	tf := newTimedFence()
 
 	// raise multiple fences, the longest at 10 seconds
@@ -297,10 +299,11 @@ func (suite *ConcurrencyMWUnitTestSuite) TestThrottlingMiddleware() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			tm := throttlingMiddleware{newTimedFence()}
 
 			req := &http.Request{}

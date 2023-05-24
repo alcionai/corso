@@ -51,7 +51,7 @@ func (suite *RepositoryUnitSuite) TestInitialize() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			st, err := test.storage()
@@ -85,7 +85,7 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			st, err := test.storage()
@@ -114,9 +114,6 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name     string
 		account  account.Account
@@ -132,6 +129,9 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			st := test.storage(t)
 			r, err := repository.Initialize(ctx, test.account, st, control.Defaults())
@@ -157,7 +157,7 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 		suite.T().Skip(roleARNEnvKey + " not set")
 	}
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	st := tester.NewPrefixedS3Storage(suite.T())
@@ -175,10 +175,10 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -192,10 +192,10 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -215,10 +215,10 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestNewBackup() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	acct := tester.NewM365Account(t)
 
@@ -236,10 +236,10 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestNewRestore() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	acct := tester.NewM365Account(t)
 	dest := tester.DefaultTestRestoreDestination("")
@@ -256,10 +256,10 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	acct := tester.NewM365Account(t)
 
@@ -275,10 +275,10 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)

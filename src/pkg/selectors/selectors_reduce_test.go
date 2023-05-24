@@ -27,9 +27,6 @@ func TestSelectorReduceSuite(t *testing.T) {
 }
 
 func (suite *SelectorReduceSuite) TestReduce() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name     string
 		selFunc  func(t *testing.T, wantVersion int) selectors.Reducer
@@ -388,6 +385,9 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			for _, test := range table {
 				suite.Run(test.name, func() {
 					t := suite.T()
+
+					ctx, flush := tester.NewContext(t)
+					defer flush()
 
 					allDetails := testdata.GetDetailsSetForVersion(t, v)
 					output := test.selFunc(t, v).Reduce(ctx, allDetails, fault.New(true))
