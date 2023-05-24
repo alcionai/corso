@@ -842,14 +842,13 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 		skipCount      int
 		recoveredCount int
 		item           models.DriveItemable
-		readItemCount  int
 		itemMetaReader itemMetaReaderFunc
 		itemGetter     itemGetterFunc
 	}{
 		// 1. Simulate itemMetaReader failure. Return a non-deleted item through
 		// itemGetter. Expect recoverable error.
 		{
-			name:           "file present during permissions fetch",
+			name:           "file present",
 			source:         SharePointSource,
 			skipCount:      0,
 			recoveredCount: 1,
@@ -861,7 +860,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			readItemCount: 0,
 			itemMetaReader: func(
 				context.Context,
 				graph.Servicer,
@@ -892,7 +890,7 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 		// 2. Simulate itemMetaReader failure. Return a deleted item from
 		// itemGetter. Expect skippable error since the item is no longer present.
 		{
-			name:           "deleted file during permissions fetch",
+			name:           "file deleted",
 			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
@@ -904,7 +902,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			readItemCount: 0,
 			itemMetaReader: func(
 				context.Context,
 				graph.Servicer,
@@ -935,7 +932,7 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 		// 3. Simulate itemMetaReader failure. Return graph 404 from
 		// itemGetter. Expect skippable error since the item is no longer present.
 		{
-			name:           "deleted file during permissions fetch",
+			name:           "file deleted, graph 404",
 			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
@@ -947,7 +944,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			readItemCount: 0,
 			itemMetaReader: func(
 				context.Context,
 				graph.Servicer,
@@ -967,10 +963,11 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				return nil, odErr(string(graph.ItemNotFound))
 			},
 		},
+
 		// 4. Simulate itemMetaReader failure. Return graph 404 label from
 		// itemGetter. Expect skippable error since the item is no longer present.
 		{
-			name:           "deleted file during permissions fetch",
+			name:           "file deleted, graph 404 label",
 			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
@@ -982,7 +979,41 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			readItemCount: 0,
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				// Simulate 404
+				return io.NopCloser(strings.NewReader(`{}`)),
+					16,
+					clues.New("item not found")
+			},
+			itemGetter: func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
+			},
+		},
+
+		// 5. Folder test. Simulate itemMetaReader failure. Return graph 404 label from
+		// itemGetter. Expect skippable error since the item is no longer present.
+		{
+			name:           "folder deleted, graph 404 label",
+			source:         SharePointSource,
+			skipCount:      1,
+			recoveredCount: 0,
+			item: driveItem(
+				"file_id",
+				"file_name",
+				fp,
+				"root",
+				false,
+				true,
+				false),
 			itemMetaReader: func(
 				context.Context,
 				graph.Servicer,
@@ -1061,7 +1092,7 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 
 			wg.Wait()
 
-			require.Equal(t, test.readItemCount, len(readItems), "read items")
+			require.Zero(t, len(readItems), "read items")
 			require.Equal(t, test.skipCount, len(errs.Skipped()), "skipped items")
 			require.Equal(t, test.recoveredCount, len(errs.Recovered()), "recovered items")
 		})
