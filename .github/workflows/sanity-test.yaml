@@ -123,7 +123,7 @@ jobs:
             --hide-progress \
             --prefix $prefix \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
-            2>&1 | tee ./testlogs/gotest-repo-init.log
+            2>&1 | tee ./$TEST_RESULT/gotest-repo-init.log
 
           if ! grep -q 'Initialized a S3 repository within bucket' ./$TEST_RESULT/gotest-repo-init.log
           then
@@ -142,9 +142,9 @@ jobs:
             --hide-progress \
             --prefix ${{ steps.repo-init.outputs.result }} \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
-            2>&1 | tee ./testlogs/gotest-repo-connect.log
+            2>&1 | tee ./$TEST_RESULT/gotest-repo-connect.log
 
-          if ! grep -q 'Connected to S3 bucket' ./testlogs/gotest-repo-connect.log
+          if ! grep -q 'Connected to S3 bucket' ./$TEST_RESULT/gotest-repo-connect.log
           then
             echo "Repo could not be connected"
             exit 1
