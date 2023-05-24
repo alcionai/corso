@@ -55,7 +55,7 @@ type DeltaUpdate struct {
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	pager api.DriveItemPager,
+	pager api.DriveItemEnumerator,
 	driveID, driveName string,
 	collector itemCollector,
 	oldPaths map[string]string,

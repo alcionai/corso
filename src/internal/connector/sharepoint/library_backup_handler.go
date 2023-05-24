@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -47,6 +48,13 @@ func (h libraryBackupHandler) DrivePager(
 	resourceOwner string, fields []string,
 ) api.DrivePager {
 	return h.ac.NewSiteDrivePager(resourceOwner, fields)
+}
+
+func (h libraryBackupHandler) ItemPager(
+	driveID, link string,
+	fields []string,
+) api.DriveItemEnumerator {
+	return h.ac.NewItemPager(driveID, link, fields)
 }
 
 // AugmentItemInfo will populate a details.SharePointInfo struct
@@ -96,6 +104,11 @@ func (h libraryBackupHandler) AugmentItemInfo(
 		driveName = strings.TrimSpace(ptr.Val(item.GetParentReference().GetName()))
 	}
 
+	var pps string
+	if parentPath != nil {
+		pps = parentPath.String()
+	}
+
 	dii.SharePoint = &details.SharePointInfo{
 		Created:    ptr.Val(item.GetCreatedDateTime()),
 		DriveID:    driveID,
@@ -103,8 +116,8 @@ func (h libraryBackupHandler) AugmentItemInfo(
 		ItemName:   ptr.Val(item.GetName()),
 		ItemType:   details.SharePointLibrary,
 		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
-		ParentPath: parentPath.String(),
 		Owner:      creatorEmail,
+		ParentPath: pps,
 		SiteID:     siteID,
 		Size:       size,
 		WebURL:     weburl,
@@ -159,3 +172,7 @@ func (h libraryBackupHandler) NewLocationIDer(
 ) details.LocationIDer {
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
+
+func (h libraryBackupHandler) Requester() graph.Requester                     { return h.ac.Requester }
+func (h libraryBackupHandler) PermissionGetter() onedrive.GetItemPermissioner { return h.ac }
+func (h libraryBackupHandler) ItemGetter() onedrive.GetItemer                 { return h.ac }

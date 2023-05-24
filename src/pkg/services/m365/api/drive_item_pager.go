@@ -6,7 +6,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-type DriveItemPager interface {
+type DriveItemEnumerator interface {
 	GetPage(context.Context) (DeltaPageLinker, error)
 	SetNext(nextLink string)
 	Reset()

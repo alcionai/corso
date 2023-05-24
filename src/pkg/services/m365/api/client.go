@@ -27,6 +27,11 @@ type Client struct {
 	// downloading large items such as drive item content or outlook
 	// mail and event attachments.
 	LargeItem graph.Servicer
+
+	// The Requester provides a client specifically for calling
+	// arbitrary urls instead of constructing queries using the
+	// graph api client.
+	Requester graph.Requester
 }
 
 // NewClient produces a new exchange api client.  Must be used in
@@ -42,7 +47,9 @@ func NewClient(creds account.M365Config) (Client, error) {
 		return Client{}, err
 	}
 
-	return Client{creds, s, li}, nil
+	rqr := graph.NewNoTimeoutHTTPWrapper()
+
+	return Client{creds, s, li, rqr}, nil
 }
 
 // Service generates a new graph servicer.  New servicers are used for paged
