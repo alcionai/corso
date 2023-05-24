@@ -513,8 +513,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					oc.driveID,
 					ptr.Val(item.GetId()))
 				if e != nil && !graph.IsErrDeletedInFlight(e) {
-					// something else happened, bail
-					logger.CtxErr(ctx, err).Error("getting item")
+					logger.CtxErr(ctx, e).Error("getting item")
 				} else if graph.IsErrDeletedInFlight(e) ||
 					(e == nil && di.GetDeleted() != nil) {
 					logger.CtxErr(ctx, err).
@@ -529,11 +528,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						graph.ItemInfo(item))
 
 					el.AddSkip(skip)
-				} else {
-					el.AddRecoverable(
-						clues.Wrap(err, "getting item metadata").
-							Label(fault.LabelForceNoBackupCreation))
+
+					return
 				}
+
+				el.AddRecoverable(
+					clues.Wrap(err, "getting item metadata").
+						Label(fault.LabelForceNoBackupCreation))
 
 				return
 			}
