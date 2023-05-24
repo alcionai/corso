@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -169,40 +168,6 @@ func downloadItem(
 	return resp, cerr
 }
 
-// oneDriveItemInfo will populate a details.OneDriveInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
-func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
-	var email, driveName, driveID string
-
-	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
-		// User is sometimes not available when created via some
-		// external applications (like backup/restore solutions)
-		ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
-		if ok {
-			email = *ed.(*string)
-		}
-	}
-
-	if di.GetParentReference() != nil {
-		driveID = ptr.Val(di.GetParentReference().GetDriveId())
-		driveName = strings.TrimSpace(ptr.Val(di.GetParentReference().GetName()))
-	}
-
-	return &details.OneDriveInfo{
-		Created:   ptr.Val(di.GetCreatedDateTime()),
-		DriveID:   driveID,
-		DriveName: driveName,
-		ItemName:  ptr.Val(di.GetName()),
-		ItemType:  details.OneDriveItem,
-		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
-		Owner:     email,
-		Size:      itemSize,
-	}
-}
-
 // driveItemPermissionInfo will fetch the permission information
 // for a drive item given a drive and item id.
 func driveItemPermissionInfo(
@@ -290,62 +255,6 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 	return up
 }
 
-// sharePointItemInfo will populate a details.SharePointInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
-// TODO: Update drive name during Issue #2071
-func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
-	var driveName, siteID, driveID, weburl, creatorEmail string
-
-	// TODO: we rely on this info for details/restore lookups,
-	// so if it's nil we have an issue, and will need an alternative
-	// way to source the data.
-	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
-		// User is sometimes not available when created via some
-		// external applications (like backup/restore solutions)
-		additionalData := di.GetCreatedBy().GetUser().GetAdditionalData()
-		ed, ok := additionalData["email"]
-
-		if !ok {
-			ed = additionalData["displayName"]
-		}
-
-		if ed != nil {
-			creatorEmail = *ed.(*string)
-		}
-	}
-
-	gsi := di.GetSharepointIds()
-	if gsi != nil {
-		siteID = ptr.Val(gsi.GetSiteId())
-		weburl = ptr.Val(gsi.GetSiteUrl())
-
-		if len(weburl) == 0 {
-			weburl = constructWebURL(di.GetAdditionalData())
-		}
-	}
-
-	if di.GetParentReference() != nil {
-		driveID = ptr.Val(di.GetParentReference().GetDriveId())
-		driveName = strings.TrimSpace(ptr.Val(di.GetParentReference().GetName()))
-	}
-
-	return &details.SharePointInfo{
-		ItemType:  details.SharePointLibrary,
-		ItemName:  ptr.Val(di.GetName()),
-		Created:   ptr.Val(di.GetCreatedDateTime()),
-		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
-		DriveID:   driveID,
-		DriveName: driveName,
-		Size:      itemSize,
-		Owner:     creatorEmail,
-		WebURL:    weburl,
-		SiteID:    siteID,
-	}
-}
-
 // driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item
 // It does so by creating an upload session and using that URL to initialize an `itemWriter`
 // TODO: @vkamra verify if var session is the desired input
@@ -365,39 +274,6 @@ func driveItemWriter(
 	iw := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), itemSize)
 
 	return iw, nil
-}
-
-// constructWebURL helper function for recreating the webURL
-// for the originating SharePoint site. Uses additional data map
-// from a models.DriveItemable that possesses a downloadURL within the map.
-// Returns "" if map nil or key is not present.
-func constructWebURL(adtl map[string]any) string {
-	var (
-		desiredKey = "@microsoft.graph.downloadUrl"
-		sep        = `/_layouts`
-		url        string
-	)
-
-	if adtl == nil {
-		return url
-	}
-
-	r := adtl[desiredKey]
-	point, ok := r.(*string)
-
-	if !ok {
-		return url
-	}
-
-	value := ptr.Val(point)
-	if len(value) == 0 {
-		return url
-	}
-
-	temp := strings.Split(value, sep)
-	url = temp[0]
-
-	return url
 }
 
 func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {
