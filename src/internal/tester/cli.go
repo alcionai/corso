@@ -1,16 +1,13 @@
 package tester
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // StubRootCmd builds a stub cobra command to be used as
@@ -31,35 +28,4 @@ func StubRootCmd(args ...string) *cobra.Command {
 	c.SetArgs(args)
 
 	return c
-}
-
-func NewContext() (context.Context, func()) {
-	level := logger.LLInfo
-	format := logger.LFText
-
-	for _, a := range os.Args {
-		if a == "-test.v=true" {
-			level = logger.LLDebug
-		}
-	}
-
-	ls := logger.Settings{
-		Level:  level,
-		Format: format,
-	}
-
-	//nolint:forbidigo
-	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
-
-	return ctx, func() { logger.Flush(ctx) }
-}
-
-func WithContext(ctx context.Context) (context.Context, func()) {
-	ls := logger.Settings{
-		Level:  logger.LLDebug,
-		Format: logger.LFText,
-	}
-	ctx, _ = logger.CtxOrSeed(ctx, ls)
-
-	return ctx, func() { logger.Flush(ctx) }
 }
