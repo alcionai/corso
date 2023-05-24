@@ -838,18 +838,14 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 
 	table := []struct {
 		name           string
-		source         driveSource
 		skipCount      int
 		recoveredCount int
 		item           models.DriveItemable
-		itemMetaReader itemMetaReaderFunc
 		itemGetter     itemGetterFunc
 	}{
-		// 1. Simulate itemMetaReader failure. Return a non-deleted item through
-		// itemGetter. Expect recoverable error.
+		// 1. Return a non-deleted item through itemGetter. Expect recoverable error.
 		{
 			name:           "file present",
-			source:         SharePointSource,
 			skipCount:      0,
 			recoveredCount: 1,
 			item: driveItem(
@@ -860,17 +856,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
 			itemGetter: func(
 				ctx context.Context,
 				srv graph.Servicer,
@@ -887,11 +872,11 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 					nil
 			},
 		},
-		// 2. Simulate itemMetaReader failure. Return a deleted item from
-		// itemGetter. Expect skippable error since the item is no longer present.
+
+		// 2. Return a deleted item from itemGetter. Expect skippable error since
+		// the item is no longer present.
 		{
 			name:           "file deleted",
-			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
 			item: driveItem(
@@ -902,17 +887,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
 			itemGetter: func(
 				ctx context.Context,
 				srv graph.Servicer,
@@ -929,11 +903,10 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 			},
 		},
 
-		// 3. Simulate itemMetaReader failure. Return graph 404 from
+		// 3. Return graph 404 from
 		// itemGetter. Expect skippable error since the item is no longer present.
 		{
 			name:           "file deleted, graph 404",
-			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
 			item: driveItem(
@@ -944,17 +917,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
 			itemGetter: func(
 				ctx context.Context,
 				srv graph.Servicer,
@@ -964,11 +926,10 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 			},
 		},
 
-		// 4. Simulate itemMetaReader failure. Return graph 404 label from
+		// 4. Return graph 404 label from
 		// itemGetter. Expect skippable error since the item is no longer present.
 		{
 			name:           "file deleted, graph 404 label",
-			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
 			item: driveItem(
@@ -979,17 +940,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				true,
 				false,
 				false),
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
 			itemGetter: func(
 				ctx context.Context,
 				srv graph.Servicer,
@@ -1003,7 +953,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 		// itemGetter. Expect skippable error since the item is no longer present.
 		{
 			name:           "folder deleted, graph 404 label",
-			source:         SharePointSource,
 			skipCount:      1,
 			recoveredCount: 0,
 			item: driveItem(
@@ -1014,17 +963,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				false,
 				true,
 				false),
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
 			itemGetter: func(
 				ctx context.Context,
 				srv graph.Servicer,
@@ -1059,7 +997,7 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 				"drive-id",
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
+				SharePointSource,
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
@@ -1082,7 +1020,18 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 					nil
 			}
 
-			coll.itemMetaReader = test.itemMetaReader
+			// Simulate 404 from itemMetaReader
+			coll.itemMetaReader = func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{}`)),
+					16,
+					clues.New("item not found")
+			}
+
 			coll.itemGetter = test.itemGetter
 
 			readItems := []data.Stream{}
