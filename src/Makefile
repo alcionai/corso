@@ -37,7 +37,7 @@ build-otel-daemon:
 	docker build -t xray-daemon .
 
 otel-daemon:
-	results_dir=$$PWD/test_results; \
+	results_dir=$$PWD/testlog; \
 	cd ./testfiles/otel_daemon; \
 	docker run \
 		-d \
@@ -51,7 +51,7 @@ otel-daemon:
 		--log-level debug 
 
 local-daemon:
-	results_dir=$$PWD/test_results; \
+	results_dir=$$PWD/testlog; \
 	cd ./testfiles/otel_daemon; \
 	docker run \
 		--attach STDOUT \
@@ -78,7 +78,7 @@ load-test:
 	-memprofile=mem.prof \
 	-mutexprofile=mutex.prof \
 	-trace=trace.out \
-	-outputdir=test_results \
+	-outputdir=testlog \
 	./pkg/repository/loadtest/repository_load_test.go
 
 getM365:
