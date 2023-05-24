@@ -506,7 +506,36 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				item)
 
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+				// Skip if the item was deleted by the time we attempted to get
+				// its permissions
+				if item.GetDeleted() != nil {
+					logger.CtxErr(ctx, err).
+						With("skipped_reason", fault.SkipNotFound).
+						Info("item not found")
+
+					skip := fault.ContainerSkip(
+						fault.SkipNotFound,
+						oc.driveID,
+						itemID,
+						itemName,
+						graph.ItemInfo(item))
+
+					if isFile {
+						skip = fault.FileSkip(
+							fault.SkipNotFound,
+							oc.driveID,
+							itemID,
+							itemName,
+							graph.ItemInfo(item))
+					}
+
+					el.AddSkip(skip)
+				} else {
+					el.AddRecoverable(
+						clues.Wrap(err, "getting item metadata").
+							Label(fault.LabelForceNoBackupCreation))
+				}
+
 				return
 			}
 
