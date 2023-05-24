@@ -38,7 +38,6 @@ jobs:
       CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
       RESTORE_DEST_PFX: Corso_Test_Sanity_
-      TEST_RESULT: test_results
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
 
     defaults:
@@ -60,7 +59,6 @@ jobs:
       - run: go build -o corso
       - run: go build -o sanity-test ./cmd/sanity_test
 
-      - run: mkdir ${TEST_RESULT}
       - run: mkdir ${CORSO_LOG_DIR}
 
 ##########################################################################################################################################
@@ -123,9 +121,9 @@ jobs:
             --hide-progress \
             --prefix $prefix \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
-            2>&1 | tee ./$TEST_RESULT/gotest-repo-init.log
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
 
-          if ! grep -q 'Initialized a S3 repository within bucket' ./$TEST_RESULT/gotest-repo-init.log
+          if ! grep -q 'Initialized a S3 repository within bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
           then
             echo "Repo could not be initialized"
             exit 1
@@ -142,9 +140,9 @@ jobs:
             --hide-progress \
             --prefix ${{ steps.repo-init.outputs.result }} \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
-            2>&1 | tee ./$TEST_RESULT/gotest-repo-connect.log
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
 
-          if ! grep -q 'Connected to S3 bucket' ./$TEST_RESULT/gotest-repo-connect.log
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
           then
             echo "Repo could not be connected"
             exit 1
