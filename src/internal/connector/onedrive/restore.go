@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -266,7 +267,10 @@ func RestoreCollection(
 				defer wg.Done()
 				defer func() { <-semaphoreCh }()
 
+				// TODO(meain): Don't have to pass this in now that we create a
+				// separate copyBuffer for each restore
 				copyBuffer := make([]byte, copyBufferSize)
+
 				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
 				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
@@ -715,6 +719,47 @@ func createRestoreFolders(
 	return parentFolderID, nil
 }
 
+func copyBufferWithStallCheck(dst io.Writer, src io.Reader, buffer []byte, stallTimeout time.Duration) (int64, error) {
+	timer := time.NewTimer(stallTimeout)
+	defer timer.Stop()
+
+	var totalCopied int64
+
+	for {
+		n, err := src.Read(buffer)
+		if n > 0 {
+			// Progress is being made, reset the timer
+			if !timer.Stop() {
+				<-timer.C
+			}
+
+			timer.Reset(stallTimeout)
+
+			n, err = dst.Write(buffer[:n])
+			if n > 0 {
+				totalCopied += int64(n)
+			}
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				// Copy completed successfully
+				return totalCopied, nil
+			}
+
+			return 0, clues.Wrap(err, "copying data")
+		}
+
+		select {
+		case <-timer.C:
+			return totalCopied, clues.New("copy stalled")
+		default:
+			// Continue copying
+			continue
+		}
+	}
+}
+
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
@@ -781,7 +826,8 @@ func restoreData(
 		go closer()
 
 		// Upload the stream data
-		written, err = io.CopyBuffer(w, progReader, copyBuffer)
+		// TODO(meain): Tweak the time interval to check for stalls
+		written, err = copyBufferWithStallCheck(w, progReader, copyBuffer, 1*time.Minute)
 		if err == nil {
 			break
 		}
