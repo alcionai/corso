@@ -207,13 +207,12 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			var (
-				t  = suite.T()
-				gc = &GraphConnector{ownerLookup: test.rc}
-			)
+			gc := &GraphConnector{ownerLookup: test.rc}
 
 			rID, rName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -224,11 +223,12 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 }
 
 func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t  = suite.T()
 		gc = &GraphConnector{
 			wg:     &sync.WaitGroup{},
 			region: &trace.Region{},
@@ -276,23 +276,26 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), Users)
-	suite.user = tester.M365UserID(suite.T())
-	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
-	suite.acct = tester.NewM365Account(suite.T())
+	suite.connector = loadConnector(ctx, t, Users)
+	suite.user = tester.M365UserID(t)
+	suite.secondaryUser = tester.SecondaryM365UserID(t)
+	suite.acct = tester.NewM365Account(t)
 
-	tester.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(t)
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		dest = tester.DefaultTestRestoreDestination("")
 		sel  = selectors.Selector{
@@ -376,7 +379,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			deets, err := suite.connector.ConsumeRestoreCollections(
@@ -531,7 +534,7 @@ func runRestoreBackupTest(
 	resourceOwners []string,
 	opts control.Options,
 ) {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	config := ConfigInfo{
@@ -578,7 +581,7 @@ func runRestoreTestWithVerion(
 	resourceOwners []string,
 	opts control.Options,
 ) {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	config := ConfigInfo{
@@ -617,7 +620,7 @@ func runRestoreBackupTestVersions(
 	resourceOwners []string,
 	opts control.Options,
 ) {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	config := ConfigInfo{
@@ -995,7 +998,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			restoreSel := getSelectorWith(t, test.service, []string{suite.user}, true)
@@ -1211,11 +1214,12 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t         = suite.T()
 				backupGC  = loadConnector(ctx, t, test.resource)
 				backupSel = test.selectorFunc(t)
 				errs      = fault.New(true)

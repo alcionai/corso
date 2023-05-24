@@ -58,11 +58,12 @@ func (suite *RestoreIntgSuite) SetupSuite() {
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
 func (suite *RestoreIntgSuite) TestRestoreContact() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t          = suite.T()
 		userID     = tester.M365UserID(t)
 		folderName = tester.DefaultTestRestoreDestination("contact").ContainerName
 	)
@@ -92,11 +93,12 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *RestoreIntgSuite) TestRestoreEvent() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t       = suite.T()
 		userID  = tester.M365UserID(t)
 		subject = tester.DefaultTestRestoreDestination("event").ContainerName
 	)
@@ -130,7 +132,7 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			info, err := RestoreExchangeEvent(
@@ -359,7 +361,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			destination := test.destination(t, ctx)

@@ -171,7 +171,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			entries := []graph.MetadataCollectionEntry{}
@@ -243,9 +243,6 @@ func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
 }
 
 func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	var (
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
@@ -288,6 +285,9 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			ctrlOpts := control.Defaults()
 			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
 
@@ -328,9 +328,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 }
 
 func (suite *DataCollectionsIntegrationSuite) TestDelta() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	var (
 		userID    = tester.M365UserID(suite.T())
 		users     = []string{userID}
@@ -368,6 +365,9 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			// get collections without providing any delta history (ie: full backup)
 			collections, err := createCollections(
@@ -432,11 +432,12 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
 func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t     = suite.T()
 		wg    sync.WaitGroup
 		users = []string{suite.user}
 	)
@@ -463,6 +464,9 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	for _, edc := range collections {
 		suite.Run(edc.FullPath().String(), func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
 			streamChannel := edc.Items(ctx, fault.New(true))
@@ -493,9 +497,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -515,10 +516,12 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			var (
-				wg sync.WaitGroup
-				t  = suite.T()
-			)
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var wg sync.WaitGroup
 
 			edcs, err := createCollections(
 				ctx,
@@ -581,16 +584,18 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	acct, err := tester.NewM365Account(t).M365Config()
+	require.NoError(t, err, clues.ToCore(err))
 
 	users := []string{suite.user}
 
 	ac, err := api.NewClient(acct)
-	require.NoError(suite.T(), err, "creating client", clues.ToCore(err))
+	require.NoError(t, err, "creating client", clues.ToCore(err))
 
 	var (
 		calID  string
@@ -610,7 +615,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	}
 
 	err = ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true))
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	tests := []struct {
 		name, expected string
@@ -636,10 +641,12 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			var (
-				wg sync.WaitGroup
-				t  = suite.T()
-			)
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var wg sync.WaitGroup
 
 			collections, err := createCollections(
 				ctx,

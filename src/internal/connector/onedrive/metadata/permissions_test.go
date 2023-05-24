@@ -135,10 +135,10 @@ func (suite *PermissionsUnitTestSuite) TestDiffPermissions() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			_, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			_, flush := tester.NewContext(t)
+			defer flush()
 
 			added, removed := DiffPermissions(test.before, test.after)
 

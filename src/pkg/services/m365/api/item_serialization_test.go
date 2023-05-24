@@ -115,10 +115,11 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flusher := tester.NewContext()
+			t := suite.T()
+
+			ctx, flusher := tester.NewContext(t)
 			defer flusher()
 
-			t := suite.T()
 			output := make([][]byte, instances)
 
 			for i := 0; i < instances; i++ {

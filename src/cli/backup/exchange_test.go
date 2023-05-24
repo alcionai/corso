@@ -275,14 +275,14 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 }
 
 func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectors() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	for v := 0; v <= version.Backup; v++ {
 		suite.Run(fmt.Sprintf("version%d", v), func() {
 			for _, test := range testdata.ExchangeOptionDetailLookups {
 				suite.Run(test.Name, func() {
 					t := suite.T()
+
+					ctx, flush := tester.NewContext(t)
+					defer flush()
 
 					bg := testdata.VersionedBackupGetter{
 						Details: dtd.GetDetailsSetForVersion(t, v),
@@ -303,12 +303,12 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectors() {
 }
 
 func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	for _, test := range testdata.BadExchangeOptionsFormats {
 		suite.Run(test.Name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			output, err := runDetailsExchangeCmd(
 				ctx,

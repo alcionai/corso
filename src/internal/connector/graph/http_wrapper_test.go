@@ -26,13 +26,12 @@ func TestHTTPWrapperIntgSuite(t *testing.T) {
 }
 
 func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		t  = suite.T()
-		hw = NewHTTPWrapper()
-	)
+	hw := NewHTTPWrapper()
 
 	resp, err := hw.Request(
 		ctx,
@@ -76,11 +75,12 @@ func TestHTTPWrapperUnitSuite(t *testing.T) {
 }
 
 func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		uri  = "https://graph.microsoft.com"
 		path = "/fnords/beaux/regard"
 		url  = uri + path

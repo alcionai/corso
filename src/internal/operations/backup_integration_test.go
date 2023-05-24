@@ -550,7 +550,9 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			sel := selectors.Selector{DiscreteOwner: "test"}
@@ -565,7 +567,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				sel,
 				sel,
 				evmock.NewBus())
-			test.errCheck(suite.T(), err, clues.ToCore(err))
+			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -577,9 +579,6 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	tests := []struct {
 		name          string
 		selector      func() *selectors.ExchangeBackup
@@ -621,8 +620,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	}
 	for _, test := range tests {
 		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			var (
-				t       = suite.T()
 				mb      = evmock.NewBus()
 				sel     = test.selector().Selector
 				ffs     = control.Toggles{}
@@ -719,13 +722,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
 }
 
 func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles control.Toggles) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	tester.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(t)
 
 	var (
-		t          = suite.T()
 		acct       = tester.NewM365Account(t)
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
@@ -1293,11 +1297,12 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 // ---------------------------------------------------------------------------
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t      = suite.T()
 		tenID  = tester.M365TenantID(t)
 		mb     = evmock.NewBus()
 		userID = tester.SecondaryM365UserID(t)
@@ -1407,11 +1412,12 @@ func runDriveIncrementalTest(
 	getTestDriveID func(*testing.T, context.Context, graph.Servicer) string,
 	skipPermissionsTests bool,
 ) {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
@@ -1915,11 +1921,12 @@ func runDriveIncrementalTest(
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t    = suite.T()
 		acct = tester.NewM365Account(t)
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
@@ -2037,11 +2044,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 // ---------------------------------------------------------------------------
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t   = suite.T()
 		mb  = evmock.NewBus()
 		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)

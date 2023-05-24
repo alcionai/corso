@@ -40,7 +40,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 func (suite *ItemIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	suite.service = loadTestService(t)
@@ -64,7 +64,9 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 // 2) It assumes the drive has a file it can use to test `driveItemReader`
 // The test checks these in below
 func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var driveItem models.DriveItemable
@@ -102,30 +104,29 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		map[string]string{},
 		"",
 		fault.New(true))
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
-		suite.T(),
+		t,
 		driveItem,
 		"no file item found for user %s drive %s",
 		suite.user,
-		suite.userDriveID,
-	)
+		suite.userDriveID)
 
 	// Read data for the file
 	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.NewNoTimeoutHTTPWrapper(), driveItem)
 
-	require.NoError(suite.T(), err, clues.ToCore(err))
-	require.NotNil(suite.T(), itemInfo.OneDrive)
-	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, itemInfo.OneDrive)
+	require.NotEmpty(t, itemInfo.OneDrive.ItemName)
 
 	size, err := io.Copy(io.Discard, itemData)
-	require.NoError(suite.T(), err, clues.ToCore(err))
-	require.NotZero(suite.T(), size)
-	require.Equal(suite.T(), size, itemInfo.OneDrive.Size)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotZero(t, size)
+	require.Equal(t, size, itemInfo.OneDrive.Size)
 
-	suite.T().Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
+	t.Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive
@@ -146,10 +147,11 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			srv := suite.service
 
 			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
@@ -224,10 +226,11 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			srv := suite.service
 
 			root, err := srv.Client().Drives().ByDriveId(test.driveID).Root().Get(ctx, nil)
@@ -425,11 +428,13 @@ func (suite *ItemUnitTestSuite) TestDrivePermissionsFilter() {
 	}
 	for _, tc := range cases {
 		suite.Run(tc.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			actual := filterUserPermissions(ctx, tc.graphPermissions)
-			assert.ElementsMatch(suite.T(), tc.parsedPermissions, actual)
+			assert.ElementsMatch(t, tc.parsedPermissions, actual)
 		})
 	}
 }

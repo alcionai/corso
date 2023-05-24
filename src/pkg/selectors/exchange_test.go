@@ -1045,7 +1045,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			sel := test.makeSelector()
@@ -1271,7 +1271,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			sel := test.makeSelector()

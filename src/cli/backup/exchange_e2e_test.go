@@ -58,10 +58,11 @@ func TestNoBackupExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -75,7 +76,7 @@ func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
 
 func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_empty() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -123,10 +124,11 @@ func TestBackupExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupExchangeE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, _, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -155,7 +157,7 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category strin
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -191,7 +193,7 @@ func runExchangeBackupUserNotFoundTest(suite *BackupExchangeE2ESuite, category s
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -237,10 +239,11 @@ func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -315,7 +318,7 @@ func runExchangeListCmdTest(suite *PreparedBackupExchangeE2ESuite, category path
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -354,7 +357,7 @@ func runExchangeListSingleCmdTest(suite *PreparedBackupExchangeE2ESuite, categor
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -383,7 +386,7 @@ func runExchangeListSingleCmdTest(suite *PreparedBackupExchangeE2ESuite, categor
 func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_badID() {
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -418,7 +421,7 @@ func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category p
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -492,10 +495,11 @@ func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, _, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -522,7 +526,8 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 
 func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -550,7 +555,8 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 
 func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()

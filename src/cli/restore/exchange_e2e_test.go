@@ -55,7 +55,7 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// aggregate required details
@@ -127,7 +127,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 		suite.Run(set.String(), func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			ctx = config.SetViper(ctx, suite.vpr)
 
 			defer flush()
@@ -154,7 +154,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 		suite.Run(set.String(), func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			ctx = config.SetViper(ctx, suite.vpr)
 
 			defer flush()
@@ -192,7 +192,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 
 			//nolint:forbidigo
 			ctx := config.SetViper(context.Background(), suite.vpr)
-			ctx, flush := tester.WithContext(ctx)
+			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
 			var timeFilter string
