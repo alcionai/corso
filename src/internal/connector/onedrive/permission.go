@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -110,8 +109,6 @@ func computeParentPermissions(
 		if err != nil {
 			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
 		}
-
-		fmt.Println("pd", parent)
 
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
