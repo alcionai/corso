@@ -235,21 +235,6 @@ func RestoreMessage(
 	return api.MailInfo(clone, int64(len(bits))), el.Failure()
 }
 
-// GetAttachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
-func GetAttachmentBytes(attachment models.Attachmentable) ([]byte, error) {
-	bi, err := attachment.GetBackingStore().Get("contentBytes")
-	if err != nil {
-		return nil, err
-	}
-
-	bts, ok := bi.([]byte)
-	if !ok {
-		return nil, clues.New(fmt.Sprintf("unexpected type for attachment content: %T", bi))
-	}
-
-	return bts, nil
-}
-
 // RestoreCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.
 func RestoreCollections(

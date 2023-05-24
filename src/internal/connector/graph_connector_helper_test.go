@@ -16,7 +16,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -25,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func testElementsMatch[T any](
@@ -118,12 +118,12 @@ func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
 ) bool {
-	expectedData, err := exchange.GetAttachmentBytes(expected)
+	expectedData, err := api.GetAttachmentContent(expected)
 	if err != nil {
 		return false
 	}
 
-	gotData, err := exchange.GetAttachmentBytes(got)
+	gotData, err := api.GetAttachmentContent(got)
 	if err != nil {
 		return false
 	}

@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -524,10 +526,15 @@ func (c Mail) PostLargeAttachment(
 	size int64,
 	body models.Attachmentable,
 ) (models.UploadSessionable, error) {
+	bs, err := GetAttachmentContent(body)
+	if err != nil {
+		return nil, clues.Wrap(err, "serializing attachment content").WithClues(ctx)
+	}
+
 	session := users.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(name, size))
 
-	itm, err := c.LargeItem.
+	us, err := c.LargeItem.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -542,7 +549,16 @@ func (c Mail) PostLargeAttachment(
 		return nil, graph.Wrap(ctx, err, "uploading large mail attachment")
 	}
 
-	return itm, nil
+	url := ptr.Val(us.GetUploadUrl())
+	w := graph.NewLargeItemWriter(parentItemID, url, size)
+	copyBuffer := make([]byte, graph.AttachmentChunkSize)
+
+	_, err = io.CopyBuffer(w, bytes.NewReader(bs), copyBuffer)
+	if err != nil {
+		return nil, clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
+	}
+
+	return us, nil
 }
 
 // ---------------------------------------------------------------------------

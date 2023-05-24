@@ -30,7 +30,6 @@ const (
 	// Use large attachment logic for attachments > 3MB
 	// https://learn.microsoft.com/en-us/graph/outlook-large-attachments
 	largeAttachmentSize           = int32(3 * 1024 * 1024)
-	attachmentChunkSize           = 4 * 1024 * 1024
 	fileAttachmentOdataValue      = "#microsoft.graph.fileAttachment"
 	itemAttachmentOdataValue      = "#microsoft.graph.itemAttachment"
 	referenceAttachmentOdataValue = "#microsoft.graph.referenceAttachment"
@@ -72,8 +71,9 @@ func uploadAttachment(
 		"attachment_id", id,
 		"attachment_name", clues.Hide(name),
 		"attachment_type", attachmentType,
-		"parent_item_id", parentItemID,
-		"internal_item_type", getItemAttachmentItemType(attachment))
+		"attachment_odata_type", ptr.Val(attachment.GetOdataType()),
+		"attachment_outlook_odata_type", getOutlookOdataType(attachment),
+		"parent_item_id", parentItemID)
 
 	logger.Ctx(ctx).Debug("uploading attachment")
 
@@ -94,28 +94,25 @@ func uploadAttachment(
 		attachment = a
 	}
 
-	// for Item/Reference attachments *or* file attachments < 3MB
-	if attachmentType != models.FILE_ATTACHMENTTYPE || size < largeAttachmentSize {
-		return cli.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
+	// for file attachments sized >= 3MB
+	if attachmentType == models.FILE_ATTACHMENTTYPE && size >= largeAttachmentSize {
+		_, err := cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, int64(size), attachment)
+		return err
 	}
 
 	// for all other attachments
-	_, err := cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, int64(size), attachment)
-
-	return err
+	return cli.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
 }
 
-func getItemAttachmentItemType(query models.Attachmentable) string {
-	empty := ""
+func getOutlookOdataType(query models.Attachmentable) string {
 	attachment, ok := query.(models.ItemAttachmentable)
-
 	if !ok {
-		return empty
+		return ""
 	}
 
 	item := attachment.GetItem()
 	if item == nil {
-		return empty
+		return ""
 	}
 
 	return ptr.Val(item.GetOdataType())

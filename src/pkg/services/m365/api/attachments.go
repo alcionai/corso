@@ -1,8 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -32,4 +34,18 @@ func makeSessionAttachment(name string, size int64) *models.AttachmentItem {
 	attItem.SetSize(&size)
 
 	return attItem
+}
+
+func GetAttachmentContent(attachment models.Attachmentable) ([]byte, error) {
+	ibs, err := attachment.GetBackingStore().Get("contentBytes")
+	if err != nil {
+		return nil, err
+	}
+
+	bs, ok := ibs.([]byte)
+	if !ok {
+		return nil, clues.New(fmt.Sprintf("unexpected type for attachment content: %T", ibs))
+	}
+
+	return bs, nil
 }
