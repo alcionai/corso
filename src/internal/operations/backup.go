@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -434,7 +435,7 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 // calls kopia to backup the collections of data
 func consumeBackupCollections(
 	ctx context.Context,
-	bc inject.BackupConsumer,
+	bc kinject.BackupConsumer,
 	tenantID string,
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
