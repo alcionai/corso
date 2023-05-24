@@ -90,7 +90,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(string(itemNotFound)),
+			err:    odErr(string(ItemNotFound)),
 			expect: assert.True,
 		},
 		{

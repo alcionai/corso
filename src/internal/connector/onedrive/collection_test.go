@@ -612,132 +612,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
-	fp := "drive/driveID1/root:/"
-
-	table := []struct {
-		name           string
-		source         driveSource
-		skipCount      int
-		recoveredCount int
-		item           models.DriveItemable
-		readItemCount  int
-		itemMetaReader itemMetaReaderFunc
-	}{
-		{
-			name:           "file present during permissions fetch",
-			source:         SharePointSource,
-			skipCount:      0,
-			recoveredCount: 1,
-			item: driveItem("file_id",
-				"file_name",
-				fp,
-				"root",
-				true,
-				false,
-				false),
-			readItemCount: 0,
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
-		},
-		{
-			name:           "deleted file during permissions fetch",
-			source:         SharePointSource,
-			skipCount:      1,
-			recoveredCount: 0,
-			item: delItem("file_id",
-				fp,
-				"root",
-				true,
-				false,
-				false),
-			readItemCount: 0,
-			itemMetaReader: func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				// Simulate 404
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			},
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			var (
-				t          = suite.T()
-				collStatus = support.ConnectorOperationStatus{}
-				wg         = sync.WaitGroup{}
-				errs       = fault.New(true)
-			)
-
-			wg.Add(1)
-
-			folderPath, err := GetCanonicalPath(fp, "a-tenant", "a-user", SharePointSource)
-			require.NoError(t, err, clues.ToCore(err))
-
-			coll, err := NewCollection(
-				graph.NewNoTimeoutHTTPWrapper(),
-				folderPath,
-				nil,
-				"drive-id",
-				suite,
-				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
-				control.Options{ToggleFeatures: control.Toggles{}},
-				CollectionScopeFolder,
-				true)
-			require.NoError(t, err, clues.ToCore(err))
-
-			coll.Add(test.item)
-
-			coll.itemReader = func(
-				context.Context,
-				graph.Requester,
-				models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{
-						OneDrive: &details.OneDriveInfo{
-							ItemName: "fakeName",
-							Modified: time.Now(),
-						},
-					},
-					io.NopCloser(strings.NewReader("fake data")),
-					nil
-			}
-
-			coll.itemMetaReader = test.itemMetaReader
-
-			readItems := []data.Stream{}
-			for item := range coll.Items(ctx, errs) {
-				readItems = append(readItems, item)
-			}
-
-			wg.Wait()
-
-			require.Equal(t, test.readItemCount, len(readItems), "read items")
-			require.Equal(t, test.skipCount, len(errs.Skipped()), "skipped items")
-			require.Equal(t, test.recoveredCount, len(errs.Recovered()), "recovered items")
-		})
-	}
-}
-
 type GetDriveItemUnitTestSuite struct {
 	tester.Suite
 }
@@ -955,6 +829,241 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
+	fp := "drive/driveID1/root:/"
+
+	table := []struct {
+		name           string
+		source         driveSource
+		skipCount      int
+		recoveredCount int
+		item           models.DriveItemable
+		readItemCount  int
+		itemMetaReader itemMetaReaderFunc
+		itemGetter     itemGetterFunc
+	}{
+		// 1. Simulate itemMetaReader failure. Return a non-deleted item through
+		// itemGetter. Expect recoverable error.
+		{
+			name:           "file present during permissions fetch",
+			source:         SharePointSource,
+			skipCount:      0,
+			recoveredCount: 1,
+			item: driveItem(
+				"file_id",
+				"file_name",
+				fp,
+				"root",
+				true,
+				false,
+				false),
+			readItemCount: 0,
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				// Simulate 404
+				return io.NopCloser(strings.NewReader(`{}`)),
+					16,
+					clues.New("item not found")
+			},
+			itemGetter: func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return driveItem(
+						"file_id",
+						"file_name",
+						fp,
+						"root",
+						true,
+						false,
+						false),
+					nil
+			},
+		},
+		// 2. Simulate itemMetaReader failure. Return a deleted item from
+		// itemGetter. Expect skippable error since the item is no longer present.
+		{
+			name:           "deleted file during permissions fetch",
+			source:         SharePointSource,
+			skipCount:      1,
+			recoveredCount: 0,
+			item: driveItem(
+				"file_id",
+				"file_name",
+				fp,
+				"root",
+				true,
+				false,
+				false),
+			readItemCount: 0,
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				// Simulate 404
+				return io.NopCloser(strings.NewReader(`{}`)),
+					16,
+					clues.New("item not found")
+			},
+			itemGetter: func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return delItem(
+						"file_id",
+						fp,
+						"root",
+						true,
+						false,
+						false),
+					nil
+			},
+		},
+
+		// 3. Simulate itemMetaReader failure. Return graph 404 from
+		// itemGetter. Expect skippable error since the item is no longer present.
+		{
+			name:           "deleted file during permissions fetch",
+			source:         SharePointSource,
+			skipCount:      1,
+			recoveredCount: 0,
+			item: driveItem(
+				"file_id",
+				"file_name",
+				fp,
+				"root",
+				true,
+				false,
+				false),
+			readItemCount: 0,
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				// Simulate 404
+				return io.NopCloser(strings.NewReader(`{}`)),
+					16,
+					clues.New("item not found")
+			},
+			itemGetter: func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return nil, odErr(string(graph.ItemNotFound))
+			},
+		},
+		// 4. Simulate itemMetaReader failure. Return graph 404 label from
+		// itemGetter. Expect skippable error since the item is no longer present.
+		{
+			name:           "deleted file during permissions fetch",
+			source:         SharePointSource,
+			skipCount:      1,
+			recoveredCount: 0,
+			item: driveItem(
+				"file_id",
+				"file_name",
+				fp,
+				"root",
+				true,
+				false,
+				false),
+			readItemCount: 0,
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				// Simulate 404
+				return io.NopCloser(strings.NewReader(`{}`)),
+					16,
+					clues.New("item not found")
+			},
+			itemGetter: func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			var (
+				t          = suite.T()
+				collStatus = support.ConnectorOperationStatus{}
+				wg         = sync.WaitGroup{}
+				errs       = fault.New(true)
+			)
+
+			wg.Add(1)
+
+			folderPath, err := GetCanonicalPath(fp, "a-tenant", "a-user", SharePointSource)
+			require.NoError(t, err, clues.ToCore(err))
+
+			coll, err := NewCollection(
+				graph.NewNoTimeoutHTTPWrapper(),
+				folderPath,
+				nil,
+				"drive-id",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{ToggleFeatures: control.Toggles{}},
+				CollectionScopeFolder,
+				true)
+			require.NoError(t, err, clues.ToCore(err))
+
+			coll.Add(test.item)
+
+			coll.itemReader = func(
+				context.Context,
+				graph.Requester,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{
+						OneDrive: &details.OneDriveInfo{
+							ItemName: "fakeName",
+							Modified: time.Now(),
+						},
+					},
+					io.NopCloser(strings.NewReader("fake data")),
+					nil
+			}
+
+			coll.itemMetaReader = test.itemMetaReader
+			coll.itemGetter = test.itemGetter
+
+			readItems := []data.Stream{}
+			for item := range coll.Items(ctx, errs) {
+				readItems = append(readItems, item)
+			}
+
+			wg.Wait()
+
+			require.Equal(t, test.readItemCount, len(readItems), "read items")
+			require.Equal(t, test.skipCount, len(errs.Skipped()), "skipped items")
+			require.Equal(t, test.recoveredCount, len(errs.Recovered()), "recovered items")
 		})
 	}
 }

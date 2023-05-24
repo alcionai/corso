@@ -31,7 +31,7 @@ const (
 	activityLimitReached        errorCode = "activityLimitReached"
 	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
 	errorAccessDenied           errorCode = "ErrorAccessDenied"
-	itemNotFound                errorCode = "ErrorItemNotFound"
+	ItemNotFound                errorCode = "ErrorItemNotFound"
 	itemNotFoundShort           errorCode = "itemNotFound"
 	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
@@ -97,7 +97,7 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if hasErrorCode(
 		err,
-		itemNotFound,
+		ItemNotFound,
 		itemNotFoundShort,
 		syncFolderNotFound,
 	) {

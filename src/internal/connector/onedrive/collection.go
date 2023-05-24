@@ -498,7 +498,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				metaSuffix = metadata.DirMetaFileSuffix
 			}
 
-			// Fetch metadata for the file
 			itemMeta, itemMetaSize, err = oc.itemMetaReader(
 				ctx,
 				oc.service,
@@ -506,30 +505,47 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				item)
 
 			if err != nil {
-				// Check if the item was deleted
+				// Get a fresh copy of item from graph and check if it's deleted
 				di, e := oc.itemGetter(
 					ctx,
 					oc.service,
 					oc.driveID,
 					ptr.Val(item.GetId()))
-				if e != nil && !graph.IsErrDeletedInFlight(e) {
-					logger.CtxErr(ctx, e).Error("getting item")
-				} else if graph.IsErrDeletedInFlight(e) ||
+
+				// Item is deleted if either of below conditions are true
+				// 1. Graph returns 404 not found
+				// 2. Item is not nil and has deleted property set
+				// Mark item as skipped and return
+				if clues.HasLabel(e, graph.LabelStatus(http.StatusNotFound)) ||
+					graph.IsErrDeletedInFlight(e) ||
 					(e == nil && di.GetDeleted() != nil) {
 					logger.CtxErr(ctx, err).
 						With("skipped_reason", fault.SkipNotFound).
 						Info("item not found")
 
-					skip := fault.FileSkip(
+					skip := fault.ContainerSkip(
 						fault.SkipNotFound,
 						oc.driveID,
 						itemID,
 						itemName,
 						graph.ItemInfo(item))
 
+					if isFile {
+						skip = fault.FileSkip(
+							fault.SkipNotFound,
+							oc.driveID,
+							itemID,
+							itemName,
+							graph.ItemInfo(item))
+					}
+
 					el.AddSkip(skip)
 
 					return
+				}
+
+				if e != nil {
+					logger.CtxErr(ctx, e).Error("getting item")
 				}
 
 				el.AddRecoverable(
