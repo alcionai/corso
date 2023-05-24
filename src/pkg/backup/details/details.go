@@ -240,7 +240,9 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 // .meta files removed from the entries.
 func (dm DetailsModel) NonMetaFileSizes() int64 {
 	var size int64
-	for _, ent := range dm.Entries {
+
+	// Items will provide only files and filter out folders
+	for _, ent := range dm.Items() {
 		if !ent.isMetaFile() {
 			size += ent.size()
 		}

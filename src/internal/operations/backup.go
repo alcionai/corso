@@ -327,6 +327,7 @@ func (op *BackupOperation) do(
 		toMerge,
 		deets,
 		writeStats,
+		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -678,13 +679,17 @@ func mergeDetails(
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	writeStats *kopia.BackupStats,
+	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
-	// getting the values in writeStats before anything else so that we don't get a return from
-	// conditions like no backup data.
-	noMetaDataFile := deets.Details().DetailsModel.FilterMetaFiles().Entries
-	writeStats.TotalFileCount = len(noMetaDataFile)
-	writeStats.TotalFileCount = int(deets.Details().DetailsModel.NonMetaFileSizes())
+	detailsModel := deets.Details().DetailsModel
+
+	if serviceType == path.OneDriveService {
+		// getting the values in writeStats before anything else so that we don't get a return from
+		// conditions like no backup data.
+		writeStats.TotalFileCount = len(detailsModel.FilterMetaFiles().Items())
+		writeStats.TotalUploadedBytes = detailsModel.NonMetaFileSizes()
+	}
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {

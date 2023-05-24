@@ -1568,7 +1568,7 @@ func runDriveIncrementalTest(
 				expectDeets.AddItem(driveID, makeLocRef(container1), newFileID)
 			},
 			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten: 1, // .data file for newitem
 		},
 		{
 			name: "add permission to new file",
@@ -1590,7 +1590,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    1, // .data file for newitem
-			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			itemsWritten: 1, // the file for which permission was updated
 		},
 		{
 			name: "remove permission from new file",
@@ -1611,7 +1611,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    1, // .data file for newitem
-			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			itemsWritten: 1, //.data file for newitem
 		},
 		{
 			name: "add permission to container",
@@ -1633,7 +1633,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    0,
-			itemsWritten: 1, // .dirmeta for collection
+			itemsWritten: 0, // no files updated as update on container
 		},
 		{
 			name: "remove permission from container",
@@ -1655,7 +1655,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:    0,
-			itemsWritten: 1, // .dirmeta for collection
+			itemsWritten: 0, // no files updated
 		},
 		{
 			name: "update contents of a file",
@@ -1672,7 +1672,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: neither file id nor location changed
 			},
 			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten: 1, // .data  file for newitem
 		},
 		{
 			name: "rename a file",
@@ -1696,7 +1696,7 @@ func runDriveIncrementalTest(
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten: 1, // .data file for newitem
 			// no expectedDeets: neither file id nor location changed
 		},
 		{
@@ -1726,7 +1726,7 @@ func runDriveIncrementalTest(
 					ptr.Val(newFile.GetId()))
 			},
 			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten: 1, // .data file for new item
 		},
 		{
 			name: "delete file",
@@ -1774,7 +1774,7 @@ func runDriveIncrementalTest(
 					makeLocRef(container1))
 			},
 			itemsRead:    0,
-			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			itemsWritten: 0,
 		},
 		{
 			name: "rename a folder",
@@ -1805,7 +1805,7 @@ func runDriveIncrementalTest(
 					makeLocRef(container1, containerRename))
 			},
 			itemsRead:    0,
-			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			itemsWritten: 0,
 		},
 		{
 			name: "delete a folder",
@@ -1857,7 +1857,7 @@ func runDriveIncrementalTest(
 				expectDeets.AddLocation(driveID, container3)
 			},
 			itemsRead:    2, // 2 .data for 2 files
-			itemsWritten: 6, // read items + 2 directory meta
+			itemsWritten: 2, // 2 .data for 2 files
 		},
 	}
 	for _, test := range table {
@@ -1887,7 +1887,8 @@ func runDriveIncrementalTest(
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.
 			var (
-				expectWrites    = test.itemsWritten + 2
+				// since we are removing metadata files now
+				expectWrites    = test.itemsWritten
 				expectReads     = test.itemsRead + 2
 				assertReadWrite = assert.Equal
 			)
@@ -2000,7 +2001,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	// 2 on read/writes to account for metadata: 1 delta and 1 path.
 	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
-	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
+	assert.LessOrEqual(t, 1, incBO.Results.ItemsRead, "items read") // just the file whose owner migrated
 	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
 	assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "backup-start events")
