@@ -32,12 +32,17 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// copyBufferSize is used for chunked upload
-// Microsoft recommends 5-10MB buffers
-// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
 const (
-	copyBufferSize   = 5 * 1024 * 1024
+	// copyBufferSize is used for chunked upload
+	// Microsoft recommends 5-10MB buffers
+	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
+	copyBufferSize = 5 * 1024 * 1024
+
+	// Maximum number of retries for upload failures
 	maxUploadRetries = 3
+
+	// TODO: 1 minute seems to be a good balance, but we could twek these number in the future
+	stallCheckInterval = 1 * time.Minute
 )
 
 type restoreCaches struct {
@@ -788,13 +793,16 @@ func restoreData(
 		return "", details.ItemInfo{}, err
 	}
 
-	var written int64
+	var (
+		w       io.Writer
+		written int64
+	)
 
 	// This is just to retry file upload, the uploadSession creation is not retried here
 	// We need extra logic to retry file upload as we have to pull the file again from kopia
-	for i := 0; i < maxUploadRetries; i++ {
+	for i := 0; i <= maxUploadRetries; i++ {
 		// Get a drive item writer
-		w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
+		w, err = driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
 		if err != nil {
 			return "", details.ItemInfo{}, err
 		}
@@ -826,11 +834,14 @@ func restoreData(
 		go closer()
 
 		// Upload the stream data
-		// TODO(meain): Tweak the time interval to check for stalls
-		written, err = copyBufferWithStallCheck(w, progReader, copyBuffer, 1*time.Minute)
+		written, err = copyBufferWithStallCheck(w, progReader, copyBuffer, stallCheckInterval)
 		if err == nil {
 			break
 		}
+	}
+
+	if err != nil {
+		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
 
 	dii := details.ItemInfo{}
