@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
@@ -184,6 +185,13 @@ func (msm *mockSnapshotManager) LoadSnapshots(
 	}
 
 	return res, nil
+}
+
+func (msm *mockSnapshotManager) LoadSnapshot(
+	ctx context.Context,
+	id manifest.ID,
+) (*snapshot.Manifest, error) {
+	return nil, clues.New("not implemented")
 }
 
 type SnapshotFetchUnitSuite struct {
@@ -949,6 +957,13 @@ func (msm *mockErrorSnapshotManager) LoadSnapshots(
 	}
 
 	return msm.sm.LoadSnapshots(ctx, ids)
+}
+
+func (msm *mockErrorSnapshotManager) LoadSnapshot(
+	ctx context.Context,
+	id manifest.ID,
+) (*snapshot.Manifest, error) {
+	return nil, clues.New("not implemented")
 }
 
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_withErrors() {
