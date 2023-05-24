@@ -122,7 +122,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint restore"))
 	}
 
-	ds.Items().PrintEntries(ctx)
+	ds.Items().MaybePrintEntries(ctx)
 
 	return nil
 }
