@@ -34,7 +34,13 @@ func sharePointItemReader(
 	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	resp, err := downloadItem(ctx, client, item)
+	// TODO: Move common code to a shared function
+	url, err := getItemDownloadURL(ctx, item)
+	if err != nil {
+		return details.ItemInfo{}, nil, err
+	}
+
+	resp, err := downloadItem(ctx, client, url)
 	if err != nil {
 		return details.ItemInfo{}, nil, clues.Wrap(err, "sharepoint reader")
 	}
@@ -100,6 +106,28 @@ func baseItemMetaReader(
 	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
+func getItemDownloadURL(
+	ctx context.Context,
+	item models.DriveItemable,
+) (string, error) {
+	var url string
+
+	for _, key := range downloadURLKeys {
+		tmp, ok := item.GetAdditionalData()[key].(*string)
+		if ok {
+			url = ptr.Val(tmp)
+			break
+		}
+	}
+
+	if len(url) == 0 {
+		return "", clues.New("extracting file url").
+			With("item_id", ptr.Val(item.GetId()))
+	}
+
+	return url, nil
+}
+
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
@@ -114,7 +142,12 @@ func oneDriveItemReader(
 	)
 
 	if isFile {
-		resp, err := downloadItem(ctx, client, item)
+		url, err := getItemDownloadURL(ctx, item)
+		if err != nil {
+			return details.ItemInfo{}, nil, err
+		}
+
+		resp, err := downloadItem(ctx, client, url)
 		if err != nil {
 			return details.ItemInfo{}, nil, clues.Wrap(err, "onedrive reader")
 		}
@@ -132,22 +165,8 @@ func oneDriveItemReader(
 func downloadItem(
 	ctx context.Context,
 	client graph.Requester,
-	item models.DriveItemable,
+	url string,
 ) (*http.Response, error) {
-	var url string
-
-	for _, key := range downloadURLKeys {
-		tmp, ok := item.GetAdditionalData()[key].(*string)
-		if ok {
-			url = ptr.Val(tmp)
-			break
-		}
-	}
-
-	if len(url) == 0 {
-		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
-	}
-
 	resp, err := client.Request(ctx, http.MethodGet, url, nil, nil)
 	if err != nil {
 		return nil, err
