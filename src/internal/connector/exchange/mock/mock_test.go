@@ -153,7 +153,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event Message Response: Regression",
 			transformation: func(t *testing.T) error {
 				bytes := EventMessageResponse(subject)
-				_, err := api.BytesToMessageable(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
@@ -161,7 +161,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event Message Request: Regression",
 			transformation: func(t *testing.T) error {
 				bytes := EventMessageRequest(subject)
-				_, err := api.BytesToMessageable(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
@@ -169,7 +169,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Contact Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := ContactBytes(subject)
-				_, err := api.BytesToMessageable(bytes)
+				_, err := api.BytesToContactable(bytes)
 				return err
 			},
 		},
@@ -177,7 +177,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event No Attendees Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := EventBytes(subject)
-				_, err := api.BytesToMessageable(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
