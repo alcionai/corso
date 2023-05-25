@@ -81,10 +81,10 @@ func (suite *RepositoryBackupsUnitSuite) TestGetBackup() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			b, err := getBackup(ctx, string(bup.ID), test.sw)
 			test.expectErr(t, err)
@@ -193,10 +193,10 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.kw, test.sw)
 			test.expectErr(t, err)
@@ -225,11 +225,12 @@ func TestRepositoryModelIntgSuite(t *testing.T) {
 }
 
 func (suite *RepositoryModelIntgSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t   = suite.T()
 		s   = tester.NewPrefixedS3Storage(t)
 		k   = kopia.NewConn(s)
 		err error
@@ -257,10 +258,10 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 }
 
 func (suite *RepositoryModelIntgSuite) TearDownSuite() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	if suite.ms != nil {
 		err := suite.ms.Close(ctx)
@@ -278,11 +279,12 @@ func (suite *RepositoryModelIntgSuite) TearDownSuite() {
 }
 
 func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t = suite.T()
 		s = tester.NewPrefixedS3Storage(t)
 		k = kopia.NewConn(s)
 	)
@@ -393,23 +395,22 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			var (
-				t = suite.T()
-				b = writeBackup(
-					t,
-					ctx,
-					suite.kw,
-					suite.sw,
-					tenantID, "snapID", test.writeBupID,
-					selectors.NewExchangeBackup([]string{brunhilda}).Selector,
-					brunhilda, brunhilda,
-					test.deets,
-					&fault.Errors{},
-					fault.New(true))
-			)
+			b := writeBackup(
+				t,
+				ctx,
+				suite.kw,
+				suite.sw,
+				tenantID, "snapID", test.writeBupID,
+				selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+				brunhilda, brunhilda,
+				test.deets,
+				&fault.Errors{},
+				fault.New(true))
 
 			rDeets, rBup, err := getBackupDetails(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(true))
 			test.expectErr(t, err)
@@ -501,23 +502,22 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			var (
-				t = suite.T()
-				b = writeBackup(
-					t,
-					ctx,
-					suite.kw,
-					suite.sw,
-					tenantID, "snapID", test.writeBupID,
-					selectors.NewExchangeBackup([]string{brunhilda}).Selector,
-					brunhilda, brunhilda,
-					test.deets,
-					test.errors,
-					fault.New(failFast))
-			)
+			b := writeBackup(
+				t,
+				ctx,
+				suite.kw,
+				suite.sw,
+				tenantID, "snapID", test.writeBupID,
+				selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+				brunhilda, brunhilda,
+				test.deets,
+				test.errors,
+				fault.New(failFast))
 
 			rErrors, rBup, err := getBackupErrors(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(failFast))
 			test.expectErr(t, err)

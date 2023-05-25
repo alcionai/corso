@@ -48,10 +48,11 @@ func TestSharePointSuite(t *testing.T) {
 // - fetchContentBaseTypes
 // - fetchColumnPositions
 func (suite *SharePointSuite) TestLoadList() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	service := createTestService(t, suite.creds)
 	tuples, err := preFetchLists(ctx, service, "root")
 	require.NoError(t, err, clues.ToCore(err))

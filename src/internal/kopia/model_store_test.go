@@ -45,8 +45,10 @@ func TestModelStoreUnitSuite(t *testing.T) {
 }
 
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
-	assert.NotPanics(suite.T(), func() {
-		ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	assert.NotPanics(t, func() {
+		ctx, flush := tester.NewContext(t)
 		defer flush()
 
 		m := &ModelStore{}
@@ -74,7 +76,7 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
-	suite.ctx, suite.flush = tester.NewContext()
+	suite.ctx, suite.flush = tester.NewContext(suite.T())
 	suite.m = getModelStore(suite.T(), suite.ctx)
 }
 
@@ -587,10 +589,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			theModelType := model.BackupOpSchema
 
 			m := getModelStore(t, ctx)
@@ -669,7 +672,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			m := getModelStore(t, ctx)
@@ -739,10 +742,10 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 // Tests that if we get an error or crash while in the middle of an Update no
 // results will be visible to higher layers.
 func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEffect() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	m := getModelStore(t, ctx)
 	defer func() {
@@ -840,10 +843,11 @@ func reconnectToModelStore(
 // Ensures there's no shared configuration state between different instances of
 // the ModelStore (and consequently the underlying kopia instances).
 func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	backupModel := backup.Backup{
 		SnapshotID: "snapshotID",
 	}

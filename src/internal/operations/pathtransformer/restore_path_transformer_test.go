@@ -296,10 +296,10 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			paths, err := pathtransformer.GetPaths(
 				ctx,

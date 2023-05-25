@@ -3,6 +3,7 @@ package tester
 import (
 	"context"
 	"os"
+	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -10,7 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-func NewContext() (context.Context, func()) {
+func NewContext(t *testing.T) (context.Context, func()) {
 	level := logger.LLInfo
 	format := logger.LFText
 
@@ -27,21 +28,44 @@ func NewContext() (context.Context, func()) {
 
 	//nolint:forbidigo
 	ctx, _ := logger.CtxOrSeed(context.Background(), ls)
-
-	// ensure logs can be easily associated with each test
-	// todo: replace with test name.  starting off with
-	// uuid to avoid million-line PR change.
-	ctx = clues.Add(ctx, "test_name", uuid.NewString())
+	ctx = enrichTestCtx(t, ctx)
 
 	return ctx, func() { logger.Flush(ctx) }
 }
 
-func WithContext(ctx context.Context) (context.Context, func()) {
+func WithContext(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (context.Context, func()) {
 	ls := logger.Settings{
 		Level:  logger.LLDebug,
 		Format: logger.LFText,
 	}
 	ctx, _ = logger.CtxOrSeed(ctx, ls)
+	ctx = enrichTestCtx(t, ctx)
 
 	return ctx, func() { logger.Flush(ctx) }
+}
+
+func enrichTestCtx(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) context.Context {
+	if t == nil {
+		return ctx
+	}
+
+	// ensure logs can be easily associated with each test
+	LogTimeOfTest(t)
+
+	ctx = clues.Add(
+		ctx,
+		// the actual test name, in case you want to look up
+		// logs correlated to a certain test.
+		"test_name", t.Name(),
+		// an arbitrary uuid might be easier to match on when
+		// looking up logs, in case of common log test names.
+		"test_uuid", uuid.NewString())
+
+	return ctx
 }

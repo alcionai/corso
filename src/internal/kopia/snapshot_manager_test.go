@@ -755,7 +755,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			msm := &mockSnapshotManager{
@@ -879,7 +879,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_customTags() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			msm := &mockSnapshotManager{
@@ -952,10 +952,10 @@ func (msm *mockErrorSnapshotManager) LoadSnapshots(
 }
 
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_withErrors() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	input := testAllUsersMail
 	mockData := []manifestInfo{

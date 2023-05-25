@@ -49,10 +49,11 @@ func TestNoBackupSharePointE2ESuite(t *testing.T) {
 }
 
 func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -66,7 +67,8 @@ func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 
 func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -116,10 +118,11 @@ func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -150,7 +153,8 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 
 func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -188,7 +192,8 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 
 func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unknownID() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()

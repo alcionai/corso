@@ -26,10 +26,10 @@ func TestMetricsIntegrationSuite(t *testing.T) {
 }
 
 func (suite *EventsIntegrationSuite) TestNewBus() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	s, err := storage.NewStorage(
 		storage.ProviderS3,

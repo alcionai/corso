@@ -765,11 +765,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 
 	for _, tt := range tests {
 		suite.Run(tt.testCase, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t               = suite.T()
 				excludes        = map[string]struct{}{}
 				outputFolderMap = map[string]string{}
 				itemCollection  = map[string]map[string]string{
@@ -1150,10 +1151,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
@@ -2292,7 +2294,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			drivePagerFunc := func(
@@ -2611,7 +2613,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			itemPager := &mockItemPager{

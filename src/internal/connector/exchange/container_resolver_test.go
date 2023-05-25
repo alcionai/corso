@@ -356,10 +356,10 @@ func TestConfiguredFolderCacheUnitSuite(t *testing.T) {
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshParent() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	resolver, containers := resolverWithContainers(4, true)
 	almostLast := containers[len(containers)-2]
@@ -388,10 +388,10 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshParent(
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshParent_NotFoundDeletes() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	resolver, containers := resolverWithContainers(4, true)
 	almostLast := containers[len(containers)-2]
@@ -416,10 +416,10 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshParent_
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncestor_NotFoundDeletes() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	resolver, containers := resolverWithContainers(4, true)
 	gone := containers[0]
@@ -445,10 +445,10 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncesto
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncestor_NewParent() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	resolver, containers := resolverWithContainers(4, true)
 	other := containers[len(containers)-3]
@@ -482,10 +482,10 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshAncesto
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshFolder_FolderDeleted() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	resolver, containers := resolverWithContainers(4, true)
 	parent := containers[len(containers)-2]
@@ -510,9 +510,6 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestRefreshContainer_RefreshFolder_
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name          string
 		numContainers int
@@ -532,18 +529,23 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			resolver, containers := resolverWithContainers(test.numContainers, false)
 			_, err := resolver.idToPath(ctx, containers[len(containers)-1].id, 0)
-			test.check(suite.T(), err, clues.ToCore(err))
+			test.check(t, err, clues.ToCore(err))
 		})
 	}
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestPopulatePaths() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	err := suite.fc.populatePaths(ctx, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -564,7 +566,9 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestPopulatePaths() {
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	err := suite.fc.populatePaths(ctx, fault.New(true))
@@ -573,6 +577,9 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	for _, c := range suite.allContainers {
 		suite.Run(ptr.Val(c.GetDisplayName()), func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			p, l, err := suite.fc.IDToPath(ctx, c.id)
 			require.NoError(t, err, clues.ToCore(err))
@@ -583,10 +590,11 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	c := suite.allContainers[len(suite.allContainers)-1]
 
 	err := suite.fc.populatePaths(ctx, fault.New(true))
@@ -606,10 +614,11 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths()
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentNotFound() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	almostLast := suite.allContainers[len(suite.allContainers)-2]
 
 	delete(suite.fc.cache, almostLast.id)
@@ -619,32 +628,33 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentN
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolder_Errors_PathsNotBuilt() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	_, _, err := suite.fc.IDToPath(ctx, suite.allContainers[len(suite.allContainers)-1].id)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsNotFound() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	_, _, err := suite.fc.IDToPath(ctx, "foo")
 	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
 		dest = "testAddFolder"
-		t    = suite.T()
 		last = suite.allContainers[len(suite.allContainers)-1]
 		m    = newMockCachedContainer(dest)
 	)
@@ -701,9 +711,6 @@ func (suite *FolderCacheIntegrationSuite) SetupSuite() {
 
 // Testing to ensure that cache system works for in multiple different environments
 func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	a := tester.NewM365Account(suite.T())
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -809,6 +816,9 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			folderID, err := CreateContainerDestination(
 				ctx,

@@ -58,11 +58,12 @@ func (suite *RestoreIntgSuite) SetupSuite() {
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
 func (suite *RestoreIntgSuite) TestRestoreContact() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t          = suite.T()
 		userID     = tester.M365UserID(t)
 		folderName = tester.DefaultTestRestoreDestination("contact").ContainerName
 	)
@@ -78,10 +79,10 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	info, err := RestoreExchangeContact(
+	info, err := RestoreContact(
 		ctx,
 		exchMock.ContactBytes("Corso TestContact"),
-		suite.gs,
+		suite.ac.Contacts(),
 		control.Copy,
 		folderID,
 		userID)
@@ -92,11 +93,12 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
 func (suite *RestoreIntgSuite) TestRestoreEvent() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t       = suite.T()
 		userID  = tester.M365UserID(t)
 		subject = tester.DefaultTestRestoreDestination("event").ContainerName
 	)
@@ -130,12 +132,14 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			info, err := RestoreExchangeEvent(
+			info, err := RestoreEvent(
 				ctx,
 				test.bytes,
+				suite.ac.Events(),
+				suite.ac.Events(),
 				suite.gs,
 				control.Copy,
 				calendarID,
@@ -359,15 +363,16 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			destination := test.destination(t, ctx)
-			info, err := RestoreExchangeObject(
+			info, err := RestoreItem(
 				ctx,
 				test.bytes,
 				test.category,
 				control.Copy,
+				suite.ac,
 				service,
 				destination,
 				userID,

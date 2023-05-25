@@ -33,10 +33,10 @@ func TestStreamStoreIntgSuite(t *testing.T) {
 }
 
 func (suite *StreamStoreIntgSuite) SetupSubTest() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -148,11 +148,12 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t   = suite.T()
 				ss  = suite.ss
 				err error
 			)

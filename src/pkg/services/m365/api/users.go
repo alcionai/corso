@@ -133,16 +133,13 @@ func (ui *UserInfo) CanMakeDeltaQueries() bool {
 //nolint:lll
 var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
 
-// I can't believe I have to do this.
-var t = true
-
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
 	return &users.UsersRequestBuilderGetRequestConfiguration{
 		Headers: newEventualConsistencyHeaders(),
 		QueryParameters: &users.UsersRequestBuilderGetQueryParameters{
 			Select: idAnd(userPrincipalName, displayName),
 			Filter: fs,
-			Count:  &t,
+			Count:  ptr.To(true),
 		},
 	}
 }

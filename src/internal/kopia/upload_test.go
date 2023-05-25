@@ -659,13 +659,13 @@ func TestHierarchyBuilderUnitSuite(t *testing.T) {
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
-	tester.LogTimeOfTest(suite.T())
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+	tester.LogTimeOfTest(t)
 
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t            = suite.T()
 		tenant       = "a-tenant"
 		user1        = testUser
 		user1Encoded = encodeAsPath(user1)
@@ -744,9 +744,6 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	var (
 		subfldID  = "subfolder_ID"
 		subfldDir = "subfolder"
@@ -799,6 +796,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
@@ -901,11 +901,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 	}
 
 	for _, test := range table {
-		ctx, flush := tester.NewContext()
-		defer flush()
-
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			progress := &corsoProgress{
 				toMerge: newMergeDetails(),
@@ -1000,7 +1000,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 
 			tester.LogTimeOfTest(t)
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			progress := &corsoProgress{
@@ -1294,7 +1294,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 
 			tester.LogTimeOfTest(t)
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			progress := &corsoProgress{
@@ -2217,7 +2217,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 			tester.LogTimeOfTest(t)
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			progress := &corsoProgress{
@@ -2254,7 +2254,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	tester.LogTimeOfTest(suite.T())
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	const (
@@ -2416,7 +2416,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	tester.LogTimeOfTest(suite.T())
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
@@ -2533,7 +2533,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	tester.LogTimeOfTest(suite.T())
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	const contactsDir = "contacts"
@@ -2772,7 +2772,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	tester.LogTimeOfTest(suite.T())
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	const (
