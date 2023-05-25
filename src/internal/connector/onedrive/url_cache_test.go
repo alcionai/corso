@@ -83,7 +83,11 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	defer func() {
 		ictx := clues.Add(ctx, "folder_id", ptr.Val(newFolder.GetId()))
 
-		err := DeleteItem(ictx, loadTestService(t), driveID, ptr.Val(newFolder.GetId()))
+		err := api.DeleteDriveItem(
+			ictx,
+			loadTestService(t),
+			driveID,
+			ptr.Val(newFolder.GetId()))
 		if err != nil {
 			logger.CtxErr(ictx, err).Errorw("deleting folder")
 		}

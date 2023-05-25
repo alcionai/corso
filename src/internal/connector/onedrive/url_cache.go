@@ -51,7 +51,7 @@ func newURLCache(
 		svc,
 		itemPagerFunc)
 	if err != nil {
-		return nil, clues.Wrap(err, "cache parameters")
+		return nil, clues.Wrap(err, "cache params")
 	}
 
 	return &urlCache{
@@ -66,7 +66,7 @@ func newURLCache(
 		nil
 }
 
-// validateCacheParams validates the parameters passed to newURLCache
+// validateCacheParams validates input params
 func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
@@ -158,16 +158,15 @@ func (uc *urlCache) refreshCache(
 		return err
 	}
 
-	logger.Ctx(ctx).Info("url cache refresh complete")
+	logger.Ctx(ctx).Info("url cache refreshed")
+
 	// Update last refresh time
 	uc.lastRefreshTime = time.Now()
 
 	return nil
 }
 
-// deltaQuery will perform a delta query on the drive. updateCache will be
-// called for each page of items returned by the delta query and the cache will
-// be updated with the results
+// deltaQuery performs a delta query on the drive and update the cache
 func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 ) error {
@@ -191,7 +190,7 @@ func (uc *urlCache) deltaQuery(
 	return nil
 }
 
-// readCache returns the download URL for the specified item
+// readCache returns the item properties for the specified item
 func (uc *urlCache) readCache(
 	ctx context.Context,
 	itemID string,
