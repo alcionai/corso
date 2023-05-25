@@ -149,6 +149,10 @@ const (
 	SingleGetOrDeltaLC = 1
 	// limit consumption rate for anything permissions related
 	PermissionsLC = 5
+	// https://learn.microsoft.com/en-us/sharepoint/dev/general-development
+	// /how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#application-throttling
+	// Any create, delete, update or upload operation take 2 tokens
+	CreateLC = 2
 )
 
 // ConsumeNTokens ensures any calls using this context will consume

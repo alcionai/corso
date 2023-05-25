@@ -356,6 +356,7 @@ func driveItemWriter(
 	itemSize int64,
 ) (io.Writer, error) {
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
+	ctx = graph.ConsumeNTokens(ctx, graph.CreateLC)
 
 	r, err := api.PostDriveItem(ctx, gs, driveID, itemID)
 	if err != nil {
