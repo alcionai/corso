@@ -3,14 +3,62 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
+
+// ---------------------------------------------------------------------------
+// common interfaces and funcs
+// ---------------------------------------------------------------------------
+
+type PageLinker interface {
+	GetOdataNextLink() *string
+}
+
+type DeltaPageLinker interface {
+	PageLinker
+	GetOdataDeltaLink() *string
+}
+
+// IsNextLinkValid separate check to investigate whether error is
+func IsNextLinkValid(next string) bool {
+	return !strings.Contains(next, `users//`)
+}
+
+func NextLink(pl PageLinker) string {
+	return ptr.Val(pl.GetOdataNextLink())
+}
+
+func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
+	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
+}
+
+type Valuer[T any] interface {
+	GetValue() []T
+}
+
+type PageLinkValuer[T any] interface {
+	PageLinker
+	Valuer[T]
+}
+
+// EmptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
+type EmptyDeltaLinker[T any] struct {
+	PageLinkValuer[T]
+}
+
+func (EmptyDeltaLinker[T]) GetOdataDeltaLink() *string {
+	return ptr.To("")
+}
+
+func (e EmptyDeltaLinker[T]) GetValue() []T {
+	return e.PageLinkValuer.GetValue()
+}
 
 // ---------------------------------------------------------------------------
 // generic handler for paging item ids in a container
@@ -18,7 +66,7 @@ import (
 
 type itemPager interface {
 	// getPage get a page with the specified options from graph
-	getPage(context.Context) (api.DeltaPageLinker, error)
+	getPage(context.Context) (DeltaPageLinker, error)
 	// setNext is used to pass in the next url got from graph
 	setNext(string)
 	// reset is used to clear delta url in delta pagers. When
@@ -26,7 +74,7 @@ type itemPager interface {
 	// currently have and start a new delta query without the token.
 	reset(context.Context)
 	// valuesIn gets us the values in a page
-	valuesIn(api.PageLinker) ([]getIDAndAddtler, error)
+	valuesIn(PageLinker) ([]getIDAndAddtler, error)
 }
 
 type getIDAndAddtler interface {
@@ -158,7 +206,7 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
-		nextLink, deltaLink := api.NextAndDeltaLink(resp)
+		nextLink, deltaLink := NextAndDeltaLink(resp)
 
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will

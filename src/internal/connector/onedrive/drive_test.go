@@ -52,7 +52,9 @@ func odErr(code string) *odataerrors.ODataError {
 }
 
 func (suite *OneDriveUnitSuite) TestDrives() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	numDriveResults := 4
@@ -263,7 +265,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			pager := &mock.DrivePager{
@@ -307,11 +309,12 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 }
 
 func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t              = suite.T()
 		folderIDs      = []string{}
 		folderName1    = "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 		folderElements = []string{folderName1}
@@ -334,7 +337,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 
 			// deletes require unique http clients
 			// https://github.com/alcionai/corso/issues/2707
-			err := DeleteItem(ictx, loadTestService(t), driveID, id)
+			err := api.DeleteDriveItem(ictx, loadTestService(t), driveID, id)
 			if err != nil {
 				logger.CtxErr(ictx, err).Errorw("deleting folder")
 			}
@@ -438,11 +441,12 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t       = suite.T()
 				service = loadTestService(t)
 				scope   = selectors.
 					NewOneDriveBackup([]string{test.user}).

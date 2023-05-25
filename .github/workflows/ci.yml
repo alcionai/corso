@@ -137,7 +137,7 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: ./src/testlog/suite-testlogging.log
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-ci.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
@@ -181,7 +181,7 @@ jobs:
           -p 1          \
           -timeout 15m  \
           ./... \
-          2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+          2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -202,7 +202,7 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ./src/testlog/unit-testlogging.log
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-unit.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v3
@@ -256,7 +256,7 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ./src/testlog/fork-testlogging.log
+      CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-fork.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - name: Fail check if not repository_dispatch
@@ -324,7 +324,7 @@ jobs:
           -v      \
           -timeout 15m  \
           ./... \
-          2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+          2>&1 | tee ./testlog/gotest-fork.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log

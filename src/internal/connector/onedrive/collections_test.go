@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -766,11 +765,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 
 	for _, tt := range tests {
 		suite.Run(tt.testCase, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t               = suite.T()
 				excludes        = map[string]struct{}{}
 				outputFolderMap = map[string]string{}
 				itemCollection  = map[string]map[string]string{
@@ -1151,10 +1151,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
@@ -1205,7 +1206,7 @@ type mockItemPager struct {
 	getIdx   int
 }
 
-func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
+func (p *mockItemPager) GetPage(context.Context) (api.DeltaPageLinker, error) {
 	if len(p.toReturn) <= p.getIdx {
 		return nil, assert.AnError
 	}
@@ -1222,7 +1223,7 @@ func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
 func (p *mockItemPager) SetNext(string) {}
 func (p *mockItemPager) Reset()         {}
 
-func (p *mockItemPager) ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *mockItemPager) ValuesIn(api.DeltaPageLinker) ([]models.DriveItemable, error) {
 	idx := p.getIdx
 	if idx > 0 {
 		// Return values lag by one since we increment in GetPage().
@@ -2293,7 +2294,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			drivePagerFunc := func(
@@ -2612,7 +2613,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			itemPager := &mockItemPager{

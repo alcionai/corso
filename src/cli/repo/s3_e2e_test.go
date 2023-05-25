@@ -55,7 +55,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			st := tester.NewPrefixedS3Storage(t)
@@ -91,7 +91,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 
 func (suite *S3E2ESuite) TestInitMultipleTimes() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 
 	defer flush()
 
@@ -121,7 +121,7 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 
 func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 
 	defer flush()
 
@@ -171,7 +171,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			st := tester.NewPrefixedS3Storage(t)
@@ -214,7 +214,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 
 func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 
 	defer flush()
 
@@ -240,7 +240,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 
 func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 
 	defer flush()
 

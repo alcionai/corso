@@ -21,6 +21,9 @@ inputs:
   base-backup:
     description: Base backup to use for testing
     required: false
+  log-dir:
+    description: Folder to store test log files
+    required: true
 
 outputs:
   backup-id:
@@ -35,6 +38,7 @@ runs:
       working-directory: src
       run: |
         set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}-${{inputs.kind }}.log
         ./corso backup create '${{ inputs.service }}' \
             --no-stats --hide-progress --json \
             ${{ inputs.backup-args }} |
@@ -49,6 +53,7 @@ runs:
       working-directory: src
       run: |
         set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
         ./corso restore '${{ inputs.service }}' \
             --no-stats \
             --hide-progress \
@@ -71,6 +76,7 @@ runs:
         TEST_DATA: ${{ inputs.test-folder }}
         BASE_BACKUP: ${{ inputs.base-backup }}
       run: |
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
         ./sanity-test
 
     - name: List ${{ inputs.service }} ${{ inputs.kind }}
@@ -78,6 +84,7 @@ runs:
       working-directory: src
       run: |
         set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}-${{inputs.kind }}.log
         ./corso backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
@@ -95,6 +102,7 @@ runs:
       working-directory: src
       run: |
         set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-single-${{ inputs.service }}-${{inputs.kind }}.log
         ./corso backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
@@ -114,6 +122,6 @@ runs:
       uses: actions/upload-artifact@v3
       with:
         name: "${{ inputs.service }}-${{ inputs.kind }}-logs"
-        path: ${{ env.WORKING_DIR }}/${{ env.CORSO_LOG_DIR }}/
+        path: ${{ inputs.log-dir }}/*
         if-no-files-found: error
         retention-days: 14

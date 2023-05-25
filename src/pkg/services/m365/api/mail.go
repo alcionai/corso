@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -12,7 +14,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -37,7 +38,7 @@ type Mail struct {
 }
 
 // ---------------------------------------------------------------------------
-// methods
+// containers
 // ---------------------------------------------------------------------------
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
@@ -114,18 +115,21 @@ func (c Mail) DeleteContainer(
 	return nil
 }
 
-func (c Mail) GetContainerByID(
+// prefer GetContainerByID where possible.
+// use this only in cases where the models.MailFolderable
+// is required.
+func (c Mail) GetFolder(
 	ctx context.Context,
-	userID, dirID string,
-) (graph.Container, error) {
+	userID, containerID string,
+) (models.MailFolderable, error) {
 	service, err := c.Service()
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	queryParams := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
+	config := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
-			Select: []string{"id", "displayName", "parentFolderId"},
+			Select: idAnd(displayName, parentFolderID),
 		},
 	}
 
@@ -133,8 +137,8 @@ func (c Mail) GetContainerByID(
 		Users().
 		ByUserId(userID).
 		MailFolders().
-		ByMailFolderId(dirID).
-		Get(ctx, queryParams)
+		ByMailFolderId(containerID).
+		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -142,127 +146,65 @@ func (c Mail) GetContainerByID(
 	return resp, nil
 }
 
-// GetItem retrieves a Messageable item.  If the item contains an attachment, that
-// attachment is also downloaded.
-func (c Mail) GetItem(
+// interface-compliant wrapper of GetFolder
+func (c Mail) GetContainerByID(
 	ctx context.Context,
-	user, itemID string,
-	immutableIDs bool,
-	errs *fault.Bus,
-) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		size     int64
-		mailBody models.ItemBodyable
-	)
-	// Will need adjusted if attachments start allowing paging.
-	headers := buildPreferHeaders(false, immutableIDs)
-	itemOpts := &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
-		Headers: headers,
-	}
-
-	mail, err := c.Stable.Client().Users().ByUserId(user).Messages().ByMessageId(itemID).Get(ctx, itemOpts)
-	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
-	}
-
-	mailBody = mail.GetBody()
-	if mailBody != nil {
-		content := ptr.Val(mailBody.GetContent())
-		if len(content) > 0 {
-			size = int64(len(content))
-		}
-	}
-
-	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mailBody) {
-		return mail, MailInfo(mail, size), nil
-	}
-
-	options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
-			Expand: []string{"microsoft.graph.itemattachment/item"},
-		},
-		Headers: headers,
-	}
-
-	attached, err := c.LargeItem.
-		Client().
-		Users().
-		ByUserId(user).
-		Messages().
-		ByMessageId(itemID).
-		Attachments().
-		Get(ctx, options)
-	if err == nil {
-		for _, a := range attached.GetValue() {
-			attachSize := ptr.Val(a.GetSize())
-			size = +int64(attachSize)
-		}
-
-		mail.SetAttachments(attached.GetValue())
-
-		return mail, MailInfo(mail, size), nil
-	}
-
-	// A failure can be caused by having a lot of attachments as
-	// we are trying to fetch the data within the attachments as
-	// well in the request. We instead fetch all the attachment
-	// ids and fetch each item individually.
-	// NOTE: Maybe filter for specific error:
-	// graph.IsErrTimeout(err) || graph.IsServiceUnavailable(err)
-	// TODO: Once MS Graph fixes pagination for this, we can
-	// probably paginate and fetch items.
-	// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
-	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
-
-	// Getting size just to log in case of error
-	options.QueryParameters.Select = []string{"id", "size"}
-
-	attachments, err := c.LargeItem.
-		Client().
-		Users().
-		ByUserId(user).
-		Messages().
-		ByMessageId(itemID).
-		Attachments().
-		Get(ctx, options)
-	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "getting mail attachment ids")
-	}
-
-	atts := []models.Attachmentable{}
-
-	for _, a := range attachments.GetValue() {
-		options := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
-				Expand: []string{"microsoft.graph.itemattachment/item"},
-			},
-			Headers: headers,
-		}
-
-		att, err := c.Stable.
-			Client().
-			Users().
-			ByUserId(user).
-			Messages().
-			ByMessageId(itemID).
-			Attachments().
-			ByAttachmentId(ptr.Val(a.GetId())).
-			Get(ctx, options)
-		if err != nil {
-			return nil, nil,
-				graph.Wrap(ctx, err, "getting mail attachment").
-					With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
-		}
-
-		atts = append(atts, att)
-		attachSize := ptr.Val(a.GetSize())
-		size = +int64(attachSize)
-	}
-
-	mail.SetAttachments(atts)
-
-	return mail, MailInfo(mail, size), nil
+	userID, dirID string,
+) (graph.Container, error) {
+	return c.GetFolder(ctx, userID, dirID)
 }
+
+func (c Mail) MoveContainer(
+	ctx context.Context,
+	userID, containerID string,
+	body users.ItemMailFoldersItemMovePostRequestBodyable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Move().
+		Post(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "moving mail folder")
+	}
+
+	return nil
+}
+
+func (c Mail) PatchFolder(
+	ctx context.Context,
+	userID, containerID string,
+	body models.MailFolderable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Patch(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "patching mail folder")
+	}
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// container pager
+// ---------------------------------------------------------------------------
 
 type mailFolderPager struct {
 	service graph.Servicer
@@ -277,7 +219,7 @@ func NewMailFolderPager(service graph.Servicer, user string) mailFolderPager {
 	return mailFolderPager{service, builder}
 }
 
-func (p *mailFolderPager) getPage(ctx context.Context) (api.PageLinker, error) {
+func (p *mailFolderPager) getPage(ctx context.Context) (PageLinker, error) {
 	page, err := p.builder.Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -290,7 +232,7 @@ func (p *mailFolderPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.service.Adapter())
 }
 
-func (p *mailFolderPager) valuesIn(pl api.PageLinker) ([]models.MailFolderable, error) {
+func (p *mailFolderPager) valuesIn(pl PageLinker) ([]models.MailFolderable, error) {
 	// Ideally this should be `users.ItemMailFoldersResponseable`, but
 	// that is not a thing as stable returns different result
 	page, ok := pl.(models.MailFolderCollectionResponseable)
@@ -336,17 +278,22 @@ func (c Mail) EnumerateContainers(
 			return graph.Stack(ctx, err)
 		}
 
-		for _, v := range resp {
+		for _, fold := range resp {
 			if el.Failure() != nil {
 				break
 			}
 
+			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
+				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				continue
+			}
+
 			fctx := clues.Add(
 				ctx,
-				"container_id", ptr.Val(v.GetId()),
-				"container_name", ptr.Val(v.GetDisplayName()))
+				"container_id", ptr.Val(fold.GetId()),
+				"container_name", ptr.Val(fold.GetDisplayName()))
 
-			temp := graph.NewCacheFolder(v, nil, nil)
+			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(&temp); err != nil {
 				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
@@ -362,6 +309,256 @@ func (c Mail) EnumerateContainers(
 	}
 
 	return el.Failure()
+}
+
+// ---------------------------------------------------------------------------
+// items
+// ---------------------------------------------------------------------------
+
+// GetItem retrieves a Messageable item.  If the item contains an attachment, that
+// attachment is also downloaded.
+func (c Mail) GetItem(
+	ctx context.Context,
+	user, itemID string,
+	immutableIDs bool,
+	errs *fault.Bus,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	var (
+		size     int64
+		mailBody models.ItemBodyable
+		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+		}
+	)
+
+	mail, err := c.Stable.Client().
+		Users().
+		ByUserId(user).
+		Messages().
+		ByMessageId(itemID).
+		Get(ctx, config)
+	if err != nil {
+		return nil, nil, graph.Stack(ctx, err)
+	}
+
+	mailBody = mail.GetBody()
+	if mailBody != nil {
+		content := ptr.Val(mailBody.GetContent())
+		if len(content) > 0 {
+			size = int64(len(content))
+		}
+	}
+
+	if !ptr.Val(mail.GetHasAttachments()) && !HasAttachments(mailBody) {
+		return mail, MailInfo(mail, size), nil
+	}
+
+	attachConfig := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+			Expand: []string{"microsoft.graph.itemattachment/item"},
+		},
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+	}
+
+	attached, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(user).
+		Messages().
+		ByMessageId(itemID).
+		Attachments().
+		Get(ctx, attachConfig)
+	if err == nil {
+		for _, a := range attached.GetValue() {
+			attachSize := ptr.Val(a.GetSize())
+			size = +int64(attachSize)
+		}
+
+		mail.SetAttachments(attached.GetValue())
+
+		return mail, MailInfo(mail, size), nil
+	}
+
+	// A failure can be caused by having a lot of attachments as
+	// we are trying to fetch the data within the attachments as
+	// well in the request. We instead fetch all the attachment
+	// ids and fetch each item individually.
+	// NOTE: Maybe filter for specific error:
+	// graph.IsErrTimeout(err) || graph.IsServiceUnavailable(err)
+	// TODO: Once MS Graph fixes pagination for this, we can
+	// probably paginate and fetch items.
+	// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
+	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
+
+	// Getting size just to log in case of error
+	attachConfig.QueryParameters.Select = []string{"id", "size"}
+
+	attachments, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(user).
+		Messages().
+		ByMessageId(itemID).
+		Attachments().
+		Get(ctx, attachConfig)
+	if err != nil {
+		return nil, nil, graph.Wrap(ctx, err, "getting mail attachment ids")
+	}
+
+	atts := []models.Attachmentable{}
+
+	for _, a := range attachments.GetValue() {
+		attachConfig := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+		}
+
+		att, err := c.Stable.
+			Client().
+			Users().
+			ByUserId(user).
+			Messages().
+			ByMessageId(itemID).
+			Attachments().
+			ByAttachmentId(ptr.Val(a.GetId())).
+			Get(ctx, attachConfig)
+		if err != nil {
+			return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").
+				With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
+		}
+
+		atts = append(atts, att)
+		attachSize := ptr.Val(a.GetSize())
+		size = +int64(attachSize)
+	}
+
+	mail.SetAttachments(atts)
+
+	return mail, MailInfo(mail, size), nil
+}
+
+func (c Mail) PostItem(
+	ctx context.Context,
+	userID, containerID string,
+	body models.Messageable,
+) (models.Messageable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	itm, err := service.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating mail message")
+	}
+
+	if itm == nil {
+		return nil, clues.New("nil response mail message creation").WithClues(ctx)
+	}
+
+	return itm, nil
+}
+
+func (c Mail) DeleteItem(
+	ctx context.Context,
+	userID, itemID string,
+) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = service.
+		Client().
+		Users().
+		ByUserId(userID).
+		Messages().
+		ByMessageId(itemID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting mail message")
+	}
+
+	return nil
+}
+
+func (c Mail) PostSmallAttachment(
+	ctx context.Context,
+	userID, containerID, parentItemID string,
+	body models.Attachmentable,
+) error {
+	service, err := c.Service()
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	_, err = service.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages().
+		ByMessageId(parentItemID).
+		Attachments().
+		Post(ctx, body, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "uploading small mail attachment")
+	}
+
+	return nil
+}
+
+func (c Mail) PostLargeAttachment(
+	ctx context.Context,
+	userID, containerID, parentItemID, name string,
+	size int64,
+	body models.Attachmentable,
+) (models.UploadSessionable, error) {
+	bs, err := GetAttachmentContent(body)
+	if err != nil {
+		return nil, clues.Wrap(err, "serializing attachment content").WithClues(ctx)
+	}
+
+	session := users.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
+	session.SetAttachmentItem(makeSessionAttachment(name, size))
+
+	us, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages().
+		ByMessageId(parentItemID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "uploading large mail attachment")
+	}
+
+	url := ptr.Val(us.GetUploadUrl())
+	w := graph.NewLargeItemWriter(parentItemID, url, size)
+	copyBuffer := make([]byte, graph.AttachmentChunkSize)
+
+	_, err = io.CopyBuffer(w, bytes.NewReader(bs), copyBuffer)
+	if err != nil {
+		return nil, clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
+	}
+
+	return us, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -382,11 +579,11 @@ func NewMailPager(
 	user, directoryID string,
 	immutableIDs bool,
 ) itemPager {
-	queryParams := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
-			Select: []string{"id", "isRead"},
+			Select: idAnd("isRead"),
 		},
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	builder := gs.Client().
@@ -396,16 +593,16 @@ func NewMailPager(
 		ByMailFolderId(directoryID).
 		Messages()
 
-	return &mailPager{gs, builder, queryParams}
+	return &mailPager{gs, builder, config}
 }
 
-func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *mailPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return api.EmptyDeltaLinker[models.Messageable]{PageLinkValuer: page}, nil
+	return EmptyDeltaLinker[models.Messageable]{PageLinkValuer: page}, nil
 }
 
 func (p *mailPager) setNext(nextLink string) {
@@ -415,7 +612,7 @@ func (p *mailPager) setNext(nextLink string) {
 // non delta pagers don't have reset
 func (p *mailPager) reset(context.Context) {}
 
-func (p *mailPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *mailPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 
@@ -457,11 +654,11 @@ func NewMailDeltaPager(
 	user, directoryID, oldDelta string,
 	immutableIDs bool,
 ) itemPager {
-	queryParams := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+	config := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
-			Select: []string{"id", "isRead"},
+			Select: idAnd("isRead"),
 		},
-		Headers: buildPreferHeaders(true, immutableIDs),
+		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
@@ -469,13 +666,13 @@ func NewMailDeltaPager(
 	if len(oldDelta) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	} else {
-		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, queryParams)
+		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, config)
 	}
 
-	return &mailDeltaPager{gs, user, directoryID, builder, queryParams}
+	return &mailDeltaPager{gs, user, directoryID, builder, config}
 }
 
-func (p *mailDeltaPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+func (p *mailDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -498,7 +695,7 @@ func (p *mailDeltaPager) reset(ctx context.Context) {
 		Delta()
 }
 
-func (p *mailDeltaPager) valuesIn(pl api.PageLinker) ([]getIDAndAddtler, error) {
+func (p *mailDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 

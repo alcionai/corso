@@ -169,10 +169,11 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			called := 0
 			mw := newTestMW(
 				func(*http.Request) { called++ },
@@ -194,11 +195,12 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 }
 
 func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter500() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t                = suite.T()
 		body             = models.NewMailFolder()
 		checkOnIntercept = func(req *http.Request) {
 			bs, err := io.ReadAll(req.Body)
@@ -225,6 +227,8 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 	adpt, err := mockAdapter(suite.creds, mw)
 	require.NoError(t, err, clues.ToCore(err))
 
+	// no api package needed here, this is a mocked request that works
+	// independent of the query.
 	_, err = NewService(adpt).
 		Client().
 		Users().
@@ -243,11 +247,13 @@ func TestMiddlewareUnitSuite(t *testing.T) {
 }
 
 func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// an unpopulated ctx should produce the default limiter
-	assert.Equal(suite.T(), defaultLimiter, ctxLimiter(ctx))
+	assert.Equal(t, defaultLimiter, ctxLimiter(ctx))
 
 	table := []struct {
 		name          string
@@ -295,11 +301,13 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 }
 
 func (suite *MiddlewareUnitSuite) TestLimiterConsumption() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// an unpopulated ctx should produce the default consumption
-	assert.Equal(suite.T(), defaultLC, ctxLimiterConsumption(ctx, defaultLC))
+	assert.Equal(t, defaultLC, ctxLimiterConsumption(ctx, defaultLC))
 
 	table := []struct {
 		name   string

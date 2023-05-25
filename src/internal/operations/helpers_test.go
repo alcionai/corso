@@ -89,10 +89,11 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			errs := test.errs()
 
 			finalizeErrorHandling(ctx, test.opts, errs, "test")

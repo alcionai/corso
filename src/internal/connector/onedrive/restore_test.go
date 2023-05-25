@@ -167,7 +167,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			_, flush := tester.NewContext()
+			_, flush := tester.NewContext(t)
 			defer flush()
 
 			base := "id/onedrive/user/files/drives/driveID/root:/"
@@ -271,7 +271,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			_, flush := tester.NewContext()
+			_, flush := tester.NewContext(t)
 			defer flush()
 
 			base := "id/onedrive/user/files/drives/driveID/root:/"

@@ -47,7 +47,7 @@ func (suite *StatusUnitSuite) TestCreateStatus() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			result := CreateStatus(
@@ -64,7 +64,9 @@ func (suite *StatusUnitSuite) TestCreateStatus() {
 }
 
 func (suite *StatusUnitSuite) TestMergeStatus() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	table := []struct {

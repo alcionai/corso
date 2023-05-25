@@ -137,14 +137,14 @@ func (suite *OneDriveUnitSuite) TestValidateOneDriveBackupCreateFlags() {
 }
 
 func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	for v := 0; v <= version.Backup; v++ {
 		suite.Run(fmt.Sprintf("version%d", v), func() {
 			for _, test := range testdata.OneDriveOptionDetailLookups {
 				suite.Run(test.Name, func() {
 					t := suite.T()
+
+					ctx, flush := tester.NewContext(t)
+					defer flush()
 
 					bg := testdata.VersionedBackupGetter{
 						Details: dtd.GetDetailsSetForVersion(t, v),
@@ -165,12 +165,12 @@ func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
 }
 
 func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	for _, test := range testdata.BadOneDriveOptionsFormats {
 		suite.Run(test.Name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			output, err := runDetailsOneDriveCmd(
 				ctx,

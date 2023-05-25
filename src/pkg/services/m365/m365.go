@@ -2,7 +2,6 @@ package m365
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -91,16 +90,17 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 
 	_, err = uapi.GetMailFolders(ctx, userID, options)
 	if err != nil {
+		// we consider this a non-error case, since it
+		// answers the question the caller is asking.
+		if graph.IsErrExchangeMailFolderNotFound(err) {
+			return false, nil
+		}
+
 		if graph.IsErrUserNotFound(err) {
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
-		if !graph.IsErrExchangeMailFolderNotFound(err) ||
-			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
-			return false, err
-		}
-
-		return false, nil
+		return false, clues.Stack(err)
 	}
 
 	return true, nil
@@ -116,16 +116,17 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 
 	_, err = uapi.GetDrives(ctx, userID)
 	if err != nil {
+		// we consider this a non-error case, since it
+		// answers the question the caller is asking.
+		if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+			return false, nil
+		}
+
 		if graph.IsErrUserNotFound(err) {
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
-		if !graph.IsErrExchangeMailFolderNotFound(err) ||
-			clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) {
-			return false, err
-		}
-
-		return false, nil
+		return false, clues.Stack(err)
 	}
 
 	return true, nil

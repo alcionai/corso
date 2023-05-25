@@ -35,23 +35,19 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       # re-used values
-      # don't forget: return to Corso_Test_Sanity_
-      CORSO_LOG_DIR: testlog
-      CORSO_LOG_FILE: testlog/testlogging.log
+      CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
       RESTORE_DEST_PFX: Corso_Test_Sanity_
-      TEST_RESULT: test_results
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
-      # The default working directory doesn't seem to apply to things without
-      # the 'run' directive. https://stackoverflow.com/a/67845456
-      WORKING_DIR: src
 
     defaults:
       run:
-        working-directory: ${{ env.WORKING_DIR }}
-    steps:
+        working-directory: src
+        
 ##########################################################################################################################################
 
 # setup
+    steps:
 
       - uses: actions/checkout@v3
 
@@ -63,7 +59,6 @@ jobs:
       - run: go build -o corso
       - run: go build -o sanity-test ./cmd/sanity_test
 
-      - run: mkdir ${TEST_RESULT}
       - run: mkdir ${CORSO_LOG_DIR}
 
 ##########################################################################################################################################
@@ -117,8 +112,6 @@ jobs:
 
       - name: Repo init test
         id: repo-init
-        env:
-          TEST_RESULT: "test_results"
         run: |
           set -euo pipefail
           prefix=$(date +"%Y-%m-%d-%T")
@@ -128,9 +121,9 @@ jobs:
             --hide-progress \
             --prefix $prefix \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
-            2>&1 | tee $TEST_RESULT/initrepo.txt
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
 
-          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt
+          if ! grep -q 'Initialized a S3 repository within bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
           then
             echo "Repo could not be initialized"
             exit 1
@@ -147,9 +140,9 @@ jobs:
             --hide-progress \
             --prefix ${{ steps.repo-init.outputs.result }} \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
-            2>&1 | tee $TEST_RESULT/connect.txt
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
 
-          if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
           then
             echo "Repo could not be connected"
             exit 1
@@ -175,43 +168,47 @@ jobs:
         uses: ./.github/actions/backup-restore-test
         with:
           service: exchange
-          kind: backup
+          kind: initial
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Exchange - Incremental backup
         id: exchange-backup-incremental
         uses: ./.github/actions/backup-restore-test
         with:
           service: exchange
-          kind: backup-incremental
+          kind: incremental
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Exchange - Non delta backup
         id: exchange-backup-non-delta
         uses: ./.github/actions/backup-restore-test
         with:
           service: exchange
-          kind: backup-non-delta
+          kind: non-delta
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Exchange - Incremental backup after non-delta
         id: exchange-backup-incremental-after-non-delta
         uses: ./.github/actions/backup-restore-test
         with:
           service: exchange
-          kind: backup-incremental-after-non-delta
+          kind: non-delta-incremental
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
 
 ##########################################################################################################################################
@@ -239,10 +236,11 @@ jobs:
         uses: ./.github/actions/backup-restore-test
         with:
           service: onedrive
-          kind: backup
+          kind: initial
           backup-args: '--user "${{ env.TEST_USER }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
       # generate some more enteries for incremental check
       - name: OneDrive - Create new data (for incremental)
@@ -264,6 +262,7 @@ jobs:
           backup-args: '--user "${{ env.TEST_USER }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
 ##########################################################################################################################################
 
@@ -291,10 +290,11 @@ jobs:
         uses: ./.github/actions/backup-restore-test
         with:
           service: sharepoint
-          kind: backup
+          kind: initial
           backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
       # generate some more enteries for incremental check
       - name: SharePoint - Create new data (for incremental)
@@ -317,6 +317,7 @@ jobs:
           backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
 
 ##########################################################################################################################################
 
@@ -328,7 +329,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: sanity-test-log
-          path: ${{ env.WORKING_DIR }}/${{ env.CORSO_LOG_DIR }}/
+          path: ${{ env.CORSO_LOG_DIR }}/*
           if-no-files-found: error
           retention-days: 14
 
@@ -348,7 +349,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "GitHub Action build result: ${{ job.status }} on SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "text": "Sanity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
               "blocks": [
                 {
                   "type": "section",

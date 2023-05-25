@@ -130,10 +130,10 @@ func (suite *SitesIntgSuite) SetupSuite() {
 }
 
 func (suite *SitesIntgSuite) TestGetAll() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	cli, err := NewClient(suite.creds)
 	require.NoError(t, err, clues.ToCore(err))
@@ -181,7 +181,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			t := suite.T()

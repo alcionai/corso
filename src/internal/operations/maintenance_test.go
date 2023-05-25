@@ -35,7 +35,7 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 		k  = kopia.NewConn(st)
 	)
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	err := k.Initialize(ctx, repository.Options{})

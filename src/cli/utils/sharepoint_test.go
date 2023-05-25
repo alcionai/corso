@@ -194,7 +194,9 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			sel := utils.IncludeSharePointRestoreDataSelectors(ctx, test.opts)
@@ -252,7 +254,9 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors_nor
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
