@@ -297,7 +297,12 @@ func RestoreCollection(
 				// skipped items don't get counted, but they can error
 				if !skipped {
 					atomic.AddInt64(&metricsObjects, 1)
-					atomic.AddInt64(&metricsBytes, itemInfo.OneDrive.Size)
+
+					if source == OneDriveSource {
+						atomic.AddInt64(&metricsBytes, itemInfo.OneDrive.Size)
+					} else {
+						atomic.AddInt64(&metricsBytes, itemInfo.SharePoint.Size)
+					}
 				}
 
 				if err != nil {
