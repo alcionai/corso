@@ -564,18 +564,18 @@ func (p *eventDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
-	userID, calendarID, oldDelta string,
+	userID, containerID, oldDelta string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	ctx = clues.Add(ctx, "container_id", calendarID)
+	ctx = clues.Add(ctx, "container_id", containerID)
 
-	pager, err := NewEventPager(ctx, c.Stable, userID, calendarID, immutableIDs)
+	pager, err := NewEventPager(ctx, c.Stable, userID, containerID, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
 	}
 
-	deltaPager, err := NewEventDeltaPager(ctx, c.Stable, userID, calendarID, oldDelta, immutableIDs)
+	deltaPager, err := NewEventDeltaPager(ctx, c.Stable, userID, containerID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}
