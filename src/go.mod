@@ -18,7 +18,7 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v1.0.0
 	github.com/microsoft/kiota-http-go v1.0.0
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
-	github.com/microsoft/kiota-serialization-json-go v1.0.0
+	github.com/microsoft/kiota-serialization-json-go v1.0.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.2.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
@@ -127,5 +127,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/microsoft/kiota-serialization-json-go => github.com/alcionai/kiota-serialization-json-go v0.0.0-20230523031047-cee43f2283aa
