@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -30,6 +31,46 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+// ---------------------------------------------------------------------------
+// mocks
+// ---------------------------------------------------------------------------
+
+type mockItemGetterAndAugmenter struct {
+	gi      mock.GetsItem
+	info    details.ItemInfo
+	getCall int
+	getResp []*http.Response
+	getErr  []error
+}
+
+func (m mockItemGetterAndAugmenter) GetItem(context.Context, string, string) (models.DriveItemable, error) {
+	return m.gi.GetItem(nil, "", "")
+}
+
+func (m mockItemGetterAndAugmenter) AugmentItemInfo(
+	_ details.ItemInfo,
+	_ models.DriveItemable,
+	_ int64,
+	_ *path.Builder,
+) details.ItemInfo {
+	return m.info
+}
+
+func (m *mockItemGetterAndAugmenter) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	c := m.getCall
+	m.getCall++
+
+	return m.getResp[c], m.getErr[c]
+}
+
+// ---------------------------------------------------------------------------
+// tests
+// ---------------------------------------------------------------------------
 
 type CollectionUnitTestSuite struct {
 	tester.Suite
@@ -90,7 +131,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 	table := []struct {
 		name         string
 		numInstances int
-		source       driveSource
+		service      path.ServiceType
 		itemReader   itemReaderFunc
 		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
@@ -100,7 +141,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
-			source:       OneDriveSource,
+			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
@@ -116,7 +157,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
-			source:       OneDriveSource,
+			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
@@ -132,7 +173,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:         "oneDrive, malware",
 			numInstances: 3,
-			source:       OneDriveSource,
+			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, clues.New("test malware").Label(graph.LabelsMalware)
@@ -147,7 +188,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:         "oneDrive, not found",
 			numInstances: 3,
-			source:       OneDriveSource,
+			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
 			// Usually `Not Found` is returned from itemGetter and not itemReader
 			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
@@ -163,7 +204,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
-			source:       SharePointSource,
+			service:      path.SharePointService,
 			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
@@ -179,7 +220,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		{
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
-			source:       SharePointSource,
+			service:      path.SharePointService,
 			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
@@ -317,307 +358,215 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	var (
-		name       = "name"
-		size int64 = 42
-		now        = time.Now()
+		t                = suite.T()
+		testItemID       = "fakeItemID"
+		collStatus       = support.ConnectorOperationStatus{}
+		wg               = sync.WaitGroup{}
+		name             = "name"
+		size       int64 = 42
+		now              = time.Now()
 	)
 
-	table := []struct {
-		name   string
-		source driveSource
-	}{
-		{
-			name:   "oneDrive",
-			source: OneDriveSource,
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	wg.Add(1)
+
+	pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	mbh := &mock.BackupHandler{
+		ItemInfo: details.ItemInfo{},
+		GetResps: []*http.Response{
+			nil,
+			{Body: io.NopCloser(strings.NewReader("test"))},
 		},
-		{
-			name:   "sharePoint",
-			source: SharePointSource,
+		GetErrs: []error{
+			clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized)),
+			nil,
 		},
+		GI:  mock.GetsItem{Err: assert.AnError},
+		GIP: mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()},
 	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+	coll, err := NewCollection(
+		mbh,
+		folderPath,
+		nil,
+		"fakeDriveID",
+		suite.testStatusUpdater(&wg, &collStatus),
+		control.Options{ToggleFeatures: control.Toggles{}},
+		CollectionScopeFolder,
+		true)
+	require.NoError(t, err, clues.ToCore(err))
 
-			var (
-				testItemID = "fakeItemID"
-				collStatus = support.ConnectorOperationStatus{}
-				wg         = sync.WaitGroup{}
-			)
+	mockItem := models.NewDriveItem()
+	mockItem.SetId(&testItemID)
+	mockItem.SetFile(models.NewFile())
+	mockItem.SetName(&name)
+	mockItem.SetSize(&size)
+	mockItem.SetCreatedDateTime(&now)
+	mockItem.SetLastModifiedDateTime(&now)
+	coll.Add(mockItem)
 
-			wg.Add(1)
+	collItem, ok := <-coll.Items(ctx, fault.New(true))
+	assert.True(t, ok)
 
-			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
-			folderPath, err := test.bh.CanonicalPath(pb, "a-tenant", "a-user", test.source)
-			require.NoError(t, err, clues.ToCore(err))
+	_, err = io.ReadAll(collItem.ToReader())
+	assert.Error(t, err, clues.ToCore(err))
 
-			coll, err := NewCollection(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
-				folderPath,
-				nil,
-				"fakeDriveID",
-				suite,
-				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
-				control.Options{ToggleFeatures: control.Toggles{}},
-				CollectionScopeFolder,
-				true)
-			require.NoError(t, err, clues.ToCore(err))
+	wg.Wait()
 
-			mockItem := models.NewDriveItem()
-			mockItem.SetId(&testItemID)
-			mockItem.SetFile(models.NewFile())
-			mockItem.SetName(&name)
-			mockItem.SetSize(&size)
-			mockItem.SetCreatedDateTime(&now)
-			mockItem.SetLastModifiedDateTime(&now)
-			coll.Add(mockItem)
-
-			coll.itemReader = func(
-				context.Context,
-				graph.Requester,
-				models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, assert.AnError
-			}
-
-			coll.itemMetaReader = func(_ context.Context,
-				_ api.Drives,
-				_ string,
-				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
-			}
-
-			collItem, ok := <-coll.Items(ctx, fault.New(true))
-			assert.True(t, ok)
-
-			_, err = io.ReadAll(collItem.ToReader())
-			assert.Error(t, err, clues.ToCore(err))
-
-			wg.Wait()
-
-			// Expect no items
-			require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
-			require.Equal(t, 1, collStatus.Metrics.Successes, "TODO: should be 0, but allowing 1 to reduce async management")
-		})
-	}
+	// Expect no items
+	require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
+	require.Equal(t, 1, collStatus.Metrics.Successes, "TODO: should be 0, but allowing 1 to reduce async management")
 }
 
 func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	var (
-		name       = "name"
-		size int64 = 42
-		now        = time.Now()
+		t                = suite.T()
+		testItemID       = "fakeItemID"
+		collStatus       = support.ConnectorOperationStatus{}
+		wg               = sync.WaitGroup{}
+		name             = "name"
+		size       int64 = 42
+		now              = time.Now()
 	)
 
-	table := []struct {
-		name   string
-		source driveSource
-	}{
-		{
-			name:   "oneDrive",
-			source: OneDriveSource,
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	wg.Add(1)
+
+	mockItem := models.NewDriveItem()
+	mockItem.SetId(&testItemID)
+	mockItem.SetFile(models.NewFile())
+	mockItem.SetName(&name)
+	mockItem.SetSize(&size)
+	mockItem.SetCreatedDateTime(&now)
+	mockItem.SetLastModifiedDateTime(&now)
+
+	pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	require.NoError(t, err)
+
+	mbh := &mock.BackupHandler{
+		ItemInfo: details.ItemInfo{},
+		GetResps: []*http.Response{
+			nil,
+			{Body: io.NopCloser(strings.NewReader("test"))},
 		},
-		{
-			name:   "sharePoint",
-			source: SharePointSource,
+		GetErrs: []error{
+			clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized)),
+			nil,
 		},
+		GI:  mock.GetsItem{Item: mockItem},
+		GIP: mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()},
 	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+	coll, err := NewCollection(
+		mbh,
+		folderPath,
+		nil,
+		"fakeDriveID",
+		suite.testStatusUpdater(&wg, &collStatus),
+		control.Options{ToggleFeatures: control.Toggles{}},
+		CollectionScopeFolder,
+		true)
+	require.NoError(t, err, clues.ToCore(err))
 
-			var (
-				testItemID = "fakeItemID"
-				collStatus = support.ConnectorOperationStatus{}
-				wg         = sync.WaitGroup{}
-			)
+	coll.Add(mockItem)
 
-			wg.Add(1)
+	count := 0
 
-			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
-			folderPath, err := test.bh.CanonicalPath(pb, "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+	collItem, ok := <-coll.Items(ctx, fault.New(true))
+	assert.True(t, ok)
 
-			coll, err := NewCollection(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
-				folderPath,
-				nil,
-				"fakeDriveID",
-				suite,
-				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
-				control.Options{ToggleFeatures: control.Toggles{}},
-				CollectionScopeFolder,
-				true)
-			require.NoError(t, err, clues.ToCore(err))
+	_, err = io.ReadAll(collItem.ToReader())
+	assert.NoError(t, err, clues.ToCore(err))
 
-			mockItem := models.NewDriveItem()
-			mockItem.SetId(&testItemID)
-			mockItem.SetFile(models.NewFile())
-			mockItem.SetName(&name)
-			mockItem.SetSize(&size)
-			mockItem.SetCreatedDateTime(&now)
-			mockItem.SetLastModifiedDateTime(&now)
-			coll.Add(mockItem)
+	wg.Wait()
 
-			count := 0
-
-			coll.itemGetter = func(
-				_ context.Context,
-				_, _ string,
-			) (models.DriveItemable, error) {
-				return mockItem, nil
-			}
-
-			coll.itemReader = func(
-				context.Context,
-				graph.Requester,
-				models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, error) {
-				if count < 1 {
-					count++
-					return details.ItemInfo{}, nil, clues.Stack(assert.AnError).
-						Label(graph.LabelStatus(http.StatusUnauthorized))
-				}
-
-				return details.ItemInfo{}, io.NopCloser(strings.NewReader("test")), nil
-			}
-
-			coll.itemMetaReader = func(_ context.Context,
-				_ api.Drives,
-				_ string,
-				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
-			}
-
-			collItem, ok := <-coll.Items(ctx, fault.New(true))
-			assert.True(t, ok)
-
-			_, err = io.ReadAll(collItem.ToReader())
-			assert.NoError(t, err, clues.ToCore(err))
-
-			wg.Wait()
-
-			require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
-			require.Equal(t, 1, collStatus.Metrics.Successes, "read object successfully")
-			require.Equal(t, 1, count, "retry count")
-		})
-	}
+	require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
+	require.Equal(t, 1, collStatus.Metrics.Successes, "read object successfully")
+	require.Equal(t, 1, count, "retry count")
 }
 
 // Ensure metadata file always uses latest time for mod time
 func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTime() {
-	table := []struct {
-		name   string
-		source driveSource
-	}{
-		{
-			name:   "oneDrive",
-			source: OneDriveSource,
-		},
-		{
-			name:   "sharePoint",
-			source: SharePointSource,
-		},
+	var (
+		t            = suite.T()
+		testItemID   = "fakeItemID"
+		testItemName = "Fake Item"
+		testItemSize = int64(10)
+
+		collStatus = support.ConnectorOperationStatus{}
+		wg         = sync.WaitGroup{}
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	wg.Add(1)
+
+	pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	dii := details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}}
+
+	mbh := &mock.BackupHandler{
+		ItemInfo: dii,
+		GetResps: []*http.Response{{Body: io.NopCloser(strings.NewReader("Fake Data!"))}},
+		GetErrs:  []error{nil},
+		GIP:      mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()},
 	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+	coll, err := NewCollection(
+		mbh,
+		folderPath,
+		nil,
+		"drive-id",
+		suite.testStatusUpdater(&wg, &collStatus),
+		control.Options{ToggleFeatures: control.Toggles{}},
+		CollectionScopeFolder,
+		true)
+	require.NoError(t, err, clues.ToCore(err))
 
-			var (
-				testItemID   = "fakeItemID"
-				testItemName = "Fake Item"
-				testItemSize = int64(10)
+	mtime := time.Now().AddDate(0, -1, 0)
+	mockItem := models.NewDriveItem()
+	mockItem.SetFile(models.NewFile())
+	mockItem.SetId(&testItemID)
+	mockItem.SetName(&testItemName)
+	mockItem.SetSize(&testItemSize)
+	mockItem.SetCreatedDateTime(&mtime)
+	mockItem.SetLastModifiedDateTime(&mtime)
+	coll.Add(mockItem)
 
-				collStatus = support.ConnectorOperationStatus{}
-				wg         = sync.WaitGroup{}
-			)
+	coll.handler = mbh
 
-			wg.Add(1)
+	readItems := []data.Stream{}
+	for item := range coll.Items(ctx, fault.New(true)) {
+		readItems = append(readItems, item)
+	}
 
-			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
-			folderPath, err := test.bh.CanonicalPath(pb, "a-tenant", "a-user", test.source)
+	wg.Wait()
+
+	// Expect no items
+	require.Equal(t, 1, collStatus.Metrics.Objects)
+	require.Equal(t, 1, collStatus.Metrics.Successes)
+
+	for _, i := range readItems {
+		if strings.HasSuffix(i.UUID(), metadata.MetaFileSuffix) {
+			content, err := io.ReadAll(i.ToReader())
 			require.NoError(t, err, clues.ToCore(err))
+			require.Equal(t, content, []byte("{}"))
 
-			coll, err := NewCollection(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
-				folderPath,
-				nil,
-				"drive-id",
-				suite,
-				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
-				control.Options{ToggleFeatures: control.Toggles{}},
-				CollectionScopeFolder,
-				true)
-			require.NoError(t, err, clues.ToCore(err))
-
-			mtime := time.Now().AddDate(0, -1, 0)
-			mockItem := models.NewDriveItem()
-			mockItem.SetFile(models.NewFile())
-			mockItem.SetId(&testItemID)
-			mockItem.SetName(&testItemName)
-			mockItem.SetSize(&testItemSize)
-			mockItem.SetCreatedDateTime(&mtime)
-			mockItem.SetLastModifiedDateTime(&mtime)
-			coll.Add(mockItem)
-
-			coll.itemReader = func(
-				context.Context,
-				graph.Requester,
-				models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
-					io.NopCloser(strings.NewReader("Fake Data!")),
-					nil
-			}
-
-			coll.itemMetaReader = func(_ context.Context,
-				_ api.Drives,
-				_ string,
-				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				return io.NopCloser(strings.NewReader(`{}`)), 16, nil
-			}
-
-			readItems := []data.Stream{}
-			for item := range coll.Items(ctx, fault.New(true)) {
-				readItems = append(readItems, item)
-			}
-
-			wg.Wait()
-
-			// Expect no items
-			require.Equal(t, 1, collStatus.Metrics.Objects)
-			require.Equal(t, 1, collStatus.Metrics.Successes)
-
-			for _, i := range readItems {
-				if strings.HasSuffix(i.UUID(), metadata.MetaFileSuffix) {
-					content, err := io.ReadAll(i.ToReader())
-					require.NoError(t, err, clues.ToCore(err))
-					require.Equal(t, content, []byte("{}"))
-
-					im, ok := i.(data.StreamModTime)
-					require.Equal(t, ok, true, "modtime interface")
-					require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
-				}
-			}
-		})
+			im, ok := i.(data.StreamModTime)
+			require.Equal(t, ok, true, "modtime interface")
+			require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
+		}
 	}
 }
 
@@ -707,21 +656,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			item.SetName(&strval)
 			item.SetSize(&test.itemSize)
 
-			col.itemReader = func(
-				_ context.Context,
-				_ graph.Requester,
-				_ models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, test.err
+			mbh := &mock.BackupHandler{
+				ItemInfo: details.ItemInfo{},
+				GetResps: []*http.Response{nil},
+				GetErrs:  []error{test.err},
+				GI:       mock.GetsItem{Item: item},
 			}
 
-			col.itemGetter = func(
-				_ context.Context,
-				_, _ string,
-			) (models.DriveItemable, error) {
-				// We are not testing this err here
-				return item, nil
-			}
+			col.handler = mbh
 
 			_, err := col.getDriveItemContent(ctx, "driveID", item, errs)
 			if test.err == nil {
@@ -743,85 +685,64 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	var (
-		svc     graph.Servicer
-		gr      graph.Requester
-		driveID string
-		iorc    = io.NopCloser(bytes.NewReader([]byte("fnords")))
-		item    = models.NewDriveItem()
-		itemWID = models.NewDriveItem()
+		driveID   string
+		iorc      = io.NopCloser(bytes.NewReader([]byte("fnords")))
+		item      = models.NewDriveItem()
+		itemWID   = models.NewDriveItem()
+		errUnauth = clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
 	)
 
 	itemWID.SetId(ptr.To("brainhooldy"))
 
 	table := []struct {
 		name      string
-		igf       itemGetterFunc
-		irf       itemReaderFunc
+		mgi       mock.GetsItem
+		itemInfo  details.ItemInfo
+		respBody  []io.ReadCloser
+		getErr    []error
 		expectErr require.ErrorAssertionFunc
 		expect    require.ValueAssertionFunc
 	}{
 		{
-			name: "good",
-			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, iorc, nil
-			},
+			name:      "good",
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{iorc},
+			getErr:    []error{nil},
 			expectErr: require.NoError,
 			expect:    require.NotNil,
 		},
 		{
-			name: "expired url redownloads",
-			igf: func(context.Context, string, string) (models.DriveItemable, error) {
-				return itemWID, nil
-			},
-			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				// a bit hacky: assume only igf returns an item with a non-zero id.
-				if len(ptr.Val(m.GetId())) == 0 {
-					return details.ItemInfo{},
-						nil,
-						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
-				}
-
-				return details.ItemInfo{}, iorc, nil
-			},
+			name:      "expired url redownloads",
+			mgi:       mock.GetsItem{itemWID, nil},
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil, iorc},
+			getErr:    []error{errUnauth, nil},
 			expectErr: require.NoError,
 			expect:    require.NotNil,
 		},
 		{
-			name: "immediate error",
-			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, assert.AnError
-			},
+			name:      "immediate error",
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil},
+			getErr:    []error{assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
 		},
 		{
-			name: "re-fetching the item fails",
-			igf: func(context.Context, string, string) (models.DriveItemable, error) {
-				return nil, assert.AnError
-			},
-			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{},
-					nil,
-					clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
-			},
+			name:      "re-fetching the item fails",
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil},
+			getErr:    []error{errUnauth},
+			mgi:       mock.GetsItem{nil, assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
 		},
 		{
-			name: "expired url fails redownload",
-			igf: func(context.Context, string, string) (models.DriveItemable, error) {
-				return itemWID, nil
-			},
-			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				// a bit hacky: assume only igf returns an item with a non-zero id.
-				if len(ptr.Val(m.GetId())) == 0 {
-					return details.ItemInfo{},
-						nil,
-						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
-				}
-
-				return details.ItemInfo{}, iorc, assert.AnError
-			},
+			name:      "expired url fails redownload",
+			mgi:       mock.GetsItem{itemWID, nil},
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil, iorc},
+			getErr:    []error{errUnauth, assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
 		},
@@ -833,7 +754,20 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			r, err := downloadContent(ctx, svc, test.igf, test.irf, gr, item, driveID)
+			resps := make([]*http.Response, 0, len(test.respBody))
+
+			for _, v := range test.respBody {
+				resps = append(resps, &http.Response{Body: v})
+			}
+
+			igaa := &mockItemGetterAndAugmenter{
+				gi:      test.mgi,
+				info:    test.itemInfo,
+				getResp: resps,
+				getErr:  test.getErr,
+			}
+
+			r, err := downloadContent(ctx, igaa, item, driveID)
 
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))

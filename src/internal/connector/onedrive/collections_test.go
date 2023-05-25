@@ -746,7 +746,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
-				OneDriveSource,
 				testFolderMatcher{tt.scope},
 				&MockGraphService{},
 				nil,
@@ -2260,25 +2259,15 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			drivePagerFunc := func(
-				source driveSource,
-				servicer graph.Servicer,
-				resourceOwner string,
-				fields []string,
-			) (api.DrivePager, error) {
-				return &mock.DrivePager{
-					ToReturn: []mock.PagerResult{
-						{
-							Drives: test.drives,
-						},
+			mockDrivePager := &mock.DrivePager{
+				ToReturn: []mock.PagerResult{
+					{
+						Drives: test.drives,
 					},
-				}, nil
+				},
 			}
 
-			itemPagerFunc := func(
-				servicer graph.Servicer,
-				driveID, link string,
-			) itemPager {
+			makeMockIitemPager := func(driveID string) *mockItemPager {
 				return &mockItemPager{
 					toReturn: test.items[driveID],
 				}
@@ -2289,7 +2278,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				graph.NewNoTimeoutHTTPWrapper(),
 				tenant,
 				user,
-				OneDriveSource,
 				testFolderMatcher{anyFolder},
 				&MockGraphService{},
 				func(*support.ConnectorOperationStatus) {},

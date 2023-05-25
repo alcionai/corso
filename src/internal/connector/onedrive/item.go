@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/http"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -15,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -23,9 +23,14 @@ var downloadURLKeys = []string{
 	"@content.downloadUrl",
 }
 
+type augmenterAndGetter interface {
+	ItemInfoAugmenter
+	api.Getter
+}
+
 func downloadItem(
 	ctx context.Context,
-	bh BackupHandler,
+	aag augmenterAndGetter,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	var (
@@ -34,15 +39,41 @@ func downloadItem(
 	)
 
 	if isFile {
-		resp, err := doItemDownload(ctx, bh.Requester(), item)
+		var url string
+
+		for _, key := range downloadURLKeys {
+			tmp, ok := item.GetAdditionalData()[key].(*string)
+			if ok {
+				url = ptr.Val(tmp)
+				break
+			}
+		}
+
+		if len(url) == 0 {
+			return details.ItemInfo{}, nil, clues.New("extracting file url")
+		}
+
+		resp, err := aag.Get(ctx, url, nil)
 		if err != nil {
-			return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
+			return details.ItemInfo{}, nil, clues.Wrap(err, "getting item")
+		}
+
+		if graph.IsMalwareResp(ctx, resp) {
+			return details.ItemInfo{}, nil, clues.New("malware detected").Label(graph.LabelsMalware)
+		}
+
+		if (resp.StatusCode / 100) != 2 {
+			// upstream error checks can compare the status with
+			// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
+			return details.ItemInfo{}, nil, clues.
+				Wrap(clues.New(resp.Status), "non-2xx http response").
+				Label(graph.LabelStatus(resp.StatusCode))
 		}
 
 		rc = resp.Body
 	}
 
-	dii := bh.AugmentItemInfo(
+	dii := aag.AugmentItemInfo(
 		details.ItemInfo{},
 		item,
 		ptr.Val(item.GetSize()),
@@ -53,7 +84,7 @@ func downloadItem(
 
 func downloadItemMeta(
 	ctx context.Context,
-	bh BackupHandler,
+	gip GetItemPermissioner,
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
@@ -66,7 +97,7 @@ func downloadItemMeta(
 	}
 
 	if meta.SharingMode == metadata.SharingModeCustom {
-		perm, err := bh.PermissionGetter().GetItemPermission(ctx, driveID, ptr.Val(item.GetId()))
+		perm, err := gip.GetItemPermission(ctx, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
 		}
@@ -80,46 +111,6 @@ func downloadItemMeta(
 	}
 
 	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
-}
-
-func doItemDownload(
-	ctx context.Context,
-	client graph.Requester,
-	item models.DriveItemable,
-) (*http.Response, error) {
-	var url string
-
-	for _, key := range downloadURLKeys {
-		tmp, ok := item.GetAdditionalData()[key].(*string)
-		if ok {
-			url = ptr.Val(tmp)
-			break
-		}
-	}
-
-	if len(url) == 0 {
-		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
-	}
-
-	resp, err := client.Request(ctx, http.MethodGet, url, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if (resp.StatusCode / 100) == 2 {
-		return resp, nil
-	}
-
-	if graph.IsMalwareResp(ctx, resp) {
-		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
-	}
-
-	// upstream error checks can compare the status with
-	// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
-	cerr := clues.Wrap(clues.New(resp.Status), "non-2xx http response").
-		Label(graph.LabelStatus(resp.StatusCode))
-
-	return resp, cerr
 }
 
 func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []metadata.Permission {
