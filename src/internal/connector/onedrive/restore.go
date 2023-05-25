@@ -728,37 +728,50 @@ func copyBufferWithStallCheck(dst io.Writer, src io.Reader, buffer []byte, stall
 	timer := time.NewTimer(stallTimeout)
 	defer timer.Stop()
 
-	var totalCopied int64
+	type ce struct {
+		complete bool
+		err      error
+	}
+
+	totalCopied := int64(0)
+	cont := make(chan ce)
 
 	for {
-		n, err := src.Read(buffer)
-		if n > 0 {
-			// Progress is being made, reset the timer
-			if !timer.Stop() {
-				<-timer.C
+		go func() {
+			n, rerr := src.Read(buffer)
+			if rerr != nil && rerr != io.EOF {
+				cont <- ce{err: clues.Wrap(rerr, "reading data")}
 			}
 
-			timer.Reset(stallTimeout)
-
-			n, err = dst.Write(buffer[:n])
-			if n > 0 {
-				totalCopied += int64(n)
+			_, werr := dst.Write(buffer[:n])
+			if werr != nil && werr != io.EOF {
+				cont <- ce{err: clues.Wrap(werr, "writing data")}
 			}
-		}
 
-		if err != nil {
-			if err == io.EOF {
+			totalCopied += int64(n)
+
+			if rerr == io.EOF {
 				// Copy completed successfully
-				return totalCopied, nil
+				cont <- ce{complete: true}
 			}
 
-			return 0, clues.Wrap(err, "copying data")
-		}
+			cont <- ce{complete: false}
+		}()
+
+		timer.Reset(stallTimeout)
 
 		select {
 		case <-timer.C:
-			return totalCopied, clues.New("copy stalled")
-		default:
+			return 0, clues.New("copy stalled")
+		case in := <-cont:
+			if in.err != nil {
+				return 0, in.err
+			}
+
+			if in.complete {
+				return totalCopied, nil
+			}
+
 			// Continue copying
 			continue
 		}

@@ -337,7 +337,7 @@ func TestCopyBufferWithStallCheck_Error(t *testing.T) {
 	writer := bytes.Buffer{}
 
 	copied, err := copyBufferWithStallCheck(&writer, reader, buffer, time.Second)
-	assert.EqualError(t, err, "copying data: test error")
+	assert.EqualError(t, err, "reading data: test error")
 	assert.Equal(t, int64(0), copied)
 }
 
@@ -361,6 +361,24 @@ func TestCopyBufferWithStallCheck_ReadStalls(t *testing.T) {
 type stallReader struct{}
 
 func (r *stallReader) Read(p []byte) (int, error) {
+	time.Sleep(time.Second * 2)
+	return 0, nil
+}
+
+func TestCopyBufferWithStallCheck_WriteStalls(t *testing.T) {
+	// Writer that never returns any data
+	reader := bytes.NewReader([]byte("hello world"))
+	buffer := make([]byte, 1024)
+	writer := &stallWriter{}
+
+	copied, err := copyBufferWithStallCheck(writer, reader, buffer, time.Second)
+	assert.EqualError(t, err, "copy stalled")
+	assert.Equal(t, int64(0), copied)
+}
+
+type stallWriter struct{}
+
+func (w *stallWriter) Write(p []byte) (int, error) {
 	time.Sleep(time.Second * 2)
 	return 0, nil
 }
