@@ -482,7 +482,9 @@ func (ents entrySet) PrintEntries(ctx context.Context) {
 // MaybePrintEntries is same as PrintEntries, but only prints if we
 // have less than 15 items or is not json output.
 func (ents entrySet) MaybePrintEntries(ctx context.Context) {
-	if len(ents) > maxPrintLimit && !print.DisplayJSONFormat() {
+	if len(ents) > maxPrintLimit &&
+		!print.DisplayJSONFormat() &&
+		!print.DisplayVerbose() {
 		// TODO: Should we detect if the user is piping the output and
 		// print if that is the case?
 		print.Outf(ctx, "Restored %d items.", len(ents))

@@ -14,6 +14,7 @@ import (
 var (
 	outputAsJSON      bool
 	outputAsJSONDebug bool
+	outputVerbose     bool
 )
 
 type rootCmdCtx struct{}
@@ -48,11 +49,17 @@ func AddOutputFlag(cmd *cobra.Command) {
 	fs.BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
 	fs.BoolVar(&outputAsJSONDebug, "json-debug", false, "output all internal and debugging data in JSON format")
 	cobra.CheckErr(fs.MarkHidden("json-debug"))
+	fs.BoolVar(&outputVerbose, "verbose", false, "do not hide additional information")
 }
 
 // DisplayJSONFormat returns true if the printer plans to output as json.
 func DisplayJSONFormat() bool {
 	return outputAsJSON || outputAsJSONDebug
+}
+
+// DisplayVerbose returns true if verbose output is enabled
+func DisplayVerbose() bool {
+	return outputVerbose
 }
 
 // StderrWriter returns the stderr writer used in the root
