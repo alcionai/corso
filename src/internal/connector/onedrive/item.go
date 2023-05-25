@@ -25,33 +25,6 @@ var downloadURLKeys = []string{
 	"@content.downloadUrl",
 }
 
-// sharePointItemReader will return a io.ReadCloser for the specified item
-// It crafts this by querying M365 for a download URL for the item
-// and using a http client to initialize a reader
-// TODO: Add metadata fetching to SharePoint
-func sharePointItemReader(
-	ctx context.Context,
-	client graph.Requester,
-	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error) {
-	// TODO: Move common code to a shared function
-	url, err := getItemDownloadURL(ctx, item)
-	if err != nil {
-		return details.ItemInfo{}, nil, err
-	}
-
-	resp, err := downloadItem(ctx, client, url)
-	if err != nil {
-		return details.ItemInfo{}, nil, clues.Wrap(err, "sharepoint reader")
-	}
-
-	dii := details.ItemInfo{
-		SharePoint: sharePointItemInfo(item, ptr.Val(item.GetSize())),
-	}
-
-	return dii, resp.Body, nil
-}
-
 func oneDriveItemMetaReader(
 	ctx context.Context,
 	service graph.Servicer,
@@ -128,38 +101,38 @@ func getItemDownloadURL(
 	return url, nil
 }
 
+// sharePointItemReader will return a io.ReadCloser for the specified item
+// It crafts this by querying M365 for a download URL for the item
+// and using a http client to initialize a reader
+// TODO: Add metadata fetching to SharePoint
+func sharePointItemReader(
+	ctx context.Context,
+	client graph.Requester,
+	url string,
+) (io.ReadCloser, error) {
+	// TODO: move common code to base reader
+	resp, err := downloadItem(ctx, client, url)
+	if err != nil {
+		return nil, clues.Wrap(err, "sharepoint reader")
+	}
+
+	return resp.Body, nil
+}
+
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
 	client graph.Requester,
-	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error) {
-	var (
-		rc     io.ReadCloser
-		isFile = item.GetFile() != nil
-	)
-
-	if isFile {
-		url, err := getItemDownloadURL(ctx, item)
-		if err != nil {
-			return details.ItemInfo{}, nil, err
-		}
-
-		resp, err := downloadItem(ctx, client, url)
-		if err != nil {
-			return details.ItemInfo{}, nil, clues.Wrap(err, "onedrive reader")
-		}
-
-		rc = resp.Body
+	url string,
+) (io.ReadCloser, error) {
+	resp, err := downloadItem(ctx, client, url)
+	if err != nil {
+		return nil, clues.Wrap(err, "onedrive reader")
 	}
 
-	dii := details.ItemInfo{
-		OneDrive: oneDriveItemInfo(item, ptr.Val(item.GetSize())),
-	}
-
-	return dii, rc, nil
+	return resp.Body, nil
 }
 
 func downloadItem(

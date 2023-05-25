@@ -103,8 +103,8 @@ type itemGetterFunc func(
 type itemReaderFunc func(
 	ctx context.Context,
 	client graph.Requester,
-	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error)
+	url string,
+) (io.ReadCloser, error)
 
 // itemMetaReaderFunc returns a reader for the metadata of the
 // specified item
@@ -389,7 +389,13 @@ func downloadContent(
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
-	_, content, err := irf(ctx, gr, item)
+	// TODO: move getItemDownloadURL and irf call to a common helper
+	url, err := getItemDownloadURL(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := irf(ctx, gr, url)
 	if err == nil {
 		return content, nil
 	} else if !graph.IsErrUnauthorized(err) {
@@ -405,7 +411,12 @@ func downloadContent(
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	_, content, err = irf(ctx, gr, di)
+	url, err = getItemDownloadURL(ctx, di)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err = irf(ctx, gr, url)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
