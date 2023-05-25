@@ -41,8 +41,8 @@ const (
 	// Maximum number of retries for upload failures
 	maxUploadRetries = 3
 
-	// TODO: 1 minute seems to be a good balance, but we could twek these number in the future
-	stallCheckInterval = 1 * time.Minute
+	// Time interval to check for upload failures
+	stallCheckInterval = 5 * time.Minute
 )
 
 type restoreCaches struct {
