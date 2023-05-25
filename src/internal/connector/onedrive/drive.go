@@ -2,11 +2,9 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
@@ -23,7 +21,6 @@ const (
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
 	nextLinkKey           = "@odata.nextLink"
-	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemNotFoundErrorCode = "itemNotFound"
 )
 
@@ -39,17 +36,17 @@ type DeltaUpdate struct {
 }
 
 // itemCollector functions collect the items found in a drive
-// type itemCollector func(
-// 	ctx context.Context,
-// 	driveID, driveName string,
-// 	driveItems []models.DriveItemable,
-// 	oldPaths map[string]string,
-// 	newPaths map[string]string,
-// 	excluded map[string]struct{},
-// 	itemCollections map[string]map[string]string,
-// 	validPrevDelta bool,
-// 	errs *fault.Bus,
-// ) error
+type itemCollector func(
+	ctx context.Context,
+	driveID, driveName string,
+	driveItems []models.DriveItemable,
+	oldPaths map[string]string,
+	newPaths map[string]string,
+	excluded map[string]struct{},
+	itemCollections map[string]map[string]string,
+	validPrevDelta bool,
+	errs *fault.Bus,
+) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
@@ -140,26 +137,6 @@ func collectItems(
 	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil
 }
 
-// Create a new item in the specified folder
-func CreateItem(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, parentFolderID string,
-	newItem models.DriveItemable,
-) (models.DriveItemable, error) {
-	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
-	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
-	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-	builder := drives.NewItemItemsRequestBuilder(rawURL, service.Adapter())
-
-	newItem, err := builder.Post(ctx, newItem, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating item")
-	}
-
-	return newItem, nil
-}
-
 // newItem initializes a `models.DriveItemable` that can be used as input to `createItem`
 func newItem(name string, folder bool) models.DriveItemable {
 	itemToCreate := models.NewDriveItem()
@@ -187,12 +164,12 @@ func (op *Displayable) GetDisplayName() *string {
 // are a subfolder or top-level folder in the hierarchy.
 func GetAllFolders(
 	ctx context.Context,
-	gs graph.Servicer,
+	bh BackupHandler,
 	pager api.DrivePager,
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drvs, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	ds, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
@@ -202,14 +179,14 @@ func GetAllFolders(
 		el      = errs.Local()
 	)
 
-	for _, d := range drvs {
+	for _, drive := range ds {
 		if el.Failure() != nil {
 			break
 		}
 
 		var (
-			id   = ptr.Val(d.GetId())
-			name = ptr.Val(d.GetName())
+			id   = ptr.Val(drive.GetId())
+			name = ptr.Val(drive.GetName())
 		)
 
 		ictx := clues.Add(ctx, "drive_id", id, "drive_name", clues.Hide(name))
@@ -255,7 +232,7 @@ func GetAllFolders(
 
 		_, _, _, err = collectItems(
 			ictx,
-			defaultItemPager(gs, id, ""),
+			bh.ItemPager(id, "", nil),
 			id,
 			name,
 			collector,

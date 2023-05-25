@@ -8,12 +8,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func getParentMetadata(
@@ -135,8 +133,7 @@ func computeParentPermissions(
 // removed from an item to bring it to the desired state.
 func UpdatePermissions(
 	ctx context.Context,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
@@ -160,7 +157,7 @@ func UpdatePermissions(
 			return clues.New("no new permission id").WithClues(ctx)
 		}
 
-		err := ad.DeleteItemPermission(
+		err := rh.ItemPermissionDeleter().DeleteItemPermission(
 			ictx,
 			driveID,
 			itemID,
@@ -214,7 +211,7 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		newPerm, err := ad.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
+		newPerm, err := rh.ItemPermissionUpdater().PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if err != nil {
 			return clues.Stack(err)
 		}
@@ -231,8 +228,7 @@ func UpdatePermissions(
 // on onedrive items.
 func RestorePermissions(
 	ctx context.Context,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	driveID string,
 	itemID string,
 	itemPath path.Path,
@@ -254,8 +250,7 @@ func RestorePermissions(
 
 	return UpdatePermissions(
 		ctx,
-		ad,
-		service,
+		rh,
 		driveID,
 		itemID,
 		permAdded,

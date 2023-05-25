@@ -264,10 +264,8 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(
 			ctx,
-			gc.Discovery,
-			creds,
+			onedrive.NewRestoreHandler(gc.Discovery),
 			backupVersion,
-			gc.Service,
 			dest,
 			opts,
 			dcs,
@@ -279,7 +277,6 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 			backupVersion,
 			gc.Discovery,
 			creds,
-			gc.Service,
 			dest,
 			opts,
 			dcs,
