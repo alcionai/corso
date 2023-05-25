@@ -14,22 +14,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-type itemProperties struct {
+type itemProps struct {
 	downloadURL string
 	isDeleted   bool
 }
 
 // urlCache caches download URLs for drive items
 type urlCache struct {
-	driveID string
-	// urlMap stores Item ID -> item property map
-	urlMap          map[string]itemProperties
+	driveID         string
+	idToProps       map[string]itemProps
 	lastRefreshTime time.Time
 	refreshInterval time.Duration
-	// cacheLock protects urlMap and lastRefreshTime
-	cacheLock sync.RWMutex
-	// refreshMutex serializes cache refresh attempts
-	refreshMutex    sync.Mutex
+	// cacheMu protects idToProps and lastRefreshTime
+	cacheMu sync.RWMutex
+	// refreshMu serializes cache refresh attempts by potential writers
+	refreshMu       sync.Mutex
 	deltaQueryCount int
 
 	svc           graph.Servicer
@@ -46,6 +45,7 @@ func newURLCache(
 	driveID string,
 	refreshInterval time.Duration,
 	svc graph.Servicer,
+	errors *fault.Bus,
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
@@ -57,17 +57,17 @@ func newURLCache(
 		svc,
 		itemPagerFunc)
 	if err != nil {
-		return nil, clues.Wrap(err, "invalid cache parameters")
+		return nil, clues.Wrap(err, "cache parameters")
 	}
 
 	return &urlCache{
-			urlMap:          make(map[string]itemProperties),
+			idToProps:       make(map[string]itemProps),
 			lastRefreshTime: time.Time{},
 			driveID:         driveID,
 			refreshInterval: refreshInterval,
 			svc:             svc,
 			itemPagerFunc:   itemPagerFunc,
-			errors:          fault.New(false),
+			errors:          errors,
 		},
 		nil
 }
@@ -86,7 +86,7 @@ func validateCacheParams(
 		return clues.New("drive id is empty")
 	}
 
-	if refreshInterval < 0 {
+	if refreshInterval <= 1*time.Second {
 		return clues.New("invalid refresh interval")
 	}
 
@@ -105,9 +105,9 @@ func validateCacheParams(
 func (uc *urlCache) getItemProperties(
 	ctx context.Context,
 	itemID string,
-) (*itemProperties, error) {
+) (itemProps, error) {
 	if len(itemID) == 0 {
-		return nil, clues.New("item id is empty")
+		return itemProps{}, clues.New("item id is empty")
 	}
 
 	ctx = clues.Add(ctx, "drive_id", uc.driveID)
@@ -116,25 +116,26 @@ func (uc *urlCache) getItemProperties(
 	if uc.needsRefresh() {
 		err := uc.refreshCache(ctx)
 		if err != nil {
-			return nil, err
+			return itemProps{}, err
 		}
 	}
 
-	url, err := uc.readCache(ctx, itemID)
+	props, err := uc.readCache(ctx, itemID)
 	if err != nil {
-		return nil, err
+		return itemProps{}, err
 	}
 
-	return url, nil
+	return props, nil
 }
 
 // needsRefresh returns true if the cache is empty or if refresh interval has
 // elapsed
 func (uc *urlCache) needsRefresh() bool {
-	uc.cacheLock.RLock()
-	defer uc.cacheLock.RUnlock()
+	uc.cacheMu.RLock()
+	defer uc.cacheMu.RUnlock()
 
-	return len(uc.urlMap) == 0 || time.Since(uc.lastRefreshTime) > uc.refreshInterval
+	return len(uc.idToProps) == 0 ||
+		time.Since(uc.lastRefreshTime) > uc.refreshInterval
 }
 
 // refreshCache refreshes the URL cache by performing a delta query.
@@ -143,8 +144,8 @@ func (uc *urlCache) refreshCache(
 ) error {
 	// Acquire mutex to prevent multiple threads from refreshing the
 	// cache at the same time
-	uc.refreshMutex.Lock()
-	defer uc.refreshMutex.Unlock()
+	uc.refreshMu.Lock()
+	defer uc.refreshMu.Unlock()
 
 	// If the cache was refreshed by another thread while we were waiting
 	// to acquire mutex, return
@@ -155,18 +156,18 @@ func (uc *urlCache) refreshCache(
 	// Hold cache lock in write mode for the entire duration of the refresh.
 	// This is to prevent other threads from reading the cache while it is
 	// being updated page by page
-	uc.cacheLock.Lock()
-	defer uc.cacheLock.Unlock()
+	uc.cacheMu.Lock()
+	defer uc.cacheMu.Unlock()
 
 	// Issue a delta query to graph
-	logger.Ctx(ctx).Debug("refreshing url cache")
+	logger.Ctx(ctx).Info("refreshing url cache")
 
 	err := uc.deltaQuery(ctx)
 	if err != nil {
 		return err
 	}
 
-	logger.Ctx(ctx).Debug("url cache refresh complete")
+	logger.Ctx(ctx).Info("url cache refresh complete")
 	// Update last refresh time
 	uc.lastRefreshTime = time.Now()
 
@@ -192,12 +193,10 @@ func (uc *urlCache) deltaQuery(
 		uc.errors,
 	)
 	if err != nil {
-		return clues.Wrap(err, "delta query failed").WithClues(ctx)
+		return clues.Wrap(err, "delta query")
 	}
 
 	uc.deltaQueryCount++
-
-	logger.Ctx(ctx).Debug("finished delta query")
 
 	return nil
 }
@@ -206,22 +205,22 @@ func (uc *urlCache) deltaQuery(
 func (uc *urlCache) readCache(
 	ctx context.Context,
 	itemID string,
-) (*itemProperties, error) {
-	uc.cacheLock.RLock()
-	defer uc.cacheLock.RUnlock()
+) (itemProps, error) {
+	uc.cacheMu.RLock()
+	defer uc.cacheMu.RUnlock()
 
 	ctx = clues.Add(ctx, "item_id", itemID)
 
-	itemProps, ok := uc.urlMap[itemID]
+	props, ok := uc.idToProps[itemID]
 	if !ok {
-		return nil, clues.New("item not found in cache").WithClues(ctx)
+		return itemProps{}, clues.New("item not found in cache").WithClues(ctx)
 	}
 
-	return &itemProps, nil
+	return props, nil
 }
 
 // updateCache consumes a slice of drive items and updates the url cache.
-// It assumes that cacheLock is held by caller in write mode
+// It assumes that cacheMu is held by caller in write mode
 func (uc *urlCache) updateCache(
 	ctx context.Context,
 	_, _ string,
@@ -257,14 +256,14 @@ func (uc *urlCache) updateCache(
 
 		itemID := ptr.Val(item.GetId())
 
-		uc.urlMap[itemID] = itemProperties{
+		uc.idToProps[itemID] = itemProps{
 			downloadURL: url,
 			isDeleted:   false,
 		}
 
 		// Mark deleted items in cache
 		if item.GetDeleted() != nil {
-			uc.urlMap[itemID] = itemProperties{
+			uc.idToProps[itemID] = itemProps{
 				downloadURL: "",
 				isDeleted:   true,
 			}

@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -37,7 +38,7 @@ func TestURLCacheIntegrationSuite(t *testing.T) {
 func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	suite.service = loadTestService(t)
@@ -55,10 +56,11 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 // Basic test for urlCache. Create some files in onedrive, then access them via
 // url cache
 func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	svc := suite.service
 	driveID := suite.driveID
 
@@ -112,7 +114,9 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		suite.driveID,
 		1*time.Hour,
 		svc,
+		fault.New(true),
 		defaultItemPager)
+
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Launch parallel requests to the cache, one per item
@@ -124,14 +128,14 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			defer wg.Done()
 
 			// Read item from URL cache
-			itemProps, err := cache.getItemProperties(
+			props, err := cache.getItemProperties(
 				ctx,
 				ptr.Val(items[i].GetId()))
 
 			require.NoError(t, err, clues.ToCore(err))
-			require.NotNil(t, itemProps)
-			require.NotEmpty(t, itemProps.downloadURL)
-			require.Equal(t, false, itemProps.isDeleted)
+			require.NotNil(t, props)
+			require.NotEmpty(t, props.downloadURL)
+			require.Equal(t, false, props.isDeleted)
 
 			// Validate download URL
 			c := graph.NewNoTimeoutHTTPWrapper()
@@ -139,7 +143,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			resp, err := c.Request(
 				ctx,
 				http.MethodGet,
-				itemProps.downloadURL,
+				props.downloadURL,
 				nil,
 				nil)
 
