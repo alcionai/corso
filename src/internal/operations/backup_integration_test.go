@@ -1977,8 +1977,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		categories)
 
 	// 2 on read/writes to account for metadata: 1 delta and 1 path.
-	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
-	assert.LessOrEqual(t, 1, incBO.Results.ItemsRead, "items read") // just the file whose owner migrated
+	assert.LessOrEqual(t, 1, incBO.Results.ItemsWritten, "items written") // just the file whose owner migrated
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
 	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
 	assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "backup-start events")
