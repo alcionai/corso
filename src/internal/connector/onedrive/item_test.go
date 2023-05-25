@@ -114,19 +114,22 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.user,
 		suite.userDriveID)
 
+	url, err := getItemDownloadURL(ctx, driveItem)
+	require.NoError(t, err, clues.ToCore(err))
 	// Read data for the file
-	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.NewNoTimeoutHTTPWrapper(), driveItem)
+	itemData, err := oneDriveItemReader(ctx, graph.NewNoTimeoutHTTPWrapper(), url)
 
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotNil(t, itemInfo.OneDrive)
-	require.NotEmpty(t, itemInfo.OneDrive.ItemName)
+	// TODO: check if itemInfo is needed
+	// require.NotNil(t, itemInfo.OneDrive)
+	// require.NotEmpty(t, itemInfo.OneDrive.ItemName)
 
+	// require.Equal(t, size, itemInfo.OneDrive.Size)
+
+	// t.Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotZero(t, size)
-	require.Equal(t, size, itemInfo.OneDrive.Size)
-
-	t.Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive

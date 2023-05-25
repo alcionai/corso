@@ -730,13 +730,19 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	var (
-		svc     graph.Servicer
-		gr      graph.Requester
-		driveID string
-		iorc    = io.NopCloser(bytes.NewReader([]byte("fnords")))
-		item    = models.NewDriveItem()
-		itemWID = models.NewDriveItem()
+		svc         graph.Servicer
+		gr          graph.Requester
+		driveID     string
+		iorc        = io.NopCloser(bytes.NewReader([]byte("fnords")))
+		item        = models.NewDriveItem()
+		itemWID     = models.NewDriveItem()
+		expiredItem = models.NewDriveItem()
+		expiredURL  = "https://expired_url"
 	)
+
+	expiredItem.SetAdditionalData(map[string]interface{}{
+		"@microsoft.graph.downloadUrl": expiredURL,
+	})
 
 	itemWID.SetId(ptr.To("brainhooldy"))
 
@@ -758,11 +764,10 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		{
 			name: "expired url redownloads",
 			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
-				return itemWID, nil
+				return expiredItem, nil
 			},
 			irf: func(c context.Context, g graph.Requester, u string) (io.ReadCloser, error) {
-				// TODO: Finish fixing this test
-				if u == "expired_url" {
+				if u == expiredURL {
 					return nil,
 						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
 				}
@@ -795,10 +800,10 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		{
 			name: "expired url fails redownload",
 			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
-				return itemWID, nil
+				return expiredItem, nil
 			},
 			irf: func(c context.Context, g graph.Requester, u string) (io.ReadCloser, error) {
-				if u == "expired_url" {
+				if u == expiredURL {
 					return nil,
 						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
 				}
