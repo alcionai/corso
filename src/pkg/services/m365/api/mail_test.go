@@ -343,17 +343,19 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			defer gock.Off()
 			tt.setupf()
 
 			item, _, err := suite.ac.Mail().GetItem(ctx, "user", mid, false, fault.New(true))
-			tt.expect(suite.T(), err)
+			tt.expect(t, err)
 
 			it, ok := item.(models.Messageable)
-			require.True(suite.T(), ok, "convert to messageable")
+			require.True(t, ok, "convert to messageable")
 
 			var size int64
 			mailBody := it.GetBody()
@@ -369,10 +371,10 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				size = +int64(*attachment.GetSize())
 			}
 
-			assert.Equal(suite.T(), *it.GetId(), mid)
-			assert.Equal(suite.T(), tt.attachmentCount, len(attachments), "attachment count")
-			assert.Equal(suite.T(), tt.size, size, "mail size")
-			assert.True(suite.T(), gock.IsDone(), "made all requests")
+			assert.Equal(t, *it.GetId(), mid)
+			assert.Equal(t, tt.attachmentCount, len(attachments), "attachment count")
+			assert.Equal(t, tt.size, size, "mail size")
+			assert.True(t, gock.IsDone(), "made all requests")
 		})
 	}
 }

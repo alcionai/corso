@@ -411,9 +411,6 @@ func TestBackupOpUnitSuite(t *testing.T) {
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
@@ -462,6 +459,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	for _, test := range table {
 		suite.Run(test.expectStatus.String(), func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			sel := selectors.Selector{}
 			sel.DiscreteOwner = "bombadil"
 
@@ -616,7 +617,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			mbu := &mockBackupConsumer{
@@ -1191,7 +1192,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			mds := ssmock.Streamer{Deets: test.populatedDetails}
@@ -1305,7 +1306,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			details.ExchangeMail))
 	}
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (

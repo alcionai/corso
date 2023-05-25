@@ -50,10 +50,11 @@ func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 }
 
 func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -67,7 +68,8 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 
 func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -98,7 +100,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -152,10 +154,11 @@ func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
 	suite.acct = acct
@@ -186,7 +189,8 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
@@ -223,7 +227,8 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
+
+	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()

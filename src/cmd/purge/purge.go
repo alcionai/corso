@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var purgeCmd = &cobra.Command{
@@ -190,12 +191,11 @@ func purgeOneDriveFolders(
 			return clues.New("non-OneDrive item")
 		}
 
-		return onedrive.DeleteItem(
+		return api.DeleteDriveItem(
 			ctx,
 			gs,
 			*driveFolder.GetParentReference().GetDriveId(),
-			*f.GetId(),
-		)
+			*f.GetId())
 	}
 
 	return purgeFolders(ctx, gc, boundary, "OneDrive Folders", uid, getter, deleter)

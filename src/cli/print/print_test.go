@@ -21,10 +21,11 @@ func TestPrintUnitSuite(t *testing.T) {
 }
 
 func (suite *PrintUnitSuite) TestOnly() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	c := &cobra.Command{}
 	ctx = SetRootCmd(ctx, c)
 

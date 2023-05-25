@@ -298,7 +298,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			sel := test.makeSelector()

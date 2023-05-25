@@ -263,7 +263,9 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			pager, _ := tt.pagerGetter(ctx, graph.Service{}, "user", "directory", false)
@@ -275,13 +277,12 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				pager,
 				deltaPager,
 				tt.delta,
-				tt.canMakeDeltaQueries,
-			)
+				tt.canMakeDeltaQueries)
 
-			require.NoError(suite.T(), err, "getting added and removed item IDs")
-			require.EqualValues(suite.T(), tt.added, added, "added item IDs")
-			require.EqualValues(suite.T(), tt.removed, removed, "removed item IDs")
-			require.Equal(suite.T(), tt.deltaUpdate, deltaUpdate, "delta update")
+			require.NoError(t, err, "getting added and removed item IDs")
+			require.EqualValues(t, tt.added, added, "added item IDs")
+			require.EqualValues(t, tt.removed, removed, "removed item IDs")
+			require.Equal(t, tt.deltaUpdate, deltaUpdate, "delta update")
 		})
 	}
 }

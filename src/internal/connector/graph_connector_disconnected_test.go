@@ -29,8 +29,12 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func statusTestTask(gc *GraphConnector, objects, success, folder int) {
-	ctx, flush := tester.NewContext()
+func statusTestTask(
+	t *testing.T,
+	gc *GraphConnector,
+	objects, success, folder int,
+) {
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	status := support.CreateStatus(
@@ -46,6 +50,7 @@ func statusTestTask(gc *GraphConnector, objects, success, folder int) {
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
+	t := suite.T()
 	gc := GraphConnector{wg: &sync.WaitGroup{}}
 
 	// Two tasks
@@ -53,11 +58,10 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	gc.incrementAwaitingMessages()
 
 	// Each helper task processes 4 objects, 1 success, 3 errors, 1 folders
-	go statusTestTask(&gc, 4, 1, 1)
-	go statusTestTask(&gc, 4, 1, 1)
+	go statusTestTask(t, &gc, 4, 1, 1)
+	go statusTestTask(t, &gc, 4, 1, 1)
 
 	stats := gc.Wait()
-	t := suite.T()
 
 	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects

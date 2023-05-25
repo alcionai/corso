@@ -55,10 +55,11 @@ func TestSharePointPageSuite(t *testing.T) {
 }
 
 func (suite *SharePointPageSuite) TestFetchPages() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	pgs, err := api.FetchPages(ctx, suite.service, suite.siteID)
 	assert.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, pgs)
@@ -70,10 +71,11 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 }
 
 func (suite *SharePointPageSuite) TestGetSitePages() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	tuples, err := api.FetchPages(ctx, suite.service, suite.siteID)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, tuples)
@@ -85,10 +87,10 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 }
 
 func (suite *SharePointPageSuite) TestRestoreSinglePage() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	destName := tester.DefaultTestRestoreDestination("").ContainerName
 	testName := "MockPage"

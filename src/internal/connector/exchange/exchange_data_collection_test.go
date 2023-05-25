@@ -225,12 +225,14 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
 			_, _, err := test.items.GetItem(ctx, "userID", "itemID", false, fault.New(true))
-			test.expectErr(suite.T(), err)
+			test.expectErr(t, err)
 		})
 	}
 }
