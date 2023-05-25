@@ -37,17 +37,17 @@ func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 				model.ServiceTag: sel.PathService().String(),
 			},
 		},
-		CreationTime:            t,
-		SnapshotID:              "snapshot",
-		DetailsID:               "details",
-		ProtectedResourceID:     ownerID + "-pr",
-		ProtectedResourceHandle: ownerName + "-pr",
-		ResourceOwnerID:         ownerID + "-ro",
-		ResourceOwnerName:       ownerName + "-ro",
-		Status:                  "status",
-		Selector:                sel.Selector,
-		ErrorCount:              2,
-		Failure:                 "read, write",
+		CreationTime:          t,
+		SnapshotID:            "snapshot",
+		DetailsID:             "details",
+		ProtectedResourceID:   ownerID + "-pr",
+		ProtectedResourceName: ownerName + "-pr",
+		ResourceOwnerID:       ownerID + "-ro",
+		ResourceOwnerName:     ownerName + "-ro",
+		Status:                "status",
+		Selector:              sel.Selector,
+		ErrorCount:            2,
+		Failure:               "read, write",
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,
@@ -122,7 +122,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
 	)
 
 	b.ProtectedResourceID = ""
-	b.ProtectedResourceHandle = ""
+	b.ProtectedResourceName = ""
 
 	b.StartAndEndTime.CompletedAt = later
 

@@ -38,8 +38,8 @@ type Backup struct {
 
 	// TODO: in process of gaining support, most cases will still use
 	// ResourceOwner and ResourceOwnerName.
-	ProtectedResourceID     string `json:"protectedResourceID,omitempty"`
-	ProtectedResourceHandle string `json:"protectedResourceHandle,omitempty"`
+	ProtectedResourceID   string `json:"protectedResourceID,omitempty"`
+	ProtectedResourceName string `json:"protectedResourceName,omitempty"`
 
 	// Version represents the version of the backup format
 	Version int `json:"version"`
@@ -173,27 +173,27 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID                      model.StableID `json:"id"`
-	Status                  string         `json:"status"`
-	Version                 string         `json:"version"`
-	ProtectedResourceID     string         `json:"protectedResourceID,omitempty"`
-	ProtectedResourceHandle string         `json:"protectedResourceHandle,omitempty"`
-	Owner                   string         `json:"owner,omitempty"`
-	OwnerName               string         `json:"ownerName,omitempty"`
-	Stats                   backupStats    `json:"stats"`
+	ID                    model.StableID `json:"id"`
+	Status                string         `json:"status"`
+	Version               string         `json:"version"`
+	ProtectedResourceID   string         `json:"protectedResourceID,omitempty"`
+	ProtectedResourceName string         `json:"protectedResourceName,omitempty"`
+	Owner                 string         `json:"owner,omitempty"`
+	OwnerName             string         `json:"ownerName,omitempty"`
+	Stats                 backupStats    `json:"stats"`
 }
 
 // ToPrintable reduces the Backup to its minimally printable details.
 func (b Backup) ToPrintable() Printable {
 	return Printable{
-		ID:                      b.ID,
-		Status:                  b.Status,
-		Version:                 "0",
-		ProtectedResourceID:     b.Selector.DiscreteOwner,
-		ProtectedResourceHandle: b.Selector.DiscreteOwnerName,
-		Owner:                   b.Selector.DiscreteOwner,
-		OwnerName:               b.Selector.DiscreteOwnerName,
-		Stats:                   b.toStats(),
+		ID:                    b.ID,
+		Status:                b.Status,
+		Version:               "0",
+		ProtectedResourceID:   b.Selector.DiscreteOwner,
+		ProtectedResourceName: b.Selector.DiscreteOwnerName,
+		Owner:                 b.Selector.DiscreteOwner,
+		OwnerName:             b.Selector.DiscreteOwnerName,
+		Stats:                 b.toStats(),
 	}
 }
 
@@ -263,7 +263,7 @@ func (b Backup) Values() []string {
 	}
 
 	name := str.First(
-		b.ProtectedResourceHandle,
+		b.ProtectedResourceName,
 		b.ResourceOwnerName,
 		b.ProtectedResourceID,
 		b.ResourceOwnerID,
