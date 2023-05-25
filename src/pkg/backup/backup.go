@@ -179,7 +179,6 @@ type Printable struct {
 	ProtectedResourceID   string         `json:"protectedResourceID,omitempty"`
 	ProtectedResourceName string         `json:"protectedResourceName,omitempty"`
 	Owner                 string         `json:"owner,omitempty"`
-	OwnerName             string         `json:"ownerName,omitempty"`
 	Stats                 backupStats    `json:"stats"`
 }
 
@@ -192,7 +191,6 @@ func (b Backup) ToPrintable() Printable {
 		ProtectedResourceID:   b.Selector.DiscreteOwner,
 		ProtectedResourceName: b.Selector.DiscreteOwnerName,
 		Owner:                 b.Selector.DiscreteOwner,
-		OwnerName:             b.Selector.DiscreteOwnerName,
 		Stats:                 b.toStats(),
 	}
 }
