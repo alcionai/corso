@@ -324,7 +324,7 @@ func TestCopyBufferWithStallCheck_Valid(t *testing.T) {
 	reader := bytes.NewReader(data)
 	writer := bytes.Buffer{}
 
-	copied, err := copyBufferWithStallCheck(&writer, reader, make([]byte, 1024), time.Second)
+	copied, err := copyBufferWithStallCheck(&writer, reader, time.Second)
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(data)), copied)
 	assert.Equal(t, data, writer.Bytes()[:len(data)])
@@ -333,10 +333,9 @@ func TestCopyBufferWithStallCheck_Valid(t *testing.T) {
 func TestCopyBufferWithStallCheck_Error(t *testing.T) {
 	// Reader that always returns an error
 	reader := &errorReader{}
-	buffer := make([]byte, 1024)
 	writer := bytes.Buffer{}
 
-	copied, err := copyBufferWithStallCheck(&writer, reader, buffer, time.Second)
+	copied, err := copyBufferWithStallCheck(&writer, reader, time.Second)
 	assert.EqualError(t, err, "reading data: test error")
 	assert.Equal(t, int64(0), copied)
 }
@@ -350,10 +349,9 @@ func (r *errorReader) Read(p []byte) (int, error) {
 func TestCopyBufferWithStallCheck_ReadStalls(t *testing.T) {
 	// Reader that never returns any data
 	reader := &stallReader{}
-	buffer := make([]byte, 1024)
 	writer := bytes.Buffer{}
 
-	copied, err := copyBufferWithStallCheck(&writer, reader, buffer, time.Second)
+	copied, err := copyBufferWithStallCheck(&writer, reader, time.Second)
 	assert.EqualError(t, err, "copy stalled")
 	assert.Equal(t, int64(0), copied)
 }
@@ -371,10 +369,9 @@ func (r *stallReader) Read(p []byte) (int, error) {
 func TestCopyBufferWithStallCheck_WriteStalls(t *testing.T) {
 	// Writer that never returns any data
 	reader := bytes.NewReader([]byte("hello world"))
-	buffer := make([]byte, 1024)
 	writer := &stallWriter{}
 
-	copied, err := copyBufferWithStallCheck(writer, reader, buffer, time.Second)
+	copied, err := copyBufferWithStallCheck(writer, reader, time.Second)
 	assert.EqualError(t, err, "copy stalled")
 	assert.Equal(t, int64(0), copied)
 }
