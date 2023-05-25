@@ -32,10 +32,7 @@ type urlCache struct {
 	deltaQueryCount int
 
 	svc           graph.Servicer
-	itemPagerFunc func(
-		servicer graph.Servicer,
-		driveID, link string,
-	) itemPager
+	itemPagerFunc driveItemPagerFunc
 
 	errors *fault.Bus
 }
@@ -46,10 +43,7 @@ func newURLCache(
 	refreshInterval time.Duration,
 	svc graph.Servicer,
 	errors *fault.Bus,
-	itemPagerFunc func(
-		servicer graph.Servicer,
-		driveID, link string,
-	) itemPager,
+	itemPagerFunc driveItemPagerFunc,
 ) (*urlCache, error) {
 	err := validateCacheParams(
 		driveID,
@@ -77,10 +71,7 @@ func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
 	svc graph.Servicer,
-	itemPagerFunc func(
-		servicer graph.Servicer,
-		driveID, link string,
-	) itemPager,
+	itemPagerFunc driveItemPagerFunc,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")
@@ -190,8 +181,7 @@ func (uc *urlCache) deltaQuery(
 		uc.updateCache,
 		map[string]string{},
 		"",
-		uc.errors,
-	)
+		uc.errors)
 	if err != nil {
 		return clues.Wrap(err, "delta query")
 	}
