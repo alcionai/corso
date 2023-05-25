@@ -37,13 +37,17 @@ func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 				model.ServiceTag: sel.PathService().String(),
 			},
 		},
-		CreationTime: t,
-		SnapshotID:   "snapshot",
-		DetailsID:    "details",
-		Status:       "status",
-		Selector:     sel.Selector,
-		ErrorCount:   2,
-		Failure:      "read, write",
+		CreationTime:            t,
+		SnapshotID:              "snapshot",
+		DetailsID:               "details",
+		ProtectedResourceID:     ownerID + "-pr",
+		ProtectedResourceHandle: ownerName + "-pr",
+		ResourceOwnerID:         ownerID + "-ro",
+		ResourceOwnerName:       ownerName + "-ro",
+		Status:                  "status",
+		Selector:                sel.Selector,
+		ErrorCount:              2,
+		Failure:                 "read, write",
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,
@@ -80,9 +84,45 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 			nowFmt,
 			"1m0s",
 			"status (2 errors, 1 skipped: 1 malware)",
-			"test",
+			"name-pr",
 		}
 	)
+
+	b.StartAndEndTime.CompletedAt = later
+
+	// single skipped malware
+	hs := b.Headers()
+	assert.Equal(t, expectHs, hs)
+
+	vs := b.Values()
+	assert.Equal(t, expectVs, vs)
+}
+
+func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
+	var (
+		t        = suite.T()
+		now      = time.Now()
+		later    = now.Add(1 * time.Minute)
+		b        = stubBackup(now, "id", "name")
+		expectHs = []string{
+			"ID",
+			"Started At",
+			"Duration",
+			"Status",
+			"Resource Owner",
+		}
+		nowFmt   = dttm.FormatToTabularDisplay(now)
+		expectVs = []string{
+			"id",
+			nowFmt,
+			"1m0s",
+			"status (2 errors, 1 skipped: 1 malware)",
+			"name-ro",
+		}
+	)
+
+	b.ProtectedResourceID = ""
+	b.ProtectedResourceHandle = ""
 
 	b.StartAndEndTime.CompletedAt = later
 

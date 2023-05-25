@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -35,9 +36,10 @@ type Backup struct {
 	// Selector used in this operation
 	Selector selectors.Selector `json:"selectors"`
 
-	// ResourceOwner reference
-	ResourceOwnerID   string `json:"resourceOwnerID"`
-	ResourceOwnerName string `json:"resourceOwnerName"`
+	// TODO: in process of gaining support, most cases will still use
+	// ResourceOwner and ResourceOwnerName.
+	ProtectedResourceID     string `json:"protectedResourceID,omitempty"`
+	ProtectedResourceHandle string `json:"protectedResourceHandle,omitempty"`
 
 	// Version represents the version of the backup format
 	Version int `json:"version"`
@@ -59,6 +61,10 @@ type Backup struct {
 	// Reference to the backup details storage location.
 	// Used to read backup.Details from the streamstore.
 	DetailsID string `json:"detailsID"`
+
+	// prefer protectedResource
+	ResourceOwnerID   string `json:"resourceOwnerID,omitempty"`
+	ResourceOwnerName string `json:"resourceOwnerName,omitempty"`
 }
 
 // interface compliance checks
@@ -167,23 +173,27 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID        model.StableID `json:"id"`
-	Status    string         `json:"status"`
-	Version   string         `json:"version"`
-	Owner     string         `json:"owner"`
-	OwnerName string         `json:"ownerName"`
-	Stats     backupStats    `json:"stats"`
+	ID                      model.StableID `json:"id"`
+	Status                  string         `json:"status"`
+	Version                 string         `json:"version"`
+	ProtectedResourceID     string         `json:"protectedResourceID,omitempty"`
+	ProtectedResourceHandle string         `json:"protectedResourceHandle,omitempty"`
+	Owner                   string         `json:"owner,omitempty"`
+	OwnerName               string         `json:"ownerName,omitempty"`
+	Stats                   backupStats    `json:"stats"`
 }
 
 // ToPrintable reduces the Backup to its minimally printable details.
 func (b Backup) ToPrintable() Printable {
 	return Printable{
-		ID:        b.ID,
-		Status:    b.Status,
-		Version:   "0",
-		Owner:     b.Selector.DiscreteOwner,
-		OwnerName: b.Selector.DiscreteOwnerName,
-		Stats:     b.toStats(),
+		ID:                      b.ID,
+		Status:                  b.Status,
+		Version:                 "0",
+		ProtectedResourceID:     b.Selector.DiscreteOwner,
+		ProtectedResourceHandle: b.Selector.DiscreteOwnerName,
+		Owner:                   b.Selector.DiscreteOwner,
+		OwnerName:               b.Selector.DiscreteOwnerName,
+		Stats:                   b.toStats(),
 	}
 }
 
@@ -252,15 +262,12 @@ func (b Backup) Values() []string {
 		status += (")")
 	}
 
-	name := b.ResourceOwnerName
-
-	if len(name) == 0 {
-		name = b.ResourceOwnerID
-	}
-
-	if len(name) == 0 {
-		name = b.Selector.DiscreteOwner
-	}
+	name := str.First(
+		b.ProtectedResourceHandle,
+		b.ResourceOwnerName,
+		b.ProtectedResourceID,
+		b.ResourceOwnerID,
+		b.Selector.Name())
 
 	bs := b.toStats()
 
