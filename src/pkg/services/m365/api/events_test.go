@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -127,7 +126,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 					future       = time.Now().UTC().AddDate(0, 0, 1)
 					eventTime    = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
 					eventEndTime = eventTime.Add(30 * time.Minute)
-					event, err   = support.CreateEventFromBytes(bytes)
+					event, err   = BytesToEventable(bytes)
 				)
 
 				require.NoError(suite.T(), err, clues.ToCore(err))
@@ -173,6 +172,43 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 			assert.Equal(t, expEndHr, recvEndHr, "hour")
 			assert.Equal(t, expEndMin, recvEndMin, "minute")
 			assert.Equal(t, expEndSec, recvEndSec, "second")
+		})
+	}
+}
+
+func (suite *EventsAPIUnitSuite) TestBytesToEventable() {
+	tests := []struct {
+		name       string
+		byteArray  []byte
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+	}{
+		{
+			name:       "empty bytes",
+			byteArray:  make([]byte, 0),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "invalid bytes",
+			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "Valid Event",
+			byteArray:  exchMock.EventBytes("Event Test"),
+			checkError: assert.NoError,
+			isNil:      assert.NotNil,
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := BytesToEventable(test.byteArray)
+			test.checkError(t, err, clues.ToCore(err))
+			test.isNil(t, result)
 		})
 	}
 }

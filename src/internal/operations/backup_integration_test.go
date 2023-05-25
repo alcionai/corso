@@ -29,7 +29,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -1136,7 +1135,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 					switch category {
 					case path.EmailCategory:
 						_, itemData := generateItemData(t, category, uidn.ID(), mailDBF)
-						body, err := support.CreateMessageFromBytes(itemData)
+						body, err := api.BytesToMessageable(itemData)
 						require.NoErrorf(t, err, "transforming mail bytes to messageable: %+v", clues.ToCore(err))
 
 						itm, err := ac.Mail().PostItem(ctx, uidn.ID(), containerID, body)
@@ -1149,7 +1148,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 					case path.ContactsCategory:
 						_, itemData := generateItemData(t, category, uidn.ID(), contactDBF)
-						body, err := support.CreateContactFromBytes(itemData)
+						body, err := api.BytesToContactable(itemData)
 						require.NoErrorf(t, err, "transforming contact bytes to contactable: %+v", clues.ToCore(err))
 
 						itm, err := ac.Contacts().PostItem(ctx, uidn.ID(), containerID, body)
@@ -1162,7 +1161,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 					case path.EventsCategory:
 						_, itemData := generateItemData(t, category, uidn.ID(), eventDBF)
-						body, err := support.CreateEventFromBytes(itemData)
+						body, err := api.BytesToEventable(itemData)
 						require.NoErrorf(t, err, "transforming event bytes to eventable: %+v", clues.ToCore(err))
 
 						itm, err := ac.Events().PostItem(ctx, uidn.ID(), containerID, body)
