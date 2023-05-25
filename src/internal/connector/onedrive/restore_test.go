@@ -362,6 +362,9 @@ type stallReader struct{}
 
 func (r *stallReader) Read(p []byte) (int, error) {
 	time.Sleep(time.Second * 2)
+
+	p[0] = 'a' // just something to ensure test failure
+
 	return 0, nil
 }
 
@@ -380,5 +383,5 @@ type stallWriter struct{}
 
 func (w *stallWriter) Write(p []byte) (int, error) {
 	time.Sleep(time.Second * 2)
-	return 0, nil
+	return 10, nil
 }
