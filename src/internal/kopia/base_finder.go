@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	"errors"
 	"sort"
 
 	"github.com/alcionai/clues"
@@ -10,7 +9,6 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -119,14 +117,9 @@ func (b *baseFinder) findBasesInSet(
 		// This is a complete snapshot so see if we have a backup model for it.
 		bup, err := b.getBackupModel(ictx, man)
 		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
-				continue
-			}
-
 			// Safe to continue here as we'll just end up attempting to use an older
 			// backup as the base.
 			logger.CtxErr(ictx, err).Debug("searching for base backup")
-
 			continue
 		}
 
@@ -136,6 +129,10 @@ func (b *baseFinder) findBasesInSet(
 		}
 
 		if len(ssid) == 0 {
+			logger.Ctx(ictx).Debugw(
+				"empty backup stream store ID",
+				"search_backup_id", bup.ID)
+
 			continue
 		}
 
@@ -204,13 +201,16 @@ func (b *baseFinder) FindBases(
 	for _, reason := range reasons {
 		ictx := clues.Add(
 			ctx,
-			"service", reason.Service.String(),
-			"category", reason.Category.String())
+			"search_service", reason.Service.String(),
+			"search_category", reason.Category.String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 
 		baseBackup, baseSnap, assistSnaps, err := b.getBase(ictx, reason, tags)
 		if err != nil {
-			logger.Ctx(ctx).Info("error getting base snapshots for reason. Will fallback to full backup for it")
+			logger.Ctx(ctx).Info(
+				"getting base, falling back to full backup for reason",
+				"error", err)
+
 			continue
 		}
 
