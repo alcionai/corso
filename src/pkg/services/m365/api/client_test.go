@@ -11,7 +11,6 @@ import (
 
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -67,7 +66,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 					"This is testing",
 					"This is testing",
 				)
-				message, err := support.CreateMessageFromBytes(byteArray)
+				message, err := BytesToMessageable(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 				return message.GetBody()
 			},
@@ -77,7 +76,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 			hasAttachment: assert.True,
 			getBodyable: func(t *testing.T) models.ItemBodyable {
 				byteArray := exchMock.MessageWithOneDriveAttachment("Test legacy")
-				message, err := support.CreateMessageFromBytes(byteArray)
+				message, err := BytesToMessageable(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 				return message.GetBody()
 			},

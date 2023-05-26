@@ -52,6 +52,7 @@ const (
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"
+	RepoID           = "not_found"
 )
 
 const (

@@ -20,23 +20,22 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type ExchangeRestoreSuite struct {
+type RestoreIntgSuite struct {
 	tester.Suite
 	gs          graph.Servicer
 	credentials account.M365Config
 	ac          api.Client
 }
 
-func TestExchangeRestoreSuite(t *testing.T) {
-	suite.Run(t, &ExchangeRestoreSuite{
+func TestRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &RestoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *ExchangeRestoreSuite) SetupSuite() {
+func (suite *RestoreIntgSuite) SetupSuite() {
 	t := suite.T()
 
 	a := tester.NewM365Account(t)
@@ -58,12 +57,13 @@ func (suite *ExchangeRestoreSuite) SetupSuite() {
 
 // TestRestoreContact ensures contact object can be created, placed into
 // the Corso Folder. The function handles test clean-up.
-func (suite *ExchangeRestoreSuite) TestRestoreContact() {
-	ctx, flush := tester.NewContext()
+func (suite *RestoreIntgSuite) TestRestoreContact() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t          = suite.T()
 		userID     = tester.M365UserID(t)
 		folderName = tester.DefaultTestRestoreDestination("contact").ContainerName
 	)
@@ -79,10 +79,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	info, err := RestoreExchangeContact(
+	info, err := RestoreContact(
 		ctx,
 		exchMock.ContactBytes("Corso TestContact"),
-		suite.gs,
+		suite.ac.Contacts(),
 		control.Copy,
 		folderID,
 		userID)
@@ -92,12 +92,13 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 
 // TestRestoreEvent verifies that event object is able to created
 // and sent into the test account of the Corso user in the newly created Corso Calendar
-func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
-	ctx, flush := tester.NewContext()
+func (suite *RestoreIntgSuite) TestRestoreEvent() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t       = suite.T()
 		userID  = tester.M365UserID(t)
 		subject = tester.DefaultTestRestoreDestination("event").ContainerName
 	)
@@ -131,12 +132,14 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			info, err := RestoreExchangeEvent(
+			info, err := RestoreEvent(
 				ctx,
 				test.bytes,
+				suite.ac.Events(),
+				suite.ac.Events(),
 				suite.gs,
 				control.Copy,
 				calendarID,
@@ -153,7 +156,7 @@ type containerDeleter interface {
 }
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
-func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
+func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -360,15 +363,16 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			destination := test.destination(t, ctx)
-			info, err := RestoreExchangeObject(
+			info, err := RestoreItem(
 				ctx,
 				test.bytes,
 				test.category,
 				control.Copy,
+				suite.ac,
 				service,
 				destination,
 				userID,

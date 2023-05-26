@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -153,6 +154,37 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
 			assert.Equal(suite.T(), expected, api.MailInfo(msg, 0))
+		})
+	}
+}
+
+func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
+	table := []struct {
+		name        string
+		byteArray   []byte
+		checkError  assert.ErrorAssertionFunc
+		checkObject assert.ValueAssertionFunc
+	}{
+		{
+			name:        "Empty Bytes",
+			byteArray:   make([]byte, 0),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
+		},
+		{
+			name:        "aMessage bytes",
+			byteArray:   exchMock.MessageBytes("m365 mail support test"),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := api.BytesToMessageable(test.byteArray)
+			test.checkError(t, err, clues.ToCore(err))
+			test.checkObject(t, result)
 		})
 	}
 }
@@ -343,17 +375,19 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			defer gock.Off()
 			tt.setupf()
 
 			item, _, err := suite.ac.Mail().GetItem(ctx, "user", mid, false, fault.New(true))
-			tt.expect(suite.T(), err)
+			tt.expect(t, err)
 
 			it, ok := item.(models.Messageable)
-			require.True(suite.T(), ok, "convert to messageable")
+			require.True(t, ok, "convert to messageable")
 
 			var size int64
 			mailBody := it.GetBody()
@@ -369,10 +403,10 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				size = +int64(*attachment.GetSize())
 			}
 
-			assert.Equal(suite.T(), *it.GetId(), mid)
-			assert.Equal(suite.T(), tt.attachmentCount, len(attachments), "attachment count")
-			assert.Equal(suite.T(), tt.size, size, "mail size")
-			assert.True(suite.T(), gock.IsDone(), "made all requests")
+			assert.Equal(t, *it.GetId(), mid)
+			assert.Equal(t, tt.attachmentCount, len(attachments), "attachment count")
+			assert.Equal(t, tt.size, size, "mail size")
+			assert.True(t, gock.IsDone(), "made all requests")
 		})
 	}
 }

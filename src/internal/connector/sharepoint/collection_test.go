@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -131,7 +130,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, itemName string) *Item {
 				byteArray := spMock.Page(itemName)
-				page, err := support.CreatePageFromBytes(byteArray)
+				page, err := api.CreatePageFromBytes(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
 				data := &Item{
@@ -149,7 +148,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			col := NewCollection(test.getDir(t), nil, test.category, nil, control.Defaults())
@@ -178,7 +177,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/490
 	t.Skip("disabled until upstream issue with list restore is fixed.")
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	service := createTestService(t, suite.creds)

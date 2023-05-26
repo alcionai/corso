@@ -31,7 +31,7 @@ jobs:
       - name: Build the otel-daemon
         run: make build-otel-daemon
 
-      # TODO: write logs to a file in src/test_results for archival
+      # TODO: write logs to a file in src/testlog for archival
       - name: Run the otel-daemon
         run: make otel-daemon
 
@@ -40,7 +40,7 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: mkdir test_results
+      - run: mkdir ${{ github.workspace }}/testlog
 
       # Install gotestfmt
       - name: Set up gotestfmt
@@ -55,7 +55,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           CORSO_LOAD_TESTS: true 
-          CORSO_LOG_FILE: ./src/test_results/testlogging.log
+          CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-load.log
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
           CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
@@ -73,9 +73,9 @@ jobs:
           -memprofile=mem.prof     \
           -mutexprofile=mutex.prof \
           -trace=trace.out         \
-          -outputdir=test_results  \
+          -outputdir=testlog  \
           ./pkg/repository/repository_load_test.go \
-          2>&1 | tee ./test_results/goloadtest.log | gotestfmt -hide successful-tests
+          2>&1 | tee ${{ github.workspace }}/testlog/gotest-load.log | gotestfmt -hide successful-tests
 
       # generate new entries to roll into the next load test
       # only runs if the test was successful
@@ -110,7 +110,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: load-test-profiling
-          path: src/test_results/*
+          path: ${{ github.workspace }}/testlog/*
           if-no-files-found: error
           retention-days: 14
   

@@ -56,8 +56,8 @@ func preRun(cc *cobra.Command, args []string) error {
 		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
 	}
 
-	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
-		print.Info(ctx, "Logging to file: "+logger.LogFile)
+	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
+		print.Infof(ctx, "Logging to file: %s", logger.ResolvedLogFile)
 	}
 
 	avoidTheseDescription := []string{

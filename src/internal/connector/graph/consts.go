@@ -7,6 +7,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+const AttachmentChunkSize = 4 * 1024 * 1024
+
 // ---------------------------------------------------------------------------
 // item response AdditionalData
 // ---------------------------------------------------------------------------

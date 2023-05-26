@@ -145,6 +145,7 @@ func internalMiddleware(cc *clientConfig) []khttp.Middleware {
 			MaxRetries: cc.maxRetries,
 			Delay:      cc.minDelay,
 		},
+		khttp.NewRetryHandler(),
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
 		&throttlingMiddleware{newTimedFence()},

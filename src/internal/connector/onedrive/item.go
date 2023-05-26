@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -298,15 +297,29 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 // and kiota drops any SetSize update.
 // TODO: Update drive name during Issue #2071
 func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
-	var id, driveName, driveID, weburl string
+	var driveName, siteID, driveID, weburl, creatorEmail string
 
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
 	// way to source the data.
+	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
+		// User is sometimes not available when created via some
+		// external applications (like backup/restore solutions)
+		additionalData := di.GetCreatedBy().GetUser().GetAdditionalData()
+		ed, ok := additionalData["email"]
+
+		if !ok {
+			ed = additionalData["displayName"]
+		}
+
+		if ed != nil {
+			creatorEmail = *ed.(*string)
+		}
+	}
 
 	gsi := di.GetSharepointIds()
 	if gsi != nil {
-		id = ptr.Val(gsi.GetSiteId())
+		siteID = ptr.Val(gsi.GetSiteId())
 		weburl = ptr.Val(gsi.GetSiteUrl())
 
 		if len(weburl) == 0 {
@@ -327,8 +340,9 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 		DriveID:   driveID,
 		DriveName: driveName,
 		Size:      itemSize,
-		Owner:     id,
+		Owner:     creatorEmail,
 		WebURL:    weburl,
+		SiteID:    siteID,
 	}
 }
 
@@ -337,29 +351,20 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 // TODO: @vkamra verify if var session is the desired input
 func driveItemWriter(
 	ctx context.Context,
-	service graph.Servicer,
+	gs graph.Servicer,
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
-	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
-	r, err := service.Client().
-		Drives().
-		ByDriveId(driveID).
-		Items().
-		ByDriveItemId(itemID).
-		CreateUploadSession().
-		Post(ctx, session, nil)
+	r, err := api.PostDriveItem(ctx, gs, driveID, itemID)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating item upload session")
+		return nil, clues.Stack(err)
 	}
 
-	logger.Ctx(ctx).Debug("created an upload session")
+	iw := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), itemSize)
 
-	url := ptr.Val(r.GetUploadUrl())
-
-	return graph.NewLargeItemWriter(itemID, url, itemSize), nil
+	return iw, nil
 }
 
 // constructWebURL helper function for recreating the webURL

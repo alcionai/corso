@@ -212,10 +212,10 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			c := kopiaDataCollection{
 				dir:             getLayout(),
@@ -366,10 +366,10 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			root := getLayout(test.inputSerializationVersion)
 			c := &i64counter{}

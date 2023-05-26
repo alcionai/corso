@@ -6,7 +6,7 @@ import (
 	"github.com/alcionai/clues"
 )
 
-func FromMapToAny[T any](k string, m map[string]any) (T, error) {
+func AnyValueToT[T any](k string, m map[string]any) (T, error) {
 	v, ok := m[k]
 	if !ok {
 		return *new(T), clues.New("entry not found")

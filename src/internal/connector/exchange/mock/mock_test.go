@@ -6,15 +6,14 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MockSuite struct {
@@ -26,7 +25,9 @@ func TestMockSuite(t *testing.T) {
 }
 
 func (suite *MockSuite) TestMockExchangeCollection() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	mdc := NewCollection(nil, nil, 2)
@@ -34,18 +35,19 @@ func (suite *MockSuite) TestMockExchangeCollection() {
 
 	for item := range mdc.Items(ctx, fault.New(true)) {
 		_, err := io.ReadAll(item.ToReader())
-		assert.NoError(suite.T(), err, clues.ToCore(err))
+		assert.NoError(t, err, clues.ToCore(err))
 		messagesRead++
 	}
 
-	assert.Equal(suite.T(), 2, messagesRead)
+	assert.Equal(t, 2, messagesRead)
 }
 
 func (suite *MockSuite) TestMockExchangeCollectionItemSize() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	mdc := NewCollection(nil, nil, 2)
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
@@ -62,10 +64,11 @@ func (suite *MockSuite) TestMockExchangeCollectionItemSize() {
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
 func (suite *MockSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	mdc := NewCollection(nil, nil, 3)
 
 	for stream := range mdc.Items(ctx, fault.New(true)) {
@@ -74,7 +77,7 @@ func (suite *MockSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hyd
 		assert.NoError(t, err, clues.ToCore(err))
 
 		byteArray := buf.Bytes()
-		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
+		something, err := api.BytesToMessageable(byteArray)
 		assert.NoError(t, err, clues.ToCore(err))
 		assert.NotNil(t, something)
 	}
@@ -142,7 +145,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Message Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := MessageBytes(subject)
-				_, err := support.CreateMessageFromBytes(bytes)
+				_, err := api.BytesToMessageable(bytes)
 				return err
 			},
 		},
@@ -150,7 +153,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event Message Response: Regression",
 			transformation: func(t *testing.T) error {
 				bytes := EventMessageResponse(subject)
-				_, err := support.CreateMessageFromBytes(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
@@ -158,7 +161,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event Message Request: Regression",
 			transformation: func(t *testing.T) error {
 				bytes := EventMessageRequest(subject)
-				_, err := support.CreateMessageFromBytes(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
@@ -166,7 +169,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Contact Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := ContactBytes(subject)
-				_, err := support.CreateContactFromBytes(bytes)
+				_, err := api.BytesToContactable(bytes)
 				return err
 			},
 		},
@@ -174,7 +177,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event No Attendees Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := EventBytes(subject)
-				_, err := support.CreateEventFromBytes(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},

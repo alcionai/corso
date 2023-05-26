@@ -222,7 +222,7 @@ func generateAndRestoreDriveItems(
 	*details.Details,
 	error,
 ) {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(nil)
 	defer flush()
 
 	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)

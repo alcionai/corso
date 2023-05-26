@@ -2,8 +2,8 @@
 
 Below is a list of known Corso issues and limitations:
 
-* Only supports Exchange (email, calendars, contact) and OneDrive (files) M365 data. Additional
-  data types and services will be added in subsequent releases.
+* Corso supports Exchange (email, calendars, contacts), OneDrive (files) and SharePoint (Document Libraries) M365 data.
+  Additional data types and services will be added in subsequent releases.
 
 * Backups of Exchange email may not include changes to the read status of an email if no other changes
   to the email have been made since the previous backup.

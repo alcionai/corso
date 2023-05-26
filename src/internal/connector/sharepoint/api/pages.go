@@ -7,33 +7,34 @@ import (
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	betamodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	betasites "github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+type NameID struct {
+	Name string
+	ID   string
+}
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
 // Returns error if error experienced during the call
 func GetSitePages(
 	ctx context.Context,
-	serv *api.BetaService,
+	serv *BetaService,
 	siteID string,
 	pages []string,
 	errs *fault.Bus,
 ) ([]betamodels.SitePageable, error) {
 	var (
 		col         = make([]betamodels.SitePageable, 0)
-		semaphoreCh = make(chan struct{}, fetchChannelSize)
+		semaphoreCh = make(chan struct{}, 5)
 		opts        = retrieveSitePageOptions()
 		el          = errs.Local()
 		wg          sync.WaitGroup
@@ -82,25 +83,8 @@ func GetSitePages(
 	return col, el.Failure()
 }
 
-// GetSite returns a minimal Site with the SiteID and the WebURL
-func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Siteable, error) {
-	// resp *sites.SiteItemRequestBuilderresp *sites.SiteItemRequestBuilde
-	options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
-			Select: []string{"webUrl"},
-		},
-	}
-
-	resp, err := gs.Client().Sites().BySiteId(siteID).Get(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
 // fetchPages utility function to return the tuple of item
-func FetchPages(ctx context.Context, bs *api.BetaService, siteID string) ([]NameID, error) {
+func FetchPages(ctx context.Context, bs *BetaService, siteID string) ([]NameID, error) {
 	var (
 		builder = bs.Client().SitesById(siteID).Pages()
 		opts    = fetchPageOptions()
@@ -159,7 +143,7 @@ func fetchPageOptions() *betasites.ItemPagesRequestBuilderGetRequestConfiguratio
 // https://github.com/alcionai/corso/issues/2707
 func DeleteSitePage(
 	ctx context.Context,
-	serv *api.BetaService,
+	serv *BetaService,
 	siteID, pageID string,
 ) error {
 	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
@@ -184,7 +168,7 @@ func retrieveSitePageOptions() *betasites.ItemPagesSitePageItemRequestBuilderGet
 
 func RestoreSitePage(
 	ctx context.Context,
-	service *api.BetaService,
+	service *BetaService,
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
@@ -205,7 +189,7 @@ func RestoreSitePage(
 	}
 
 	// Hydrate Page
-	page, err := support.CreatePageFromBytes(byteArray)
+	page, err := CreatePageFromBytes(byteArray)
 	if err != nil {
 		return dii, clues.Wrap(err, "creating Page object").WithClues(ctx)
 	}

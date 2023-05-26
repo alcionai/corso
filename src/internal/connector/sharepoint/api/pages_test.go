@@ -10,20 +10,30 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+func createTestBetaService(t *testing.T, credentials account.M365Config) *api.BetaService {
+	adapter, err := graph.CreateAdapter(
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return api.NewBetaService(adapter)
+}
 
 type SharePointPageSuite struct {
 	tester.Suite
 	siteID  string
 	creds   account.M365Config
-	service *m365api.BetaService
+	service *api.BetaService
 }
 
 func (suite *SharePointPageSuite) SetupSuite() {
@@ -45,10 +55,11 @@ func TestSharePointPageSuite(t *testing.T) {
 }
 
 func (suite *SharePointPageSuite) TestFetchPages() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	pgs, err := api.FetchPages(ctx, suite.service, suite.siteID)
 	assert.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, pgs)
@@ -60,10 +71,11 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 }
 
 func (suite *SharePointPageSuite) TestGetSitePages() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	tuples, err := api.FetchPages(ctx, suite.service, suite.siteID)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, tuples)
@@ -75,10 +87,10 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 }
 
 func (suite *SharePointPageSuite) TestRestoreSinglePage() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	destName := tester.DefaultTestRestoreDestination("").ContainerName
 	testName := "MockPage"

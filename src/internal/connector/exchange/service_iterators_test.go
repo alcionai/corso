@@ -320,7 +320,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			suite.Run(name, func() {
 				t := suite.T()
 
-				ctx, flush := tester.NewContext()
+				ctx, flush := tester.NewContext(t)
 				defer flush()
 
 				ctrlOpts := control.Options{FailureHandling: test.failFast}
@@ -657,7 +657,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 				suite.Run(test.name, func() {
 					t := suite.T()
 
-					ctx, flush := tester.NewContext()
+					ctx, flush := tester.NewContext(t)
 					defer flush()
 
 					collections, err := filterContainersAndFillCollections(
@@ -796,7 +796,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
@@ -1215,7 +1215,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				suite.Run(name, func() {
 					t := suite.T()
 
-					ctx, flush := tester.NewContext()
+					ctx, flush := tester.NewContext(t)
 					defer flush()
 
 					ctrlOpts := control.Defaults()

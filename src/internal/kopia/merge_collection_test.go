@@ -47,10 +47,11 @@ func (suite *MergeCollectionUnitSuite) TestReturnsPath() {
 }
 
 func (suite *MergeCollectionUnitSuite) TestItems() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	storagePaths := []string{
 		"tenant-id/exchange/user-id/mail/some/folder/path1",
 		"tenant-id/exchange/user-id/mail/some/folder/path2",
@@ -253,10 +254,11 @@ func (suite *MergeCollectionUnitSuite) TestFetch() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			c := &i64counter{}
 
 			dc := mergeCollection{fullPath: pth}

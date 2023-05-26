@@ -55,7 +55,7 @@ func (suite *DataCollectionIntgSuite) SetupSuite() {
 // - contacts
 // - events
 func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	selUsers := []string{suite.user}
@@ -107,6 +107,9 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			suite.Run(name, func() {
 				t := suite.T()
 
+				ctx, flush := tester.NewContext(t)
+				defer flush()
+
 				sel := test.getSelector(t)
 
 				ctrlOpts := control.Defaults()
@@ -151,7 +154,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 // TestInvalidUserForDataCollections ensures verification process for users
 func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	owners := []string{"snuffleupagus"}
@@ -218,6 +221,9 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			collections, excludes, err := connector.ProduceBackupCollections(
 				ctx,
 				test.getSelector(t),
@@ -237,7 +243,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 // GraphConnector remains stable to receive a non-zero amount of Collections
 // for the SharePoint Package.
 func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	selSites := []string{suite.site}
@@ -270,6 +276,10 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			sel := test.getSelector()
 
 			collections, excludes, err := sharepoint.DataCollections(
@@ -330,7 +340,7 @@ func TestSPCollectionIntgSuite(t *testing.T) {
 }
 
 func (suite *SPCollectionIntgSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	suite.connector = loadConnector(ctx, suite.T(), Sites)
@@ -340,11 +350,12 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 }
 
 func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
 		gc      = loadConnector(ctx, t, Sites)
 		siteIDs = []string{siteID}
@@ -385,11 +396,12 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 }
 
 func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
 		gc      = loadConnector(ctx, t, Sites)
 		siteIDs = []string{siteID}

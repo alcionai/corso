@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	ctx, logFlush := tester.NewContext()
+	ctx, logFlush := tester.NewContext(nil)
 	loadCtx = ctx
 
 	if err := D.InitCollector(); err != nil {
@@ -89,7 +89,7 @@ func initM365Repo(t *testing.T) (
 ) {
 	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
-	ctx, flush := tester.WithContext(loadCtx)
+	ctx, flush := tester.WithContext(t, loadCtx)
 	defer flush()
 
 	st := tester.NewPrefixedS3Storage(t)
@@ -432,7 +432,7 @@ func (suite *LoadExchangeSuite) TeardownSuite() {
 }
 
 func (suite *LoadExchangeSuite) TestExchange() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
@@ -484,7 +484,7 @@ func (suite *IndividualLoadExchangeSuite) TeardownSuite() {
 }
 
 func (suite *IndividualLoadExchangeSuite) TestExchange() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
@@ -538,7 +538,7 @@ func (suite *LoadOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *LoadOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
@@ -585,7 +585,7 @@ func (suite *IndividualLoadOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
@@ -637,7 +637,7 @@ func (suite *LoadSharePointSuite) TeardownSuite() {
 }
 
 func (suite *LoadSharePointSuite) TestSharePoint() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
@@ -685,7 +685,7 @@ func (suite *IndividualLoadSharePointSuite) TeardownSuite() {
 }
 
 func (suite *IndividualLoadSharePointSuite) TestSharePoint() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)

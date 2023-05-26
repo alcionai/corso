@@ -35,6 +35,20 @@ type Sites struct {
 // methods
 // ---------------------------------------------------------------------------
 
+// GetSite returns a minimal Site with the SiteID and the WebURL
+// TODO: delete in favor of sites.GetByID()
+func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Siteable, error) {
+	resp, err := gs.Client().
+		Sites().
+		BySiteId(siteID).
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
 // GetAll retrieves all sites.
 func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error) {
 	service, err := c.Service()

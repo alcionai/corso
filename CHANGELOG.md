@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Added ProtectedResourceName to the backup list json output.  ProtectedResourceName holds either a UPN or a WebURL, depending on the resource type.
+
 ### Fixed
+- Fix Exchange folder cache population error when parent folder isn't found.
+- Fix Exchange backup issue caused by incorrect json serialization
+
 ### Known Issues
 
 ## [v0.8.0] (beta) - 2023-05-15
