@@ -806,8 +806,12 @@ func restoreData(
 		written int64
 	)
 
-	// This is just to retry file upload, the uploadSession creation is not retried here
-	// We need extra logic to retry file upload as we have to pull the file again from kopia
+	// This is just to retry file upload, the uploadSession creation is
+	// not retried here We need extra logic to retry file upload as we
+	// have to pull the file again from kopia If we fail a file upload,
+	// we restart from scratch and try to upload again. Graph does not
+	// show "register" any partial file uploads and so if we fail an
+	// upload the file size will be 0.
 	for i := 0; i <= maxUploadRetries; i++ {
 		// Get a drive item writer
 		w, err = driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
