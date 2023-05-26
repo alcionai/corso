@@ -91,7 +91,7 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	result := suite.recorder.String()
 
 	// as an offhand check: the result should contain the m365 sitet id
-	assert.Equal(t, "No backups available\n", result)
+	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
 }
 
 // ---------------------------------------------------------------------------

@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -63,6 +65,43 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 		suite.Run(test.name, func() {
 			contact, expected := test.contactAndRP()
 			assert.Equal(suite.T(), expected, ContactInfo(contact))
+		})
+	}
+}
+
+func (suite *ContactsAPIUnitSuite) TestBytesToContactable() {
+	table := []struct {
+		name       string
+		byteArray  []byte
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+	}{
+		{
+			name:       "empty bytes",
+			byteArray:  make([]byte, 0),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "invalid bytes",
+			byteArray:  []byte("A random sentence doesn't make an object"),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "Valid Contact",
+			byteArray:  exchMock.ContactBytes("Support Test"),
+			checkError: assert.NoError,
+			isNil:      assert.NotNil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := BytesToContactable(test.byteArray)
+			test.checkError(t, err, clues.ToCore(err))
+			test.isNil(t, result)
 		})
 	}
 }

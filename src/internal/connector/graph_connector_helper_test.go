@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -582,7 +581,7 @@ func compareExchangeEmail(
 		return
 	}
 
-	itemMessage, err := support.CreateMessageFromBytes(itemData)
+	itemMessage, err := api.BytesToMessageable(itemData)
 	if !assert.NoError(t, err, "deserializing backed up message", clues.ToCore(err)) {
 		return
 	}
@@ -592,7 +591,7 @@ func compareExchangeEmail(
 		return
 	}
 
-	expectedMessage, err := support.CreateMessageFromBytes(expectedBytes)
+	expectedMessage, err := api.BytesToMessageable(expectedBytes)
 	assert.NoError(t, err, "deserializing source message", clues.ToCore(err))
 
 	checkMessage(t, expectedMessage, itemMessage)
@@ -609,7 +608,7 @@ func compareExchangeContact(
 		return
 	}
 
-	itemContact, err := support.CreateContactFromBytes(itemData)
+	itemContact, err := api.BytesToContactable(itemData)
 	if !assert.NoError(t, err, "deserializing backed up contact", clues.ToCore(err)) {
 		return
 	}
@@ -619,7 +618,7 @@ func compareExchangeContact(
 		return
 	}
 
-	expectedContact, err := support.CreateContactFromBytes(expectedBytes)
+	expectedContact, err := api.BytesToContactable(expectedBytes)
 	if !assert.NoError(t, err, "deserializing source contact") {
 		return
 	}
@@ -637,7 +636,7 @@ func compareExchangeEvent(
 		return
 	}
 
-	itemEvent, err := support.CreateEventFromBytes(itemData)
+	itemEvent, err := api.BytesToEventable(itemData)
 	if !assert.NoError(t, err, "deserializing backed up contact", clues.ToCore(err)) {
 		return
 	}
@@ -647,7 +646,7 @@ func compareExchangeEvent(
 		return
 	}
 
-	expectedEvent, err := support.CreateEventFromBytes(expectedBytes)
+	expectedEvent, err := api.BytesToEventable(expectedBytes)
 	assert.NoError(t, err, "deserializing source contact", clues.ToCore(err))
 
 	checkEvent(t, expectedEvent, itemEvent)
