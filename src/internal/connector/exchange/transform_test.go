@@ -1,4 +1,4 @@
-package support
+package exchange
 
 import (
 	"testing"
@@ -12,24 +12,25 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type SupportTestSuite struct {
+type TransformUnitTest struct {
 	tester.Suite
 }
 
 func TestSupportTestSuite(t *testing.T) {
-	suite.Run(t, &SupportTestSuite{Suite: tester.NewUnitSuite(t)})
+	suite.Run(t, &TransformUnitTest{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SupportTestSuite) TestToMessage() {
+func (suite *TransformUnitTest) TestToMessage() {
 	t := suite.T()
 
 	bytes := exchMock.MessageBytes("m365 mail support test")
-	message, err := CreateMessageFromBytes(bytes)
+	message, err := api.BytesToMessageable(bytes)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
-	clone := ToMessage(message)
+	clone := toMessage(message)
 	assert.Equal(t, message.GetBccRecipients(), clone.GetBccRecipients())
 	assert.Equal(t, message.GetSubject(), clone.GetSubject())
 	assert.Equal(t, message.GetSender(), clone.GetSender())
@@ -37,14 +38,14 @@ func (suite *SupportTestSuite) TestToMessage() {
 	assert.NotEqual(t, message.GetId(), clone.GetId())
 }
 
-func (suite *SupportTestSuite) TestToEventSimplified_attendees() {
+func (suite *TransformUnitTest) TestToEventSimplified_attendees() {
 	t := suite.T()
 	bytes := exchMock.EventWithAttendeesBytes("M365 Event Support Test")
-	event, err := CreateEventFromBytes(bytes)
+	event, err := api.BytesToEventable(bytes)
 	require.NoError(t, err, clues.ToCore(err))
 
 	attendees := event.GetAttendees()
-	newEvent := ToEventSimplified(event)
+	newEvent := toEventSimplified(event)
 
 	assert.Empty(t, newEvent.GetHideAttendees())
 	assert.Equal(t, ptr.Val(event.GetBody().GetContentType()), ptr.Val(newEvent.GetBody().GetContentType()))
@@ -57,7 +58,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_attendees() {
 	}
 }
 
-func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
+func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 	var (
 		t       = suite.T()
 		subject = "M365 Event Support Test"
@@ -72,7 +73,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 			name: "Test recurrence: Unspecified",
 			event: func() models.Eventable {
 				bytes := exchMock.EventWithSubjectBytes(subject)
-				e, err := CreateEventFromBytes(bytes)
+				e, err := api.BytesToEventable(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return e
 			},
@@ -85,7 +86,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 			name: "Test recurrenceTimeZone: Unspecified",
 			event: func() models.Eventable {
 				bytes := exchMock.EventWithRecurrenceBytes(subject, `null`)
-				e, err := CreateEventFromBytes(bytes)
+				e, err := api.BytesToEventable(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return e
 			},
@@ -98,7 +99,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 			name: "Test recurrenceTimeZone: Empty",
 			event: func() models.Eventable {
 				bytes := exchMock.EventWithRecurrenceBytes(subject, `""`)
-				event, err := CreateEventFromBytes(bytes)
+				event, err := api.BytesToEventable(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return event
 			},
@@ -111,7 +112,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 			name: "Test recurrenceTimeZone: Valid",
 			event: func() models.Eventable {
 				bytes := exchMock.EventWithRecurrenceBytes(subject, `"Pacific Standard Time"`)
-				event, err := CreateEventFromBytes(bytes)
+				event, err := api.BytesToEventable(bytes)
 				require.NoError(t, err, clues.ToCore(err))
 				return event
 			},
@@ -125,7 +126,7 @@ func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			event := test.event()
-			newEvent := ToEventSimplified(event)
+			newEvent := toEventSimplified(event)
 			assert.True(t, test.validateOutput(newEvent), test.name)
 		})
 	}
@@ -148,7 +149,7 @@ func makeMockContent(c string, ct models.BodyType) mockContenter {
 	return mockContenter{&c, &ct}
 }
 
-func (suite *SupportTestSuite) TestInsertStringToBody() {
+func (suite *TransformUnitTest) TestInsertStringToBody() {
 	nilTextContent := makeMockContent("", models.TEXT_BODYTYPE)
 	nilTextContent.content = nil
 	nilHTMLContent := makeMockContent("", models.HTML_BODYTYPE)

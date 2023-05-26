@@ -45,14 +45,18 @@ type Mail struct {
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
 func (c Mail) CreateMailFolder(
 	ctx context.Context,
-	user, folder string,
+	userID, containerName string,
 ) (models.MailFolderable, error) {
 	isHidden := false
-	requestBody := models.NewMailFolder()
-	requestBody.SetDisplayName(&folder)
-	requestBody.SetIsHidden(&isHidden)
+	body := models.NewMailFolder()
+	body.SetDisplayName(&containerName)
+	body.SetIsHidden(&isHidden)
 
-	mdl, err := c.Stable.Client().Users().ByUserId(user).MailFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.Stable.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		Post(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating mail folder")
 	}
@@ -62,26 +66,21 @@ func (c Mail) CreateMailFolder(
 
 func (c Mail) CreateMailFolderWithParent(
 	ctx context.Context,
-	user, folder, parentID string,
+	userID, containerName, parentContainerID string,
 ) (models.MailFolderable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
 	isHidden := false
-	requestBody := models.NewMailFolder()
-	requestBody.SetDisplayName(&folder)
-	requestBody.SetIsHidden(&isHidden)
+	body := models.NewMailFolder()
+	body.SetDisplayName(&containerName)
+	body.SetIsHidden(&isHidden)
 
-	mdl, err := service.
+	mdl, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderId(parentID).
+		ByMailFolderId(parentContainerID).
 		ChildFolders().
-		Post(ctx, requestBody, nil)
+		Post(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating nested mail folder")
 	}
@@ -93,7 +92,7 @@ func (c Mail) CreateMailFolderWithParent(
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
 func (c Mail) DeleteContainer(
 	ctx context.Context,
-	user, folderID string,
+	userID, containerID string,
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
@@ -104,9 +103,9 @@ func (c Mail) DeleteContainer(
 
 	err = srv.Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderId(folderID).
+		ByMailFolderId(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -122,18 +121,14 @@ func (c Mail) GetFolder(
 	ctx context.Context,
 	userID, containerID string,
 ) (models.MailFolderable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
 	config := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
 			Select: idAnd(displayName, parentFolderID),
 		},
 	}
 
-	resp, err := service.Client().
+	resp, err := c.Stable.
+		Client().
 		Users().
 		ByUserId(userID).
 		MailFolders().
@@ -149,9 +144,9 @@ func (c Mail) GetFolder(
 // interface-compliant wrapper of GetFolder
 func (c Mail) GetContainerByID(
 	ctx context.Context,
-	userID, dirID string,
+	userID, containerID string,
 ) (graph.Container, error) {
-	return c.GetFolder(ctx, userID, dirID)
+	return c.GetFolder(ctx, userID, containerID)
 }
 
 func (c Mail) MoveContainer(
@@ -159,12 +154,7 @@ func (c Mail) MoveContainer(
 	userID, containerID string,
 	body users.ItemMailFoldersItemMovePostRequestBodyable,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	_, err = service.
+	_, err := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -184,12 +174,8 @@ func (c Mail) PatchFolder(
 	userID, containerID string,
 	body models.MailFolderable,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	_, err = service.Client().
+	_, err := c.Stable.
+		Client().
 		Users().
 		ByUserId(userID).
 		MailFolders().
@@ -211,9 +197,9 @@ type mailFolderPager struct {
 	builder *users.ItemMailFoldersRequestBuilder
 }
 
-func NewMailFolderPager(service graph.Servicer, user string) mailFolderPager {
+func NewMailFolderPager(service graph.Servicer, userID string) mailFolderPager {
 	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
-	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, user)
+	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, userID)
 	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
 
 	return mailFolderPager{service, builder}
@@ -250,18 +236,12 @@ func (p *mailFolderPager) valuesIn(pl PageLinker) ([]models.MailFolderable, erro
 // not contain historical data.
 func (c Mail) EnumerateContainers(
 	ctx context.Context,
-	userID, baseDirID string,
+	userID, baseContainerID string,
 	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
 	el := errs.Local()
-
-	pgr := NewMailFolderPager(service, userID)
+	pgr := NewMailFolderPager(c.Stable, userID)
 
 	for {
 		if el.Failure() != nil {
@@ -319,7 +299,7 @@ func (c Mail) EnumerateContainers(
 // attachment is also downloaded.
 func (c Mail) GetItem(
 	ctx context.Context,
-	user, itemID string,
+	userID, itemID string,
 	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
@@ -331,9 +311,10 @@ func (c Mail) GetItem(
 		}
 	)
 
-	mail, err := c.Stable.Client().
+	mail, err := c.Stable.
+		Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		Messages().
 		ByMessageId(itemID).
 		Get(ctx, config)
@@ -363,7 +344,7 @@ func (c Mail) GetItem(
 	attached, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		Messages().
 		ByMessageId(itemID).
 		Attachments().
@@ -396,7 +377,7 @@ func (c Mail) GetItem(
 	attachments, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		Messages().
 		ByMessageId(itemID).
 		Attachments().
@@ -418,7 +399,7 @@ func (c Mail) GetItem(
 		att, err := c.Stable.
 			Client().
 			Users().
-			ByUserId(user).
+			ByUserId(userID).
 			Messages().
 			ByMessageId(itemID).
 			Attachments().
@@ -444,12 +425,7 @@ func (c Mail) PostItem(
 	userID, containerID string,
 	body models.Messageable,
 ) (models.Messageable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	itm, err := service.
+	itm, err := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -474,12 +450,12 @@ func (c Mail) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	service, err := c.Service()
+	srv, err := NewService(c.Credentials)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
 
-	err = service.
+	err = srv.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -498,12 +474,7 @@ func (c Mail) PostSmallAttachment(
 	userID, containerID, parentItemID string,
 	body models.Attachmentable,
 ) error {
-	service, err := c.Service()
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	_, err = service.
+	_, err := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -522,7 +493,7 @@ func (c Mail) PostSmallAttachment(
 
 func (c Mail) PostLargeAttachment(
 	ctx context.Context,
-	userID, containerID, parentItemID, name string,
+	userID, containerID, parentItemID, itemName string,
 	size int64,
 	body models.Attachmentable,
 ) (models.UploadSessionable, error) {
@@ -532,7 +503,7 @@ func (c Mail) PostLargeAttachment(
 	}
 
 	session := users.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
-	session.SetAttachmentItem(makeSessionAttachment(name, size))
+	session.SetAttachmentItem(makeSessionAttachment(itemName, size))
 
 	us, err := c.LargeItem.
 		Client().
@@ -576,7 +547,7 @@ type mailPager struct {
 func NewMailPager(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, directoryID string,
+	userID, containerID string,
 	immutableIDs bool,
 ) itemPager {
 	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
@@ -586,11 +557,12 @@ func NewMailPager(
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
-	builder := gs.Client().
+	builder := gs.
+		Client().
 		Users().
-		ByUserId(user).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderId(directoryID).
+		ByMailFolderId(containerID).
 		Messages()
 
 	return &mailPager{gs, builder, config}
@@ -624,8 +596,8 @@ var _ itemPager = &mailDeltaPager{}
 
 type mailDeltaPager struct {
 	gs          graph.Servicer
-	user        string
-	directoryID string
+	userID      string
+	containerID string
 	builder     *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
 	options     *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
@@ -633,15 +605,15 @@ type mailDeltaPager struct {
 func getMailDeltaBuilder(
 	ctx context.Context,
 	gs graph.Servicer,
-	user string,
-	directoryID string,
+	user, containerID string,
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemMailFoldersItemMessagesDeltaRequestBuilder {
-	builder := gs.Client().
+	builder := gs.
+		Client().
 		Users().
 		ByUserId(user).
 		MailFolders().
-		ByMailFolderId(directoryID).
+		ByMailFolderId(containerID).
 		Messages().
 		Delta()
 
@@ -651,7 +623,7 @@ func getMailDeltaBuilder(
 func NewMailDeltaPager(
 	ctx context.Context,
 	gs graph.Servicer,
-	user, directoryID, oldDelta string,
+	userID, containerID, oldDelta string,
 	immutableIDs bool,
 ) itemPager {
 	config := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
@@ -666,10 +638,10 @@ func NewMailDeltaPager(
 	if len(oldDelta) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
 	} else {
-		builder = getMailDeltaBuilder(ctx, gs, user, directoryID, config)
+		builder = getMailDeltaBuilder(ctx, gs, userID, containerID, config)
 	}
 
-	return &mailDeltaPager{gs, user, directoryID, builder, config}
+	return &mailDeltaPager{gs, userID, containerID, builder, config}
 }
 
 func (p *mailDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
@@ -686,11 +658,12 @@ func (p *mailDeltaPager) setNext(nextLink string) {
 }
 
 func (p *mailDeltaPager) reset(ctx context.Context) {
-	p.builder = p.gs.Client().
+	p.builder = p.gs.
+		Client().
 		Users().
-		ByUserId(p.user).
+		ByUserId(p.userID).
 		MailFolders().
-		ByMailFolderId(p.directoryID).
+		ByMailFolderId(p.containerID).
 		Messages().
 		Delta()
 }
@@ -701,31 +674,34 @@ func (p *mailDeltaPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
-	user, directoryID, oldDelta string,
+	userID, containerID, oldDelta string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
-	}
-
 	ctx = clues.Add(
 		ctx,
 		"category", selectors.ExchangeMail,
-		"container_id", directoryID)
+		"container_id", containerID)
 
-	pager := NewMailPager(ctx, service, user, directoryID, immutableIDs)
-	deltaPager := NewMailDeltaPager(ctx, service, user, directoryID, oldDelta, immutableIDs)
+	pager := NewMailPager(ctx, c.Stable, userID, containerID, immutableIDs)
+	deltaPager := NewMailDeltaPager(ctx, c.Stable, userID, containerID, oldDelta, immutableIDs)
 
-	return getAddedAndRemovedItemIDs(ctx, service, pager, deltaPager, oldDelta, canMakeDeltaQueries)
+	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
 
 // ---------------------------------------------------------------------------
 // Serialization
 // ---------------------------------------------------------------------------
 
-// Serialize transforms the mail item into a byte slice.
+func BytesToMessageable(body []byte) (models.Messageable, error) {
+	v, err := createFromBytes(body, models.CreateMessageFromDiscriminatorValue)
+	if err != nil {
+		return nil, clues.Wrap(err, "deserializing bytes to message")
+	}
+
+	return v.(models.Messageable), nil
+}
+
 func (c Mail) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,
@@ -737,15 +713,11 @@ func (c Mail) Serialize(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
-
-	var (
-		err    error
-		writer = kjson.NewJsonSerializationWriter()
-	)
+	writer := kjson.NewJsonSerializationWriter()
 
 	defer writer.Close()
 
-	if err = writer.WriteObjectValue("", msg); err != nil {
+	if err := writer.WriteObjectValue("", msg); err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 

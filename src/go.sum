@@ -55,8 +55,6 @@ github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpH
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
 github.com/alcionai/clues v0.0.0-20230406223931-f48777f4773c h1:Njdw/Nnq2DN3f8QMaHuZZHdVHTUSxFqPMMxDIInDWB4=
 github.com/alcionai/clues v0.0.0-20230406223931-f48777f4773c/go.mod h1:DeaMbAwDvYM6ZfPMR/GUl3hceqI5C8jIQ1lstjB2IW8=
-github.com/alcionai/kiota-serialization-json-go v0.0.0-20230523031047-cee43f2283aa h1:ja7MQkGRXNzPtNIXqLNKFNRnX8zFcHJEsHKN/su+QJ8=
-github.com/alcionai/kiota-serialization-json-go v0.0.0-20230523031047-cee43f2283aa/go.mod h1:KS+eFtwtJGsosXRQr/Qilep7ZD1MRF+VtO7LnL7Oyuw=
 github.com/alcionai/kopia v0.12.2-0.20230502235504-2509b1d72a79 h1:Wrl99Y7jftZMnNDiOIcRJrjstZO3IEj3+Q/sip27vmI=
 github.com/alcionai/kopia v0.12.2-0.20230502235504-2509b1d72a79/go.mod h1:Iic7CcKhsq+A7MLR9hh6VJfgpcJhLx3Kn+BgjY+azvI=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -68,8 +66,8 @@ github.com/andybalholm/brotli v1.0.4 h1:V7DdXeJtZscaqfNuAdSRuRFzuiKlHSC/Zh3zl9qY
 github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
 github.com/armon/go-metrics v0.4.1 h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJA=
 github.com/armon/go-metrics v0.4.1/go.mod h1:E6amYzXo6aW1tqzoZGT755KkbgrJsSdpwZ+3JqfkOG4=
-github.com/aws/aws-sdk-go v1.44.268 h1:WoK20tlAvsvQzTcE6TajoprbXmTbcud6MjhErL4P/38=
-github.com/aws/aws-sdk-go v1.44.268/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.269 h1:NUNq++KMjhWUVVUIx7HYLgBpX16bWfTY1EdQRraLALo=
+github.com/aws/aws-sdk-go v1.44.269/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-xray-sdk-go v1.8.1 h1:O4pXV+hnCskaamGsZnFpzHyAmgPGusBMN6i7nnsy0Fo=
 github.com/aws/aws-xray-sdk-go v1.8.1/go.mod h1:wMmVYzej3sykAttNBkXQHK/+clAPWTOrPiajEk7Cp3A=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
@@ -283,6 +281,8 @@ github.com/microsoft/kiota-http-go v1.0.0 h1:F1hd6gMlLeEgH2CkRB7z13ow7LxMKMWEmms
 github.com/microsoft/kiota-http-go v1.0.0/go.mod h1:eujxJliqodotsYepIc6ihhK+vXMMt5Q8YiSNL7+7M7U=
 github.com/microsoft/kiota-serialization-form-go v1.0.0 h1:UNdrkMnLFqUCccQZerKjblsyVgifS11b3WCx+eFEsAI=
 github.com/microsoft/kiota-serialization-form-go v1.0.0/go.mod h1:h4mQOO6KVTNciMF6azi1J9QB19ujSw3ULKcSNyXXOMA=
+github.com/microsoft/kiota-serialization-json-go v1.0.1 h1:nI3pLpqep7L6BLJPT7teCqkYFRmgyuA2G0zx6ZrwgFE=
+github.com/microsoft/kiota-serialization-json-go v1.0.1/go.mod h1:KS+eFtwtJGsosXRQr/Qilep7ZD1MRF+VtO7LnL7Oyuw=
 github.com/microsoft/kiota-serialization-text-go v1.0.0 h1:XOaRhAXy+g8ZVpcq7x7a0jlETWnWrEum0RhmbYrTFnA=
 github.com/microsoft/kiota-serialization-text-go v1.0.0/go.mod h1:sM1/C6ecnQ7IquQOGUrUldaO5wj+9+v7G2W3sQ3fy6M=
 github.com/microsoftgraph/msgraph-sdk-go v1.2.0 h1:SZGcs6aoxUt5mSSNlgKe7j4N2BhKN1w2DzYBEMLtMCc=
