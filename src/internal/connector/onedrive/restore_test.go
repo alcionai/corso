@@ -1,10 +1,7 @@
 package onedrive
 
 import (
-	"bytes"
-	"errors"
 	"testing"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -317,68 +314,4 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 			assert.Equal(t, outPaths, actual, "augmented paths")
 		})
 	}
-}
-
-func TestCopyBufferWithStallCheck_Valid(t *testing.T) {
-	data := []byte("hello world")
-	reader := bytes.NewReader(data)
-	writer := bytes.Buffer{}
-
-	copied, err := copyBufferWithStallCheck(&writer, reader, time.Second)
-	require.NoError(t, err)
-	assert.Equal(t, int64(len(data)), copied)
-	assert.Equal(t, data, writer.Bytes()[:len(data)])
-}
-
-func TestCopyBufferWithStallCheck_Error(t *testing.T) {
-	// Reader that always returns an error
-	reader := &errorReader{}
-	writer := bytes.Buffer{}
-
-	copied, err := copyBufferWithStallCheck(&writer, reader, time.Second)
-	assert.EqualError(t, err, "reading data: test error")
-	assert.Equal(t, int64(0), copied)
-}
-
-type errorReader struct{}
-
-func (r *errorReader) Read(p []byte) (int, error) {
-	return 0, errors.New("test error")
-}
-
-func TestCopyBufferWithStallCheck_ReadStalls(t *testing.T) {
-	// Reader that never returns any data
-	reader := &stallReader{}
-	writer := bytes.Buffer{}
-
-	copied, err := copyBufferWithStallCheck(&writer, reader, time.Second)
-	assert.EqualError(t, err, "copy stalled")
-	assert.Equal(t, int64(0), copied)
-}
-
-type stallReader struct{}
-
-func (r *stallReader) Read(p []byte) (int, error) {
-	time.Sleep(time.Second * 2)
-
-	p[0] = 'a' // just something to ensure test failure
-
-	return 0, nil
-}
-
-func TestCopyBufferWithStallCheck_WriteStalls(t *testing.T) {
-	// Writer that never returns any data
-	reader := bytes.NewReader([]byte("hello world"))
-	writer := &stallWriter{}
-
-	copied, err := copyBufferWithStallCheck(writer, reader, time.Second)
-	assert.EqualError(t, err, "copy stalled")
-	assert.Equal(t, int64(0), copied)
-}
-
-type stallWriter struct{}
-
-func (w *stallWriter) Write(p []byte) (int, error) {
-	time.Sleep(time.Second * 2)
-	return 10, nil
 }

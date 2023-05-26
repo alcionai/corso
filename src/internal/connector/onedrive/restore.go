@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -40,9 +39,6 @@ const (
 
 	// Maximum number of retries for upload failures
 	maxUploadRetries = 3
-
-	// Time interval to check for upload failures
-	stallCheckInterval = 5 * time.Minute
 )
 
 type restoreCaches struct {
@@ -715,65 +711,6 @@ func createRestoreFolders(
 	return parentFolderID, nil
 }
 
-func copyBufferWithStallCheck(dst io.Writer, src io.Reader, stallTimeout time.Duration) (int64, error) {
-	buffer := make([]byte, copyBufferSize)
-
-	timer := time.NewTimer(stallTimeout)
-	defer timer.Stop()
-
-	type ce struct {
-		complete bool
-		err      error
-	}
-
-	totalCopied := int64(0)
-	cont := make(chan ce)
-
-	for {
-		go func() {
-			n, rerr := src.Read(buffer)
-			if rerr != nil && rerr != io.EOF {
-				cont <- ce{err: clues.Wrap(rerr, "reading data")}
-				return
-			}
-
-			_, werr := dst.Write(buffer[:n])
-			if werr != nil && werr != io.EOF {
-				cont <- ce{err: clues.Wrap(werr, "writing data")}
-				return
-			}
-
-			totalCopied += int64(n)
-
-			if rerr == io.EOF {
-				// Copy completed successfully
-				cont <- ce{complete: true}
-				return
-			}
-
-			cont <- ce{complete: false}
-		}()
-
-		timer.Reset(stallTimeout)
-
-		select {
-		case <-timer.C:
-			return 0, clues.New("content buffer stream stalled")
-		case in := <-cont:
-			if in.err != nil {
-				return 0, in.err
-			}
-
-			if in.complete {
-				return totalCopied, nil
-			}
-
-			// Continue copying
-			continue
-		}
-	}
-}
-
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
@@ -846,7 +783,8 @@ func restoreData(
 		go closer()
 
 		// Upload the stream data
-		written, err = copyBufferWithStallCheck(w, progReader, stallCheckInterval)
+		buffer := make([]byte, copyBufferSize)
+		written, err = io.CopyBuffer(w, progReader, buffer)
 		if err == nil {
 			break
 		}
