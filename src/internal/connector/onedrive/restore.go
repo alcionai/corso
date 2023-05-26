@@ -269,6 +269,10 @@ func RestoreCollection(
 				defer wg.Done()
 				defer func() { <-semaphoreCh }()
 
+				// TODO(meain): Don't have to pass this in now that we create a
+				// separate copyBuffer for each restore
+				copyBuffer := make([]byte, copyBufferSize)
+
 				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
 				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
@@ -286,6 +290,7 @@ func RestoreCollection(
 					service,
 					drivePath,
 					restoreFolderID,
+					copyBuffer,
 					caches,
 					restorePerms,
 					itemData,
@@ -294,12 +299,7 @@ func RestoreCollection(
 				// skipped items don't get counted, but they can error
 				if !skipped {
 					atomic.AddInt64(&metricsObjects, 1)
-
-					if source == OneDriveSource {
-						atomic.AddInt64(&metricsBytes, itemInfo.OneDrive.Size)
-					} else {
-						atomic.AddInt64(&metricsBytes, itemInfo.SharePoint.Size)
-					}
+					atomic.AddInt64(&metricsBytes, int64(len(copyBuffer)))
 				}
 
 				if err != nil {
@@ -340,6 +340,7 @@ func restoreItem(
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolderID string,
+	copyBuffer []byte,
 	caches *restoreCaches,
 	restorePerms bool,
 	itemData data.Stream,
@@ -356,6 +357,7 @@ func restoreItem(
 			drivePath,
 			dc,
 			restoreFolderID,
+			copyBuffer,
 			itemData)
 		if err != nil {
 			return details.ItemInfo{}, false, clues.Wrap(err, "v0 restore")
@@ -406,6 +408,7 @@ func restoreItem(
 			drivePath,
 			dc,
 			restoreFolderID,
+			copyBuffer,
 			restorePerms,
 			caches,
 			itemPath,
@@ -427,6 +430,7 @@ func restoreItem(
 		drivePath,
 		dc,
 		restoreFolderID,
+		copyBuffer,
 		restorePerms,
 		caches,
 		itemPath,
@@ -445,6 +449,7 @@ func restoreV0File(
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
+	copyBuffer []byte,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
@@ -455,6 +460,7 @@ func restoreV0File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		copyBuffer,
 		source)
 	if err != nil {
 		return itemInfo, clues.Wrap(err, "restoring file")
@@ -475,6 +481,7 @@ func restoreV1File(
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
+	copyBuffer []byte,
 	restorePerms bool,
 	caches *restoreCaches,
 	itemPath path.Path,
@@ -490,6 +497,7 @@ func restoreV1File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		copyBuffer,
 		source)
 	if err != nil {
 		return details.ItemInfo{}, err
@@ -533,6 +541,7 @@ func restoreV6File(
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
+	copyBuffer []byte,
 	restorePerms bool,
 	caches *restoreCaches,
 	itemPath path.Path,
@@ -572,6 +581,7 @@ func restoreV6File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		copyBuffer,
 		source)
 	if err != nil {
 		return details.ItemInfo{}, err
@@ -719,6 +729,7 @@ func restoreData(
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
+	copyBuffer []byte,
 	source driveSource,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
@@ -783,8 +794,7 @@ func restoreData(
 		go closer()
 
 		// Upload the stream data
-		buffer := make([]byte, copyBufferSize)
-		written, err = io.CopyBuffer(w, progReader, buffer)
+		written, err = io.CopyBuffer(w, progReader, copyBuffer)
 		if err == nil {
 			break
 		}
