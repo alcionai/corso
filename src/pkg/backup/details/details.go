@@ -902,6 +902,7 @@ type SharePointInfo struct {
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
 	WebURL     string    `json:"webUrl,omitempty"`
+	SiteID     string    `json:"siteID,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo

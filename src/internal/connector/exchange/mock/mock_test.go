@@ -6,15 +6,14 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MockSuite struct {
@@ -78,7 +77,7 @@ func (suite *MockSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hyd
 		assert.NoError(t, err, clues.ToCore(err))
 
 		byteArray := buf.Bytes()
-		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
+		something, err := api.BytesToMessageable(byteArray)
 		assert.NoError(t, err, clues.ToCore(err))
 		assert.NotNil(t, something)
 	}
@@ -146,7 +145,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Message Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := MessageBytes(subject)
-				_, err := support.CreateMessageFromBytes(bytes)
+				_, err := api.BytesToMessageable(bytes)
 				return err
 			},
 		},
@@ -154,7 +153,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event Message Response: Regression",
 			transformation: func(t *testing.T) error {
 				bytes := EventMessageResponse(subject)
-				_, err := support.CreateMessageFromBytes(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
@@ -162,7 +161,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event Message Request: Regression",
 			transformation: func(t *testing.T) error {
 				bytes := EventMessageRequest(subject)
-				_, err := support.CreateMessageFromBytes(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
@@ -170,7 +169,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Contact Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := ContactBytes(subject)
-				_, err := support.CreateContactFromBytes(bytes)
+				_, err := api.BytesToContactable(bytes)
 				return err
 			},
 		},
@@ -178,7 +177,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "Event No Attendees Bytes",
 			transformation: func(t *testing.T) error {
 				bytes := EventBytes(subject)
-				_, err := support.CreateEventFromBytes(bytes)
+				_, err := api.BytesToEventable(bytes)
 				return err
 			},
 		},
