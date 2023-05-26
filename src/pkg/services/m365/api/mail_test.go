@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -153,6 +154,37 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
 			assert.Equal(suite.T(), expected, api.MailInfo(msg, 0))
+		})
+	}
+}
+
+func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
+	table := []struct {
+		name        string
+		byteArray   []byte
+		checkError  assert.ErrorAssertionFunc
+		checkObject assert.ValueAssertionFunc
+	}{
+		{
+			name:        "Empty Bytes",
+			byteArray:   make([]byte, 0),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
+		},
+		{
+			name:        "aMessage bytes",
+			byteArray:   exchMock.MessageBytes("m365 mail support test"),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := api.BytesToMessageable(test.byteArray)
+			test.checkError(t, err, clues.ToCore(err))
+			test.checkObject(t, result)
 		})
 	}
 }

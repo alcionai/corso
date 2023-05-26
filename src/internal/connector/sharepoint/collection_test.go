@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/connector/sharepoint/mock"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -131,7 +130,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, itemName string) *Item {
 				byteArray := spMock.Page(itemName)
-				page, err := support.CreatePageFromBytes(byteArray)
+				page, err := api.CreatePageFromBytes(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
 				data := &Item{
