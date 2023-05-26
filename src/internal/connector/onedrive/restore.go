@@ -734,11 +734,13 @@ func copyBufferWithStallCheck(dst io.Writer, src io.Reader, stallTimeout time.Du
 			n, rerr := src.Read(buffer)
 			if rerr != nil && rerr != io.EOF {
 				cont <- ce{err: clues.Wrap(rerr, "reading data")}
+				return
 			}
 
 			_, werr := dst.Write(buffer[:n])
 			if werr != nil && werr != io.EOF {
 				cont <- ce{err: clues.Wrap(werr, "writing data")}
+				return
 			}
 
 			totalCopied += int64(n)
@@ -746,6 +748,7 @@ func copyBufferWithStallCheck(dst io.Writer, src io.Reader, stallTimeout time.Du
 			if rerr == io.EOF {
 				// Copy completed successfully
 				cont <- ce{complete: true}
+				return
 			}
 
 			cont <- ce{complete: false}
