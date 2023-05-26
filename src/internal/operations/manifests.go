@@ -19,16 +19,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type manifestFetcher interface {
-	FetchPrevSnapshotManifests(
-		ctx context.Context,
-		reasons []kopia.Reason,
-		tags map[string]string,
-	) ([]*kopia.ManifestEntry, error)
-}
-
 type manifestRestorer interface {
-	manifestFetcher
+	inject.BaseFinder
 	inject.RestoreProducer
 }
 
@@ -54,7 +46,7 @@ func produceManifestsAndMetadata(
 		collections   []data.RestoreCollection
 	)
 
-	ms, err := mr.FetchPrevSnapshotManifests(ctx, reasons, tags)
+	ms, err := mr.FindBases(ctx, reasons, tags)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots")
 	}
@@ -70,7 +62,7 @@ func produceManifestsAndMetadata(
 		return ms, nil, false, nil
 	}
 
-	fbms, err := mr.FetchPrevSnapshotManifests(ctx, fallbackReasons, tags)
+	fbms, err := mr.FindBases(ctx, fallbackReasons, tags)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots under alternate id")
 	}

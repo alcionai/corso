@@ -270,9 +270,24 @@ func (op *BackupOperation) do(
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
 
+	kbf, err := op.kopia.NewBaseFinder(op.store)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	type baseFinder struct {
+		kinject.BaseFinder
+		kinject.RestoreProducer
+	}
+
+	bf := baseFinder{
+		BaseFinder:      kbf,
+		RestoreProducer: op.kopia,
+	}
+
 	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(
 		ctx,
-		op.kopia,
+		bf,
 		op.store,
 		reasons, fallbackReasons,
 		op.account.ID(),

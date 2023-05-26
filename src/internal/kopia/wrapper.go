@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -612,6 +613,10 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 	}
 
 	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
+}
+
+func (w Wrapper) NewBaseFinder(bg inject.GetBackuper) (*baseFinder, error) {
+	return newBaseFinder(w.c, bg)
 }
 
 func isErrEntryNotFound(err error) bool {

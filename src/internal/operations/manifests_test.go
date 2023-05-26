@@ -31,7 +31,7 @@ type mockManifestRestorer struct {
 	mrErr error // err varname already claimed by mockRestoreProducer
 }
 
-func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
+func (mmr mockManifestRestorer) FindBases(
 	ctx context.Context,
 	reasons []kopia.Reason,
 	tags map[string]string,
