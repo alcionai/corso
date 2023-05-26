@@ -505,52 +505,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				item)
 
 			if err != nil {
-				// Get a fresh copy of item from graph and check if it's deleted
-				di, e := oc.itemGetter(
-					ctx,
-					oc.service,
-					oc.driveID,
-					ptr.Val(item.GetId()))
-
-				// Item is deleted if either of below conditions are true
-				// 1. Graph returns 404 not found
-				// 2. Item is not nil and has deleted property set
-				// Mark item as skipped and return
-				if clues.HasLabel(e, graph.LabelStatus(http.StatusNotFound)) ||
-					graph.IsErrDeletedInFlight(e) ||
-					(e == nil && di.GetDeleted() != nil) {
-					logger.CtxErr(ctx, err).
-						With("skipped_reason", fault.SkipNotFound).
-						Info("item not found")
-
-					skip := fault.ContainerSkip(
-						fault.SkipNotFound,
-						oc.driveID,
-						itemID,
-						itemName,
-						graph.ItemInfo(item))
-
-					if isFile {
-						skip = fault.FileSkip(
-							fault.SkipNotFound,
-							oc.driveID,
-							itemID,
-							itemName,
-							graph.ItemInfo(item))
-					}
-
-					el.AddSkip(skip)
-
-					return
+				if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+					logger.CtxErr(ctx, err).Info("item not found")
+				} else {
+					el.AddRecoverable(
+						clues.Wrap(err, "getting item metadata").
+							Label(fault.LabelForceNoBackupCreation))
 				}
-
-				if e != nil {
-					logger.CtxErr(ctx, e).Error("getting item")
-				}
-
-				el.AddRecoverable(
-					clues.Wrap(err, "getting item metadata").
-						Label(fault.LabelForceNoBackupCreation))
 
 				return
 			}

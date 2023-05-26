@@ -833,157 +833,75 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
+func (suite *CollectionUnitTestSuite) TestGetPermissionFailures() {
 	fp := "drive/driveID1/root:/"
+	item := driveItem(
+		"file_id",
+		"file_name",
+		fp,
+		"root",
+		true,
+		false,
+		false)
 
 	table := []struct {
 		name           string
-		skipCount      int
 		recoveredCount int
 		item           models.DriveItemable
-		itemGetter     itemGetterFunc
+		itemMetaReader itemMetaReaderFunc
 	}{
-		// 1. Return a non-deleted item through itemGetter. Expect recoverable error.
 		{
 			name:           "file present",
-			skipCount:      0,
 			recoveredCount: 1,
-			item: driveItem(
-				"file_id",
-				"file_name",
-				fp,
-				"root",
-				true,
-				false,
-				false),
-			itemGetter: func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
-			) (models.DriveItemable, error) {
-				return driveItem(
-						"file_id",
-						"file_name",
-						fp,
-						"root",
-						true,
-						false,
-						false),
-					nil
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{}`)), 16, nil
 			},
 		},
 
-		// 2. Return a deleted item from itemGetter. Expect skippable error since
-		// the item is no longer present.
+		// 2. Return 404 from itemMetaReader
 		{
-			name:           "file deleted",
-			skipCount:      1,
+			name:           "get permissions 404",
 			recoveredCount: 0,
-			item: driveItem(
-				"file_id",
-				"file_name",
-				fp,
-				"root",
-				true,
-				false,
-				false),
-			itemGetter: func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
-			) (models.DriveItemable, error) {
-				return delItem(
-						"file_id",
-						fp,
-						"root",
-						true,
-						false,
-						false),
-					nil
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{}`)), 16, odErr(string(graph.ItemNotFound))
 			},
 		},
 
-		// 3. Return graph 404 from
-		// itemGetter. Expect skippable error since the item is no longer present.
+		// 3. Return misc err from itemMetaReader
 		{
-			name:           "file deleted, graph 404",
-			skipCount:      1,
+			name:           "get permissions misc err",
 			recoveredCount: 0,
-			item: driveItem(
-				"file_id",
-				"file_name",
-				fp,
-				"root",
-				true,
-				false,
-				false),
-			itemGetter: func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
-			) (models.DriveItemable, error) {
-				return nil, odErr(string(graph.ItemNotFound))
-			},
-		},
-
-		// 4. Return graph 404 label from
-		// itemGetter. Expect skippable error since the item is no longer present.
-		{
-			name:           "file deleted, graph 404 label",
-			skipCount:      1,
-			recoveredCount: 0,
-			item: driveItem(
-				"file_id",
-				"file_name",
-				fp,
-				"root",
-				true,
-				false,
-				false),
-			itemGetter: func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
-			) (models.DriveItemable, error) {
-				return nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
-			},
-		},
-
-		// 5. Folder test. Simulate itemMetaReader failure. Return graph 404 label from
-		// itemGetter. Expect skippable error since the item is no longer present.
-		{
-			name:           "folder deleted, graph 404 label",
-			skipCount:      1,
-			recoveredCount: 0,
-			item: driveItem(
-				"file_id",
-				"file_name",
-				fp,
-				"root",
-				false,
-				true,
-				false),
-			itemGetter: func(
-				ctx context.Context,
-				srv graph.Servicer,
-				driveID, itemID string,
-			) (models.DriveItemable, error) {
-				return nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
+			itemMetaReader: func(
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{}`)), 16, clues.New("misc err")
 			},
 		},
 	}
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			var (
 				t          = suite.T()
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
 				errs       = fault.New(true)
 			)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			wg.Add(1)
 
@@ -1020,19 +938,15 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 					nil
 			}
 
-			// Simulate 404 from itemMetaReader
-			coll.itemMetaReader = func(
-				context.Context,
-				graph.Servicer,
-				string,
-				models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				return io.NopCloser(strings.NewReader(`{}`)),
-					16,
-					clues.New("item not found")
-			}
+			coll.itemMetaReader = test.itemMetaReader
 
-			coll.itemGetter = test.itemGetter
+			coll.itemGetter = func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return item, nil
+			}
 
 			readItems := []data.Stream{}
 			for item := range coll.Items(ctx, errs) {
@@ -1042,7 +956,6 @@ func (suite *CollectionUnitTestSuite) TestFileDeletedDuringGetPermissions() {
 			wg.Wait()
 
 			require.Zero(t, len(readItems), "read items")
-			require.Equal(t, test.skipCount, len(errs.Skipped()), "skipped items")
 			require.Equal(t, test.recoveredCount, len(errs.Recovered()), "recovered items")
 		})
 	}
