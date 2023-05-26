@@ -847,7 +847,6 @@ func (suite *CollectionUnitTestSuite) TestGetPermissionFailures() {
 	table := []struct {
 		name           string
 		recoveredCount int
-		item           models.DriveItemable
 		itemMetaReader itemMetaReaderFunc
 	}{
 		{
@@ -921,7 +920,7 @@ func (suite *CollectionUnitTestSuite) TestGetPermissionFailures() {
 				true)
 			require.NoError(t, err, clues.ToCore(err))
 
-			coll.Add(test.item)
+			coll.Add(item)
 
 			coll.itemReader = func(
 				context.Context,
