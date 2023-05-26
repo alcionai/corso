@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	betamodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	betasites "github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -190,7 +189,7 @@ func RestoreSitePage(
 	}
 
 	// Hydrate Page
-	page, err := support.CreatePageFromBytes(byteArray)
+	page, err := CreatePageFromBytes(byteArray)
 	if err != nil {
 		return dii, clues.Wrap(err, "creating Page object").WithClues(ctx)
 	}

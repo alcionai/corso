@@ -160,7 +160,7 @@ func restoreListItem(
 		return dii, clues.Wrap(err, "reading backup data").WithClues(ctx)
 	}
 
-	oldList, err := support.CreateListFromBytes(byteArray)
+	oldList, err := betaAPI.CreateListFromBytes(byteArray)
 	if err != nil {
 		return dii, clues.Wrap(err, "creating item").WithClues(ctx)
 	}
@@ -171,12 +171,12 @@ func restoreListItem(
 
 	var (
 		newName  = fmt.Sprintf("%s_%s", destName, listName)
-		newList  = support.ToListable(oldList, newName)
+		newList  = betaAPI.ToListable(oldList, newName)
 		contents = make([]models.ListItemable, 0)
 	)
 
 	for _, itm := range oldList.GetItems() {
-		temp := support.CloneListItem(itm)
+		temp := betaAPI.CloneListItem(itm)
 		contents = append(contents, temp)
 	}
 
