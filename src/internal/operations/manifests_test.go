@@ -49,10 +49,6 @@ func (mmr mockManifestRestorer) FindBases(
 		}
 	}
 
-	if len(mans) == 0 && len(reasons) == 0 {
-		return mmr.mans, mmr.mrErr
-	}
-
 	return maps.Values(mans), mmr.mrErr
 }
 
@@ -456,7 +452,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		name          string
 		mr            mockManifestRestorer
 		gb            mockGetBackuper
-		reasons       []kopia.Reason
 		getMeta       bool
 		assertErr     assert.ErrorAssertionFunc
 		assertB       assert.BoolAssertionFunc
@@ -470,7 +465,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans:                []kopia.ManifestEntry{},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
@@ -483,7 +477,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans:                []kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "", "")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
@@ -496,7 +489,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans:                []kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "ir", "")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
@@ -509,7 +501,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mrErr:               assert.AnError,
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.Error,
 			assertB:   assert.False,
@@ -525,7 +516,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError, // No error, even though verify failed.
 			assertB:   assert.False,
@@ -538,7 +528,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans:                []kopia.ManifestEntry{},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
@@ -554,7 +543,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
@@ -571,7 +559,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans: []kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
 			gb:            mockGetBackuper{detailsID: did},
-			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
 			assertB:       assert.False,
@@ -584,7 +571,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans:                []kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "", "bid")},
 			},
 			gb:        mockGetBackuper{},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
@@ -604,7 +590,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
@@ -621,7 +606,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans: []kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
@@ -642,7 +626,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
@@ -658,7 +641,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mans:                []kopia.ManifestEntry{makeMan(path.EmailCategory, "id1", "", "bid")},
 			},
 			gb:            mockGetBackuper{detailsID: did},
-			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
 			assertB:       assert.False,
@@ -677,7 +659,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				ctx,
 				&test.mr,
 				&test.gb,
-				test.reasons, nil,
+				[]kopia.Reason{{ResourceOwner: ro}}, nil,
 				tid,
 				test.getMeta)
 			test.assertErr(t, err, clues.ToCore(err))
