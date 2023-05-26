@@ -325,10 +325,11 @@ func TestBaseFinderUnitSuite(t *testing.T) {
 }
 
 func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	bf := baseFinder{
 		sm: mockEmptySnapshotManager{},
 		bg: mockEmptyModelGetter{},
@@ -348,10 +349,11 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 }
 
 func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	bf := baseFinder{
 		sm: &mockSnapshotManager2{findErr: assert.AnError},
 		bg: mockEmptyModelGetter{},
@@ -815,7 +817,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			bf := baseFinder{
@@ -910,7 +912,7 @@ func (suite *BaseFinderUnitSuite) TestFetchPrevSnapshots_CustomTags() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			bf := baseFinder{
