@@ -45,7 +45,7 @@ func mustGetDefaultDriveID(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	ac api.Client,
-	backupService path.ServiceType,
+	service path.ServiceType,
 	resourceOwner string,
 ) string {
 	var (
@@ -53,13 +53,13 @@ func mustGetDefaultDriveID(
 		d   models.Driveable
 	)
 
-	switch backupService {
+	switch service {
 	case path.OneDriveService:
 		d, err = ac.Users().GetDefaultDrive(ctx, resourceOwner)
 	case path.SharePointService:
-		d, err = ac.Users().GetDefaultDrive(ctx, resourceOwner)
+		d, err = ac.Sites().GetDefaultDrive(ctx, resourceOwner)
 	default:
-		assert.FailNowf(t, "unknown service type %s", backupService.String())
+		assert.FailNowf(t, "unknown service type %s", service.String())
 	}
 
 	if err != nil {
@@ -76,7 +76,6 @@ func mustGetDefaultDriveID(
 
 type suiteInfo interface {
 	APIClient() api.Client
-	Service() graph.Servicer
 	Account() account.Account
 	Tenant() string
 	// Returns (username, user ID) for the user. These values are used for
@@ -84,11 +83,11 @@ type suiteInfo interface {
 	PrimaryUser() (string, string)
 	SecondaryUser() (string, string)
 	TertiaryUser() (string, string)
-	// BackupResourceOwner returns the resource owner to run the backup/restore
+	// ResourceOwner returns the resource owner to run the backup/restore
 	// with. This can be different from the values used for permissions and it can
 	// also be a site.
-	BackupResourceOwner() string
-	BackupService() path.ServiceType
+	ResourceOwner() string
+	Service() path.ServiceType
 	Resource() Resource
 }
 
@@ -98,26 +97,48 @@ type oneDriveSuite interface {
 }
 
 type suiteInfoImpl struct {
+	ac              api.Client
+	acct            account.Account
 	connector       *GraphConnector
 	resourceOwner   string
-	user            string
-	userID          string
+	resourceType    Resource
 	secondaryUser   string
 	secondaryUserID string
+	service         path.ServiceType
 	tertiaryUser    string
 	tertiaryUserID  string
-	acct            account.Account
-	ac              api.Client
-	service         path.ServiceType
-	resourceType    Resource
+	user            string
+	userID          string
+}
+
+func NewSuiteInfoImpl(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	resourceOwner string,
+	service path.ServiceType,
+) suiteInfoImpl {
+	resource := Users
+	if service == path.SharePointService {
+		resource = Sites
+	}
+
+	gc := loadConnector(ctx, t, resource)
+
+	return suiteInfoImpl{
+		ac:            gc.Discovery,
+		acct:          tester.NewM365Account(t),
+		connector:     gc,
+		resourceOwner: resourceOwner,
+		resourceType:  resource,
+		secondaryUser: tester.SecondaryM365UserID(t),
+		service:       service,
+		tertiaryUser:  tester.TertiaryM365UserID(t),
+		user:          tester.M365UserID(t),
+	}
 }
 
 func (si suiteInfoImpl) APIClient() api.Client {
 	return si.ac
-}
-
-func (si suiteInfoImpl) Service() graph.Servicer {
-	return si.connector.Service
 }
 
 func (si suiteInfoImpl) Account() account.Account {
@@ -140,11 +161,11 @@ func (si suiteInfoImpl) TertiaryUser() (string, string) {
 	return si.tertiaryUser, si.tertiaryUserID
 }
 
-func (si suiteInfoImpl) BackupResourceOwner() string {
+func (si suiteInfoImpl) ResourceOwner() string {
 	return si.resourceOwner
 }
 
-func (si suiteInfoImpl) BackupService() path.ServiceType {
+func (si suiteInfoImpl) Service() path.ServiceType {
 	return si.service
 }
 
@@ -179,18 +200,9 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, suite.T(), Sites),
-		user:          tester.M365UserID(suite.T()),
-		secondaryUser: tester.SecondaryM365UserID(suite.T()),
-		tertiaryUser:  tester.TertiaryM365UserID(suite.T()),
-		acct:          tester.NewM365Account(suite.T()),
-		service:       path.SharePointService,
-		resourceType:  Sites,
-	}
+	si := NewSuiteInfoImpl(suite.T(), ctx, tester.M365SiteID(suite.T()), path.SharePointService)
 
-	si.resourceOwner = tester.M365SiteID(suite.T())
-
+	// users needed for permissions
 	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
@@ -250,16 +262,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, t, Users),
-		user:          tester.M365UserID(t),
-		secondaryUser: tester.SecondaryM365UserID(t),
-		acct:          tester.NewM365Account(t),
-		service:       path.OneDriveService,
-		resourceType:  Users,
-	}
-
-	si.resourceOwner = si.user
+	si := NewSuiteInfoImpl(t, ctx, tester.M365UserID(t), path.OneDriveService)
 
 	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
@@ -316,16 +319,7 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	si := suiteInfoImpl{
-		connector:     loadConnector(ctx, t, Users),
-		user:          tester.M365UserID(t),
-		secondaryUser: tester.SecondaryM365UserID(t),
-		acct:          tester.NewM365Account(t),
-		service:       path.OneDriveService,
-		resourceType:  Users,
-	}
-
-	si.resourceOwner = si.user
+	si := NewSuiteInfoImpl(t, ctx, tester.M365UserID(t), path.OneDriveService)
 
 	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
@@ -374,8 +368,8 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		t,
 		ctx,
 		suite.APIClient(),
-		suite.BackupService(),
-		suite.BackupResourceOwner())
+		suite.Service(),
+		suite.ResourceOwner())
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -476,17 +470,17 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 	}
 
-	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.BackupService(),
+				service:             suite.Service(),
 				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
@@ -498,7 +492,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{suite.BackupResourceOwner()},
+				[]string{suite.ResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
@@ -520,8 +514,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		t,
 		ctx,
 		suite.APIClient(),
-		suite.BackupService(),
-		suite.BackupResourceOwner())
+		suite.Service(),
+		suite.ResourceOwner())
 
 	fileName2 := "test-file2.txt"
 	folderCName := "folder-c"
@@ -689,9 +683,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.BackupService().String()
+	bss := suite.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -699,11 +693,11 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.BackupService(),
+				service:             suite.Service(),
 				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
@@ -715,7 +709,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{suite.BackupResourceOwner()},
+				[]string{suite.ResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
@@ -737,8 +731,8 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		t,
 		ctx,
 		suite.APIClient(),
-		suite.BackupService(),
-		suite.BackupResourceOwner())
+		suite.Service(),
+		suite.ResourceOwner())
 
 	inputCols := []OnedriveColInfo{
 		{
@@ -778,18 +772,18 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected, err := DataForInfo(suite.BackupService(), expectedCols, version.Backup)
+	expected, err := DataForInfo(suite.Service(), expectedCols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.BackupService().String()
+	bss := suite.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := DataForInfo(suite.BackupService(), inputCols, vn)
+			input, err := DataForInfo(suite.Service(), inputCols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.BackupService(),
+				service:             suite.Service(),
 				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
@@ -801,7 +795,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{suite.BackupResourceOwner()},
+				[]string{suite.ResourceOwner()},
 				control.Options{
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{},
@@ -826,8 +820,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		t,
 		ctx,
 		suite.APIClient(),
-		suite.BackupService(),
-		suite.BackupResourceOwner())
+		suite.Service(),
+		suite.ResourceOwner())
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -959,9 +953,9 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 	}
 
-	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.BackupService().String()
+	bss := suite.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -969,11 +963,11 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.BackupService(),
+				service:             suite.Service(),
 				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
@@ -985,7 +979,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{suite.BackupResourceOwner()},
+				[]string{suite.ResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
@@ -1008,8 +1002,8 @@ func testRestoreFolderNamedFolderRegression(
 		suite.T(),
 		ctx,
 		suite.APIClient(),
-		suite.BackupService(),
-		suite.BackupResourceOwner())
+		suite.Service(),
+		suite.ResourceOwner())
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -1078,18 +1072,18 @@ func testRestoreFolderNamedFolderRegression(
 		},
 	}
 
-	expected, err := DataForInfo(suite.BackupService(), cols, version.Backup)
+	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.BackupService().String()
+	bss := suite.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := DataForInfo(suite.BackupService(), cols, vn)
+			input, err := DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.BackupService(),
+				service:             suite.Service(),
 				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
@@ -1101,7 +1095,7 @@ func testRestoreFolderNamedFolderRegression(
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{suite.BackupResourceOwner()},
+				[]string{suite.ResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},

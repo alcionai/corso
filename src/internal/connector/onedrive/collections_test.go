@@ -2272,10 +2272,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 			}
 
-			mbh := &mock.BackupHandler{
-				DrivePagerV: mockDrivePager,
-				ItemPagerV:  itemPagers,
-			}
+			mbh := mock.DefaultOneDriveBH()
+			mbh.DrivePagerV = mockDrivePager
+			mbh.ItemPagerV = itemPagers
 
 			c := NewCollections(
 				mbh,

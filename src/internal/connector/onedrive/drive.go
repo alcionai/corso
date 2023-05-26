@@ -15,14 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-const (
-	maxDrivesRetries = 3
-
-	// nextLinkKey is used to find the next link in a paged
-	// graph response
-	nextLinkKey           = "@odata.nextLink"
-	itemNotFoundErrorCode = "itemNotFound"
-)
+const maxDrivesRetries = 3
 
 // DeltaUpdate holds the results of a current delta token.  It normally
 // gets produced when aggregating the addition and removal of items in

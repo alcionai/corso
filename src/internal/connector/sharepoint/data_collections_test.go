@@ -11,9 +11,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -22,9 +24,10 @@ import (
 // consts
 // ---------------------------------------------------------------------------
 
-const (
-	testBaseDrivePath = "drives/driveID1/root:"
-)
+var testBaseDrivePath = path.Builder{}.Append(
+	odConsts.DrivesPathDir,
+	"driveID1",
+	odConsts.RootPathDir)
 
 type testFolderMatcher struct {
 	scope selectors.SharePointScope
@@ -34,8 +37,8 @@ func (fm testFolderMatcher) IsAny() bool {
 	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
 }
 
-func (fm testFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.SharePointLibraryFolder, path)
+func (fm testFolderMatcher) Matches(p string) bool {
+	return fm.scope.Matches(selectors.SharePointLibraryFolder, p)
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +62,10 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 		driveID  = "driveID1"
 	)
 
+	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
+	ep, err := libraryBackupHandler{}.CanonicalPath(pb, tenantID, site)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
 	tests := []struct {
 		testCase                string
 		items                   []models.DriveItemable
@@ -73,21 +80,16 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 		{
 			testCase: "Single File",
 			items: []models.DriveItemable{
-				driveRootItem("root"),
-				driveItem("file", testBaseDrivePath, "root", true),
+				driveRootItem(odConsts.RootID),
+				driveItem("file", testBaseDrivePath.String(), odConsts.RootID, true),
 			},
-			scope:                 anyFolder,
-			expect:                assert.NoError,
-			expectedCollectionIDs: []string{"root"},
-			expectedCollectionPaths: expectedPathAsSlice(
-				suite.T(),
-				libraryBackupHandler{},
-				tenantID,
-				site,
-				testBaseDrivePath),
-			expectedItemCount:      1,
-			expectedFileCount:      1,
-			expectedContainerCount: 1,
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionIDs:   []string{odConsts.RootID},
+			expectedCollectionPaths: []string{ep.String()},
+			expectedItemCount:       1,
+			expectedFileCount:       1,
+			expectedContainerCount:  1,
 		},
 	}
 
