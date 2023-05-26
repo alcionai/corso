@@ -453,7 +453,7 @@ func consumeBackupCollections(
 	bc kinject.BackupConsumer,
 	tenantID string,
 	reasons []kopia.Reason,
-	mans []*kopia.ManifestEntry,
+	mans []kopia.ManifestEntry,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
@@ -638,7 +638,7 @@ func getNewPathRefs(
 func lastCompleteBackups(
 	ctx context.Context,
 	ms *store.Wrapper,
-	mans []*kopia.ManifestEntry,
+	mans []kopia.ManifestEntry,
 ) (map[string]*backup.Backup, int, error) {
 	var (
 		oldestVersion = version.NoBackup
@@ -689,7 +689,7 @@ func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
 	detailsStore streamstore.Streamer,
-	mans []*kopia.ManifestEntry,
+	mans []kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	errs *fault.Bus,
