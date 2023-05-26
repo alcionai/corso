@@ -261,6 +261,7 @@ func RestoreCollection(
 
 		case itemData, ok := <-items:
 			if !ok {
+				// We've processed all items in this collection, exit the loop
 				complete = true
 				break
 			}
@@ -754,7 +755,7 @@ func copyBufferWithStallCheck(dst io.Writer, src io.Reader, stallTimeout time.Du
 
 		select {
 		case <-timer.C:
-			return 0, clues.New("copy stalled")
+			return 0, clues.New("content buffer stream stalled")
 		case in := <-cont:
 			if in.err != nil {
 				return 0, in.err

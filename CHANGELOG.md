@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added ProtectedResourceName to the backup list json output.  ProtectedResourceName holds either a UPN or a WebURL, depending on the resource type.
-- Improve OneDrive restore performance
+- Improve OneDrive restore performance by paralleling item restores
 
 ### Fixed
 - Fix Exchange folder cache population error when parent folder isn't found.
