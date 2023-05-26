@@ -68,12 +68,10 @@ func DataCollections(
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
 		nc := NewCollections(
-			ac.Drives(),
-			itemClient,
+			&itemBackupHandler{ac.Drives()},
 			tenant,
 			user.ID(),
 			odFolderMatcher{scope},
-			service,
 			su,
 			ctrlOpts)
 

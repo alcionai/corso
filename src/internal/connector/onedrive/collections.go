@@ -71,16 +71,15 @@ type Collections struct {
 }
 
 func NewCollections(
-	ad api.Drives,
-	itemClient graph.Requester,
+	bh BackupHandler,
 	tenantID string,
 	resourceOwner string,
 	matcher folderMatcher,
-	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
+		handler:       bh,
 		tenantID:      tenantID,
 		resourceOwner: resourceOwner,
 		matcher:       matcher,

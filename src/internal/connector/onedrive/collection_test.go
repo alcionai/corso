@@ -29,7 +29,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -132,7 +131,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		name         string
 		numInstances int
 		service      path.ServiceType
-		itemReader   itemReaderFunc
+		itemInfo     details.ItemInfo
+		getBody      io.ReadCloser
+		getErr       error
 		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 		expectErr    require.ErrorAssertionFunc
@@ -143,11 +144,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
-					io.NopCloser(bytes.NewReader(testItemData)),
-					nil
-			},
+			itemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
+			getBody:      io.NopCloser(bytes.NewReader(testItemData)),
+			getErr:       nil,
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
@@ -159,11 +158,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
-					io.NopCloser(bytes.NewReader(testItemData)),
-					nil
-			},
+			getBody:      io.NopCloser(bytes.NewReader(testItemData)),
+			getErr:       nil,
+			itemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
@@ -175,9 +172,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, clues.New("test malware").Label(graph.LabelsMalware)
-			},
+			itemInfo:     details.ItemInfo{},
+			getBody:      nil,
+			getErr:       clues.New("test malware").Label(graph.LabelsMalware),
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
@@ -190,10 +187,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			service:      path.OneDriveService,
 			itemDeets:    nst{testItemName, 42, now},
-			// Usually `Not Found` is returned from itemGetter and not itemReader
-			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
-			},
+			itemInfo:     details.ItemInfo{},
+			getBody:      nil,
+			getErr:       clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound)),
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
@@ -206,11 +202,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			service:      path.SharePointService,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
-					io.NopCloser(bytes.NewReader(testItemData)),
-					nil
-			},
+			itemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
+			getBody:      io.NopCloser(bytes.NewReader(testItemData)),
+			getErr:       nil,
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
 				require.NotNil(t, dii.SharePoint)
 				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
@@ -222,11 +216,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			service:      path.SharePointService,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
-					io.NopCloser(bytes.NewReader(testItemData)),
-					nil
-			},
+			itemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
+			getBody:      io.NopCloser(bytes.NewReader(testItemData)),
+			getErr:       nil,
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
 				require.NotNil(t, dii.SharePoint)
 				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
@@ -248,20 +240,27 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			)
 
 			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/dir1/dir2/dir3")...)
-			folderPath, err := test.bh.CanonicalPath(pb, "tenant", "owner")
+
+			folderPath, err := pb.ToDataLayerOneDrivePath("tenant", "owner", false)
 			require.NoError(t, err, clues.ToCore(err))
+
 			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
 			require.NoError(t, err, clues.ToCore(err))
 
+			mbh := &mock.BackupHandler{
+				ItemInfo: details.ItemInfo{},
+				GetResps: []*http.Response{{Body: test.getBody}},
+				GetErrs:  []error{test.getErr},
+				GI:       mock.GetsItem{Err: assert.AnError},
+				GIP:      mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()},
+			}
+
 			coll, err := NewCollection(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
+				mbh,
 				folderPath,
 				nil,
 				"drive-id",
-				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
@@ -280,21 +279,6 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			for i := 0; i < test.numInstances; i++ {
 				coll.Add(mockItem)
-			}
-
-			coll.itemReader = test.itemReader
-			coll.itemMetaReader = func(
-				_ context.Context,
-				_ api.Drives,
-				_ string,
-				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				metaJSON, err := json.Marshal(testItemMeta)
-				if err != nil {
-					return nil, 0, err
-				}
-
-				return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 			}
 
 			// Read items from the collection
@@ -713,7 +697,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "expired url redownloads",
-			mgi:       mock.GetsItem{itemWID, nil},
+			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -733,13 +717,13 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil},
 			getErr:    []error{errUnauth},
-			mgi:       mock.GetsItem{nil, assert.AnError},
+			mgi:       mock.GetsItem{Item: nil, Err: assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
 		},
 		{
 			name:      "expired url fails redownload",
-			mgi:       mock.GetsItem{itemWID, nil},
+			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, assert.AnError},
