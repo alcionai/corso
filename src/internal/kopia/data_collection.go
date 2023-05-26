@@ -20,25 +20,10 @@ var (
 
 type kopiaDataCollection struct {
 	path            path.Path
-	streams         []data.Stream
 	dir             fs.Directory
 	items           []string
 	counter         ByteCounter
 	expectedVersion uint32
-}
-
-func (kdc *kopiaDataCollection) addStream(
-	ctx context.Context,
-	name string,
-) error {
-	s, err := kdc.Fetch(ctx, name)
-	if err != nil {
-		return err
-	}
-
-	kdc.streams = append(kdc.streams, s)
-
-	return nil
 }
 
 func (kdc *kopiaDataCollection) Items(
