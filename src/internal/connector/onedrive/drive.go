@@ -88,6 +88,11 @@ type itemCollector func(
 	errs *fault.Bus,
 ) error
 
+type driveItemPagerFunc func(
+	servicer graph.Servicer,
+	driveID, link string,
+) itemPager
+
 type itemPager interface {
 	GetPage(context.Context) (api.DeltaPageLinker, error)
 	SetNext(nextLink string)
