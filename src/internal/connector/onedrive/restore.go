@@ -246,6 +246,15 @@ func RestoreCollection(
 		}
 	}
 
+	// Buffer pool for uploads
+	// TODO: Should we move this up to RestoreCollections?
+	pool := sync.Pool{
+		New: func() interface{} {
+			b := make([]byte, copyBufferSize)
+			return &b
+		},
+	}
+
 	for {
 		if el.Failure() != nil || complete {
 			break
@@ -269,9 +278,10 @@ func RestoreCollection(
 				defer wg.Done()
 				defer func() { <-semaphoreCh }()
 
-				// TODO(meain): Don't have to pass this in now that we create a
-				// separate copyBuffer for each restore
-				copyBuffer := make([]byte, copyBufferSize)
+				copyBufferPtr := pool.Get().(*[]byte)
+				defer pool.Put(copyBufferPtr)
+
+				copyBuffer := *copyBufferPtr
 
 				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
