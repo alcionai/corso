@@ -96,10 +96,7 @@ type Collections struct {
 		resourceOwner string,
 		fields []string,
 	) (api.DrivePager, error)
-	itemPagerFunc func(
-		servicer graph.Servicer,
-		driveID, link string,
-	) itemPager
+	itemPagerFunc      driveItemPagerFunc
 	servicePathPfxFunc pathPrefixerFunc
 
 	// Track stats from drive enumeration. Represents the items backed up.
