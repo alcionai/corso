@@ -51,7 +51,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	}()
 
 	from := make([]byte, 100)
-	prog, closer := ItemProgress(
+	prog, closer, _ := ItemProgress(
 		ctx,
 		io.NopCloser(bytes.NewReader(from)),
 		"folder",

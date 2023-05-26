@@ -832,7 +832,7 @@ func restoreData(
 			iReader = itemData.ToReader()
 		}
 
-		progReader, closer := observe.ItemProgress(
+		progReader, closer, abort := observe.ItemProgress(
 			ctx,
 			iReader,
 			observe.ItemRestoreMsg,
@@ -846,6 +846,9 @@ func restoreData(
 		if err == nil {
 			break
 		}
+
+		// clear out the bar if err
+		abort()
 	}
 
 	if err != nil {

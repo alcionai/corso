@@ -535,7 +535,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					}
 
 					// display/log the item download
-					progReader, closer := observe.ItemProgress(
+					progReader, closer, _ := observe.ItemProgress(
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
@@ -554,7 +554,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				progReader, closer := observe.ItemProgress(
+				progReader, closer, _ := observe.ItemProgress(
 					ctx,
 					itemMeta,
 					observe.ItemBackupMsg,

@@ -239,7 +239,7 @@ func ItemProgress(
 	header string,
 	iname any,
 	totalBytes int64,
-) (io.ReadCloser, func()) {
+) (io.ReadCloser, func(), func()) {
 	plain := plainString(iname)
 	log := logger.Ctx(ctx).With(
 		"item", iname,
@@ -247,7 +247,7 @@ func ItemProgress(
 	log.Debug(header)
 
 	if cfg.hidden() || rc == nil || totalBytes == 0 {
-		return rc, func() { log.Debug("done - " + header) }
+		return rc, func() { log.Debug("done - " + header) }, func() {}
 	}
 
 	wg.Add(1)
@@ -271,7 +271,9 @@ func ItemProgress(
 		log.Debug("done - " + header)
 	})
 
-	return bar.ProxyReader(rc), wacb
+	abort := func() { bar.Abort(true) }
+
+	return bar.ProxyReader(rc), wacb, abort
 }
 
 // ProgressWithCount tracks the display of a bar that tracks the completion
