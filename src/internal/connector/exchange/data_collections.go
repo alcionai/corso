@@ -266,9 +266,13 @@ func createCollections(
 ) ([]data.BackupCollection, error) {
 	var (
 		allCollections = make([]data.BackupCollection, 0)
-		ac             = api.Client{Credentials: creds}
 		category       = scope.Category().PathType()
 	)
+
+	ac, err := api.NewClient(creds)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting api client").WithClues(ctx)
+	}
 
 	ctx = clues.Add(ctx, "category", category)
 

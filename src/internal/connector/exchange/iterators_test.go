@@ -10,8 +10,8 @@ import (
 
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ExchangeIteratorSuite struct {
@@ -25,7 +25,7 @@ func TestExchangeIteratorSuite(t *testing.T) {
 func (suite *ExchangeIteratorSuite) TestDisplayable() {
 	t := suite.T()
 	bytes := exchMock.ContactBytes("Displayable")
-	contact, err := support.CreateContactFromBytes(bytes)
+	contact, err := api.BytesToContactable(bytes)
 	require.NoError(t, err, clues.ToCore(err))
 
 	aDisplayable, ok := contact.(graph.Displayable)
@@ -37,7 +37,7 @@ func (suite *ExchangeIteratorSuite) TestDisplayable() {
 func (suite *ExchangeIteratorSuite) TestDescendable() {
 	t := suite.T()
 	bytes := exchMock.MessageBytes("Descendable")
-	message, err := support.CreateMessageFromBytes(bytes)
+	message, err := api.BytesToMessageable(bytes)
 	require.NoError(t, err, clues.ToCore(err))
 
 	aDescendable, ok := message.(graph.Descendable)
