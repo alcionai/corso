@@ -48,10 +48,7 @@ func (gc GraphConnector) IsBackupRunnable(
 	_ context.Context,
 	_ path.ServiceType,
 	_ string,
-) (
-	bool,
-	error,
-) {
+) (bool, error) {
 	return true, gc.Err
 }
 
