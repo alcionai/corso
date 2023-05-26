@@ -236,16 +236,14 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	return d2
 }
 
-// FilterMetaFiles returns a copy of the Details with all of the
-// .meta files removed from the entries.
-func (dm DetailsModel) NonMetaFileSizes() int64 {
+// SumNonMetaFileSizes returns the total size of items excluding all the
+// .meta files from the items.
+func (dm DetailsModel) SumNonMetaFileSizes() int64 {
 	var size int64
 
 	// Items will provide only files and filter out folders
-	for _, ent := range dm.Items() {
-		if !ent.isMetaFile() {
+	for _, ent := range dm.FilterMetaFiles().Items() {
 			size += ent.size()
-		}
 	}
 
 	return size

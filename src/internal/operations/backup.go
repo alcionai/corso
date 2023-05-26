@@ -688,7 +688,7 @@ func mergeDetails(
 		// getting the values in writeStats before anything else so that we don't get a return from
 		// conditions like no backup data.
 		writeStats.TotalFileCount = len(detailsModel.FilterMetaFiles().Items())
-		writeStats.TotalUploadedBytes = detailsModel.NonMetaFileSizes()
+		writeStats.TotalUploadedBytes = detailsModel.SumNonMetaFileSizes()
 	}
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
