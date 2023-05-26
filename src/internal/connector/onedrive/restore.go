@@ -759,10 +759,15 @@ func restoreData(
 		return "", details.ItemInfo{}, err
 	}
 
-	var (
-		w       io.Writer
-		written int64
-	)
+	itemID := ptr.Val(newItem.GetId())
+	ctx = clues.Add(ctx, "upload_item_id", itemID)
+
+	r, err := api.PostDriveItem(ctx, service, driveID, itemID)
+	if err != nil {
+		return "", details.ItemInfo{}, clues.Wrap(err, "get upload session")
+	}
+
+	var written int64
 
 	// This is just to retry file upload, the uploadSession creation is
 	// not retried here We need extra logic to retry file upload as we
@@ -771,11 +776,11 @@ func restoreData(
 	// show "register" any partial file uploads and so if we fail an
 	// upload the file size will be 0.
 	for i := 0; i <= maxUploadRetries; i++ {
-		// Get a drive item writer
-		w, err = driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
-		if err != nil {
-			return "", details.ItemInfo{}, err
-		}
+		// Initialize and return an io.Writer to upload data for the
+		// specified item It does so by creating an upload session and
+		// using that URL to initialize an `itemWriter`
+		// TODO: @vkamra verify if var session is the desired input
+		w := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), ss.Size())
 
 		pname := name
 		iReader := itemData.ToReader()
@@ -788,7 +793,7 @@ func restoreData(
 			// but we don't have a Seeker available here.
 			itemData, err := fetcher.Fetch(ctx, itemData.UUID())
 			if err != nil {
-				return "", details.ItemInfo{}, clues.Wrap(err, "getting data file")
+				return "", details.ItemInfo{}, clues.Wrap(err, "get data file")
 			}
 
 			iReader = itemData.ToReader()

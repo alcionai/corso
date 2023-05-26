@@ -346,27 +346,6 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 	}
 }
 
-// driveItemWriter is used to initialize and return an io.Writer to upload data for the specified item
-// It does so by creating an upload session and using that URL to initialize an `itemWriter`
-// TODO: @vkamra verify if var session is the desired input
-func driveItemWriter(
-	ctx context.Context,
-	gs graph.Servicer,
-	driveID, itemID string,
-	itemSize int64,
-) (io.Writer, error) {
-	ctx = clues.Add(ctx, "upload_item_id", itemID)
-
-	r, err := api.PostDriveItem(ctx, gs, driveID, itemID)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	iw := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), itemSize)
-
-	return iw, nil
-}
-
 // constructWebURL helper function for recreating the webURL
 // for the originating SharePoint site. Uses additional data map
 // from a models.DriveItemable that possesses a downloadURL within the map.

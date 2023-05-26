@@ -189,8 +189,12 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
-			w, err := driveItemWriter(ctx, srv, test.driveID, ptr.Val(newItem.GetId()), writeSize)
+			itemID := ptr.Val(newItem.GetId())
+
+			r, err := api.PostDriveItem(ctx, srv, test.driveID, itemID)
 			require.NoError(t, err, clues.ToCore(err))
+
+			w := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), writeSize)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
 			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
