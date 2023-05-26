@@ -297,15 +297,29 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 // and kiota drops any SetSize update.
 // TODO: Update drive name during Issue #2071
 func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
-	var id, driveName, driveID, weburl string
+	var driveName, siteID, driveID, weburl, creatorEmail string
 
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
 	// way to source the data.
+	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
+		// User is sometimes not available when created via some
+		// external applications (like backup/restore solutions)
+		additionalData := di.GetCreatedBy().GetUser().GetAdditionalData()
+		ed, ok := additionalData["email"]
+
+		if !ok {
+			ed = additionalData["displayName"]
+		}
+
+		if ed != nil {
+			creatorEmail = *ed.(*string)
+		}
+	}
 
 	gsi := di.GetSharepointIds()
 	if gsi != nil {
-		id = ptr.Val(gsi.GetSiteId())
+		siteID = ptr.Val(gsi.GetSiteId())
 		weburl = ptr.Val(gsi.GetSiteUrl())
 
 		if len(weburl) == 0 {
@@ -326,8 +340,9 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 		DriveID:   driveID,
 		DriveName: driveName,
 		Size:      itemSize,
-		Owner:     id,
+		Owner:     creatorEmail,
 		WebURL:    weburl,
+		SiteID:    siteID,
 	}
 }
 
