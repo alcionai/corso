@@ -95,6 +95,7 @@ func PostDriveItem(
 	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.UploadSessionable, error) {
+	ctx = graph.ConsumeNTokens(ctx, graph.CreateLC)
 	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 
 	r, err := srv.Client().
