@@ -68,6 +68,8 @@ type snapshotManager interface {
 		ctx context.Context,
 		tags map[string]string,
 	) ([]*manifest.EntryMetadata, error)
+	LoadSnapshot(ctx context.Context, id manifest.ID) (*snapshot.Manifest, error)
+	// TODO(ashmrtn): Remove this when we switch to the new BaseFinder.
 	LoadSnapshots(ctx context.Context, ids []manifest.ID) ([]*snapshot.Manifest, error)
 }
 

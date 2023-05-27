@@ -33,4 +33,12 @@ type (
 			errs *fault.Bus,
 		) ([]data.RestoreCollection, error)
 	}
+
+	BaseFinder interface {
+		FindBases(
+			ctx context.Context,
+			reasons []kopia.Reason,
+			tags map[string]string,
+		) (kopia.BackupBases, error)
+	}
 )

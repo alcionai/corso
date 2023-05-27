@@ -406,6 +406,18 @@ func checkCompressor(compressor compression.Name) error {
 	return clues.Stack(clues.New("unknown compressor type"), clues.New(string(compressor)))
 }
 
+func (w *conn) LoadSnapshot(
+	ctx context.Context,
+	id manifest.ID,
+) (*snapshot.Manifest, error) {
+	man, err := snapshot.LoadSnapshot(ctx, w.Repository, id)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return man, nil
+}
+
 func (w *conn) LoadSnapshots(
 	ctx context.Context,
 	ids []manifest.ID,
