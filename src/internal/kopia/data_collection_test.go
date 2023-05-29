@@ -263,6 +263,8 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				f.size = ss.Size()
 			}
 
+			// We expect the items to be fetched in the order they are
+			// in the struct or the errors will not line up
 			for i, err := range bus.Recovered() {
 				assert.True(t, errs[i](t, err), "expected error", clues.ToCore(err))
 			}
