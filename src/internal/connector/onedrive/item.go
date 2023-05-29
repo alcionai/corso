@@ -46,10 +46,6 @@ func downloadItem(
 			}
 		}
 
-		if len(url) == 0 {
-			return nil, clues.New("extracting file url")
-		}
-
 		rc, err = downloadFile(ctx, ag, url)
 		if err != nil {
 			return nil, err
@@ -64,9 +60,13 @@ func downloadFile(
 	ag api.Getter,
 	url string,
 ) (io.ReadCloser, error) {
+	if len(url) == 0 {
+		return nil, clues.New("empty file url")
+	}
+
 	resp, err := ag.Get(ctx, url, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting item")
+		return nil, clues.Wrap(err, "getting file")
 	}
 
 	if graph.IsMalwareResp(ctx, resp) {
