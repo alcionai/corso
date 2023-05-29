@@ -8,7 +8,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -85,7 +84,7 @@ func uploadAttachment(
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
-		a, err := support.ToItemAttachment(attachment)
+		a, err := toItemAttachment(attachment)
 		if err != nil {
 			logger.CtxErr(ctx, err).Info(fmt.Sprintf("item attachment type not supported: %v", attachmentType))
 			return nil
