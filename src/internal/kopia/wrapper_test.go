@@ -843,16 +843,28 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	ic := i64counter{}
 
-	_, err = suite.w.ProduceRestoreCollections(
+	dcs, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(stats.SnapshotID),
 		toRestorePaths(t, failedPath),
 		&ic,
 		fault.New(true))
+	assert.NoError(t, err, "error producing restore collections")
+
+	require.Len(t, dcs, 1, "number of restore collections")
+
+	errs := fault.New(true)
+	items := dcs[0].Items(suite.ctx, errs)
+
+	// Get all the items from channel
+	//nolint:revive
+	for range items {
+	}
+
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
+	assert.ErrorIs(t, errs.Failure(), data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
 }
 
 type backedupFile struct {
