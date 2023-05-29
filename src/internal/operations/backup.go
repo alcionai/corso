@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -154,9 +155,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}
 
 	if !runnable {
-		err = clues.New("service unavailable")
-		logger.CtxErr(ctx, err).Error("verifying backup is runnable")
-		op.Errors.Fail(clues.Wrap(err, "verifying backup is runnable"))
+		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if backup is enabled")
+		op.Errors.Fail(clues.Wrap(err, "checking if backup is enabled"))
 
 		return
 	}
