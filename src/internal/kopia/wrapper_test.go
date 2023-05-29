@@ -1235,13 +1235,25 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			ic := i64counter{}
 
-			_, err = suite.w.ProduceRestoreCollections(
+			dcs, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(stats.SnapshotID),
 				toRestorePaths(t, suite.files[suite.testPath1.String()][0].itemPath),
 				&ic,
 				fault.New(true))
-			test.restoreCheck(t, err, clues.ToCore(err))
+
+			assert.NoError(t, err, "errors producing collection", clues.ToCore(err))
+			require.Len(t, dcs, 1, "unexpected number of restore collections")
+
+			errs := fault.New(true)
+			items := dcs[0].Items(suite.ctx, errs)
+
+			// Get all the items from channel
+			//nolint:revive
+			for range items {
+			}
+
+			test.restoreCheck(t, errs.Failure(), errs)
 		})
 	}
 }
@@ -1260,18 +1272,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	// suite's map of files. Files that are not in the suite's map are assumed to
 	// generate errors and not be in the output.
 	table := []struct {
-		name                string
-		inputPaths          []path.Path
-		expectedCollections int
-		expectedErr         assert.ErrorAssertionFunc
+		name                  string
+		inputPaths            []path.Path
+		expectedCollections   int
+		expectedErr           assert.ErrorAssertionFunc
+		expectedCollectionErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "SingleItem",
 			inputPaths: []path.Path{
 				suite.files[suite.testPath1.String()][0].itemPath,
 			},
-			expectedCollections: 1,
-			expectedErr:         assert.NoError,
+			expectedCollections:   1,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "MultipleItemsSameCollection",
@@ -1279,8 +1293,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				suite.files[suite.testPath1.String()][0].itemPath,
 				suite.files[suite.testPath1.String()][1].itemPath,
 			},
-			expectedCollections: 1,
-			expectedErr:         assert.NoError,
+			expectedCollections:   1,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "MultipleItemsDifferentCollections",
@@ -1288,8 +1303,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				suite.files[suite.testPath1.String()][0].itemPath,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 2,
-			expectedErr:         assert.NoError,
+			expectedCollections:   2,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "TargetNotAFile",
@@ -1298,8 +1314,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				suite.testPath1,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 0,
-			expectedErr:         assert.Error,
+			expectedCollections:   0,
+			expectedErr:           assert.Error,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "NonExistentFile",
@@ -1308,8 +1325,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				doesntExist,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 0,
-			expectedErr:         assert.Error,
+			expectedCollections:   0,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.Error, // folder for doesntExist does not exist
 		},
 	}
 
@@ -1342,9 +1360,25 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				toRestorePaths(t, test.inputPaths...),
 				&ic,
 				fault.New(true))
-			test.expectedErr(t, err, clues.ToCore(err))
+			test.expectedCollectionErr(t, err, clues.ToCore(err), "producing collections")
 
 			if err != nil {
+				return
+			}
+
+			errs := fault.New(true)
+
+			for _, dc := range result {
+				// Get all the items from channel
+				items := dc.Items(suite.ctx, errs)
+				//nolint:revive
+				for range items {
+				}
+			}
+
+			test.expectedErr(t, errs.Failure(), errs.Failure(), "getting items")
+
+			if errs.Failure() != nil {
 				return
 			}
 
@@ -1468,7 +1502,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Len(t, result, test.expectedCollections)
-			assert.Less(t, int64(0), ic.i)
 			testForFiles(t, ctx, expected, result)
 		})
 	}
