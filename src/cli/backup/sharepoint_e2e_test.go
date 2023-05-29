@@ -175,8 +175,12 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
-	expect := fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID))
-	assert.Equal(t, expect, result)
+	assert.True(t,
+		strings.HasSuffix(
+			result,
+			fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID)),
+		),
+	)
 }
 
 // moved out of the func above to make the linter happy

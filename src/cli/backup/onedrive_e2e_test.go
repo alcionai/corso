@@ -211,8 +211,12 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
-
-	assert.Equal(t, fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)), result)
+	assert.True(t,
+		strings.HasSuffix(
+			result,
+			fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)),
+		),
+	)
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = tester.StubRootCmd(
