@@ -49,7 +49,7 @@ func AddOutputFlag(cmd *cobra.Command) {
 	fs.BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
 	fs.BoolVar(&outputAsJSONDebug, "json-debug", false, "output all internal and debugging data in JSON format")
 	cobra.CheckErr(fs.MarkHidden("json-debug"))
-	fs.BoolVar(&outputVerbose, "verbose", false, "do not hide additional information")
+	fs.BoolVar(&outputVerbose, "verbose", false, "don't hide additional information")
 }
 
 // DisplayJSONFormat returns true if the printer plans to output as json.
