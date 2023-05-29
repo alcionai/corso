@@ -6,13 +6,13 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -32,28 +32,6 @@ type (
 		Wait() *data.CollectionStats
 	}
 
-	BackupConsumer interface {
-		ConsumeBackupCollections(
-			ctx context.Context,
-			bases []kopia.IncrementalBase,
-			cs []data.BackupCollection,
-			pmr prefixmatcher.StringSetReader,
-			tags map[string]string,
-			buildTreeWithBase bool,
-			errs *fault.Bus,
-		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
-	}
-
-	RestoreProducer interface {
-		ProduceRestoreCollections(
-			ctx context.Context,
-			snapshotID string,
-			paths []path.RestorePaths,
-			bc kopia.ByteCounter,
-			errs *fault.Bus,
-		) ([]data.RestoreCollection, error)
-	}
-
 	RestoreConsumer interface {
 		ConsumeRestoreCollections(
 			ctx context.Context,
@@ -71,5 +49,12 @@ type (
 
 	RepoMaintenancer interface {
 		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
+	}
+
+	GetBackuper interface {
+		GetBackup(
+			ctx context.Context,
+			backupID model.StableID,
+		) (*backup.Backup, error)
 	}
 )
