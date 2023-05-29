@@ -208,8 +208,6 @@ func CreateItem(
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
 	builder := drives.NewItemItemsRequestBuilder(rawURL, service.Adapter())
 
-	ctx = graph.ConsumeNTokens(ctx, graph.CreateLC)
-
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating item")
