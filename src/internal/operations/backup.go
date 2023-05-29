@@ -686,8 +686,8 @@ func mergeDetails(
 
 	// getting the values in writeStats before anything else so that we don't get a return from
 	// conditions like no backup data.
-	writeStats.TotalFileCount = len(detailsModel.FilterMetaFiles().Items())
-	writeStats.TotalUploadedBytes = detailsModel.SumNonMetaFileSizes()
+	writeStats.TotalNonMetaFileCount = len(detailsModel.FilterMetaFiles().Items())
+	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
@@ -824,6 +824,8 @@ func (op *BackupOperation) persistResults(
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.NonMetaBytesUploaded = opStats.k.TotalNonMetaUploadedBytes
+	op.Results.NonMetaItemsWritten = opStats.k.TotalNonMetaFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
 	if opStats.gc == nil {

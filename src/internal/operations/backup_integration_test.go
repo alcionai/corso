@@ -1527,9 +1527,10 @@ func runDriveIncrementalTest(
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateFiles  func(t *testing.T)
-		itemsRead    int
-		itemsWritten int
+		updateFiles         func(t *testing.T)
+		itemsRead           int
+		itemsWritten        int
+		nonMetaItemsWritten int
 	}{
 		{
 			name:         "clean incremental, no changes",
@@ -1556,8 +1557,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.AddItem(driveID, makeLocRef(container1), newFileID)
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 1, // .data file for newitem
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for newitem
 		},
 		{
 			name: "add permission to new file",
@@ -1578,8 +1580,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 1, // the file for which permission was updated
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			nonMetaItemsWritten: 1, // the file for which permission was updated
 		},
 		{
 			name: "remove permission from new file",
@@ -1599,8 +1602,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "removing permission from file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 1, //.data file for newitem
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			nonMetaItemsWritten: 1, //.data file for newitem
 		},
 		{
 			name: "add permission to container",
@@ -1621,8 +1625,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "adding permission to container %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    0,
-			itemsWritten: 0, // no files updated as update on container
+			itemsRead:           0,
+			itemsWritten:        1, // .dirmeta for collection
+			nonMetaItemsWritten: 0, // no files updated as update on container
 		},
 		{
 			name: "remove permission from container",
@@ -1643,8 +1648,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "removing permission from container %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    0,
-			itemsWritten: 0, // no files updated
+			itemsRead:           0,
+			itemsWritten:        1, // .dirmeta for collection
+			nonMetaItemsWritten: 0, // no files updated
 		},
 		{
 			name: "update contents of a file",
@@ -1658,8 +1664,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
 				// no expectedDeets: neither file id nor location changed
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 1, // .data  file for newitem
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data  file for newitem
 		},
 		{
 			name: "rename a file",
@@ -1681,8 +1688,9 @@ func runDriveIncrementalTest(
 					driveItem)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 1, // .data file for newitem
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for newitem
 			// no expectedDeets: neither file id nor location changed
 		},
 		{
@@ -1710,8 +1718,9 @@ func runDriveIncrementalTest(
 					makeLocRef(container2),
 					ptr.Val(newFile.GetId()))
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 1, // .data file for new item
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for new item
 		},
 		{
 			name: "delete file",
@@ -1725,8 +1734,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.RemoveItem(driveID, makeLocRef(container2), ptr.Val(newFile.GetId()))
 			},
-			itemsRead:    0,
-			itemsWritten: 0,
+			itemsRead:           0,
+			itemsWritten:        0,
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "move a folder to a subfolder",
@@ -1753,8 +1763,9 @@ func runDriveIncrementalTest(
 					makeLocRef(container2),
 					makeLocRef(container1))
 			},
-			itemsRead:    0,
-			itemsWritten: 0,
+			itemsRead:           0,
+			itemsWritten:        7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "rename a folder",
@@ -1783,8 +1794,9 @@ func runDriveIncrementalTest(
 					makeLocRef(container1, container2),
 					makeLocRef(container1, containerRename))
 			},
-			itemsRead:    0,
-			itemsWritten: 0,
+			itemsRead:           0,
+			itemsWritten:        7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "delete a folder",
@@ -1799,8 +1811,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.RemoveLocation(driveID, makeLocRef(container1, containerRename))
 			},
-			itemsRead:    0,
-			itemsWritten: 0,
+			itemsRead:           0,
+			itemsWritten:        0,
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "add a new folder",
@@ -1831,8 +1844,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.AddLocation(driveID, container3)
 			},
-			itemsRead:    2, // 2 .data for 2 files
-			itemsWritten: 2, // 2 .data for 2 files
+			itemsRead:           2, // 2 .data for 2 files
+			itemsWritten:        6, // read items + 2 directory meta
+			nonMetaItemsWritten: 2, // 2 .data for 2 files
 		},
 	}
 	for _, test := range table {
@@ -1862,10 +1876,10 @@ func runDriveIncrementalTest(
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.
 			var (
-				// since we are removing metadata files now
-				expectWrites    = test.itemsWritten
-				expectReads     = test.itemsRead + 2
-				assertReadWrite = assert.Equal
+				expectWrites        = test.itemsWritten + 2
+				expectNonMetaWrites = test.nonMetaItemsWritten
+				expectReads         = test.itemsRead + 2
+				assertReadWrite     = assert.Equal
 			)
 
 			// Sharepoint can produce a superset of permissions by nature of
@@ -1877,6 +1891,7 @@ func runDriveIncrementalTest(
 			}
 
 			assertReadWrite(t, expectWrites, incBO.Results.ItemsWritten, "incremental items written")
+			assertReadWrite(t, expectNonMetaWrites, incBO.Results.NonMetaItemsWritten, "incremental non-meta items written")
 			assertReadWrite(t, expectReads, incBO.Results.ItemsRead, "incremental items read")
 
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
@@ -1976,7 +1991,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		categories)
 
 	// 2 on read/writes to account for metadata: 1 delta and 1 path.
-	assert.LessOrEqual(t, 1, incBO.Results.ItemsWritten, "items written") // just the file whose owner migrated
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
+	assert.LessOrEqual(t, 1, incBO.Results.NonMetaItemsWritten, "non meta items written")
 	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
 	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
