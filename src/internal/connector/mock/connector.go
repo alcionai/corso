@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -41,6 +42,14 @@ func (gc GraphConnector) ProduceBackupCollections(
 	error,
 ) {
 	return gc.Collections, gc.Exclude, gc.Err
+}
+
+func (gc GraphConnector) IsBackupRunnable(
+	_ context.Context,
+	_ path.ServiceType,
+	_ string,
+) (bool, error) {
+	return true, gc.Err
 }
 
 func (gc GraphConnector) Wait() *data.CollectionStats {

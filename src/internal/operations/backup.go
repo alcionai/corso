@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -141,6 +142,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	var runnable bool
+
+	// IsBackupRunnable checks if the user has services enabled to run a backup.
+	// it also checks for conditions like mailbox full.
+	runnable, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("verifying backup is runnable")
+		op.Errors.Fail(clues.Wrap(err, "verifying backup is runnable"))
+
+		return
+	}
+
+	if !runnable {
+		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if backup is enabled")
+		op.Errors.Fail(clues.Wrap(err, "checking if backup is enabled"))
+
+		return
+	}
 
 	// -----
 	// Setup
@@ -376,7 +396,14 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, lastBackupVersion, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(
+		ctx,
+		resourceOwner,
+		sel,
+		metadata,
+		lastBackupVersion,
+		ctrlOpts,
+		errs)
 }
 
 // ---------------------------------------------------------------------------

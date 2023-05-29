@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -27,6 +28,7 @@ type (
 			ctrlOpts control.Options,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, error)
+		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
 
 		Wait() *data.CollectionStats
 	}
