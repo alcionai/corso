@@ -49,10 +49,12 @@ func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 		ErrorCount:            2,
 		Failure:               "read, write",
 		ReadWrites: stats.ReadWrites{
-			BytesRead:     301,
-			BytesUploaded: 301,
-			ItemsRead:     1,
-			ItemsWritten:  1,
+			BytesRead:            301,
+			BytesUploaded:        301,
+			NonMetaBytesUploaded: 301,
+			ItemsRead:            1,
+			NonMetaItemsWritten:  1,
+			ItemsWritten:         1,
 		},
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
@@ -248,7 +250,7 @@ func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	assert.Equal(t, now, result.Stats.StartedAt, "started at")
 	assert.Equal(t, b.Status, result.Status, "status")
 	assert.Equal(t, b.BytesRead, result.Stats.BytesRead, "size")
-	assert.Equal(t, b.BytesUploaded, result.Stats.BytesUploaded, "stored size")
+	assert.Equal(t, b.NonMetaBytesUploaded, result.Stats.BytesUploaded, "stored size")
 	assert.Equal(t, b.Selector.DiscreteOwner, result.Owner, "owner")
 }
 
