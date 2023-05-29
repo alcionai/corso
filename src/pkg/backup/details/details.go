@@ -243,7 +243,7 @@ func (dm DetailsModel) SumNonMetaFileSizes() int64 {
 
 	// Items will provide only files and filter out folders
 	for _, ent := range dm.FilterMetaFiles().Items() {
-			size += ent.size()
+		size += ent.size()
 	}
 
 	return size
@@ -255,6 +255,8 @@ func (dm DetailsModel) SumNonMetaFileSizes() int64 {
 func (de Entry) isMetaFile() bool {
 	// sharepoint types not needed, since sharepoint permissions were
 	// added after IsMeta was deprecated.
+	// Earlier onedrive backups used to store both metafiles and files in details.
+	// So filter out just the onedrive items and check for metafiles
 	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
