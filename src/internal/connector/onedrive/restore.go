@@ -32,11 +32,6 @@ import (
 )
 
 const (
-	// copyBufferSize is used for chunked upload
-	// Microsoft recommends 5-10MB buffers
-	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-	copyBufferSize = 5 * 1024 * 1024
-
 	// Maximum number of retries for upload failures
 	maxUploadRetries = 3
 )
@@ -67,6 +62,7 @@ func RestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
+	pool *sync.Pool,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -112,6 +108,7 @@ func RestoreCollections(
 			dest.ContainerName,
 			deets,
 			opts.RestorePermissions,
+			pool,
 			errs)
 		if err != nil {
 			el.AddRecoverable(err)
@@ -150,6 +147,7 @@ func RestoreCollection(
 	restoreContainerName string,
 	deets *details.Builder,
 	restorePerms bool,
+	pool *sync.Pool,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
@@ -244,15 +242,6 @@ func RestoreCollection(
 			// Not critical enough to need to stop restore operation.
 			logger.CtxErr(ctx, err).Infow("adding restored item to details")
 		}
-	}
-
-	// Buffer pool for uploads
-	// TODO: Should we move this up to RestoreCollections?
-	pool := sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, copyBufferSize)
-			return &b
-		},
 	}
 
 	for {
