@@ -433,7 +433,10 @@ func waitAndCloseBar(bar *mpb.Bar, log func()) func() {
 	return func() {
 		bar.Wait()
 		wg.Done()
-		log()
+
+		if !bar.Aborted() {
+			log()
+		}
 	}
 }
 
