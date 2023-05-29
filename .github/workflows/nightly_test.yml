@@ -43,39 +43,6 @@ jobs:
   SetM365App:
     uses: alcionai/corso/.github/workflows/accSelector.yaml@main
 
-  SetEnv:
-    environment: Testing
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.environment.outputs.environment }}
-      version: ${{ steps.version.outputs.version }}
-      website-bucket: ${{ steps.website-bucket.outputs.website-bucket }}
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Figure out environment
-        id: environment
-        run: |
-            echo "environment=Testing" | tee -a $GITHUB_OUTPUT
-
-      - name: Get version string
-        id: version
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "version=$(git describe --exact-match --tags $(git rev-parse HEAD))" | tee -a $GITHUB_OUTPUT
-          else
-            echo "version=$(echo unreleased-$(git rev-parse --short HEAD))" | tee -a $GITHUB_OUTPUT
-          fi
-
-      - name: Get bucket name for website
-        id: website-bucket
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "website-bucket=corsobackup.io" | tee -a $GITHUB_OUTPUT
-          else
-            echo "website-bucket=test-corso-docs" | tee -a $GITHUB_OUTPUT
-          fi
-
   # ----------------------------------------------------------------------------------------------------
   # --- Nightly Testing -------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
