@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
@@ -14,85 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
-
-const (
-	testCompleteMan   = false
-	testIncompleteMan = !testCompleteMan
-)
-
-var (
-	testT1 = time.Now()
-	testT2 = testT1.Add(1 * time.Hour)
-	testT3 = testT2.Add(1 * time.Hour)
-
-	testID1 = manifest.ID("snap1")
-	testID2 = manifest.ID("snap2")
-	testID3 = manifest.ID("snap3")
-
-	testMail   = path.ExchangeService.String() + path.EmailCategory.String()
-	testEvents = path.ExchangeService.String() + path.EventsCategory.String()
-
-	testUser1 = "user1"
-	testUser2 = "user2"
-	testUser3 = "user3"
-
-	testAllUsersAllCats = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
-		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
-		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
-		},
-	}
-	testAllUsersMail = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-	}
-)
-
-type manifestInfo struct {
-	// We don't currently use the values in the tags.
-	tags     map[string]struct{}
-	metadata *manifest.EntryMetadata
-	man      *snapshot.Manifest
-}
 
 func newManifestInfo(
 	id manifest.ID,
@@ -105,11 +27,11 @@ func newManifestInfo(
 		incompleteStr = "checkpoint"
 	}
 
-	structTags := make(map[string]struct{}, len(tags))
+	structTags := make(map[string]string, len(tags))
 
 	for _, t := range tags {
 		tk, _ := makeTagKV(t)
-		structTags[tk] = struct{}{}
+		structTags[tk] = ""
 	}
 
 	return manifestInfo{
@@ -184,6 +106,13 @@ func (msm *mockSnapshotManager) LoadSnapshots(
 	}
 
 	return res, nil
+}
+
+func (msm *mockSnapshotManager) LoadSnapshot(
+	ctx context.Context,
+	id manifest.ID,
+) (*snapshot.Manifest, error) {
+	return nil, clues.New("not implemented")
 }
 
 type SnapshotFetchUnitSuite struct {
@@ -949,6 +878,13 @@ func (msm *mockErrorSnapshotManager) LoadSnapshots(
 	}
 
 	return msm.sm.LoadSnapshots(ctx, ids)
+}
+
+func (msm *mockErrorSnapshotManager) LoadSnapshot(
+	ctx context.Context,
+	id manifest.ID,
+) (*snapshot.Manifest, error) {
+	return nil, clues.New("not implemented")
 }
 
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_withErrors() {

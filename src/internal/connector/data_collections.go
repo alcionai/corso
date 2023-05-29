@@ -153,6 +153,31 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	return colls, ssmb, nil
 }
 
+// IsBackupRunnable verifies that the users provided has the services enabled and
+// data can be backed up. The canMakeDeltaQueries provides info if the mailbox is
+// full and delta queries can be made on it.
+func (gc *GraphConnector) IsBackupRunnable(
+	ctx context.Context,
+	service path.ServiceType,
+	resourceOwner string,
+) (bool, error) {
+	if service == path.SharePointService {
+		// No "enabled" check required for sharepoint
+		return true, nil
+	}
+
+	info, err := gc.Discovery.Users().GetInfo(ctx, resourceOwner)
+	if err != nil {
+		return false, err
+	}
+
+	if !info.ServiceEnabled(service) {
+		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+	}
+
+	return true, nil
+}
+
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	var ids []string
 
