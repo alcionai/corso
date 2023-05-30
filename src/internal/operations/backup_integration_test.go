@@ -719,7 +719,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{})
 }
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalNonDeltaExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
 }
 

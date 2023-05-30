@@ -3,6 +3,7 @@ package exchange
 import (
 	"bytes"
 	"context"
+	"errors"
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
@@ -57,8 +58,9 @@ func RestoreCollections(
 		}
 
 		var (
-			category = dc.FullPath().Category()
-			ictx     = clues.Add(
+			isNewCache bool
+			category   = dc.FullPath().Category()
+			ictx       = clues.Add(
 				ctx,
 				"restore_category", category,
 				"restore_full_path", dc.FullPath())
@@ -67,26 +69,32 @@ func RestoreCollections(
 		handler, ok := handlers[category]
 		if !ok {
 			el.AddRecoverable(clues.New("unsupported restore path category").WithClues(ictx))
+			continue
 		}
 
-		containerID, dcc, err := createDestination(
+		if directoryCache[category] == nil {
+			directoryCache[category] = handler.newContainerCache(userID)
+			isNewCache = true
+		}
+
+		containerID, gcr, err := createDestination(
 			ictx,
 			handler,
-			dc.FullPath(),
+			handler.formatRestoreDestination(dest.ContainerName, dc.FullPath()),
 			userID,
-			dest.ContainerName,
 			directoryCache[category],
+			isNewCache,
 			errs)
 		if err != nil {
 			el.AddRecoverable(err)
 			continue
 		}
 
-		directoryCache[category] = dcc
+		directoryCache[category] = gcr
 
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
 
-		temp, canceled := restoreCollection(
+		temp, err := restoreCollection(
 			ictx,
 			handler,
 			dc,
@@ -98,8 +106,12 @@ func RestoreCollections(
 
 		metrics = support.CombineMetrics(metrics, temp)
 
-		if canceled {
-			break
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				break
+			}
+
+			el.AddRecoverable(err)
 		}
 	}
 
@@ -122,11 +134,12 @@ func restoreCollection(
 	policy control.CollisionPolicy,
 	deets *details.Builder,
 	errs *fault.Bus,
-) (support.CollectionMetrics, bool) {
+) (support.CollectionMetrics, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:exchange:restoreCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
+		el       = errs.Local()
 		metrics  support.CollectionMetrics
 		items    = dc.Items(ctx, errs)
 		fullPath = dc.FullPath()
@@ -143,12 +156,11 @@ func restoreCollection(
 	for {
 		select {
 		case <-ctx.Done():
-			errs.AddRecoverable(clues.Wrap(ctx.Err(), "context cancelled").WithClues(ctx))
-			return metrics, true
+			return metrics, clues.Wrap(ctx.Err(), "context cancelled").WithClues(ctx)
 
 		case itemData, ok := <-items:
-			if !ok || errs.Failure() != nil {
-				return metrics, false
+			if !ok || el.Failure() != nil {
+				return metrics, el.Failure()
 			}
 
 			ictx := clues.Add(ctx, "item_id", itemData.UUID())
@@ -159,7 +171,7 @@ func restoreCollection(
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "reading item bytes").WithClues(ictx))
+				el.AddRecoverable(clues.Wrap(err, "reading item bytes").WithClues(ictx))
 				continue
 			}
 
@@ -167,7 +179,7 @@ func restoreCollection(
 
 			info, err := ir.restore(ictx, body, userID, destinationID, errs)
 			if err != nil {
-				errs.AddRecoverable(err)
+				el.AddRecoverable(err)
 				continue
 			}
 
@@ -178,7 +190,7 @@ func restoreCollection(
 			// destination folder, then the restore path no longer matches the fullPath.
 			itemPath, err := fullPath.AppendItem(itemData.UUID())
 			if err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "adding item to collection path").WithClues(ctx))
+				el.AddRecoverable(clues.Wrap(err, "adding item to collection path").WithClues(ctx))
 				continue
 			}
 
@@ -210,65 +222,66 @@ func restoreCollection(
 // for non-destructive restores.
 func createDestination(
 	ctx context.Context,
-	cch containerCacheHandler,
-	directory path.Path,
-	userID, destinationName string,
+	ca containerAPI,
+	destination *path.Builder,
+	userID string,
 	gcr graph.ContainerResolver,
+	isNewCache bool,
 	errs *fault.Bus,
 ) (string, graph.ContainerResolver, error) {
 	var (
-		containers  = append([]string{destinationName}, directory.Folders()...)
-		cache       = gcr
-		containerID = rootFolderAlias
-		pb          = &path.Builder{}
-		isNewCache  bool
+		cache             = gcr
+		restoreLoc        = &path.Builder{}
+		containerParentID string
 	)
 
-	if gcr == nil {
-		cache = cch.newContainerCache(userID)
-		isNewCache = true
-	}
+	for _, container := range destination.Elements() {
+		restoreLoc = restoreLoc.Append(container)
 
-	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
-
-	for _, container := range containers {
-		pb = pb.Append(container)
+		ictx := clues.Add(
+			ctx,
+			"is_new_cache", isNewCache,
+			"container_parent_id", containerParentID,
+			"container_name", container,
+			"restore_location", restoreLoc)
 
 		fid, err := getOrPopulateContainer(
-			ctx,
-			cch,
+			ictx,
+			ca,
 			cache,
-			pb,
+			restoreLoc,
 			userID,
+			containerParentID,
 			container,
-			containerID,
 			isNewCache,
 			errs)
 		if err != nil {
 			return "", cache, clues.Stack(err)
 		}
 
-		containerID = fid
+		containerParentID = fid
 	}
 
-	return containerID, cache, nil
+	// containerParentID now identifies the last created container,
+	// not its parent.
+	return containerParentID, cache, nil
 }
 
 func getOrPopulateContainer(
 	ctx context.Context,
-	cch containerCacheHandler,
+	ca containerAPI,
 	gcr graph.ContainerResolver,
-	pb *path.Builder,
+	restoreLoc *path.Builder,
 	userID, containerParentID, containerName string,
 	isNewCache bool,
 	errs *fault.Bus,
 ) (string, error) {
-	cached, ok := gcr.LocationInCache(pb.String())
+	cached, ok := gcr.LocationInCache(restoreLoc.String())
 	if ok {
 		return cached, nil
 	}
 
-	c, err := cch.containerFactory().CreateContainer(ctx, userID, containerName, containerParentID)
+	c, err := ca.CreateContainer(ctx, userID, containerName, containerParentID)
 
 	// 409 handling case:
 	// attempt to fetch the container by name and add that result to the cache.
@@ -276,23 +289,20 @@ func getOrPopulateContainer(
 	// sometimes the backend will create the folder despite the 5xx response,
 	// leaving our local containerResolver with inconsistent state.
 	if graph.IsErrFolderExists(err) {
-		cbn, ok := cch.containerSearcher()
+		cbn, ok := ca.containerSearcher()
 		if ok {
 			c, err = cbn.GetContainerByName(ctx, userID, containerName)
 		}
 	}
 
 	if err != nil {
-		return "", err
+		return "", clues.Wrap(err, "creating restore container")
 	}
 
 	folderID := ptr.Val(c.GetId())
 
-	// Only populate the cache if we actually had to create it. Since we set
-	// newCache to false in this we'll only try to populate it once per function
-	// call even if we make a new cache.
 	if isNewCache {
-		if err := gcr.Populate(ctx, errs, rootFolderAlias); err != nil {
+		if err := gcr.Populate(ctx, errs, folderID, ca.orRootContainer(restoreLoc.HeadElem())); err != nil {
 			return "", clues.Wrap(err, "populating container cache")
 		}
 	}

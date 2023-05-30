@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -37,12 +38,27 @@ func (h contactRestoreHandler) newContainerCache(userID string) graph.ContainerR
 	}
 }
 
-func (h contactRestoreHandler) containerFactory() containerCreator {
-	return h.ac
+func (h contactRestoreHandler) formatRestoreDestination(
+	destinationContainerName string,
+	_ path.Path, // contact folders cannot be nested
+) *path.Builder {
+	return path.Builder{}.Append(destinationContainerName)
+}
+
+func (h contactRestoreHandler) CreateContainer(
+	ctx context.Context,
+	userID, containerName, _ string, // parent container not used
+) (graph.Container, error) {
+	return h.ac.CreateContainer(ctx, userID, containerName, "")
 }
 
 func (h contactRestoreHandler) containerSearcher() (containerByNamer, bool) {
 	return nil, false
+}
+
+// always returns the provided value
+func (h contactRestoreHandler) orRootContainer(c string) string {
+	return c
 }
 
 func (h contactRestoreHandler) restore(
