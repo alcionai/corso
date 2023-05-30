@@ -677,7 +677,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 
 func runCreateDestinationTest(
 	t *testing.T,
-	handler containerCacheHandler,
+	handler restoreHandler,
 	category path.CategoryType,
 	tenantID, userID, destinationName string,
 	containerNames1 []string,
@@ -688,7 +688,7 @@ func runCreateDestinationTest(
 
 	var (
 		svc = path.ExchangeService
-		gcr graph.ContainerResolver
+		gcr = handler.newContainerCache(userID)
 	)
 
 	path1, err := path.Build(
@@ -703,10 +703,10 @@ func runCreateDestinationTest(
 	containerID, gcr, err := createDestination(
 		ctx,
 		handler,
-		path1,
+		handler.formatRestoreDestination(destinationName, path1),
 		userID,
-		destinationName,
 		gcr,
+		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -725,10 +725,10 @@ func runCreateDestinationTest(
 	containerID, gcr, err = createDestination(
 		ctx,
 		handler,
-		path2,
+		handler.formatRestoreDestination(destinationName, path2),
 		userID,
-		destinationName,
 		gcr,
+		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
