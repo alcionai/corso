@@ -533,12 +533,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 
 	table := []struct {
 		name     string
-		inputMan []*kopia.ManifestEntry
+		inputMan []kopia.ManifestEntry
 		expected []kopia.IncrementalBase
 	}{
 		{
 			name: "SingleManifestSingleReason",
-			inputMan: []*kopia.ManifestEntry{
+			inputMan: []kopia.ManifestEntry{
 				{
 					Manifest: manifest1,
 					Reasons: []kopia.Reason{
@@ -557,7 +557,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		},
 		{
 			name: "SingleManifestMultipleReasons",
-			inputMan: []*kopia.ManifestEntry{
+			inputMan: []kopia.ManifestEntry{
 				{
 					Manifest: manifest1,
 					Reasons: []kopia.Reason{
@@ -578,7 +578,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		},
 		{
 			name: "MultipleManifestsMultipleReasons",
-			inputMan: []*kopia.ManifestEntry{
+			inputMan: []kopia.ManifestEntry{
 				{
 					Manifest: manifest1,
 					Reasons: []kopia.Reason{
@@ -731,7 +731,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		name             string
 		populatedModels  map[model.StableID]backup.Backup
 		populatedDetails map[string]*details.Details
-		inputMans        []*kopia.ManifestEntry
+		inputMans        []kopia.ManifestEntry
 		mdm              *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
@@ -758,7 +758,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), "foo", ""),
 					Reasons: []kopia.Reason{
@@ -776,7 +776,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -803,7 +803,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -833,7 +833,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -869,7 +869,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -931,7 +931,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -961,7 +961,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -994,7 +994,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -1027,7 +1027,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -1061,7 +1061,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -1095,7 +1095,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -1146,7 +1146,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []*kopia.ManifestEntry{
+			inputMans: []kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
 					Reasons: []kopia.Reason{
@@ -1258,7 +1258,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			Category:      itemPath1.Category(),
 		}
 
-		inputMans = []*kopia.ManifestEntry{
+		inputMans = []kopia.ManifestEntry{
 			{
 				Manifest: makeManifest(t, backup1.ID, ""),
 				Reasons: []kopia.Reason{
