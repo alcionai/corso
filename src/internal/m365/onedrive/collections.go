@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -63,6 +64,9 @@ type Collections struct {
 	NumItems      int
 	NumFiles      int
 	NumContainers int
+
+	// drive ID -> url cache instance
+	driveURLCache map[string]*urlCache
 }
 
 func NewCollections(
@@ -79,6 +83,7 @@ func NewCollections(
 		CollectionMap: map[string]map[string]*Collection{},
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
+		driveURLCache: map[string]*urlCache{},
 	}
 }
 
@@ -255,7 +260,8 @@ func (c *Collections) Get(
 		// Drive ID -> delta URL for drive
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
-		folderPaths = map[string]map[string]string{}
+		folderPaths  = map[string]map[string]string{}
+		numPrevItems = 0
 	)
 
 	for _, d := range drives {
@@ -370,12 +376,27 @@ func (c *Collections) Get(
 				c.statusUpdater,
 				c.ctrl,
 				CollectionScopeUnknown,
-				true)
+				true,
+				nil)
 			if err != nil {
 				return nil, false, clues.Wrap(err, "making collection").WithClues(ictx)
 			}
 
 			c.CollectionMap[driveID][fldID] = col
+		}
+
+		numDriveItems := c.NumItems - numPrevItems
+		numPrevItems += numDriveItems
+
+		// Only create a drive cache if there are less than 300k items in the drive.
+		// TODO: Tune this number. Delta query for 300k items takes ~20 mins.
+		if numDriveItems < 300*1000 {
+			logger.Ctx(ictx).Info("adding url cache for drive ", driveID)
+
+			err = c.addURLCacheToDriveCollections(ictx, driveID, errs)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -405,7 +426,8 @@ func (c *Collections) Get(
 			c.statusUpdater,
 			c.ctrl,
 			CollectionScopeUnknown,
-			true)
+			true,
+			nil)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
 		}
@@ -436,6 +458,32 @@ func (c *Collections) Get(
 	}
 
 	return collections, canUsePreviousBackup, nil
+}
+
+func (c *Collections) addURLCacheToDriveCollections(
+	ctx context.Context,
+	driveID string,
+	errs *fault.Bus,
+) error {
+	uc, err := newURLCache(
+		driveID,
+		1*time.Hour, // TODO: Add const
+		errs,
+		c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()))
+	if err != nil {
+		return err
+	}
+
+	c.driveURLCache[driveID] = uc
+
+	// Set the URL cache for all collections in this drive
+	for _, driveColls := range c.CollectionMap {
+		for _, coll := range driveColls {
+			coll.cache = uc
+		}
+	}
+
+	return nil
 }
 
 func updateCollectionPaths(
@@ -557,7 +605,8 @@ func (c *Collections) handleDelete(
 		c.ctrl,
 		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
-		false)
+		false,
+		nil)
 	if err != nil {
 		return clues.Wrap(err, "making collection").With(
 			"drive_id", driveID,
@@ -740,7 +789,8 @@ func (c *Collections) UpdateCollections(
 				c.statusUpdater,
 				c.ctrl,
 				colScope,
-				invalidPrevDelta)
+				invalidPrevDelta,
+				nil)
 			if err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}

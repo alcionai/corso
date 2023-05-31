@@ -204,7 +204,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
-				true)
+				true,
+				nil)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
@@ -312,7 +313,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		CollectionScopeFolder,
-		true)
+		true,
+		nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	stubItem := odTD.NewStubDriveItem(
@@ -388,7 +390,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		CollectionScopeFolder,
-		true)
+		true,
+		nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	coll.Add(stubItem)
@@ -442,7 +445,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		CollectionScopeFolder,
-		true)
+		true,
+		nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mtime := time.Now().AddDate(0, -1, 0)
@@ -685,7 +689,19 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			r, err := downloadContent(ctx, mbh, item, driveID)
+			coll, err := NewCollection(
+				mbh,
+				nil,
+				nil,
+				"drive-id",
+				nil,
+				control.Options{ToggleFeatures: control.Toggles{}},
+				CollectionScopeFolder,
+				true,
+				nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			r, err := coll.downloadContent(ctx, mbh, item, driveID)
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
