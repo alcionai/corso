@@ -24,3 +24,8 @@ testlog/
 
 # Logging
 *.log
+
+# Build directories
+/bin
+/docker/bin
+/website/dist
