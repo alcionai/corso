@@ -725,8 +725,9 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
-	itemParents1String := itemParents1.String()
 	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	itemParents1String := itemParents1.String()
 
 	table := []struct {
 		name             string

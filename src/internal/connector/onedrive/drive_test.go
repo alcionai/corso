@@ -460,12 +460,10 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				suite.ac.Drives(),
-				graph.NewNoTimeoutHTTPWrapper(),
+				&itemBackupHandler{suite.ac.Drives()},
 				creds.AzureTenantID,
 				test.user,
 				testFolderMatcher{scope},
-				service,
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},
