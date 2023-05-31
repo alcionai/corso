@@ -90,6 +90,7 @@ func DataCollections(
 		case path.LibrariesCategory:
 			spcs, err = collectLibraries(
 				ctx,
+				ac.Drives(),
 				itemClient,
 				gs,
 				creds.AzureTenantID,
@@ -204,6 +205,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
+	ad api.Drives,
 	itemClient graph.Requester,
 	serv graph.Servicer,
 	tenantID string,
@@ -220,6 +222,7 @@ func collectLibraries(
 	var (
 		collections = []data.BackupCollection{}
 		colls       = onedrive.NewCollections(
+			ad,
 			itemClient,
 			tenantID,
 			site.ID(),

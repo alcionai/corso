@@ -104,6 +104,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceOneDrive:
 		colls, ssmb, err = onedrive.DataCollections(
 			ctx,
+			gc.Discovery,
 			sels,
 			owner,
 			metadata,
@@ -261,9 +262,29 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreCollections(ctx, creds, gc.Discovery, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, creds, backupVersion, gc.Service, dest, opts, dcs, deets, errs)
+		status, err = onedrive.RestoreCollections(
+			ctx,
+			gc.Discovery,
+			creds,
+			backupVersion,
+			gc.Service,
+			dest,
+			opts,
+			dcs,
+			deets,
+			errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, opts, dcs, deets, errs)
+		status, err = sharepoint.RestoreCollections(
+			ctx,
+			backupVersion,
+			gc.Discovery,
+			creds,
+			gc.Service,
+			dest,
+			opts,
+			dcs,
+			deets,
+			errs)
 	default:
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}

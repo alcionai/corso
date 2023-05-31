@@ -108,7 +108,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 		return false, clues.Wrap(err, "getting drives").WithClues(ctx)
 	}
 
-	_, err = api.GetUsersDefaultDrive(ctx, uapi.Stable, userID)
+	_, err = uapi.GetDefaultDrive(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
 		// answers the question the caller is asking.

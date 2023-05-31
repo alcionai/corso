@@ -510,6 +510,7 @@ func toDataLayerPath(
 type BackupOpIntegrationSuite struct {
 	tester.Suite
 	user, site string
+	ac         api.Client
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
@@ -521,8 +522,18 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	suite.user = tester.M365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
+	t := suite.T()
+
+	suite.user = tester.M365UserID(t)
+	suite.site = tester.M365SiteID(t)
+
+	a := tester.NewM365Account(t)
+
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
@@ -1305,9 +1316,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 	gtdi := func(
 		t *testing.T,
 		ctx context.Context,
-		gs graph.Servicer,
 	) string {
-		d, err := api.GetUsersDefaultDrive(ctx, gs, suite.user)
+		d, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
 				With("user", suite.user)
@@ -1344,9 +1354,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 	gtdi := func(
 		t *testing.T,
 		ctx context.Context,
-		gs graph.Servicer,
 	) string {
-		d, err := api.GetSitesDefaultDrive(ctx, gs, suite.site)
+		d, err := suite.ac.Sites().GetDefaultDrive(ctx, suite.site)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
 				With("site", suite.site)
@@ -1379,7 +1388,7 @@ func runDriveIncrementalTest(
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
-	getTestDriveID func(*testing.T, context.Context, graph.Servicer) string,
+	getTestDriveID func(*testing.T, context.Context) string,
 	skipPermissionsTests bool,
 ) {
 	t := suite.T()
@@ -1423,7 +1432,7 @@ func runDriveIncrementalTest(
 
 	var (
 		atid    = creds.AzureTenantID
-		driveID = getTestDriveID(t, ctx, gc.Service)
+		driveID = getTestDriveID(t, ctx)
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)
 		}
@@ -1554,7 +1563,7 @@ func runDriveIncrementalTest(
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
+					suite.ac.Drives(),
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
@@ -1576,7 +1585,7 @@ func runDriveIncrementalTest(
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
+					suite.ac.Drives(),
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
@@ -1598,7 +1607,7 @@ func runDriveIncrementalTest(
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
+					suite.ac.Drives(),
 					gc.Service,
 					driveID,
 					targetContainer,
@@ -1620,7 +1629,7 @@ func runDriveIncrementalTest(
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
+					suite.ac.Drives(),
 					gc.Service,
 					driveID,
 					targetContainer,
@@ -1636,9 +1645,8 @@ func runDriveIncrementalTest(
 		{
 			name: "update contents of a file",
 			updateFiles: func(t *testing.T) {
-				err := api.PutDriveItemContent(
+				err := suite.ac.Drives().PutItemContent(
 					ctx,
-					gc.Service,
 					driveID,
 					ptr.Val(newFile.GetId()),
 					[]byte("new content"))
@@ -1660,9 +1668,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&container)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					ptr.Val(newFile.GetId()),
 					driveItem)
@@ -1683,9 +1690,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&dest)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					ptr.Val(newFile.GetId()),
 					driveItem)
@@ -1703,9 +1709,8 @@ func runDriveIncrementalTest(
 		{
 			name: "delete file",
 			updateFiles: func(t *testing.T) {
-				err := api.DeleteDriveItem(
+				err := suite.ac.Drives().DeleteItem(
 					ctx,
-					newDeleteServicer(t),
 					driveID,
 					ptr.Val(newFile.GetId()))
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
@@ -1727,9 +1732,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					child,
 					driveItem)
@@ -1755,9 +1759,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					child,
 					driveItem)
@@ -1777,9 +1780,8 @@ func runDriveIncrementalTest(
 			name: "delete a folder",
 			updateFiles: func(t *testing.T) {
 				container := containerIDs[containerRename]
-				err := api.DeleteDriveItem(
+				err := suite.ac.Drives().DeleteItem(
 					ctx,
-					newDeleteServicer(t),
 					driveID,
 					container)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
@@ -2017,20 +2019,4 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 	checkBackupIsInManifests(t, ctx, kw, &bo, sels, suite.site, path.LibrariesCategory)
-}
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-func newDeleteServicer(t *testing.T) graph.Servicer {
-	acct := tester.NewM365Account(t)
-
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	a, err := graph.CreateAdapter(acct.ID(), m365.AzureClientID, m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	return graph.NewService(a)
 }

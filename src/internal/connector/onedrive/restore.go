@@ -52,6 +52,7 @@ func NewRestoreCaches() *restoreCaches {
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
+	ac api.Client,
 	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
@@ -95,6 +96,7 @@ func RestoreCollections(
 
 		metrics, err = RestoreCollection(
 			ictx,
+			ac,
 			creds,
 			backupVersion,
 			service,
@@ -133,6 +135,7 @@ func RestoreCollections(
 // - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
+	ac api.Client,
 	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
@@ -160,7 +163,7 @@ func RestoreCollection(
 	}
 
 	if _, ok := caches.DriveIDToRootFolderID[drivePath.DriveID]; !ok {
-		root, err := api.GetDriveRoot(ctx, service, drivePath.DriveID)
+		root, err := ac.Drives().GetRootFolder(ctx, drivePath.DriveID)
 		if err != nil {
 			return metrics, clues.Wrap(err, "getting drive root id")
 		}
@@ -197,7 +200,7 @@ func RestoreCollection(
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := CreateRestoreFolders(
 		ctx,
-		creds,
+		ac.Drives(),
 		service,
 		drivePath,
 		restoreDir,
@@ -236,7 +239,7 @@ func RestoreCollection(
 
 			itemInfo, skipped, err := restoreItem(
 				ictx,
-				creds,
+				ac.Drives(),
 				dc,
 				backupVersion,
 				source,
@@ -286,7 +289,7 @@ func RestoreCollection(
 // returns the item info, a bool (true = restore was skipped), and an error
 func restoreItem(
 	ctx context.Context,
-	creds account.M365Config,
+	ad api.Drives,
 	dc data.RestoreCollection,
 	backupVersion int,
 	source driveSource,
@@ -305,6 +308,7 @@ func restoreItem(
 	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		itemInfo, err := restoreV0File(
 			ctx,
+			ad,
 			source,
 			service,
 			drivePath,
@@ -355,7 +359,7 @@ func restoreItem(
 		itemInfo, err := restoreV1File(
 			ctx,
 			source,
-			creds,
+			ad,
 			service,
 			drivePath,
 			dc,
@@ -377,7 +381,7 @@ func restoreItem(
 	itemInfo, err := restoreV6File(
 		ctx,
 		source,
-		creds,
+		ad,
 		service,
 		drivePath,
 		dc,
@@ -396,6 +400,7 @@ func restoreItem(
 
 func restoreV0File(
 	ctx context.Context,
+	ad api.Drives,
 	source driveSource,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
@@ -405,6 +410,7 @@ func restoreV0File(
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
 		ctx,
+		ad,
 		service,
 		itemData.UUID(),
 		itemData,
@@ -426,7 +432,7 @@ type fileFetcher interface {
 func restoreV1File(
 	ctx context.Context,
 	source driveSource,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
@@ -441,6 +447,7 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
+		ad,
 		service,
 		trimmedName,
 		itemData,
@@ -468,7 +475,7 @@ func restoreV1File(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		drivePath.DriveID,
 		itemID,
@@ -485,7 +492,7 @@ func restoreV1File(
 func restoreV6File(
 	ctx context.Context,
 	source driveSource,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
@@ -524,6 +531,7 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
+		ad,
 		service,
 		meta.FileName,
 		itemData,
@@ -543,7 +551,7 @@ func restoreV6File(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		drivePath.DriveID,
 		itemID,
@@ -564,7 +572,7 @@ func restoreV6File(
 // folderCache is mutated, as a side effect of populating the items.
 func CreateRestoreFolders(
 	ctx context.Context,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
@@ -575,6 +583,7 @@ func CreateRestoreFolders(
 ) (string, error) {
 	id, err := createRestoreFolders(
 		ctx,
+		ad,
 		service,
 		drivePath,
 		restoreDir,
@@ -594,7 +603,7 @@ func CreateRestoreFolders(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		drivePath.DriveID,
 		id,
@@ -610,6 +619,7 @@ func CreateRestoreFolders(
 // folderCache is mutated, as a side effect of populating the items.
 func createRestoreFolders(
 	ctx context.Context,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
@@ -641,7 +651,7 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := api.GetFolderByName(ictx, service, driveID, parentFolderID, folder)
+		folderItem, err := ad.GetFolderByName(ictx, driveID, parentFolderID, folder)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
 			return "", clues.Wrap(err, "getting folder by display name")
 		}
@@ -672,6 +682,7 @@ func createRestoreFolders(
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
+	ad api.Drives,
 	service graph.Servicer,
 	name string,
 	itemData data.Stream,
@@ -697,7 +708,7 @@ func restoreData(
 	}
 
 	// Get a drive item writer
-	w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	w, err := driveItemWriter(ctx, ad, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}

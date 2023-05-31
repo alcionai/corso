@@ -23,6 +23,7 @@ import (
 type URLCacheIntegrationSuite struct {
 	tester.Suite
 	service graph.Servicer
+	ac      api.Client
 	user    string
 	driveID string
 }
@@ -43,6 +44,14 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 
 	suite.service = loadTestService(t)
 	suite.user = tester.SecondaryM365UserID(t)
+
+	acct := tester.NewM365Account(t)
+
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 
 	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -83,9 +92,8 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	defer func() {
 		ictx := clues.Add(ctx, "folder_id", ptr.Val(newFolder.GetId()))
 
-		err := api.DeleteDriveItem(
+		err := suite.ac.Drives().DeleteItem(
 			ictx,
-			loadTestService(t),
 			driveID,
 			ptr.Val(newFolder.GetId()))
 		if err != nil {

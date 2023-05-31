@@ -286,6 +286,7 @@ type OneDriveIntgSuite struct {
 	tester.Suite
 	userID string
 	creds  account.M365Config
+	ac     api.Client
 }
 
 func TestOneDriveSuite(t *testing.T) {
@@ -303,9 +304,12 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 
 	acct := tester.NewM365Account(t)
 	creds, err := acct.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = creds
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
@@ -337,14 +341,14 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 
 			// deletes require unique http clients
 			// https://github.com/alcionai/corso/issues/2707
-			err := api.DeleteDriveItem(ictx, loadTestService(t), driveID, id)
+			err := suite.ac.Drives().DeleteItem(ictx, driveID, id)
 			if err != nil {
 				logger.CtxErr(ictx, err).Errorw("deleting folder")
 			}
 		}
 	}()
 
-	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
+	rootFolder, err := suite.ac.Drives().GetRootFolder(ctx, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	restoreDir := path.Builder{}.Append(folderElements...)
@@ -357,7 +361,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	caches := NewRestoreCaches()
 	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
 
-	folderID, err := createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
+	folderID, err := createRestoreFolders(ctx, suite.ac.Drives(), gs, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -365,7 +369,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 	restoreDir = restoreDir.Append(folderName2)
 
-	folderID, err = createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
+	folderID, err = createRestoreFolders(ctx, suite.ac.Drives(), gs, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -454,6 +458,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
+				suite.ac.Drives(),
 				graph.NewNoTimeoutHTTPWrapper(),
 				creds.AzureTenantID,
 				test.user,

@@ -73,6 +73,7 @@ type folderMatcher interface {
 type Collections struct {
 	// configured to handle large item downloads
 	itemClient graph.Requester
+	ad         api.Drives
 
 	tenant        string
 	resourceOwner string
@@ -106,6 +107,7 @@ type Collections struct {
 }
 
 func NewCollections(
+	ad api.Drives,
 	itemClient graph.Requester,
 	tenant string,
 	resourceOwner string,
@@ -412,6 +414,7 @@ func (c *Collections) Get(
 			}
 
 			col, err := NewCollection(
+				c.ad,
 				c.itemClient,
 				nil, // delete the folder
 				prevPath,
@@ -449,6 +452,7 @@ func (c *Collections) Get(
 		}
 
 		coll, err := NewCollection(
+			c.ad,
 			c.itemClient,
 			nil, // delete the drive
 			prevDrivePath,
@@ -602,6 +606,7 @@ func (c *Collections) handleDelete(
 	}
 
 	col, err := NewCollection(
+		c.ad,
 		c.itemClient,
 		nil,
 		prevPath,
@@ -795,6 +800,7 @@ func (c *Collections) UpdateCollections(
 			}
 
 			col, err := NewCollection(
+				c.ad,
 				c.itemClient,
 				collectionPath,
 				prevPath,
@@ -804,8 +810,7 @@ func (c *Collections) UpdateCollections(
 				c.source,
 				c.ctrl,
 				colScope,
-				invalidPrevDelta,
-			)
+				invalidPrevDelta)
 			if err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}

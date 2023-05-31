@@ -48,26 +48,26 @@ func sharePointItemReader(
 
 func oneDriveItemMetaReader(
 	ctx context.Context,
-	service graph.Servicer,
+	ad api.Drives,
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
-	return baseItemMetaReader(ctx, service, driveID, item)
+	return baseItemMetaReader(ctx, ad, driveID, item)
 }
 
 func sharePointItemMetaReader(
 	ctx context.Context,
-	service graph.Servicer,
+	ad api.Drives,
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
 	// TODO: include permissions
-	return baseItemMetaReader(ctx, service, driveID, item)
+	return baseItemMetaReader(ctx, ad, driveID, item)
 }
 
 func baseItemMetaReader(
 	ctx context.Context,
-	service graph.Servicer,
+	ad api.Drives,
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
@@ -84,7 +84,7 @@ func baseItemMetaReader(
 	}
 
 	if meta.SharingMode == metadata.SharingModeCustom {
-		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
+		perms, err = driveItemPermissionInfo(ctx, ad, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
 		}
@@ -207,11 +207,11 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 // for a drive item given a drive and item id.
 func driveItemPermissionInfo(
 	ctx context.Context,
-	service graph.Servicer,
+	ad api.Drives,
 	driveID string,
 	itemID string,
 ) ([]metadata.Permission, error) {
-	perm, err := api.GetItemPermission(ctx, service, driveID, itemID)
+	perm, err := ad.GetItemPermission(ctx, driveID, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -351,13 +351,13 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 // TODO: @vkamra verify if var session is the desired input
 func driveItemWriter(
 	ctx context.Context,
-	gs graph.Servicer,
+	ad api.Drives,
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
-	r, err := api.PostDriveItem(ctx, gs, driveID, itemID)
+	r, err := ad.PostItem(ctx, driveID, itemID)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

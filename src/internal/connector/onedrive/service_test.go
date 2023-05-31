@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MockGraphService struct{}
@@ -31,6 +32,7 @@ type oneDriveService struct {
 	adapter     msgraphsdk.GraphRequestAdapter
 	credentials account.M365Config
 	status      support.ConnectorOperationStatus
+	ac          api.Client
 }
 
 func (ods *oneDriveService) Client() *msgraphsdk.GraphServiceClient {
@@ -50,7 +52,13 @@ func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error
 		return nil, err
 	}
 
+	ac, err := api.NewClient(credentials)
+	if err != nil {
+		return nil, err
+	}
+
 	service := oneDriveService{
+		ac:          ac,
 		adapter:     *adapter,
 		client:      *msgraphsdk.NewGraphServiceClient(adapter),
 		credentials: credentials,
@@ -70,10 +78,10 @@ func (ods *oneDriveService) updateStatus(status *support.ConnectorOperationStatu
 func loadTestService(t *testing.T) *oneDriveService {
 	a := tester.NewM365Account(t)
 
-	m365, err := a.M365Config()
+	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	service, err := NewOneDriveService(m365)
+	service, err := NewOneDriveService(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return service
