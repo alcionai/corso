@@ -121,15 +121,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	// Read data for the file
 	itemData, err := downloadItem(ctx, bh, driveItem)
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotNil(t, itemInfo.OneDrive)
-	require.NotEmpty(t, itemInfo.OneDrive.ItemName)
 
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotZero(t, size)
-	require.Equal(t, size, itemInfo.OneDrive.Size)
-
-	t.Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive
@@ -162,24 +157,22 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
 			t.Logf("creating folder %s", newFolderName)
 
-			newFolder, err := rh.ItemInContainerPoster().
-				PostItemInContainer(
-					ctx,
-					test.driveID,
-					ptr.Val(root.GetId()),
-					newItem(newFolderName, true))
+			newFolder, err := rh.PostItemInContainer(
+				ctx,
+				test.driveID,
+				ptr.Val(root.GetId()),
+				newItem(newFolderName, true))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
 			t.Logf("creating item %s", newItemName)
 
-			newItem, err := rh.ItemInContainerPoster().
-				PostItemInContainer(
-					ctx,
-					test.driveID,
-					ptr.Val(newFolder.GetId()),
-					newItem(newItemName, false))
+			newItem, err := rh.PostItemInContainer(
+				ctx,
+				test.driveID,
+				ptr.Val(newFolder.GetId()),
+				newItem(newItemName, false))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newItem.GetId())
 

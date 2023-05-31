@@ -102,7 +102,7 @@ func (c Drives) GetItem(
 	return di, nil
 }
 
-func (c Drives) PostItem(
+func (c Drives) NewItemContentUpload(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.UploadSessionable, error) {

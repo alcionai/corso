@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -171,12 +172,49 @@ func (h libraryRestoreHandler) AugmentItemInfo(
 	return augmentItemInfo(dii, item, size, parentPath)
 }
 
-func (h libraryRestoreHandler) FolderByNameGetter() onedrive.GetFolderByNamer          { return h.ac }
-func (h libraryRestoreHandler) ItemPoster() onedrive.PostItemer                        { return h.ac }
-func (h libraryRestoreHandler) ItemInContainerPoster() onedrive.PostItemInContainerer  { return h.ac }
-func (h libraryRestoreHandler) ItemPermissionDeleter() onedrive.DeleteItemPermissioner { return h.ac }
-func (h libraryRestoreHandler) ItemPermissionUpdater() onedrive.UpdateItemPermissioner { return h.ac }
-func (h libraryRestoreHandler) RootFolderGetter() onedrive.GetRootFolderer             { return h.ac }
+func (h libraryRestoreHandler) NewItemContentUpload(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.UploadSessionable, error) {
+	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+}
+
+func (h libraryRestoreHandler) DeleteItemPermission(
+	ctx context.Context,
+	driveID, itemID, permissionID string,
+) error {
+	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
+}
+
+func (h libraryRestoreHandler) PostItemPermissionUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
+}
+
+func (h libraryRestoreHandler) PostItemInContainer(
+	ctx context.Context,
+	driveID, parentFolderID string,
+	newItem models.DriveItemable,
+) (models.DriveItemable, error) {
+	return h.ac.PostItemInContainer(ctx, driveID, parentFolderID, newItem)
+}
+
+func (h libraryRestoreHandler) GetFolderByName(
+	ctx context.Context,
+	driveID, parentFolderID, folderName string,
+) (models.DriveItemable, error) {
+	return h.ac.GetFolderByName(ctx, driveID, parentFolderID, folderName)
+}
+
+func (h libraryRestoreHandler) GetRootFolder(
+	ctx context.Context,
+	driveID string,
+) (models.DriveItemable, error) {
+	return h.ac.GetRootFolder(ctx, driveID)
+}
 
 // ---------------------------------------------------------------------------
 // Common
