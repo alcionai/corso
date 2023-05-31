@@ -285,14 +285,11 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 	message := "Test Message"
 	count := 3
 
-	ch, closer := ProgressWithCount(ctx, header, message, int64(count))
+	ch := ProgressWithCount(ctx, header, message, int64(count))
 
 	for i := 0; i < count; i++ {
 		ch <- struct{}{}
 	}
-
-	// Run the closer - this should complete because the context was closed above
-	closer()
 
 	Complete()
 
@@ -320,12 +317,9 @@ func (suite *ObserveProgressUnitSuite) TestrogressWithCountChannelClosed() {
 	message := "Test Message"
 	count := 3
 
-	ch, closer := ProgressWithCount(ctx, header, message, int64(count))
+	ch := ProgressWithCount(ctx, header, message, int64(count))
 
 	close(ch)
-
-	// Run the closer - this should complete because the context was closed above
-	closer()
 
 	Complete()
 

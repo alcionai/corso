@@ -439,12 +439,11 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		queuedPath = "/" + oc.driveName + queuedPath
 	}
 
-	folderProgress, colCloser := observe.ProgressWithCount(
+	folderProgress := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
 		path.NewElements(queuedPath),
 		int64(len(oc.driveItems)))
-	defer colCloser()
 	defer close(folderProgress)
 
 	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())

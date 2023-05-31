@@ -290,7 +290,7 @@ func ProgressWithCount(
 	header string,
 	msg any,
 	count int64,
-) (chan<- struct{}, func()) {
+) chan<- struct{} {
 	var (
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%s %v - %d", header, msg, count)
@@ -302,7 +302,10 @@ func ProgressWithCount(
 
 	if cfg.hidden() {
 		go listen(ctx, ch, nop, nop)
-		return ch, func() { log.Info("done - " + loggable) }
+
+		defer log.Info("done - " + loggable)
+
+		return ch
 	}
 
 	wg.Add(1)
@@ -326,11 +329,11 @@ func ProgressWithCount(
 		func() { bar.Abort(true) },
 		bar.Increment)
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		log.Info("done - " + loggable)
-	})
+	})()
 
-	return ch, wacb
+	return ch
 }
 
 // ---------------------------------------------------------------------------
