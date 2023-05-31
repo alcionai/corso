@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 const (
@@ -307,16 +308,22 @@ func (oc *Collection) getDriveItemContent(
 	return itemData, nil
 }
 
+type itemGetterAndAugmenter interface {
+	GetItemer
+	ItemInfoAugmenter
+	api.Getter
+}
+
 // downloadContent attempts to fetch the item content.  If the content url
 // is expired (ie, returns a 401), it re-fetches the item to get a new download
 // url and tries again.
 func downloadContent(
 	ctx context.Context,
-	bh BackupHandler,
+	igaa itemGetterAndAugmenter,
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
-	_, content, err := downloadItem(ctx, bh, item)
+	_, content, err := downloadItem(ctx, igaa, item)
 	if err == nil {
 		return content, nil
 	} else if !graph.IsErrUnauthorized(err) {
@@ -327,12 +334,12 @@ func downloadContent(
 	// token, and that we've overrun the available window to
 	// download the actual file.  Re-downloading the item will
 	// refresh that download url.
-	di, err := bh.ItemGetter().GetItem(ctx, driveID, ptr.Val(item.GetId()))
+	di, err := igaa.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	_, content, err = downloadItem(ctx, bh, di)
+	_, content, err = downloadItem(ctx, igaa, di)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}

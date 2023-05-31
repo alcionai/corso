@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"net/http"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -81,4 +84,21 @@ func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
 	}
 
 	return a, nil
+}
+
+type Getter interface {
+	Get(
+		ctx context.Context,
+		url string,
+		headers map[string]string,
+	) (*http.Response, error)
+}
+
+// Get performs an ad-hoc get request using its graph.Requester
+func (c Client) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers)
 }

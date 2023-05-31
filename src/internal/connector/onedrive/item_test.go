@@ -14,7 +14,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -46,8 +45,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.service = loadTestService(t)
 	suite.user = tester.SecondaryM365UserID(t)
 
-	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
-	require.NoError(t, err, clues.ToCore(err))
+	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 
 	odDrives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	require.NoError(t, err, clues.ToCore(err))
@@ -92,12 +90,12 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
+
+	ip := suite.service.ac.Drives().NewItemPager(suite.userDriveID, "", nil)
+
 	_, _, _, err := collectItems(
 		ctx,
-		defaultItemPager(
-			suite.service,
-			suite.userDriveID,
-			""),
+		ip,
 		suite.userDriveID,
 		"General",
 		itemCollector,
@@ -114,8 +112,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.user,
 		suite.userDriveID)
 
+	bh := itemBackupHandler{suite.service.ac.Drives()}
+
 	// Read data for the file
-	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.NewNoTimeoutHTTPWrapper(), driveItem)
+	itemInfo, itemData, err := downloadItem(ctx, bh, driveItem)
 
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, itemInfo.OneDrive)
@@ -148,11 +148,10 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			rh := NewRestoreHandler(suite.service.ac)
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
-
-			srv := suite.service
 
 			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
@@ -160,24 +159,24 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
 			t.Logf("creating folder %s", newFolderName)
 
-			newFolder, err := CreateItem(
-				ctx,
-				srv,
-				test.driveID,
-				ptr.Val(root.GetId()),
-				newItem(newFolderName, true))
+			newFolder, err := rh.ItemInContainerPoster().
+				PostItemInContainer(
+					ctx,
+					test.driveID,
+					ptr.Val(root.GetId()),
+					newItem(newFolderName, true))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
 			t.Logf("creating item %s", newItemName)
 
-			newItem, err := CreateItem(
-				ctx,
-				srv,
-				test.driveID,
-				ptr.Val(newFolder.GetId()),
-				newItem(newItemName, false))
+			newItem, err := rh.ItemInContainerPoster().
+				PostItemInContainer(
+					ctx,
+					test.driveID,
+					ptr.Val(newFolder.GetId()),
+					newItem(newItemName, false))
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newItem.GetId())
 
@@ -195,7 +194,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 
 			w, err := driveItemWriter(
 				ctx,
-				suite.service.ac.Drives(),
+				rh,
 				test.driveID,
 				ptr.Val(newItem.GetId()),
 				writeSize)
