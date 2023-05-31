@@ -64,9 +64,6 @@ type Collections struct {
 	NumItems      int
 	NumFiles      int
 	NumContainers int
-
-	// drive ID -> url cache instance
-	driveURLCache map[string]*urlCache
 }
 
 func NewCollections(
@@ -83,7 +80,6 @@ func NewCollections(
 		CollectionMap: map[string]map[string]*Collection{},
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
-		driveURLCache: map[string]*urlCache{},
 	}
 }
 
@@ -386,7 +382,7 @@ func (c *Collections) Get(
 		}
 
 		numDriveItems := c.NumItems - numPrevItems
-		numPrevItems += numDriveItems
+		numPrevItems = c.NumItems
 
 		// Only create a drive cache if there are less than 300k items in the drive.
 		// TODO: Tune this number. Delta query for 300k items takes ~20 mins.
@@ -473,8 +469,6 @@ func (c *Collections) addURLCacheToDriveCollections(
 	if err != nil {
 		return err
 	}
-
-	c.driveURLCache[driveID] = uc
 
 	// Set the URL cache for all collections in this drive
 	for _, driveColls := range c.CollectionMap {
