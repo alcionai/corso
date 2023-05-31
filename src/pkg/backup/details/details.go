@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// Max number of items for which we will print details. If there are
+// more than this, then we just show a summary.
+const maxPrintLimit = 15
+
 // LocationIDer provides access to location information but guarantees that it
 // can also generate a unique location (among items in the same service but
 // possibly across data types within the service) that can be used as a key in
@@ -473,6 +477,20 @@ type entrySet []*Entry
 
 func (ents entrySet) PrintEntries(ctx context.Context) {
 	printEntries(ctx, ents)
+}
+
+// MaybePrintEntries is same as PrintEntries, but only prints if we
+// have less than 15 items or is not json output.
+func (ents entrySet) MaybePrintEntries(ctx context.Context) {
+	if len(ents) > maxPrintLimit &&
+		!print.DisplayJSONFormat() &&
+		!print.DisplayVerbose() {
+		// TODO: Should we detect if the user is piping the output and
+		// print if that is the case?
+		print.Outf(ctx, "Restored %d items.", len(ents))
+	} else {
+		printEntries(ctx, ents)
+	}
 }
 
 // Entry describes a single item stored in a Backup

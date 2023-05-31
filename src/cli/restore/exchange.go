@@ -116,7 +116,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to run Exchange restore"))
 	}
 
-	ds.Items().PrintEntries(ctx)
+	ds.Items().MaybePrintEntries(ctx)
 
 	return nil
 }
