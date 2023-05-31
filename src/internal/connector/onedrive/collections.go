@@ -296,7 +296,7 @@ func (c *Collections) Get(
 
 		delta, paths, excluded, err := collectItems(
 			ictx,
-			api.NewItemPager(nil, driveID, "", api.DriveItemSelectDefault()),
+			c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()),
 			driveID,
 			driveName,
 			c.UpdateCollections,
@@ -838,7 +838,7 @@ func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, 
 
 func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) bool {
 	// Check if the folder is allowed by the scope.
-	folderPathString, err := path.GetDriveFolderPath(folderPath)
+	pb, err := path.GetDriveFolderPath(folderPath)
 	if err != nil {
 		logger.Ctx(ctx).With("err", err).Error("getting drive folder path")
 		return true
@@ -846,11 +846,11 @@ func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) boo
 
 	// Hack for the edge case where we're looking at the root folder and can
 	// select any folder. Right now the root folder has an empty folder path.
-	if len(folderPathString) == 0 && m.IsAny() {
+	if len(pb.Elements()) == 0 && m.IsAny() {
 		return true
 	}
 
-	return m.Matches(folderPathString)
+	return m.Matches(pb.String())
 }
 
 func updatePath(paths map[string]string, id, newPath string) {

@@ -53,9 +53,9 @@ type Collection struct {
 	driveItems map[string]models.DriveItemable
 
 	// Primary M365 ID of the drive this collection was created from
-	driveID string
-	// Display Name of the associated drive
-	driveName     string
+	driveID   string
+	driveName string
+
 	statusUpdater support.StatusUpdater
 	ctrl          control.Options
 
@@ -84,28 +84,6 @@ type Collection struct {
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
 }
-
-// itemGetterFunc gets a specified item
-// type itemGetterFunc func(
-// 	ctx context.Context,
-// 	driveID, itemID string,
-// ) (models.DriveItemable, error)
-
-// itemReadFunc returns a reader for the specified item
-// type itemReaderFunc func(
-// 	ctx context.Context,
-// 	client graph.Requester,
-// 	item models.DriveItemable,
-// ) (details.ItemInfo, io.ReadCloser, error)
-
-// itemMetaReaderFunc returns a reader for the metadata of the
-// specified item
-// type itemMetaReaderFunc func(
-// 	ctx context.Context,
-// 	ad api.Drives,
-// 	driveID string,
-// 	item models.DriveItemable,
-// ) (io.ReadCloser, int, error)
 
 func pathToLocation(p path.Path) (*path.Builder, error) {
 	if p == nil {
@@ -183,16 +161,6 @@ func newColl(
 		state:           data.StateOf(prevPath, currPath),
 		scope:           colScope,
 		doNotMergeItems: doNotMergeItems,
-	}
-
-	// Allows tests to set a mock populator
-	switch source {
-	case SharePointSource:
-		c.itemReader = sharePointItemReader
-		c.itemMetaReader = sharePointItemMetaReader
-	default:
-		c.itemReader = oneDriveItemReader
-		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
 	return c
@@ -297,14 +265,7 @@ func (oc *Collection) getDriveItemContent(
 		el       = errs.Local()
 	)
 
-	itemData, err := downloadContent(
-		ctx,
-		oc.service,
-		oc.itemGetter,
-		oc.itemReader,
-		oc.itemClient,
-		item,
-		oc.driveID)
+	itemData, err := downloadContent(ctx, oc.handler, item, oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
@@ -351,14 +312,11 @@ func (oc *Collection) getDriveItemContent(
 // url and tries again.
 func downloadContent(
 	ctx context.Context,
-	svc graph.Servicer,
-	igf itemGetterFunc,
-	irf itemReaderFunc,
-	gr graph.Requester,
+	bh BackupHandler,
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
-	_, content, err := irf(ctx, gr, item)
+	_, content, err := downloadItem(ctx, bh, item)
 	if err == nil {
 		return content, nil
 	} else if !graph.IsErrUnauthorized(err) {
@@ -369,12 +327,12 @@ func downloadContent(
 	// token, and that we've overrun the available window to
 	// download the actual file.  Re-downloading the item will
 	// refresh that download url.
-	di, err := igf(ctx, driveID, ptr.Val(item.GetId()))
+	di, err := bh.ItemGetter().GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	_, content, err = irf(ctx, gr, di)
+	_, content, err = downloadItem(ctx, bh, di)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -464,7 +422,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			// Fetch metadata for the file
-			itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.ad, oc.driveID, item)
+			itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
