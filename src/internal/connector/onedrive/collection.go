@@ -174,7 +174,7 @@ func (oc *Collection) Add(item models.DriveItemable) bool {
 	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	oc.driveItems[ptr.Val(item.GetId())] = item
 
-	return !found // !found = new
+	return !found // if !found, it's a new addition
 }
 
 // Remove removes a item from the collection
@@ -198,7 +198,7 @@ func (oc *Collection) IsEmpty() bool {
 // Items() returns the channel containing M365 Exchange objects
 func (oc *Collection) Items(
 	ctx context.Context,
-	errs *fault.Bus, // TODO: currently unused while onedrive isn't up to date with clues/fault
+	errs *fault.Bus,
 ) <-chan data.Stream {
 	go oc.populateItems(ctx, errs)
 	return oc.data
@@ -308,9 +308,8 @@ func (oc *Collection) getDriveItemContent(
 	return itemData, nil
 }
 
-type itemGetterAndAugmenter interface {
+type itemAndAPIGetter interface {
 	GetItemer
-	ItemInfoAugmenter
 	api.Getter
 }
 
@@ -319,11 +318,11 @@ type itemGetterAndAugmenter interface {
 // url and tries again.
 func downloadContent(
 	ctx context.Context,
-	igaa itemGetterAndAugmenter,
+	iaag itemAndAPIGetter,
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
-	_, content, err := downloadItem(ctx, igaa, item)
+	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {
 		return content, nil
 	} else if !graph.IsErrUnauthorized(err) {
@@ -334,12 +333,12 @@ func downloadContent(
 	// token, and that we've overrun the available window to
 	// download the actual file.  Re-downloading the item will
 	// refresh that download url.
-	di, err := igaa.GetItem(ctx, driveID, ptr.Val(item.GetId()))
+	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	_, content, err = downloadItem(ctx, igaa, di)
+	content, err = downloadItem(ctx, iaag, di)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -430,7 +429,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			// Fetch metadata for the file
 			itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
-
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 				return

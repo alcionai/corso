@@ -927,8 +927,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				},
-			)
+				})
 		})
 	}
 }
