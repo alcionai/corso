@@ -287,10 +287,9 @@ func createCollections(
 		Credentials:   creds,
 	}
 
-	foldersComplete, closer := observe.MessageWithCompletion(
+	foldersComplete := observe.MessageWithCompletion(
 		ctx,
 		observe.Bulletf("%s", qp.Category))
-	defer closer()
 	defer close(foldersComplete)
 
 	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)

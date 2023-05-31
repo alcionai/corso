@@ -180,7 +180,7 @@ func Message(ctx context.Context, msgs ...any) {
 func MessageWithCompletion(
 	ctx context.Context,
 	msg any,
-) (chan<- struct{}, func()) {
+) chan<- struct{} {
 	var (
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%v", msg)
@@ -191,7 +191,8 @@ func MessageWithCompletion(
 	log.Info(loggable)
 
 	if cfg.hidden() {
-		return ch, func() { log.Info("done - " + loggable) }
+		defer log.Info("done - " + loggable)
+		return ch
 	}
 
 	wg.Add(1)
@@ -219,11 +220,11 @@ func MessageWithCompletion(
 			bar.SetTotal(-1, true)
 		})
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		log.Info("done - " + loggable)
-	})
+	})()
 
-	return ch, wacb
+	return ch
 }
 
 // ---------------------------------------------------------------------------

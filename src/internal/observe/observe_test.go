@@ -195,13 +195,10 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 
 	message := "Test Message"
 
-	ch, closer := MessageWithCompletion(ctx, message)
+	ch := MessageWithCompletion(ctx, message)
 
 	// Trigger completion
 	ch <- struct{}{}
-
-	// Run the closer - this should complete because the bar was compelted above
-	closer()
 
 	Complete()
 
@@ -227,13 +224,10 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 
 	message := "Test Message"
 
-	ch, closer := MessageWithCompletion(ctx, message)
+	ch := MessageWithCompletion(ctx, message)
 
 	// Close channel without completing
 	close(ch)
-
-	// Run the closer - this should complete because the channel was closed above
-	closer()
 
 	Complete()
 
@@ -261,13 +255,10 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 
 	message := "Test Message"
 
-	_, closer := MessageWithCompletion(ctx, message)
+	_ = MessageWithCompletion(ctx, message)
 
 	// cancel context
 	cancel()
-
-	// Run the closer - this should complete because the context was closed above
-	closer()
 
 	Complete()
 

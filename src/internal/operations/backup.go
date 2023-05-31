@@ -389,11 +389,10 @@ func produceBackupDataCollections(
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	complete := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	return bp.ProduceBackupCollections(
@@ -472,11 +471,10 @@ func consumeBackupCollections(
 	isIncremental bool,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
+	complete := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	tags := map[string]string{

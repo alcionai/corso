@@ -232,8 +232,7 @@ func (op *RestoreOperation) do(
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 	logger.Ctx(ctx).With("control_options", op.Options, "selectors", op.Selectors).Info("restoring selection")
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
-	defer closer()
+	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
@@ -318,11 +317,10 @@ func consumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 ) (*details.Details, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
+	complete := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	deets, err := rc.ConsumeRestoreCollections(
