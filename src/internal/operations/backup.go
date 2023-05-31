@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -141,6 +142,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	var runnable bool
+
+	// IsBackupRunnable checks if the user has services enabled to run a backup.
+	// it also checks for conditions like mailbox full.
+	runnable, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("verifying backup is runnable")
+		op.Errors.Fail(clues.Wrap(err, "verifying backup is runnable"))
+
+		return
+	}
+
+	if !runnable {
+		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if backup is enabled")
+		op.Errors.Fail(clues.Wrap(err, "checking if backup is enabled"))
+
+		return
+	}
 
 	// -----
 	// Setup
@@ -342,6 +362,8 @@ func (op *BackupOperation) do(
 		mans,
 		toMerge,
 		deets,
+		writeStats,
+		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -391,7 +413,14 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, lastBackupVersion, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(
+		ctx,
+		resourceOwner,
+		sel,
+		metadata,
+		lastBackupVersion,
+		ctrlOpts,
+		errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -692,8 +721,17 @@ func mergeDetails(
 	mans []kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
+	writeStats *kopia.BackupStats,
+	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
+	detailsModel := deets.Details().DetailsModel
+
+	// getting the values in writeStats before anything else so that we don't get a return from
+	// conditions like no backup data.
+	writeStats.TotalNonMetaFileCount = len(detailsModel.FilterMetaFiles().Items())
+	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
+
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
@@ -829,6 +867,8 @@ func (op *BackupOperation) persistResults(
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.NonMetaBytesUploaded = opStats.k.TotalNonMetaUploadedBytes
+	op.Results.NonMetaItemsWritten = opStats.k.TotalNonMetaFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
 	if opStats.gc == nil {

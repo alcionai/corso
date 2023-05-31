@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// Max number of items for which we will print details. If there are
+// more than this, then we just show a summary.
+const maxPrintLimit = 15
+
 // LocationIDer provides access to location information but guarantees that it
 // can also generate a unique location (among items in the same service but
 // possibly across data types within the service) that can be used as a key in
@@ -236,12 +240,27 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	return d2
 }
 
+// SumNonMetaFileSizes returns the total size of items excluding all the
+// .meta files from the items.
+func (dm DetailsModel) SumNonMetaFileSizes() int64 {
+	var size int64
+
+	// Items will provide only files and filter out folders
+	for _, ent := range dm.FilterMetaFiles().Items() {
+		size += ent.size()
+	}
+
+	return size
+}
+
 // Check if a file is a metadata file. These are used to store
 // additional data like permissions (in case of Drive items) and are
 // not to be treated as regular files.
 func (de Entry) isMetaFile() bool {
 	// sharepoint types not needed, since sharepoint permissions were
 	// added after IsMeta was deprecated.
+	// Earlier onedrive backups used to store both metafiles and files in details.
+	// So filter out just the onedrive items and check for metafiles
 	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
@@ -473,6 +492,20 @@ type entrySet []*Entry
 
 func (ents entrySet) PrintEntries(ctx context.Context) {
 	printEntries(ctx, ents)
+}
+
+// MaybePrintEntries is same as PrintEntries, but only prints if we
+// have less than 15 items or is not json output.
+func (ents entrySet) MaybePrintEntries(ctx context.Context) {
+	if len(ents) > maxPrintLimit &&
+		!print.DisplayJSONFormat() &&
+		!print.DisplayVerbose() {
+		// TODO: Should we detect if the user is piping the output and
+		// print if that is the case?
+		print.Outf(ctx, "Restored %d items.", len(ents))
+	} else {
+		printEntries(ctx, ents)
+	}
 }
 
 // Entry describes a single item stored in a Backup
