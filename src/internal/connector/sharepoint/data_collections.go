@@ -225,7 +225,6 @@ func collectLibraries(
 			itemClient,
 			tenantID,
 			site.ID(),
-			onedrive.SharePointSource,
 			folderMatcher{scope},
 			serv,
 			updater.UpdateStatus,

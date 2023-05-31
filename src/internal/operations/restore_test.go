@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -346,18 +345,7 @@ func setupSharePointBackup(
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	// get the count of drives
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	service := graph.NewService(adpt)
-	spPgr := api.NewSiteDrivePager(service, owner, []string{"id", "name"})
+	spPgr := gc.Discovery.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
 
 	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
 	require.NoError(t, err, clues.ToCore(err))

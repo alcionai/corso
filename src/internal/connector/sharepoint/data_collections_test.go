@@ -55,9 +55,9 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.SharePointBackup{}).LibraryFolders(selectors.Any())[0]
 
 	const (
-		tenant  = "tenant"
-		site    = "site"
-		driveID = "driveID1"
+		tenantID = "tenant"
+		site     = "site"
+		driveID  = "driveID1"
 	)
 
 	tests := []struct {
@@ -82,7 +82,8 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 			expectedCollectionIDs: []string{"root"},
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
-				tenant,
+				libraryBackupHandler{},
+				tenantID,
 				site,
 				testBaseDrivePath),
 			expectedItemCount:      1,
@@ -113,9 +114,8 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 			c := onedrive.NewCollections(
 				api.Drives{},
 				graph.NewNoTimeoutHTTPWrapper(),
-				tenant,
+				tenantID,
 				site,
-				onedrive.SharePointSource,
 				testFolderMatcher{test.scope},
 				&MockGraphService{},
 				nil,

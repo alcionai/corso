@@ -1,15 +1,17 @@
 package onedrive
 
 import (
+	"context"
+	"net/http"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 // ---------------------------------------------------------------------------
@@ -20,6 +22,14 @@ var _ BackupHandler = &itemBackupHandler{}
 
 type itemBackupHandler struct {
 	ac api.Drives
+}
+
+func (h itemBackupHandler) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return h.ac.Get(ctx, url, headers)
 }
 
 func (h itemBackupHandler) PathPrefix(
@@ -88,9 +98,19 @@ func (h itemBackupHandler) NewLocationIDer(
 	return details.NewOneDriveLocationIDer(driveID, elems...)
 }
 
-func (h itemBackupHandler) Requester() graph.Requester            { return h.ac.Requester }
-func (h itemBackupHandler) PermissionGetter() GetItemPermissioner { return h.ac }
-func (h itemBackupHandler) ItemGetter() GetItemer                 { return h.ac }
+func (h itemBackupHandler) GetItemPermission(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.PermissionCollectionResponseable, error) {
+	return h.ac.GetItemPermission(ctx, driveID, itemID)
+}
+
+func (h itemBackupHandler) GetItem(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	return h.ac.GetItem(ctx, driveID, itemID)
+}
 
 // ---------------------------------------------------------------------------
 // Restore

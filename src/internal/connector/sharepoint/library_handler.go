@@ -1,22 +1,32 @@
 package sharepoint
 
 import (
+	"context"
+	"net/http"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 var _ onedrive.BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
 	ac api.Drives
+}
+
+func (h libraryBackupHandler) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return h.ac.Get(ctx, url, headers)
 }
 
 func (h libraryBackupHandler) PathPrefix(
@@ -45,7 +55,8 @@ func (h libraryBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType)
 }
 
 func (h libraryBackupHandler) DrivePager(
-	resourceOwner string, fields []string,
+	resourceOwner string,
+	fields []string,
 ) api.DrivePager {
 	return h.ac.NewSiteDrivePager(resourceOwner, fields)
 }
@@ -118,9 +129,19 @@ func (h libraryBackupHandler) NewLocationIDer(
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
 
-func (h libraryBackupHandler) Requester() graph.Requester                     { return h.ac.Requester }
-func (h libraryBackupHandler) PermissionGetter() onedrive.GetItemPermissioner { return h.ac }
-func (h libraryBackupHandler) ItemGetter() onedrive.GetItemer                 { return h.ac }
+func (h libraryBackupHandler) GetItemPermission(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.PermissionCollectionResponseable, error) {
+	return h.ac.GetItemPermission(ctx, driveID, itemID)
+}
+
+func (h libraryBackupHandler) GetItem(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	return h.ac.GetItem(ctx, driveID, itemID)
+}
 
 // ---------------------------------------------------------------------------
 // Restore

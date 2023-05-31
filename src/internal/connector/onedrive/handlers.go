@@ -6,7 +6,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -27,6 +26,9 @@ type ItemInfoAugmenter interface {
 
 type BackupHandler interface {
 	ItemInfoAugmenter
+	api.Getter
+	GetItemPermissioner
+	GetItemer
 
 	PathPrefix(tenantID, resourceOwner, driveID string) (path.Path, error)
 	CanonicalPath(
@@ -38,10 +40,6 @@ type BackupHandler interface {
 	ItemPager(driveID, link string, fields []string) api.DriveItemEnumerator
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
 	NewLocationIDer(driveID string, elems ...string) details.LocationIDer
-	Requester() graph.Requester
-
-	PermissionGetter() GetItemPermissioner
-	ItemGetter() GetItemer
 }
 
 type GetItemPermissioner interface {
