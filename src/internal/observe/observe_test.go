@@ -51,16 +51,14 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	}()
 
 	from := make([]byte, 100)
-	prog, closer, _ := ItemProgress(
+	prog, abort := ItemProgress(
 		ctx,
 		io.NopCloser(bytes.NewReader(from)),
 		"folder",
 		tst,
 		100)
 	require.NotNil(t, prog)
-	require.NotNil(t, closer)
-
-	defer closer()
+	require.NotNil(t, abort)
 
 	var i int
 

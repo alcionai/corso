@@ -788,14 +788,12 @@ func restoreData(
 			iReader = itemData.ToReader()
 		}
 
-		progReader, closer, abort := observe.ItemProgress(
+		progReader, abort := observe.ItemProgress(
 			ctx,
 			iReader,
 			observe.ItemRestoreMsg,
 			clues.Hide(pname),
 			ss.Size())
-
-		go closer()
 
 		// Upload the stream data
 		written, err = io.CopyBuffer(w, progReader, copyBuffer)

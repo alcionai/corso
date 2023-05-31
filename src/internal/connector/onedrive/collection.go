@@ -535,13 +535,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					}
 
 					// display/log the item download
-					progReader, closer, _ := observe.ItemProgress(
+					progReader, _ := observe.ItemProgress(
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
 						clues.Hide(itemName+dataSuffix),
 						itemSize)
-					go closer()
 
 					return progReader, nil
 				})
@@ -554,13 +553,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				progReader, closer, _ := observe.ItemProgress(
+				progReader, _ := observe.ItemProgress(
 					ctx,
 					itemMeta,
 					observe.ItemBackupMsg,
 					clues.Hide(itemName+metaSuffix),
 					int64(itemMetaSize))
-				go closer()
 				return progReader, nil
 			})
 
