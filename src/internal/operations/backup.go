@@ -177,7 +177,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
-		"resource_owner", clues.Hide(op.ResourceOwner.Name()),
+		"resource_owner_id", op.ResourceOwner.ID(),
+		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
 		"incremental", op.incremental)

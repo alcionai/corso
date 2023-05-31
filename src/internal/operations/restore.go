@@ -194,6 +194,10 @@ func (op *RestoreOperation) do(
 	detailsStore streamstore.Reader,
 	start time.Time,
 ) (*details.Details, error) {
+	logger.Ctx(ctx).
+		With("control_options", op.Options, "selectors", op.Selectors).
+		Info("restoring selection")
+
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -213,7 +217,8 @@ func (op *RestoreOperation) do(
 
 	ctx = clues.Add(
 		ctx,
-		"resource_owner", bup.Selector.DiscreteOwner,
+		"resource_owner_id", bup.Selector.ID(),
+		"resource_owner_name", clues.Hide(bup.Selector.Name()),
 		"details_entries", len(deets.Entries),
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
@@ -230,7 +235,6 @@ func (op *RestoreOperation) do(
 		})
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
-	logger.Ctx(ctx).With("control_options", op.Options, "selectors", op.Selectors).Info("restoring selection")
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer closer()
