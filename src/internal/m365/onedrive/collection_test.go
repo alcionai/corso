@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -604,6 +605,18 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 	}
 }
 
+var _ urlCacher = &mockURLCache{}
+
+type mockURLCache struct {
+	Get func(ctx context.Context, itemID string) (itemProps, error)
+}
+
+func (muc *mockURLCache) getItemProperties(
+	ctx context.Context,
+	itemID string) (itemProps, error) {
+	return muc.Get(ctx, itemID)
+}
+
 func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	var (
 		driveID   string
@@ -615,6 +628,12 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 
 	itemWID.SetId(ptr.To("brainhooldy"))
 
+	m := &mockURLCache{
+		Get: func(ctx context.Context, itemID string) (itemProps, error) {
+			return itemProps{}, clues.Stack(assert.AnError)
+		},
+	}
+
 	table := []struct {
 		name      string
 		mgi       mock.GetsItem
@@ -623,6 +642,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		getErr    []error
 		expectErr require.ErrorAssertionFunc
 		expect    require.ValueAssertionFunc
+		muc       *mockURLCache
 	}{
 		{
 			name:      "good",
@@ -631,6 +651,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			getErr:    []error{nil},
 			expectErr: require.NoError,
 			expect:    require.NotNil,
+			muc:       m,
 		},
 		{
 			name:      "expired url redownloads",
@@ -640,6 +661,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			getErr:    []error{errUnauth, nil},
 			expectErr: require.NoError,
 			expect:    require.NotNil,
+			muc:       m,
 		},
 		{
 			name:      "immediate error",
@@ -647,6 +669,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			getErr:    []error{assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
+			muc:       m,
 		},
 		{
 			name:      "re-fetching the item fails",
@@ -655,6 +678,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mgi:       mock.GetsItem{Item: nil, Err: assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
+			muc:       m,
 		},
 		{
 			name:      "expired url fails redownload",
@@ -664,6 +688,43 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			getErr:    []error{errUnauth, assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
+			muc:       m,
+		},
+		{
+			name:      "expired url fetched from cache",
+			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil, iorc},
+			getErr:    []error{errUnauth, nil},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
+			muc: &mockURLCache{
+				Get: func(ctx context.Context, itemID string) (itemProps, error) {
+					return itemProps{
+							downloadURL: "http://example.com",
+							isDeleted:   false,
+						},
+						nil
+				},
+			},
+		},
+		{
+			name:      "expired url fetched from cache but item deleted",
+			mgi:       mock.GetsItem{Item: itemWID, Err: assert.AnError},
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil, nil},
+			getErr:    []error{errUnauth, assert.AnError},
+			expectErr: require.Error,
+			expect:    require.Nil,
+			muc: &mockURLCache{
+				Get: func(ctx context.Context, itemID string) (itemProps, error) {
+					return itemProps{
+							downloadURL: "http://example.com",
+							isDeleted:   true,
+						},
+						nil
+				},
+			},
 		},
 	}
 	for _, test := range table {
@@ -698,7 +759,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true,
-				nil)
+				test.muc)
 			require.NoError(t, err, clues.ToCore(err))
 
 			r, err := coll.downloadContent(ctx, mbh, item, driveID)

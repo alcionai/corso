@@ -85,7 +85,7 @@ type Collection struct {
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
 
-	cache *urlCache
+	cache urlCacher
 }
 
 func pathToLocation(p path.Path) (*path.Builder, error) {
@@ -111,7 +111,7 @@ func NewCollection(
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
-	cache *urlCache,
+	cache urlCacher,
 ) (*Collection, error) {
 	// TODO(ashmrtn): If OneDrive switches to using folder IDs then this will need
 	// to be changed as we won't be able to extract path information from the
@@ -153,7 +153,7 @@ func newColl(
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
-	cache *urlCache,
+	cache urlCacher,
 ) *Collection {
 	c := &Collection{
 		handler:         handler,
@@ -376,7 +376,7 @@ func (oc *Collection) readFromCache(
 	itemID string,
 ) (io.ReadCloser, error) {
 	if oc.cache == nil {
-		return nil, clues.New("nil url cache")
+		return nil, clues.New("nil cache")
 	}
 
 	props, err := oc.cache.getItemProperties(ctx, itemID)

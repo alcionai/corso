@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -386,7 +385,7 @@ func (c *Collections) Get(
 
 		// Only create a drive cache if there are less than 300k items in the drive.
 		// TODO: Tune this number. Delta query for 300k items takes ~20 mins.
-		if numDriveItems < 300*1000 {
+		if numDriveItems < urlCacheDriveItemThreshold {
 			logger.Ctx(ictx).Info("adding url cache for drive ", driveID)
 
 			err = c.addURLCacheToDriveCollections(ictx, driveID, errs)
@@ -463,7 +462,7 @@ func (c *Collections) addURLCacheToDriveCollections(
 ) error {
 	uc, err := newURLCache(
 		driveID,
-		1*time.Hour, // TODO: Add const
+		urlCacheRefreshInterval,
 		errs,
 		c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()))
 	if err != nil {
