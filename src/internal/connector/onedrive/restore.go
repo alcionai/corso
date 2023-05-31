@@ -154,7 +154,7 @@ func RestoreCollection(
 	}
 
 	if _, ok := caches.DriveIDToRootFolderID[drivePath.DriveID]; !ok {
-		root, err := rh.RootFolderGetter().GetRootFolder(ctx, drivePath.DriveID)
+		root, err := rh.GetRootFolder(ctx, drivePath.DriveID)
 		if err != nil {
 			return metrics, clues.Wrap(err, "getting drive root id")
 		}
@@ -577,12 +577,17 @@ func CreateRestoreFolders(
 	return id, err
 }
 
+type folderRestorer interface {
+	GetFolderByNamer
+	PostItemInContainerer
+}
+
 // createRestoreFolders creates the restore folder hierarchy in the specified
 // drive and returns the folder ID of the last folder entry in the hierarchy.
 // folderCache is mutated, as a side effect of populating the items.
 func createRestoreFolders(
 	ctx context.Context,
-	rh RestoreHandler,
+	fr folderRestorer,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
 	caches *restoreCaches,
@@ -613,7 +618,7 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := rh.FolderByNameGetter().GetFolderByName(ictx, driveID, parentFolderID, folder)
+		folderItem, err := fr.GetFolderByName(ictx, driveID, parentFolderID, folder)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
 			return "", clues.Wrap(err, "getting folder by display name")
 		}
@@ -627,7 +632,7 @@ func createRestoreFolders(
 		}
 
 		// create the folder if not found
-		folderItem, err = rh.ItemInContainerPoster().PostItemInContainer(ictx, driveID, parentFolderID, newItem(folder, true))
+		folderItem, err = fr.PostItemInContainer(ictx, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -641,10 +646,16 @@ func createRestoreFolders(
 	return parentFolderID, nil
 }
 
+type itemRestorer interface {
+	ItemInfoAugmenter
+	NewItemContentUploader
+	PostItemInContainerer
+}
+
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
-	rh RestoreHandler,
+	ir itemRestorer,
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
@@ -662,13 +673,13 @@ func restoreData(
 	}
 
 	// Create Item
-	newItem, err := rh.ItemInContainerPoster().PostItemInContainer(ctx, driveID, parentFolderID, newItem(name, false))
+	newItem, err := ir.PostItemInContainer(ctx, driveID, parentFolderID, newItem(name, false))
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}
 
 	// Get a drive item writer
-	w, err := driveItemWriter(ctx, rh, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	w, err := driveItemWriter(ctx, ir, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}
@@ -689,7 +700,7 @@ func restoreData(
 		return "", details.ItemInfo{}, graph.Wrap(ctx, err, "writing item bytes")
 	}
 
-	dii := rh.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
+	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
 
 	return ptr.Val(newItem.GetId()), dii, nil
 }
