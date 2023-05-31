@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------
@@ -57,11 +58,17 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	return graph.NewService(adapter)
 }
 
-func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
+func expectedPathAsSlice(
+	t *testing.T,
+	bh onedrive.BackupHandler,
+	tenant, user string,
+	rest ...string,
+) []string {
 	res := make([]string, 0, len(rest))
 
 	for _, r := range rest {
-		p, err := onedrive.GetCanonicalPath(r, tenant, user, onedrive.SharePointSource)
+		pb := path.Builder{}.Append(r)
+		p, err := bh.CanonicalPath(pb, tenant, user)
 		require.NoError(t, err, clues.ToCore(err))
 
 		res = append(res, p.String())

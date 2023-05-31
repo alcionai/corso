@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -47,21 +48,7 @@ const (
 	CollectionScopePackage
 )
 
-const (
-	restrictedDirectory = "Site Pages"
-	rootDrivePattern    = "/drives/%s/root:"
-)
-
-func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
-	switch ds {
-	case OneDriveSource:
-		return path.OneDriveService, path.FilesCategory
-	case SharePointSource:
-		return path.SharePointService, path.LibrariesCategory
-	default:
-		return path.UnknownService, path.UnknownCategory
-	}
-}
+const restrictedDirectory = "Site Pages"
 
 type folderMatcher interface {
 	IsAny() bool
@@ -71,15 +58,11 @@ type folderMatcher interface {
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
-	// configured to handle large item downloads
-	itemClient graph.Requester
-	ad         api.Drives
+	handler BackupHandler
 
-	tenant        string
+	tenantID      string
 	resourceOwner string
-	source        driveSource
 	matcher       folderMatcher
-	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 
 	ctrl control.Options
@@ -88,17 +71,6 @@ type Collections struct {
 	// for a OneDrive folder.
 	// driveID -> itemID -> collection
 	CollectionMap map[string]map[string]*Collection
-
-	// Not the most ideal, but allows us to change the pager function for testing
-	// as needed. This will allow us to mock out some scenarios during testing.
-	drivePagerFunc func(
-		source driveSource,
-		servicer graph.Servicer,
-		resourceOwner string,
-		fields []string,
-	) (api.DrivePager, error)
-	itemPagerFunc      driveItemPagerFunc
-	servicePathPfxFunc pathPrefixerFunc
 
 	// Track stats from drive enumeration. Represents the items backed up.
 	NumItems      int
@@ -109,7 +81,7 @@ type Collections struct {
 func NewCollections(
 	ad api.Drives,
 	itemClient graph.Requester,
-	tenant string,
+	tenantID string,
 	resourceOwner string,
 	source driveSource,
 	matcher folderMatcher,
@@ -118,18 +90,12 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		itemClient:         itemClient,
-		tenant:             tenant,
-		resourceOwner:      resourceOwner,
-		source:             source,
-		matcher:            matcher,
-		CollectionMap:      map[string]map[string]*Collection{},
-		drivePagerFunc:     PagerForSource,
-		itemPagerFunc:      defaultItemPager,
-		servicePathPfxFunc: pathPrefixerForSource(tenant, resourceOwner, source),
-		service:            service,
-		statusUpdater:      statusUpdater,
-		ctrl:               ctrlOpts,
+		tenantID:      tenantID,
+		resourceOwner: resourceOwner,
+		matcher:       matcher,
+		CollectionMap: map[string]map[string]*Collection{},
+		statusUpdater: statusUpdater,
+		ctrl:          ctrlOpts,
 	}
 }
 
@@ -289,10 +255,7 @@ func (c *Collections) Get(
 	defer close(driveComplete)
 
 	// Enumerate drives for the specified resourceOwner
-	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
+	pager := c.handler.DrivePager(c.resourceOwner, nil)
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
@@ -333,7 +296,7 @@ func (c *Collections) Get(
 
 		delta, paths, excluded, err := collectItems(
 			ictx,
-			c.itemPagerFunc(c.service, driveID, ""),
+			api.NewItemPager(nil, driveID, "", api.DriveItemSelectDefault()),
 			driveID,
 			driveName,
 			c.UpdateCollections,
@@ -372,14 +335,12 @@ func (c *Collections) Get(
 
 		// For both cases we don't need to do set difference on folder map if the
 		// delta token was valid because we should see all the changes.
-		if !delta.Reset && len(excluded) == 0 {
-			continue
-		} else if !delta.Reset {
-			p, err := GetCanonicalPath(
-				fmt.Sprintf(rootDrivePattern, driveID),
-				c.tenant,
-				c.resourceOwner,
-				c.source)
+		if !delta.Reset {
+			if len(excluded) == 0 {
+				continue
+			}
+
+			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID, c.resourceOwner)
 			if err != nil {
 				return nil, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
@@ -413,14 +374,11 @@ func (c *Collections) Get(
 			}
 
 			col, err := NewCollection(
-				c.ad,
-				c.itemClient,
+				c.handler,
 				nil, // delete the folder
 				prevPath,
 				driveID,
-				c.service,
 				c.statusUpdater,
-				c.source,
 				c.ctrl,
 				CollectionScopeUnknown,
 				true)
@@ -445,20 +403,17 @@ func (c *Collections) Get(
 
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := c.servicePathPfxFunc(driveID)
+		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.resourceOwner, driveID)
 		if err != nil {
-			return nil, clues.Wrap(err, "making drive tombstone previous path").WithClues(ctx)
+			return nil, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}
 
 		coll, err := NewCollection(
-			c.ad,
-			c.itemClient,
+			c.handler,
 			nil, // delete the drive
 			prevDrivePath,
 			driveID,
-			c.service,
 			c.statusUpdater,
-			c.source,
 			c.ctrl,
 			CollectionScopeUnknown,
 			true)
@@ -470,9 +425,9 @@ func (c *Collections) Get(
 	}
 
 	// add metadata collections
-	service, category := c.source.toPathServiceCat()
+	service, category := c.handler.ServiceCat()
 	md, err := graph.MakeMetadataCollection(
-		c.tenant,
+		c.tenantID,
 		c.resourceOwner,
 		service,
 		category,
@@ -605,14 +560,11 @@ func (c *Collections) handleDelete(
 	}
 
 	col, err := NewCollection(
-		c.ad,
-		c.itemClient,
-		nil,
+		c.handler,
+		nil, // deletes the collection
 		prevPath,
 		driveID,
-		c.service,
 		c.statusUpdater,
-		c.source,
 		c.ctrl,
 		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
@@ -634,14 +586,12 @@ func (c *Collections) getCollectionPath(
 	item models.DriveItemable,
 ) (path.Path, error) {
 	var (
-		collectionPathStr string
-		isRoot            = item.GetRoot() != nil
-		isFile            = item.GetFile() != nil
+		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
+		isRoot = item.GetRoot() != nil
+		isFile = item.GetFile() != nil
 	)
 
-	if isRoot {
-		collectionPathStr = fmt.Sprintf(rootDrivePattern, driveID)
-	} else {
+	if !isRoot {
 		if item.GetParentReference() == nil ||
 			item.GetParentReference().GetPath() == nil {
 			err := clues.New("no parent reference").
@@ -650,15 +600,10 @@ func (c *Collections) getCollectionPath(
 			return nil, err
 		}
 
-		collectionPathStr = ptr.Val(item.GetParentReference().GetPath())
+		pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
 	}
 
-	collectionPath, err := GetCanonicalPath(
-		collectionPathStr,
-		c.tenant,
-		c.resourceOwner,
-		c.source,
-	)
+	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID, c.resourceOwner)
 	if err != nil {
 		return nil, clues.Wrap(err, "making item path")
 	}
@@ -799,14 +744,11 @@ func (c *Collections) UpdateCollections(
 			}
 
 			col, err := NewCollection(
-				c.ad,
-				c.itemClient,
+				c.handler,
 				collectionPath,
 				prevPath,
 				driveID,
-				c.service,
 				c.statusUpdater,
-				c.source,
 				c.ctrl,
 				colScope,
 				invalidPrevDelta)
@@ -892,30 +834,6 @@ func (c *Collections) UpdateCollections(
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
 	return !includePath(ctx, m, drivePath) ||
 		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
-}
-
-// GetCanonicalPath constructs the standard path for the given source.
-func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path.Path, error) {
-	var (
-		pathBuilder = path.Builder{}.Append(strings.Split(p, "/")...)
-		result      path.Path
-		err         error
-	)
-
-	switch source {
-	case OneDriveSource:
-		result, err = pathBuilder.ToDataLayerOneDrivePath(tenant, resourceOwner, false)
-	case SharePointSource:
-		result, err = pathBuilder.ToDataLayerSharePointPath(tenant, resourceOwner, path.LibrariesCategory, false)
-	default:
-		return nil, clues.New("unrecognized data source")
-	}
-
-	if err != nil {
-		return nil, clues.Wrap(err, "converting to canonical path")
-	}
-
-	return result, nil
 }
 
 func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) bool {

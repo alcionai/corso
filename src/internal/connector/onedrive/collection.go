@@ -24,7 +24,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 const (
@@ -43,9 +42,7 @@ var (
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
-	// configured to handle large item downloads
-	itemClient graph.Requester
-	ad         api.Drives
+	handler BackupHandler
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -58,14 +55,9 @@ type Collection struct {
 	// Primary M365 ID of the drive this collection was created from
 	driveID string
 	// Display Name of the associated drive
-	driveName      string
-	source         driveSource
-	service        graph.Servicer
-	statusUpdater  support.StatusUpdater
-	itemGetter     itemGetterFunc
-	itemReader     itemReaderFunc
-	itemMetaReader itemMetaReaderFunc
-	ctrl           control.Options
+	driveName     string
+	statusUpdater support.StatusUpdater
+	ctrl          control.Options
 
 	// PrevPath is the previous hierarchical path used by this collection.
 	// It may be the same as fullPath, if the folder was not renamed or
@@ -94,26 +86,26 @@ type Collection struct {
 }
 
 // itemGetterFunc gets a specified item
-type itemGetterFunc func(
-	ctx context.Context,
-	driveID, itemID string,
-) (models.DriveItemable, error)
+// type itemGetterFunc func(
+// 	ctx context.Context,
+// 	driveID, itemID string,
+// ) (models.DriveItemable, error)
 
 // itemReadFunc returns a reader for the specified item
-type itemReaderFunc func(
-	ctx context.Context,
-	client graph.Requester,
-	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error)
+// type itemReaderFunc func(
+// 	ctx context.Context,
+// 	client graph.Requester,
+// 	item models.DriveItemable,
+// ) (details.ItemInfo, io.ReadCloser, error)
 
 // itemMetaReaderFunc returns a reader for the metadata of the
 // specified item
-type itemMetaReaderFunc func(
-	ctx context.Context,
-	ad api.Drives,
-	driveID string,
-	item models.DriveItemable,
-) (io.ReadCloser, int, error)
+// type itemMetaReaderFunc func(
+// 	ctx context.Context,
+// 	ad api.Drives,
+// 	driveID string,
+// 	item models.DriveItemable,
+// ) (io.ReadCloser, int, error)
 
 func pathToLocation(p path.Path) (*path.Builder, error) {
 	if p == nil {
@@ -130,14 +122,11 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 
 // NewCollection creates a Collection
 func NewCollection(
-	ad api.Drives,
-	itemClient graph.Requester,
+	handler BackupHandler,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
-	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
-	source driveSource,
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
@@ -157,14 +146,11 @@ func NewCollection(
 	}
 
 	c := newColl(
-		ad,
-		itemClient,
+		handler,
 		currPath,
 		prevPath,
 		driveID,
-		service,
 		statusUpdater,
-		source,
 		ctrlOpts,
 		colScope,
 		doNotMergeItems)
@@ -176,28 +162,21 @@ func NewCollection(
 }
 
 func newColl(
-	ad api.Drives,
-	gr graph.Requester,
+	handler BackupHandler,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
-	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
-	source driveSource,
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
-		ad:              ad,
-		itemClient:      gr,
-		itemGetter:      ad.GetItem,
+		handler:         handler,
 		folderPath:      currPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
-		source:          source,
-		service:         service,
 		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
