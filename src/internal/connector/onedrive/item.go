@@ -27,6 +27,10 @@ func downloadItem(
 	ag api.Getter,
 	item models.DriveItemable,
 ) (io.ReadCloser, error) {
+	if item == nil {
+		return nil, clues.New("nil item")
+	}
+
 	var (
 		rc     io.ReadCloser
 		isFile = item.GetFile() != nil

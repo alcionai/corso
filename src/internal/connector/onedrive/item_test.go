@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -253,6 +255,161 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 				ptr.Val(root.GetId()),
 				"")
 			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+// Unit tests
+
+// mock
+type mockGetter struct {
+	GetFunc func(ctx context.Context, url string) (*http.Response, error)
+}
+
+func (m mockGetter) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return m.GetFunc(ctx, url)
+}
+
+type ItemUnitTestSuite struct {
+	tester.Suite
+}
+
+func TestItemUnitTestSuite(t *testing.T) {
+	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ItemUnitTestSuite) TestDownloadItem() {
+	testRc := ioutil.NopCloser(bytes.NewReader([]byte("test")))
+
+	table := []struct {
+		name          string
+		itemFunc      func() models.DriveItemable
+		GetFunc       func(ctx context.Context, url string) (*http.Response, error)
+		errorExpected bool
+		rcExpected    bool
+		label         string
+	}{
+		{
+			name: "nil item",
+			itemFunc: func() models.DriveItemable {
+				return nil
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return nil, nil
+			},
+			errorExpected: true,
+			rcExpected:    false,
+		},
+		{
+			name: "success",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": "https://example.com",
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: false,
+			rcExpected:    true,
+		},
+		{
+			name: "api getter returns error",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": "https://example.com",
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return nil, clues.New("test error")
+			},
+			errorExpected: true,
+			rcExpected:    false,
+		},
+		{
+			name: "download url is empty",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: true,
+			rcExpected:    false,
+		},
+		{
+			name: "malware",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": "https://example.com",
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					Header: http.Header{
+						"X-Virus-Infected": []string{"true"},
+					},
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: true,
+			rcExpected:    false,
+		},
+		{
+			name: "non-2xx http response",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": "https://example.com",
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Body:       nil,
+				}, nil
+			},
+			errorExpected: true,
+			rcExpected:    false,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			// Mock the getter
+			mg := mockGetter{
+				GetFunc: test.GetFunc,
+			}
+			rc, err := downloadItem(ctx, mg, test.itemFunc())
+			require.Equal(t, test.errorExpected, err != nil, clues.ToCore(err))
+			require.Equal(t, test.rcExpected, rc != nil)
 		})
 	}
 }
