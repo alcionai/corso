@@ -30,7 +30,6 @@ func RestoreCollections(
 	ctx context.Context,
 	creds account.M365Config,
 	ac api.Client,
-	gs graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,

@@ -95,11 +95,11 @@ func (h BackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return h.Service, h.Category
 }
 
-func (h BackupHandler) DrivePager(string, []string) api.DrivePager {
+func (h BackupHandler) NewDrivePager(string, []string) api.DrivePager {
 	return h.DrivePagerV
 }
 
-func (h BackupHandler) ItemPager(driveID string, _ string, _ []string) api.DriveItemEnumerator {
+func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DriveItemEnumerator {
 	return h.ItemPagerV[driveID]
 }
 

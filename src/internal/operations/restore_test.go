@@ -345,7 +345,7 @@ func setupSharePointBackup(
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	spPgr := gc.Discovery.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
+	spPgr := gc.AC.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
 
 	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
 	require.NoError(t, err, clues.ToCore(err))

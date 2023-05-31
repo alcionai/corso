@@ -233,14 +233,14 @@ func generateAndRestoreDriveItems(
 
 	switch service {
 	case path.SharePointService:
-		d, err := gc.Service.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := gc.AC.Stable.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting site's default drive")
 		}
 
 		driveID = ptr.Val(d.GetId())
 	default:
-		d, err := gc.Service.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := gc.AC.Stable.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user's default drive")
 		}

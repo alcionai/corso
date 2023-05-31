@@ -55,25 +55,20 @@ func (h libraryBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType)
 	return path.SharePointService, path.LibrariesCategory
 }
 
-func (h libraryBackupHandler) DrivePager(
+func (h libraryBackupHandler) NewDrivePager(
 	resourceOwner string,
 	fields []string,
 ) api.DrivePager {
 	return h.ac.NewSiteDrivePager(resourceOwner, fields)
 }
 
-func (h libraryBackupHandler) ItemPager(
+func (h libraryBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
 ) api.DriveItemEnumerator {
 	return h.ac.NewItemPager(driveID, link, fields)
 }
 
-// AugmentItemInfo will populate a details.SharePointInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
 func (h libraryBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	item models.DriveItemable,
@@ -83,10 +78,10 @@ func (h libraryBackupHandler) AugmentItemInfo(
 	return augmentItemInfo(dii, item, size, parentPath)
 }
 
-// constructWebURL helper function for recreating the webURL
-// for the originating SharePoint site. Uses additional data map
+// constructWebURL is a helper function for recreating the webURL
+// for the originating SharePoint site. Uses the additionalData map
 // from a models.DriveItemable that possesses a downloadURL within the map.
-// Returns "" if map nil or key is not present.
+// Returns "" if the map is nil or key is not present.
 func constructWebURL(adtl map[string]any) string {
 	var (
 		desiredKey = "@microsoft.graph.downloadUrl"
@@ -158,11 +153,6 @@ func NewRestoreHandler(ac api.Client) *libraryRestoreHandler {
 	return &libraryRestoreHandler{ac.Drives()}
 }
 
-// AugmentItemInfo will populate a details.OneDriveInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
 func (h libraryRestoreHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	item models.DriveItemable,

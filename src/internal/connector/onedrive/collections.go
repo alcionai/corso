@@ -246,7 +246,7 @@ func (c *Collections) Get(
 	defer close(driveComplete)
 
 	// Enumerate drives for the specified resourceOwner
-	pager := c.handler.DrivePager(c.resourceOwner, nil)
+	pager := c.handler.NewDrivePager(c.resourceOwner, nil)
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
@@ -287,7 +287,7 @@ func (c *Collections) Get(
 
 		delta, paths, excluded, err := collectItems(
 			ictx,
-			c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()),
+			c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
 			driveID,
 			driveName,
 			c.UpdateCollections,

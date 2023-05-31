@@ -225,7 +225,7 @@ func GetAllFolders(
 
 		_, _, _, err = collectItems(
 			ictx,
-			bh.ItemPager(id, "", nil),
+			bh.NewItemPager(id, "", nil),
 			id,
 			name,
 			collector,

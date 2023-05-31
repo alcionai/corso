@@ -174,7 +174,8 @@ func (oc *Collection) Add(item models.DriveItemable) bool {
 	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	oc.driveItems[ptr.Val(item.GetId())] = item
 
-	return !found // if !found, it's a new addition
+	// if !found, it's a new addition
+	return !found
 }
 
 // Remove removes a item from the collection

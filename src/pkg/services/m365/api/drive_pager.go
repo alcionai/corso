@@ -21,6 +21,15 @@ import (
 // item pager
 // ---------------------------------------------------------------------------
 
+type DriveItemEnumerator interface {
+	GetPage(context.Context) (DeltaPageLinker, error)
+	SetNext(nextLink string)
+	Reset()
+	ValuesIn(DeltaPageLinker) ([]models.DriveItemable, error)
+}
+
+var _ DriveItemEnumerator = &DriveItemPager{}
+
 type DriveItemPager struct {
 	gs      graph.Servicer
 	driveID string
@@ -99,6 +108,8 @@ func (p *DriveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, er
 // ---------------------------------------------------------------------------
 // user pager
 // ---------------------------------------------------------------------------
+
+var _ DrivePager = &userDrivePager{}
 
 type userDrivePager struct {
 	userID  string
@@ -187,6 +198,8 @@ func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 // ---------------------------------------------------------------------------
 // site pager
 // ---------------------------------------------------------------------------
+
+var _ DrivePager = &siteDrivePager{}
 
 type siteDrivePager struct {
 	gs      graph.Servicer

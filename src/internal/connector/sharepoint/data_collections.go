@@ -31,12 +31,10 @@ type statusUpdater interface {
 func DataCollections(
 	ctx context.Context,
 	ac api.Client,
-	itemClient graph.Requester,
 	selector selectors.Selector,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
 	creds account.M365Config,
-	gs graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -76,7 +74,6 @@ func DataCollections(
 			spcs, err = collectLists(
 				ctx,
 				ac,
-				gs,
 				creds.AzureTenantID,
 				site,
 				su,
@@ -109,7 +106,6 @@ func DataCollections(
 				ctx,
 				creds,
 				ac,
-				gs,
 				site,
 				su,
 				ctrlOpts,
@@ -149,7 +145,6 @@ func DataCollections(
 func collectLists(
 	ctx context.Context,
 	ac api.Client,
-	gs graph.Servicer,
 	tenantID string,
 	site idname.Provider,
 	updater statusUpdater,
@@ -163,7 +158,7 @@ func collectLists(
 		spcs = make([]data.BackupCollection, 0)
 	)
 
-	lists, err := preFetchLists(ctx, gs, site.ID())
+	lists, err := preFetchLists(ctx, ac.Stable, site.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +182,6 @@ func collectLists(
 		collection := NewCollection(
 			dir,
 			ac,
-			gs,
 			List,
 			updater.UpdateStatus,
 			ctrlOpts)
@@ -240,7 +234,6 @@ func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
 	ac api.Client,
-	serv graph.Servicer,
 	site idname.Provider,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -289,7 +282,6 @@ func collectPages(
 		collection := NewCollection(
 			dir,
 			ac,
-			serv,
 			Pages,
 			updater.UpdateStatus,
 			ctrlOpts)

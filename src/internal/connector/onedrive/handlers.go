@@ -12,6 +12,11 @@ import (
 )
 
 type ItemInfoAugmenter interface {
+	// AugmentItemInfo will populate a details.<Service>Info struct
+	// with properties from the drive item.  ItemSize is passed in
+	// separately for restore processes because the local itemable
+	// doesn't have its size value updated as a side effect of creation,
+	// and kiota drops any SetSize update.
 	AugmentItemInfo(
 		dii details.ItemInfo,
 		item models.DriveItemable,
@@ -30,14 +35,23 @@ type BackupHandler interface {
 	GetItemPermissioner
 	GetItemer
 
+	// PathPrefix constructs the service and category specific path prefix for
+	// the given values.
 	PathPrefix(tenantID, resourceOwner, driveID string) (path.Path, error)
+
+	// CanonicalPath constructs the service and category specific path for
+	// the given values.
 	CanonicalPath(
 		folders *path.Builder,
 		tenantID, resourceOwner string,
 	) (path.Path, error)
+
+	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
-	DrivePager(resourceOwner string, fields []string) api.DrivePager
-	ItemPager(driveID, link string, fields []string) api.DriveItemEnumerator
+	NewDrivePager(resourceOwner string, fields []string) api.DrivePager
+	NewItemPager(driveID, link string, fields []string) api.DriveItemEnumerator
+	// FormatDisplayPath creates a human-readable string to represent the
+	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
 	NewLocationIDer(driveID string, elems ...string) details.LocationIDer
 }
@@ -71,14 +85,9 @@ type RestoreHandler interface {
 }
 
 type NewItemContentUploader interface {
+	// NewItemContentUpload creates an upload session which is used as a writer
+	// for large item content.
 	NewItemContentUpload(
-		ctx context.Context,
-		driveID, itemID string,
-	) (models.UploadSessionable, error)
-}
-
-type PostItemer interface {
-	PostItem(
 		ctx context.Context,
 		driveID, itemID string,
 	) (models.UploadSessionable, error)
@@ -115,6 +124,7 @@ type GetFolderByNamer interface {
 }
 
 type GetRootFolderer interface {
+	// GetRootFolder gets the root folder for the drive.
 	GetRootFolder(
 		ctx context.Context,
 		driveID string,

@@ -1439,8 +1439,8 @@ func runDriveIncrementalTest(
 	require.NoError(t, err, clues.ToCore(err))
 
 	gc, sel := GCWithSelector(t, ctx, acct, resource, sel, nil, nil)
-	ac := gc.Discovery.Drives()
-	rh := getRestoreHandler(gc.Discovery)
+	ac := gc.AC.Drives()
+	rh := getRestoreHandler(gc.AC)
 
 	roidn := inMock.NewProvider(sel.ID(), sel.Name())
 
@@ -1500,7 +1500,7 @@ func runDriveIncrementalTest(
 		// onedrive package `getFolder` function.
 		itemURL := fmt.Sprintf("https://graph.microsoft.com/v1.0/drives/%s/root:/%s", driveID, destName)
 		resp, err := drives.
-			NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+			NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.AC.Stable.Adapter()).
 			Get(ctx, nil)
 		require.NoError(t, err, "getting drive folder ID", "folder name", destName, clues.ToCore(err))
 
@@ -1808,7 +1808,7 @@ func runDriveIncrementalTest(
 					"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
 					driveID,
 					container3)
-				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.AC.Stable.Adapter()).
 					Get(ctx, nil)
 				require.NoError(t, err, "getting drive folder ID", "folder name", container3, clues.ToCore(err))
 
@@ -1899,7 +1899,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		connector.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
-	userable, err := gc.Discovery.Users().GetByID(ctx, suite.user)
+	userable, err := gc.AC.Users().GetByID(ctx, suite.user)
 	require.NoError(t, err, clues.ToCore(err))
 
 	uid := ptr.Val(userable.GetId())

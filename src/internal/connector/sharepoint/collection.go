@@ -55,7 +55,6 @@ type Collection struct {
 	// M365 IDs of the items of this collection
 	category      DataCategory
 	client        api.Sites
-	service       graph.Servicer
 	ctrl          control.Options
 	betaService   *betaAPI.BetaService
 	statusUpdater support.StatusUpdater
@@ -65,7 +64,6 @@ type Collection struct {
 func NewCollection(
 	folderPath path.Path,
 	ac api.Client,
-	service graph.Servicer,
 	category DataCategory,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
@@ -75,7 +73,6 @@ func NewCollection(
 		jobs:          make([]string, 0),
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		client:        ac.Sites(),
-		service:       service,
 		statusUpdater: statusUpdater,
 		category:      category,
 		ctrl:          ctrlOpts,
@@ -223,7 +220,12 @@ func (sc *Collection) retrieveLists(
 		el      = errs.Local()
 	)
 
-	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	lists, err := loadSiteLists(
+		ctx,
+		sc.client.Stable,
+		sc.fullPath.ResourceOwner(),
+		sc.jobs,
+		errs)
 	if err != nil {
 		return metrics, err
 	}
