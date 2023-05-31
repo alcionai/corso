@@ -257,21 +257,7 @@ func (oc Collection) PreviousLocationPath() details.LocationIDer {
 		return nil
 	}
 
-	var ider details.LocationIDer
-
-	switch oc.source {
-	case OneDriveSource:
-		ider = details.NewOneDriveLocationIDer(
-			oc.driveID,
-			oc.prevLocPath.Elements()...)
-
-	default:
-		ider = details.NewSharePointLocationIDer(
-			oc.driveID,
-			oc.prevLocPath.Elements()...)
-	}
-
-	return ider
+	return oc.handler.NewLocationIDer(oc.driveID, oc.prevLocPath.Elements()...)
 }
 
 func (oc Collection) State() data.CollectionState {
@@ -411,16 +397,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
-	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
+	parentPath, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
 		oc.reportAsCompleted(ctx, 0, 0, 0)
 		return
 	}
 
-	queuedPath := "/" + parentPathString
-	if oc.source == SharePointSource && len(oc.driveName) > 0 {
-		queuedPath = "/" + oc.driveName + queuedPath
-	}
+	queuedPath := oc.handler.FormatDisplayPath(oc.driveName, parentPath)
 
 	folderProgress := observe.ProgressWithCount(
 		ctx,
@@ -488,14 +471,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				return
 			}
 
-			switch oc.source {
-			case SharePointSource:
-				itemInfo.SharePoint = sharePointItemInfo(item, itemSize)
-				itemInfo.SharePoint.ParentPath = parentPathString
-			default:
-				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
-				itemInfo.OneDrive.ParentPath = parentPathString
-			}
+			itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
 
 			ctx = clues.Add(ctx, "item_info", itemInfo)
 

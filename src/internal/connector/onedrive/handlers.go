@@ -1,6 +1,9 @@
 package onedrive
 
 import (
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -17,4 +20,12 @@ type BackupHandler interface {
 	) (path.Path, error)
 	ServiceCat() (path.ServiceType, path.CategoryType)
 	DrivePager(resourceOwner string, fields []string) api.DrivePager
+	AugmentItemInfo(
+		dii details.ItemInfo,
+		item models.DriveItemable,
+		size int64,
+		parentPath *path.Builder,
+	) details.ItemInfo
+	FormatDisplayPath(driveName string, parentPath *path.Builder) string
+	NewLocationIDer(driveID string, elems ...string) details.LocationIDer
 }
