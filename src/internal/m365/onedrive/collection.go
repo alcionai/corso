@@ -323,7 +323,7 @@ type itemAndAPIGetter interface {
 // downloadContent attempts to fetch the item content.  If the content url
 // is expired (ie, returns a 401), it re-fetches the item to get a new download
 // url and tries again.
-func downloadContent(
+func (oc *Collection) downloadContent(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
 	uc getItemPropertyer,

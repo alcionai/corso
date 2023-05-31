@@ -207,6 +207,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				CollectionScopeFolder,
 				true,
 				nil)
+				true,
+				nil)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())

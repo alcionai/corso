@@ -63,6 +63,9 @@ type Collections struct {
 	NumItems      int
 	NumFiles      int
 	NumContainers int
+
+	// drive ID -> url cache instance
+	driveURLCache map[string]*urlCache
 }
 
 func NewCollections(
@@ -79,6 +82,7 @@ func NewCollections(
 		CollectionMap: map[string]map[string]*Collection{},
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
+		driveURLCache: map[string]*urlCache{},
 	}
 }
 
