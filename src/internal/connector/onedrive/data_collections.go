@@ -72,7 +72,6 @@ func DataCollections(
 			itemClient,
 			tenant,
 			user.ID(),
-			OneDriveSource,
 			odFolderMatcher{scope},
 			service,
 			su,

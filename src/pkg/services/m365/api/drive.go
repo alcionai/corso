@@ -123,6 +123,27 @@ func (c Drives) PostItem(
 	return r, nil
 }
 
+const itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+
+// PostItemInContainer creates a new item in the specified folder
+func (c Drives) PostItemInContainer(
+	ctx context.Context,
+	driveID, parentFolderID string,
+	newItem models.DriveItemable,
+) (models.DriveItemable, error) {
+	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
+	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
+	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
+	builder := drives.NewItemItemsRequestBuilder(rawURL, c.Stable.Adapter())
+
+	newItem, err := builder.Post(ctx, newItem, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating item in folder")
+	}
+
+	return newItem, nil
+}
+
 func (c Drives) PatchItem(
 	ctx context.Context,
 	driveID, itemID string,

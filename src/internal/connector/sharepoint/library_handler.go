@@ -68,6 +68,101 @@ func (h libraryBackupHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
+	return augmentItemInfo(dii, item, size, parentPath)
+}
+
+// constructWebURL helper function for recreating the webURL
+// for the originating SharePoint site. Uses additional data map
+// from a models.DriveItemable that possesses a downloadURL within the map.
+// Returns "" if map nil or key is not present.
+func constructWebURL(adtl map[string]any) string {
+	var (
+		desiredKey = "@microsoft.graph.downloadUrl"
+		sep        = `/_layouts`
+		url        string
+	)
+
+	if adtl == nil {
+		return url
+	}
+
+	r := adtl[desiredKey]
+	point, ok := r.(*string)
+
+	if !ok {
+		return url
+	}
+
+	value := ptr.Val(point)
+	if len(value) == 0 {
+		return url
+	}
+
+	temp := strings.Split(value, sep)
+	url = temp[0]
+
+	return url
+}
+
+func (h libraryBackupHandler) FormatDisplayPath(
+	driveName string,
+	pb *path.Builder,
+) string {
+	return "/" + driveName + "/" + pb.String()
+}
+
+func (h libraryBackupHandler) NewLocationIDer(
+	driveID string,
+	elems ...string,
+) details.LocationIDer {
+	return details.NewSharePointLocationIDer(driveID, elems...)
+}
+
+func (h libraryBackupHandler) Requester() graph.Requester                     { return h.ac.Requester }
+func (h libraryBackupHandler) PermissionGetter() onedrive.GetItemPermissioner { return h.ac }
+func (h libraryBackupHandler) ItemGetter() onedrive.GetItemer                 { return h.ac }
+
+// ---------------------------------------------------------------------------
+// Restore
+// ---------------------------------------------------------------------------
+
+var _ onedrive.RestoreHandler = &libraryRestoreHandler{}
+
+type libraryRestoreHandler struct {
+	ac api.Drives
+}
+
+// AugmentItemInfo will populate a details.OneDriveInfo struct
+// with properties from the drive item.  ItemSize is specified
+// separately for restore processes because the local itemable
+// doesn't have its size value updated as a side effect of creation,
+// and kiota drops any SetSize update.
+func (h libraryRestoreHandler) AugmentItemInfo(
+	dii details.ItemInfo,
+	item models.DriveItemable,
+	size int64,
+	parentPath *path.Builder,
+) details.ItemInfo {
+	return augmentItemInfo(dii, item, size, parentPath)
+}
+
+func (h libraryRestoreHandler) FolderByNameGetter() onedrive.GetFolderByNamer          { return h.ac }
+func (h libraryRestoreHandler) ItemPoster() onedrive.PostItemer                        { return h.ac }
+func (h libraryRestoreHandler) ItemInContainerPoster() onedrive.PostItemInContainerer  { return h.ac }
+func (h libraryRestoreHandler) ItemPermissionDeleter() onedrive.DeleteItemPermissioner { return h.ac }
+func (h libraryRestoreHandler) ItemPermissionUpdater() onedrive.UpdateItemPermissioner { return h.ac }
+func (h libraryRestoreHandler) RootFolderGetter() onedrive.GetRootFolderer             { return h.ac }
+
+// ---------------------------------------------------------------------------
+// Common
+// ---------------------------------------------------------------------------
+
+func augmentItemInfo(
+	dii details.ItemInfo,
+	item models.DriveItemable,
+	size int64,
+	parentPath *path.Builder,
+) details.ItemInfo {
 	var driveName, siteID, driveID, weburl, creatorEmail string
 
 	// TODO: we rely on this info for details/restore lookups,
@@ -125,54 +220,3 @@ func (h libraryBackupHandler) AugmentItemInfo(
 
 	return dii
 }
-
-// constructWebURL helper function for recreating the webURL
-// for the originating SharePoint site. Uses additional data map
-// from a models.DriveItemable that possesses a downloadURL within the map.
-// Returns "" if map nil or key is not present.
-func constructWebURL(adtl map[string]any) string {
-	var (
-		desiredKey = "@microsoft.graph.downloadUrl"
-		sep        = `/_layouts`
-		url        string
-	)
-
-	if adtl == nil {
-		return url
-	}
-
-	r := adtl[desiredKey]
-	point, ok := r.(*string)
-
-	if !ok {
-		return url
-	}
-
-	value := ptr.Val(point)
-	if len(value) == 0 {
-		return url
-	}
-
-	temp := strings.Split(value, sep)
-	url = temp[0]
-
-	return url
-}
-
-func (h libraryBackupHandler) FormatDisplayPath(
-	driveName string,
-	pb *path.Builder,
-) string {
-	return "/" + driveName + "/" + pb.String()
-}
-
-func (h libraryBackupHandler) NewLocationIDer(
-	driveID string,
-	elems ...string,
-) details.LocationIDer {
-	return details.NewSharePointLocationIDer(driveID, elems...)
-}
-
-func (h libraryBackupHandler) Requester() graph.Requester                     { return h.ac.Requester }
-func (h libraryBackupHandler) PermissionGetter() onedrive.GetItemPermissioner { return h.ac }
-func (h libraryBackupHandler) ItemGetter() onedrive.GetItemer                 { return h.ac }
