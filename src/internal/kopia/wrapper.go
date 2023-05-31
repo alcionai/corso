@@ -50,14 +50,16 @@ var (
 type BackupStats struct {
 	SnapshotID string
 
-	TotalHashedBytes   int64
-	TotalUploadedBytes int64
+	TotalHashedBytes          int64
+	TotalUploadedBytes        int64
+	TotalNonMetaUploadedBytes int64
 
-	TotalFileCount      int
-	CachedFileCount     int
-	UncachedFileCount   int
-	TotalDirectoryCount int
-	ErrorCount          int
+	TotalFileCount        int
+	TotalNonMetaFileCount int
+	CachedFileCount       int
+	UncachedFileCount     int
+	TotalDirectoryCount   int
+	ErrorCount            int
 
 	IgnoredErrorCount         int
 	ExpectedIgnoredErrorCount int

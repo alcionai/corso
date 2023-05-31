@@ -1198,6 +1198,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			mds := ssmock.Streamer{Deets: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
 			deets := details.Builder{}
+			writeStats := kopia.BackupStats{}
 
 			err := mergeDetails(
 				ctx,
@@ -1206,6 +1207,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				test.inputMans,
 				test.mdm,
 				&deets,
+				&writeStats,
+				path.OneDriveService,
 				fault.New(true))
 			test.errCheck(t, err, clues.ToCore(err))
 
@@ -1307,9 +1310,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	defer flush()
 
 	var (
-		mds   = ssmock.Streamer{Deets: populatedDetails}
-		w     = &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
-		deets = details.Builder{}
+		mds        = ssmock.Streamer{Deets: populatedDetails}
+		w          = &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
+		deets      = details.Builder{}
+		writeStats = kopia.BackupStats{}
 	)
 
 	err := mergeDetails(
@@ -1319,6 +1323,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		inputMans,
 		mdm,
 		&deets,
+		&writeStats,
+		path.ExchangeService,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	compareDeetEntries(t, expectedEntries, deets.Details().Entries)

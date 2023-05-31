@@ -347,6 +347,8 @@ func (op *BackupOperation) do(
 		mans,
 		toMerge,
 		deets,
+		writeStats,
+		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -704,8 +706,17 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
+	writeStats *kopia.BackupStats,
+	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
+	detailsModel := deets.Details().DetailsModel
+
+	// getting the values in writeStats before anything else so that we don't get a return from
+	// conditions like no backup data.
+	writeStats.TotalNonMetaFileCount = len(detailsModel.FilterMetaFiles().Items())
+	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
+
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
@@ -841,6 +852,8 @@ func (op *BackupOperation) persistResults(
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.NonMetaBytesUploaded = opStats.k.TotalNonMetaUploadedBytes
+	op.Results.NonMetaItemsWritten = opStats.k.TotalNonMetaFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
 	if opStats.gc == nil {

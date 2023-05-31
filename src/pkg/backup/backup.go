@@ -284,12 +284,12 @@ func (b Backup) toStats() backupStats {
 	return backupStats{
 		ID:            string(b.ID),
 		BytesRead:     b.BytesRead,
-		BytesUploaded: b.BytesUploaded,
+		BytesUploaded: b.NonMetaBytesUploaded,
 		EndedAt:       b.CompletedAt,
 		ErrorCount:    b.ErrorCount,
 		ItemsRead:     b.ItemsRead,
 		ItemsSkipped:  b.TotalSkippedItems,
-		ItemsWritten:  b.ItemsWritten,
+		ItemsWritten:  b.NonMetaItemsWritten,
 		StartedAt:     b.StartedAt,
 	}
 }
