@@ -25,7 +25,7 @@ type ItemIntegrationSuite struct {
 	tester.Suite
 	user        string
 	userDriveID string
-	service     graph.Servicer
+	service     *oneDriveService
 }
 
 func TestItemIntegrationSuite(t *testing.T) {
@@ -154,7 +154,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 
 			srv := suite.service
 
-			root, err := api.GetDriveRoot(ctx, srv, test.driveID)
+			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
@@ -183,18 +183,23 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
-			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(newFolder.GetId()), newItemName)
+			_, err = suite.service.ac.Drives().GetFolderByName(
+				ctx,
+				test.driveID,
+				ptr.Val(newFolder.GetId()),
+				newItemName)
 			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
-			itemID := ptr.Val(newItem.GetId())
-
-			r, err := api.PostDriveItem(ctx, srv, test.driveID, itemID)
+			w, _, err := driveItemWriter(
+				ctx,
+				suite.service.ac.Drives(),
+				test.driveID,
+				ptr.Val(newItem.GetId()),
+				writeSize)
 			require.NoError(t, err, clues.ToCore(err))
-
-			w := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), writeSize)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
 			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
@@ -235,17 +240,23 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			srv := suite.service
-
-			root, err := api.GetDriveRoot(ctx, srv, test.driveID)
+			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist
-			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "FolderDoesNotExist")
+			_, err = suite.service.ac.Drives().GetFolderByName(
+				ctx,
+				test.driveID,
+				ptr.Val(root.GetId()),
+				"FolderDoesNotExist")
 			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Lookup a folder that does exist
-			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "")
+			_, err = suite.service.ac.Drives().GetFolderByName(
+				ctx,
+				test.driveID,
+				ptr.Val(root.GetId()),
+				"")
 			require.NoError(t, err, clues.ToCore(err))
 		})
 	}

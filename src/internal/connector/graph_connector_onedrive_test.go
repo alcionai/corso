@@ -44,8 +44,8 @@ var (
 func mustGetDefaultDriveID(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
+	ac api.Client,
 	backupService path.ServiceType,
-	service graph.Servicer,
 	resourceOwner string,
 ) string {
 	var (
@@ -55,9 +55,9 @@ func mustGetDefaultDriveID(
 
 	switch backupService {
 	case path.OneDriveService:
-		d, err = api.GetUsersDefaultDrive(ctx, service, resourceOwner)
+		d, err = ac.Users().GetDefaultDrive(ctx, resourceOwner)
 	case path.SharePointService:
-		d, err = api.GetSitesDefaultDrive(ctx, service, resourceOwner)
+		d, err = ac.Users().GetDefaultDrive(ctx, resourceOwner)
 	default:
 		assert.FailNowf(t, "unknown service type %s", backupService.String())
 	}
@@ -75,6 +75,7 @@ func mustGetDefaultDriveID(
 }
 
 type suiteInfo interface {
+	APIClient() api.Client
 	Service() graph.Servicer
 	Account() account.Account
 	Tenant() string
@@ -106,8 +107,13 @@ type suiteInfoImpl struct {
 	tertiaryUser    string
 	tertiaryUserID  string
 	acct            account.Account
+	ac              api.Client
 	service         path.ServiceType
 	resourceType    Resource
+}
+
+func (si suiteInfoImpl) APIClient() api.Client {
+	return si.ac
 }
 
 func (si suiteInfoImpl) Service() graph.Servicer {
@@ -367,8 +373,8 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	driveID := mustGetDefaultDriveID(
 		t,
 		ctx,
+		suite.APIClient(),
 		suite.BackupService(),
-		suite.Service(),
 		suite.BackupResourceOwner())
 
 	rootPath := []string{
@@ -513,8 +519,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	driveID := mustGetDefaultDriveID(
 		t,
 		ctx,
+		suite.APIClient(),
 		suite.BackupService(),
-		suite.Service(),
 		suite.BackupResourceOwner())
 
 	fileName2 := "test-file2.txt"
@@ -730,8 +736,8 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 	driveID := mustGetDefaultDriveID(
 		t,
 		ctx,
+		suite.APIClient(),
 		suite.BackupService(),
-		suite.Service(),
 		suite.BackupResourceOwner())
 
 	inputCols := []OnedriveColInfo{
@@ -819,8 +825,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	driveID := mustGetDefaultDriveID(
 		t,
 		ctx,
+		suite.APIClient(),
 		suite.BackupService(),
-		suite.Service(),
 		suite.BackupResourceOwner())
 
 	folderAName := "custom"
@@ -1001,8 +1007,8 @@ func testRestoreFolderNamedFolderRegression(
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
+		suite.APIClient(),
 		suite.BackupService(),
-		suite.Service(),
 		suite.BackupResourceOwner())
 
 	rootPath := []string{

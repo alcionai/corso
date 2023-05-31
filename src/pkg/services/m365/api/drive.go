@@ -9,8 +9,20 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/pkg/account"
 )
+
+// ---------------------------------------------------------------------------
+// controller
+// ---------------------------------------------------------------------------
+
+func (c Client) Drives() Drives {
+	return Drives{c}
+}
+
+// Drives is an interface-compliant provider of the client.
+type Drives struct {
+	Client
+}
 
 // ---------------------------------------------------------------------------
 // Folders
@@ -21,18 +33,17 @@ const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s
 var ErrFolderNotFound = clues.New("folder not found")
 
 // GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
-func GetFolderByName(
+func (c Drives) GetFolderByName(
 	ctx context.Context,
-	srv graph.Servicer,
-	driveID, parentFolderID, folder string,
+	driveID, parentFolderID, folderID string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
 	// will be sub-optimal.
 	// Instead, we leverage OneDrive path-based addressing -
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folder)
-	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, srv.Adapter())
+	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderID)
+	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, c.Stable.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
@@ -51,12 +62,12 @@ func GetFolderByName(
 	return foundItem, nil
 }
 
-func GetDriveRoot(
+func (c Drives) GetRootFolder(
 	ctx context.Context,
-	srv graph.Servicer,
 	driveID string,
 ) (models.DriveItemable, error) {
-	root, err := srv.Client().
+	root, err := c.Stable.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Root().
@@ -73,12 +84,12 @@ func GetDriveRoot(
 // ---------------------------------------------------------------------------
 
 // generic drive item getter
-func GetDriveItem(
+func (c Drives) GetItem(
 	ctx context.Context,
-	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
-	di, err := srv.Client().
+	di, err := c.Stable.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
@@ -91,14 +102,14 @@ func GetDriveItem(
 	return di, nil
 }
 
-func PostDriveItem(
+func (c Drives) PostItem(
 	ctx context.Context,
-	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.UploadSessionable, error) {
 	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 
-	r, err := srv.Client().
+	r, err := c.Stable.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
@@ -112,13 +123,13 @@ func PostDriveItem(
 	return r, nil
 }
 
-func PatchDriveItem(
+func (c Drives) PatchItem(
 	ctx context.Context,
-	srv graph.Servicer,
 	driveID, itemID string,
 	item models.DriveItemable,
 ) error {
-	_, err := srv.Client().
+	_, err := c.Stable.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
@@ -131,13 +142,13 @@ func PatchDriveItem(
 	return nil
 }
 
-func PutDriveItemContent(
+func (c Drives) PutItemContent(
 	ctx context.Context,
-	srv graph.Servicer,
 	driveID, itemID string,
 	content []byte,
 ) error {
-	_, err := srv.Client().
+	_, err := c.Stable.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
@@ -153,12 +164,19 @@ func PutDriveItemContent(
 
 // deletes require unique http clients
 // https://github.com/alcionai/corso/issues/2707
-func DeleteDriveItem(
+func (c Drives) DeleteItem(
 	ctx context.Context,
-	gs graph.Servicer,
 	driveID, itemID string,
 ) error {
-	err := gs.Client().
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := c.Service()
+	if err != nil {
+		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
+	}
+
+	err = srv.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
@@ -175,12 +193,11 @@ func DeleteDriveItem(
 // Permissions
 // ---------------------------------------------------------------------------
 
-func GetItemPermission(
+func (c Drives) GetItemPermission(
 	ctx context.Context,
-	service graph.Servicer,
 	driveID, itemID string,
 ) (models.PermissionCollectionResponseable, error) {
-	perm, err := service.
+	perm, err := c.Stable.
 		Client().
 		Drives().
 		ByDriveId(driveID).
@@ -195,15 +212,15 @@ func GetItemPermission(
 	return perm, nil
 }
 
-func PostItemPermissionUpdate(
+func (c Drives) PostItemPermissionUpdate(
 	ctx context.Context,
-	service graph.Servicer,
 	driveID, itemID string,
 	body *drives.ItemItemsItemInvitePostRequestBody,
 ) (drives.ItemItemsItemInviteResponseable, error) {
 	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
 
-	itm, err := service.Client().
+	itm, err := c.Stable.
+		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
@@ -217,17 +234,18 @@ func PostItemPermissionUpdate(
 	return itm, nil
 }
 
-func DeleteDriveItemPermission(
+func (c Drives) DeleteItemPermission(
 	ctx context.Context,
-	creds account.M365Config,
 	driveID, itemID, permissionID string,
 ) error {
-	a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := c.Service()
 	if err != nil {
 		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
 	}
 
-	err = graph.NewService(a).
+	err = srv.
 		Client().
 		Drives().
 		ByDriveId(driveID).

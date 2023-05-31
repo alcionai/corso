@@ -182,7 +182,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	// check whether the user is able to access their onedrive drive.
 	// if they cannot, we can assume they are ineligible for onedrive backups.
-	if _, err := GetUsersDefaultDrive(ctx, c.Stable, userID); err != nil {
+	if _, err := c.GetDefaultDrive(ctx, userID); err != nil {
 		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
 			logger.CtxErr(ctx, err).Error("getting user's drive")
 			return nil, graph.Wrap(ctx, err, "getting user's drive")
@@ -289,12 +289,11 @@ func (c Users) GetMailInbox(
 	return inbox, nil
 }
 
-func GetUsersDefaultDrive(
+func (c Users) GetDefaultDrive(
 	ctx context.Context,
-	srv graph.Servicer,
 	userID string,
 ) (models.Driveable, error) {
-	d, err := srv.
+	d, err := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).

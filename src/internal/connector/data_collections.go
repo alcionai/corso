@@ -112,6 +112,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceOneDrive:
 		colls, ssmb, err = onedrive.DataCollections(
 			ctx,
+			gc.Discovery,
 			sels,
 			owner,
 			metadata,
@@ -284,7 +285,9 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 			deets,
 			errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx,
+		status, err = onedrive.RestoreCollections(
+			ctx,
+			gc.Discovery,
 			creds,
 			backupVersion,
 			gc.Service,
@@ -295,8 +298,10 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 			&pool,
 			errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx,
+		status, err = sharepoint.RestoreCollections(
+			ctx,
 			backupVersion,
+			gc.Discovery,
 			creds,
 			gc.Service,
 			dest,

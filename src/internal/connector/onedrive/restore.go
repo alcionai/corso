@@ -55,6 +55,7 @@ func NewRestoreCaches() *restoreCaches {
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
+	ac api.Client,
 	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
@@ -99,6 +100,7 @@ func RestoreCollections(
 
 		metrics, err = RestoreCollection(
 			ictx,
+			ac,
 			creds,
 			backupVersion,
 			service,
@@ -138,6 +140,7 @@ func RestoreCollections(
 // - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
+	ac api.Client,
 	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
@@ -170,7 +173,7 @@ func RestoreCollection(
 	}
 
 	if _, ok := caches.DriveIDToRootFolderID[drivePath.DriveID]; !ok {
-		root, err := api.GetDriveRoot(ctx, service, drivePath.DriveID)
+		root, err := ac.Drives().GetRootFolder(ctx, drivePath.DriveID)
 		if err != nil {
 			return metrics, clues.Wrap(err, "getting drive root id")
 		}
@@ -207,7 +210,7 @@ func RestoreCollection(
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := CreateRestoreFolders(
 		ctx,
-		creds,
+		ac.Drives(),
 		service,
 		drivePath,
 		restoreDir,
@@ -271,7 +274,6 @@ func RestoreCollection(
 				defer pool.Put(copyBufferPtr)
 
 				copyBuffer := *copyBufferPtr
-
 				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
 				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
@@ -282,7 +284,7 @@ func RestoreCollection(
 
 				itemInfo, skipped, err := restoreItem(
 					ictx,
-					creds,
+					ac.Drives(),
 					dc,
 					backupVersion,
 					source,
@@ -332,7 +334,7 @@ func RestoreCollection(
 // returns the item info, a bool (true = restore was skipped), and an error
 func restoreItem(
 	ctx context.Context,
-	creds account.M365Config,
+	ad api.Drives,
 	dc data.RestoreCollection,
 	backupVersion int,
 	source driveSource,
@@ -351,6 +353,7 @@ func restoreItem(
 	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		itemInfo, err := restoreV0File(
 			ctx,
+			ad,
 			source,
 			service,
 			drivePath,
@@ -402,7 +405,7 @@ func restoreItem(
 		itemInfo, err := restoreV1File(
 			ctx,
 			source,
-			creds,
+			ad,
 			service,
 			drivePath,
 			dc,
@@ -424,7 +427,7 @@ func restoreItem(
 	itemInfo, err := restoreV6File(
 		ctx,
 		source,
-		creds,
+		ad,
 		service,
 		drivePath,
 		dc,
@@ -443,6 +446,7 @@ func restoreItem(
 
 func restoreV0File(
 	ctx context.Context,
+	ad api.Drives,
 	source driveSource,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
@@ -453,6 +457,7 @@ func restoreV0File(
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
 		ctx,
+		ad,
 		service,
 		fetcher,
 		itemData.UUID(),
@@ -475,7 +480,7 @@ type fileFetcher interface {
 func restoreV1File(
 	ctx context.Context,
 	source driveSource,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
@@ -490,6 +495,7 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
+		ad,
 		service,
 		fetcher,
 		trimmedName,
@@ -518,7 +524,7 @@ func restoreV1File(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		drivePath.DriveID,
 		itemID,
@@ -535,7 +541,7 @@ func restoreV1File(
 func restoreV6File(
 	ctx context.Context,
 	source driveSource,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
@@ -574,6 +580,7 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
+		ad,
 		service,
 		fetcher,
 		meta.FileName,
@@ -594,7 +601,7 @@ func restoreV6File(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		drivePath.DriveID,
 		itemID,
@@ -615,7 +622,7 @@ func restoreV6File(
 // folderCache is mutated, as a side effect of populating the items.
 func CreateRestoreFolders(
 	ctx context.Context,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
@@ -626,6 +633,7 @@ func CreateRestoreFolders(
 ) (string, error) {
 	id, err := createRestoreFolders(
 		ctx,
+		ad,
 		service,
 		drivePath,
 		restoreDir,
@@ -645,7 +653,7 @@ func CreateRestoreFolders(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		drivePath.DriveID,
 		id,
@@ -661,6 +669,7 @@ func CreateRestoreFolders(
 // folderCache is mutated, as a side effect of populating the items.
 func createRestoreFolders(
 	ctx context.Context,
+	ad api.Drives,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
@@ -692,7 +701,7 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := api.GetFolderByName(ictx, service, driveID, parentFolderID, folder)
+		folderItem, err := ad.GetFolderByName(ictx, driveID, parentFolderID, folder)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
 			return "", clues.Wrap(err, "getting folder by display name")
 		}
@@ -723,6 +732,7 @@ func createRestoreFolders(
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
+	ad api.Drives,
 	service graph.Servicer,
 	fetcher fileFetcher,
 	name string,
@@ -748,12 +758,10 @@ func restoreData(
 		return "", details.ItemInfo{}, err
 	}
 
-	itemID := ptr.Val(newItem.GetId())
-	ctx = clues.Add(ctx, "upload_item_id", itemID)
-
-	r, err := api.PostDriveItem(ctx, service, driveID, itemID)
+	// Get a drive item writer
+	w, uploadURL, err := driveItemWriter(ctx, ad, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
-		return "", details.ItemInfo{}, clues.Wrap(err, "get upload session")
+		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
 	}
 
 	var written int64
@@ -765,12 +773,6 @@ func restoreData(
 	// show "register" any partial file uploads and so if we fail an
 	// upload the file size will be 0.
 	for i := 0; i <= maxUploadRetries; i++ {
-		// Initialize and return an io.Writer to upload data for the
-		// specified item It does so by creating an upload session and
-		// using that URL to initialize an `itemWriter`
-		// TODO: @vkamra verify if var session is the desired input
-		w := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), ss.Size())
-
 		pname := name
 		iReader := itemData.ToReader()
 
@@ -803,6 +805,10 @@ func restoreData(
 
 		// clear out the bar if err
 		abort()
+
+		// refresh the io.Writer to restart the upload
+		// TODO: @vkamra verify if var session is the desired input
+		w = graph.NewLargeItemWriter(ptr.Val(newItem.GetId()), uploadURL, ss.Size())
 	}
 
 	if err != nil {

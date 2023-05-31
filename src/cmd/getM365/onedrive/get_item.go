@@ -71,16 +71,14 @@ func handleOneDriveCmd(cmd *cobra.Command, args []string) error {
 		AzureTenantID: tid,
 	}
 
-	// todo: swap to drive api client, when finished.
-	adpt, err := graph.CreateAdapter(tid, creds.AzureClientID, creds.AzureClientSecret)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "creating graph adapter"))
-	}
-
-	svc := graph.NewService(adpt)
 	gr := graph.NewNoTimeoutHTTPWrapper()
 
-	err = runDisplayM365JSON(ctx, svc, gr, creds, user, m365ID)
+	ac, err := api.NewClient(creds)
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "getting api client"))
+	}
+
+	err = runDisplayM365JSON(ctx, ac, gr, creds, user, m365ID)
 	if err != nil {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
@@ -107,12 +105,12 @@ func (i itemPrintable) MinimumPrintable() any {
 
 func runDisplayM365JSON(
 	ctx context.Context,
-	srv graph.Servicer,
+	ac api.Client,
 	gr graph.Requester,
 	creds account.M365Config,
 	userID, itemID string,
 ) error {
-	drive, err := api.GetUsersDefaultDrive(ctx, srv, userID)
+	drive, err := ac.Users().GetDefaultDrive(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -121,7 +119,7 @@ func runDisplayM365JSON(
 
 	it := itemPrintable{}
 
-	item, err := api.GetDriveItem(ctx, srv, driveID, itemID)
+	item, err := ac.Drives().GetItem(ctx, driveID, itemID)
 	if err != nil {
 		return err
 	}
@@ -148,7 +146,7 @@ func runDisplayM365JSON(
 		return err
 	}
 
-	perms, err := api.GetItemPermission(ctx, srv, driveID, itemID)
+	perms, err := ac.Drives().GetItemPermission(ctx, driveID, itemID)
 	if err != nil {
 		return err
 	}

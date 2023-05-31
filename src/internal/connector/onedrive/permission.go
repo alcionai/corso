@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -136,7 +135,7 @@ func computeParentPermissions(
 // removed from an item to bring it to the desired state.
 func UpdatePermissions(
 	ctx context.Context,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
@@ -161,9 +160,8 @@ func UpdatePermissions(
 			return clues.New("no new permission id").WithClues(ctx)
 		}
 
-		err := api.DeleteDriveItemPermission(
+		err := ad.DeleteItemPermission(
 			ictx,
-			creds,
 			driveID,
 			itemID,
 			pid)
@@ -216,7 +214,7 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		newPerm, err := api.PostItemPermissionUpdate(ictx, service, driveID, itemID, pbody)
+		newPerm, err := ad.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if err != nil {
 			return clues.Stack(err)
 		}
@@ -233,7 +231,7 @@ func UpdatePermissions(
 // on onedrive items.
 func RestorePermissions(
 	ctx context.Context,
-	creds account.M365Config,
+	ad api.Drives,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
@@ -256,7 +254,7 @@ func RestorePermissions(
 
 	return UpdatePermissions(
 		ctx,
-		creds,
+		ad,
 		service,
 		driveID,
 		itemID,
