@@ -12,10 +12,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -40,78 +38,24 @@ type DeltaUpdate struct {
 	Reset bool
 }
 
-func PagerForSource(
-	source driveSource,
-	servicer graph.Servicer,
-	resourceOwner string,
-	fields []string,
-) (api.DrivePager, error) {
-	switch source {
-	case OneDriveSource:
-		return api.NewUserDrivePager(servicer, resourceOwner, fields), nil
-	case SharePointSource:
-		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
-	default:
-		return nil, clues.New("unrecognized drive data source")
-	}
-}
-
-type pathPrefixerFunc func(driveID string) (path.Path, error)
-
-func pathPrefixerForSource(
-	tenantID, resourceOwner string,
-	source driveSource,
-) pathPrefixerFunc {
-	cat := path.FilesCategory
-	serv := path.OneDriveService
-
-	if source == SharePointSource {
-		cat = path.LibrariesCategory
-		serv = path.SharePointService
-	}
-
-	return func(driveID string) (path.Path, error) {
-		return path.Build(tenantID, resourceOwner, serv, cat, false, odConsts.DrivesPathDir, driveID, odConsts.RootPathDir)
-	}
-}
-
 // itemCollector functions collect the items found in a drive
-type itemCollector func(
-	ctx context.Context,
-	driveID, driveName string,
-	driveItems []models.DriveItemable,
-	oldPaths map[string]string,
-	newPaths map[string]string,
-	excluded map[string]struct{},
-	itemCollections map[string]map[string]string,
-	validPrevDelta bool,
-	errs *fault.Bus,
-) error
-
-type driveItemPagerFunc func(
-	servicer graph.Servicer,
-	driveID, link string,
-) itemPager
-
-type itemPager interface {
-	GetPage(context.Context) (api.DeltaPageLinker, error)
-	SetNext(nextLink string)
-	Reset()
-	ValuesIn(api.DeltaPageLinker) ([]models.DriveItemable, error)
-}
-
-func defaultItemPager(
-	servicer graph.Servicer,
-	driveID, link string,
-) itemPager {
-	return api.NewItemPager(servicer, driveID, link, api.DriveItemSelectDefault())
-}
+// type itemCollector func(
+// 	ctx context.Context,
+// 	driveID, driveName string,
+// 	driveItems []models.DriveItemable,
+// 	oldPaths map[string]string,
+// 	newPaths map[string]string,
+// 	excluded map[string]struct{},
+// 	itemCollections map[string]map[string]string,
+// 	validPrevDelta bool,
+// 	errs *fault.Bus,
+// ) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	pager itemPager,
+	pager api.DriveItemPager,
 	driveID, driveName string,
 	collector itemCollector,
 	oldPaths map[string]string,

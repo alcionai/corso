@@ -206,7 +206,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				readItems  = []data.Stream{}
 			)
 
-			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
+			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/dir1/dir2/dir3")...)
+			folderPath, err := test.bh.CanonicalPath(pb, "tenant", "owner")
 			require.NoError(t, err, clues.ToCore(err))
 			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
 			require.NoError(t, err, clues.ToCore(err))
@@ -349,7 +350,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			wg.Add(1)
 
-			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+			folderPath, err := test.bh.CanonicalPath(pb, "a-tenant", "a-user", test.source)
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
@@ -441,7 +443,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 
 			wg.Add(1)
 
-			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+			folderPath, err := test.bh.CanonicalPath(pb, "a-tenant", "a-user", test.source)
 			require.NoError(t, err)
 
 			coll, err := NewCollection(
@@ -546,7 +549,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 
 			wg.Add(1)
 
-			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+			folderPath, err := test.bh.CanonicalPath(pb, "a-tenant", "a-user", test.source)
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(

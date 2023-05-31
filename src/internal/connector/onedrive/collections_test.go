@@ -3,7 +3,6 @@ package onedrive
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -38,6 +37,7 @@ type statePath struct {
 
 func getExpectedStatePathGenerator(
 	t *testing.T,
+	bh BackupHandler,
 	tenant, user, base string,
 ) func(data.CollectionState, ...string) statePath {
 	return func(state data.CollectionState, pths ...string) statePath {
@@ -53,11 +53,13 @@ func getExpectedStatePathGenerator(
 			require.Len(t, pths, 1, "invalid number of paths to getExpectedStatePathGenerator")
 		} else {
 			require.Len(t, pths, 2, "invalid number of paths to getExpectedStatePathGenerator")
-			p2, err = GetCanonicalPath(base+pths[1], tenant, user, OneDriveSource)
+			pb := path.Builder{}.Append(path.Split(base + pths[1])...)
+			p2, err = bh.CanonicalPath(pb, tenant, user)
 			require.NoError(t, err, clues.ToCore(err))
 		}
 
-		p1, err = GetCanonicalPath(base+pths[0], tenant, user, OneDriveSource)
+		pb := path.Builder{}.Append(path.Split(base + pths[0])...)
+		p1, err = bh.CanonicalPath(pb, tenant, user)
 		require.NoError(t, err, clues.ToCore(err))
 
 		switch state {
@@ -81,14 +83,17 @@ func getExpectedStatePathGenerator(
 	}
 }
 
-func getExpectedPathGenerator(t *testing.T,
+func getExpectedPathGenerator(
+	t *testing.T,
+	bh BackupHandler,
 	tenant, user, base string,
 ) func(string) string {
-	return func(path string) string {
-		p, err := GetCanonicalPath(base+path, tenant, user, OneDriveSource)
+	return func(p string) string {
+		pb := path.Builder{}.Append(path.Split(base + p)...)
+		cp, err := bh.CanonicalPath(pb, tenant, user)
 		require.NoError(t, err, clues.ToCore(err))
 
-		return p.String()
+		return cp.String()
 	}
 }
 
@@ -98,52 +103,6 @@ type OneDriveCollectionsUnitSuite struct {
 
 func TestOneDriveCollectionsUnitSuite(t *testing.T) {
 	suite.Run(t, &OneDriveCollectionsUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-func (suite *OneDriveCollectionsUnitSuite) TestGetCanonicalPath() {
-	tenant, resourceOwner := "tenant", "resourceOwner"
-
-	table := []struct {
-		name      string
-		source    driveSource
-		dir       []string
-		expect    string
-		expectErr assert.ErrorAssertionFunc
-	}{
-		{
-			name:      "onedrive",
-			source:    OneDriveSource,
-			dir:       []string{"onedrive"},
-			expect:    "tenant/onedrive/resourceOwner/files/onedrive",
-			expectErr: assert.NoError,
-		},
-		{
-			name:      "sharepoint",
-			source:    SharePointSource,
-			dir:       []string{"sharepoint"},
-			expect:    "tenant/sharepoint/resourceOwner/libraries/sharepoint",
-			expectErr: assert.NoError,
-		},
-		{
-			name:      "unknown",
-			source:    unknownDriveSource,
-			dir:       []string{"unknown"},
-			expectErr: assert.Error,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-			p := strings.Join(test.dir, "/")
-
-			result, err := GetCanonicalPath(p, tenant, resourceOwner, test.source)
-			test.expectErr(t, err, clues.ToCore(err))
-
-			if result != nil {
-				assert.Equal(t, test.expect, result.String())
-			}
-		})
-	}
 }
 
 func getDelList(files ...string) map[string]struct{} {
