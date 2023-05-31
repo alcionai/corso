@@ -22,7 +22,6 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -55,10 +54,8 @@ func NewRestoreCaches() *restoreCaches {
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
-	ac api.Client,
-	creds account.M365Config,
+	rh RestoreHandler,
 	backupVersion int,
-	service graph.Servicer,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
@@ -100,13 +97,10 @@ func RestoreCollections(
 
 		metrics, err = RestoreCollection(
 			ictx,
-			ac,
-			creds,
+			rh,
 			backupVersion,
-			service,
 			dc,
 			caches,
-			OneDriveSource,
 			dest.ContainerName,
 			deets,
 			opts.RestorePermissions,
@@ -140,13 +134,10 @@ func RestoreCollections(
 // - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
-	ac api.Client,
-	creds account.M365Config,
+	rh RestoreHandler,
 	backupVersion int,
-	service graph.Servicer,
 	dc data.RestoreCollection,
 	caches *restoreCaches,
-	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
 	restorePerms bool,
@@ -173,7 +164,7 @@ func RestoreCollection(
 	}
 
 	if _, ok := caches.DriveIDToRootFolderID[drivePath.DriveID]; !ok {
-		root, err := ac.Drives().GetRootFolder(ctx, drivePath.DriveID)
+		root, err := rh.RootFolderGetter().GetRootFolder(ctx, drivePath.DriveID)
 		if err != nil {
 			return metrics, clues.Wrap(err, "getting drive root id")
 		}
@@ -210,8 +201,7 @@ func RestoreCollection(
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := CreateRestoreFolders(
 		ctx,
-		ac.Drives(),
-		service,
+		rh,
 		drivePath,
 		restoreDir,
 		dc.FullPath(),
@@ -284,11 +274,9 @@ func RestoreCollection(
 
 				itemInfo, skipped, err := restoreItem(
 					ictx,
-					ac.Drives(),
+					rh,
 					dc,
 					backupVersion,
-					source,
-					service,
 					drivePath,
 					restoreFolderID,
 					copyBuffer,
@@ -334,11 +322,9 @@ func RestoreCollection(
 // returns the item info, a bool (true = restore was skipped), and an error
 func restoreItem(
 	ctx context.Context,
-	ad api.Drives,
+	rh RestoreHandler,
 	dc data.RestoreCollection,
 	backupVersion int,
-	source driveSource,
-	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolderID string,
 	copyBuffer []byte,
@@ -353,9 +339,7 @@ func restoreItem(
 	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		itemInfo, err := restoreV0File(
 			ctx,
-			ad,
-			source,
-			service,
+			rh,
 			drivePath,
 			dc,
 			restoreFolderID,
@@ -404,9 +388,7 @@ func restoreItem(
 	if backupVersion < version.OneDrive6NameInMeta {
 		itemInfo, err := restoreV1File(
 			ctx,
-			source,
-			ad,
-			service,
+			rh,
 			drivePath,
 			dc,
 			restoreFolderID,
@@ -426,9 +408,7 @@ func restoreItem(
 
 	itemInfo, err := restoreV6File(
 		ctx,
-		source,
-		ad,
-		service,
+		rh,
 		drivePath,
 		dc,
 		restoreFolderID,
@@ -446,9 +426,7 @@ func restoreItem(
 
 func restoreV0File(
 	ctx context.Context,
-	ad api.Drives,
-	source driveSource,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
@@ -457,15 +435,13 @@ func restoreV0File(
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
 		ctx,
-		ad,
-		service,
+		rh,
 		fetcher,
 		itemData.UUID(),
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
-		copyBuffer,
-		source)
+		copyBuffer)
 	if err != nil {
 		return itemInfo, clues.Wrap(err, "restoring file")
 	}
@@ -479,9 +455,7 @@ type fileFetcher interface {
 
 func restoreV1File(
 	ctx context.Context,
-	source driveSource,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
@@ -495,15 +469,13 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
-		ad,
-		service,
+		rh,
 		fetcher,
 		trimmedName,
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
-		copyBuffer,
-		source)
+		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
 	}
@@ -524,8 +496,7 @@ func restoreV1File(
 
 	err = RestorePermissions(
 		ctx,
-		ad,
-		service,
+		rh,
 		drivePath.DriveID,
 		itemID,
 		itemPath,
@@ -540,9 +511,7 @@ func restoreV1File(
 
 func restoreV6File(
 	ctx context.Context,
-	source driveSource,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
@@ -580,15 +549,13 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
-		ad,
-		service,
+		rh,
 		fetcher,
 		meta.FileName,
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
-		copyBuffer,
-		source)
+		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
 	}
@@ -601,8 +568,7 @@ func restoreV6File(
 
 	err = RestorePermissions(
 		ctx,
-		ad,
-		service,
+		rh,
 		drivePath.DriveID,
 		itemID,
 		itemPath,
@@ -622,8 +588,7 @@ func restoreV6File(
 // folderCache is mutated, as a side effect of populating the items.
 func CreateRestoreFolders(
 	ctx context.Context,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
 	folderPath path.Path,
@@ -633,8 +598,7 @@ func CreateRestoreFolders(
 ) (string, error) {
 	id, err := createRestoreFolders(
 		ctx,
-		ad,
-		service,
+		rh,
 		drivePath,
 		restoreDir,
 		caches)
@@ -653,8 +617,7 @@ func CreateRestoreFolders(
 
 	err = RestorePermissions(
 		ctx,
-		ad,
-		service,
+		rh,
 		drivePath.DriveID,
 		id,
 		folderPath,
@@ -669,8 +632,7 @@ func CreateRestoreFolders(
 // folderCache is mutated, as a side effect of populating the items.
 func createRestoreFolders(
 	ctx context.Context,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
 	caches *restoreCaches,
@@ -701,7 +663,7 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := ad.GetFolderByName(ictx, driveID, parentFolderID, folder)
+		folderItem, err := rh.FolderByNameGetter().GetFolderByName(ictx, driveID, parentFolderID, folder)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
 			return "", clues.Wrap(err, "getting folder by display name")
 		}
@@ -715,7 +677,7 @@ func createRestoreFolders(
 		}
 
 		// create the folder if not found
-		folderItem, err = CreateItem(ictx, service, driveID, parentFolderID, newItem(folder, true))
+		folderItem, err = rh.ItemInContainerPoster().PostItemInContainer(ictx, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -732,14 +694,12 @@ func createRestoreFolders(
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
-	ad api.Drives,
-	service graph.Servicer,
+	rh RestoreHandler,
 	fetcher fileFetcher,
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-	source driveSource,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
@@ -753,13 +713,13 @@ func restoreData(
 	}
 
 	// Create Item
-	newItem, err := CreateItem(ctx, service, driveID, parentFolderID, newItem(name, false))
+	newItem, err := rh.ItemInContainerPoster().PostItemInContainer(ctx, driveID, parentFolderID, newItem(name, false))
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}
 
 	// Get a drive item writer
-	w, uploadURL, err := driveItemWriter(ctx, ad, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	w, uploadURL, err := driveItemWriter(ctx, rh, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
 	}
@@ -815,14 +775,7 @@ func restoreData(
 		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
 
-	dii := details.ItemInfo{}
-
-	switch source {
-	case SharePointSource:
-		dii.SharePoint = sharePointItemInfo(newItem, written)
-	default:
-		dii.OneDrive = oneDriveItemInfo(newItem, written)
-	}
+	dii := rh.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
 
 	return ptr.Val(newItem.GetId()), dii, nil
 }

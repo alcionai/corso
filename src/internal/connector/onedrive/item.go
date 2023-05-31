@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -197,13 +196,13 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 // TODO: @vkamra verify if var session is the desired input
 func driveItemWriter(
 	ctx context.Context,
-	ad api.Drives,
+	rh RestoreHandler,
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, string, error) {
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
-	r, err := ad.PostItem(ctx, driveID, itemID)
+	r, err := rh.ItemPoster().PostItem(ctx, driveID, itemID)
 	if err != nil {
 		return nil, "", clues.Stack(err)
 	}

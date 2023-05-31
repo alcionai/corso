@@ -46,7 +46,6 @@ func RestoreCollections(
 	backupVersion int,
 	ac api.Client,
 	creds account.M365Config,
-	service graph.Servicer,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
@@ -85,13 +84,10 @@ func RestoreCollections(
 		case path.LibrariesCategory:
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
-				ac,
-				creds,
+				libraryRestoreHandler{ac.Drives()},
 				backupVersion,
-				service,
 				dc,
 				caches,
-				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
 				opts.RestorePermissions,
@@ -101,7 +97,7 @@ func RestoreCollections(
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(
 				ictx,
-				service,
+				ac.Stable,
 				dc,
 				dest.ContainerName,
 				deets,

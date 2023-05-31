@@ -26,14 +26,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type driveSource int
-
-const (
-	unknownDriveSource driveSource = iota
-	OneDriveSource
-	SharePointSource
-)
-
 type collectionScope int
 
 const (
@@ -83,7 +75,6 @@ func NewCollections(
 	itemClient graph.Requester,
 	tenantID string,
 	resourceOwner string,
-	source driveSource,
 	matcher folderMatcher,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
