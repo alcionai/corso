@@ -375,7 +375,7 @@ func CollectionProgress(
 	ctx context.Context,
 	category string,
 	dirName any,
-) (chan<- struct{}, func()) {
+) chan<- struct{} {
 	var (
 		counted int
 		plain   = plainString(dirName)
@@ -398,7 +398,10 @@ func CollectionProgress(
 
 	if cfg.hidden() || len(plain) == 0 {
 		go listen(ctx, ch, nop, incCount)
-		return ch, func() { log.Infow("done - "+message, "count", counted) }
+
+		defer log.Infow("done - "+message, "count", counted)
+
+		return ch
 	}
 
 	wg.Add(1)
@@ -430,11 +433,11 @@ func CollectionProgress(
 			bar.Increment()
 		})
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		log.Infow("done - "+message, "count", counted)
-	})
+	})()
 
-	return ch, wacb
+	return ch
 }
 
 func waitAndCloseBar(bar *mpb.Bar, log func()) func() {

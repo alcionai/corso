@@ -103,9 +103,8 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := CollectionProgress(ctx, testcat, testertons)
+	progCh := CollectionProgress(ctx, testcat, testertons)
 	require.NotNil(t, progCh)
-	require.NotNil(t, closer)
 
 	defer close(progCh)
 
@@ -117,9 +116,6 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		time.Sleep(1 * time.Second)
 		cancel()
 	}()
-
-	// blocks, but should resolve due to the ctx cancel
-	closer()
 }
 
 func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelClose() {
@@ -138,9 +134,8 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := CollectionProgress(ctx, testcat, testertons)
+	progCh := CollectionProgress(ctx, testcat, testertons)
 	require.NotNil(t, progCh)
-	require.NotNil(t, closer)
 
 	for i := 0; i < 50; i++ {
 		progCh <- struct{}{}
@@ -150,9 +145,6 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		time.Sleep(1 * time.Second)
 		close(progCh)
 	}()
-
-	// blocks, but should resolve due to the cancel
-	closer()
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
