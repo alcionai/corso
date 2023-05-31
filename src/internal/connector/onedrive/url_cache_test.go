@@ -22,7 +22,6 @@ import (
 
 type URLCacheIntegrationSuite struct {
 	tester.Suite
-	service graph.Servicer
 	ac      api.Client
 	user    string
 	driveID string
@@ -42,7 +41,6 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.service = loadTestService(t)
 	suite.user = tester.SecondaryM365UserID(t)
 
 	acct := tester.NewM365Account(t)
@@ -53,49 +51,48 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	suite.ac, err = api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
-	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
+	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
 	require.NoError(t, err, clues.ToCore(err))
 
-	odDrives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
-	require.NoError(t, err, clues.ToCore(err))
-	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
-	suite.driveID = ptr.Val(odDrives[0].GetId())
+	suite.driveID = ptr.Val(drive.GetId())
 }
 
 // Basic test for urlCache. Create some files in onedrive, then access them via
 // url cache
 func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
-	t := suite.T()
+	var (
+		t              = suite.T()
+		ac             = suite.ac.Drives()
+		driveID        = suite.driveID
+		newFolderName  = tester.DefaultTestRestoreDestination("folder").ContainerName
+		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", nil)
+	)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	svc := suite.service
-	driveID := suite.driveID
-
 	// Create a new test folder
-	root, err := svc.Client().Drives().ByDriveId(driveID).Root().Get(ctx, nil)
+	root, err := ac.GetRootFolder(ctx, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
-
-	newFolder, err := CreateItem(
+	newFolder, err := ac.Drives().PostItemInContainer(
 		ctx,
-		svc,
 		driveID,
 		ptr.Val(root.GetId()),
 		newItem(newFolderName, true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, newFolder.GetId())
 
+	nfid := ptr.Val(newFolder.GetId())
+
 	// Delete folder on exit
 	defer func() {
-		ictx := clues.Add(ctx, "folder_id", ptr.Val(newFolder.GetId()))
+		ictx := clues.Add(ctx, "folder_id", nfid)
 
 		err := suite.ac.Drives().DeleteItem(
 			ictx,
 			driveID,
-			ptr.Val(newFolder.GetId()))
+			nfid)
 		if err != nil {
 			logger.CtxErr(ictx, err).Errorw("deleting folder")
 		}
@@ -107,11 +104,10 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	for i := 0; i < 10; i++ {
 		newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
 
-		item, err := CreateItem(
+		item, err := ac.Drives().PostItemInContainer(
 			ctx,
-			svc,
 			driveID,
-			ptr.Val(newFolder.GetId()),
+			nfid,
 			newItem(newItemName, false))
 		if err != nil {
 			// Something bad happened, skip this item
@@ -125,9 +121,8 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	cache, err := newURLCache(
 		suite.driveID,
 		1*time.Hour,
-		svc,
-		fault.New(true),
-		defaultItemPager)
+		driveItemPager,
+		fault.New(true))
 
 	require.NoError(t, err, clues.ToCore(err))
 

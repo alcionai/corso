@@ -129,11 +129,16 @@ func computeParentPermissions(
 	}
 }
 
+type postDeleteItemPermissioner interface {
+	DeleteItemPermissioner
+	UpdateItemPermissioner
+}
+
 // UpdatePermissions takes in the set of permission to be added and
 // removed from an item to bring it to the desired state.
 func UpdatePermissions(
 	ctx context.Context,
-	rh RestoreHandler,
+	pdip postDeleteItemPermissioner,
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
@@ -157,7 +162,7 @@ func UpdatePermissions(
 			return clues.New("no new permission id").WithClues(ctx)
 		}
 
-		err := rh.ItemPermissionDeleter().DeleteItemPermission(
+		err := pdip.DeleteItemPermission(
 			ictx,
 			driveID,
 			itemID,
@@ -211,7 +216,7 @@ func UpdatePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		newPerm, err := rh.ItemPermissionUpdater().PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
+		newPerm, err := pdip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if err != nil {
 			return clues.Stack(err)
 		}

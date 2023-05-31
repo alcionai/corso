@@ -61,14 +61,20 @@ type GetItemer interface {
 // ---------------------------------------------------------------------------
 
 type RestoreHandler interface {
+	DeleteItemPermissioner
+	GetFolderByNamer
+	GetRootFolderer
 	ItemInfoAugmenter
+	NewItemContentUploader
+	PostItemInContainerer
+	UpdateItemPermissioner
+}
 
-	FolderByNameGetter() GetFolderByNamer
-	ItemPoster() PostItemer
-	ItemInContainerPoster() PostItemInContainerer
-	ItemPermissionDeleter() DeleteItemPermissioner
-	ItemPermissionUpdater() UpdateItemPermissioner
-	RootFolderGetter() GetRootFolderer
+type NewItemContentUploader interface {
+	NewItemContentUpload(
+		ctx context.Context,
+		driveID, itemID string,
+	) (models.UploadSessionable, error)
 }
 
 type PostItemer interface {

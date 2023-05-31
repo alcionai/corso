@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -140,12 +141,49 @@ func (h itemRestoreHandler) AugmentItemInfo(
 	return augmentItemInfo(dii, item, size, parentPath)
 }
 
-func (h itemRestoreHandler) FolderByNameGetter() GetFolderByNamer          { return h.ac }
-func (h itemRestoreHandler) ItemPoster() PostItemer                        { return h.ac }
-func (h itemRestoreHandler) ItemInContainerPoster() PostItemInContainerer  { return h.ac }
-func (h itemRestoreHandler) ItemPermissionDeleter() DeleteItemPermissioner { return h.ac }
-func (h itemRestoreHandler) ItemPermissionUpdater() UpdateItemPermissioner { return h.ac }
-func (h itemRestoreHandler) RootFolderGetter() GetRootFolderer             { return h.ac }
+func (h itemRestoreHandler) NewItemContentUpload(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.UploadSessionable, error) {
+	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+}
+
+func (h itemRestoreHandler) DeleteItemPermission(
+	ctx context.Context,
+	driveID, itemID, permissionID string,
+) error {
+	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
+}
+
+func (h itemRestoreHandler) PostItemPermissionUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
+}
+
+func (h itemRestoreHandler) PostItemInContainer(
+	ctx context.Context,
+	driveID, parentFolderID string,
+	newItem models.DriveItemable,
+) (models.DriveItemable, error) {
+	return h.ac.PostItemInContainer(ctx, driveID, parentFolderID, newItem)
+}
+
+func (h itemRestoreHandler) GetFolderByName(
+	ctx context.Context,
+	driveID, parentFolderID, folderName string,
+) (models.DriveItemable, error) {
+	return h.ac.GetFolderByName(ctx, driveID, parentFolderID, folderName)
+}
+
+func (h itemRestoreHandler) GetRootFolder(
+	ctx context.Context,
+	driveID string,
+) (models.DriveItemable, error) {
+	return h.ac.GetRootFolder(ctx, driveID)
+}
 
 // ---------------------------------------------------------------------------
 // Common

@@ -394,7 +394,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 			bh := itemBackupHandler{suite.ac.Drives()}
 			pager := suite.ac.Drives().NewUserDrivePager(suite.userID, nil)
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			allFolders, err := GetAllFolders(ctx, bh, pager, test.prefix, fault.New(true))

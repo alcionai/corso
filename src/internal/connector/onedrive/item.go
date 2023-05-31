@@ -108,18 +108,18 @@ func downloadItemMeta(
 // TODO: @vkamra verify if var session is the desired input
 func driveItemWriter(
 	ctx context.Context,
-	rh RestoreHandler,
+	nicu NewItemContentUploader,
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
-	r, err := rh.ItemPoster().PostItem(ctx, driveID, itemID)
+	icu, err := nicu.NewItemContentUpload(ctx, driveID, itemID)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
 
-	iw := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), itemSize)
+	iw := graph.NewLargeItemWriter(itemID, ptr.Val(icu.GetUploadUrl()), itemSize)
 
 	return iw, nil
 }
