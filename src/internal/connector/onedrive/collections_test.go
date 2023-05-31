@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -26,7 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type statePath struct {
@@ -742,12 +743,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
+				&itemBackupHandler{api.Drives{}},
 				tenant,
 				user,
 				testFolderMatcher{tt.scope},
-				&MockGraphService{},
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2259,31 +2258,32 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mockDrivePager := &mock.DrivePager{
-				ToReturn: []mock.PagerResult{
-					{
-						Drives: test.drives,
-					},
+			mockDrivePager := &apiMock.DrivePager{
+				ToReturn: []apiMock.PagerResult{
+					{Drives: test.drives},
 				},
 			}
 
-			makeMockIitemPager := func(driveID string) *mockItemPager {
-				return &mockItemPager{
+			itemPagers := map[string]api.DriveItemEnumerator{}
+
+			for driveID := range test.items {
+				itemPagers[driveID] = &mockItemPager{
 					toReturn: test.items[driveID],
 				}
 			}
 
+			mbh := &mock.BackupHandler{
+				DrivePagerV: mockDrivePager,
+				ItemPagerV:  itemPagers,
+			}
+
 			c := NewCollections(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
+				mbh,
 				tenant,
 				user,
 				testFolderMatcher{anyFolder},
-				&MockGraphService{},
 				func(*support.ConnectorOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}})
-			c.drivePagerFunc = drivePagerFunc
-			c.itemPagerFunc = itemPagerFunc
 
 			prevDelta := "prev-delta"
 			mc, err := graph.MakeMetadataCollection(

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -112,12 +111,10 @@ func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 			)
 
 			c := onedrive.NewCollections(
-				api.Drives{},
-				graph.NewNoTimeoutHTTPWrapper(),
+				&libraryBackupHandler{api.Drives{}},
 				tenantID,
 				site,
 				testFolderMatcher{test.scope},
-				&MockGraphService{},
 				nil,
 				control.Defaults())
 

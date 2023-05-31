@@ -31,7 +31,8 @@ type BackupHandler struct {
 	Category path.CategoryType
 
 	DrivePagerV api.DrivePager
-	ItemPagerV  api.DriveItemEnumerator
+	// driveID -> itemPager
+	ItemPagerV map[string]api.DriveItemEnumerator
 
 	DisplayPath string
 
@@ -58,8 +59,8 @@ func (h BackupHandler) DrivePager(string, []string) api.DrivePager {
 	return h.DrivePagerV
 }
 
-func (h BackupHandler) ItemPager(string, string, []string) api.DriveItemEnumerator {
-	return h.ItemPagerV
+func (h BackupHandler) ItemPager(driveID string, _ string, _ []string) api.DriveItemEnumerator {
+	return h.ItemPagerV[driveID]
 }
 
 func (h BackupHandler) FormatDisplayPath(string, *path.Builder) string {

@@ -153,6 +153,10 @@ type libraryRestoreHandler struct {
 	ac api.Drives
 }
 
+func NewRestoreHandler(ac api.Client) *libraryRestoreHandler {
+	return &libraryRestoreHandler{ac.Drives()}
+}
+
 // AugmentItemInfo will populate a details.OneDriveInfo struct
 // with properties from the drive item.  ItemSize is specified
 // separately for restore processes because the local itemable

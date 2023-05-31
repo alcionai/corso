@@ -30,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -1331,6 +1332,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		return id
 	}
 
+	grh := func(ac api.Client) onedrive.RestoreHandler {
+		return onedrive.NewRestoreHandler(ac)
+	}
+
 	runDriveIncrementalTest(
 		suite,
 		suite.user,
@@ -1340,6 +1345,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		path.FilesCategory,
 		ic,
 		gtdi,
+		grh,
 		false)
 }
 
@@ -1369,6 +1375,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		return id
 	}
 
+	grh := func(ac api.Client) onedrive.RestoreHandler {
+		return sharepoint.NewRestoreHandler(ac)
+	}
+
 	runDriveIncrementalTest(
 		suite,
 		suite.site,
@@ -1378,6 +1388,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		path.LibrariesCategory,
 		ic,
 		gtdi,
+		grh,
 		true)
 }
 
@@ -1389,6 +1400,7 @@ func runDriveIncrementalTest(
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
 	getTestDriveID func(*testing.T, context.Context) string,
+	getRestoreHandler func(api.Client) onedrive.RestoreHandler,
 	skipPermissionsTests bool,
 ) {
 	t := suite.T()
@@ -1427,6 +1439,8 @@ func runDriveIncrementalTest(
 	require.NoError(t, err, clues.ToCore(err))
 
 	gc, sel := GCWithSelector(t, ctx, acct, resource, sel, nil, nil)
+	ac := gc.Discovery.Drives()
+	rh := getRestoreHandler(gc.Discovery)
 
 	roidn := inMock.NewProvider(sel.ID(), sel.Name())
 
@@ -1540,9 +1554,8 @@ func runDriveIncrementalTest(
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				newFile, err = onedrive.CreateItem(
+				newFile, err = ac.PostItemInContainer(
 					ctx,
-					gc.Service,
 					driveID,
 					targetContainer,
 					driveItem)
@@ -1558,19 +1571,14 @@ func runDriveIncrementalTest(
 		{
 			name: "add permission to new file",
 			updateFiles: func(t *testing.T) {
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					suite.ac.Drives(),
-					gc.Service,
+					rh,
 					driveID,
-					*newFile.GetId(),
+					ptr.Val(newFile.GetId()),
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings,
-				)
+					permissionIDMappings)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
@@ -1580,13 +1588,9 @@ func runDriveIncrementalTest(
 		{
 			name: "remove permission from new file",
 			updateFiles: func(t *testing.T) {
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					suite.ac.Drives(),
-					gc.Service,
+					rh,
 					driveID,
 					*newFile.GetId(),
 					[]metadata.Permission{},
@@ -1602,13 +1606,9 @@ func runDriveIncrementalTest(
 			name: "add permission to container",
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					suite.ac.Drives(),
-					gc.Service,
+					rh,
 					driveID,
 					targetContainer,
 					[]metadata.Permission{writePerm},
@@ -1624,13 +1624,9 @@ func runDriveIncrementalTest(
 			name: "remove permission from container",
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					suite.ac.Drives(),
-					gc.Service,
+					rh,
 					driveID,
 					targetContainer,
 					[]metadata.Permission{},
