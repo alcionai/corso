@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -48,6 +49,13 @@ func (h itemBackupHandler) DrivePager(
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
+func (h itemBackupHandler) ItemPager(
+	driveID, link string,
+	fields []string,
+) api.DriveItemEnumerator {
+	return h.ac.NewItemPager(driveID, link, fields)
+}
+
 // AugmentItemInfo will populate a details.OneDriveInfo struct
 // with properties from the drive item.  ItemSize is specified
 // separately for restore processes because the local itemable
@@ -75,6 +83,11 @@ func (h itemBackupHandler) AugmentItemInfo(
 		driveName = strings.TrimSpace(ptr.Val(item.GetParentReference().GetName()))
 	}
 
+	var pps string
+	if parentPath != nil {
+		pps = parentPath.String()
+	}
+
 	dii.OneDrive = &details.OneDriveInfo{
 		Created:    ptr.Val(item.GetCreatedDateTime()),
 		DriveID:    driveID,
@@ -83,7 +96,7 @@ func (h itemBackupHandler) AugmentItemInfo(
 		ItemType:   details.OneDriveItem,
 		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
 		Owner:      email,
-		ParentPath: parentPath.String(),
+		ParentPath: pps,
 		Size:       size,
 	}
 
@@ -103,3 +116,7 @@ func (h itemBackupHandler) NewLocationIDer(
 ) details.LocationIDer {
 	return details.NewOneDriveLocationIDer(driveID, elems...)
 }
+
+func (h itemBackupHandler) Requester() graph.Requester            { return h.ac.Requester }
+func (h itemBackupHandler) PermissionGetter() GetItemPermissioner { return h.ac }
+func (h itemBackupHandler) ItemGetter() GetItemer                 { return h.ac }

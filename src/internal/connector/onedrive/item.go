@@ -24,57 +24,41 @@ var downloadURLKeys = []string{
 	"@content.downloadUrl",
 }
 
-// sharePointItemReader will return a io.ReadCloser for the specified item
-// It crafts this by querying M365 for a download URL for the item
-// and using a http client to initialize a reader
-// TODO: Add metadata fetching to SharePoint
-func sharePointItemReader(
+func downloadItem(
 	ctx context.Context,
-	client graph.Requester,
+	bh BackupHandler,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	resp, err := downloadItem(ctx, client, item)
-	if err != nil {
-		return details.ItemInfo{}, nil, clues.Wrap(err, "sharepoint reader")
-	}
-
-	dii := details.ItemInfo{
-		SharePoint: sharePointItemInfo(item, ptr.Val(item.GetSize())),
-	}
-
-	return dii, resp.Body, nil
-}
-
-func oneDriveItemMetaReader(
-	ctx context.Context,
-	ad api.Drives,
-	driveID string,
-	item models.DriveItemable,
-) (io.ReadCloser, int, error) {
-	return baseItemMetaReader(ctx, ad, driveID, item)
-}
-
-func sharePointItemMetaReader(
-	ctx context.Context,
-	ad api.Drives,
-	driveID string,
-	item models.DriveItemable,
-) (io.ReadCloser, int, error) {
-	// TODO: include permissions
-	return baseItemMetaReader(ctx, ad, driveID, item)
-}
-
-func baseItemMetaReader(
-	ctx context.Context,
-	ad api.Drives,
-	driveID string,
-	item models.DriveItemable,
-) (io.ReadCloser, int, error) {
 	var (
-		perms []metadata.Permission
-		err   error
-		meta  = metadata.Metadata{FileName: ptr.Val(item.GetName())}
+		rc     io.ReadCloser
+		isFile = item.GetFile() != nil
 	)
+
+	if isFile {
+		resp, err := doItemDownload(ctx, bh.Requester(), item)
+		if err != nil {
+			return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
+		}
+
+		rc = resp.Body
+	}
+
+	dii := bh.AugmentItemInfo(
+		details.ItemInfo{},
+		item,
+		ptr.Val(item.GetSize()),
+		nil)
+
+	return dii, rc, nil
+}
+
+func downloadItemMeta(
+	ctx context.Context,
+	bh BackupHandler,
+	driveID string,
+	item models.DriveItemable,
+) (io.ReadCloser, int, error) {
+	meta := metadata.Metadata{FileName: ptr.Val(item.GetName())}
 
 	if item.GetShared() == nil {
 		meta.SharingMode = metadata.SharingModeInherited
@@ -83,12 +67,12 @@ func baseItemMetaReader(
 	}
 
 	if meta.SharingMode == metadata.SharingModeCustom {
-		perms, err = driveItemPermissionInfo(ctx, ad, driveID, ptr.Val(item.GetId()))
+		perm, err := bh.PermissionGetter().GetItemPermission(ctx, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
 		}
 
-		meta.Permissions = perms
+		meta.Permissions = filterUserPermissions(ctx, perm.GetValue())
 	}
 
 	metaJSON, err := json.Marshal(meta)
@@ -99,36 +83,7 @@ func baseItemMetaReader(
 	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
-// oneDriveItemReader will return a io.ReadCloser for the specified item
-// It crafts this by querying M365 for a download URL for the item
-// and using a http client to initialize a reader
-func oneDriveItemReader(
-	ctx context.Context,
-	client graph.Requester,
-	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error) {
-	var (
-		rc     io.ReadCloser
-		isFile = item.GetFile() != nil
-	)
-
-	if isFile {
-		resp, err := downloadItem(ctx, client, item)
-		if err != nil {
-			return details.ItemInfo{}, nil, clues.Wrap(err, "onedrive reader")
-		}
-
-		rc = resp.Body
-	}
-
-	dii := details.ItemInfo{
-		OneDrive: oneDriveItemInfo(item, ptr.Val(item.GetSize())),
-	}
-
-	return dii, rc, nil
-}
-
-func downloadItem(
+func doItemDownload(
 	ctx context.Context,
 	client graph.Requester,
 	item models.DriveItemable,
@@ -166,24 +121,6 @@ func downloadItem(
 		Label(graph.LabelStatus(resp.StatusCode))
 
 	return resp, cerr
-}
-
-// driveItemPermissionInfo will fetch the permission information
-// for a drive item given a drive and item id.
-func driveItemPermissionInfo(
-	ctx context.Context,
-	ad api.Drives,
-	driveID string,
-	itemID string,
-) ([]metadata.Permission, error) {
-	perm, err := ad.GetItemPermission(ctx, driveID, itemID)
-	if err != nil {
-		return nil, err
-	}
-
-	uperms := filterUserPermissions(ctx, perm.GetValue())
-
-	return uperms, nil
 }
 
 func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []metadata.Permission {

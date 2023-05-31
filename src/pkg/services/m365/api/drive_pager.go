@@ -21,7 +21,7 @@ import (
 // item pager
 // ---------------------------------------------------------------------------
 
-type driveItemPager struct {
+type DriveItemPager struct {
 	gs      graph.Servicer
 	driveID string
 	builder *drives.ItemItemsItemDeltaRequestBuilder
@@ -31,7 +31,7 @@ type driveItemPager struct {
 func (c Drives) NewItemPager(
 	driveID, link string,
 	selectFields []string,
-) *driveItemPager {
+) *DriveItemPager {
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
 		"deltatraversepermissiongaps",
@@ -47,7 +47,7 @@ func (c Drives) NewItemPager(
 		},
 	}
 
-	res := &driveItemPager{
+	res := &DriveItemPager{
 		gs:      c.Stable,
 		driveID: driveID,
 		options: requestConfig,
@@ -65,7 +65,7 @@ func (c Drives) NewItemPager(
 	return res
 }
 
-func (p *driveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *DriveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	var (
 		resp DeltaPageLinker
 		err  error
@@ -79,11 +79,11 @@ func (p *driveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	return resp, nil
 }
 
-func (p *driveItemPager) SetNext(link string) {
+func (p *DriveItemPager) SetNext(link string) {
 	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *driveItemPager) Reset() {
+func (p *DriveItemPager) Reset() {
 	p.builder = p.gs.Client().
 		Drives().
 		ByDriveId(p.driveID).
@@ -92,7 +92,7 @@ func (p *driveItemPager) Reset() {
 		Delta()
 }
 
-func (p *driveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *DriveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
 	return getValues[models.DriveItemable](l)
 }
 

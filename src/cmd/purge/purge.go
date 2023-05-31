@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -164,31 +163,8 @@ func purgeOneDriveFolders(
 	boundary time.Time,
 	uid string,
 ) error {
-	getter := func(gs graph.Servicer, uid, prefix string) ([]purgable, error) {
-		pager, err := onedrive.PagerForSource(onedrive.OneDriveSource, gs, uid, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix, fault.New(true))
-		if err != nil {
-			return nil, err
-		}
-
-		purgables := make([]purgable, len(cfs))
-
-		for i, v := range cfs {
-			purgables[i] = v
-		}
-
-		return purgables, nil
-	}
-
-	deleter := func(gs graph.Servicer, uid string, f purgable) error {
-		return nil
-	}
-
-	return purgeFolders(ctx, gc, boundary, "OneDrive Folders", uid, getter, deleter)
+	// going to delete this file in a later pr
+	return nil
 }
 
 // ----- controller
