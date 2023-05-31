@@ -716,9 +716,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{})
 }
 
-// func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
-// 	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
-// }
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
+	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
+}
 
 func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles control.Toggles) {
 	t := suite.T()
