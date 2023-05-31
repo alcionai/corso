@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -134,6 +135,8 @@ func filterContainersAndFillCollections(
 			statusUpdater,
 			ctrlOpts,
 			newDelta.Reset)
+
+		fmt.Printf("\n-----\nadding %+v\n-----\n", locPath)
 
 		collections[cID] = &edc
 

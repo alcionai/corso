@@ -8,16 +8,16 @@ import (
 var _ backupHandler = &eventBackupHandler{}
 
 type eventBackupHandler struct {
-	ac api.Mail
+	ac api.Events
 }
 
 func newEventBackupHandler(
 	ac api.Client,
 ) eventBackupHandler {
-	acm := ac.Mail()
+	ace := ac.Events()
 
 	return eventBackupHandler{
-		ac: acm,
+		ac: ace,
 	}
 }
 

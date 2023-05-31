@@ -8,16 +8,16 @@ import (
 var _ backupHandler = &contactBackupHandler{}
 
 type contactBackupHandler struct {
-	ac api.Mail
+	ac api.Contacts
 }
 
 func newContactBackupHandler(
 	ac api.Client,
 ) contactBackupHandler {
-	acm := ac.Mail()
+	acc := ac.Contacts()
 
 	return contactBackupHandler{
-		ac: acm,
+		ac: acc,
 	}
 }
 
