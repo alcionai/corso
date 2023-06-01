@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix Exchange folder cache population error when parent folder isn't found.
 - Fix Exchange backup issue caused by incorrect json serialization
+- Fix issues with details model containing duplicate entry for api consumers
 
 ### Changed
 - Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.
