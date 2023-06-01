@@ -391,7 +391,6 @@ func (c *Collections) Get(
 			err = c.addURLCacheToDriveCollections(
 				ictx,
 				driveID,
-				c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()),
 				errs)
 			if err != nil {
 				return nil, err
@@ -459,17 +458,18 @@ func (c *Collections) Get(
 	return collections, canUsePreviousBackup, nil
 }
 
+// addURLCacheToDriveCollections adds a URL cache to all collections belonging to
+// a drive.
 func (c *Collections) addURLCacheToDriveCollections(
 	ctx context.Context,
 	driveID string,
-	pager api.DriveItemEnumerator,
 	errs *fault.Bus,
 ) error {
 	uc, err := newURLCache(
 		driveID,
 		urlCacheRefreshInterval,
 		errs,
-		pager)
+		c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()))
 	if err != nil {
 		return err
 	}

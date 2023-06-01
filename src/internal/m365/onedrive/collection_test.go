@@ -613,7 +613,8 @@ type mockURLCache struct {
 
 func (muc *mockURLCache) getItemProperties(
 	ctx context.Context,
-	itemID string) (itemProps, error) {
+	itemID string,
+) (itemProps, error) {
 	return muc.Get(ctx, itemID)
 }
 

@@ -2692,7 +2692,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 		prevDelta        string
 		err              error
 	}{
-
 		{
 			name: "cache is attached",
 		},
@@ -2704,8 +2703,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			mbh := mock.DefaultOneDriveBH()
+			mbh.ItemPagerV = map[string]api.DriveItemEnumerator{}
+
 			c := NewCollections(
-				&itemBackupHandler{api.Drives{}},
+				mbh,
 				"test-tenant",
 				"test-user",
 				testFolderMatcher{(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]},
@@ -2737,7 +2739,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 			err := c.addURLCacheToDriveCollections(
 				ctx,
 				driveID,
-				&mockItemPager{},
 				fault.New(true))
 
 			require.NoError(t, err, clues.ToCore(err))
