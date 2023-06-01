@@ -283,8 +283,7 @@ func (c *Collections) Get(
 		driveTombstones[driveID] = struct{}{}
 	}
 
-	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
-	defer closer()
+	driveComplete := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
 	defer close(driveComplete)
 
 	// Enumerate drives for the specified resourceOwner

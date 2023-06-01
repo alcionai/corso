@@ -344,11 +344,10 @@ func restoreCollection(
 		"service", service,
 		"category", category)
 
-	colProgress, closer := observe.CollectionProgress(
+	colProgress := observe.CollectionProgress(
 		ctx,
 		category.String(),
 		clues.Hide(directory.Folder(false)))
-	defer closer()
 	defer close(colProgress)
 
 	for {

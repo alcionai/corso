@@ -61,10 +61,9 @@ func DataCollections(
 			break
 		}
 
-		foldersComplete, closer := observe.MessageWithCompletion(
+		foldersComplete := observe.MessageWithCompletion(
 			ctx,
 			observe.Bulletf("%s", scope.Category().PathType()))
-		defer closer()
 		defer close(foldersComplete)
 
 		var spcs []data.BackupCollection

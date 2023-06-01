@@ -183,11 +183,10 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
-	colProgress, closer := observe.CollectionProgress(
+	colProgress := observe.CollectionProgress(
 		ctx,
 		sc.fullPath.Category().String(),
 		sc.fullPath.Folders())
-	go closer()
 
 	defer func() {
 		close(colProgress)
