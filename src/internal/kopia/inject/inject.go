@@ -39,6 +39,6 @@ type (
 			ctx context.Context,
 			reasons []kopia.Reason,
 			tags map[string]string,
-		) (kopia.BackupBases, error)
+		) ([]kopia.ManifestEntry, error)
 	}
 )

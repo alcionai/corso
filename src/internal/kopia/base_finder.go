@@ -15,10 +15,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-type BackupBases struct {
-	Backups     []BackupEntry
-	MergeBases  []ManifestEntry
-	AssistBases []ManifestEntry
+type backupBases struct {
+	backups     []BackupEntry
+	mergeBases  []ManifestEntry
+	assistBases []ManifestEntry
 }
 
 type BackupEntry struct {
@@ -31,7 +31,7 @@ type baseFinder struct {
 	bg inject.GetBackuper
 }
 
-func NewBaseFinder(
+func newBaseFinder(
 	sm snapshotManager,
 	bg inject.GetBackuper,
 ) (*baseFinder, error) {
@@ -183,11 +183,11 @@ func (b *baseFinder) getBase(
 	return b.findBasesInSet(ctx, reason, metas)
 }
 
-func (b *baseFinder) FindBases(
+func (b *baseFinder) findBases(
 	ctx context.Context,
 	reasons []Reason,
 	tags map[string]string,
-) (BackupBases, error) {
+) (backupBases, error) {
 	var (
 		// All maps go from ID -> entry. We need to track by ID so we can coalesce
 		// the reason for selecting something. Kopia assisted snapshots also use
@@ -251,9 +251,24 @@ func (b *baseFinder) FindBases(
 		}
 	}
 
-	return BackupBases{
-		Backups:     maps.Values(baseBups),
-		MergeBases:  maps.Values(baseSnaps),
-		AssistBases: maps.Values(kopiaAssistSnaps),
+	return backupBases{
+		backups:     maps.Values(baseBups),
+		mergeBases:  maps.Values(baseSnaps),
+		assistBases: maps.Values(kopiaAssistSnaps),
 	}, nil
+}
+
+func (b *baseFinder) FindBases(
+	ctx context.Context,
+	reasons []Reason,
+	tags map[string]string,
+) ([]ManifestEntry, error) {
+	bb, err := b.findBases(ctx, reasons, tags)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	// assistBases contains all snapshots so we can return it while maintaining
+	// almost all compatibility.
+	return bb.assistBases, nil
 }
