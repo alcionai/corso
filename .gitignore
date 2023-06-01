@@ -8,6 +8,8 @@
 
 # Test binary, built with `go test -c`
 *.test
+test_results/
+testlog/
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -21,12 +23,9 @@
 .corso.toml
 
 # Logging
-.corso.log
+*.log
 
 # Build directories
 /bin
 /docker/bin
 /website/dist
-
-*/test_results/**
-*/testlog/**
