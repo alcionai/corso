@@ -213,7 +213,7 @@ function Get-FoldersToPurge {
             <t:ExtendedFieldURI PropertyTag="0x3007" PropertyType="SystemTime"/>
         </t:AdditionalProperties>
     </FolderShape>
-    <m:IndexedPageFolderView MaxEntriesReturned="50" Offset="$offset" BasePoint="Beginning" />
+    <m:IndexedPageFolderView MaxEntriesReturned="1000" Offset="$offset" BasePoint="Beginning" />
     <ParentFolderIds>
         <t:DistinguishedFolderId Id="$WellKnownRoot"/>
     </ParentFolderIds>
