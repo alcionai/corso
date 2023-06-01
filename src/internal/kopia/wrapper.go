@@ -596,27 +596,6 @@ func (w Wrapper) DeleteSnapshot(
 	return nil
 }
 
-// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
-// incomplete snapshots for the given (resource owner, service, category)
-// tuples. Up to two manifests can be returned per tuple: one complete and one
-// incomplete. An incomplete manifest may be returned if it is newer than the
-// newest complete manifest for the tuple. Manifests are deduped such that if
-// multiple tuples match the same manifest it will only be returned once.
-// If tags are provided, manifests must include a superset of the k:v pairs
-// specified by those tags.  Tags should pass their raw values, and will be
-// normalized inside the func using MakeTagKV.
-func (w Wrapper) FetchPrevSnapshotManifests(
-	ctx context.Context,
-	reasons []Reason,
-	tags map[string]string,
-) ([]*ManifestEntry, error) {
-	if w.c == nil {
-		return nil, clues.Stack(errNotConnected).WithClues(ctx)
-	}
-
-	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
-}
-
 func (w Wrapper) NewBaseFinder(bg inject.GetBackuper) (*baseFinder, error) {
 	return newBaseFinder(w.c, bg)
 }
