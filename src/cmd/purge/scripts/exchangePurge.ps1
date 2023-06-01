@@ -434,7 +434,6 @@ function Purge-Folders {
 
     Write-Host $folderNames
      
-    exit
     Empty-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
     Delete-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
 
