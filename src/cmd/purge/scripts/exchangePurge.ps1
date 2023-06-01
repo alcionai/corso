@@ -242,8 +242,6 @@ function Get-FoldersToPurge {
         $folders = $response | Select-Xml -XPath "//t:Folders/*" -Namespace @{t = "http://schemas.microsoft.com/exchange/services/2006/types" } | 
         Select-Object -ExpandProperty Node
 
-        $offset += $folders.count
-
         # Loop through folders
         foreach ($folder in $folders) {
             $folderName = $folder.DisplayName
@@ -280,8 +278,10 @@ function Get-FoldersToPurge {
             }
         }
 
-        if (!$moreToList) {
+        if (!$moreToList -or $null -eq $folders) {
             Write-Host "Retrieved all folders."
+        } else 
+            $offset += $folders.count
         }
     }
 
