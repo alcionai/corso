@@ -1033,6 +1033,54 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_cleansFileIDSuffixes() {
 	}
 }
 
+func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
+	var (
+		t    = suite.T()
+		b    = Builder{}
+		svc  = path.OneDriveService
+		cat  = path.FilesCategory
+		info = ItemInfo{
+			OneDrive: &OneDriveInfo{
+				ItemType:  OneDriveItem,
+				ItemName:  "in",
+				DriveName: "dn",
+				DriveID:   "d",
+			},
+		}
+
+		dataSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DataFileSuffix})
+		dirMetaSfx = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DirMetaFileSuffix})
+		metaSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.MetaFileSuffix})
+	)
+
+	// Don't need to generate folders for this entry, we just want the itemRef
+	loc := &path.Builder{}
+
+	err := b.Add(dataSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(dirMetaSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(metaSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	b.knownFolders = map[string]Entry{
+		"dummy": {
+			RepoRef:     "xyz",
+			ShortRef:    "abcd",
+			ParentRef:   "1234",
+			LocationRef: "ab",
+			ItemRef:     "cd",
+			Updated:     false,
+			ItemInfo:    info,
+		},
+	}
+
+	assert.Len(t, b.Details().Entries, 4) // 3 + 1 known folder
+	assert.Len(t, b.Details().Entries, 4) // possible reason for err: knownFolders got added twice
+}
+
 func makeItemPath(
 	t *testing.T,
 	service path.ServiceType,
