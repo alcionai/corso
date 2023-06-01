@@ -669,8 +669,6 @@ $purgeFolderParams = @{
 #purge older prefix folders from msgfolderroot
 Purge-Folders @purgeFolderParams
 
-Exit 
-
 #purge older contacts 
 Purge-Items -ItemsFolder "contacts" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
 
