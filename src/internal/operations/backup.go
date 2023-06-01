@@ -177,7 +177,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
-		"resource_owner", clues.Hide(op.ResourceOwner.Name()),
+		"resource_owner_id", op.ResourceOwner.ID(),
+		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
 		"incremental", op.incremental)
@@ -290,9 +291,24 @@ func (op *BackupOperation) do(
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
 
+	kbf, err := op.kopia.NewBaseFinder(op.store)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	type baseFinder struct {
+		kinject.BaseFinder
+		kinject.RestoreProducer
+	}
+
+	bf := baseFinder{
+		BaseFinder:      kbf,
+		RestoreProducer: op.kopia,
+	}
+
 	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(
 		ctx,
-		op.kopia,
+		bf,
 		op.store,
 		reasons, fallbackReasons,
 		op.account.ID(),
@@ -347,6 +363,8 @@ func (op *BackupOperation) do(
 		mans,
 		toMerge,
 		deets,
+		writeStats,
+		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -465,7 +483,7 @@ func consumeBackupCollections(
 	bc kinject.BackupConsumer,
 	tenantID string,
 	reasons []kopia.Reason,
-	mans []*kopia.ManifestEntry,
+	mans []kopia.ManifestEntry,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
@@ -650,7 +668,7 @@ func getNewPathRefs(
 func lastCompleteBackups(
 	ctx context.Context,
 	ms *store.Wrapper,
-	mans []*kopia.ManifestEntry,
+	mans []kopia.ManifestEntry,
 ) (map[string]*backup.Backup, int, error) {
 	var (
 		oldestVersion = version.NoBackup
@@ -701,11 +719,20 @@ func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
 	detailsStore streamstore.Streamer,
-	mans []*kopia.ManifestEntry,
+	mans []kopia.ManifestEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
+	writeStats *kopia.BackupStats,
+	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
+	detailsModel := deets.Details().DetailsModel
+
+	// getting the values in writeStats before anything else so that we don't get a return from
+	// conditions like no backup data.
+	writeStats.TotalNonMetaFileCount = len(detailsModel.FilterMetaFiles().Items())
+	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
+
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
@@ -841,6 +868,8 @@ func (op *BackupOperation) persistResults(
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.NonMetaBytesUploaded = opStats.k.TotalNonMetaUploadedBytes
+	op.Results.NonMetaItemsWritten = opStats.k.TotalNonMetaFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
 	if opStats.gc == nil {

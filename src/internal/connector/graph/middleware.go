@@ -140,29 +140,21 @@ func (mw *LoggingMiddleware) Intercept(
 	var (
 		log       = logger.Ctx(ctx)
 		respClass = resp.StatusCode / 100
-		logExtra  = logger.DebugAPIFV || os.Getenv(logGraphRequestsEnvKey) != ""
+
+		// special cases where we always dump the response body, since the response
+		// details might be critical to understanding the response when debugging.
+		// * 400-bad-request
+		// * 403-forbidden
+		logBody = logger.DebugAPIFV ||
+			os.Getenv(logGraphRequestsEnvKey) != "" ||
+			resp.StatusCode == http.StatusBadRequest ||
+			resp.StatusCode == http.StatusForbidden
 	)
 
-	// special case: always info log 429 responses
+	// special case: always info-level status 429 logs
 	if resp.StatusCode == http.StatusTooManyRequests {
-		if logExtra {
-			log = log.With("response", getRespDump(ctx, resp, true))
-		}
-
-		log.Infow(
-			"graph api throttling",
-			"limit", resp.Header.Get(rateLimitHeader),
-			"remaining", resp.Header.Get(rateRemainingHeader),
-			"reset", resp.Header.Get(rateResetHeader),
-			"retry-after", resp.Header.Get(retryAfterHeader))
-
-		return resp, err
-	}
-
-	// special case: always dump status-400-bad-request
-	if resp.StatusCode == http.StatusBadRequest {
-		log.With("response", getRespDump(ctx, resp, true)).
-			Error("graph api error: " + resp.Status)
+		log.With("response", getRespDump(ctx, resp, logBody)).
+			Info("graph api throttling")
 
 		return resp, err
 	}
@@ -170,25 +162,18 @@ func (mw *LoggingMiddleware) Intercept(
 	// Log api calls according to api debugging configurations.
 	switch respClass {
 	case 2:
-		if logExtra {
+		if logBody {
 			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
 			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
 			log.Infow("2xx graph api resp", "response", dump)
 		}
 	case 3:
-		log = log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader)))
-
-		if logExtra {
-			log = log.With("response", getRespDump(ctx, resp, false))
-		}
-
-		log.Info("graph api redirect: " + resp.Status)
+		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader))).
+			With("response", getRespDump(ctx, resp, false)).
+			Info("graph api redirect: " + resp.Status)
 	default:
-		if logExtra {
-			log = log.With("response", getRespDump(ctx, resp, true))
-		}
-
-		log.Error("graph api error: " + resp.Status)
+		log.With("response", getRespDump(ctx, resp, logBody)).
+			Error("graph api error: " + resp.Status)
 	}
 
 	return resp, err
