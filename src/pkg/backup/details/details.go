@@ -388,10 +388,13 @@ func (b *Builder) Details() *Details {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	ents := make([]Entry, len(b.d.Entries))
+	copy(ents, b.d.Entries)
+
 	// Write the cached folder entries to details
 	details := &Details{
 		DetailsModel{
-			Entries: append(b.d.Entries, maps.Values(b.knownFolders)...),
+			Entries: append(ents, maps.Values(b.knownFolders)...),
 		},
 	}
 

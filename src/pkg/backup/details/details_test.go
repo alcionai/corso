@@ -1049,6 +1049,7 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 		}
 
 		dataSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DataFileSuffix})
+		dataSfx2   = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i2" + metadata.DataFileSuffix})
 		dirMetaSfx = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DirMetaFileSuffix})
 		metaSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.MetaFileSuffix})
 	)
@@ -1057,6 +1058,9 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 	loc := &path.Builder{}
 
 	err := b.Add(dataSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(dataSfx2, loc, false, info)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = b.Add(dirMetaSfx, loc, false, info)
@@ -1075,10 +1079,36 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 			Updated:     false,
 			ItemInfo:    info,
 		},
+		"dummy2": {
+			RepoRef:     "xyz2",
+			ShortRef:    "abcd2",
+			ParentRef:   "12342",
+			LocationRef: "ab2",
+			ItemRef:     "cd2",
+			Updated:     false,
+			ItemInfo:    info,
+		},
+		"dummy3": {
+			RepoRef:     "xyz3",
+			ShortRef:    "abcd3",
+			ParentRef:   "12343",
+			LocationRef: "ab3",
+			ItemRef:     "cd3",
+			Updated:     false,
+			ItemInfo:    info,
+		},
 	}
 
-	assert.Len(t, b.Details().Entries, 4) // 3 + 1 known folder
-	assert.Len(t, b.Details().Entries, 4) // possible reason for err: knownFolders got added twice
+	// mark the capacity prior to calling details.
+	// if the entries slice gets modified and grows to a
+	// 5th space, then the capacity would grow as well.
+	capCheck := cap(b.d.Entries)
+
+	assert.Len(t, b.Details().Entries, 7) // 4 ents + 3 known folders
+	assert.Len(t, b.Details().Entries, 7) // possible reason for err: knownFolders got added twice
+
+	assert.Len(t, b.d.Entries, 4)               // len should not have grown
+	assert.Equal(t, capCheck, cap(b.d.Entries)) // capacity should not have grown
 }
 
 func makeItemPath(
