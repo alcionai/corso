@@ -19,16 +19,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type manifestFetcher interface {
-	FetchPrevSnapshotManifests(
-		ctx context.Context,
-		reasons []kopia.Reason,
-		tags map[string]string,
-	) ([]*kopia.ManifestEntry, error)
-}
-
 type manifestRestorer interface {
-	manifestFetcher
+	inject.BaseFinder
 	inject.RestoreProducer
 }
 
@@ -47,14 +39,14 @@ func produceManifestsAndMetadata(
 	reasons, fallbackReasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
-) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
+) ([]kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
 		tags          = map[string]string{kopia.TagBackupCategory: ""}
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.RestoreCollection
 	)
 
-	ms, err := mr.FetchPrevSnapshotManifests(ctx, reasons, tags)
+	ms, err := mr.FindBases(ctx, reasons, tags)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots")
 	}
@@ -70,7 +62,7 @@ func produceManifestsAndMetadata(
 		return ms, nil, false, nil
 	}
 
-	fbms, err := mr.FetchPrevSnapshotManifests(ctx, fallbackReasons, tags)
+	fbms, err := mr.FindBases(ctx, fallbackReasons, tags)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots under alternate id")
 	}
@@ -177,9 +169,9 @@ func produceManifestsAndMetadata(
 // 3. If mans has no entry for a reason, look for both complete and incomplete fallbacks.
 func unionManifests(
 	reasons []kopia.Reason,
-	mans []*kopia.ManifestEntry,
-	fallback []*kopia.ManifestEntry,
-) []*kopia.ManifestEntry {
+	mans []kopia.ManifestEntry,
+	fallback []kopia.ManifestEntry,
+) []kopia.ManifestEntry {
 	if len(fallback) == 0 {
 		return mans
 	}
@@ -203,7 +195,9 @@ func unionManifests(
 	}
 
 	// track the manifests that were collected with the current lookup
-	for _, m := range mans {
+	for i := range mans {
+		m := &mans[i]
+
 		for _, r := range m.Reasons {
 			k := r.Service.String() + r.Category.String()
 			t := tups[k]
@@ -219,7 +213,8 @@ func unionManifests(
 	}
 
 	// backfill from the fallback where necessary
-	for _, m := range fallback {
+	for i := range fallback {
+		m := &fallback[i]
 		useReasons := []kopia.Reason{}
 
 		for _, r := range m.Reasons {
@@ -250,15 +245,15 @@ func unionManifests(
 	}
 
 	// collect the results into a single slice of manifests
-	ms := map[string]*kopia.ManifestEntry{}
+	ms := map[string]kopia.ManifestEntry{}
 
 	for _, m := range tups {
 		if m.complete != nil {
-			ms[string(m.complete.ID)] = m.complete
+			ms[string(m.complete.ID)] = *m.complete
 		}
 
 		if m.incomplete != nil {
-			ms[string(m.incomplete.ID)] = m.incomplete
+			ms[string(m.incomplete.ID)] = *m.incomplete
 		}
 	}
 
@@ -269,7 +264,7 @@ func unionManifests(
 // of manifests, that each manifest's Reason (owner, service, category) is only
 // included once.  If a reason is duplicated by any two manifests, an error is
 // returned.
-func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry) error {
+func verifyDistinctBases(ctx context.Context, mans []kopia.ManifestEntry) error {
 	reasons := map[string]manifest.ID{}
 
 	for _, man := range mans {
@@ -303,7 +298,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry) error
 func collectMetadata(
 	ctx context.Context,
 	r inject.RestoreProducer,
-	man *kopia.ManifestEntry,
+	man kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
 	errs *fault.Bus,
