@@ -384,7 +384,6 @@ func (c *Collections) Get(
 		numPrevItems = c.NumItems
 
 		// Only create a drive cache if there are less than 300k items in the drive.
-		// TODO: Tune this number. Delta query for 300k items takes ~20 mins.
 		if numDriveItems < urlCacheDriveItemThreshold {
 			logger.Ctx(ictx).Info("adding url cache for drive ", driveID)
 

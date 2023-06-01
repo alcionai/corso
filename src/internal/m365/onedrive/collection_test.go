@@ -692,7 +692,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			muc:       m,
 		},
 		{
-			name:      "expired url fetched from cache",
+			name:      "url refreshed from cache",
 			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
@@ -710,11 +710,11 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			},
 		},
 		{
-			name:      "expired url fetched from cache but item deleted",
-			mgi:       mock.GetsItem{Item: itemWID, Err: assert.AnError},
+			name:      "url refreshed from cache but item deleted",
+			mgi:       mock.GetsItem{Item: itemWID, Err: graph.ErrDeletedInFlight},
 			itemInfo:  details.ItemInfo{},
-			respBody:  []io.ReadCloser{nil, nil},
-			getErr:    []error{errUnauth, assert.AnError},
+			respBody:  []io.ReadCloser{nil, nil, nil},
+			getErr:    []error{errUnauth, graph.ErrDeletedInFlight, graph.ErrDeletedInFlight},
 			expectErr: require.Error,
 			expect:    require.Nil,
 			muc: &mockURLCache{
@@ -724,6 +724,20 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 							isDeleted:   true,
 						},
 						nil
+				},
+			},
+		},
+		{
+			name:      "fallback to item fetch on any cache error",
+			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil, iorc},
+			getErr:    []error{errUnauth, nil},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
+			muc: &mockURLCache{
+				Get: func(ctx context.Context, itemID string) (itemProps, error) {
+					return itemProps{}, assert.AnError
 				},
 			},
 		},
@@ -755,7 +769,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 				mbh,
 				nil,
 				nil,
-				"drive-id",
+				driveID,
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
