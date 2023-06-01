@@ -226,7 +226,10 @@ func checkBackupIsInManifests(
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
+			bf, err := kw.NewBaseFinder(bo.store)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mans, err := bf.FindBases(ctx, reasons, tags)
 			require.NoError(t, err, clues.ToCore(err))
 
 			for _, man := range mans {

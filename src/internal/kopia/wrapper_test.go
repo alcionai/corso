@@ -1101,14 +1101,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 	subtreePath := subtreePathTmp.ToBuilder().Dir()
 
-	manifests, err := suite.w.FetchPrevSnapshotManifests(
-		suite.ctx,
-		[]Reason{reason},
-		nil,
-	)
-	require.NoError(suite.T(), err, clues.ToCore(err))
-	require.Len(suite.T(), manifests, 1)
-	require.Equal(suite.T(), suite.snapshotID, manifests[0].ID)
+	man, err := suite.w.c.LoadSnapshot(suite.ctx, suite.snapshotID)
+	require.NoError(suite.T(), err, "getting base snapshot: %v", clues.ToCore(err))
 
 	tags := map[string]string{}
 
@@ -1206,7 +1200,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				suite.ctx,
 				[]IncrementalBase{
 					{
-						Manifest: manifests[0].Manifest,
+						Manifest: man,
 						SubtreePaths: []*path.Builder{
 							subtreePath,
 						},
