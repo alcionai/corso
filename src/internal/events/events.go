@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // keys for ease of use
@@ -80,7 +79,7 @@ var (
 	RudderStackDataPlaneURL string
 )
 
-func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.Options) (Bus, error) {
+func NewBus(ctx context.Context, tenID string, opts control.Options) (Bus, error) {
 	if opts.DisableMetrics {
 		return Bus{}, nil
 	}

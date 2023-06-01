@@ -178,6 +178,8 @@ func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, 
 	switch s.Provider {
 	case storage.ProviderS3:
 		return s3BlobStorage(ctx, s)
+	case storage.ProviderAzure:
+		return azBlobStorage(ctx, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
 	}

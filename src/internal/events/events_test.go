@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 type EventsIntegrationSuite struct {
@@ -31,15 +30,6 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	s, err := storage.NewStorage(
-		storage.ProviderS3,
-		storage.S3Config{
-			Bucket: "bckt",
-			Prefix: "prfx",
-		},
-	)
-	require.NoError(t, err, clues.ToCore(err))
-
 	a, err := account.NewAccount(
 		account.ProviderM365,
 		account.M365Config{
@@ -52,14 +42,14 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 	)
 	require.NoError(t, err, clues.ToCore(err))
 
-	b, err := events.NewBus(ctx, s, a.ID(), control.Defaults())
+	b, err := events.NewBus(ctx, a.ID(), control.Defaults())
 	require.NotEmpty(t, b)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = b.Close()
 	require.NoError(t, err, clues.ToCore(err))
 
-	b2, err := events.NewBus(ctx, s, a.ID(), control.Options{DisableMetrics: true})
+	b2, err := events.NewBus(ctx, a.ID(), control.Options{DisableMetrics: true})
 	require.Empty(t, b2)
 	require.NoError(t, err, clues.ToCore(err))
 

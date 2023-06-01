@@ -14,6 +14,7 @@ type storageProvider int
 const (
 	ProviderUnknown storageProvider = iota // Unknown Provider
 	ProviderS3                             // S3
+	ProviderAzure                          // Azure
 )
 
 // storage parsing errors

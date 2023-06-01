@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[ProviderUnknown-0]
 	_ = x[ProviderS3-1]
+	_ = x[ProviderAzure-2]
 }
 
-const _storageProvider_name = "Unknown ProviderS3"
+const _storageProvider_name = "Unknown ProviderS3Azure"
 
-var _storageProvider_index = [...]uint8{0, 16, 18}
+var _storageProvider_index = [...]uint8{0, 16, 18, 23}
 
 func (i storageProvider) String() string {
 	if i < 0 || i >= storageProvider(len(_storageProvider_index)-1) {
