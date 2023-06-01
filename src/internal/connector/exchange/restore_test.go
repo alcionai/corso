@@ -311,7 +311,6 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				return ptr.Val(folder.GetId())
 			},
 		},
-		// TODO: #884 - reinstate when able to specify root folder by name
 		{
 			name:     "Test Contact",
 			bytes:    exchMock.ContactBytes("Test_Omega"),

@@ -73,10 +73,6 @@ func (cfc *contactFolderCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	ctx = clues.Add(
-		ctx,
-	)
-
 	if err := cfc.init(ctx, baseID, baseContainerPath); err != nil {
 		return clues.Wrap(err, "initializing")
 	}

@@ -54,8 +54,12 @@ type containerAPI interface {
 		userID, containerName, parentContainerID string,
 	) (graph.Container, error)
 
-	// GETs a container by name
-	containerSearcher() (containerByNamer, bool)
+	// GETs a container by name.
+	// if containerByNamer is nil, this functionality is not supported
+	// and should be skipped by the caller.
+	// normally, we'd alias the func directly.  The indirection here
+	// is because not all types comply with GetContainerByName.
+	containerSearcher() containerByNamer
 
 	// returns either the provided value (assumed to be the root
 	// folder for that cache tree), or the default root container
@@ -64,12 +68,8 @@ type containerAPI interface {
 	orRootContainer(string) string
 }
 
-// searches for a container by name.
-// normally, we'd alias the func directly.  The indirection here
-// is because not all types comly with GetContainerByName.  We
-// identify those that aren't because `containerSearcher()` will
-// return (nil, false), in that case.
 type containerByNamer interface {
+	// searches for a container by name.
 	GetContainerByName(
 		ctx context.Context,
 		userID, containerName string,

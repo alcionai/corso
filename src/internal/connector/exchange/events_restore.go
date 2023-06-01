@@ -42,7 +42,7 @@ func (h eventRestoreHandler) newContainerCache(userID string) graph.ContainerRes
 
 func (h eventRestoreHandler) formatRestoreDestination(
 	destinationContainerName string,
-	_ path.Path, // calendars cannot be nested
+	_ path.Path, // ignored because calendars cannot be nested
 ) *path.Builder {
 	return path.Builder{}.Append(destinationContainerName)
 }
@@ -54,8 +54,8 @@ func (h eventRestoreHandler) CreateContainer(
 	return h.ac.CreateContainer(ctx, userID, containerName, "")
 }
 
-func (h eventRestoreHandler) containerSearcher() (containerByNamer, bool) {
-	return h.ac, false
+func (h eventRestoreHandler) containerSearcher() containerByNamer {
+	return h.ac
 }
 
 // always returns the provided value

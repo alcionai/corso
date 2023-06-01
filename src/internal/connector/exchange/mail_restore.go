@@ -43,7 +43,7 @@ func (h mailRestoreHandler) newContainerCache(userID string) graph.ContainerReso
 
 func (h mailRestoreHandler) formatRestoreDestination(
 	destinationContainerName string,
-	collectionFullPath path.Path, // calendars cannot be nested
+	collectionFullPath path.Path,
 ) *path.Builder {
 	return path.Builder{}.Append(destinationContainerName).Append(collectionFullPath.Folders()...)
 }
@@ -59,8 +59,8 @@ func (h mailRestoreHandler) CreateContainer(
 	return h.ac.CreateContainer(ctx, userID, containerName, parentContainerID)
 }
 
-func (h mailRestoreHandler) containerSearcher() (containerByNamer, bool) {
-	return nil, false
+func (h mailRestoreHandler) containerSearcher() containerByNamer {
+	return nil
 }
 
 // always returns rootFolderAlias

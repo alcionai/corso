@@ -3,7 +3,6 @@ package exchange
 import (
 	"bytes"
 	"context"
-	"errors"
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
@@ -107,7 +106,7 @@ func RestoreCollections(
 		metrics = support.CombineMetrics(metrics, temp)
 
 		if err != nil {
-			if errors.Is(err, context.Canceled) {
+			if graph.IsErrTimeout(err) {
 				break
 			}
 
@@ -149,7 +148,7 @@ func restoreCollection(
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		category.String(),
-		clues.Hide(fullPath.Folder(false)))
+		fullPath.Folder(false))
 	defer closer()
 	defer close(colProgress)
 
@@ -218,8 +217,6 @@ func restoreCollection(
 // [root leaf1 leaf2] similar to a linked list.
 // @param directory is the desired path from the root to the container
 // that the items will be restored into.
-// @param destinationName will be prepended onto the directory path
-// for non-destructive restores.
 func createDestination(
 	ctx context.Context,
 	ca containerAPI,
@@ -289,9 +286,11 @@ func getOrPopulateContainer(
 	// sometimes the backend will create the folder despite the 5xx response,
 	// leaving our local containerResolver with inconsistent state.
 	if graph.IsErrFolderExists(err) {
-		cbn, ok := ca.containerSearcher()
-		if ok {
-			c, err = cbn.GetContainerByName(ctx, userID, containerName)
+		cs := ca.containerSearcher()
+		if cs != nil {
+			cc, e := cs.GetContainerByName(ctx, userID, containerName)
+			c = cc
+			err = clues.Stack(err, e)
 		}
 	}
 

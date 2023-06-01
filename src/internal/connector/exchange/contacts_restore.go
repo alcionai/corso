@@ -52,8 +52,8 @@ func (h contactRestoreHandler) CreateContainer(
 	return h.ac.CreateContainer(ctx, userID, containerName, "")
 }
 
-func (h contactRestoreHandler) containerSearcher() (containerByNamer, bool) {
-	return nil, false
+func (h contactRestoreHandler) containerSearcher() containerByNamer {
+	return nil
 }
 
 // always returns the provided value
