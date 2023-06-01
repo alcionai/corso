@@ -280,7 +280,7 @@ function Get-FoldersToPurge {
 
         if (!$moreToList -or $null -eq $folders) {
             Write-Host "Retrieved all folders."
-        } else 
+        } else {
             $offset += $folders.count
         }
     }
