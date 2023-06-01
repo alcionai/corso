@@ -71,7 +71,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
-		gc.Discovery.Users(),
+		gc.AC.Users(),
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner)
 	if err != nil {
@@ -97,7 +97,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceExchange:
 		colls, ssmb, err = exchange.DataCollections(
 			ctx,
-			gc.Discovery,
+			gc.AC,
 			sels,
 			gc.credentials.AzureTenantID,
 			owner,
@@ -112,14 +112,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceOneDrive:
 		colls, ssmb, err = onedrive.DataCollections(
 			ctx,
-			gc.Discovery,
+			gc.AC,
 			sels,
 			owner,
 			metadata,
 			lastBackupVersion,
 			gc.credentials.AzureTenantID,
-			gc.itemClient,
-			gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
 			errs)
@@ -130,13 +128,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceSharePoint:
 		colls, ssmb, err = sharepoint.DataCollections(
 			ctx,
-			gc.Discovery,
-			gc.itemClient,
+			gc.AC,
 			sels,
 			owner,
 			metadata,
 			gc.credentials,
-			gc.Service,
 			gc,
 			ctrlOpts,
 			errs)
@@ -176,7 +172,7 @@ func (gc *GraphConnector) IsBackupRunnable(
 		return true, nil
 	}
 
-	info, err := gc.Discovery.Users().GetInfo(ctx, resourceOwner)
+	info, err := gc.AC.Users().GetInfo(ctx, resourceOwner)
 	if err != nil {
 		return false, err
 	}
@@ -276,18 +272,11 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreCollections(ctx,
-			creds,
-			gc.Discovery,
-			gc.Service,
-			dest,
-			dcs,
-			deets,
-			errs)
+		status, err = exchange.RestoreCollections(ctx, creds, gc.AC, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(
 			ctx,
-			onedrive.NewRestoreHandler(gc.Discovery),
+			onedrive.NewRestoreHandler(gc.AC),
 			backupVersion,
 			dest,
 			opts,
@@ -299,7 +288,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 		status, err = sharepoint.RestoreCollections(
 			ctx,
 			backupVersion,
-			gc.Discovery,
+			gc.AC,
 			creds,
 			dest,
 			opts,

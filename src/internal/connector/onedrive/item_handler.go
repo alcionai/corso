@@ -58,24 +58,19 @@ func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return path.OneDriveService, path.FilesCategory
 }
 
-func (h itemBackupHandler) DrivePager(
+func (h itemBackupHandler) NewDrivePager(
 	resourceOwner string, fields []string,
 ) api.DrivePager {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
-func (h itemBackupHandler) ItemPager(
+func (h itemBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
 ) api.DriveItemEnumerator {
 	return h.ac.NewItemPager(driveID, link, fields)
 }
 
-// AugmentItemInfo will populate a details.OneDriveInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
 func (h itemBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	item models.DriveItemable,

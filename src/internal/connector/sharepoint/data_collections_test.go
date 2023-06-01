@@ -213,7 +213,6 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ctx,
 		creds,
 		ac,
-		nil,
 		mock.NewProvider(siteID, siteID),
 		&MockGraphService{},
 		control.Defaults(),

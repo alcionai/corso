@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,17 +37,6 @@ import (
 
 type CollectionUnitTestSuite struct {
 	tester.Suite
-}
-
-// Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
-// TODO: Implement these methods
-
-func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
-	return nil
-}
-
-func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return nil
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {

@@ -41,8 +41,6 @@ func DataCollections(
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	tenant string,
-	itemClient graph.Requester,
-	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -86,7 +84,6 @@ func DataCollections(
 	}
 
 	mcs, err := migrationCollections(
-		service,
 		lastBackupVersion,
 		tenant,
 		user,
@@ -120,7 +117,6 @@ func DataCollections(
 
 // adds data migrations to the collection set.
 func migrationCollections(
-	svc graph.Servicer,
 	lastBackupVersion int,
 	tenant string,
 	user idname.Provider,

@@ -10,14 +10,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
 type ExchangeServiceSuite struct {
 	tester.Suite
-	gs          graph.Servicer
 	credentials account.M365Config
 }
 
@@ -38,14 +36,6 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
-
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.gs = graph.NewService(adpt)
 }
 
 //nolint:lll

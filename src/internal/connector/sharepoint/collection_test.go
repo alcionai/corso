@@ -164,7 +164,6 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			col := NewCollection(
 				test.getDir(t),
 				suite.ac,
-				nil,
 				test.category,
 				nil,
 				control.Defaults())
