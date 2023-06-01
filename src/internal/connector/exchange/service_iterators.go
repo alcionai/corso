@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -18,8 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
-
-var ErrFolderNotFound = clues.New("folder not found")
 
 // filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -135,8 +132,6 @@ func filterContainersAndFillCollections(
 			statusUpdater,
 			ctrlOpts,
 			newDelta.Reset)
-
-		fmt.Printf("\n-----\nadding %+v\n-----\n", locPath)
 
 		collections[cID] = &edc
 

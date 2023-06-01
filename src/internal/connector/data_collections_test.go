@@ -2,7 +2,6 @@ package connector
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"testing"
 
@@ -59,8 +58,6 @@ func (suite *DataCollectionIntgSuite) SetupSuite() {
 
 	suite.ac, err = api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
-
-	tester.LogTimeOfTest(t)
 }
 
 // TestExchangeDataCollection verifies interface between operation and
@@ -120,8 +117,6 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			}
 
 			suite.Run(name, func() {
-				fmt.Printf("\n-----\ntest %+v\n-----\n", name)
-
 				t := suite.T()
 
 				ctx, flush := tester.NewContext(t)
@@ -146,9 +141,8 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				require.NoError(t, err, clues.ToCore(err))
 				assert.True(t, excludes.Empty())
 
-				for _, c := range collections {
+				for range collections {
 					connector.incrementAwaitingMessages()
-					fmt.Println(c.FullPath())
 				}
 
 				// Categories with delta endpoints will produce a collection for metadata
