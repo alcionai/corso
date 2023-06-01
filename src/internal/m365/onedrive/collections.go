@@ -388,7 +388,11 @@ func (c *Collections) Get(
 		if numDriveItems < urlCacheDriveItemThreshold {
 			logger.Ctx(ictx).Info("adding url cache for drive ", driveID)
 
-			err = c.addURLCacheToDriveCollections(ictx, driveID, errs)
+			err = c.addURLCacheToDriveCollections(
+				ictx,
+				driveID,
+				c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()),
+				errs)
 			if err != nil {
 				return nil, err
 			}
@@ -458,13 +462,14 @@ func (c *Collections) Get(
 func (c *Collections) addURLCacheToDriveCollections(
 	ctx context.Context,
 	driveID string,
+	pager api.DriveItemEnumerator,
 	errs *fault.Bus,
 ) error {
 	uc, err := newURLCache(
 		driveID,
 		urlCacheRefreshInterval,
 		errs,
-		c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()))
+		pager)
 	if err != nil {
 		return err
 	}

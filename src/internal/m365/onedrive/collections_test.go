@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -2675,6 +2676,85 @@ func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 			require.ErrorIs(t, err, test.err, "delta fetch err", clues.ToCore(err))
 			require.Equal(t, test.deltaURL, delta.URL, "delta url")
 			require.Equal(t, !test.prevDeltaSuccess, delta.Reset, "delta reset")
+		})
+	}
+}
+
+func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
+	driveID := "test-drive"
+	collCount := 3
+
+	table := []struct {
+		name             string
+		items            []deltaPagerResult
+		deltaURL         string
+		prevDeltaSuccess bool
+		prevDelta        string
+		err              error
+	}{
+
+		{
+			name: "cache is attached",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			c := NewCollections(
+				&itemBackupHandler{api.Drives{}},
+				"test-tenant",
+				"test-user",
+				testFolderMatcher{(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]},
+				nil,
+				control.Options{ToggleFeatures: control.Toggles{}})
+
+			if _, ok := c.CollectionMap[driveID]; !ok {
+				c.CollectionMap[driveID] = map[string]*Collection{}
+			}
+
+			// Add a few collections
+			for i := 0; i < collCount; i++ {
+				coll, err := NewCollection(
+					&itemBackupHandler{api.Drives{}},
+					nil,
+					nil,
+					driveID,
+					nil,
+					control.Options{ToggleFeatures: control.Toggles{}},
+					CollectionScopeFolder,
+					true,
+					nil)
+				require.NoError(t, err, clues.ToCore(err))
+
+				c.CollectionMap[driveID][strconv.Itoa(i)] = coll
+				require.Equal(t, nil, coll.cache, "cache not nil")
+			}
+
+			err := c.addURLCacheToDriveCollections(
+				ctx,
+				driveID,
+				&mockItemPager{},
+				fault.New(true))
+
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Check that all collections have the same cache instance attached
+			// to them
+			var uc *urlCache
+			for _, driveColls := range c.CollectionMap {
+				for _, coll := range driveColls {
+					require.NotNil(t, coll.cache, "cache is nil")
+					if uc == nil {
+						uc = coll.cache.(*urlCache)
+					} else {
+						require.Equal(t, uc, coll.cache, "cache not equal")
+					}
+				}
+			}
 		})
 	}
 }
