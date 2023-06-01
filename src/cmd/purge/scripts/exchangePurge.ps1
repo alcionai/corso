@@ -185,77 +185,108 @@ function Get-FoldersToPurge {
         [string[]]$FolderNamePurgeList = @(),
 
         [Parameter(Mandatory = $False, HelpMessage = "Purge folders with these prefixes")]
-        [string[]]$FolderPrefixPurgeList = @()
+        [string[]]$FolderPrefixPurgeList = @(),
+
+        [Parameter(Mandatory = $False, HelpMessage = "Perform shallow traversal only")]
+        [bool]$PurgeTraversalShallow = $false
     )
 
-    $foldersToDelete = @()
+    Write-Host "`nLooking for folders under well-known folder: $WellKnownRoot matching folders: $FolderNamePurgeList or prefixes: $FolderPrefixPurgeList for user: $User"
     
-    # SOAP message for getting the folders
-    $body = @"
-<FindFolder Traversal="Deep" xmlns="http://schemas.microsoft.com/exchange/services/2006/messages">
+    $foldersToDelete = @()
+    $traversal = "Deep"
+    if ($PurgeTraversalShallow) {
+        $traversal = "Shallow"
+    }
+
+    $offset = 0
+    $moreToList = $true
+
+    # get all folder pages
+    while ($moreToList) {
+        # SOAP message for getting the folders
+        $body = @"
+<FindFolder Traversal="$traversal" xmlns="http://schemas.microsoft.com/exchange/services/2006/messages">
     <FolderShape>
         <t:BaseShape>Default</t:BaseShape>
         <t:AdditionalProperties>
             <t:ExtendedFieldURI PropertyTag="0x3007" PropertyType="SystemTime"/>
         </t:AdditionalProperties>
     </FolderShape>
+    <m:IndexedPageFolderView MaxEntriesReturned="50" Offset="$offset" BasePoint="Beginning" />
     <ParentFolderIds>
         <t:DistinguishedFolderId Id="$WellKnownRoot"/>
     </ParentFolderIds>
 </FindFolder>
 "@
 
-    Write-Host "`nLooking for folders under well-known folder: $WellKnownRoot matching folders: $FolderNamePurgeList or prefixes: $FolderPrefixPurgeList for user: $User"
-    $getFolderIdMsg = Initialize-SOAPMessage -User $User -Body $body
-    $response = Invoke-SOAPRequest -Token $Token -Message $getFolderIdMsg
+        try {
+            Write-Host "`nRetrieving folders starting from offset: $offset"
 
-    # Get the folders from the response
-    $folders = $response | Select-Xml -XPath "//t:Folders/*" -Namespace @{t = "http://schemas.microsoft.com/exchange/services/2006/types" } | 
-    Select-Object -ExpandProperty Node
+            $getFolderIdMsg = Initialize-SOAPMessage -User $User -Body $body
+            $response = Invoke-SOAPRequest -Token $Token -Message $getFolderIdMsg
 
-    # Are there more folders to list
-    $rootFolder = $response | Select-Xml -XPath "//m:RootFolder" -Namespace @{m = "http://schemas.microsoft.com/exchange/services/2006/messages" } | 
-    Select-Object -ExpandProperty Node
-    $moreToList = ![System.Convert]::ToBoolean($rootFolder.IncludesLastItemInRange)
+            # Are there more folders to list
+            $rootFolder = $response | Select-Xml -XPath "//m:RootFolder" -Namespace @{m = "http://schemas.microsoft.com/exchange/services/2006/messages" } | 
+            Select-Object -ExpandProperty Node
+            $moreToList = ![System.Convert]::ToBoolean($rootFolder.IncludesLastItemInRange)
+        }
+        catch {
+            Write-Host "Error retrieving folders"
 
-    # Loop through folders
-    foreach ($folder in $folders) {
-        $folderName = $folder.DisplayName
-        $folderCreateTime = $folder.ExtendedProperty
-        | Where-Object { $_.ExtendedFieldURI.PropertyTag -eq "0x3007" }
-        | Select-Object -ExpandProperty Value
-        | Get-Date
+            Write-Host $response.OuterXml
+            Exit
+        }
+    
+        # Get the folders from the response
+        $folders = $response | Select-Xml -XPath "//t:Folders/*" -Namespace @{t = "http://schemas.microsoft.com/exchange/services/2006/types" } | 
+        Select-Object -ExpandProperty Node
 
-        if ($FolderNamePurgeList.count -gt 0) {
-            $IsNameMatchParams = @{
-                'FolderName'          = $folderName;
-                'FolderNamePurgeList' = $FolderNamePurgeList
-            } 
+        $offset += $folders.count
 
-            if ((IsNameMatch @IsNameMatchParams)) {
-                Write-Host "• Found name match: $folderName ($folderCreateTime)"
-                $foldersToDelete += $folder
-                continue
+        # Loop through folders
+        foreach ($folder in $folders) {
+            $folderName = $folder.DisplayName
+            $folderCreateTime = $folder.ExtendedProperty
+            | Where-Object { $_.ExtendedFieldURI.PropertyTag -eq "0x3007" }
+            | Select-Object -ExpandProperty Value
+            | Get-Date
+
+            if ($FolderNamePurgeList.count -gt 0) {
+                $IsNameMatchParams = @{
+                    'FolderName'          = $folderName;
+                    'FolderNamePurgeList' = $FolderNamePurgeList
+                } 
+
+                if ((IsNameMatch @IsNameMatchParams)) {
+                    Write-Host "• Found name match: $folderName ($folderCreateTime)"
+                    $foldersToDelete += $folder
+                    continue
+                }
+            }
+
+            if ($FolderPrefixPurgeList.count -gt 0) {
+                $IsPrefixAndAgeMatchParams = @{
+                    'FolderName'            = $folderName;
+                    'FolderCreateTime'      = $folderCreateTime;
+                    'FolderPrefixPurgeList' = $FolderPrefixPurgeList;
+                    'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp;
+                }
+
+                if ((IsPrefixAndAgeMatch @IsPrefixAndAgeMatchParams)) {
+                    Write-Host "• Found prefix match: $folderName ($folderCreateTime)" 
+                    $foldersToDelete += $folder
+                }
             }
         }
 
-        if ($FolderPrefixPurgeList.count -gt 0) {
-            $IsPrefixAndAgeMatchParams = @{
-                'FolderName'            = $folderName;
-                'FolderCreateTime'      = $folderCreateTime;
-                'FolderPrefixPurgeList' = $FolderPrefixPurgeList;
-                'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp;
-            }
-
-            if ((IsPrefixAndAgeMatch @IsPrefixAndAgeMatchParams)) {
-                Write-Host "• Found prefix match: $folderName ($folderCreateTime)" 
-                $foldersToDelete += $folder
-            }
+        if (!$moreToList) {
+            Write-Host "Retrieved all folders."
         }
     }
 
     # powershel does not do well when returning empty arrays
-    return $foldersToDelete, $moreToList
+    return , $foldersToDelete
 }
 
 function Empty-Folder {
@@ -355,7 +386,10 @@ function Purge-Folders {
         [string[]]$FolderPrefixPurgeList = @(),
 
         [Parameter(Mandatory = $False, HelpMessage = "Purge folders before this date time (UTC)")]
-        [datetime]$PurgeBeforeTimestamp
+        [datetime]$PurgeBeforeTimestamp,
+
+        [Parameter(Mandatory = $False, HelpMessage = "Perform shallow traversal only")]
+        [bool]$PurgeTraversalShallow = $false
     )  
 
     if (($FolderNamePurgeList.count -eq 0) -and 
@@ -363,9 +397,6 @@ function Purge-Folders {
         Write-Host "Either a list of specific folders or a list of prefixes and purge timestamp is required"
         Exit
     }
-
-    Write-Host "`nPurging CI-produced folders..."
-    Write-Host "--------------------------------"
 
     if ($FolderNamePurgeList.count -gt 0) {
         Write-Host "Folders with names: $FolderNamePurgeList"
@@ -382,30 +413,31 @@ function Purge-Folders {
         'WellKnownRoot'         = $WellKnownRoot;
         'FolderNamePurgeList'   = $FolderNamePurgeList;
         'FolderPrefixPurgeList' = $FolderPrefixPurgeList;
-        'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp
+        'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp;
+        'PurgeTraversalShallow' = $PurgeTraversalShallow
     }
 
-    $moreToList = $True
-    # only get max of 1000 results so we may need to iterate over eligible folders  
-    while ($moreToList) {
-        $foldersToDelete, $moreToList = Get-FoldersToPurge @foldersToDeleteParams
-        $foldersToDeleteCount = $foldersToDelete.count
-        $foldersToDeleteIds = @()
-        $folderNames = @()
+    $foldersToDelete = Get-FoldersToPurge @foldersToDeleteParams
+    $foldersToDeleteCount = $foldersToDelete.count
+    $foldersToDeleteIds = @()
+    $folderNames = @()
 
-        if ($foldersToDeleteCount -eq 0) {
-            Write-Host "`nNo folders to purge matching the criteria"
-            break
-        }
-
-        foreach ($folder in $foldersToDelete) {
-            $foldersToDeleteIds += $folder.FolderId.Id
-            $folderNames += $folder.DisplayName
-        }
-        
-        Empty-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
-        Delete-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
+    if ($foldersToDeleteCount -eq 0) {
+        Write-Host "`nNo folders to purge matching the criteria"
+        break
     }
+
+    foreach ($folder in $foldersToDelete) {
+        $foldersToDeleteIds += $folder.FolderId.Id
+        $folderNames += $folder.DisplayName
+    }
+
+    Write-Host $folderNames
+     
+    exit
+    Empty-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
+    Delete-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
+
 }
 
 function Create-Contact {
@@ -459,7 +491,7 @@ function Get-ItemsToPurge {
     $foldersToSearchBody = "<t:DistinguishedFolderId Id='$WellKnownRoot'/>"
 
     if (![String]::IsNullOrEmpty($SubFolderName)) {
-        $subFolders, $moreToList = Get-FoldersToPurge -WellKnownRoot $WellKnownRoot -FolderNamePurgeList $SubFolderName -PurgeBeforeTimestamp $PurgeBeforeTimestamp
+        $subFolders = Get-FoldersToPurge -WellKnownRoot $WellKnownRoot -FolderNamePurgeList $SubFolderName -PurgeBeforeTimestamp $PurgeBeforeTimestamp
 
         if ($subFolders.count -gt 0 ) {
             $foldersToSearchBody = ""
@@ -615,6 +647,8 @@ function Purge-Items {
     }
 }
 
+### MAIN ####
+
 Write-Host 'Authenticating with Exchange Web Services ...'
 $global:Token = Get-AccessToken | ConvertTo-SecureString -AsPlainText -Force 
 
@@ -622,15 +656,20 @@ $global:Token = Get-AccessToken | ConvertTo-SecureString -AsPlainText -Force
 $FolderNamePurgeList = $FolderNamePurgeList | ForEach-Object { @($_.Split(',').Trim()) }
 $FolderPrefixPurgeList = $FolderPrefixPurgeList | ForEach-Object { @($_.Split(',').Trim()) }
 
+Write-Host "`nPurging CI-produced folders under 'msgfolderroot' ..."
+Write-Host "--------------------------------------------------------"
+
 $purgeFolderParams = @{
-    'WellKnownRoot'         = "root";
+    'WellKnownRoot'         = "msgfolderroot";
     'FolderNamePurgeList'   = $FolderNamePurgeList;
     'FolderPrefixPurgeList' = $FolderPrefixPurgeList;
     'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp
 }
 
-#purge older prefix folders
+#purge older prefix folders from msgfolderroot
 Purge-Folders @purgeFolderParams
+
+Exit 
 
 #purge older contacts 
 Purge-Items -ItemsFolder "contacts" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
@@ -647,4 +686,20 @@ Purge-Items -ItemsFolder "calendar" -ItemsSubFolder "Birthdays" -PurgeBeforeTime
 # -/Recoverable Items/SubstrateHolds
 Write-Host "`nProcess well-known folders that are always purged" 
 Write-Host "---------------------------------------------------" 
+
+# We explicitly also clean direct folders under Deleted Items since there is some evidence
+# that suggests that emptying alone may not be reliable
+Write-Host "`nExplicit delete of all folders under 'DeletedItems' ..."
+Write-Host "----------------------------------------------------------"
+
+$purgeFolderParams = @{
+    'WellKnownRoot'         = "deleteditems";
+    'FolderNamePurgeList'   = $FolderNamePurgeList;
+    'FolderPrefixPurgeList' = @('*');
+    'PurgeBeforeTimestamp'  = (Get-Date);
+    'PurgeTraversalShallow' = $true
+}
+
+Purge-Folders @purgeFolderParams
+
 Empty-Folder -WellKnownRoot "deleteditems", "recoverableitemsroot"
