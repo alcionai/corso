@@ -280,7 +280,8 @@ function Get-FoldersToPurge {
 
         if (!$moreToList -or $null -eq $folders) {
             Write-Host "Retrieved all folders."
-        } else {
+        }
+        else {
             $offset += $folders.count
         }
     }
@@ -424,19 +425,16 @@ function Purge-Folders {
 
     if ($foldersToDeleteCount -eq 0) {
         Write-Host "`nNo folders to purge matching the criteria"
-        break
+        return
     }
 
     foreach ($folder in $foldersToDelete) {
         $foldersToDeleteIds += $folder.FolderId.Id
         $folderNames += $folder.DisplayName
     }
-
-    Write-Host $folderNames
      
     Empty-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
     Delete-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
-
 }
 
 function Create-Contact {
@@ -699,4 +697,4 @@ $purgeFolderParams = @{
 
 Purge-Folders @purgeFolderParams
 
-Empty-Folder -WellKnownRoot "deleteditems", "recoverableitemsroot"
+Empty-Folder -WellKnownRootList "deleteditems", "recoverableitemsroot"
