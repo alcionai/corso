@@ -151,10 +151,6 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	}
 }
 
-type containerDeleter interface {
-	DeleteContainer(context.Context, string, string) error
-}
-
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 	t := suite.T()
@@ -164,12 +160,6 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 
 	service, err := createService(m365)
 	require.NoError(t, err, clues.ToCore(err))
-
-	deleters := map[path.CategoryType]containerDeleter{
-		path.EmailCategory:    suite.ac.Mail(),
-		path.ContactsCategory: suite.ac.Contacts(),
-		path.EventsCategory:   suite.ac.Events(),
-	}
 
 	userID := tester.M365UserID(suite.T())
 
@@ -379,10 +369,6 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "item info was not populated")
-			assert.NotNil(t, deleters)
-
-			err = deleters[test.category].DeleteContainer(ctx, userID, destination)
-			assert.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
