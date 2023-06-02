@@ -206,6 +206,13 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			expectRetryCount: 3,
 			expectErr:        assert.Error,
 		},
+		{
+			name:             "http timeout",
+			providedErr:      http.ErrHandlerTimeout,
+			status:           0,
+			expectRetryCount: 3,
+			expectErr:        assert.Error,
+		},
 	}
 
 	for _, test := range tests {
