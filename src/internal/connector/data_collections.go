@@ -51,7 +51,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	ctx, end := diagnostics.Span(
 		ctx,
 		"gc:produceBackupCollections",
@@ -66,7 +66,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
-		return nil, nil, clues.Stack(err).WithClues(ctx)
+		return nil, nil, false, clues.Stack(err).WithClues(ctx)
 	}
 
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
@@ -75,16 +75,18 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	if !serviceEnabled {
-		return []data.BackupCollection{}, nil, nil
+		// TODO(meain): How would this work? Should we try pulling to decide?
+		return []data.BackupCollection{}, nil, false, nil
 	}
 
 	var (
-		colls []data.BackupCollection
-		ssmb  *prefixmatcher.StringSetMatcher
+		colls                []data.BackupCollection
+		ssmb                 *prefixmatcher.StringSetMatcher
+		canUsePreviousBackup bool
 	)
 
 	if !canMakeDeltaQueries {
@@ -95,7 +97,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, ssmb, err = exchange.DataCollections(
+		colls, ssmb, canUsePreviousBackup, err = exchange.DataCollections(
 			ctx,
 			gc.Discovery,
 			sels,
@@ -106,11 +108,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			ctrlOpts,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 	case selectors.ServiceOneDrive:
-		colls, ssmb, err = onedrive.DataCollections(
+		colls, ssmb, canUsePreviousBackup, err = onedrive.DataCollections(
 			ctx,
 			sels,
 			owner,
@@ -123,11 +125,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			ctrlOpts,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 	case selectors.ServiceSharePoint:
-		colls, ssmb, err = sharepoint.DataCollections(
+		colls, ssmb, canUsePreviousBackup, err = sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
@@ -139,11 +141,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 			ctrlOpts,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 	default:
-		return nil, nil, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
 	}
 
 	for _, c := range colls {
@@ -158,7 +160,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		}
 	}
 
-	return colls, ssmb, nil
+	return colls, ssmb, canUsePreviousBackup, nil
 }
 
 // IsBackupRunnable verifies that the users provided has the services enabled and

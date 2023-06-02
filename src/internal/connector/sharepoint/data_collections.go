@@ -38,10 +38,10 @@ func DataCollections(
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, false, clues.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	ctx = clues.Add(
@@ -50,10 +50,11 @@ func DataCollections(
 		"site_url", clues.Hide(site.Name()))
 
 	var (
-		el          = errs.Local()
-		collections = []data.BackupCollection{}
-		categories  = map[path.CategoryType]struct{}{}
-		ssmb        = prefixmatcher.NewStringSetBuilder()
+		el                   = errs.Local()
+		collections          = []data.BackupCollection{}
+		categories           = map[path.CategoryType]struct{}{}
+		ssmb                 = prefixmatcher.NewStringSetBuilder()
+		canUsePreviousBackup bool
 	)
 
 	for _, scope := range b.Scopes() {
@@ -84,7 +85,7 @@ func DataCollections(
 			}
 
 		case path.LibrariesCategory:
-			spcs, err = collectLibraries(
+			spcs, canUsePreviousBackup, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -133,13 +134,13 @@ func DataCollections(
 			su.UpdateStatus,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, ssmb.ToReader(), el.Failure()
+	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
 
 func collectLists(
@@ -202,7 +203,7 @@ func collectLibraries(
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
+) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
 	var (
@@ -218,12 +219,12 @@ func collectLibraries(
 			ctrlOpts)
 	)
 
-	odcs, err := colls.Get(ctx, metadata, ssmb, errs)
+	odcs, canUsePreviousBackup, err := colls.Get(ctx, metadata, ssmb, errs)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting library")
+		return nil, false, graph.Wrap(ctx, err, "getting library")
 	}
 
-	return append(collections, odcs...), nil
+	return append(collections, odcs...), canUsePreviousBackup, nil
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated

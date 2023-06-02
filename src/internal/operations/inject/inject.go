@@ -27,7 +27,7 @@ type (
 			lastBackupVersion int,
 			ctrlOpts control.Options,
 			errs *fault.Bus,
-		) ([]data.BackupCollection, prefixmatcher.StringSetReader, error)
+		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
 
 		Wait() *data.CollectionStats
