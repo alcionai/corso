@@ -727,6 +727,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
+	itemParents1String := itemParents1.String()
+
 	table := []struct {
 		name             string
 		populatedModels  map[model.StableID]backup.Backup
@@ -899,7 +901,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 								ItemInfo: details.ItemInfo{
 									OneDrive: &details.OneDriveInfo{
 										ItemType:   details.OneDriveItem,
-										ParentPath: itemParents1,
+										ParentPath: itemParents1String,
 										Size:       42,
 									},
 								},

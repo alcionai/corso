@@ -1,7 +1,6 @@
 package onedrive
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,8 +36,8 @@ func runComputeParentPermissionsTest(
 	category path.CategoryType,
 	resourceOwner string,
 ) {
-	entryPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/level0/level1/level2/entry"
-	rootEntryPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/entry"
+	entryPath := odConsts.DriveFolderPrefixBuilder("drive-id").String() + "/level0/level1/level2/entry"
+	rootEntryPath := odConsts.DriveFolderPrefixBuilder("drive-id").String() + "/entry"
 
 	entry, err := path.Build(
 		"tenant",

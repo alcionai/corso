@@ -52,7 +52,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	gc, _, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -60,7 +60,6 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 	deets, err := generateAndRestoreItems(
 		ctx,
 		gc,
-		acct,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
@@ -99,7 +98,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	gc, _, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -107,7 +106,6 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 	deets, err := generateAndRestoreItems(
 		ctx,
 		gc,
-		acct,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
@@ -145,7 +143,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	gc, _, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -153,7 +151,6 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 	deets, err := generateAndRestoreItems(
 		ctx,
 		gc,
-		acct,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,

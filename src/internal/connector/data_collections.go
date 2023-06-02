@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"strings"
-	"sync"
 
 	"github.com/alcionai/clues"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -25,13 +23,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-)
-
-const (
-	// copyBufferSize is used for chunked upload
-	// Microsoft recommends 5-10MB buffers
-	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-	copyBufferSize = 5 * 1024 * 1024
 )
 
 // ---------------------------------------------------------------------------
@@ -71,7 +62,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
-		gc.Discovery.Users(),
+		gc.AC.Users(),
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner)
 	if err != nil {
@@ -97,7 +88,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceExchange:
 		colls, ssmb, err = exchange.DataCollections(
 			ctx,
-			gc.Discovery,
+			gc.AC,
 			sels,
 			gc.credentials.AzureTenantID,
 			owner,
@@ -112,13 +103,12 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceOneDrive:
 		colls, ssmb, err = onedrive.DataCollections(
 			ctx,
+			gc.AC,
 			sels,
 			owner,
 			metadata,
 			lastBackupVersion,
 			gc.credentials.AzureTenantID,
-			gc.itemClient,
-			gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
 			errs)
@@ -129,12 +119,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceSharePoint:
 		colls, ssmb, err = sharepoint.DataCollections(
 			ctx,
-			gc.itemClient,
+			gc.AC,
 			sels,
 			owner,
 			metadata,
 			gc.credentials,
-			gc.Service,
 			gc,
 			ctrlOpts,
 			errs)
@@ -174,7 +163,7 @@ func (gc *GraphConnector) IsBackupRunnable(
 		return true, nil
 	}
 
-	info, err := gc.Discovery.Users().GetInfo(ctx, resourceOwner)
+	info, err := gc.AC.Users().GetInfo(ctx, resourceOwner)
 	if err != nil {
 		return false, err
 	}
@@ -242,7 +231,6 @@ func checkServiceEnabled(
 func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
-	acct account.Account,
 	sels selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
@@ -257,52 +245,31 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	var (
 		status *support.ConnectorOperationStatus
 		deets  = &details.Builder{}
+		err    error
 	)
-
-	creds, err := acct.M365Config()
-	if err != nil {
-		return nil, clues.Wrap(err, "malformed azure credentials")
-	}
-
-	// Buffer pool for uploads
-	pool := sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, copyBufferSize)
-			return &b
-		},
-	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreCollections(ctx,
-			creds,
-			gc.Discovery,
-			gc.Service,
-			dest,
-			dcs,
-			deets,
-			errs)
+		status, err = exchange.RestoreCollections(ctx, gc.AC, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx,
-			creds,
+		status, err = onedrive.RestoreCollections(
+			ctx,
+			onedrive.NewRestoreHandler(gc.AC),
 			backupVersion,
-			gc.Service,
 			dest,
 			opts,
 			dcs,
 			deets,
-			&pool,
 			errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx,
+		status, err = sharepoint.RestoreCollections(
+			ctx,
 			backupVersion,
-			creds,
-			gc.Service,
+			gc.AC,
 			dest,
 			opts,
 			dcs,
 			deets,
-			&pool,
 			errs)
 	default:
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")

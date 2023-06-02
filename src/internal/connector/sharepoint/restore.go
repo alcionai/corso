@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"runtime/trace"
-	"sync"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -18,12 +17,12 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 //----------------------------------------------------------------------------
@@ -43,13 +42,11 @@ import (
 func RestoreCollections(
 	ctx context.Context,
 	backupVersion int,
-	creds account.M365Config,
-	service graph.Servicer,
+	ac api.Client,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
-	pool *sync.Pool,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -83,22 +80,19 @@ func RestoreCollections(
 		case path.LibrariesCategory:
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
-				creds,
+				libraryRestoreHandler{ac.Drives()},
 				backupVersion,
-				service,
 				dc,
 				caches,
-				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
 				opts.RestorePermissions,
-				pool,
 				errs)
 
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(
 				ictx,
-				service,
+				ac.Stable,
 				dc,
 				dest.ContainerName,
 				deets,
@@ -107,7 +101,7 @@ func RestoreCollections(
 		case path.PagesCategory:
 			metrics, err = RestorePageCollection(
 				ictx,
-				creds,
+				ac.Stable,
 				dc,
 				dest.ContainerName,
 				deets,
@@ -292,7 +286,7 @@ func RestoreListCollection(
 // - the context cancellation station. True iff context is canceled.
 func RestorePageCollection(
 	ctx context.Context,
-	creds account.M365Config,
+	gs graph.Servicer,
 	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
@@ -309,17 +303,9 @@ func RestorePageCollection(
 
 	defer end()
 
-	adpt, err := graph.CreateAdapter(
-		creds.AzureTenantID,
-		creds.AzureClientID,
-		creds.AzureClientSecret)
-	if err != nil {
-		return metrics, clues.Wrap(err, "constructing graph client")
-	}
-
 	var (
 		el      = errs.Local()
-		service = betaAPI.NewBetaService(adpt)
+		service = betaAPI.NewBetaService(gs.Adapter())
 		items   = dc.Items(ctx, errs)
 	)
 

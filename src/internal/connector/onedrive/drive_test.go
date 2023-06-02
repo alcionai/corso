@@ -286,6 +286,7 @@ type OneDriveIntgSuite struct {
 	tester.Suite
 	userID string
 	creds  account.M365Config
+	ac     api.Client
 }
 
 func TestOneDriveSuite(t *testing.T) {
@@ -303,9 +304,12 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 
 	acct := tester.NewM365Account(t)
 	creds, err := acct.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = creds
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
@@ -318,11 +322,9 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 		folderIDs      = []string{}
 		folderName1    = "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 		folderElements = []string{folderName1}
-		gs             = loadTestService(t)
 	)
 
-	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-	require.NoError(t, err, clues.ToCore(err))
+	pager := suite.ac.Drives().NewUserDrivePager(suite.userID, nil)
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	require.NoError(t, err, clues.ToCore(err))
@@ -337,14 +339,14 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 
 			// deletes require unique http clients
 			// https://github.com/alcionai/corso/issues/2707
-			err := api.DeleteDriveItem(ictx, loadTestService(t), driveID, id)
+			err := suite.ac.Drives().DeleteItem(ictx, driveID, id)
 			if err != nil {
 				logger.CtxErr(ictx, err).Errorw("deleting folder")
 			}
 		}
 	}()
 
-	rootFolder, err := api.GetDriveRoot(ctx, gs, driveID)
+	rootFolder, err := suite.ac.Drives().GetRootFolder(ctx, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	restoreDir := path.Builder{}.Append(folderElements...)
@@ -357,7 +359,9 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	caches := NewRestoreCaches()
 	caches.DriveIDToRootFolderID[driveID] = ptr.Val(rootFolder.GetId())
 
-	folderID, err := createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
+	rh := NewRestoreHandler(suite.ac)
+
+	folderID, err := createRestoreFolders(ctx, rh, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -365,7 +369,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
 	restoreDir = restoreDir.Append(folderName2)
 
-	folderID, err = createRestoreFolders(ctx, gs, &drivePath, restoreDir, caches)
+	folderID, err = createRestoreFolders(ctx, rh, &drivePath, restoreDir, caches)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
@@ -387,11 +391,13 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			bh := itemBackupHandler{suite.ac.Drives()}
+			pager := suite.ac.Drives().NewUserDrivePager(suite.userID, nil)
 
-			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-			require.NoError(t, err, clues.ToCore(err))
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix, fault.New(true))
+			allFolders, err := GetAllFolders(ctx, bh, pager, test.prefix, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
 			foundFolderIDs := []string{}
@@ -454,12 +460,10 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				graph.NewNoTimeoutHTTPWrapper(),
+				&itemBackupHandler{suite.ac.Drives()},
 				creds.AzureTenantID,
 				test.user,
-				OneDriveSource,
 				testFolderMatcher{scope},
-				service,
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},

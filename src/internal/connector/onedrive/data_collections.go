@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type odFolderMatcher struct {
@@ -34,13 +35,12 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	ac api.Client,
 	selector selectors.Selector,
 	user idname.Provider,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	tenant string,
-	itemClient graph.Requester,
-	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -66,12 +66,10 @@ func DataCollections(
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
 		nc := NewCollections(
-			itemClient,
+			&itemBackupHandler{ac.Drives()},
 			tenant,
 			user.ID(),
-			OneDriveSource,
 			odFolderMatcher{scope},
-			service,
 			su,
 			ctrlOpts)
 
@@ -86,7 +84,6 @@ func DataCollections(
 	}
 
 	mcs, err := migrationCollections(
-		service,
 		lastBackupVersion,
 		tenant,
 		user,
@@ -120,7 +117,6 @@ func DataCollections(
 
 // adds data migrations to the collection set.
 func migrationCollections(
-	svc graph.Servicer,
 	lastBackupVersion int,
 	tenant string,
 	user idname.Provider,

@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -59,7 +58,6 @@ func (gc GraphConnector) Wait() *data.CollectionStats {
 func (gc GraphConnector) ConsumeRestoreCollections(
 	_ context.Context,
 	_ int,
-	_ account.Account,
 	_ selectors.Selector,
 	_ control.RestoreDestination,
 	_ control.Options,
