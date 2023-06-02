@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -37,20 +36,6 @@ const (
 	numberOfRetries             = 4
 )
 
-type itemer interface {
-	GetItem(
-		ctx context.Context,
-		user, itemID string,
-		immutableIDs bool,
-		errs *fault.Bus,
-	) (serialization.Parsable, *details.ExchangeInfo, error)
-	Serialize(
-		ctx context.Context,
-		item serialization.Parsable,
-		user, itemID string,
-	) ([]byte, error)
-}
-
 // Collection implements the interface from data.Collection
 // Structure holds data for an Exchange application for a single user
 type Collection struct {
@@ -63,7 +48,7 @@ type Collection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	items itemer
+	items itemGetterSerializer
 
 	category      path.CategoryType
 	statusUpdater support.StatusUpdater
@@ -98,7 +83,7 @@ func NewCollection(
 	curr, prev path.Path,
 	location *path.Builder,
 	category path.CategoryType,
-	items itemer,
+	items itemGetterSerializer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	doNotMergeItems bool,

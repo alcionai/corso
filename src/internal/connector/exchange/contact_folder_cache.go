@@ -71,9 +71,9 @@ func (cfc *contactFolderCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,
-	baseContainerPather ...string,
+	baseContainerPath ...string,
 ) error {
-	if err := cfc.init(ctx, baseID, baseContainerPather); err != nil {
+	if err := cfc.init(ctx, baseID, baseContainerPath); err != nil {
 		return clues.Wrap(err, "initializing")
 	}
 
@@ -95,7 +95,7 @@ func (cfc *contactFolderCache) init(
 	baseContainerPath []string,
 ) error {
 	if len(baseNode) == 0 {
-		return clues.New("m365 folderID required for base folder").WithClues(ctx)
+		return clues.New("m365 folderID required for base contact folder").WithClues(ctx)
 	}
 
 	if cfc.containerResolver == nil {

@@ -18,15 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type addedAndRemovedItemIDsGetter interface {
-	GetAddedAndRemovedItemIDs(
-		ctx context.Context,
-		user, containerID, oldDeltaToken string,
-		immutableIDs bool,
-		canMakeDeltaQueries bool,
-	) ([]string, []string, api.DeltaUpdate, error)
-}
-
 // filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a BackupCollection. Messages outside of those directories are omitted.
@@ -39,7 +30,7 @@ type addedAndRemovedItemIDsGetter interface {
 func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	getter addedAndRemovedItemIDsGetter,
+	bh backupHandler,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
@@ -61,19 +52,6 @@ func filterContainersAndFillCollections(
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
-	// TODO(rkeepers): this should be passed in from the caller, probably
-	// as an interface that satisfies the NewCollection requirements.
-	// But this will work for the short term.
-	ac, err := api.NewClient(qp.Credentials)
-	if err != nil {
-		return nil, err
-	}
-
-	ibt, err := itemerByType(ac, category)
-	if err != nil {
-		return nil, err
-	}
-
 	el := errs.Local()
 
 	for _, c := range resolver.Items() {
@@ -85,6 +63,7 @@ func filterContainersAndFillCollections(
 		delete(tombstones, cID)
 
 		var (
+			err         error
 			dp          = dps[cID]
 			prevDelta   = dp.Delta
 			prevPathStr = dp.Path // do not log: pii; log prevPath instead
@@ -115,13 +94,14 @@ func filterContainersAndFillCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(
-			ictx,
-			qp.ResourceOwner.ID(),
-			cID,
-			prevDelta,
-			ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-			!ctrlOpts.ToggleFeatures.DisableDelta)
+		added, removed, newDelta, err := bh.itemEnumerator().
+			GetAddedAndRemovedItemIDs(
+				ictx,
+				qp.ResourceOwner.ID(),
+				cID,
+				prevDelta,
+				ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+				!ctrlOpts.ToggleFeatures.DisableDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -148,7 +128,7 @@ func filterContainersAndFillCollections(
 			prevPath,
 			locPath,
 			category,
-			ibt,
+			bh.itemHandler(),
 			statusUpdater,
 			ctrlOpts,
 			newDelta.Reset)
@@ -181,7 +161,10 @@ func filterContainersAndFillCollections(
 			return nil, el.Failure()
 		}
 
-		ictx := clues.Add(ctx, "tombstone_id", id)
+		var (
+			err  error
+			ictx = clues.Add(ctx, "tombstone_id", id)
+		)
 
 		if collections[id] != nil {
 			el.AddRecoverable(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
@@ -207,7 +190,7 @@ func filterContainersAndFillCollections(
 			prevPath,
 			nil, // tombstones don't need a location
 			category,
-			ibt,
+			bh.itemHandler(),
 			statusUpdater,
 			ctrlOpts,
 			false)
@@ -220,7 +203,7 @@ func filterContainersAndFillCollections(
 		"num_deltas_entries", len(deltaURLs))
 
 	col, err := graph.MakeMetadataCollection(
-		qp.Credentials.AzureTenantID,
+		qp.TenantID,
 		qp.ResourceOwner.ID(),
 		path.ExchangeService,
 		qp.Category,
@@ -260,15 +243,74 @@ func pathFromPrevString(ps string) (path.Path, error) {
 	return p, nil
 }
 
-func itemerByType(ac api.Client, category path.CategoryType) (itemer, error) {
+// Returns true if the container passes the scope comparison and should be included.
+// Returns:
+// - the path representing the directory as it should be stored in the repository.
+// - the human-readable path using display names.
+// - true if the path passes the scope comparison.
+func includeContainer(
+	ctx context.Context,
+	qp graph.QueryParams,
+	c graph.CachedContainer,
+	scope selectors.ExchangeScope,
+	category path.CategoryType,
+) (path.Path, *path.Builder, bool) {
+	var (
+		directory string
+		locPath   path.Path
+		pb        = c.Path()
+		loc       = c.Location()
+	)
+
+	// Clause ensures that DefaultContactFolder is inspected properly
+	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == DefaultContactFolder {
+		loc = loc.Append(DefaultContactFolder)
+	}
+
+	dirPath, err := pb.ToDataLayerExchangePathForCategory(
+		qp.TenantID,
+		qp.ResourceOwner.ID(),
+		category,
+		false)
+	// Containers without a path (e.g. Root mail folder) always err here.
+	if err != nil {
+		return nil, nil, false
+	}
+
+	directory = dirPath.Folder(false)
+
+	if loc != nil {
+		locPath, err = loc.ToDataLayerExchangePathForCategory(
+			qp.TenantID,
+			qp.ResourceOwner.ID(),
+			category,
+			false)
+		// Containers without a path (e.g. Root mail folder) always err here.
+		if err != nil {
+			return nil, nil, false
+		}
+
+		directory = locPath.Folder(false)
+	}
+
+	var ok bool
+
 	switch category {
 	case path.EmailCategory:
-		return ac.Mail(), nil
-	case path.EventsCategory:
-		return ac.Events(), nil
+		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
 	case path.ContactsCategory:
-		return ac.Contacts(), nil
+		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
+	case path.EventsCategory:
+		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
-		return nil, clues.New("category not registered in getFetchIDFunc")
+		return nil, nil, false
 	}
+
+	logger.Ctx(ctx).With(
+		"included", ok,
+		"scope", scope,
+		"matches_input", directory,
+	).Debug("backup folder selection filter")
+
+	return dirPath, loc, ok
 }
