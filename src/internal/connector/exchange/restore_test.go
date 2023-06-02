@@ -211,7 +211,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				return ptr.Val(folder.GetId())
 			},
 		},
-		//TODO: Neha complete as part of https://github.com/alcionai/corso/issues/2428
+		// TODO: Neha complete as part of https://github.com/alcionai/corso/issues/2428
 		// {
 		// 	name: "Test Mail: Hydrated Item Attachment Mail",
 		// 	bytes: exchMock.MessageWithNestedItemAttachmentMail(t,

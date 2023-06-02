@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -259,7 +258,7 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetIsAllDay(orig.GetIsAllDay())
 	newEvent.SetIsOnlineMeeting(orig.GetIsOnlineMeeting())
 
-	if !isNil(orig.GetLocation()) {
+	if !ptr.IsNil(orig.GetLocation()) {
 		newEvent.SetLocation(orig.GetLocation())
 	}
 
@@ -288,19 +287,6 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetAttachments(nil)
 
 	return newEvent, nil
-}
-
-func isNil(i interface{}) bool {
-	if i == nil {
-		return true
-	}
-
-	switch reflect.TypeOf(i).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-		return reflect.ValueOf(i).IsNil()
-	}
-
-	return false
 }
 
 func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
