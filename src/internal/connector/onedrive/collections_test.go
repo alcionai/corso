@@ -844,10 +844,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 	table := []struct {
 		name string
 		// Each function returns the set of files for a single data.Collection.
-		cols           []func() []graph.MetadataCollectionEntry
-		expectedDeltas map[string]string
-		expectedPaths  map[string]map[string]string
-		errCheck       assert.ErrorAssertionFunc
+		cols                 []func() []graph.MetadataCollectionEntry
+		expectedDeltas       map[string]string
+		expectedPaths        map[string]map[string]string
+		canUsePreviousBackup bool
+		errCheck             assert.ErrorAssertionFunc
 	}{
 		{
 			name: "SuccessOneDriveAllOneCollection",
@@ -877,7 +878,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					folderID1: path1,
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			name: "MissingPaths",
@@ -891,9 +893,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: map[string]string{},
-			expectedPaths:  map[string]map[string]string{},
-			errCheck:       assert.NoError,
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			name: "MissingDeltas",
@@ -917,7 +920,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					folderID1: path1,
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			// An empty path map but valid delta results in metadata being returned
@@ -940,9 +944,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: map[string]string{},
-			expectedPaths:  map[string]map[string]string{driveID1: {}},
-			errCheck:       assert.NoError,
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{driveID1: {}},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			// An empty delta map but valid path results in no metadata for that drive
@@ -975,7 +980,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					folderID1: path1,
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			name: "SuccessTwoDrivesTwoCollections",
@@ -1025,7 +1031,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					folderID2: path2,
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			// Bad formats are logged but skip adding entries to the maps and don't
@@ -1041,7 +1048,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			errCheck: assert.Error,
+			canUsePreviousBackup: false,
+			errCheck:             assert.Error,
 		},
 		{
 			// Unexpected files are logged and skipped. They don't cause an error to
@@ -1077,7 +1085,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					folderID1: path1,
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 		},
 		{
 			name: "DriveAlreadyFound_Paths",
@@ -1111,9 +1120,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: nil,
-			expectedPaths:  nil,
-			errCheck:       assert.Error,
+			expectedDeltas:       nil,
+			expectedPaths:        nil,
+			canUsePreviousBackup: false,
+			errCheck:             assert.Error,
 		},
 		{
 			name: "DriveAlreadyFound_Deltas",
@@ -1143,9 +1153,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas: nil,
-			expectedPaths:  nil,
-			errCheck:       assert.Error,
+			expectedDeltas:       nil,
+			expectedPaths:        nil,
+			canUsePreviousBackup: false,
+			errCheck:             assert.Error,
 		},
 	}
 
@@ -1171,8 +1182,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				cols = append(cols, data.NotFoundRestoreCollection{Collection: mc})
 			}
 
-			deltas, paths, err := deserializeMetadata(ctx, cols, fault.New(true))
+			deltas, paths, canUsePreviousBackup, err := deserializeMetadata(ctx, cols)
 			test.errCheck(t, err)
+			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
 			assert.Equal(t, test.expectedDeltas, deltas, "deltas")
 			assert.Equal(t, test.expectedPaths, paths, "paths")
@@ -1281,11 +1293,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	)
 
 	table := []struct {
-		name            string
-		drives          []models.Driveable
-		items           map[string][]deltaPagerResult
-		errCheck        assert.ErrorAssertionFunc
-		prevFolderPaths map[string]map[string]string
+		name                 string
+		drives               []models.Driveable
+		items                map[string][]deltaPagerResult
+		canUsePreviousBackup bool
+		errCheck             assert.ErrorAssertionFunc
+		prevFolderPaths      map[string]map[string]string
 		// Collection name -> set of item IDs. We can't check item data because
 		// that's not mocked out. Metadata is checked separately.
 		expectedCollections map[string]map[data.CollectionState][]string
@@ -1312,7 +1325,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 			},
@@ -1343,7 +1357,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 			},
@@ -1375,8 +1390,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck:        assert.NoError,
-			prevFolderPaths: map[string]map[string]string{},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths:      map[string]map[string]string{},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1: {data.NewState: {}},
 				folderPath1:     {data.NewState: {"folder", "file"}},
@@ -1412,8 +1428,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck:        assert.NoError,
-			prevFolderPaths: map[string]map[string]string{},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths:      map[string]map[string]string{},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1: {data.NewState: {}},
 				folderPath1:     {data.NewState: {"folder", "file"}},
@@ -1449,7 +1466,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root": rootFolderPath1,
@@ -1487,7 +1505,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -1531,7 +1550,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -1582,7 +1602,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 				driveID2: {},
@@ -1643,7 +1664,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 				driveID2: {},
@@ -1686,7 +1708,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			canUsePreviousBackup: false,
+			errCheck:             assert.Error,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -1712,7 +1735,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1: {data.NotMovedState: {"file"}},
 			},
@@ -1754,7 +1778,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				rootFolderPath1:          {data.NotMovedState: {"file"}},
 				expectedPath1("/folder"): {data.NewState: {"folder", "file2"}},
@@ -1796,7 +1821,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root": rootFolderPath1,
@@ -1838,7 +1864,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root":   rootFolderPath1,
@@ -1884,7 +1911,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root":   rootFolderPath1,
@@ -1940,7 +1968,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -1992,7 +2021,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root":    rootFolderPath1,
@@ -2038,7 +2068,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root":   rootFolderPath1,
@@ -2080,7 +2111,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"root": rootFolderPath1,
@@ -2125,7 +2157,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -2167,7 +2200,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -2204,7 +2238,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -2238,7 +2273,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {},
 			},
@@ -2271,7 +2307,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 				driveID2: {"root": rootFolderPath2},
@@ -2360,8 +2397,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 
 			delList := prefixmatcher.NewStringSetBuilder()
 
-			cols, err := c.Get(ctx, prevMetadata, delList, errs)
+			cols, canUsePreviousBackup, err := c.Get(ctx, prevMetadata, delList, errs)
 			test.errCheck(t, err)
+			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()))
 
 			if err != nil {
@@ -2378,12 +2416,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 
 				if folderPath == metadataPath.String() {
-					deltas, paths, err := deserializeMetadata(
+					deltas, paths, _, err := deserializeMetadata(
 						ctx,
 						[]data.RestoreCollection{
 							data.NotFoundRestoreCollection{Collection: baseCol},
-						},
-						fault.New(true))
+						})
 					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {
 						continue
 					}

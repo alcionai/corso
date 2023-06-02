@@ -467,7 +467,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 
 			ssmb := prefixmatcher.NewStringSetBuilder()
 
-			odcs, err := colls.Get(ctx, nil, ssmb, fault.New(true))
+			odcs, _, err := colls.Get(ctx, nil, ssmb, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.True(t, ssmb.Empty())

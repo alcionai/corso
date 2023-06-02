@@ -128,7 +128,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				ctrlOpts := control.Defaults()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
-				collections, excludes, err := exchange.DataCollections(
+				collections, excludes, canUsePreviousBackup, err := exchange.DataCollections(
 					ctx,
 					suite.ac,
 					sel,
@@ -139,6 +139,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					ctrlOpts,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
+				assert.True(t, canUsePreviousBackup, "can use previous backup")
 				assert.True(t, excludes.Empty())
 
 				for range collections {
@@ -238,7 +239,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			collections, excludes, err := connector.ProduceBackupCollections(
+			collections, excludes, canUsePreviousBackup, err := connector.ProduceBackupCollections(
 				ctx,
 				test.getSelector(t),
 				test.getSelector(t),
@@ -247,6 +248,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				control.Defaults(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
+			assert.False(t, canUsePreviousBackup, "can use previous backup")
 			assert.Empty(t, collections)
 			assert.Nil(t, excludes)
 		})
@@ -296,7 +298,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			sel := test.getSelector()
 
-			collections, excludes, err := sharepoint.DataCollections(
+			collections, excludes, canUsePreviousBackup, err := sharepoint.DataCollections(
 				ctx,
 				graph.NewNoTimeoutHTTPWrapper(),
 				sel,
@@ -308,6 +310,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.True(t, excludes.Empty())
 
@@ -383,7 +386,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,
@@ -392,6 +395,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
 	assert.True(t, excludes.Empty())
@@ -429,7 +433,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,
@@ -438,6 +442,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
 	assert.True(t, excludes.Empty())

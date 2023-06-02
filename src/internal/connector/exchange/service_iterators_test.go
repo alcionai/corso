@@ -425,10 +425,9 @@ func checkMetadata(
 	expect DeltaPaths,
 	c data.BackupCollection,
 ) {
-	catPaths, err := parseMetadataCollections(
+	catPaths, _, err := parseMetadataCollections(
 		ctx,
-		[]data.RestoreCollection{data.NotFoundRestoreCollection{Collection: c}},
-		fault.New(true))
+		[]data.RestoreCollection{data.NotFoundRestoreCollection{Collection: c}})
 	if !assert.NoError(t, err, "getting metadata", clues.ToCore(err)) {
 		return
 	}
