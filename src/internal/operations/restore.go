@@ -36,13 +36,13 @@ type RestoreOperation struct {
 	operation
 
 	BackupID    model.StableID             `json:"backupID"`
+	Destination control.RestoreDestination `json:"destination"`
 	Results     RestoreResults             `json:"results"`
 	Selectors   selectors.Selector         `json:"selectors"`
-	Destination control.RestoreDestination `json:"destination"`
 	Version     string                     `json:"version"`
 
-	account account.Account
-	rc      inject.RestoreConsumer
+	acct account.Account
+	rc   inject.RestoreConsumer
 }
 
 // RestoreResults aggregate the details of the results of the operation.
@@ -58,6 +58,7 @@ func NewRestoreOperation(
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	rc inject.RestoreConsumer,
+	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
 	dest control.RestoreDestination,
@@ -65,9 +66,10 @@ func NewRestoreOperation(
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
 		operation:   newOperation(opts, bus, kw, sw),
+		acct:        acct,
 		BackupID:    backupID,
-		Selectors:   sel,
 		Destination: dest,
+		Selectors:   sel,
 		Version:     "v0",
 		rc:          rc,
 	}
@@ -114,7 +116,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			restoreID: uuid.NewString(),
 		}
 		start  = time.Now()
-		sstore = streamstore.NewStreamer(op.kopia, op.account.ID(), op.Selectors.PathService())
+		sstore = streamstore.NewStreamer(op.kopia, op.acct.ID(), op.Selectors.PathService())
 	)
 
 	// -----
@@ -133,7 +135,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	ctx = clues.Add(
 		ctx,
-		"tenant_id", clues.Hide(op.account.ID()),
+		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
 		"destination_container", clues.Hide(op.Destination.ContainerName))

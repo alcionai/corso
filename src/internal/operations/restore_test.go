@@ -110,6 +110,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				kw,
 				sw,
 				gc,
+				account.Account{},
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
@@ -236,7 +237,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext(suite.T())
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			_, err := NewRestoreOperation(
@@ -245,11 +248,12 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.kw,
 				test.sw,
 				test.rc,
+				tester.NewM365Account(t),
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			test.errCheck(suite.T(), err, clues.ToCore(err))
+			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -416,6 +420,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				suite.kw,
 				suite.sw,
 				bup.gc,
+				tester.NewM365Account(t),
 				bup.backupID,
 				test.getSelector(t, bup.selectorResourceOwners),
 				test.dest,
@@ -467,6 +472,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		suite.kw,
 		suite.sw,
 		gc,
+		tester.NewM365Account(t),
 		"backupID",
 		rsel.Selector,
 		dest,
