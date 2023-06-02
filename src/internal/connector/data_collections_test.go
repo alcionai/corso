@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,8 +30,10 @@ import (
 
 type DataCollectionIntgSuite struct {
 	tester.Suite
-	user string
-	site string
+	user     string
+	site     string
+	tenantID string
+	ac       api.Client
 }
 
 func TestDataCollectionIntgSuite(t *testing.T) {
@@ -42,10 +45,19 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 }
 
 func (suite *DataCollectionIntgSuite) SetupSuite() {
-	suite.user = tester.M365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
+	t := suite.T()
 
-	tester.LogTimeOfTest(suite.T())
+	suite.user = tester.M365UserID(t)
+	suite.site = tester.M365SiteID(t)
+
+	acct := tester.NewM365Account(t)
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.tenantID = creds.AzureTenantID
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 // TestExchangeDataCollection verifies interface between operation and
@@ -111,16 +123,18 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				defer flush()
 
 				sel := test.getSelector(t)
+				uidn := inMock.NewProvider(sel.ID(), sel.Name())
 
 				ctrlOpts := control.Defaults()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
 				collections, excludes, err := exchange.DataCollections(
 					ctx,
+					suite.ac,
 					sel,
-					sel,
+					suite.tenantID,
+					uidn,
 					nil,
-					connector.credentials,
 					connector.UpdateStatus,
 					ctrlOpts,
 					fault.New(true))
@@ -133,7 +147,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 				// Categories with delta endpoints will produce a collection for metadata
 				// as well as the actual data pulled, and the "temp" root collection.
-				assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
+				assert.LessOrEqual(t, 1, len(collections), "expected 1 <= num collections <= 3")
 				assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
 
 				for _, col := range collections {

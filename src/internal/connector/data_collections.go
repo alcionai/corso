@@ -65,8 +65,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		ctx,
 		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
-		sels.DiscreteOwner,
-	)
+		sels.DiscreteOwner)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -90,10 +89,11 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceExchange:
 		colls, ssmb, err = exchange.DataCollections(
 			ctx,
+			gc.Discovery,
 			sels,
+			gc.credentials.AzureTenantID,
 			owner,
 			metadata,
-			gc.credentials,
 			gc.UpdateStatus,
 			ctrlOpts,
 			errs)

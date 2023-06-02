@@ -3,12 +3,55 @@ package exchange
 import (
 	"context"
 
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+// ---------------------------------------------------------------------------
+// backup
+// ---------------------------------------------------------------------------
+
+type backupHandler interface {
+	itemEnumerator() addedAndRemovedItemGetter
+	itemHandler() itemGetterSerializer
+	NewContainerCache(userID string) (string, graph.ContainerResolver)
+}
+
+type addedAndRemovedItemGetter interface {
+	GetAddedAndRemovedItemIDs(
+		ctx context.Context,
+		user, containerID, oldDeltaToken string,
+		immutableIDs bool,
+		canMakeDeltaQueries bool,
+	) ([]string, []string, api.DeltaUpdate, error)
+}
+
+type itemGetterSerializer interface {
+	GetItem(
+		ctx context.Context,
+		user, itemID string,
+		immutableIDs bool,
+		errs *fault.Bus,
+	) (serialization.Parsable, *details.ExchangeInfo, error)
+	Serialize(
+		ctx context.Context,
+		item serialization.Parsable,
+		user, itemID string,
+	) ([]byte, error)
+}
+
+func BackupHandlers(ac api.Client) map[path.CategoryType]backupHandler {
+	return map[path.CategoryType]backupHandler{
+		path.ContactsCategory: newContactBackupHandler(ac),
+		path.EmailCategory:    newMailBackupHandler(ac),
+		path.EventsCategory:   newEventBackupHandler(ac),
+	}
+}
 
 // ---------------------------------------------------------------------------
 // restore
