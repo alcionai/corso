@@ -27,11 +27,9 @@ const (
 var (
 	testT1 = time.Now()
 	testT2 = testT1.Add(1 * time.Hour)
-	testT3 = testT2.Add(1 * time.Hour)
 
 	testID1 = manifest.ID("snap1")
 	testID2 = manifest.ID("snap2")
-	testID3 = manifest.ID("snap3")
 
 	testBackup1 = "backupID1"
 	testBackup2 = "backupID2"

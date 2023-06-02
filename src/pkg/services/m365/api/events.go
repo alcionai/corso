@@ -38,16 +38,17 @@ type Events struct {
 // containers
 // ---------------------------------------------------------------------------
 
-// CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
+// CreateContainer makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
-func (c Events) CreateCalendar(
+func (c Events) CreateContainer(
 	ctx context.Context,
 	userID, containerName string,
-) (models.Calendarable, error) {
+	_ string, // parentContainerID needed for iface, doesn't apply to contacts
+) (graph.Container, error) {
 	body := models.NewCalendar()
 	body.SetName(&containerName)
 
-	mdl, err := c.Stable.
+	container, err := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -57,7 +58,7 @@ func (c Events) CreateCalendar(
 		return nil, graph.Wrap(ctx, err, "creating calendar")
 	}
 
-	return mdl, nil
+	return CalendarDisplayable{Calendarable: container}, nil
 }
 
 // DeleteContainer removes a calendar from user's M365 account
@@ -130,7 +131,7 @@ func (c Events) GetContainerByID(
 func (c Events) GetContainerByName(
 	ctx context.Context,
 	userID, containerName string,
-) (models.Calendarable, error) {
+) (graph.Container, error) {
 	filter := fmt.Sprintf("name eq '%s'", containerName)
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
@@ -167,7 +168,7 @@ func (c Events) GetContainerByName(
 		return nil, err
 	}
 
-	return cal, nil
+	return graph.CalendarDisplayable{Calendarable: cal}, nil
 }
 
 func (c Events) PatchCalendar(

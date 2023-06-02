@@ -240,6 +240,15 @@ func (pb Builder) Dir() *Builder {
 	}
 }
 
+// HeadElem returns the first element in the Builder.
+func (pb Builder) HeadElem() string {
+	if len(pb.elements) == 0 {
+		return ""
+	}
+
+	return pb.elements[0]
+}
+
 // LastElem returns the last element in the Builder.
 func (pb Builder) LastElem() string {
 	if len(pb.elements) == 0 {

@@ -34,12 +34,13 @@ type Contacts struct {
 // containers
 // ---------------------------------------------------------------------------
 
-// CreateContactFolder makes a contact folder with the displayName of folderName.
+// CreateContainer makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
-func (c Contacts) CreateContactFolder(
+func (c Contacts) CreateContainer(
 	ctx context.Context,
 	userID, containerName string,
-) (models.ContactFolderable, error) {
+	_ string, // parentContainerID needed for iface, doesn't apply to contacts
+) (graph.Container, error) {
 	body := models.NewContactFolder()
 	body.SetDisplayName(ptr.To(containerName))
 

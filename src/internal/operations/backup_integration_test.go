@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
+	exchTD "github.com/alcionai/corso/src/internal/connector/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -226,7 +227,10 @@ func checkBackupIsInManifests(
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
+			bf, err := kw.NewBaseFinder(bo.store)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mans, err := bf.FindBases(ctx, reasons, tags)
 			require.NoError(t, err, clues.ToCore(err))
 
 			for _, man := range mans {
@@ -716,7 +720,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{})
 }
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalNonDeltaExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
 }
 
@@ -927,14 +931,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	// verify test data was populated, and track it for comparisons
 	// TODO: this can be swapped out for InDeets checks if we add itemRefs to folder ents.
 	for category, gen := range dataset {
-		qp := graph.QueryParams{
-			Category:      category,
-			ResourceOwner: uidn,
-			Credentials:   m365,
-		}
-
-		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
-		require.NoError(t, err, "populating container resolver", category, clues.ToCore(err))
+		cr := exchTD.PopulateContainerCache(t, ctx, ac, category, uidn.ID(), fault.New(true))
 
 		for destName, dest := range gen.dests {
 			id, ok := cr.LocationInCache(dest.locRef)
@@ -1040,19 +1037,12 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						version.Backup,
 						gen.dbf)
 
-					qp := graph.QueryParams{
-						Category:      category,
-						ResourceOwner: uidn,
-						Credentials:   m365,
-					}
-
 					expectedLocRef := container3
 					if category == path.EmailCategory {
 						expectedLocRef = path.Builder{}.Append(container3, container3).String()
 					}
 
-					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
-					require.NoError(t, err, "populating container resolver", category, clues.ToCore(err))
+					cr := exchTD.PopulateContainerCache(t, ctx, ac, category, uidn.ID(), fault.New(true))
 
 					id, ok := cr.LocationInCache(expectedLocRef)
 					require.Truef(t, ok, "dir %s found in %s cache", expectedLocRef, category)

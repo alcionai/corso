@@ -27,7 +27,25 @@ import (
 // mocks
 // ---------------------------------------------------------------------------
 
-var _ addedAndRemovedItemIDsGetter = &mockGetter{}
+var _ backupHandler = &mockBackupHandler{}
+
+type mockBackupHandler struct {
+	mg       mockGetter
+	category path.CategoryType
+	ac       api.Client
+	userID   string
+}
+
+func (bh mockBackupHandler) itemEnumerator() addedAndRemovedItemGetter { return bh.mg }
+func (bh mockBackupHandler) itemHandler() itemGetterSerializer         { return nil }
+
+func (bh mockBackupHandler) NewContainerCache(
+	userID string,
+) (string, graph.ContainerResolver) {
+	return BackupHandlers(bh.ac)[bh.category].NewContainerCache(bh.userID)
+}
+
+var _ addedAndRemovedItemGetter = &mockGetter{}
 
 type (
 	mockGetter struct {
@@ -115,7 +133,7 @@ type ServiceIteratorsSuite struct {
 	creds account.M365Config
 }
 
-func TestServiceIteratorsSuite(t *testing.T) {
+func TestServiceIteratorsUnitSuite(t *testing.T) {
 	suite.Run(t, &ServiceIteratorsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
@@ -131,7 +149,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		qp = graph.QueryParams{
 			Category:      path.EmailCategory, // doesn't matter which one we use.
 			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-			Credentials:   suite.creds,
+			TenantID:      suite.creds.AzureTenantID,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
@@ -326,10 +344,15 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				ctrlOpts := control.Options{FailureHandling: test.failFast}
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
+				mbh := mockBackupHandler{
+					mg:       test.getter,
+					category: qp.Category,
+				}
+
 				collections, err := filterContainersAndFillCollections(
 					ctx,
 					qp,
-					test.getter,
+					mbh,
 					statusUpdater,
 					test.resolver,
 					test.scope,
@@ -422,7 +445,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 	var (
 		qp = graph.QueryParams{
 			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-			Credentials:   suite.creds,
+			TenantID:      suite.creds.AzureTenantID,
 		}
 
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -660,10 +683,15 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_Dupli
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
+					mbh := mockBackupHandler{
+						mg:       test.getter,
+						category: qp.Category,
+					}
+
 					collections, err := filterContainersAndFillCollections(
 						ctx,
 						qp,
-						test.getter,
+						mbh,
 						statusUpdater,
 						test.resolver,
 						sc.scope,
@@ -803,7 +831,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				qp = graph.QueryParams{
 					Category:      path.EmailCategory, // doesn't matter which one we use.
 					ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-					Credentials:   suite.creds,
+					TenantID:      suite.creds.AzureTenantID,
 				}
 				statusUpdater = func(*support.ConnectorOperationStatus) {}
 				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
@@ -815,6 +843,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 					l:           path.Builder{}.Append("display_name_1"),
 				}
 				resolver = newMockResolver(container1)
+				mbh      = mockBackupHandler{
+					mg:       test.getter,
+					category: qp.Category,
+				}
 			)
 
 			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
@@ -823,7 +855,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			collections, err := filterContainersAndFillCollections(
 				ctx,
 				qp,
-				test.getter,
+				mbh,
 				statusUpdater,
 				resolver,
 				allScope,
@@ -884,7 +916,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		qp       = graph.QueryParams{
 			Category:      cat,
 			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-			Credentials:   suite.creds,
+			TenantID:      suite.creds.AzureTenantID,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
@@ -1226,6 +1258,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 						getter.noReturnDelta = false
 					}
 
+					mbh := mockBackupHandler{
+						mg:       test.getter,
+						category: qp.Category,
+					}
+
 					dps := test.dps
 					if !deltaBefore {
 						for k, dp := range dps {
@@ -1237,7 +1274,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 					collections, err := filterContainersAndFillCollections(
 						ctx,
 						qp,
-						test.getter,
+						mbh,
 						statusUpdater,
 						test.resolver,
 						allScope,
