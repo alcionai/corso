@@ -210,22 +210,16 @@ func (mw RetryMiddleware) Intercept(
 
 	resp, err := pipeline.Next(req, middlewareIndex)
 
-	// Alternate approach
 	retriable := IsErrTimeout(err) || IsErrConnectionReset(err) ||
 		(resp != nil && (resp.StatusCode/100 == 4 || resp.StatusCode/100 == 5))
 
 	if !retriable {
-		return resp, stackReq(ctx, req, resp, err)
+		if err != nil {
+			return resp, stackReq(ctx, req, resp, err)
+		}
+
+		return resp, nil
 	}
-
-	// Existing approach
-	// if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-	// 	return resp, stackReq(ctx, req, resp, err)
-	// }
-
-	// if resp != nil && resp.StatusCode/100 != 4 && resp.StatusCode/100 != 5 {
-	// 	return resp, err
-	// }
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = mw.Delay

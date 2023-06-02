@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"syscall"
 	"testing"
 	"time"
 
@@ -160,43 +161,51 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			expectRetryCount: 0,
 			expectErr:        assert.NoError,
 		},
-		// {
-		// 	name:             "400, no retries",
-		// 	status:           http.StatusBadRequest,
-		// 	providedErr:      nil,
-		// 	expectRetryCount: 0,
-		// 	expectErr:        assert.Error,
-		// },
-		// {
-		// 	// don't test 504: gets intercepted by graph client for long waits.
-		// 	name:             "502",
-		// 	status:           http.StatusBadGateway,
-		// 	providedErr:      nil,
-		// 	expectRetryCount: defaultMaxRetries,
-		// 	expectErr:        assert.Error,
-		// },
-		// {
-		// 	name:             "econn with 5xx",
-		// 	status:           http.StatusBadGateway,
-		// 	providedErr:      syscall.ECONNRESET,
-		// 	expectRetryCount: defaultMaxRetries,
-		// 	expectErr:        assert.Error,
-		// },
-		// {
-		// 	name:             "econn with 2xx",
-		// 	status:           http.StatusOK,
-		// 	providedErr:      syscall.ECONNRESET,
-		// 	expectRetryCount: defaultMaxRetries,
-		// 	expectErr:        assert.Error,
-		// },
-		// {
-		// 	name:        "econn with nil resp",
-		// 	providedErr: syscall.ECONNRESET,
-		// 	// Use 0 to indicate nil http response
-		// 	status:           0,
-		// 	expectRetryCount: 3,
-		// 	expectErr:        assert.Error,
-		// },
+		{
+			name:             "400, no retries",
+			status:           http.StatusBadRequest,
+			providedErr:      nil,
+			expectRetryCount: 0,
+			expectErr:        assert.Error,
+		},
+		{
+			// don't test 504: gets intercepted by graph client for long waits.
+			name:             "502",
+			status:           http.StatusBadGateway,
+			providedErr:      nil,
+			expectRetryCount: defaultMaxRetries,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "conn reset with 5xx",
+			status:           http.StatusBadGateway,
+			providedErr:      syscall.ECONNRESET,
+			expectRetryCount: defaultMaxRetries,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "conn reset with 2xx",
+			status:           http.StatusOK,
+			providedErr:      syscall.ECONNRESET,
+			expectRetryCount: defaultMaxRetries,
+			expectErr:        assert.Error,
+		},
+		{
+			name:        "conn reset with nil resp",
+			providedErr: syscall.ECONNRESET,
+			// Use 0 to denote nil http response
+			status:           0,
+			expectRetryCount: 3,
+			expectErr:        assert.Error,
+		},
+		{
+			// Unlikely but check if connection reset error takes precedence
+			name:             "conn reset with 400 resp",
+			providedErr:      syscall.ECONNRESET,
+			status:           http.StatusBadRequest,
+			expectRetryCount: 3,
+			expectErr:        assert.Error,
+		},
 	}
 
 	for _, test := range tests {
