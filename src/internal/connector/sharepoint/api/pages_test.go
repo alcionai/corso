@@ -92,7 +92,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	destName := tester.DefaultTestRestoreDestination("").ContainerName
+	destName := tester.DefaultTestRestoreConfig("").Location
 	testName := "MockPage"
 
 	// Create Test Page

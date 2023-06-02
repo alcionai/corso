@@ -190,7 +190,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		getter                mockGetter
 		resolver              graph.ContainerResolver
 		scope                 selectors.ExchangeScope
-		failFast              control.FailureBehavior
+		failFast              control.FailurePolicy
 		expectErr             assert.ErrorAssertionFunc
 		expectNewColls        int
 		expectMetadataColls   int

@@ -96,13 +96,13 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(dttm.HumanReadable)
-	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
+	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadable)
+	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, restoreCfg)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize Exchange restore"))
 	}

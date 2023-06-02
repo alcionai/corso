@@ -154,7 +154,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
+			newFolderName := tester.DefaultTestRestoreConfig("folder").Location
 			t.Logf("creating folder %s", newFolderName)
 
 			newFolder, err := rh.PostItemInContainer(

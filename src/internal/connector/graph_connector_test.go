@@ -293,8 +293,8 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	defer flush()
 
 	var (
-		dest = tester.DefaultTestRestoreDestination("")
-		sel  = selectors.Selector{
+		restoreCfg = tester.DefaultTestRestoreConfig("")
+		sel        = selectors.Selector{
 			Service: selectors.ServiceUnknown,
 		}
 	)
@@ -303,7 +303,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		ctx,
 		version.Backup,
 		sel,
-		dest,
+		restoreCfg,
 		control.Options{
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{},
@@ -320,7 +320,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
-	dest := tester.DefaultTestRestoreDestination("")
+	restoreCfg := tester.DefaultTestRestoreConfig("")
 	table := []struct {
 		name string
 		col  []data.RestoreCollection
@@ -381,7 +381,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				ctx,
 				version.Backup,
 				test.sel,
-				dest,
+				restoreCfg,
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
@@ -413,7 +413,7 @@ func runRestore(
 ) {
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
-		config.Dest.ContainerName,
+		config.RestoreCfg.Location,
 		config.ResourceOwners)
 
 	start := time.Now()
@@ -424,7 +424,7 @@ func runRestore(
 		ctx,
 		backupVersion,
 		restoreSel,
-		config.Dest,
+		config.RestoreCfg,
 		config.Opts,
 		collections,
 		fault.New(true))
@@ -472,7 +472,7 @@ func runBackupAndCompare(
 	for _, ro := range config.ResourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
-			dest:          config.Dest.ContainerName,
+			dest:          config.RestoreCfg.Location,
 			cats:          cats,
 		})
 
@@ -535,7 +535,7 @@ func runRestoreBackupTest(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		Dest:           tester.DefaultTestRestoreDestination(""),
+		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := GetCollectionsAndExpected(
@@ -580,7 +580,7 @@ func runRestoreTestWithVerion(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		Dest:           tester.DefaultTestRestoreDestination(""),
+		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
 	}
 
 	totalItems, _, collections, _, err := GetCollectionsAndExpected(
@@ -617,7 +617,7 @@ func runRestoreBackupTestVersions(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		Dest:           tester.DefaultTestRestoreDestination(""),
+		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
 	}
 
 	totalItems, _, collections, _, err := GetCollectionsAndExpected(
@@ -992,11 +992,11 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			allExpectedData := map[string]map[string][]byte{}
 
 			for i, collection := range test.collections {
-				// Get a dest per collection so they're independent.
-				dest := tester.DefaultTestRestoreDestination("")
+				// Get a restoreCfg per collection so they're independent.
+				restoreCfg := tester.DefaultTestRestoreConfig("")
 				expectedDests = append(expectedDests, destAndCats{
 					resourceOwner: suite.user,
-					dest:          dest.ContainerName,
+					dest:          restoreCfg.Location,
 					cats: map[path.CategoryType]struct{}{
 						collection.Category: {},
 					},
@@ -1006,7 +1006,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					test.service,
 					suite.connector.tenant,
 					suite.user,
-					dest,
+					restoreCfg,
 					[]ColInfo{collection},
 					version.Backup,
 				)
@@ -1022,7 +1022,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					"Restoring %v/%v collections to %s\n",
 					i+1,
 					len(test.collections),
-					dest.ContainerName,
+					restoreCfg.Location,
 				)
 
 				restoreGC := loadConnector(ctx, t, test.resource)
@@ -1030,7 +1030,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					ctx,
 					version.Backup,
 					restoreSel,
-					dest,
+					restoreCfg,
 					control.Options{
 						RestorePermissions: true,
 						ToggleFeatures:     control.Toggles{},
@@ -1079,7 +1079,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			ci := ConfigInfo{
 				Opts: control.Options{RestorePermissions: true},
 				// Alright to be empty, needed for OneDrive.
-				Dest: control.RestoreDestination{},
+				RestoreCfg: control.RestoreConfig{},
 			}
 
 			// Pull the data prior to waiting for the status as otherwise it will

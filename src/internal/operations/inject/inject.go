@@ -37,7 +37,7 @@ type (
 			ctx context.Context,
 			backupVersion int,
 			selector selectors.Selector,
-			dest control.RestoreDestination,
+			restoreCfg control.RestoreConfig,
 			opts control.Options,
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
