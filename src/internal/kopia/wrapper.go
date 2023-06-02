@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -50,14 +51,16 @@ var (
 type BackupStats struct {
 	SnapshotID string
 
-	TotalHashedBytes   int64
-	TotalUploadedBytes int64
+	TotalHashedBytes          int64
+	TotalUploadedBytes        int64
+	TotalNonMetaUploadedBytes int64
 
-	TotalFileCount      int
-	CachedFileCount     int
-	UncachedFileCount   int
-	TotalDirectoryCount int
-	ErrorCount          int
+	TotalFileCount        int
+	TotalNonMetaFileCount int
+	CachedFileCount       int
+	UncachedFileCount     int
+	TotalDirectoryCount   int
+	ErrorCount            int
 
 	IgnoredErrorCount         int
 	ExpectedIgnoredErrorCount int
@@ -593,25 +596,8 @@ func (w Wrapper) DeleteSnapshot(
 	return nil
 }
 
-// FetchPrevSnapshotManifests returns a set of manifests for complete and maybe
-// incomplete snapshots for the given (resource owner, service, category)
-// tuples. Up to two manifests can be returned per tuple: one complete and one
-// incomplete. An incomplete manifest may be returned if it is newer than the
-// newest complete manifest for the tuple. Manifests are deduped such that if
-// multiple tuples match the same manifest it will only be returned once.
-// If tags are provided, manifests must include a superset of the k:v pairs
-// specified by those tags.  Tags should pass their raw values, and will be
-// normalized inside the func using MakeTagKV.
-func (w Wrapper) FetchPrevSnapshotManifests(
-	ctx context.Context,
-	reasons []Reason,
-	tags map[string]string,
-) ([]*ManifestEntry, error) {
-	if w.c == nil {
-		return nil, clues.Stack(errNotConnected).WithClues(ctx)
-	}
-
-	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
+func (w Wrapper) NewBaseFinder(bg inject.GetBackuper) (*baseFinder, error) {
+	return newBaseFinder(w.c, bg)
 }
 
 func isErrEntryNotFound(err error) bool {

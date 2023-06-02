@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
+	exchTD "github.com/alcionai/corso/src/internal/connector/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -226,7 +227,10 @@ func checkBackupIsInManifests(
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
+			bf, err := kw.NewBaseFinder(bo.store)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mans, err := bf.FindBases(ctx, reasons, tags)
 			require.NoError(t, err, clues.ToCore(err))
 
 			for _, man := range mans {
@@ -716,7 +720,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{})
 }
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_nonIncrementalExchange() {
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalNonDeltaExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
 }
 
@@ -927,14 +931,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	// verify test data was populated, and track it for comparisons
 	// TODO: this can be swapped out for InDeets checks if we add itemRefs to folder ents.
 	for category, gen := range dataset {
-		qp := graph.QueryParams{
-			Category:      category,
-			ResourceOwner: uidn,
-			Credentials:   m365,
-		}
-
-		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
-		require.NoError(t, err, "populating container resolver", category, clues.ToCore(err))
+		cr := exchTD.PopulateContainerCache(t, ctx, ac, category, uidn.ID(), fault.New(true))
 
 		for destName, dest := range gen.dests {
 			id, ok := cr.LocationInCache(dest.locRef)
@@ -961,6 +958,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		deltaItemsWritten    int
 		nonDeltaItemsRead    int
 		nonDeltaItemsWritten int
+		nonMetaItemsWritten  int
 	}{
 		{
 			name:                 "clean, no changes",
@@ -969,6 +967,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    0,
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 0, // unchanged items are not counted towards write
+			nonMetaItemsWritten:  4,
 		},
 		{
 			name: "move an email folder to a subfolder",
@@ -992,6 +991,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    2,
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 2,
+			nonMetaItemsWritten:  6,
 		},
 		{
 			name: "delete a folder",
@@ -1018,6 +1018,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    0, // deletions are not counted as "writes"
 			nonDeltaItemsRead:    4,
 			nonDeltaItemsWritten: 0,
+			nonMetaItemsWritten:  4,
 		},
 		{
 			name: "add a new folder",
@@ -1036,19 +1037,12 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						version.Backup,
 						gen.dbf)
 
-					qp := graph.QueryParams{
-						Category:      category,
-						ResourceOwner: uidn,
-						Credentials:   m365,
-					}
-
 					expectedLocRef := container3
 					if category == path.EmailCategory {
 						expectedLocRef = path.Builder{}.Append(container3, container3).String()
 					}
 
-					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
-					require.NoError(t, err, "populating container resolver", category, clues.ToCore(err))
+					cr := exchTD.PopulateContainerCache(t, ctx, ac, category, uidn.ID(), fault.New(true))
 
 					id, ok := cr.LocationInCache(expectedLocRef)
 					require.Truef(t, ok, "dir %s found in %s cache", expectedLocRef, category)
@@ -1070,6 +1064,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    4,
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 4,
+			nonMetaItemsWritten:  8,
 		},
 		{
 			name: "rename a folder",
@@ -1125,6 +1120,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    0, // two items per category
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 0,
+			nonMetaItemsWritten:  4,
 		},
 		{
 			name: "add a new item",
@@ -1178,6 +1174,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    2,
 			nonDeltaItemsRead:    10,
 			nonDeltaItemsWritten: 2,
+			nonMetaItemsWritten:  6,
 		},
 		{
 			name: "delete an existing item",
@@ -1231,6 +1228,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deltaItemsWritten:    0, // deletes are not counted as "writes"
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 0,
+			nonMetaItemsWritten:  4,
 		},
 	}
 
@@ -1263,7 +1261,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				assert.Equal(t, test.nonDeltaItemsRead+4, incBO.Results.ItemsRead, "non delta items read")
 				assert.Equal(t, test.nonDeltaItemsWritten+4, incBO.Results.ItemsWritten, "non delta items written")
 			}
-
+			assert.Equal(t, test.nonMetaItemsWritten, incBO.Results.ItemsWritten, "non meta incremental items write")
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
@@ -1527,9 +1525,10 @@ func runDriveIncrementalTest(
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateFiles  func(t *testing.T)
-		itemsRead    int
-		itemsWritten int
+		updateFiles         func(t *testing.T)
+		itemsRead           int
+		itemsWritten        int
+		nonMetaItemsWritten int
 	}{
 		{
 			name:         "clean incremental, no changes",
@@ -1556,8 +1555,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.AddItem(driveID, makeLocRef(container1), newFileID)
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for newitem
 		},
 		{
 			name: "add permission to new file",
@@ -1578,8 +1578,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			nonMetaItemsWritten: 1, // the file for which permission was updated
 		},
 		{
 			name: "remove permission from new file",
@@ -1599,8 +1600,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "removing permission from file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			nonMetaItemsWritten: 1, //.data file for newitem
 		},
 		{
 			name: "add permission to container",
@@ -1621,8 +1623,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "adding permission to container %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    0,
-			itemsWritten: 1, // .dirmeta for collection
+			itemsRead:           0,
+			itemsWritten:        1, // .dirmeta for collection
+			nonMetaItemsWritten: 0, // no files updated as update on container
 		},
 		{
 			name: "remove permission from container",
@@ -1643,8 +1646,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "removing permission from container %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
-			itemsRead:    0,
-			itemsWritten: 1, // .dirmeta for collection
+			itemsRead:           0,
+			itemsWritten:        1, // .dirmeta for collection
+			nonMetaItemsWritten: 0, // no files updated
 		},
 		{
 			name: "update contents of a file",
@@ -1658,8 +1662,9 @@ func runDriveIncrementalTest(
 				require.NoErrorf(t, err, "updating file contents: %v", clues.ToCore(err))
 				// no expectedDeets: neither file id nor location changed
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data  file for newitem
 		},
 		{
 			name: "rename a file",
@@ -1681,8 +1686,9 @@ func runDriveIncrementalTest(
 					driveItem)
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for newitem
 			// no expectedDeets: neither file id nor location changed
 		},
 		{
@@ -1710,8 +1716,9 @@ func runDriveIncrementalTest(
 					makeLocRef(container2),
 					ptr.Val(newFile.GetId()))
 			},
-			itemsRead:    1, // .data file for newitem
-			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for new item
 		},
 		{
 			name: "delete file",
@@ -1725,8 +1732,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.RemoveItem(driveID, makeLocRef(container2), ptr.Val(newFile.GetId()))
 			},
-			itemsRead:    0,
-			itemsWritten: 0,
+			itemsRead:           0,
+			itemsWritten:        0,
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "move a folder to a subfolder",
@@ -1753,8 +1761,9 @@ func runDriveIncrementalTest(
 					makeLocRef(container2),
 					makeLocRef(container1))
 			},
-			itemsRead:    0,
-			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			itemsRead:           0,
+			itemsWritten:        7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "rename a folder",
@@ -1783,8 +1792,9 @@ func runDriveIncrementalTest(
 					makeLocRef(container1, container2),
 					makeLocRef(container1, containerRename))
 			},
-			itemsRead:    0,
-			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			itemsRead:           0,
+			itemsWritten:        7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "delete a folder",
@@ -1799,8 +1809,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.RemoveLocation(driveID, makeLocRef(container1, containerRename))
 			},
-			itemsRead:    0,
-			itemsWritten: 0,
+			itemsRead:           0,
+			itemsWritten:        0,
+			nonMetaItemsWritten: 0,
 		},
 		{
 			name: "add a new folder",
@@ -1831,8 +1842,9 @@ func runDriveIncrementalTest(
 
 				expectDeets.AddLocation(driveID, container3)
 			},
-			itemsRead:    2, // 2 .data for 2 files
-			itemsWritten: 6, // read items + 2 directory meta
+			itemsRead:           2, // 2 .data for 2 files
+			itemsWritten:        6, // read items + 2 directory meta
+			nonMetaItemsWritten: 2, // 2 .data for 2 files
 		},
 	}
 	for _, test := range table {
@@ -1862,9 +1874,10 @@ func runDriveIncrementalTest(
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.
 			var (
-				expectWrites    = test.itemsWritten + 2
-				expectReads     = test.itemsRead + 2
-				assertReadWrite = assert.Equal
+				expectWrites        = test.itemsWritten + 2
+				expectNonMetaWrites = test.nonMetaItemsWritten
+				expectReads         = test.itemsRead + 2
+				assertReadWrite     = assert.Equal
 			)
 
 			// Sharepoint can produce a superset of permissions by nature of
@@ -1876,6 +1889,7 @@ func runDriveIncrementalTest(
 			}
 
 			assertReadWrite(t, expectWrites, incBO.Results.ItemsWritten, "incremental items written")
+			assertReadWrite(t, expectNonMetaWrites, incBO.Results.NonMetaItemsWritten, "incremental non-meta items written")
 			assertReadWrite(t, expectReads, incBO.Results.ItemsRead, "incremental items read")
 
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
@@ -1976,6 +1990,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	// 2 on read/writes to account for metadata: 1 delta and 1 path.
 	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
+	assert.LessOrEqual(t, 1, incBO.Results.NonMetaItemsWritten, "non meta items written")
 	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
 	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")

@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -159,15 +158,13 @@ func parseMetadataCollections(
 
 // DataCollections returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
-// Assumption: User exists
-//
-//	Add iota to this call -> mail, contacts, calendar,  etc.
 func DataCollections(
 	ctx context.Context,
+	ac api.Client,
 	selector selectors.Selector,
+	tenantID string,
 	user idname.Provider,
 	metadata []data.RestoreCollection,
-	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -181,6 +178,7 @@ func DataCollections(
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
+		handlers    = BackupHandlers(ac)
 	)
 
 	// Turn on concurrency limiter middleware for exchange backups
@@ -201,7 +199,8 @@ func DataCollections(
 
 		dcs, err := createCollections(
 			ctx,
-			acct,
+			handlers,
+			tenantID,
 			user,
 			scope,
 			cdps[scope.Category().PathType()],
@@ -222,7 +221,7 @@ func DataCollections(
 		baseCols, err := graph.BaseCollections(
 			ctx,
 			collections,
-			acct.AzureTenantID,
+			tenantID,
 			user.ID(),
 			path.ExchangeService,
 			categories,
@@ -238,25 +237,13 @@ func DataCollections(
 	return collections, nil, el.Failure()
 }
 
-func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
-	switch category {
-	case path.EmailCategory:
-		return ac.Mail(), nil
-	case path.EventsCategory:
-		return ac.Events(), nil
-	case path.ContactsCategory:
-		return ac.Contacts(), nil
-	default:
-		return nil, clues.New("no api client registered for category")
-	}
-}
-
 // createCollections - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are retrieved.
 func createCollections(
 	ctx context.Context,
-	creds account.M365Config,
+	handlers map[path.CategoryType]backupHandler,
+	tenantID string,
 	user idname.Provider,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
@@ -264,27 +251,21 @@ func createCollections(
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
+	ctx = clues.Add(ctx, "category", scope.Category().PathType())
+
 	var (
 		allCollections = make([]data.BackupCollection, 0)
 		category       = scope.Category().PathType()
+		qp             = graph.QueryParams{
+			Category:      category,
+			ResourceOwner: user,
+			TenantID:      tenantID,
+		}
 	)
 
-	ac, err := api.NewClient(creds)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting api client").WithClues(ctx)
-	}
-
-	ctx = clues.Add(ctx, "category", category)
-
-	getter, err := getterByType(ac, category)
-	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
-	}
-
-	qp := graph.QueryParams{
-		Category:      category,
-		ResourceOwner: user,
-		Credentials:   creds,
+	handler, ok := handlers[category]
+	if !ok {
+		return nil, clues.New("unsupported backup category type").WithClues(ctx)
 	}
 
 	foldersComplete := observe.MessageWithCompletion(
@@ -292,17 +273,18 @@ func createCollections(
 		observe.Bulletf("%s", qp.Category))
 	defer close(foldersComplete)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
-	if err != nil {
+	rootFolder, cc := handler.NewContainerCache(user.ID())
+
+	if err := cc.Populate(ctx, errs, rootFolder); err != nil {
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
 	collections, err := filterContainersAndFillCollections(
 		ctx,
 		qp,
-		getter,
+		handler,
 		su,
-		resolver,
+		cc,
 		scope,
 		dps,
 		ctrlOpts,

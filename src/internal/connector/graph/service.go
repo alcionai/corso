@@ -13,7 +13,6 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -41,7 +40,7 @@ func AllMetadataFileNames() []string {
 type QueryParams struct {
 	Category      path.CategoryType
 	ResourceOwner idname.Provider
-	Credentials   account.M365Config
+	TenantID      string
 }
 
 // ---------------------------------------------------------------------------

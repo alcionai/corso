@@ -139,6 +139,7 @@ func IsErrTimeout(err error) bool {
 	}
 
 	return errors.Is(err, ErrTimeout) ||
+		errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
 		os.IsTimeout(err)
