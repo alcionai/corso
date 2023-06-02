@@ -104,7 +104,7 @@ func mockAdapter(creds account.M365Config, mw khttp.Middleware) (*msgraphsdkgo.G
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
-	httpClient.Timeout = 100 * time.Second
+	httpClient.Timeout = 15 * time.Second
 
 	cc.apply(httpClient)
 
