@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -97,7 +96,6 @@ type oneDriveSuite interface {
 
 type suiteInfoImpl struct {
 	ac              api.Client
-	acct            account.Account
 	connector       *GraphConnector
 	resourceOwner   string
 	resourceType    Resource
