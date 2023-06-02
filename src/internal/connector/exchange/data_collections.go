@@ -148,6 +148,7 @@ func parseMetadataCollections(
 
 	if errs.Failure() != nil {
 		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
+
 		return CatDeltaPaths{
 			path.ContactsCategory: {},
 			path.EmailCategory:    {},

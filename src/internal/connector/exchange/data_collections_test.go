@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"testing"
 
@@ -219,6 +220,52 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			}
 		})
 	}
+}
+
+type failingColl struct {
+	t *testing.T
+}
+
+func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
+	ic := make(chan data.Stream)
+	defer close(ic)
+
+	errs.AddRecoverable(assert.AnError)
+
+	return ic
+}
+
+func (f failingColl) FullPath() path.Path {
+	tmp, err := path.Build(
+		"tenant",
+		"user",
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"inbox")
+	require.NoError(f.t, err, clues.ToCore(err))
+
+	return tmp
+}
+
+func (f failingColl) Fetch(context.Context, string) (data.Stream, error) {
+	// no fetch calls will be made
+	return nil, nil
+}
+
+// This check is to ensure that we don't error out, but still return
+// canUsePreviousBackup as false on read errors
+func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections_ReadFailure() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	fc := failingColl{t}
+
+	_, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{fc})
+	require.NoError(t, err)
+	require.False(t, canUsePreviousBackup)
 }
 
 // ---------------------------------------------------------------------------

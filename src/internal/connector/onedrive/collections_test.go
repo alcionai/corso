@@ -1192,6 +1192,34 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 	}
 }
 
+type failingColl struct{}
+
+func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
+	ic := make(chan data.Stream)
+	defer close(ic)
+
+	errs.AddRecoverable(assert.AnError)
+
+	return ic
+}
+func (f failingColl) FullPath() path.Path                                { return nil }
+func (f failingColl) Fetch(context.Context, string) (data.Stream, error) { return nil, nil }
+
+// This check is to ensure that we don't error out, but still return
+// canUsePreviousBackup as false on read errors
+func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata_ReadFailure() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	fc := failingColl{}
+
+	_, _, canUsePreviousBackup, err := deserializeMetadata(ctx, []data.RestoreCollection{fc})
+	require.NoError(t, err)
+	require.False(t, canUsePreviousBackup)
+}
+
 type mockDeltaPageLinker struct {
 	link  *string
 	delta *string
