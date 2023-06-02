@@ -142,6 +142,8 @@ type limiterConsumptionKey string
 const limiterConsumptionCtxKey limiterConsumptionKey = "corsoGraphRateLimiterConsumption"
 
 const (
+	// https://learn.microsoft.com/en-us/sharepoint/dev/general-development
+	// /how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#application-throttling
 	defaultLC      = 1
 	driveDefaultLC = 2
 	// limit consumption rate for single-item GETs requests,

@@ -3,10 +3,13 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -28,10 +31,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// copyBufferSize is used for chunked upload
-// Microsoft recommends 5-10MB buffers
-// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-const copyBufferSize = 5 * 1024 * 1024
+const (
+	// Maximum number of retries for upload failures
+	maxUploadRetries = 3
+)
 
 type restoreCaches struct {
 	Folders               *folderCache
@@ -59,6 +62,7 @@ func RestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
+	pool *sync.Pool,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -104,6 +108,7 @@ func RestoreCollections(
 			dest.ContainerName,
 			deets,
 			opts.RestorePermissions,
+			pool,
 			errs)
 		if err != nil {
 			el.AddRecoverable(err)
@@ -142,13 +147,18 @@ func RestoreCollection(
 	restoreContainerName string,
 	deets *details.Builder,
 	restorePerms bool,
+	pool *sync.Pool,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
-		metrics    = support.CollectionMetrics{}
-		copyBuffer = make([]byte, copyBufferSize)
-		directory  = dc.FullPath()
-		el         = errs.Local()
+		metrics        = support.CollectionMetrics{}
+		directory      = dc.FullPath()
+		el             = errs.Local()
+		metricsObjects int64
+		metricsBytes   int64
+		metricsSuccess int64
+		wg             sync.WaitGroup
+		complete       bool
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -212,8 +222,30 @@ func RestoreCollection(
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).ItemUpload())
+	defer close(semaphoreCh)
+
+	deetsLock := sync.Mutex{}
+
+	updateDeets := func(
+		ctx context.Context,
+		repoRef path.Path,
+		locationRef *path.Builder,
+		updated bool,
+		info details.ItemInfo,
+	) {
+		deetsLock.Lock()
+		defer deetsLock.Unlock()
+
+		err = deets.Add(repoRef, locationRef, updated, info)
+		if err != nil {
+			// Not critical enough to need to stop restore operation.
+			logger.CtxErr(ctx, err).Infow("adding restored item to details")
+		}
+	}
+
 	for {
-		if el.Failure() != nil {
+		if el.Failure() != nil || complete {
 			break
 		}
 
@@ -223,61 +255,75 @@ func RestoreCollection(
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, nil
+				// We've processed all items in this collection, exit the loop
+				complete = true
+				break
 			}
 
-			ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
+			wg.Add(1)
+			semaphoreCh <- struct{}{}
 
-			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
-				continue
-			}
+			go func(ctx context.Context, itemData data.Stream) {
+				defer wg.Done()
+				defer func() { <-semaphoreCh }()
 
-			itemInfo, skipped, err := restoreItem(
-				ictx,
-				creds,
-				dc,
-				backupVersion,
-				source,
-				service,
-				drivePath,
-				restoreFolderID,
-				copyBuffer,
-				caches,
-				restorePerms,
-				itemData,
-				itemPath)
+				copyBufferPtr := pool.Get().(*[]byte)
+				defer pool.Put(copyBufferPtr)
 
-			// skipped items don't get counted, but they can error
-			if !skipped {
-				metrics.Objects++
-				metrics.Bytes += int64(len(copyBuffer))
-			}
+				copyBuffer := *copyBufferPtr
 
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "restoring item"))
-				continue
-			}
+				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
-			if skipped {
-				logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
-				continue
-			}
+				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
+					return
+				}
 
-			err = deets.Add(
-				itemPath,
-				&path.Builder{}, // TODO: implement locationRef
-				true,
-				itemInfo)
-			if err != nil {
-				// Not critical enough to need to stop restore operation.
-				logger.CtxErr(ictx, err).Infow("adding restored item to details")
-			}
+				itemInfo, skipped, err := restoreItem(
+					ictx,
+					creds,
+					dc,
+					backupVersion,
+					source,
+					service,
+					drivePath,
+					restoreFolderID,
+					copyBuffer,
+					caches,
+					restorePerms,
+					itemData,
+					itemPath)
 
-			metrics.Successes++
+				// skipped items don't get counted, but they can error
+				if !skipped {
+					atomic.AddInt64(&metricsObjects, 1)
+					atomic.AddInt64(&metricsBytes, int64(len(copyBuffer)))
+				}
+
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "restoring item"))
+					return
+				}
+
+				if skipped {
+					logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
+					return
+				}
+
+				// TODO: implement locationRef
+				updateDeets(ictx, itemPath, &path.Builder{}, true, itemInfo)
+
+				atomic.AddInt64(&metricsSuccess, 1)
+			}(ctx, itemData)
 		}
 	}
+
+	wg.Wait()
+
+	metrics.Objects = int(metricsObjects)
+	metrics.Bytes = metricsBytes
+	metrics.Successes = int(metricsSuccess)
 
 	return metrics, el.Failure()
 }
@@ -308,6 +354,7 @@ func restoreItem(
 			source,
 			service,
 			drivePath,
+			dc,
 			restoreFolderID,
 			copyBuffer,
 			itemData)
@@ -399,6 +446,7 @@ func restoreV0File(
 	source driveSource,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
+	fetcher fileFetcher,
 	restoreFolderID string,
 	copyBuffer []byte,
 	itemData data.Stream,
@@ -406,6 +454,7 @@ func restoreV0File(
 	_, itemInfo, err := restoreData(
 		ctx,
 		service,
+		fetcher,
 		itemData.UUID(),
 		itemData,
 		drivePath.DriveID,
@@ -442,6 +491,7 @@ func restoreV1File(
 	itemID, itemInfo, err := restoreData(
 		ctx,
 		service,
+		fetcher,
 		trimmedName,
 		itemData,
 		drivePath.DriveID,
@@ -525,6 +575,7 @@ func restoreV6File(
 	itemID, itemInfo, err := restoreData(
 		ctx,
 		service,
+		fetcher,
 		meta.FileName,
 		itemData,
 		drivePath.DriveID,
@@ -673,6 +724,7 @@ func createRestoreFolders(
 func restoreData(
 	ctx context.Context,
 	service graph.Servicer,
+	fetcher fileFetcher,
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
@@ -696,26 +748,65 @@ func restoreData(
 		return "", details.ItemInfo{}, err
 	}
 
-	// Get a drive item writer
-	w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	itemID := ptr.Val(newItem.GetId())
+	ctx = clues.Add(ctx, "upload_item_id", itemID)
+
+	r, err := api.PostDriveItem(ctx, service, driveID, itemID)
 	if err != nil {
-		return "", details.ItemInfo{}, err
+		return "", details.ItemInfo{}, clues.Wrap(err, "get upload session")
 	}
 
-	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(
-		ctx,
-		iReader,
-		observe.ItemRestoreMsg,
-		clues.Hide(name),
-		ss.Size())
+	var written int64
 
-	go closer()
+	// This is just to retry file upload, the uploadSession creation is
+	// not retried here We need extra logic to retry file upload as we
+	// have to pull the file again from kopia If we fail a file upload,
+	// we restart from scratch and try to upload again. Graph does not
+	// show "register" any partial file uploads and so if we fail an
+	// upload the file size will be 0.
+	for i := 0; i <= maxUploadRetries; i++ {
+		// Initialize and return an io.Writer to upload data for the
+		// specified item It does so by creating an upload session and
+		// using that URL to initialize an `itemWriter`
+		// TODO: @vkamra verify if var session is the desired input
+		w := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), ss.Size())
 
-	// Upload the stream data
-	written, err := io.CopyBuffer(w, progReader, copyBuffer)
+		pname := name
+		iReader := itemData.ToReader()
+
+		if i > 0 {
+			pname = fmt.Sprintf("%s (retry %d)", name, i)
+
+			// If it is not the first try, we have to pull the file
+			// again from kopia. Ideally we could just seek the stream
+			// but we don't have a Seeker available here.
+			itemData, err := fetcher.Fetch(ctx, itemData.UUID())
+			if err != nil {
+				return "", details.ItemInfo{}, clues.Wrap(err, "get data file")
+			}
+
+			iReader = itemData.ToReader()
+		}
+
+		progReader, abort := observe.ItemProgress(
+			ctx,
+			iReader,
+			observe.ItemRestoreMsg,
+			clues.Hide(pname),
+			ss.Size())
+
+		// Upload the stream data
+		written, err = io.CopyBuffer(w, progReader, copyBuffer)
+		if err == nil {
+			break
+		}
+
+		// clear out the bar if err
+		abort()
+	}
+
 	if err != nil {
-		return "", details.ItemInfo{}, graph.Wrap(ctx, err, "writing item bytes")
+		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
 
 	dii := details.ItemInfo{}

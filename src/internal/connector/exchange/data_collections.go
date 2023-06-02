@@ -268,10 +268,9 @@ func createCollections(
 		return nil, clues.New("unsupported backup category type").WithClues(ctx)
 	}
 
-	foldersComplete, closer := observe.MessageWithCompletion(
+	foldersComplete := observe.MessageWithCompletion(
 		ctx,
 		observe.Bulletf("%s", qp.Category))
-	defer closer()
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(user.ID())

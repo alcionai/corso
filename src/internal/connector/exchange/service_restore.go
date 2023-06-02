@@ -145,11 +145,10 @@ func restoreCollection(
 		category = fullPath.Category()
 	)
 
-	colProgress, closer := observe.CollectionProgress(
+	colProgress := observe.CollectionProgress(
 		ctx,
 		category.String(),
 		fullPath.Folder(false))
-	defer closer()
 	defer close(colProgress)
 
 	for {

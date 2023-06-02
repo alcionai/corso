@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/alcionai/clues"
 
@@ -24,6 +25,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+)
+
+const (
+	// copyBufferSize is used for chunked upload
+	// Microsoft recommends 5-10MB buffers
+	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
+	copyBufferSize = 5 * 1024 * 1024
 )
 
 // ---------------------------------------------------------------------------
@@ -256,13 +264,46 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 		return nil, clues.Wrap(err, "malformed azure credentials")
 	}
 
+	// Buffer pool for uploads
+	pool := sync.Pool{
+		New: func() interface{} {
+			b := make([]byte, copyBufferSize)
+			return &b
+		},
+	}
+
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreCollections(ctx, creds, gc.Discovery, gc.Service, dest, dcs, deets, errs)
+		status, err = exchange.RestoreCollections(ctx,
+			creds,
+			gc.Discovery,
+			gc.Service,
+			dest,
+			dcs,
+			deets,
+			errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, creds, backupVersion, gc.Service, dest, opts, dcs, deets, errs)
+		status, err = onedrive.RestoreCollections(ctx,
+			creds,
+			backupVersion,
+			gc.Service,
+			dest,
+			opts,
+			dcs,
+			deets,
+			&pool,
+			errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, opts, dcs, deets, errs)
+		status, err = sharepoint.RestoreCollections(ctx,
+			backupVersion,
+			creds,
+			gc.Service,
+			dest,
+			opts,
+			dcs,
+			deets,
+			&pool,
+			errs)
 	default:
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}

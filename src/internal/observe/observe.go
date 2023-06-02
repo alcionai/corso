@@ -180,7 +180,7 @@ func Message(ctx context.Context, msgs ...any) {
 func MessageWithCompletion(
 	ctx context.Context,
 	msg any,
-) (chan<- struct{}, func()) {
+) chan<- struct{} {
 	var (
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%v", msg)
@@ -191,7 +191,8 @@ func MessageWithCompletion(
 	log.Info(loggable)
 
 	if cfg.hidden() {
-		return ch, func() { log.Info("done - " + loggable) }
+		defer log.Info("done - " + loggable)
+		return ch
 	}
 
 	wg.Add(1)
@@ -219,11 +220,11 @@ func MessageWithCompletion(
 			bar.SetTotal(-1, true)
 		})
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		log.Info("done - " + loggable)
-	})
+	})()
 
-	return ch, wacb
+	return ch
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +248,8 @@ func ItemProgress(
 	log.Debug(header)
 
 	if cfg.hidden() || rc == nil || totalBytes == 0 {
-		return rc, func() { log.Debug("done - " + header) }
+		defer log.Debug("done - " + header)
+		return rc, func() {}
 	}
 
 	wg.Add(1)
@@ -266,12 +268,17 @@ func ItemProgress(
 
 	bar := progress.New(totalBytes, mpb.NopStyle(), barOpts...)
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		// might be overly chatty, we can remove if needed.
 		log.Debug("done - " + header)
-	})
+	})()
 
-	return bar.ProxyReader(rc), wacb
+	abort := func() {
+		bar.SetTotal(-1, true)
+		bar.Abort(true)
+	}
+
+	return bar.ProxyReader(rc), abort
 }
 
 // ProgressWithCount tracks the display of a bar that tracks the completion
@@ -283,7 +290,7 @@ func ProgressWithCount(
 	header string,
 	msg any,
 	count int64,
-) (chan<- struct{}, func()) {
+) chan<- struct{} {
 	var (
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%s %v - %d", header, msg, count)
@@ -295,7 +302,10 @@ func ProgressWithCount(
 
 	if cfg.hidden() {
 		go listen(ctx, ch, nop, nop)
-		return ch, func() { log.Info("done - " + loggable) }
+
+		defer log.Info("done - " + loggable)
+
+		return ch
 	}
 
 	wg.Add(1)
@@ -319,11 +329,11 @@ func ProgressWithCount(
 		func() { bar.Abort(true) },
 		bar.Increment)
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		log.Info("done - " + loggable)
-	})
+	})()
 
-	return ch, wacb
+	return ch
 }
 
 // ---------------------------------------------------------------------------
@@ -365,7 +375,7 @@ func CollectionProgress(
 	ctx context.Context,
 	category string,
 	dirName any,
-) (chan<- struct{}, func()) {
+) chan<- struct{} {
 	var (
 		counted int
 		plain   = plainString(dirName)
@@ -388,7 +398,10 @@ func CollectionProgress(
 
 	if cfg.hidden() || len(plain) == 0 {
 		go listen(ctx, ch, nop, incCount)
-		return ch, func() { log.Infow("done - "+message, "count", counted) }
+
+		defer log.Infow("done - "+message, "count", counted)
+
+		return ch
 	}
 
 	wg.Add(1)
@@ -420,18 +433,21 @@ func CollectionProgress(
 			bar.Increment()
 		})
 
-	wacb := waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(bar, func() {
 		log.Infow("done - "+message, "count", counted)
-	})
+	})()
 
-	return ch, wacb
+	return ch
 }
 
 func waitAndCloseBar(bar *mpb.Bar, log func()) func() {
 	return func() {
 		bar.Wait()
 		wg.Done()
-		log()
+
+		if !bar.Aborted() {
+			log()
+		}
 	}
 }
 

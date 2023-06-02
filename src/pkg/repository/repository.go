@@ -203,8 +203,7 @@ func Connect(
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
 
-	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to repository")
-	defer closer()
+	complete := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(complete)
 
 	kopiaRef := kopia.NewConn(s)
@@ -630,11 +629,10 @@ func connectToM365(
 	sel selectors.Selector,
 	acct account.Account,
 ) (*connector.GraphConnector, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
+	complete := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	// retrieve data from the producer
