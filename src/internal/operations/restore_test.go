@@ -68,7 +68,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 					NumBytes: 42,
 				},
 				cs: []data.RestoreCollection{
-					data.NotFoundRestoreCollection{
+					data.NoFetchRestoreCollection{
 						Collection: &exchMock.DataCollection{},
 					},
 				},

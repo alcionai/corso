@@ -467,7 +467,7 @@ func buildCollections(
 			mc.Data[i] = c.items[i].data
 		}
 
-		collections = append(collections, data.NotFoundRestoreCollection{Collection: mc})
+		collections = append(collections, data.NoFetchRestoreCollection{Collection: mc})
 	}
 
 	return collections

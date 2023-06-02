@@ -1127,7 +1127,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					func(*support.ConnectorOperationStatus) {})
 				require.NoError(t, err, clues.ToCore(err))
 
-				cols = append(cols, data.NotFoundRestoreCollection{Collection: mc})
+				cols = append(cols, data.NoFetchRestoreCollection{Collection: mc})
 			}
 
 			deltas, paths, err := deserializeMetadata(ctx, cols, fault.New(true))
@@ -2305,7 +2305,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			)
 			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 
-			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
+			prevMetadata := []data.RestoreCollection{data.NoFetchRestoreCollection{Collection: mc}}
 			errs := fault.New(true)
 
 			delList := prefixmatcher.NewStringSetBuilder()
@@ -2331,7 +2331,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					deltas, paths, err := deserializeMetadata(
 						ctx,
 						[]data.RestoreCollection{
-							data.NotFoundRestoreCollection{Collection: baseCol},
+							data.NoFetchRestoreCollection{Collection: baseCol},
 						},
 						fault.New(true))
 					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {

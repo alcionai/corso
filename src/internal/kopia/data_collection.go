@@ -30,7 +30,7 @@ func (kdc *kopiaDataCollection) addStream(
 	ctx context.Context,
 	name string,
 ) error {
-	s, err := kdc.Fetch(ctx, name)
+	s, err := kdc.FetchItemByName(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 // Fetch returns the file with the given name from the collection as a
 // data.Stream. Returns a data.ErrNotFound error if the file isn't in the
 // collection.
-func (kdc kopiaDataCollection) Fetch(
+func (kdc kopiaDataCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
 ) (data.Stream, error) {

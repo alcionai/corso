@@ -102,7 +102,7 @@ type mockRestoreCollection struct {
 	auxItems map[string]data.Stream
 }
 
-func (rc mockRestoreCollection) Fetch(
+func (rc mockRestoreCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
 ) (data.Stream, error) {

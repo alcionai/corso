@@ -40,6 +40,7 @@ type restoreCaches struct {
 	ParentDirToMeta       map[string]metadata.Metadata
 	OldPermIDToNewID      map[string]string
 	DriveIDToRootFolderID map[string]string
+	pool                  sync.Pool
 }
 
 func NewRestoreCaches() *restoreCaches {
@@ -48,6 +49,13 @@ func NewRestoreCaches() *restoreCaches {
 		ParentDirToMeta:       map[string]metadata.Metadata{},
 		OldPermIDToNewID:      map[string]string{},
 		DriveIDToRootFolderID: map[string]string{},
+		// Buffer pool for uploads
+		pool: sync.Pool{
+			New: func() interface{} {
+				b := make([]byte, graph.CopyBufferSize)
+				return &b
+			},
+		},
 	}
 }
 
@@ -60,7 +68,6 @@ func RestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
-	pool *sync.Pool,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -104,7 +111,6 @@ func RestoreCollections(
 			dest.ContainerName,
 			deets,
 			opts.RestorePermissions,
-			pool,
 			errs)
 		if err != nil {
 			el.AddRecoverable(err)
@@ -141,7 +147,6 @@ func RestoreCollection(
 	restoreContainerName string,
 	deets *details.Builder,
 	restorePerms bool,
-	pool *sync.Pool,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
@@ -260,8 +265,8 @@ func RestoreCollection(
 				defer wg.Done()
 				defer func() { <-semaphoreCh }()
 
-				copyBufferPtr := pool.Get().(*[]byte)
-				defer pool.Put(copyBufferPtr)
+				copyBufferPtr := caches.pool.Get().(*[]byte)
+				defer caches.pool.Put(copyBufferPtr)
 
 				copyBuffer := *copyBufferPtr
 				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
@@ -323,7 +328,7 @@ func RestoreCollection(
 func restoreItem(
 	ctx context.Context,
 	rh RestoreHandler,
-	dc data.RestoreCollection,
+	fibn data.FetchItemByNamer,
 	backupVersion int,
 	drivePath *path.DrivePath,
 	restoreFolderID string,
@@ -341,7 +346,7 @@ func restoreItem(
 			ctx,
 			rh,
 			drivePath,
-			dc,
+			fibn,
 			restoreFolderID,
 			copyBuffer,
 			itemData)
@@ -390,7 +395,7 @@ func restoreItem(
 			ctx,
 			rh,
 			drivePath,
-			dc,
+			fibn,
 			restoreFolderID,
 			copyBuffer,
 			restorePerms,
@@ -410,7 +415,7 @@ func restoreItem(
 		ctx,
 		rh,
 		drivePath,
-		dc,
+		fibn,
 		restoreFolderID,
 		copyBuffer,
 		restorePerms,
@@ -428,7 +433,7 @@ func restoreV0File(
 	ctx context.Context,
 	rh RestoreHandler,
 	drivePath *path.DrivePath,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
 	itemData data.Stream,
@@ -436,7 +441,7 @@ func restoreV0File(
 	_, itemInfo, err := restoreData(
 		ctx,
 		rh,
-		fetcher,
+		fibn,
 		itemData.UUID(),
 		itemData,
 		drivePath.DriveID,
@@ -449,15 +454,11 @@ func restoreV0File(
 	return itemInfo, nil
 }
 
-type fileFetcher interface {
-	Fetch(ctx context.Context, name string) (data.Stream, error)
-}
-
 func restoreV1File(
 	ctx context.Context,
 	rh RestoreHandler,
 	drivePath *path.DrivePath,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
@@ -470,7 +471,7 @@ func restoreV1File(
 	itemID, itemInfo, err := restoreData(
 		ctx,
 		rh,
-		fetcher,
+		fibn,
 		trimmedName,
 		itemData,
 		drivePath.DriveID,
@@ -489,7 +490,7 @@ func restoreV1File(
 	// Fetch item permissions from the collection and restore them.
 	metaName := trimmedName + metadata.MetaFileSuffix
 
-	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
+	meta, err := fetchAndReadMetadata(ctx, fibn, metaName)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
@@ -513,7 +514,7 @@ func restoreV6File(
 	ctx context.Context,
 	rh RestoreHandler,
 	drivePath *path.DrivePath,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
@@ -526,7 +527,7 @@ func restoreV6File(
 	// Get metadata file so we can determine the file name.
 	metaName := trimmedName + metadata.MetaFileSuffix
 
-	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
+	meta, err := fetchAndReadMetadata(ctx, fibn, metaName)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
@@ -550,7 +551,7 @@ func restoreV6File(
 	itemID, itemInfo, err := restoreData(
 		ctx,
 		rh,
-		fetcher,
+		fibn,
 		meta.FileName,
 		itemData,
 		drivePath.DriveID,
@@ -706,7 +707,7 @@ type itemRestorer interface {
 func restoreData(
 	ctx context.Context,
 	ir itemRestorer,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
@@ -753,7 +754,7 @@ func restoreData(
 			// If it is not the first try, we have to pull the file
 			// again from kopia. Ideally we could just seek the stream
 			// but we don't have a Seeker available here.
-			itemData, err := fetcher.Fetch(ctx, itemData.UUID())
+			itemData, err := fibn.FetchItemByName(ctx, itemData.UUID())
 			if err != nil {
 				return "", details.ItemInfo{}, clues.Wrap(err, "get data file")
 			}
@@ -793,12 +794,12 @@ func restoreData(
 
 func fetchAndReadMetadata(
 	ctx context.Context,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	metaName string,
 ) (metadata.Metadata, error) {
 	ctx = clues.Add(ctx, "meta_file_name", metaName)
 
-	metaFile, err := fetcher.Fetch(ctx, metaName)
+	metaFile, err := fibn.FetchItemByName(ctx, metaName)
 	if err != nil {
 		return metadata.Metadata{}, clues.Wrap(err, "getting item metadata")
 	}

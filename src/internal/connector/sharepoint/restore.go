@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"runtime/trace"
-	"sync"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -48,7 +47,6 @@ func RestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
-	pool *sync.Pool,
 	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -89,7 +87,6 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				opts.RestorePermissions,
-				pool,
 				errs)
 
 		case path.ListsCategory:

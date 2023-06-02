@@ -264,7 +264,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 	}
 }
 
-func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
+func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 	var (
 		tenant   = "a-tenant"
 		user     = "a-user"
@@ -381,7 +381,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 				expectedVersion: serializationVersion,
 			}
 
-			s, err := col.Fetch(ctx, test.inputName)
+			s, err := col.FetchItemByName(ctx, test.inputName)
 
 			test.lookupErr(t, err)
 

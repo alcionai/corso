@@ -121,7 +121,7 @@ func driveItemWriter(
 
 	iw := graph.NewLargeItemWriter(itemID, ptr.Val(icu.GetUploadUrl()), itemSize)
 
-	return iw, ptr.Val(r.GetUploadUrl()), nil
+	return iw, ptr.Val(icu.GetUploadUrl()), nil
 }
 
 func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {

@@ -553,7 +553,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{
 					collsByID: map[string][]data.RestoreCollection{
-						"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+						"id": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id_coll"}}},
 					},
 				},
 				mans: []kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
@@ -580,8 +580,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{
 					collsByID: map[string][]data.RestoreCollection{
-						"id":        {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-						"incmpl_id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
+						"id":        {data.NoFetchRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+						"incmpl_id": {data.NoFetchRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
 					},
 				},
 				mans: []kopia.ManifestEntry{
@@ -600,7 +600,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{
 					collsByID: map[string][]data.RestoreCollection{
-						"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+						"id": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id_coll"}}},
 					},
 				},
 				mans: []kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
@@ -616,8 +616,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestoreProducer: mockRestoreProducer{
 					collsByID: map[string][]data.RestoreCollection{
-						"mail":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
-						"contact": {data.NotFoundRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
+						"mail":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
+						"contact": {data.NoFetchRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
 					},
 				},
 				mans: []kopia.ManifestEntry{
@@ -681,7 +681,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			for _, dc := range dcs {
 				if !assert.IsTypef(
 					t,
-					data.NotFoundRestoreCollection{},
+					data.NoFetchRestoreCollection{},
 					dc,
 					"unexpected type returned [%T]",
 					dc,
@@ -689,7 +689,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					continue
 				}
 
-				tmp := dc.(data.NotFoundRestoreCollection)
+				tmp := dc.(data.NoFetchRestoreCollection)
 
 				if !assert.IsTypef(
 					t,

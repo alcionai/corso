@@ -192,7 +192,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
-				data.NotFoundRestoreCollection{Collection: coll},
+				data.NoFetchRestoreCollection{Collection: coll},
 			}, fault.New(true))
 			test.expectError(t, err, clues.ToCore(err))
 
@@ -402,7 +402,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
-				data.NotFoundRestoreCollection{Collection: metadata},
+				data.NoFetchRestoreCollection{Collection: metadata},
 			}, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
