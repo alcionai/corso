@@ -76,7 +76,6 @@ func mustGetDefaultDriveID(
 
 type suiteInfo interface {
 	APIClient() api.Client
-	Account() account.Account
 	Tenant() string
 	// Returns (username, user ID) for the user. These values are used for
 	// permissions.
@@ -126,7 +125,6 @@ func NewSuiteInfoImpl(
 
 	return suiteInfoImpl{
 		ac:            gc.AC,
-		acct:          tester.NewM365Account(t),
 		connector:     gc,
 		resourceOwner: resourceOwner,
 		resourceType:  resource,
@@ -139,10 +137,6 @@ func NewSuiteInfoImpl(
 
 func (si suiteInfoImpl) APIClient() api.Client {
 	return si.ac
-}
-
-func (si suiteInfoImpl) Account() account.Account {
-	return si.acct
 }
 
 func (si suiteInfoImpl) Tenant() string {
@@ -189,8 +183,7 @@ func TestGraphConnectorSharePointIntegrationSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorSharePointIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -251,8 +244,7 @@ func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorOneDriveIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -271,6 +263,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	secondaryUser, err := si.connector.AC.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
+
+	tertiaryUser, err := si.connector.AC.Users().GetByID(ctx, si.tertiaryUser)
+	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
+	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
 	suite.suiteInfo = si
 }
@@ -308,8 +304,7 @@ func TestGraphConnectorOneDriveNightlySuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorOneDriveNightlySuite{
 		Suite: tester.NewNightlySuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -328,6 +323,10 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	secondaryUser, err := si.connector.AC.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
+
+	tertiaryUser, err := si.connector.AC.Users().GetByID(ctx, si.tertiaryUser)
+	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
+	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
 	suite.suiteInfo = si
 }
@@ -489,7 +488,6 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 
 			runRestoreBackupTestVersions(
 				t,
-				suite.Account(),
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
@@ -706,7 +704,6 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 
 			runRestoreBackupTestVersions(
 				t,
-				suite.Account(),
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
@@ -792,7 +789,6 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 
 			runRestoreBackupTestVersions(
 				t,
-				suite.Account(),
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
@@ -976,7 +972,6 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 
 			runRestoreBackupTestVersions(
 				t,
-				suite.Account(),
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
@@ -1092,7 +1087,6 @@ func testRestoreFolderNamedFolderRegression(
 
 			runRestoreTestWithVerion(
 				t,
-				suite.Account(),
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},

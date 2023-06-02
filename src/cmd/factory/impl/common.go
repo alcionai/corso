@@ -51,7 +51,6 @@ type dataBuilderFunc func(id, now, subject, body string) []byte
 func generateAndRestoreItems(
 	ctx context.Context,
 	gc *connector.GraphConnector,
-	acct account.Account,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
@@ -99,7 +98,7 @@ func generateAndRestoreItems(
 
 	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, dataColls, errs)
+	return gc.ConsumeRestoreCollections(ctx, version.Backup, sel, dest, opts, dataColls, errs)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -390,7 +389,6 @@ func generateAndRestoreDriveItems(
 	}
 
 	config := connector.ConfigInfo{
-		Acct:           acct,
 		Opts:           opts,
 		Resource:       connector.Users,
 		Service:        service,
@@ -407,5 +405,5 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, collections, errs)
+	return gc.ConsumeRestoreCollections(ctx, version.Backup, sel, dest, opts, collections, errs)
 }

@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -263,7 +262,6 @@ type GraphConnectorIntegrationSuite struct {
 	connector     *GraphConnector
 	user          string
 	secondaryUser string
-	acct          account.Account
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
@@ -284,7 +282,6 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	suite.connector = loadConnector(ctx, t, Users)
 	suite.user = tester.M365UserID(t)
 	suite.secondaryUser = tester.SecondaryM365UserID(t)
-	suite.acct = tester.NewM365Account(t)
 
 	tester.LogTimeOfTest(t)
 }
@@ -296,7 +293,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	defer flush()
 
 	var (
-		acct = tester.NewM365Account(t)
 		dest = tester.DefaultTestRestoreDestination("")
 		sel  = selectors.Selector{
 			Service: selectors.ServiceUnknown,
@@ -306,7 +302,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	deets, err := suite.connector.ConsumeRestoreCollections(
 		ctx,
 		version.Backup,
-		acct,
 		sel,
 		dest,
 		control.Options{
@@ -385,7 +380,6 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			deets, err := suite.connector.ConsumeRestoreCollections(
 				ctx,
 				version.Backup,
-				suite.acct,
 				test.sel,
 				dest,
 				control.Options{
@@ -429,7 +423,6 @@ func runRestore(
 	deets, err := restoreGC.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
-		config.Acct,
 		restoreSel,
 		config.Dest,
 		config.Opts,
@@ -528,7 +521,6 @@ func runBackupAndCompare(
 
 func runRestoreBackupTest(
 	t *testing.T,
-	acct account.Account,
 	test restoreBackupInfo,
 	tenant string,
 	resourceOwners []string,
@@ -538,7 +530,6 @@ func runRestoreBackupTest(
 	defer flush()
 
 	config := ConfigInfo{
-		Acct:           acct,
 		Opts:           opts,
 		Resource:       test.resource,
 		Service:        test.service,
@@ -575,7 +566,6 @@ func runRestoreBackupTest(
 // runRestoreTest restores with data using the test's backup version
 func runRestoreTestWithVerion(
 	t *testing.T,
-	acct account.Account,
 	test restoreBackupInfoMultiVersion,
 	tenant string,
 	resourceOwners []string,
@@ -585,7 +575,6 @@ func runRestoreTestWithVerion(
 	defer flush()
 
 	config := ConfigInfo{
-		Acct:           acct,
 		Opts:           opts,
 		Resource:       test.resource,
 		Service:        test.service,
@@ -614,7 +603,6 @@ func runRestoreTestWithVerion(
 // something that would be in the form of a newer backup.
 func runRestoreBackupTestVersions(
 	t *testing.T,
-	acct account.Account,
 	test restoreBackupInfoMultiVersion,
 	tenant string,
 	resourceOwners []string,
@@ -624,7 +612,6 @@ func runRestoreBackupTestVersions(
 	defer flush()
 
 	config := ConfigInfo{
-		Acct:           acct,
 		Opts:           opts,
 		Resource:       test.resource,
 		Service:        test.service,
@@ -920,7 +907,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		suite.Run(test.name, func() {
 			runRestoreBackupTest(
 				suite.T(),
-				suite.acct,
 				test,
 				suite.connector.tenant,
 				[]string{suite.user},
@@ -1043,7 +1029,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				deets, err := restoreGC.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
-					suite.acct,
 					restoreSel,
 					dest,
 					control.Options{
@@ -1134,7 +1119,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 
 	runRestoreBackupTest(
 		suite.T(),
-		suite.acct,
 		test,
 		suite.connector.tenant,
 		[]string{suite.user},

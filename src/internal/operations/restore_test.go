@@ -49,7 +49,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		gc   = &mock.GraphConnector{}
-		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination("")
 	)
@@ -111,7 +110,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				kw,
 				sw,
 				gc,
-				acct,
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
@@ -219,7 +217,6 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		gc   = &mock.GraphConnector{}
-		acct = tester.NewM365Account(suite.T())
 		dest = tester.DefaultTestRestoreDestination("")
 		opts = control.Defaults()
 	)
@@ -229,14 +226,13 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		rc       inject.RestoreConsumer
-		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
-		{"missing restore consumer", kw, sw, nil, acct, nil, assert.Error},
+		{"good", kw, sw, gc, nil, assert.NoError},
+		{"missing kopia", nil, sw, gc, nil, assert.Error},
+		{"missing modelstore", kw, nil, gc, nil, assert.Error},
+		{"missing restore consumer", kw, sw, nil, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -249,7 +245,6 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.kw,
 				test.sw,
 				test.rc,
-				test.acct,
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
@@ -421,7 +416,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				suite.kw,
 				suite.sw,
 				bup.gc,
-				tester.NewM365Account(t),
 				bup.backupID,
 				test.getSelector(t, bup.selectorResourceOwners),
 				test.dest,
@@ -473,7 +467,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		suite.kw,
 		suite.sw,
 		gc,
-		tester.NewM365Account(t),
 		"backupID",
 		rsel.Selector,
 		dest,

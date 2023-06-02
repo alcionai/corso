@@ -58,7 +58,6 @@ func NewRestoreOperation(
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	rc inject.RestoreConsumer,
-	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
 	dest control.RestoreDestination,
@@ -70,7 +69,6 @@ func NewRestoreOperation(
 		Selectors:   sel,
 		Destination: dest,
 		Version:     "v0",
-		account:     acct,
 		rc:          rc,
 	}
 	if err := op.validate(); err != nil {
@@ -256,7 +254,6 @@ func (op *RestoreOperation) do(
 		ctx,
 		op.rc,
 		bup.Version,
-		op.account,
 		op.Selectors,
 		op.Destination,
 		op.Options,
@@ -314,7 +311,6 @@ func consumeRestoreCollections(
 	ctx context.Context,
 	rc inject.RestoreConsumer,
 	backupVersion int,
-	acct account.Account,
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
@@ -330,7 +326,6 @@ func consumeRestoreCollections(
 	deets, err := rc.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
-		acct,
 		sel,
 		dest,
 		opts,

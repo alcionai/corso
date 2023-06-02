@@ -8,7 +8,6 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -39,7 +38,6 @@ type ItemInfo struct {
 }
 
 type ConfigInfo struct {
-	Acct           account.Account
 	Opts           control.Options
 	Resource       Resource
 	Service        path.ServiceType

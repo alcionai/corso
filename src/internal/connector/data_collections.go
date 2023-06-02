@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -240,7 +239,6 @@ func checkServiceEnabled(
 func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
-	acct account.Account,
 	sels selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
@@ -255,12 +253,8 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	var (
 		status *support.ConnectorOperationStatus
 		deets  = &details.Builder{}
+		err    error
 	)
-
-	creds, err := acct.M365Config()
-	if err != nil {
-		return nil, clues.Wrap(err, "malformed azure credentials")
-	}
 
 	// Buffer pool for uploads
 	pool := sync.Pool{
@@ -272,7 +266,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreCollections(ctx, creds, gc.AC, dest, dcs, deets, errs)
+		status, err = exchange.RestoreCollections(ctx, gc.AC, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(
 			ctx,
@@ -289,7 +283,6 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 			ctx,
 			backupVersion,
 			gc.AC,
-			creds,
 			dest,
 			opts,
 			dcs,

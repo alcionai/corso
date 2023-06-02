@@ -51,7 +51,12 @@ func collectItems(
 	oldPaths map[string]string,
 	prevDelta string,
 	errs *fault.Bus,
-) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
+) (
+	DeltaUpdate,
+	map[string]string, // newPaths
+	map[string]struct{}, // excluded
+	error,
+) {
 	var (
 		newDeltaURL      = ""
 		newPaths         = map[string]string{}
@@ -131,7 +136,7 @@ func collectItems(
 }
 
 // newItem initializes a `models.DriveItemable` that can be used as input to `createItem`
-func newItem(name string, folder bool) models.DriveItemable {
+func newItem(name string, folder bool) *models.DriveItem {
 	itemToCreate := models.NewDriveItem()
 	itemToCreate.SetName(&name)
 

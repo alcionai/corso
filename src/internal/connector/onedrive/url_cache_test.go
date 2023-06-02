@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -65,7 +64,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		ac             = suite.ac.Drives()
 		driveID        = suite.driveID
 		newFolderName  = tester.DefaultTestRestoreDestination("folder").ContainerName
-		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", nil)
+		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault())
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -85,24 +84,11 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	nfid := ptr.Val(newFolder.GetId())
 
-	// Delete folder on exit
-	defer func() {
-		ictx := clues.Add(ctx, "folder_id", nfid)
-
-		err := suite.ac.Drives().DeleteItem(
-			ictx,
-			driveID,
-			nfid)
-		if err != nil {
-			logger.CtxErr(ictx, err).Errorw("deleting folder")
-		}
-	}()
-
 	// Create a bunch of files in the new folder
 	var items []models.DriveItemable
 
 	for i := 0; i < 10; i++ {
-		newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
+		newItemName := "test_url_cache_basic_" + dttm.FormatNow(dttm.SafeForTesting)
 
 		item, err := ac.Drives().PostItemInContainer(
 			ctx,
@@ -124,6 +110,9 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		driveItemPager,
 		fault.New(true))
 
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = cache.refreshCache(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Launch parallel requests to the cache, one per item

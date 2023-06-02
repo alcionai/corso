@@ -349,7 +349,6 @@ func (r repository) NewRestore(
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
 		gc,
-		r.Account,
 		model.StableID(backupID),
 		sel,
 		dest,
