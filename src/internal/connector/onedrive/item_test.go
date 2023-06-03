@@ -261,7 +261,6 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 
 // Unit tests
 
-// mock
 type mockGetter struct {
 	GetFunc func(ctx context.Context, url string) (*http.Response, error)
 }
@@ -284,13 +283,14 @@ func TestItemUnitTestSuite(t *testing.T) {
 
 func (suite *ItemUnitTestSuite) TestDownloadItem() {
 	testRc := ioutil.NopCloser(bytes.NewReader([]byte("test")))
+	url := "https://example.com"
 
 	table := []struct {
 		name          string
 		itemFunc      func() models.DriveItemable
 		GetFunc       func(ctx context.Context, url string) (*http.Response, error)
-		errorExpected bool
-		rcExpected    bool
+		errorExpected require.ErrorAssertionFunc
+		rcExpected    require.ValueAssertionFunc
 		label         string
 	}{
 		{
@@ -301,15 +301,15 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
 				return nil, nil
 			},
-			errorExpected: true,
-			rcExpected:    false,
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
 			name: "success",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
 				di.SetAdditionalData(map[string]interface{}{
-					"@microsoft.graph.downloadUrl": "https://example.com",
+					"@microsoft.graph.downloadUrl": url,
 				})
 
 				return di
@@ -320,15 +320,34 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 					Body:       testRc,
 				}, nil
 			},
-			errorExpected: false,
-			rcExpected:    true,
+			errorExpected: require.NoError,
+			rcExpected:    require.NotNil,
+		},
+		{
+			name: "success, content url set instead of download url",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@content.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.NoError,
+			rcExpected:    require.NotNil,
 		},
 		{
 			name: "api getter returns error",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
 				di.SetAdditionalData(map[string]interface{}{
-					"@microsoft.graph.downloadUrl": "https://example.com",
+					"@microsoft.graph.downloadUrl": url,
 				})
 
 				return di
@@ -336,8 +355,8 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
 				return nil, clues.New("test error")
 			},
-			errorExpected: true,
-			rcExpected:    false,
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
 			name: "download url is empty",
@@ -351,15 +370,15 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 					Body:       testRc,
 				}, nil
 			},
-			errorExpected: true,
-			rcExpected:    false,
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
 			name: "malware",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
 				di.SetAdditionalData(map[string]interface{}{
-					"@microsoft.graph.downloadUrl": "https://example.com",
+					"@microsoft.graph.downloadUrl": url,
 				})
 
 				return di
@@ -373,15 +392,15 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 					Body:       testRc,
 				}, nil
 			},
-			errorExpected: true,
-			rcExpected:    false,
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
 			name: "non-2xx http response",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
 				di.SetAdditionalData(map[string]interface{}{
-					"@microsoft.graph.downloadUrl": "https://example.com",
+					"@microsoft.graph.downloadUrl": url,
 				})
 
 				return di
@@ -392,24 +411,23 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 					Body:       nil,
 				}, nil
 			},
-			errorExpected: true,
-			rcExpected:    false,
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 	}
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// Mock the getter
 			mg := mockGetter{
 				GetFunc: test.GetFunc,
 			}
 			rc, err := downloadItem(ctx, mg, test.itemFunc())
-			require.Equal(t, test.errorExpected, err != nil, clues.ToCore(err))
-			require.Equal(t, test.rcExpected, rc != nil)
+			test.errorExpected(t, err, clues.ToCore(err))
+			test.rcExpected(t, rc)
 		})
 	}
 }

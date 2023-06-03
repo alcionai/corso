@@ -52,7 +52,7 @@ func downloadItem(
 
 		rc, err = downloadFile(ctx, ag, url)
 		if err != nil {
-			return nil, err
+			return nil, clues.Stack(err)
 		}
 	}
 
