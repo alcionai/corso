@@ -27,9 +27,14 @@ func downloadItem(
 	ag api.Getter,
 	item models.DriveItemable,
 ) (io.ReadCloser, error) {
+	if item == nil {
+		return nil, clues.New("nil item")
+	}
+
 	var (
 		rc     io.ReadCloser
 		isFile = item.GetFile() != nil
+		err    error
 	)
 
 	if isFile {
@@ -45,31 +50,42 @@ func downloadItem(
 			}
 		}
 
-		if len(url) == 0 {
-			return nil, clues.New("extracting file url")
-		}
-
-		resp, err := ag.Get(ctx, url, nil)
+		rc, err = downloadFile(ctx, ag, url)
 		if err != nil {
-			return nil, clues.Wrap(err, "getting item")
+			return nil, clues.Stack(err)
 		}
-
-		if graph.IsMalwareResp(ctx, resp) {
-			return nil, clues.New("malware detected").Label(graph.LabelsMalware)
-		}
-
-		if (resp.StatusCode / 100) != 2 {
-			// upstream error checks can compare the status with
-			// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
-			return nil, clues.
-				Wrap(clues.New(resp.Status), "non-2xx http response").
-				Label(graph.LabelStatus(resp.StatusCode))
-		}
-
-		rc = resp.Body
 	}
 
 	return rc, nil
+}
+
+func downloadFile(
+	ctx context.Context,
+	ag api.Getter,
+	url string,
+) (io.ReadCloser, error) {
+	if len(url) == 0 {
+		return nil, clues.New("empty file url")
+	}
+
+	resp, err := ag.Get(ctx, url, nil)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting file")
+	}
+
+	if graph.IsMalwareResp(ctx, resp) {
+		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
+	}
+
+	if (resp.StatusCode / 100) != 2 {
+		// upstream error checks can compare the status with
+		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
+		return nil, clues.
+			Wrap(clues.New(resp.Status), "non-2xx http response").
+			Label(graph.LabelStatus(resp.StatusCode))
+	}
+
+	return resp.Body, nil
 }
 
 func downloadItemMeta(

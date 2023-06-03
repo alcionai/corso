@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -253,6 +254,179 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 				ptr.Val(root.GetId()),
 				"")
 			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+// Unit tests
+
+type mockGetter struct {
+	GetFunc func(ctx context.Context, url string) (*http.Response, error)
+}
+
+func (m mockGetter) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return m.GetFunc(ctx, url)
+}
+
+type ItemUnitTestSuite struct {
+	tester.Suite
+}
+
+func TestItemUnitTestSuite(t *testing.T) {
+	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ItemUnitTestSuite) TestDownloadItem() {
+	testRc := io.NopCloser(bytes.NewReader([]byte("test")))
+	url := "https://example.com"
+
+	table := []struct {
+		name          string
+		itemFunc      func() models.DriveItemable
+		GetFunc       func(ctx context.Context, url string) (*http.Response, error)
+		errorExpected require.ErrorAssertionFunc
+		rcExpected    require.ValueAssertionFunc
+		label         string
+	}{
+		{
+			name: "nil item",
+			itemFunc: func() models.DriveItemable {
+				return nil
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return nil, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
+		},
+		{
+			name: "success",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.NoError,
+			rcExpected:    require.NotNil,
+		},
+		{
+			name: "success, content url set instead of download url",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@content.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.NoError,
+			rcExpected:    require.NotNil,
+		},
+		{
+			name: "api getter returns error",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return nil, clues.New("test error")
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
+		},
+		{
+			name: "download url is empty",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
+		},
+		{
+			name: "malware",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					Header: http.Header{
+						"X-Virus-Infected": []string{"true"},
+					},
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
+		},
+		{
+			name: "non-2xx http response",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Body:       nil,
+				}, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			mg := mockGetter{
+				GetFunc: test.GetFunc,
+			}
+			rc, err := downloadItem(ctx, mg, test.itemFunc())
+			test.errorExpected(t, err, clues.ToCore(err))
+			test.rcExpected(t, rc)
 		})
 	}
 }
