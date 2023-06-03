@@ -113,10 +113,9 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			)
 
 			c := onedrive.NewCollections(
-				&libraryBackupHandler{api.Drives{}},
+				&libraryBackupHandler{api.Drives{}, test.scope},
 				tenantID,
 				site,
-				testFolderMatcher{test.scope},
 				nil,
 				control.Defaults())
 

@@ -13,13 +13,15 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var _ onedrive.BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
-	ac api.Drives
+	ac    api.Drives
+	scope selectors.SharePointScope
 }
 
 func (h libraryBackupHandler) Get(
@@ -137,6 +139,14 @@ func (h libraryBackupHandler) GetItem(
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
 	return h.ac.GetItem(ctx, driveID, itemID)
+}
+
+func (h libraryBackupHandler) IsAllPass() bool {
+	return h.scope.IsAny(selectors.SharePointLibraryFolder)
+}
+
+func (h libraryBackupHandler) IncludesDir(dir string) bool {
+	return h.scope.Matches(selectors.SharePointLibraryFolder, dir)
 }
 
 // ---------------------------------------------------------------------------

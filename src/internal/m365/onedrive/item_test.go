@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -117,7 +118,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.user,
 		suite.userDriveID)
 
-	bh := itemBackupHandler{suite.service.ac.Drives()}
+	bh := itemBackupHandler{
+		suite.service.ac.Drives(),
+		(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
+	}
 
 	// Read data for the file
 	itemData, err := downloadItem(ctx, bh, driveItem)
