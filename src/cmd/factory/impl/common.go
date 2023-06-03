@@ -15,9 +15,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/internal/connector"
-	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365"
+	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
+	"github.com/alcionai/corso/src/internal/m365/resource"
+	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -50,7 +53,7 @@ type dataBuilderFunc func(id, now, subject, body string) []byte
 
 func generateAndRestoreItems(
 	ctx context.Context,
-	gc *connector.GraphConnector,
+	gc *m365.Controller,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
@@ -107,10 +110,10 @@ func generateAndRestoreItems(
 
 func getGCAndVerifyResourceOwner(
 	ctx context.Context,
-	resource connector.Resource,
+	resourceCat resource.Category,
 	resourceOwner string,
 ) (
-	*connector.GraphConnector,
+	*m365.Controller,
 	account.Account,
 	idname.Provider,
 	error,
@@ -132,7 +135,7 @@ func getGCAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "finding m365 account details")
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct, resource)
+	gc, err := m365.NewController(ctx, acct, resourceCat)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
@@ -208,7 +211,7 @@ var (
 )
 
 func generateAndRestoreDriveItems(
-	gc *connector.GraphConnector,
+	gc *m365.Controller,
 	resourceOwner, secondaryUserID, secondaryUserName string,
 	acct account.Account,
 	service path.ServiceType,
@@ -248,7 +251,7 @@ func generateAndRestoreDriveItems(
 	}
 
 	var (
-		cols []connector.OnedriveColInfo
+		cols []odStub.ColInfo
 
 		rootPath    = []string{"drives", driveID, "root:"}
 		folderAPath = []string{"drives", driveID, "root:", folderAName}
@@ -262,15 +265,15 @@ func generateAndRestoreDriveItems(
 	)
 
 	for i := 0; i < count; i++ {
-		col := []connector.OnedriveColInfo{
+		col := []odStub.ColInfo{
 			// basic folder and file creation
 			{
 				PathElements: rootPath,
-				Files: []connector.ItemData{
+				Files: []odStub.ItemData{
 					{
 						Name: fmt.Sprintf("file-1st-count-%d-at-%s", i, currentTime),
 						Data: fileAData,
-						Perms: connector.PermData{
+						Perms: odStub.PermData{
 							User:     secondaryUserName,
 							EntityID: secondaryUserID,
 							Roles:    writePerm,
@@ -281,13 +284,13 @@ func generateAndRestoreDriveItems(
 						Data: fileBData,
 					},
 				},
-				Folders: []connector.ItemData{
+				Folders: []odStub.ItemData{
 					{
 						Name: folderBName,
 					},
 					{
 						Name: folderAName,
-						Perms: connector.PermData{
+						Perms: odStub.PermData{
 							User:     secondaryUserName,
 							EntityID: secondaryUserID,
 							Roles:    readPerm,
@@ -295,7 +298,7 @@ func generateAndRestoreDriveItems(
 					},
 					{
 						Name: folderCName,
-						Perms: connector.PermData{
+						Perms: odStub.PermData{
 							User:     secondaryUserName,
 							EntityID: secondaryUserID,
 							Roles:    readPerm,
@@ -307,18 +310,18 @@ func generateAndRestoreDriveItems(
 				// a folder that has permissions with an item in the folder with
 				// the different permissions.
 				PathElements: folderAPath,
-				Files: []connector.ItemData{
+				Files: []odStub.ItemData{
 					{
 						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						Data: fileEData,
-						Perms: connector.PermData{
+						Perms: odStub.PermData{
 							User:     secondaryUserName,
 							EntityID: secondaryUserID,
 							Roles:    writePerm,
 						},
 					},
 				},
-				Perms: connector.PermData{
+				Perms: odStub.PermData{
 					User:     secondaryUserName,
 					EntityID: secondaryUserID,
 					Roles:    readPerm,
@@ -328,13 +331,13 @@ func generateAndRestoreDriveItems(
 				// a folder that has permissions with an item in the folder with
 				// no permissions.
 				PathElements: folderCPath,
-				Files: []connector.ItemData{
+				Files: []odStub.ItemData{
 					{
 						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						Data: fileAData,
 					},
 				},
-				Perms: connector.PermData{
+				Perms: odStub.PermData{
 					User:     secondaryUserName,
 					EntityID: secondaryUserID,
 					Roles:    readPerm,
@@ -342,23 +345,23 @@ func generateAndRestoreDriveItems(
 			},
 			{
 				PathElements: folderBPath,
-				Files: []connector.ItemData{
+				Files: []odStub.ItemData{
 					{
 						// restoring a file in a non-root folder that doesn't inherit
 						// permissions.
 						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						Data: fileBData,
-						Perms: connector.PermData{
+						Perms: odStub.PermData{
 							User:     secondaryUserName,
 							EntityID: secondaryUserID,
 							Roles:    writePerm,
 						},
 					},
 				},
-				Folders: []connector.ItemData{
+				Folders: []odStub.ItemData{
 					{
 						Name: folderAName,
-						Perms: connector.PermData{
+						Perms: odStub.PermData{
 							User:     secondaryUserName,
 							EntityID: secondaryUserID,
 							Roles:    readPerm,
@@ -371,7 +374,7 @@ func generateAndRestoreDriveItems(
 		cols = append(cols, col...)
 	}
 
-	input, err := connector.DataForInfo(service, cols, version.Backup)
+	input, err := odStub.DataForInfo(service, cols, version.Backup)
 	if err != nil {
 		return nil, err
 	}
@@ -388,16 +391,16 @@ func generateAndRestoreDriveItems(
 		ToggleFeatures:     control.Toggles{},
 	}
 
-	config := connector.ConfigInfo{
+	config := m365Stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       connector.Users,
+		Resource:       resource.Users,
 		Service:        service,
 		Tenant:         tenantID,
 		ResourceOwners: []string{resourceOwner},
 		Dest:           tester.DefaultTestRestoreDestination(""),
 	}
 
-	_, _, collections, _, err := connector.GetCollectionsAndExpected(
+	_, _, collections, _, err := m365Stub.GetCollectionsAndExpected(
 		config,
 		input,
 		version.Backup)
