@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -282,7 +281,7 @@ func TestItemUnitTestSuite(t *testing.T) {
 }
 
 func (suite *ItemUnitTestSuite) TestDownloadItem() {
-	testRc := ioutil.NopCloser(bytes.NewReader([]byte("test")))
+	testRc := io.NopCloser(bytes.NewReader([]byte("test")))
 	url := "https://example.com"
 
 	table := []struct {
