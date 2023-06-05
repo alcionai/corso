@@ -204,7 +204,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{
-				data.NotFoundRestoreCollection{Collection: coll},
+				data.NoFetchRestoreCollection{Collection: coll},
 			})
 			test.expectError(t, err, clues.ToCore(err))
 
@@ -248,7 +248,7 @@ func (f failingColl) FullPath() path.Path {
 	return tmp
 }
 
-func (f failingColl) Fetch(context.Context, string) (data.Stream, error) {
+func (f failingColl) FetchItemByName(context.Context, string) (data.Stream, error) {
 	// no fetch calls will be made
 	return nil, nil
 }
@@ -462,7 +462,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
 			cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{
-				data.NotFoundRestoreCollection{Collection: metadata},
+				data.NoFetchRestoreCollection{Collection: metadata},
 			})
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")

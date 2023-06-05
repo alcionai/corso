@@ -1161,8 +1161,8 @@ func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Str
 
 	return ic
 }
-func (f failingColl) FullPath() path.Path                                { return nil }
-func (f failingColl) Fetch(context.Context, string) (data.Stream, error) { return nil, nil }
+func (f failingColl) FullPath() path.Path                                          { return nil }
+func (f failingColl) FetchItemByName(context.Context, string) (data.Stream, error) { return nil, nil }
 
 // This check is to ensure that we don't error out, but still return
 // canUsePreviousBackup as false on read errors
@@ -2397,7 +2397,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					deltas, paths, _, err := deserializeMetadata(
 						ctx,
 						[]data.RestoreCollection{
-							data.NotFoundRestoreCollection{Collection: baseCol},
+							data.NoFetchRestoreCollection{Collection: baseCol},
 						})
 					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {
 						continue

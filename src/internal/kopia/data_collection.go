@@ -40,7 +40,7 @@ func (kdc *kopiaDataCollection) Items(
 		defer close(res)
 
 		for _, item := range kdc.items {
-			s, err := kdc.Fetch(ctx, item)
+			s, err := kdc.FetchItemByName(ctx, item)
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "fetching item").
 					WithClues(ctx).
