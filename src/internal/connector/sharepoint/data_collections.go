@@ -84,6 +84,10 @@ func DataCollections(
 				continue
 			}
 
+			// Lists don't make use of previous metadata
+			// TODO: Revisit when we add support of lists
+			canUsePreviousBackup = true
+
 		case path.LibrariesCategory:
 			spcs, canUsePreviousBackup, err = collectLibraries(
 				ctx,
@@ -114,6 +118,10 @@ func DataCollections(
 				el.AddRecoverable(err)
 				continue
 			}
+
+			// Lists don't make use of previous metadata
+			// TODO: Revisit when we add support of pages
+			canUsePreviousBackup = true
 		}
 
 		collections = append(collections, spcs...)
