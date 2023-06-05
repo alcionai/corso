@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.9.0] (beta) - 2023-06-05
+
 ### Added
 - Added ProtectedResourceName to the backup list json output.  ProtectedResourceName holds either a UPN or a WebURL, depending on the resource type.
 - Rework base selection logic for incremental backups so it's more likely to find a valid base.
@@ -19,8 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.
-
-### Known Issues
 
 ## [v0.8.0] (beta) - 2023-05-15
 
@@ -170,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Item.Attachments are disabled from being restored for the patching of ([#2353](https://github.com/alcionai/corso/issues/2353))
-- BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk` 
+- BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk`
 - Handle case where user's drive has not been initialized
 - Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))
 - Guest and External users (for cloud accounts) and non-on-premise users (for systems that use on-prem AD syncs) are now excluded from backup and restore operations.
@@ -207,7 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`   
+- Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`  
   with the `backup create` command. This functionality will be enabled by default in an upcoming release.
 - Folder entries in backup details now include size and modified time for the hierarchy ([#1896](https://github.com/alcionai/corso/issues/1896))
 
@@ -290,7 +290,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/alcionai/corso/compare/v0.8.1...v0.9.0
+[v0.8.0]: https://github.com/alcionai/corso/compare/v0.7.1...v0.8.0
 [v0.7.0]: https://github.com/alcionai/corso/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.1
 [v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
