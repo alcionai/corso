@@ -38,9 +38,10 @@ func (gc GraphConnector) ProduceBackupCollections(
 ) (
 	[]data.BackupCollection,
 	prefixmatcher.StringSetReader,
+	bool,
 	error,
 ) {
-	return gc.Collections, gc.Exclude, gc.Err
+	return gc.Collections, gc.Exclude, gc.Err == nil, gc.Err
 }
 
 func (gc GraphConnector) IsBackupRunnable(

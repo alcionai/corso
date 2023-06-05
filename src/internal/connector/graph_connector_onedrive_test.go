@@ -1083,7 +1083,7 @@ func testRestoreFolderNamedFolderRegression(
 				collectionsLatest:   expected,
 			}
 
-			runRestoreTestWithVerion(
+			runRestoreTestWithVersion(
 				t,
 				testData,
 				suite.Tenant(),

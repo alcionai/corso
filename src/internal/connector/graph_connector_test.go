@@ -487,7 +487,7 @@ func runBackupAndCompare(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
-	dcs, excludes, err := backupGC.ProduceBackupCollections(
+	dcs, excludes, canUsePreviousBackup, err := backupGC.ProduceBackupCollections(
 		ctx,
 		backupSel,
 		backupSel,
@@ -496,6 +496,7 @@ func runBackupAndCompare(
 		config.Opts,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	// No excludes yet because this isn't an incremental backup.
 	assert.True(t, excludes.Empty())
 
@@ -564,7 +565,7 @@ func runRestoreBackupTest(
 }
 
 // runRestoreTest restores with data using the test's backup version
-func runRestoreTestWithVerion(
+func runRestoreTestWithVersion(
 	t *testing.T,
 	test restoreBackupInfoMultiVersion,
 	tenant string,
@@ -1059,7 +1060,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, excludes, err := backupGC.ProduceBackupCollections(
+			dcs, excludes, canUsePreviousBackup, err := backupGC.ProduceBackupCollections(
 				ctx,
 				backupSel,
 				backupSel,
@@ -1071,6 +1072,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
 			// No excludes yet because this isn't an incremental backup.
 			assert.True(t, excludes.Empty())
 
@@ -1214,7 +1216,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			backupSel.SetDiscreteOwnerIDName(id, name)
 
-			dcs, excludes, err := backupGC.ProduceBackupCollections(
+			dcs, excludes, canUsePreviousBackup, err := backupGC.ProduceBackupCollections(
 				ctx,
 				inMock.NewProvider(id, name),
 				backupSel,
@@ -1226,6 +1228,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				},
 				fault.New(true))
 			require.NoError(t, err)
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
 			// No excludes yet because this isn't an incremental backup.
 			assert.True(t, excludes.Empty())
 

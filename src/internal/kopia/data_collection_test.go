@@ -165,15 +165,15 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 		{
 			name: "SingleStream",
 			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
-				uuids[0]: assert.NoError,
+				uuids[0]: nil,
 			},
 			expectedLoaded: []loadedData{files[0]},
 		},
 		{
 			name: "MultipleStreams",
 			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
-				uuids[0]: assert.NoError,
-				uuids[1]: assert.NoError,
+				uuids[0]: nil,
+				uuids[1]: nil,
 			},
 			expectedLoaded: files,
 		},
@@ -181,7 +181,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			name: "Some Not Found Errors",
 			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
 				fileLookupErrName: assert.Error,
-				uuids[0]:          assert.NoError,
+				uuids[0]:          nil,
 			},
 			expectedLoaded: []loadedData{files[0]},
 		},
@@ -189,7 +189,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			name: "Some Not A File Errors",
 			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
 				notFileErrName: assert.Error,
-				uuids[0]:       assert.NoError,
+				uuids[0]:       nil,
 			},
 			expectedLoaded: []loadedData{files[0]},
 		},
@@ -197,7 +197,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			name: "Some Open Errors",
 			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
 				fileOpenErrName: assert.Error,
-				uuids[0]:        assert.NoError,
+				uuids[0]:        nil,
 			},
 			expectedLoaded: []loadedData{files[0]},
 		},
@@ -217,20 +217,27 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			items := []string{}
+			errs := []assert.ErrorAssertionFunc{}
+
+			for uuid, err := range test.uuidsAndErrors {
+				if err != nil {
+					errs = append(errs, err)
+				}
+
+				items = append(items, uuid)
+			}
+
 			c := kopiaDataCollection{
 				dir:             getLayout(),
 				path:            nil,
+				items:           items,
 				expectedVersion: serializationVersion,
-			}
-
-			for uuid, expectErr := range test.uuidsAndErrors {
-				err := c.addStream(ctx, uuid)
-				expectErr(t, err, "adding stream to collection", clues.ToCore(err))
 			}
 
 			var (
 				found []loadedData
-				bus   = fault.New(true)
+				bus   = fault.New(false)
 			)
 
 			for returnedStream := range c.Items(ctx, bus) {
@@ -256,7 +263,12 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				f.size = ss.Size()
 			}
 
-			assert.Empty(t, bus.Recovered(), "expected no recoverable errors")
+			// We expect the items to be fetched in the order they are
+			// in the struct or the errors will not line up
+			for i, err := range bus.Recovered() {
+				assert.True(t, errs[i](t, err), "expected error", clues.ToCore(err))
+			}
+
 			assert.NoError(t, bus.Failure(), "expected no hard failures")
 
 			assert.ElementsMatch(t, test.expectedLoaded, found, "loaded items")

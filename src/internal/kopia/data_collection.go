@@ -20,38 +20,48 @@ var (
 
 type kopiaDataCollection struct {
 	path            path.Path
-	streams         []data.Stream
 	dir             fs.Directory
+	items           []string
 	counter         ByteCounter
 	expectedVersion uint32
 }
 
-func (kdc *kopiaDataCollection) addStream(
-	ctx context.Context,
-	name string,
-) error {
-	s, err := kdc.FetchItemByName(ctx, name)
-	if err != nil {
-		return err
-	}
-
-	kdc.streams = append(kdc.streams, s)
-
-	return nil
-}
-
 func (kdc *kopiaDataCollection) Items(
 	ctx context.Context,
-	_ *fault.Bus, // unused, just matching the interface
+	errs *fault.Bus,
 ) <-chan data.Stream {
-	res := make(chan data.Stream)
+	var (
+		res       = make(chan data.Stream)
+		el        = errs.Local()
+		loadCount = 0
+	)
 
 	go func() {
 		defer close(res)
 
-		for _, s := range kdc.streams {
+		for _, item := range kdc.items {
+			s, err := kdc.FetchItemByName(ctx, item)
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "fetching item").
+					WithClues(ctx).
+					Label(fault.LabelForceNoBackupCreation))
+
+				continue
+			}
+
+			loadCount++
+			if loadCount%1000 == 0 {
+				logger.Ctx(ctx).Infow(
+					"loading items from kopia",
+					"loaded_items", loadCount)
+			}
+
 			res <- s
 		}
+
+		logger.Ctx(ctx).Infow(
+			"done loading items from kopia",
+			"loaded_items", loadCount)
 	}()
 
 	return res
