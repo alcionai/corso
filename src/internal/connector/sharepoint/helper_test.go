@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -55,17 +54,4 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	require.NoError(t, err, "creating microsoft graph service for exchange", clues.ToCore(err))
 
 	return graph.NewService(adapter)
-}
-
-func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
-	res := make([]string, 0, len(rest))
-
-	for _, r := range rest {
-		p, err := onedrive.GetCanonicalPath(r, tenant, user, onedrive.SharePointSource)
-		require.NoError(t, err, clues.ToCore(err))
-
-		res = append(res, p.String())
-	}
-
-	return res
 }

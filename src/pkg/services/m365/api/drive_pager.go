@@ -21,18 +21,26 @@ import (
 // item pager
 // ---------------------------------------------------------------------------
 
-type driveItemPager struct {
+type DriveItemEnumerator interface {
+	GetPage(context.Context) (DeltaPageLinker, error)
+	SetNext(nextLink string)
+	Reset()
+	ValuesIn(DeltaPageLinker) ([]models.DriveItemable, error)
+}
+
+var _ DriveItemEnumerator = &DriveItemPager{}
+
+type DriveItemPager struct {
 	gs      graph.Servicer
 	driveID string
 	builder *drives.ItemItemsItemDeltaRequestBuilder
 	options *drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration
 }
 
-func NewItemPager(
-	gs graph.Servicer,
+func (c Drives) NewItemPager(
 	driveID, link string,
 	selectFields []string,
-) *driveItemPager {
+) *DriveItemPager {
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
 		"deltatraversepermissiongaps",
@@ -48,24 +56,25 @@ func NewItemPager(
 		},
 	}
 
-	res := &driveItemPager{
-		gs:      gs,
+	res := &DriveItemPager{
+		gs:      c.Stable,
 		driveID: driveID,
 		options: requestConfig,
-		builder: gs.Client().
+		builder: c.Stable.
+			Client().
 			Drives().
 			ByDriveId(driveID).
 			Items().ByDriveItemId(onedrive.RootID).Delta(),
 	}
 
 	if len(link) > 0 {
-		res.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, gs.Adapter())
+		res.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, c.Stable.Adapter())
 	}
 
 	return res
 }
 
-func (p *driveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *DriveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	var (
 		resp DeltaPageLinker
 		err  error
@@ -79,11 +88,11 @@ func (p *driveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	return resp, nil
 }
 
-func (p *driveItemPager) SetNext(link string) {
+func (p *DriveItemPager) SetNext(link string) {
 	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *driveItemPager) Reset() {
+func (p *DriveItemPager) Reset() {
 	p.builder = p.gs.Client().
 		Drives().
 		ByDriveId(p.driveID).
@@ -92,13 +101,15 @@ func (p *driveItemPager) Reset() {
 		Delta()
 }
 
-func (p *driveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *DriveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
 	return getValues[models.DriveItemable](l)
 }
 
 // ---------------------------------------------------------------------------
 // user pager
 // ---------------------------------------------------------------------------
+
+var _ DrivePager = &userDrivePager{}
 
 type userDrivePager struct {
 	userID  string
@@ -107,8 +118,7 @@ type userDrivePager struct {
 	options *users.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
-func NewUserDrivePager(
-	gs graph.Servicer,
+func (c Drives) NewUserDrivePager(
 	userID string,
 	fields []string,
 ) *userDrivePager {
@@ -120,9 +130,13 @@ func NewUserDrivePager(
 
 	res := &userDrivePager{
 		userID:  userID,
-		gs:      gs,
+		gs:      c.Stable,
 		options: requestConfig,
-		builder: gs.Client().Users().ByUserId(userID).Drives(),
+		builder: c.Stable.
+			Client().
+			Users().
+			ByUserId(userID).
+			Drives(),
 	}
 
 	return res
@@ -140,7 +154,12 @@ func (p *userDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
 		err  error
 	)
 
-	d, err := p.gs.Client().Users().ByUserId(p.userID).Drive().Get(ctx, nil)
+	d, err := p.gs.
+		Client().
+		Users().
+		ByUserId(p.userID).
+		Drive().
+		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -180,6 +199,8 @@ func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 // site pager
 // ---------------------------------------------------------------------------
 
+var _ DrivePager = &siteDrivePager{}
+
 type siteDrivePager struct {
 	gs      graph.Servicer
 	builder *sites.ItemDrivesRequestBuilder
@@ -191,8 +212,7 @@ type siteDrivePager struct {
 // in a query.  NOTE: Fields are case-sensitive. Incorrect field settings will
 // cause errors during later paging.
 // Available fields: https://learn.microsoft.com/en-us/graph/api/resources/drive?view=graph-rest-1.0
-func NewSiteDrivePager(
-	gs graph.Servicer,
+func (c Drives) NewSiteDrivePager(
 	siteID string,
 	fields []string,
 ) *siteDrivePager {
@@ -203,9 +223,13 @@ func NewSiteDrivePager(
 	}
 
 	res := &siteDrivePager{
-		gs:      gs,
+		gs:      c.Stable,
 		options: requestConfig,
-		builder: gs.Client().Sites().BySiteId(siteID).Drives(),
+		builder: c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Drives(),
 	}
 
 	return res
@@ -313,7 +337,8 @@ func GetAllDrives(
 func getValues[T any](l PageLinker) ([]T, error) {
 	page, ok := l.(interface{ GetValue() []T })
 	if !ok {
-		return nil, clues.New("page does not comply with GetValue() interface").With("page_item_type", fmt.Sprintf("%T", l))
+		return nil, clues.New("page does not comply with GetValue() interface").
+			With("page_item_type", fmt.Sprintf("%T", l))
 	}
 
 	return page.GetValue(), nil

@@ -13,12 +13,44 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type BackupBases struct {
-	Backups     []BackupEntry
-	MergeBases  []ManifestEntry
-	AssistBases []ManifestEntry
+const (
+	// Kopia does not do comparisons properly for empty tags right now so add some
+	// placeholder value to them.
+	defaultTagValue = "0"
+
+	// Kopia CLI prefixes all user tags with "tag:"[1]. Maintaining this will
+	// ensure we don't accidentally take reserved tags and that tags can be
+	// displayed with kopia CLI.
+	// (permalinks)
+	// [1] https://github.com/kopia/kopia/blob/05e729a7858a6e86cb48ba29fb53cb6045efce2b/cli/command_snapshot_create.go#L169
+	userTagPrefix = "tag:"
+)
+
+type Reason struct {
+	ResourceOwner string
+	Service       path.ServiceType
+	Category      path.CategoryType
+}
+
+func (r Reason) TagKeys() []string {
+	return []string{
+		r.ResourceOwner,
+		serviceCatString(r.Service, r.Category),
+	}
+}
+
+// Key is the concatenation of the ResourceOwner, Service, and Category.
+func (r Reason) Key() string {
+	return r.ResourceOwner + r.Service.String() + r.Category.String()
+}
+
+type backupBases struct {
+	backups     []BackupEntry
+	mergeBases  []ManifestEntry
+	assistBases []ManifestEntry
 }
 
 type BackupEntry struct {
@@ -26,12 +58,69 @@ type BackupEntry struct {
 	Reasons []Reason
 }
 
+type ManifestEntry struct {
+	*snapshot.Manifest
+	// Reason contains the ResourceOwners and Service/Categories that caused this
+	// snapshot to be selected as a base. We can't reuse OwnersCats here because
+	// it's possible some ResourceOwners will have a subset of the Categories as
+	// the reason for selecting a snapshot. For example:
+	// 1. backup user1 email,contacts -> B1
+	// 2. backup user1 contacts -> B2 (uses B1 as base)
+	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
+	Reasons []Reason
+}
+
+func (me ManifestEntry) GetTag(key string) (string, bool) {
+	k, _ := makeTagKV(key)
+	v, ok := me.Tags[k]
+
+	return v, ok
+}
+
+type snapshotManager interface {
+	FindManifests(
+		ctx context.Context,
+		tags map[string]string,
+	) ([]*manifest.EntryMetadata, error)
+	LoadSnapshot(ctx context.Context, id manifest.ID) (*snapshot.Manifest, error)
+}
+
+func serviceCatString(s path.ServiceType, c path.CategoryType) string {
+	return s.String() + c.String()
+}
+
+// MakeTagKV normalizes the provided key to protect it from clobbering
+// similarly named tags from non-user input (user inputs are still open
+// to collisions amongst eachother).
+// Returns the normalized Key plus a default value.  If you're embedding a
+// key-only tag, the returned default value msut be used instead of an
+// empty string.
+func makeTagKV(k string) (string, string) {
+	return userTagPrefix + k, defaultTagValue
+}
+
+func normalizeTagKVs(tags map[string]string) map[string]string {
+	t2 := make(map[string]string, len(tags))
+
+	for k, v := range tags {
+		mk, mv := makeTagKV(k)
+
+		if len(v) == 0 {
+			v = mv
+		}
+
+		t2[mk] = v
+	}
+
+	return t2
+}
+
 type baseFinder struct {
 	sm snapshotManager
 	bg inject.GetBackuper
 }
 
-func NewBaseFinder(
+func newBaseFinder(
 	sm snapshotManager,
 	bg inject.GetBackuper,
 ) (*baseFinder, error) {
@@ -183,11 +272,11 @@ func (b *baseFinder) getBase(
 	return b.findBasesInSet(ctx, reason, metas)
 }
 
-func (b *baseFinder) FindBases(
+func (b *baseFinder) findBases(
 	ctx context.Context,
 	reasons []Reason,
 	tags map[string]string,
-) (BackupBases, error) {
+) (backupBases, error) {
 	var (
 		// All maps go from ID -> entry. We need to track by ID so we can coalesce
 		// the reason for selecting something. Kopia assisted snapshots also use
@@ -251,9 +340,24 @@ func (b *baseFinder) FindBases(
 		}
 	}
 
-	return BackupBases{
-		Backups:     maps.Values(baseBups),
-		MergeBases:  maps.Values(baseSnaps),
-		AssistBases: maps.Values(kopiaAssistSnaps),
+	return backupBases{
+		backups:     maps.Values(baseBups),
+		mergeBases:  maps.Values(baseSnaps),
+		assistBases: maps.Values(kopiaAssistSnaps),
 	}, nil
+}
+
+func (b *baseFinder) FindBases(
+	ctx context.Context,
+	reasons []Reason,
+	tags map[string]string,
+) ([]ManifestEntry, error) {
+	bb, err := b.findBases(ctx, reasons, tags)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	// assistBases contains all snapshots so we can return it while maintaining
+	// almost all compatibility.
+	return bb.assistBases, nil
 }

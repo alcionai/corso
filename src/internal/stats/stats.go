@@ -8,11 +8,13 @@ import (
 // ReadWrites tracks the total count of reads and writes.  ItemsRead
 // and ItemsWritten counts are assumed to be successful reads.
 type ReadWrites struct {
-	BytesRead      int64 `json:"bytesRead,omitempty"`
-	BytesUploaded  int64 `json:"bytesUploaded,omitempty"`
-	ItemsRead      int   `json:"itemsRead,omitempty"`
-	ItemsWritten   int   `json:"itemsWritten,omitempty"`
-	ResourceOwners int   `json:"resourceOwners,omitempty"`
+	BytesRead            int64 `json:"bytesRead,omitempty"`
+	BytesUploaded        int64 `json:"bytesUploaded,omitempty"`
+	ItemsRead            int   `json:"itemsRead,omitempty"`
+	NonMetaBytesUploaded int64 `json:"nonMetaBytesUploaded,omitempty"`
+	NonMetaItemsWritten  int   `json:"nonMetaItemsWritten,omitempty"`
+	ItemsWritten         int   `json:"itemsWritten,omitempty"`
+	ResourceOwners       int   `json:"resourceOwners,omitempty"`
 }
 
 // StartAndEndTime tracks a paired starting time and ending time.

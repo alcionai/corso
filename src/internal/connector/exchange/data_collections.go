@@ -12,9 +12,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -65,8 +65,7 @@ type DeltaPath struct {
 func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
-	errs *fault.Bus,
-) (CatDeltaPaths, error) {
+) (CatDeltaPaths, bool, error) {
 	// cdp stores metadata
 	cdp := CatDeltaPaths{
 		path.ContactsCategory: {},
@@ -82,6 +81,10 @@ func parseMetadataCollections(
 		path.EventsCategory:   {},
 	}
 
+	// errors from metadata items should not stop the backup,
+	// but it should prevent us from using previous backups
+	errs := fault.New(true)
+
 	for _, coll := range colls {
 		var (
 			breakLoop bool
@@ -92,10 +95,10 @@ func parseMetadataCollections(
 		for {
 			select {
 			case <-ctx.Done():
-				return nil, clues.Wrap(ctx.Err(), "parsing collection metadata").WithClues(ctx)
+				return nil, false, clues.Wrap(ctx.Err(), "parsing collection metadata").WithClues(ctx)
 
 			case item, ok := <-items:
-				if !ok {
+				if !ok || errs.Failure() != nil {
 					breakLoop = true
 					break
 				}
@@ -107,13 +110,13 @@ func parseMetadataCollections(
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
-					return nil, clues.New("decoding metadata json").WithClues(ctx)
+					return nil, false, clues.New("decoding metadata json").WithClues(ctx)
 				}
 
 				switch item.UUID() {
 				case graph.PreviousPathFileName:
 					if _, ok := found[category]["path"]; ok {
-						return nil, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
+						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
 					}
 
 					for k, p := range m {
@@ -124,7 +127,7 @@ func parseMetadataCollections(
 
 				case graph.DeltaURLsFileName:
 					if _, ok := found[category]["delta"]; ok {
-						return nil, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
+						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
 					}
 
 					for k, d := range m {
@@ -143,6 +146,16 @@ func parseMetadataCollections(
 		}
 	}
 
+	if errs.Failure() != nil {
+		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
+
+		return CatDeltaPaths{
+			path.ContactsCategory: {},
+			path.EmailCategory:    {},
+			path.EventsCategory:   {},
+		}, false, nil
+	}
+
 	// Remove any entries that contain a path or a delta, but not both.
 	// That metadata is considered incomplete, and needs to incur a
 	// complete backup on the next run.
@@ -154,33 +167,32 @@ func parseMetadataCollections(
 		}
 	}
 
-	return cdp, nil
+	return cdp, true, nil
 }
 
 // DataCollections returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
-// Assumption: User exists
-//
-//	Add iota to this call -> mail, contacts, calendar,  etc.
 func DataCollections(
 	ctx context.Context,
+	ac api.Client,
 	selector selectors.Selector,
+	tenantID string,
 	user idname.Provider,
 	metadata []data.RestoreCollection,
-	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
 	}
 
 	var (
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
+		handlers    = BackupHandlers(ac)
 	)
 
 	// Turn on concurrency limiter middleware for exchange backups
@@ -189,9 +201,9 @@ func DataCollections(
 		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
 	}
 
-	cdps, err := parseMetadataCollections(ctx, metadata, errs)
+	cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, metadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	for _, scope := range eb.Scopes() {
@@ -201,7 +213,8 @@ func DataCollections(
 
 		dcs, err := createCollections(
 			ctx,
-			acct,
+			handlers,
+			tenantID,
 			user,
 			scope,
 			cdps[scope.Category().PathType()],
@@ -222,33 +235,20 @@ func DataCollections(
 		baseCols, err := graph.BaseCollections(
 			ctx,
 			collections,
-			acct.AzureTenantID,
+			tenantID,
 			user.ID(),
 			path.ExchangeService,
 			categories,
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, nil, el.Failure()
-}
-
-func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
-	switch category {
-	case path.EmailCategory:
-		return ac.Mail(), nil
-	case path.EventsCategory:
-		return ac.Events(), nil
-	case path.ContactsCategory:
-		return ac.Contacts(), nil
-	default:
-		return nil, clues.New("no api client registered for category")
-	}
+	return collections, nil, canUsePreviousBackup, el.Failure()
 }
 
 // createCollections - utility function that retrieves M365
@@ -256,7 +256,8 @@ func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedIte
 // determines the type of collections that are retrieved.
 func createCollections(
 	ctx context.Context,
-	creds account.M365Config,
+	handlers map[path.CategoryType]backupHandler,
+	tenantID string,
 	user idname.Provider,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
@@ -264,46 +265,40 @@ func createCollections(
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
+	ctx = clues.Add(ctx, "category", scope.Category().PathType())
+
 	var (
 		allCollections = make([]data.BackupCollection, 0)
 		category       = scope.Category().PathType()
+		qp             = graph.QueryParams{
+			Category:      category,
+			ResourceOwner: user,
+			TenantID:      tenantID,
+		}
 	)
 
-	ac, err := api.NewClient(creds)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting api client").WithClues(ctx)
+	handler, ok := handlers[category]
+	if !ok {
+		return nil, clues.New("unsupported backup category type").WithClues(ctx)
 	}
 
-	ctx = clues.Add(ctx, "category", category)
-
-	getter, err := getterByType(ac, category)
-	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
-	}
-
-	qp := graph.QueryParams{
-		Category:      category,
-		ResourceOwner: user,
-		Credentials:   creds,
-	}
-
-	foldersComplete, closer := observe.MessageWithCompletion(
+	foldersComplete := observe.MessageWithCompletion(
 		ctx,
 		observe.Bulletf("%s", qp.Category))
-	defer closer()
 	defer close(foldersComplete)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
-	if err != nil {
+	rootFolder, cc := handler.NewContainerCache(user.ID())
+
+	if err := cc.Populate(ctx, errs, rootFolder); err != nil {
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
 	collections, err := filterContainersAndFillCollections(
 		ctx,
 		qp,
-		getter,
+		handler,
 		su,
-		resolver,
+		cc,
 		scope,
 		dps,
 		ctrlOpts,

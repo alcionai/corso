@@ -418,18 +418,6 @@ func (w *conn) LoadSnapshot(
 	return man, nil
 }
 
-func (w *conn) LoadSnapshots(
-	ctx context.Context,
-	ids []manifest.ID,
-) ([]*snapshot.Manifest, error) {
-	mans, err := snapshot.LoadSnapshots(ctx, w.Repository, ids)
-	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
-	}
-
-	return mans, nil
-}
-
 func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
 	return snapshotfs.SnapshotRoot(w.Repository, man)
 }

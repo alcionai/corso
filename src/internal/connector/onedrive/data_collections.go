@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type odFolderMatcher struct {
@@ -34,27 +35,28 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	ac api.Client,
 	selector selectors.Selector,
 	user idname.Provider,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	tenant string,
-	itemClient graph.Requester,
-	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(err, "parsing selector").WithClues(ctx)
 	}
 
 	var (
-		el          = errs.Local()
-		categories  = map[path.CategoryType]struct{}{}
-		collections = []data.BackupCollection{}
-		ssmb        = prefixmatcher.NewStringSetBuilder()
+		el                   = errs.Local()
+		categories           = map[path.CategoryType]struct{}{}
+		collections          = []data.BackupCollection{}
+		ssmb                 = prefixmatcher.NewStringSetBuilder()
+		odcs                 []data.BackupCollection
+		canUsePreviousBackup bool
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -66,16 +68,14 @@ func DataCollections(
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
 		nc := NewCollections(
-			itemClient,
+			&itemBackupHandler{ac.Drives()},
 			tenant,
 			user.ID(),
-			OneDriveSource,
 			odFolderMatcher{scope},
-			service,
 			su,
 			ctrlOpts)
 
-		odcs, err := nc.Get(ctx, metadata, ssmb, errs)
+		odcs, canUsePreviousBackup, err = nc.Get(ctx, metadata, ssmb, errs)
 		if err != nil {
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
@@ -86,14 +86,13 @@ func DataCollections(
 	}
 
 	mcs, err := migrationCollections(
-		service,
 		lastBackupVersion,
 		tenant,
 		user,
 		su,
 		ctrlOpts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	collections = append(collections, mcs...)
@@ -109,18 +108,17 @@ func DataCollections(
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, ssmb.ToReader(), el.Failure()
+	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
 
 // adds data migrations to the collection set.
 func migrationCollections(
-	svc graph.Servicer,
 	lastBackupVersion int,
 	tenant string,
 	user idname.Provider,

@@ -27,11 +27,9 @@ const (
 var (
 	testT1 = time.Now()
 	testT2 = testT1.Add(1 * time.Hour)
-	testT3 = testT2.Add(1 * time.Hour)
 
 	testID1 = manifest.ID("snap1")
 	testID2 = manifest.ID("snap2")
-	testID3 = manifest.ID("snap3")
 
 	testBackup1 = "backupID1"
 	testBackup2 = "backupID2"
@@ -342,10 +340,10 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		},
 	}
 
-	bb, err := bf.FindBases(ctx, reasons, nil)
+	bb, err := bf.findBases(ctx, reasons, nil)
 	assert.NoError(t, err, "getting bases: %v", clues.ToCore(err))
-	assert.Empty(t, bb.MergeBases)
-	assert.Empty(t, bb.AssistBases)
+	assert.Empty(t, bb.mergeBases)
+	assert.Empty(t, bb.assistBases)
 }
 
 func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
@@ -366,10 +364,10 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		},
 	}
 
-	bb, err := bf.FindBases(ctx, reasons, nil)
+	bb, err := bf.findBases(ctx, reasons, nil)
 	assert.NoError(t, err, "getting bases: %v", clues.ToCore(err))
-	assert.Empty(t, bb.MergeBases)
-	assert.Empty(t, bb.AssistBases)
+	assert.Empty(t, bb.mergeBases)
+	assert.Empty(t, bb.assistBases)
 }
 
 func (suite *BaseFinderUnitSuite) TestGetBases() {
@@ -825,7 +823,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				bg: &mockModelGetter{data: test.backupData},
 			}
 
-			bb, err := bf.FindBases(
+			bb, err := bf.findBases(
 				ctx,
 				test.input,
 				nil)
@@ -833,17 +831,17 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 
 			checkBackupEntriesMatch(
 				t,
-				bb.Backups,
+				bb.backups,
 				test.backupData,
 				test.expectedBaseReasons)
 			checkManifestEntriesMatch(
 				t,
-				bb.MergeBases,
+				bb.mergeBases,
 				test.manifestData,
 				test.expectedBaseReasons)
 			checkManifestEntriesMatch(
 				t,
-				bb.AssistBases,
+				bb.assistBases,
 				test.manifestData,
 				test.expectedAssistManifestReasons)
 		})
@@ -920,7 +918,7 @@ func (suite *BaseFinderUnitSuite) TestFetchPrevSnapshots_CustomTags() {
 				bg: &mockModelGetter{data: backupData},
 			}
 
-			bb, err := bf.FindBases(
+			bb, err := bf.findBases(
 				ctx,
 				testAllUsersAllCats,
 				test.tags)
@@ -928,7 +926,7 @@ func (suite *BaseFinderUnitSuite) TestFetchPrevSnapshots_CustomTags() {
 
 			checkManifestEntriesMatch(
 				t,
-				bb.MergeBases,
+				bb.mergeBases,
 				manifestData,
 				test.expectedIdxs)
 		})

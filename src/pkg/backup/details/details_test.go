@@ -1033,6 +1033,84 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_cleansFileIDSuffixes() {
 	}
 }
 
+func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
+	var (
+		t    = suite.T()
+		b    = Builder{}
+		svc  = path.OneDriveService
+		cat  = path.FilesCategory
+		info = ItemInfo{
+			OneDrive: &OneDriveInfo{
+				ItemType:  OneDriveItem,
+				ItemName:  "in",
+				DriveName: "dn",
+				DriveID:   "d",
+			},
+		}
+
+		dataSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DataFileSuffix})
+		dataSfx2   = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i2" + metadata.DataFileSuffix})
+		dirMetaSfx = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.DirMetaFileSuffix})
+		metaSfx    = makeItemPath(t, svc, cat, "t", "u", []string{"d", "r:", "f", "i1" + metadata.MetaFileSuffix})
+	)
+
+	// Don't need to generate folders for this entry, we just want the itemRef
+	loc := &path.Builder{}
+
+	err := b.Add(dataSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(dataSfx2, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(dirMetaSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Add(metaSfx, loc, false, info)
+	require.NoError(t, err, clues.ToCore(err))
+
+	b.knownFolders = map[string]Entry{
+		"dummy": {
+			RepoRef:     "xyz",
+			ShortRef:    "abcd",
+			ParentRef:   "1234",
+			LocationRef: "ab",
+			ItemRef:     "cd",
+			Updated:     false,
+			ItemInfo:    info,
+		},
+		"dummy2": {
+			RepoRef:     "xyz2",
+			ShortRef:    "abcd2",
+			ParentRef:   "12342",
+			LocationRef: "ab2",
+			ItemRef:     "cd2",
+			Updated:     false,
+			ItemInfo:    info,
+		},
+		"dummy3": {
+			RepoRef:     "xyz3",
+			ShortRef:    "abcd3",
+			ParentRef:   "12343",
+			LocationRef: "ab3",
+			ItemRef:     "cd3",
+			Updated:     false,
+			ItemInfo:    info,
+		},
+	}
+
+	// mark the capacity prior to calling details.
+	// if the entries slice gets modified and grows to a
+	// 5th space, then the capacity would grow as well.
+	capCheck := cap(b.d.Entries)
+
+	assert.Len(t, b.Details().Entries, 7) // 4 ents + 3 known folders
+	assert.Len(t, b.Details().Entries, 7) // possible reason for err: knownFolders got added twice
+
+	assert.Len(t, b.d.Entries, 4)               // len should not have grown
+	assert.Equal(t, capCheck, cap(b.d.Entries)) // capacity should not have grown
+}
+
 func makeItemPath(
 	t *testing.T,
 	service path.ServiceType,

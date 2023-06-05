@@ -85,7 +85,7 @@ func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
 				ToggleFeatures: control.Toggles{},
 			}
 
-			mc, err := migrationCollections(nil, test.version, "t", u, nil, opts)
+			mc, err := migrationCollections(test.version, "t", u, nil, opts)
 			require.NoError(t, err, clues.ToCore(err))
 
 			if test.expectLen == 0 {

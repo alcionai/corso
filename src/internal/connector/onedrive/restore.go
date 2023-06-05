@@ -3,10 +3,13 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -19,7 +22,6 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -28,16 +30,17 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// copyBufferSize is used for chunked upload
-// Microsoft recommends 5-10MB buffers
-// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-const copyBufferSize = 5 * 1024 * 1024
+const (
+	// Maximum number of retries for upload failures
+	maxUploadRetries = 3
+)
 
 type restoreCaches struct {
 	Folders               *folderCache
 	ParentDirToMeta       map[string]metadata.Metadata
 	OldPermIDToNewID      map[string]string
 	DriveIDToRootFolderID map[string]string
+	pool                  sync.Pool
 }
 
 func NewRestoreCaches() *restoreCaches {
@@ -46,15 +49,21 @@ func NewRestoreCaches() *restoreCaches {
 		ParentDirToMeta:       map[string]metadata.Metadata{},
 		OldPermIDToNewID:      map[string]string{},
 		DriveIDToRootFolderID: map[string]string{},
+		// Buffer pool for uploads
+		pool: sync.Pool{
+			New: func() interface{} {
+				b := make([]byte, graph.CopyBufferSize)
+				return &b
+			},
+		},
 	}
 }
 
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
-	creds account.M365Config,
+	rh RestoreHandler,
 	backupVersion int,
-	service graph.Servicer,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
@@ -95,12 +104,10 @@ func RestoreCollections(
 
 		metrics, err = RestoreCollection(
 			ictx,
-			creds,
+			rh,
 			backupVersion,
-			service,
 			dc,
 			caches,
-			OneDriveSource,
 			dest.ContainerName,
 			deets,
 			opts.RestorePermissions,
@@ -133,22 +140,24 @@ func RestoreCollections(
 // - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
-	creds account.M365Config,
+	rh RestoreHandler,
 	backupVersion int,
-	service graph.Servicer,
 	dc data.RestoreCollection,
 	caches *restoreCaches,
-	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
 	restorePerms bool,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
-		metrics    = support.CollectionMetrics{}
-		copyBuffer = make([]byte, copyBufferSize)
-		directory  = dc.FullPath()
-		el         = errs.Local()
+		metrics        = support.CollectionMetrics{}
+		directory      = dc.FullPath()
+		el             = errs.Local()
+		metricsObjects int64
+		metricsBytes   int64
+		metricsSuccess int64
+		wg             sync.WaitGroup
+		complete       bool
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -160,7 +169,7 @@ func RestoreCollection(
 	}
 
 	if _, ok := caches.DriveIDToRootFolderID[drivePath.DriveID]; !ok {
-		root, err := api.GetDriveRoot(ctx, service, drivePath.DriveID)
+		root, err := rh.GetRootFolder(ctx, drivePath.DriveID)
 		if err != nil {
 			return metrics, clues.Wrap(err, "getting drive root id")
 		}
@@ -197,8 +206,7 @@ func RestoreCollection(
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := CreateRestoreFolders(
 		ctx,
-		creds,
-		service,
+		rh,
 		drivePath,
 		restoreDir,
 		dc.FullPath(),
@@ -212,8 +220,30 @@ func RestoreCollection(
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).ItemUpload())
+	defer close(semaphoreCh)
+
+	deetsLock := sync.Mutex{}
+
+	updateDeets := func(
+		ctx context.Context,
+		repoRef path.Path,
+		locationRef *path.Builder,
+		updated bool,
+		info details.ItemInfo,
+	) {
+		deetsLock.Lock()
+		defer deetsLock.Unlock()
+
+		err = deets.Add(repoRef, locationRef, updated, info)
+		if err != nil {
+			// Not critical enough to need to stop restore operation.
+			logger.CtxErr(ctx, err).Infow("adding restored item to details")
+		}
+	}
+
 	for {
-		if el.Failure() != nil {
+		if el.Failure() != nil || complete {
 			break
 		}
 
@@ -223,61 +253,72 @@ func RestoreCollection(
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, nil
+				// We've processed all items in this collection, exit the loop
+				complete = true
+				break
 			}
 
-			ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
+			wg.Add(1)
+			semaphoreCh <- struct{}{}
 
-			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
-				continue
-			}
+			go func(ctx context.Context, itemData data.Stream) {
+				defer wg.Done()
+				defer func() { <-semaphoreCh }()
 
-			itemInfo, skipped, err := restoreItem(
-				ictx,
-				creds,
-				dc,
-				backupVersion,
-				source,
-				service,
-				drivePath,
-				restoreFolderID,
-				copyBuffer,
-				caches,
-				restorePerms,
-				itemData,
-				itemPath)
+				copyBufferPtr := caches.pool.Get().(*[]byte)
+				defer caches.pool.Put(copyBufferPtr)
 
-			// skipped items don't get counted, but they can error
-			if !skipped {
-				metrics.Objects++
-				metrics.Bytes += int64(len(copyBuffer))
-			}
+				copyBuffer := *copyBufferPtr
+				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
 
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "restoring item"))
-				continue
-			}
+				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
+					return
+				}
 
-			if skipped {
-				logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
-				continue
-			}
+				itemInfo, skipped, err := restoreItem(
+					ictx,
+					rh,
+					dc,
+					backupVersion,
+					drivePath,
+					restoreFolderID,
+					copyBuffer,
+					caches,
+					restorePerms,
+					itemData,
+					itemPath)
 
-			err = deets.Add(
-				itemPath,
-				&path.Builder{}, // TODO: implement locationRef
-				true,
-				itemInfo)
-			if err != nil {
-				// Not critical enough to need to stop restore operation.
-				logger.CtxErr(ictx, err).Infow("adding restored item to details")
-			}
+				// skipped items don't get counted, but they can error
+				if !skipped {
+					atomic.AddInt64(&metricsObjects, 1)
+					atomic.AddInt64(&metricsBytes, int64(len(copyBuffer)))
+				}
 
-			metrics.Successes++
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "restoring item"))
+					return
+				}
+
+				if skipped {
+					logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
+					return
+				}
+
+				// TODO: implement locationRef
+				updateDeets(ictx, itemPath, &path.Builder{}, true, itemInfo)
+
+				atomic.AddInt64(&metricsSuccess, 1)
+			}(ctx, itemData)
 		}
 	}
+
+	wg.Wait()
+
+	metrics.Objects = int(metricsObjects)
+	metrics.Bytes = metricsBytes
+	metrics.Successes = int(metricsSuccess)
 
 	return metrics, el.Failure()
 }
@@ -286,11 +327,9 @@ func RestoreCollection(
 // returns the item info, a bool (true = restore was skipped), and an error
 func restoreItem(
 	ctx context.Context,
-	creds account.M365Config,
-	dc data.RestoreCollection,
+	rh RestoreHandler,
+	fibn data.FetchItemByNamer,
 	backupVersion int,
-	source driveSource,
-	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolderID string,
 	copyBuffer []byte,
@@ -305,9 +344,9 @@ func restoreItem(
 	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		itemInfo, err := restoreV0File(
 			ctx,
-			source,
-			service,
+			rh,
 			drivePath,
+			fibn,
 			restoreFolderID,
 			copyBuffer,
 			itemData)
@@ -354,11 +393,9 @@ func restoreItem(
 	if backupVersion < version.OneDrive6NameInMeta {
 		itemInfo, err := restoreV1File(
 			ctx,
-			source,
-			creds,
-			service,
+			rh,
 			drivePath,
-			dc,
+			fibn,
 			restoreFolderID,
 			copyBuffer,
 			restorePerms,
@@ -376,11 +413,9 @@ func restoreItem(
 
 	itemInfo, err := restoreV6File(
 		ctx,
-		source,
-		creds,
-		service,
+		rh,
 		drivePath,
-		dc,
+		fibn,
 		restoreFolderID,
 		copyBuffer,
 		restorePerms,
@@ -396,22 +431,22 @@ func restoreItem(
 
 func restoreV0File(
 	ctx context.Context,
-	source driveSource,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
+	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
 		ctx,
-		service,
+		rh,
+		fibn,
 		itemData.UUID(),
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
-		copyBuffer,
-		source)
+		copyBuffer)
 	if err != nil {
 		return itemInfo, clues.Wrap(err, "restoring file")
 	}
@@ -419,17 +454,11 @@ func restoreV0File(
 	return itemInfo, nil
 }
 
-type fileFetcher interface {
-	Fetch(ctx context.Context, name string) (data.Stream, error)
-}
-
 func restoreV1File(
 	ctx context.Context,
-	source driveSource,
-	creds account.M365Config,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
@@ -441,13 +470,13 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
-		service,
+		rh,
+		fibn,
 		trimmedName,
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
-		copyBuffer,
-		source)
+		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
 	}
@@ -461,15 +490,14 @@ func restoreV1File(
 	// Fetch item permissions from the collection and restore them.
 	metaName := trimmedName + metadata.MetaFileSuffix
 
-	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
+	meta, err := fetchAndReadMetadata(ctx, fibn, metaName)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
 	err = RestorePermissions(
 		ctx,
-		creds,
-		service,
+		rh,
 		drivePath.DriveID,
 		itemID,
 		itemPath,
@@ -484,11 +512,9 @@ func restoreV1File(
 
 func restoreV6File(
 	ctx context.Context,
-	source driveSource,
-	creds account.M365Config,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
 	restorePerms bool,
@@ -501,7 +527,7 @@ func restoreV6File(
 	// Get metadata file so we can determine the file name.
 	metaName := trimmedName + metadata.MetaFileSuffix
 
-	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
+	meta, err := fetchAndReadMetadata(ctx, fibn, metaName)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
@@ -524,13 +550,13 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
-		service,
+		rh,
+		fibn,
 		meta.FileName,
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
-		copyBuffer,
-		source)
+		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
 	}
@@ -543,8 +569,7 @@ func restoreV6File(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
-		service,
+		rh,
 		drivePath.DriveID,
 		itemID,
 		itemPath,
@@ -564,8 +589,7 @@ func restoreV6File(
 // folderCache is mutated, as a side effect of populating the items.
 func CreateRestoreFolders(
 	ctx context.Context,
-	creds account.M365Config,
-	service graph.Servicer,
+	rh RestoreHandler,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
 	folderPath path.Path,
@@ -575,7 +599,7 @@ func CreateRestoreFolders(
 ) (string, error) {
 	id, err := createRestoreFolders(
 		ctx,
-		service,
+		rh,
 		drivePath,
 		restoreDir,
 		caches)
@@ -594,8 +618,7 @@ func CreateRestoreFolders(
 
 	err = RestorePermissions(
 		ctx,
-		creds,
-		service,
+		rh,
 		drivePath.DriveID,
 		id,
 		folderPath,
@@ -605,12 +628,17 @@ func CreateRestoreFolders(
 	return id, err
 }
 
+type folderRestorer interface {
+	GetFolderByNamer
+	PostItemInContainerer
+}
+
 // createRestoreFolders creates the restore folder hierarchy in the specified
 // drive and returns the folder ID of the last folder entry in the hierarchy.
 // folderCache is mutated, as a side effect of populating the items.
 func createRestoreFolders(
 	ctx context.Context,
-	service graph.Servicer,
+	fr folderRestorer,
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
 	caches *restoreCaches,
@@ -641,7 +669,7 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := api.GetFolderByName(ictx, service, driveID, parentFolderID, folder)
+		folderItem, err := fr.GetFolderByName(ictx, driveID, parentFolderID, folder)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
 			return "", clues.Wrap(err, "getting folder by display name")
 		}
@@ -655,7 +683,7 @@ func createRestoreFolders(
 		}
 
 		// create the folder if not found
-		folderItem, err = CreateItem(ictx, service, driveID, parentFolderID, newItem(folder, true))
+		folderItem, err = fr.PostItemInContainer(ictx, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -669,15 +697,21 @@ func createRestoreFolders(
 	return parentFolderID, nil
 }
 
+type itemRestorer interface {
+	ItemInfoAugmenter
+	NewItemContentUploader
+	PostItemInContainerer
+}
+
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
-	service graph.Servicer,
+	ir itemRestorer,
+	fibn data.FetchItemByNamer,
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-	source driveSource,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
@@ -691,53 +725,81 @@ func restoreData(
 	}
 
 	// Create Item
-	newItem, err := CreateItem(ctx, service, driveID, parentFolderID, newItem(name, false))
+	newItem, err := ir.PostItemInContainer(ctx, driveID, parentFolderID, newItem(name, false))
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}
 
 	// Get a drive item writer
-	w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	w, uploadURL, err := driveItemWriter(ctx, ir, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
-		return "", details.ItemInfo{}, err
+		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
 	}
 
-	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(
-		ctx,
-		iReader,
-		observe.ItemRestoreMsg,
-		clues.Hide(name),
-		ss.Size())
+	var written int64
 
-	go closer()
+	// This is just to retry file upload, the uploadSession creation is
+	// not retried here We need extra logic to retry file upload as we
+	// have to pull the file again from kopia If we fail a file upload,
+	// we restart from scratch and try to upload again. Graph does not
+	// show "register" any partial file uploads and so if we fail an
+	// upload the file size will be 0.
+	for i := 0; i <= maxUploadRetries; i++ {
+		pname := name
+		iReader := itemData.ToReader()
 
-	// Upload the stream data
-	written, err := io.CopyBuffer(w, progReader, copyBuffer)
+		if i > 0 {
+			pname = fmt.Sprintf("%s (retry %d)", name, i)
+
+			// If it is not the first try, we have to pull the file
+			// again from kopia. Ideally we could just seek the stream
+			// but we don't have a Seeker available here.
+			itemData, err := fibn.FetchItemByName(ctx, itemData.UUID())
+			if err != nil {
+				return "", details.ItemInfo{}, clues.Wrap(err, "get data file")
+			}
+
+			iReader = itemData.ToReader()
+		}
+
+		progReader, abort := observe.ItemProgress(
+			ctx,
+			iReader,
+			observe.ItemRestoreMsg,
+			clues.Hide(pname),
+			ss.Size())
+
+		// Upload the stream data
+		written, err = io.CopyBuffer(w, progReader, copyBuffer)
+		if err == nil {
+			break
+		}
+
+		// clear out the bar if err
+		abort()
+
+		// refresh the io.Writer to restart the upload
+		// TODO: @vkamra verify if var session is the desired input
+		w = graph.NewLargeItemWriter(ptr.Val(newItem.GetId()), uploadURL, ss.Size())
+	}
+
 	if err != nil {
-		return "", details.ItemInfo{}, graph.Wrap(ctx, err, "writing item bytes")
+		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
 
-	dii := details.ItemInfo{}
-
-	switch source {
-	case SharePointSource:
-		dii.SharePoint = sharePointItemInfo(newItem, written)
-	default:
-		dii.OneDrive = oneDriveItemInfo(newItem, written)
-	}
+	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
 
 	return ptr.Val(newItem.GetId()), dii, nil
 }
 
 func fetchAndReadMetadata(
 	ctx context.Context,
-	fetcher fileFetcher,
+	fibn data.FetchItemByNamer,
 	metaName string,
 ) (metadata.Metadata, error) {
 	ctx = clues.Add(ctx, "meta_file_name", metaName)
 
-	metaFile, err := fetcher.Fetch(ctx, metaName)
+	metaFile, err := fibn.FetchItemByName(ctx, metaName)
 	if err != nil {
 		return metadata.Metadata{}, clues.Wrap(err, "getting item metadata")
 	}

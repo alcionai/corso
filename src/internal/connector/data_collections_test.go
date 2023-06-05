@@ -12,7 +12,6 @@ import (
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -21,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,8 +29,10 @@ import (
 
 type DataCollectionIntgSuite struct {
 	tester.Suite
-	user string
-	site string
+	user     string
+	site     string
+	tenantID string
+	ac       api.Client
 }
 
 func TestDataCollectionIntgSuite(t *testing.T) {
@@ -42,10 +44,19 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 }
 
 func (suite *DataCollectionIntgSuite) SetupSuite() {
-	suite.user = tester.M365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
+	t := suite.T()
 
-	tester.LogTimeOfTest(suite.T())
+	suite.user = tester.M365UserID(t)
+	suite.site = tester.M365SiteID(t)
+
+	acct := tester.NewM365Account(t)
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.tenantID = creds.AzureTenantID
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 // TestExchangeDataCollection verifies interface between operation and
@@ -111,20 +122,23 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				defer flush()
 
 				sel := test.getSelector(t)
+				uidn := inMock.NewProvider(sel.ID(), sel.Name())
 
 				ctrlOpts := control.Defaults()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
-				collections, excludes, err := exchange.DataCollections(
+				collections, excludes, canUsePreviousBackup, err := exchange.DataCollections(
 					ctx,
+					suite.ac,
 					sel,
-					sel,
+					suite.tenantID,
+					uidn,
 					nil,
-					connector.credentials,
 					connector.UpdateStatus,
 					ctrlOpts,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
+				assert.True(t, canUsePreviousBackup, "can use previous backup")
 				assert.True(t, excludes.Empty())
 
 				for range collections {
@@ -133,7 +147,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 				// Categories with delta endpoints will produce a collection for metadata
 				// as well as the actual data pulled, and the "temp" root collection.
-				assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
+				assert.LessOrEqual(t, 1, len(collections), "expected 1 <= num collections <= 3")
 				assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
 
 				for _, col := range collections {
@@ -224,7 +238,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			collections, excludes, err := connector.ProduceBackupCollections(
+			collections, excludes, canUsePreviousBackup, err := connector.ProduceBackupCollections(
 				ctx,
 				test.getSelector(t),
 				test.getSelector(t),
@@ -233,6 +247,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				control.Defaults(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
+			assert.False(t, canUsePreviousBackup, "can use previous backup")
 			assert.Empty(t, collections)
 			assert.Nil(t, excludes)
 		})
@@ -282,18 +297,18 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			sel := test.getSelector()
 
-			collections, excludes, err := sharepoint.DataCollections(
+			collections, excludes, canUsePreviousBackup, err := sharepoint.DataCollections(
 				ctx,
-				graph.NewNoTimeoutHTTPWrapper(),
+				suite.ac,
 				sel,
 				sel,
 				nil,
 				connector.credentials,
-				connector.Service,
 				connector,
 				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.True(t, excludes.Empty())
 
@@ -369,7 +384,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,
@@ -378,6 +393,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
 	assert.True(t, excludes.Empty())
@@ -415,7 +431,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,
@@ -424,6 +440,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		control.Defaults(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
 	assert.True(t, excludes.Empty())

@@ -70,19 +70,24 @@ type BackupCollection interface {
 // RestoreCollection is an extension of Collection that is used during restores.
 type RestoreCollection interface {
 	Collection
+	FetchItemByNamer
+}
+
+type FetchItemByNamer interface {
 	// Fetch retrieves an item with the given name from the Collection if it
 	// exists. Items retrieved with Fetch may still appear in the channel returned
 	// by Items().
-	Fetch(ctx context.Context, name string) (Stream, error)
+	FetchItemByName(ctx context.Context, name string) (Stream, error)
 }
 
-// NotFoundRestoreCollection is a wrapper for a Collection that returns
+// NoFetchRestoreCollection is a wrapper for a Collection that returns
 // ErrNotFound for all Fetch calls.
-type NotFoundRestoreCollection struct {
+type NoFetchRestoreCollection struct {
 	Collection
+	FetchItemByNamer
 }
 
-func (c NotFoundRestoreCollection) Fetch(context.Context, string) (Stream, error) {
+func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Stream, error) {
 	return nil, ErrNotFound
 }
 

@@ -55,14 +55,7 @@ func CloneMessageableFields(orig, message models.Messageable) models.Messageable
 
 func toMessage(orig models.Messageable) models.Messageable {
 	message := models.NewMessage()
-	temp := CloneMessageableFields(orig, message)
-
-	aMessage, ok := temp.(*models.Message)
-	if !ok {
-		return nil
-	}
-
-	return aMessage
+	return CloneMessageableFields(orig, message)
 }
 
 // ToEventSimplified transforms an event to simplified restore format

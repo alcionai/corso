@@ -36,13 +36,13 @@ type RestoreOperation struct {
 	operation
 
 	BackupID    model.StableID             `json:"backupID"`
+	Destination control.RestoreDestination `json:"destination"`
 	Results     RestoreResults             `json:"results"`
 	Selectors   selectors.Selector         `json:"selectors"`
-	Destination control.RestoreDestination `json:"destination"`
 	Version     string                     `json:"version"`
 
-	account account.Account
-	rc      inject.RestoreConsumer
+	acct account.Account
+	rc   inject.RestoreConsumer
 }
 
 // RestoreResults aggregate the details of the results of the operation.
@@ -66,11 +66,11 @@ func NewRestoreOperation(
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
 		operation:   newOperation(opts, bus, kw, sw),
+		acct:        acct,
 		BackupID:    backupID,
-		Selectors:   sel,
 		Destination: dest,
+		Selectors:   sel,
 		Version:     "v0",
-		account:     acct,
 		rc:          rc,
 	}
 	if err := op.validate(); err != nil {
@@ -116,7 +116,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			restoreID: uuid.NewString(),
 		}
 		start  = time.Now()
-		sstore = streamstore.NewStreamer(op.kopia, op.account.ID(), op.Selectors.PathService())
+		sstore = streamstore.NewStreamer(op.kopia, op.acct.ID(), op.Selectors.PathService())
 	)
 
 	// -----
@@ -135,7 +135,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	ctx = clues.Add(
 		ctx,
-		"tenant_id", clues.Hide(op.account.ID()),
+		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
 		"destination_container", clues.Hide(op.Destination.ContainerName))
@@ -194,6 +194,10 @@ func (op *RestoreOperation) do(
 	detailsStore streamstore.Reader,
 	start time.Time,
 ) (*details.Details, error) {
+	logger.Ctx(ctx).
+		With("control_options", op.Options, "selectors", op.Selectors).
+		Info("restoring selection")
+
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -213,7 +217,8 @@ func (op *RestoreOperation) do(
 
 	ctx = clues.Add(
 		ctx,
-		"resource_owner", bup.Selector.DiscreteOwner,
+		"resource_owner_id", bup.Selector.ID(),
+		"resource_owner_name", clues.Hide(bup.Selector.Name()),
 		"details_entries", len(deets.Entries),
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
@@ -230,10 +235,8 @@ func (op *RestoreOperation) do(
 		})
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
-	logger.Ctx(ctx).With("control_options", op.Options, "selectors", op.Selectors).Info("restoring selection")
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
-	defer closer()
+	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
@@ -253,7 +256,6 @@ func (op *RestoreOperation) do(
 		ctx,
 		op.rc,
 		bup.Version,
-		op.account,
 		op.Selectors,
 		op.Destination,
 		op.Options,
@@ -311,24 +313,21 @@ func consumeRestoreCollections(
 	ctx context.Context,
 	rc inject.RestoreConsumer,
 	backupVersion int,
-	acct account.Account,
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 ) (*details.Details, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
+	complete := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	deets, err := rc.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
-		acct,
 		sel,
 		dest,
 		opts,

@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -50,7 +49,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		gc   = &mock.GraphConnector{}
-		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination("")
 	)
@@ -70,7 +68,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 					NumBytes: 42,
 				},
 				cs: []data.RestoreCollection{
-					data.NotFoundRestoreCollection{
+					data.NoFetchRestoreCollection{
 						Collection: &exchMock.DataCollection{},
 					},
 				},
@@ -112,7 +110,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				kw,
 				sw,
 				gc,
-				acct,
+				account.Account{},
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
@@ -220,7 +218,6 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		gc   = &mock.GraphConnector{}
-		acct = tester.NewM365Account(suite.T())
 		dest = tester.DefaultTestRestoreDestination("")
 		opts = control.Defaults()
 	)
@@ -230,18 +227,19 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
 		rc       inject.RestoreConsumer
-		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
-		{"missing restore consumer", kw, sw, nil, acct, nil, assert.Error},
+		{"good", kw, sw, gc, nil, assert.NoError},
+		{"missing kopia", nil, sw, gc, nil, assert.Error},
+		{"missing modelstore", kw, nil, gc, nil, assert.Error},
+		{"missing restore consumer", kw, sw, nil, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext(suite.T())
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			_, err := NewRestoreOperation(
@@ -250,12 +248,12 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.kw,
 				test.sw,
 				test.rc,
-				test.acct,
+				tester.NewM365Account(t),
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			test.errCheck(suite.T(), err, clues.ToCore(err))
+			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -346,18 +344,7 @@ func setupSharePointBackup(
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	// get the count of drives
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	service := graph.NewService(adpt)
-	spPgr := api.NewSiteDrivePager(service, owner, []string{"id", "name"})
+	spPgr := gc.AC.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
 
 	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
 	require.NoError(t, err, clues.ToCore(err))

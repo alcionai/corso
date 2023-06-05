@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -676,181 +675,69 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 // integration suite
 // ---------------------------------------------------------------------------
 
-type FolderCacheIntegrationSuite struct {
-	tester.Suite
-	credentials account.M365Config
-	gs          graph.Servicer
-}
-
-func TestFolderCacheIntegrationSuite(t *testing.T) {
-	suite.Run(t, &FolderCacheIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
-			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
-	})
-}
-
-func (suite *FolderCacheIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	a := tester.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.credentials = m365
-
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.gs = graph.NewService(adpt)
-}
-
-// Testing to ensure that cache system works for in multiple different environments
-func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
-	a := tester.NewM365Account(suite.T())
-	m365, err := a.M365Config()
-	require.NoError(suite.T(), err, clues.ToCore(err))
+func runCreateDestinationTest(
+	t *testing.T,
+	handler restoreHandler,
+	category path.CategoryType,
+	tenantID, userID, destinationName string,
+	containerNames1 []string,
+	containerNames2 []string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	var (
-		user            = tester.M365UserID(suite.T())
-		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
-		folderName      = tester.DefaultTestRestoreDestination("").ContainerName
-		tests           = []struct {
-			name         string
-			pathFunc1    func(t *testing.T) path.Path
-			pathFunc2    func(t *testing.T) path.Path
-			category     path.CategoryType
-			folderPrefix string
-		}{
-			{
-				name:     "Mail Cache Test",
-				category: path.EmailCategory,
-				pathFunc1: func(t *testing.T) path.Path {
-					pth, err := path.Build(
-						suite.credentials.AzureTenantID,
-						user,
-						path.ExchangeService,
-						path.EmailCategory,
-						false,
-						"Griffindor", "Croix")
-					require.NoError(t, err, clues.ToCore(err))
-
-					return pth
-				},
-				pathFunc2: func(t *testing.T) path.Path {
-					pth, err := path.Build(
-						suite.credentials.AzureTenantID,
-						user,
-						path.ExchangeService,
-						path.EmailCategory,
-						false,
-						"Griffindor", "Felicius")
-					require.NoError(t, err, clues.ToCore(err))
-
-					return pth
-				},
-			},
-			{
-				name:     "Contact Cache Test",
-				category: path.ContactsCategory,
-				pathFunc1: func(t *testing.T) path.Path {
-					pth, err := path.Build(
-						suite.credentials.AzureTenantID,
-						user,
-						path.ExchangeService,
-						path.ContactsCategory,
-						false,
-						"HufflePuff")
-					require.NoError(t, err, clues.ToCore(err))
-
-					return pth
-				},
-				pathFunc2: func(t *testing.T) path.Path {
-					pth, err := path.Build(
-						suite.credentials.AzureTenantID,
-						user,
-						path.ExchangeService,
-						path.ContactsCategory,
-						false,
-						"Ravenclaw")
-					require.NoError(t, err, clues.ToCore(err))
-
-					return pth
-				},
-			},
-			{
-				name:     "Event Cache Test",
-				category: path.EventsCategory,
-				pathFunc1: func(t *testing.T) path.Path {
-					pth, err := path.Build(
-						suite.credentials.AzureTenantID,
-						user,
-						path.ExchangeService,
-						path.EventsCategory,
-						false,
-						"Durmstrang")
-					require.NoError(t, err, clues.ToCore(err))
-
-					return pth
-				},
-				pathFunc2: func(t *testing.T) path.Path {
-					pth, err := path.Build(
-						suite.credentials.AzureTenantID,
-						user,
-						path.ExchangeService,
-						path.EventsCategory,
-						false,
-						"Beauxbatons")
-					require.NoError(t, err, clues.ToCore(err))
-
-					return pth
-				},
-			},
-		}
+		svc = path.ExchangeService
+		gcr = handler.newContainerCache(userID)
 	)
 
-	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
+	path1, err := path.Build(
+		tenantID,
+		userID,
+		svc,
+		category,
+		false,
+		containerNames1...)
+	require.NoError(t, err, clues.ToCore(err))
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+	containerID, gcr, err := createDestination(
+		ctx,
+		handler,
+		handler.formatRestoreDestination(destinationName, path1),
+		userID,
+		gcr,
+		true,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
 
-			folderID, err := CreateContainerDestination(
-				ctx,
-				m365,
-				test.pathFunc1(t),
-				folderName,
-				directoryCaches,
-				fault.New(true))
-			require.NoError(t, err, clues.ToCore(err))
+	_, _, err = gcr.IDToPath(ctx, containerID)
+	assert.NoError(t, err, clues.ToCore(err))
 
-			resolver := directoryCaches[test.category]
+	path2, err := path.Build(
+		tenantID,
+		userID,
+		svc,
+		category,
+		false,
+		containerNames2...)
+	require.NoError(t, err, clues.ToCore(err))
 
-			_, _, err = resolver.IDToPath(ctx, folderID)
-			assert.NoError(t, err, clues.ToCore(err))
+	containerID, gcr, err = createDestination(
+		ctx,
+		handler,
+		handler.formatRestoreDestination(destinationName, path2),
+		userID,
+		gcr,
+		false,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
 
-			secondID, err := CreateContainerDestination(
-				ctx,
-				m365,
-				test.pathFunc2(t),
-				folderName,
-				directoryCaches,
-				fault.New(true))
-			require.NoError(t, err, clues.ToCore(err))
+	p, l, err := gcr.IDToPath(ctx, containerID)
+	require.NoError(t, err, clues.ToCore(err))
 
-			p, l, err := resolver.IDToPath(ctx, secondID)
-			require.NoError(t, err, clues.ToCore(err))
+	_, ok := gcr.LocationInCache(l.String())
+	require.True(t, ok, "looking for location in cache: %s", l)
 
-			_, ok := resolver.LocationInCache(l.String())
-			require.True(t, ok, "looking for location in cache: %s", l)
-
-			_, ok = resolver.PathInCache(p.String())
-			require.True(t, ok, "looking for path in cache: %s", p)
-		})
-	}
+	_, ok = gcr.PathInCache(p.String())
+	require.True(t, ok, "looking for path in cache: %s", p)
 }

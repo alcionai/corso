@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -27,7 +26,7 @@ type (
 			lastBackupVersion int,
 			ctrlOpts control.Options,
 			errs *fault.Bus,
-		) ([]data.BackupCollection, prefixmatcher.StringSetReader, error)
+		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
 
 		Wait() *data.CollectionStats
@@ -37,7 +36,6 @@ type (
 		ConsumeRestoreCollections(
 			ctx context.Context,
 			backupVersion int,
-			acct account.Account,
 			selector selectors.Selector,
 			dest control.RestoreDestination,
 			opts control.Options,

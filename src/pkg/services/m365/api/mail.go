@@ -64,10 +64,10 @@ func (c Mail) CreateMailFolder(
 	return mdl, nil
 }
 
-func (c Mail) CreateMailFolderWithParent(
+func (c Mail) CreateContainer(
 	ctx context.Context,
 	userID, containerName, parentContainerID string,
-) (models.MailFolderable, error) {
+) (graph.Container, error) {
 	isHidden := false
 	body := models.NewMailFolder()
 	body.SetDisplayName(&containerName)
@@ -197,12 +197,12 @@ type mailFolderPager struct {
 	builder *users.ItemMailFoldersRequestBuilder
 }
 
-func NewMailFolderPager(service graph.Servicer, userID string) mailFolderPager {
+func (c Mail) NewMailFolderPager(userID string) mailFolderPager {
 	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
 	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, userID)
-	builder := users.NewItemMailFoldersRequestBuilder(rawURL, service.Adapter())
+	builder := users.NewItemMailFoldersRequestBuilder(rawURL, c.Stable.Adapter())
 
-	return mailFolderPager{service, builder}
+	return mailFolderPager{c.Stable, builder}
 }
 
 func (p *mailFolderPager) getPage(ctx context.Context) (PageLinker, error) {
@@ -241,7 +241,7 @@ func (c Mail) EnumerateContainers(
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
-	pgr := NewMailFolderPager(c.Stable, userID)
+	pgr := c.NewMailFolderPager(userID)
 
 	for {
 		if el.Failure() != nil {
@@ -544,9 +544,8 @@ type mailPager struct {
 	options *users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration
 }
 
-func NewMailPager(
+func (c Mail) NewMailPager(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, containerID string,
 	immutableIDs bool,
 ) itemPager {
@@ -557,7 +556,7 @@ func NewMailPager(
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
-	builder := gs.
+	builder := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -565,7 +564,7 @@ func NewMailPager(
 		ByMailFolderId(containerID).
 		Messages()
 
-	return &mailPager{gs, builder, config}
+	return &mailPager{c.Stable, builder, config}
 }
 
 func (p *mailPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
@@ -620,9 +619,8 @@ func getMailDeltaBuilder(
 	return builder
 }
 
-func NewMailDeltaPager(
+func (c Mail) NewMailDeltaPager(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
 ) itemPager {
@@ -636,12 +634,12 @@ func NewMailDeltaPager(
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
 
 	if len(oldDelta) > 0 {
-		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter())
+		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
 	} else {
-		builder = getMailDeltaBuilder(ctx, gs, userID, containerID, config)
+		builder = getMailDeltaBuilder(ctx, c.Stable, userID, containerID, config)
 	}
 
-	return &mailDeltaPager{gs, userID, containerID, builder, config}
+	return &mailDeltaPager{c.Stable, userID, containerID, builder, config}
 }
 
 func (p *mailDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
@@ -683,8 +681,8 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", containerID)
 
-	pager := NewMailPager(ctx, c.Stable, userID, containerID, immutableIDs)
-	deltaPager := NewMailDeltaPager(ctx, c.Stable, userID, containerID, oldDelta, immutableIDs)
+	pager := c.NewMailPager(ctx, userID, containerID, immutableIDs)
+	deltaPager := c.NewMailDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs)
 
 	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
