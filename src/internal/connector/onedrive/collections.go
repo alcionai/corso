@@ -187,9 +187,6 @@ func deserializeMetadata(
 
 	// if reads from items failed, return empty but no error
 	if errs.Failure() != nil {
-		// TODO(meain): Should we consider failing only if we fail to
-		// read `previouspath` and use the metadata if we just fail on
-		// `delta`?
 		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
 
 		return map[string]string{}, map[string]map[string]string{}, false, nil

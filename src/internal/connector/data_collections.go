@@ -70,7 +70,6 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	}
 
 	if !serviceEnabled {
-		// TODO(meain): How would this work? Should we try pulling to decide?
 		return []data.BackupCollection{}, nil, false, nil
 	}
 
