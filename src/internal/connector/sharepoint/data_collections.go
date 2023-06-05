@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type statusUpdater interface {
@@ -29,12 +30,11 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
-	itemClient graph.Requester,
+	ac api.Client,
 	selector selectors.Selector,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
 	creds account.M365Config,
-	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
@@ -73,7 +73,7 @@ func DataCollections(
 		case path.ListsCategory:
 			spcs, err = collectLists(
 				ctx,
-				serv,
+				ac,
 				creds.AzureTenantID,
 				site,
 				su,
@@ -87,8 +87,7 @@ func DataCollections(
 		case path.LibrariesCategory:
 			spcs, canUsePreviousBackup, err = collectLibraries(
 				ctx,
-				itemClient,
-				serv,
+				ac.Drives(),
 				creds.AzureTenantID,
 				site,
 				metadata,
@@ -106,7 +105,7 @@ func DataCollections(
 			spcs, err = collectPages(
 				ctx,
 				creds,
-				serv,
+				ac,
 				site,
 				su,
 				ctrlOpts,
@@ -145,7 +144,7 @@ func DataCollections(
 
 func collectLists(
 	ctx context.Context,
-	serv graph.Servicer,
+	ac api.Client,
 	tenantID string,
 	site idname.Provider,
 	updater statusUpdater,
@@ -159,7 +158,7 @@ func collectLists(
 		spcs = make([]data.BackupCollection, 0)
 	)
 
-	lists, err := preFetchLists(ctx, serv, site.ID())
+	lists, err := preFetchLists(ctx, ac.Stable, site.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +179,12 @@ func collectLists(
 			el.AddRecoverable(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
-		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
+		collection := NewCollection(
+			dir,
+			ac,
+			List,
+			updater.UpdateStatus,
+			ctrlOpts)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
@@ -193,8 +197,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	itemClient graph.Requester,
-	serv graph.Servicer,
+	ad api.Drives,
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
@@ -209,12 +212,10 @@ func collectLibraries(
 	var (
 		collections = []data.BackupCollection{}
 		colls       = onedrive.NewCollections(
-			itemClient,
+			&libraryBackupHandler{ad},
 			tenantID,
 			site.ID(),
-			onedrive.SharePointSource,
 			folderMatcher{scope},
-			serv,
 			updater.UpdateStatus,
 			ctrlOpts)
 	)
@@ -232,7 +233,7 @@ func collectLibraries(
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
-	serv graph.Servicer,
+	ac api.Client,
 	site idname.Provider,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -278,7 +279,12 @@ func collectPages(
 			el.AddRecoverable(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
-		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
+		collection := NewCollection(
+			dir,
+			ac,
+			Pages,
+			updater.UpdateStatus,
+			ctrlOpts)
 		collection.betaService = betaService
 		collection.AddJob(tuple.ID)
 

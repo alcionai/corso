@@ -4,18 +4,16 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -25,7 +23,7 @@ type ItemIntegrationSuite struct {
 	tester.Suite
 	user        string
 	userDriveID string
-	service     graph.Servicer
+	service     *oneDriveService
 }
 
 func TestItemIntegrationSuite(t *testing.T) {
@@ -46,8 +44,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.service = loadTestService(t)
 	suite.user = tester.SecondaryM365UserID(t)
 
-	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
-	require.NoError(t, err, clues.ToCore(err))
+	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 
 	odDrives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	require.NoError(t, err, clues.ToCore(err))
@@ -83,6 +80,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		_ bool,
 		_ *fault.Bus,
 	) error {
+		if driveItem != nil {
+			return nil
+		}
+
 		for _, item := range items {
 			if item.GetFile() != nil && ptr.Val(item.GetSize()) > 0 {
 				driveItem = item
@@ -92,12 +93,14 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
+
+	ip := suite.service.ac.
+		Drives().
+		NewItemPager(suite.userDriveID, "", api.DriveItemSelectDefault())
+
 	_, _, _, err := collectItems(
 		ctx,
-		defaultItemPager(
-			suite.service,
-			suite.userDriveID,
-			""),
+		ip,
 		suite.userDriveID,
 		"General",
 		itemCollector,
@@ -114,19 +117,15 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.user,
 		suite.userDriveID)
 
-	// Read data for the file
-	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.NewNoTimeoutHTTPWrapper(), driveItem)
+	bh := itemBackupHandler{suite.service.ac.Drives()}
 
+	// Read data for the file
+	itemData, err := downloadItem(ctx, bh, driveItem)
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotNil(t, itemInfo.OneDrive)
-	require.NotEmpty(t, itemInfo.OneDrive.ItemName)
 
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotZero(t, size)
-	require.Equal(t, size, itemInfo.OneDrive.Size)
-
-	t.Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive
@@ -148,21 +147,19 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			rh := NewRestoreHandler(suite.service.ac)
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			srv := suite.service
-
-			root, err := api.GetDriveRoot(ctx, srv, test.driveID)
+			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
 			t.Logf("creating folder %s", newFolderName)
 
-			newFolder, err := CreateItem(
+			newFolder, err := rh.PostItemInContainer(
 				ctx,
-				srv,
 				test.driveID,
 				ptr.Val(root.GetId()),
 				newItem(newFolderName, true))
@@ -172,9 +169,8 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
 			t.Logf("creating item %s", newItemName)
 
-			newItem, err := CreateItem(
+			newItem, err := rh.PostItemInContainer(
 				ctx,
-				srv,
 				test.driveID,
 				ptr.Val(newFolder.GetId()),
 				newItem(newItemName, false))
@@ -183,18 +179,23 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
-			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(newFolder.GetId()), newItemName)
+			_, err = suite.service.ac.Drives().GetFolderByName(
+				ctx,
+				test.driveID,
+				ptr.Val(newFolder.GetId()),
+				newItemName)
 			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
-			itemID := ptr.Val(newItem.GetId())
-
-			r, err := api.PostDriveItem(ctx, srv, test.driveID, itemID)
+			w, _, err := driveItemWriter(
+				ctx,
+				rh,
+				test.driveID,
+				ptr.Val(newItem.GetId()),
+				writeSize)
 			require.NoError(t, err, clues.ToCore(err))
-
-			w := graph.NewLargeItemWriter(itemID, ptr.Val(r.GetUploadUrl()), writeSize)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
 			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
@@ -235,72 +236,40 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			srv := suite.service
-
-			root, err := api.GetDriveRoot(ctx, srv, test.driveID)
+			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist
-			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "FolderDoesNotExist")
+			_, err = suite.service.ac.Drives().GetFolderByName(
+				ctx,
+				test.driveID,
+				ptr.Val(root.GetId()),
+				"FolderDoesNotExist")
 			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Lookup a folder that does exist
-			_, err = api.GetFolderByName(ctx, srv, test.driveID, ptr.Val(root.GetId()), "")
+			_, err = suite.service.ac.Drives().GetFolderByName(
+				ctx,
+				test.driveID,
+				ptr.Val(root.GetId()),
+				"")
 			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
 
-func getPermsAndResourceOwnerPerms(
-	permID, resourceOwner string,
-	gv2t metadata.GV2Type,
-	scopes []string,
-) (models.Permissionable, metadata.Permission) {
-	sharepointIdentitySet := models.NewSharePointIdentitySet()
+// Unit tests
 
-	switch gv2t {
-	case metadata.GV2App, metadata.GV2Device, metadata.GV2Group, metadata.GV2User:
-		identity := models.NewIdentity()
-		identity.SetId(&resourceOwner)
-		identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
+type mockGetter struct {
+	GetFunc func(ctx context.Context, url string) (*http.Response, error)
+}
 
-		switch gv2t {
-		case metadata.GV2User:
-			sharepointIdentitySet.SetUser(identity)
-		case metadata.GV2Group:
-			sharepointIdentitySet.SetGroup(identity)
-		case metadata.GV2App:
-			sharepointIdentitySet.SetApplication(identity)
-		case metadata.GV2Device:
-			sharepointIdentitySet.SetDevice(identity)
-		}
-
-	case metadata.GV2SiteUser, metadata.GV2SiteGroup:
-		spIdentity := models.NewSharePointIdentity()
-		spIdentity.SetId(&resourceOwner)
-		spIdentity.SetAdditionalData(map[string]any{"email": &resourceOwner})
-
-		switch gv2t {
-		case metadata.GV2SiteUser:
-			sharepointIdentitySet.SetSiteUser(spIdentity)
-		case metadata.GV2SiteGroup:
-			sharepointIdentitySet.SetSiteGroup(spIdentity)
-		}
-	}
-
-	perm := models.NewPermission()
-	perm.SetId(&permID)
-	perm.SetRoles([]string{"read"})
-	perm.SetGrantedToV2(sharepointIdentitySet)
-
-	ownersPerm := metadata.Permission{
-		ID:         permID,
-		Roles:      []string{"read"},
-		EntityID:   resourceOwner,
-		EntityType: gv2t,
-	}
-
-	return perm, ownersPerm
+func (m mockGetter) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return m.GetFunc(ctx, url)
 }
 
 type ItemUnitTestSuite struct {
@@ -311,134 +280,153 @@ func TestItemUnitTestSuite(t *testing.T) {
 	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ItemUnitTestSuite) TestDrivePermissionsFilter() {
-	var (
-		pID  = "fakePermId"
-		uID  = "fakeuser@provider.com"
-		uID2 = "fakeuser2@provider.com"
-		own  = []string{"owner"}
-		r    = []string{"read"}
-		rw   = []string{"read", "write"}
-	)
+func (suite *ItemUnitTestSuite) TestDownloadItem() {
+	testRc := io.NopCloser(bytes.NewReader([]byte("test")))
+	url := "https://example.com"
 
-	userOwnerPerm, userOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2User, own)
-	userReadPerm, userReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2User, r)
-	userReadWritePerm, userReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2User, rw)
-	siteUserOwnerPerm, siteUserOwnerROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteUser, own)
-	siteUserReadPerm, siteUserReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteUser, r)
-	siteUserReadWritePerm, siteUserReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2SiteUser, rw)
-
-	groupReadPerm, groupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2Group, r)
-	groupReadWritePerm, groupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2Group, rw)
-	siteGroupReadPerm, siteGroupReadROperm := getPermsAndResourceOwnerPerms(pID, uID, metadata.GV2SiteGroup, r)
-	siteGroupReadWritePerm, siteGroupReadWriteROperm := getPermsAndResourceOwnerPerms(pID, uID2, metadata.GV2SiteGroup, rw)
-
-	noPerm, _ := getPermsAndResourceOwnerPerms(pID, uID, "user", []string{"read"})
-	noPerm.SetGrantedToV2(nil) // eg: link shares
-
-	cases := []struct {
-		name              string
-		graphPermissions  []models.Permissionable
-		parsedPermissions []metadata.Permission
+	table := []struct {
+		name          string
+		itemFunc      func() models.DriveItemable
+		GetFunc       func(ctx context.Context, url string) (*http.Response, error)
+		errorExpected require.ErrorAssertionFunc
+		rcExpected    require.ValueAssertionFunc
+		label         string
 	}{
 		{
-			name:              "no perms",
-			graphPermissions:  []models.Permissionable{},
-			parsedPermissions: []metadata.Permission{},
+			name: "nil item",
+			itemFunc: func() models.DriveItemable {
+				return nil
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return nil, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
-			name:              "no user bound to perms",
-			graphPermissions:  []models.Permissionable{noPerm},
-			parsedPermissions: []metadata.Permission{},
-		},
+			name: "success",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
 
-		// user
-		{
-			name:              "user with read permissions",
-			graphPermissions:  []models.Permissionable{userReadPerm},
-			parsedPermissions: []metadata.Permission{userReadROperm},
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.NoError,
+			rcExpected:    require.NotNil,
 		},
 		{
-			name:              "user with owner permissions",
-			graphPermissions:  []models.Permissionable{userOwnerPerm},
-			parsedPermissions: []metadata.Permission{userOwnerROperm},
-		},
-		{
-			name:              "user with read and write permissions",
-			graphPermissions:  []models.Permissionable{userReadWritePerm},
-			parsedPermissions: []metadata.Permission{userReadWriteROperm},
-		},
-		{
-			name:              "multiple users with separate permissions",
-			graphPermissions:  []models.Permissionable{userReadPerm, userReadWritePerm},
-			parsedPermissions: []metadata.Permission{userReadROperm, userReadWriteROperm},
-		},
+			name: "success, content url set instead of download url",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@content.downloadUrl": url,
+				})
 
-		// site-user
-		{
-			name:              "site user with read permissions",
-			graphPermissions:  []models.Permissionable{siteUserReadPerm},
-			parsedPermissions: []metadata.Permission{siteUserReadROperm},
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.NoError,
+			rcExpected:    require.NotNil,
 		},
 		{
-			name:              "site user with owner permissions",
-			graphPermissions:  []models.Permissionable{siteUserOwnerPerm},
-			parsedPermissions: []metadata.Permission{siteUserOwnerROperm},
-		},
-		{
-			name:              "site user with read and write permissions",
-			graphPermissions:  []models.Permissionable{siteUserReadWritePerm},
-			parsedPermissions: []metadata.Permission{siteUserReadWriteROperm},
-		},
-		{
-			name:              "multiple site users with separate permissions",
-			graphPermissions:  []models.Permissionable{siteUserReadPerm, siteUserReadWritePerm},
-			parsedPermissions: []metadata.Permission{siteUserReadROperm, siteUserReadWriteROperm},
-		},
+			name: "api getter returns error",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
 
-		// group
-		{
-			name:              "group with read permissions",
-			graphPermissions:  []models.Permissionable{groupReadPerm},
-			parsedPermissions: []metadata.Permission{groupReadROperm},
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return nil, clues.New("test error")
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
-			name:              "group with read and write permissions",
-			graphPermissions:  []models.Permissionable{groupReadWritePerm},
-			parsedPermissions: []metadata.Permission{groupReadWriteROperm},
+			name: "download url is empty",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
-			name:              "multiple groups with separate permissions",
-			graphPermissions:  []models.Permissionable{groupReadPerm, groupReadWritePerm},
-			parsedPermissions: []metadata.Permission{groupReadROperm, groupReadWriteROperm},
-		},
+			name: "malware",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
 
-		// site-group
-		{
-			name:              "site group with read permissions",
-			graphPermissions:  []models.Permissionable{siteGroupReadPerm},
-			parsedPermissions: []metadata.Permission{siteGroupReadROperm},
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					Header: http.Header{
+						"X-Virus-Infected": []string{"true"},
+					},
+					StatusCode: http.StatusOK,
+					Body:       testRc,
+				}, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 		{
-			name:              "site group with read and write permissions",
-			graphPermissions:  []models.Permissionable{siteGroupReadWritePerm},
-			parsedPermissions: []metadata.Permission{siteGroupReadWriteROperm},
-		},
-		{
-			name:              "multiple site groups with separate permissions",
-			graphPermissions:  []models.Permissionable{siteGroupReadPerm, siteGroupReadWritePerm},
-			parsedPermissions: []metadata.Permission{siteGroupReadROperm, siteGroupReadWriteROperm},
+			name: "non-2xx http response",
+			itemFunc: func() models.DriveItemable {
+				di := newItem("test", false)
+				di.SetAdditionalData(map[string]interface{}{
+					"@microsoft.graph.downloadUrl": url,
+				})
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Body:       nil,
+				}, nil
+			},
+			errorExpected: require.Error,
+			rcExpected:    require.Nil,
 		},
 	}
-	for _, tc := range cases {
-		suite.Run(tc.name, func() {
-			t := suite.T()
 
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			actual := filterUserPermissions(ctx, tc.graphPermissions)
-			assert.ElementsMatch(t, tc.parsedPermissions, actual)
+			mg := mockGetter{
+				GetFunc: test.GetFunc,
+			}
+			rc, err := downloadItem(ctx, mg, test.itemFunc())
+			test.errorExpected(t, err, clues.ToCore(err))
+			test.rcExpected(t, rc)
 		})
 	}
 }

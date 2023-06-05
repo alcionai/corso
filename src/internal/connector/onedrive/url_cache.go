@@ -9,9 +9,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type itemProps struct {
@@ -31,8 +31,7 @@ type urlCache struct {
 	refreshMu       sync.Mutex
 	deltaQueryCount int
 
-	svc           graph.Servicer
-	itemPagerFunc driveItemPagerFunc
+	itemPager api.DriveItemEnumerator
 
 	errors *fault.Bus
 }
@@ -41,15 +40,13 @@ type urlCache struct {
 func newURLCache(
 	driveID string,
 	refreshInterval time.Duration,
-	svc graph.Servicer,
+	itemPager api.DriveItemEnumerator,
 	errors *fault.Bus,
-	itemPagerFunc driveItemPagerFunc,
 ) (*urlCache, error) {
 	err := validateCacheParams(
 		driveID,
 		refreshInterval,
-		svc,
-		itemPagerFunc)
+		itemPager)
 	if err != nil {
 		return nil, clues.Wrap(err, "cache params")
 	}
@@ -59,8 +56,7 @@ func newURLCache(
 			lastRefreshTime: time.Time{},
 			driveID:         driveID,
 			refreshInterval: refreshInterval,
-			svc:             svc,
-			itemPagerFunc:   itemPagerFunc,
+			itemPager:       itemPager,
 			errors:          errors,
 		},
 		nil
@@ -70,8 +66,7 @@ func newURLCache(
 func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
-	svc graph.Servicer,
-	itemPagerFunc driveItemPagerFunc,
+	itemPager api.DriveItemEnumerator,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")
@@ -81,11 +76,7 @@ func validateCacheParams(
 		return clues.New("invalid refresh interval")
 	}
 
-	if svc == nil {
-		return clues.New("nil graph servicer")
-	}
-
-	if itemPagerFunc == nil {
+	if itemPager == nil {
 		return clues.New("nil item pager")
 	}
 
@@ -174,7 +165,7 @@ func (uc *urlCache) deltaQuery(
 
 	_, _, _, err := collectItems(
 		ctx,
-		uc.itemPagerFunc(uc.svc, uc.driveID, ""),
+		uc.itemPager,
 		uc.driveID,
 		"",
 		uc.updateCache,

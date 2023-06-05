@@ -12,7 +12,6 @@ import (
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -300,12 +299,11 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			collections, excludes, canUsePreviousBackup, err := sharepoint.DataCollections(
 				ctx,
-				graph.NewNoTimeoutHTTPWrapper(),
+				suite.ac,
 				sel,
 				sel,
 				nil,
 				connector.credentials,
-				connector.Service,
 				connector,
 				control.Defaults(),
 				fault.New(true))

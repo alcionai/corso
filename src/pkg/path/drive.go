@@ -30,13 +30,13 @@ func ToDrivePath(p Path) (*DrivePath, error) {
 }
 
 // Returns the path to the folder within the drive (i.e. under `root:`)
-func GetDriveFolderPath(p Path) (string, error) {
+func GetDriveFolderPath(p Path) (*Builder, error) {
 	drivePath, err := ToDrivePath(p)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return Builder{}.Append(drivePath.Folders...).String(), nil
+	return Builder{}.Append(drivePath.Folders...), nil
 }
 
 // BuildDriveLocation takes a driveID and a set of unescaped element names,

@@ -43,8 +43,7 @@ var (
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
-	// configured to handle large item downloads
-	itemClient graph.Requester
+	handler BackupHandler
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -55,16 +54,11 @@ type Collection struct {
 	driveItems map[string]models.DriveItemable
 
 	// Primary M365 ID of the drive this collection was created from
-	driveID string
-	// Display Name of the associated drive
-	driveName      string
-	source         driveSource
-	service        graph.Servicer
-	statusUpdater  support.StatusUpdater
-	itemGetter     itemGetterFunc
-	itemReader     itemReaderFunc
-	itemMetaReader itemMetaReaderFunc
-	ctrl           control.Options
+	driveID   string
+	driveName string
+
+	statusUpdater support.StatusUpdater
+	ctrl          control.Options
 
 	// PrevPath is the previous hierarchical path used by this collection.
 	// It may be the same as fullPath, if the folder was not renamed or
@@ -92,29 +86,6 @@ type Collection struct {
 	doNotMergeItems bool
 }
 
-// itemGetterFunc gets a specified item
-type itemGetterFunc func(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID, itemID string,
-) (models.DriveItemable, error)
-
-// itemReadFunc returns a reader for the specified item
-type itemReaderFunc func(
-	ctx context.Context,
-	client graph.Requester,
-	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error)
-
-// itemMetaReaderFunc returns a reader for the metadata of the
-// specified item
-type itemMetaReaderFunc func(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID string,
-	item models.DriveItemable,
-) (io.ReadCloser, int, error)
-
 func pathToLocation(p path.Path) (*path.Builder, error) {
 	if p == nil {
 		return nil, nil
@@ -130,13 +101,11 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 
 // NewCollection creates a Collection
 func NewCollection(
-	itemClient graph.Requester,
+	handler BackupHandler,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
-	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
-	source driveSource,
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
@@ -156,13 +125,11 @@ func NewCollection(
 	}
 
 	c := newColl(
-		itemClient,
+		handler,
 		currPath,
 		prevPath,
 		driveID,
-		service,
 		statusUpdater,
-		source,
 		ctrlOpts,
 		colScope,
 		doNotMergeItems)
@@ -174,42 +141,27 @@ func NewCollection(
 }
 
 func newColl(
-	gr graph.Requester,
+	handler BackupHandler,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
-	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
-	source driveSource,
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
-		itemClient:      gr,
-		itemGetter:      api.GetDriveItem,
+		handler:         handler,
 		folderPath:      currPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
-		source:          source,
-		service:         service,
 		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, currPath),
 		scope:           colScope,
 		doNotMergeItems: doNotMergeItems,
-	}
-
-	// Allows tests to set a mock populator
-	switch source {
-	case SharePointSource:
-		c.itemReader = sharePointItemReader
-		c.itemMetaReader = sharePointItemMetaReader
-	default:
-		c.itemReader = oneDriveItemReader
-		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
 	return c
@@ -222,7 +174,8 @@ func (oc *Collection) Add(item models.DriveItemable) bool {
 	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	oc.driveItems[ptr.Val(item.GetId())] = item
 
-	return !found // !found = new
+	// if !found, it's a new addition
+	return !found
 }
 
 // Remove removes a item from the collection
@@ -246,7 +199,7 @@ func (oc *Collection) IsEmpty() bool {
 // Items() returns the channel containing M365 Exchange objects
 func (oc *Collection) Items(
 	ctx context.Context,
-	errs *fault.Bus, // TODO: currently unused while onedrive isn't up to date with clues/fault
+	errs *fault.Bus,
 ) <-chan data.Stream {
 	go oc.populateItems(ctx, errs)
 	return oc.data
@@ -274,21 +227,7 @@ func (oc Collection) PreviousLocationPath() details.LocationIDer {
 		return nil
 	}
 
-	var ider details.LocationIDer
-
-	switch oc.source {
-	case OneDriveSource:
-		ider = details.NewOneDriveLocationIDer(
-			oc.driveID,
-			oc.prevLocPath.Elements()...)
-
-	default:
-		ider = details.NewSharePointLocationIDer(
-			oc.driveID,
-			oc.prevLocPath.Elements()...)
-	}
-
-	return ider
+	return oc.handler.NewLocationIDer(oc.driveID, oc.prevLocPath.Elements()...)
 }
 
 func (oc Collection) State() data.CollectionState {
@@ -328,14 +267,7 @@ func (oc *Collection) getDriveItemContent(
 		el       = errs.Local()
 	)
 
-	itemData, err := downloadContent(
-		ctx,
-		oc.service,
-		oc.itemGetter,
-		oc.itemReader,
-		oc.itemClient,
-		item,
-		oc.driveID)
+	itemData, err := downloadContent(ctx, oc.handler, item, oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
@@ -377,19 +309,21 @@ func (oc *Collection) getDriveItemContent(
 	return itemData, nil
 }
 
+type itemAndAPIGetter interface {
+	GetItemer
+	api.Getter
+}
+
 // downloadContent attempts to fetch the item content.  If the content url
 // is expired (ie, returns a 401), it re-fetches the item to get a new download
 // url and tries again.
 func downloadContent(
 	ctx context.Context,
-	svc graph.Servicer,
-	igf itemGetterFunc,
-	irf itemReaderFunc,
-	gr graph.Requester,
+	iaag itemAndAPIGetter,
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
-	_, content, err := irf(ctx, gr, item)
+	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {
 		return content, nil
 	} else if !graph.IsErrUnauthorized(err) {
@@ -400,12 +334,12 @@ func downloadContent(
 	// token, and that we've overrun the available window to
 	// download the actual file.  Re-downloading the item will
 	// refresh that download url.
-	di, err := igf(ctx, svc, driveID, ptr.Val(item.GetId()))
+	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	_, content, err = irf(ctx, gr, di)
+	content, err = downloadItem(ctx, iaag, di)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -428,16 +362,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
-	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
+	parentPath, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
 		oc.reportAsCompleted(ctx, 0, 0, 0)
 		return
 	}
 
-	queuedPath := "/" + parentPathString
-	if oc.source == SharePointSource && len(oc.driveName) > 0 {
-		queuedPath = "/" + oc.driveName + queuedPath
-	}
+	queuedPath := oc.handler.FormatDisplayPath(oc.driveName, parentPath)
 
 	folderProgress := observe.ProgressWithCount(
 		ctx,
@@ -498,25 +429,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			// Fetch metadata for the file
-			itemMeta, itemMetaSize, err = oc.itemMetaReader(
-				ctx,
-				oc.service,
-				oc.driveID,
-				item)
-
+			itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 				return
 			}
 
-			switch oc.source {
-			case SharePointSource:
-				itemInfo.SharePoint = sharePointItemInfo(item, itemSize)
-				itemInfo.SharePoint.ParentPath = parentPathString
-			default:
-				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
-				itemInfo.OneDrive.ParentPath = parentPathString
-			}
+			itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
 
 			ctx = clues.Add(ctx, "item_info", itemInfo)
 

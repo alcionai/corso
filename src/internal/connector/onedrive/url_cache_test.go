@@ -16,13 +16,12 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type URLCacheIntegrationSuite struct {
 	tester.Suite
-	service graph.Servicer
+	ac      api.Client
 	user    string
 	driveID string
 }
@@ -41,69 +40,60 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.service = loadTestService(t)
 	suite.user = tester.SecondaryM365UserID(t)
 
-	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
+	acct := tester.NewM365Account(t)
+
+	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	odDrives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	suite.ac, err = api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
-	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
-	suite.driveID = ptr.Val(odDrives[0].GetId())
+
+	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.driveID = ptr.Val(drive.GetId())
 }
 
 // Basic test for urlCache. Create some files in onedrive, then access them via
 // url cache
 func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
-	t := suite.T()
+	var (
+		t              = suite.T()
+		ac             = suite.ac.Drives()
+		driveID        = suite.driveID
+		newFolderName  = tester.DefaultTestRestoreDestination("folder").ContainerName
+		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault())
+	)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	svc := suite.service
-	driveID := suite.driveID
-
 	// Create a new test folder
-	root, err := svc.Client().Drives().ByDriveId(driveID).Root().Get(ctx, nil)
+	root, err := ac.GetRootFolder(ctx, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newFolderName := tester.DefaultTestRestoreDestination("folder").ContainerName
-
-	newFolder, err := CreateItem(
+	newFolder, err := ac.Drives().PostItemInContainer(
 		ctx,
-		svc,
 		driveID,
 		ptr.Val(root.GetId()),
 		newItem(newFolderName, true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, newFolder.GetId())
 
-	// Delete folder on exit
-	defer func() {
-		ictx := clues.Add(ctx, "folder_id", ptr.Val(newFolder.GetId()))
-
-		err := api.DeleteDriveItem(
-			ictx,
-			loadTestService(t),
-			driveID,
-			ptr.Val(newFolder.GetId()))
-		if err != nil {
-			logger.CtxErr(ictx, err).Errorw("deleting folder")
-		}
-	}()
+	nfid := ptr.Val(newFolder.GetId())
 
 	// Create a bunch of files in the new folder
 	var items []models.DriveItemable
 
 	for i := 0; i < 10; i++ {
-		newItemName := "testItem_" + dttm.FormatNow(dttm.SafeForTesting)
+		newItemName := "test_url_cache_basic_" + dttm.FormatNow(dttm.SafeForTesting)
 
-		item, err := CreateItem(
+		item, err := ac.Drives().PostItemInContainer(
 			ctx,
-			svc,
 			driveID,
-			ptr.Val(newFolder.GetId()),
+			nfid,
 			newItem(newItemName, false))
 		if err != nil {
 			// Something bad happened, skip this item
@@ -117,10 +107,12 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	cache, err := newURLCache(
 		suite.driveID,
 		1*time.Hour,
-		svc,
-		fault.New(true),
-		defaultItemPager)
+		driveItemPager,
+		fault.New(true))
 
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = cache.refreshCache(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Launch parallel requests to the cache, one per item

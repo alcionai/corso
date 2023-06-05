@@ -2,8 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -18,7 +16,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -27,7 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type statePath struct {
@@ -38,6 +38,7 @@ type statePath struct {
 
 func getExpectedStatePathGenerator(
 	t *testing.T,
+	bh BackupHandler,
 	tenant, user, base string,
 ) func(data.CollectionState, ...string) statePath {
 	return func(state data.CollectionState, pths ...string) statePath {
@@ -53,11 +54,13 @@ func getExpectedStatePathGenerator(
 			require.Len(t, pths, 1, "invalid number of paths to getExpectedStatePathGenerator")
 		} else {
 			require.Len(t, pths, 2, "invalid number of paths to getExpectedStatePathGenerator")
-			p2, err = GetCanonicalPath(base+pths[1], tenant, user, OneDriveSource)
+			pb := path.Builder{}.Append(path.Split(base + pths[1])...)
+			p2, err = bh.CanonicalPath(pb, tenant, user)
 			require.NoError(t, err, clues.ToCore(err))
 		}
 
-		p1, err = GetCanonicalPath(base+pths[0], tenant, user, OneDriveSource)
+		pb := path.Builder{}.Append(path.Split(base + pths[0])...)
+		p1, err = bh.CanonicalPath(pb, tenant, user)
 		require.NoError(t, err, clues.ToCore(err))
 
 		switch state {
@@ -81,14 +84,17 @@ func getExpectedStatePathGenerator(
 	}
 }
 
-func getExpectedPathGenerator(t *testing.T,
+func getExpectedPathGenerator(
+	t *testing.T,
+	bh BackupHandler,
 	tenant, user, base string,
 ) func(string) string {
-	return func(path string) string {
-		p, err := GetCanonicalPath(base+path, tenant, user, OneDriveSource)
+	return func(p string) string {
+		pb := path.Builder{}.Append(path.Split(base + p)...)
+		cp, err := bh.CanonicalPath(pb, tenant, user)
 		require.NoError(t, err, clues.ToCore(err))
 
-		return p.String()
+		return cp.String()
 	}
 }
 
@@ -98,52 +104,6 @@ type OneDriveCollectionsUnitSuite struct {
 
 func TestOneDriveCollectionsUnitSuite(t *testing.T) {
 	suite.Run(t, &OneDriveCollectionsUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-func (suite *OneDriveCollectionsUnitSuite) TestGetCanonicalPath() {
-	tenant, resourceOwner := "tenant", "resourceOwner"
-
-	table := []struct {
-		name      string
-		source    driveSource
-		dir       []string
-		expect    string
-		expectErr assert.ErrorAssertionFunc
-	}{
-		{
-			name:      "onedrive",
-			source:    OneDriveSource,
-			dir:       []string{"onedrive"},
-			expect:    "tenant/onedrive/resourceOwner/files/onedrive",
-			expectErr: assert.NoError,
-		},
-		{
-			name:      "sharepoint",
-			source:    SharePointSource,
-			dir:       []string{"sharepoint"},
-			expect:    "tenant/sharepoint/resourceOwner/libraries/sharepoint",
-			expectErr: assert.NoError,
-		},
-		{
-			name:      "unknown",
-			source:    unknownDriveSource,
-			dir:       []string{"unknown"},
-			expectErr: assert.Error,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-			p := strings.Join(test.dir, "/")
-
-			result, err := GetCanonicalPath(p, tenant, resourceOwner, test.source)
-			test.expectErr(t, err, clues.ToCore(err))
-
-			if result != nil {
-				assert.Equal(t, test.expect, result.String())
-			}
-		})
-	}
 }
 
 func getDelList(files ...string) map[string]struct{} {
@@ -168,9 +128,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		pkg       = "/package"
 	)
 
-	testBaseDrivePath := fmt.Sprintf(rootDrivePattern, "driveID1")
-	expectedPath := getExpectedPathGenerator(suite.T(), tenant, user, testBaseDrivePath)
-	expectedStatePath := getExpectedStatePathGenerator(suite.T(), tenant, user, testBaseDrivePath)
+	bh := itemBackupHandler{}
+	testBaseDrivePath := odConsts.DriveFolderPrefixBuilder("driveID1").String()
+	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
+	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
 
 	tests := []struct {
 		testCase               string
@@ -782,12 +743,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				graph.NewNoTimeoutHTTPWrapper(),
+				&itemBackupHandler{api.Drives{}},
 				tenant,
 				user,
-				OneDriveSource,
 				testFolderMatcher{tt.scope},
-				&MockGraphService{},
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -1179,7 +1138,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					func(*support.ConnectorOperationStatus) {})
 				require.NoError(t, err, clues.ToCore(err))
 
-				cols = append(cols, data.NotFoundRestoreCollection{Collection: mc})
+				cols = append(cols, data.NoFetchRestoreCollection{Collection: mc})
 			}
 
 			deltas, paths, canUsePreviousBackup, err := deserializeMetadata(ctx, cols)
@@ -1307,11 +1266,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	drive2.SetName(&driveID2)
 
 	var (
-		driveBasePath1 = fmt.Sprintf(rootDrivePattern, driveID1)
-		driveBasePath2 = fmt.Sprintf(rootDrivePattern, driveID2)
+		bh = itemBackupHandler{}
 
-		expectedPath1 = getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath1)
-		expectedPath2 = getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath2)
+		driveBasePath1 = odConsts.DriveFolderPrefixBuilder(driveID1).String()
+		driveBasePath2 = odConsts.DriveFolderPrefixBuilder(driveID2).String()
+
+		expectedPath1 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath1)
+		expectedPath2 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath2)
 
 		rootFolderPath1 = expectedPath1("")
 		folderPath1     = expectedPath1("/folder")
@@ -2362,42 +2323,31 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			drivePagerFunc := func(
-				source driveSource,
-				servicer graph.Servicer,
-				resourceOwner string,
-				fields []string,
-			) (api.DrivePager, error) {
-				return &mock.DrivePager{
-					ToReturn: []mock.PagerResult{
-						{
-							Drives: test.drives,
-						},
-					},
-				}, nil
+			mockDrivePager := &apiMock.DrivePager{
+				ToReturn: []apiMock.PagerResult{
+					{Drives: test.drives},
+				},
 			}
 
-			itemPagerFunc := func(
-				servicer graph.Servicer,
-				driveID, link string,
-			) itemPager {
-				return &mockItemPager{
+			itemPagers := map[string]api.DriveItemEnumerator{}
+
+			for driveID := range test.items {
+				itemPagers[driveID] = &mockItemPager{
 					toReturn: test.items[driveID],
 				}
 			}
 
+			mbh := mock.DefaultOneDriveBH()
+			mbh.DrivePagerV = mockDrivePager
+			mbh.ItemPagerV = itemPagers
+
 			c := NewCollections(
-				graph.NewNoTimeoutHTTPWrapper(),
+				mbh,
 				tenant,
 				user,
-				OneDriveSource,
 				testFolderMatcher{anyFolder},
-				&MockGraphService{},
 				func(*support.ConnectorOperationStatus) {},
-				control.Options{ToggleFeatures: control.Toggles{}},
-			)
-			c.drivePagerFunc = drivePagerFunc
-			c.itemPagerFunc = itemPagerFunc
+				control.Options{ToggleFeatures: control.Toggles{}})
 
 			prevDelta := "prev-delta"
 			mc, err := graph.MakeMetadataCollection(
@@ -2420,7 +2370,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			)
 			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 
-			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
+			prevMetadata := []data.RestoreCollection{data.NoFetchRestoreCollection{Collection: mc}}
 			errs := fault.New(true)
 
 			delList := prefixmatcher.NewStringSetBuilder()

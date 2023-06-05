@@ -296,9 +296,8 @@ type contactPager struct {
 	options *users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration
 }
 
-func NewContactPager(
+func (c Contacts) NewContactPager(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, containerID string,
 	immutableIDs bool,
 ) itemPager {
@@ -309,7 +308,7 @@ func NewContactPager(
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
-	builder := gs.
+	builder := c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
@@ -317,7 +316,7 @@ func NewContactPager(
 		ByContactFolderId(containerID).
 		Contacts()
 
-	return &contactPager{gs, builder, config}
+	return &contactPager{c.Stable, builder, config}
 }
 
 func (p *contactPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
@@ -364,9 +363,8 @@ func getContactDeltaBuilder(
 	return builder
 }
 
-func NewContactDeltaPager(
+func (c Contacts) NewContactDeltaPager(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
 ) itemPager {
@@ -379,12 +377,12 @@ func NewContactDeltaPager(
 
 	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
 	if oldDelta != "" {
-		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter())
+		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
 	} else {
-		builder = getContactDeltaBuilder(ctx, gs, userID, containerID, options)
+		builder = getContactDeltaBuilder(ctx, c.Stable, userID, containerID, options)
 	}
 
-	return &contactDeltaPager{gs, userID, containerID, builder, options}
+	return &contactDeltaPager{c.Stable, userID, containerID, builder, options}
 }
 
 func (p *contactDeltaPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
@@ -419,8 +417,8 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeContact,
 		"container_id", containerID)
 
-	pager := NewContactPager(ctx, c.Stable, userID, containerID, immutableIDs)
-	deltaPager := NewContactDeltaPager(ctx, c.Stable, userID, containerID, oldDelta, immutableIDs)
+	pager := c.NewContactPager(ctx, userID, containerID, immutableIDs)
+	deltaPager := c.NewContactDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs)
 
 	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }

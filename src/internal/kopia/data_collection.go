@@ -74,7 +74,7 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 // Fetch returns the file with the given name from the collection as a
 // data.Stream. Returns a data.ErrNotFound error if the file isn't in the
 // collection.
-func (kdc kopiaDataCollection) Fetch(
+func (kdc kopiaDataCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
 ) (data.Stream, error) {

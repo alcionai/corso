@@ -427,7 +427,7 @@ func checkMetadata(
 ) {
 	catPaths, _, err := parseMetadataCollections(
 		ctx,
-		[]data.RestoreCollection{data.NotFoundRestoreCollection{Collection: c}})
+		[]data.RestoreCollection{data.NoFetchRestoreCollection{Collection: c}})
 	if !assert.NoError(t, err, "getting metadata", clues.ToCore(err)) {
 		return
 	}

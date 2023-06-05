@@ -15,6 +15,11 @@ const (
 	// number of uploads, but the max that can be specified. This is
 	// added as a safeguard in case we misconfigure the values.
 	maxConccurrentUploads = 20
+
+	// CopyBufferSize is used for chunked upload
+	// Microsoft recommends 5-10MB buffers
+	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
+	CopyBufferSize = 5 * 1024 * 1024
 )
 
 // ---------------------------------------------------------------------------

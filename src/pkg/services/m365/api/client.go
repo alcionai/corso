@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"net/http"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -27,6 +30,11 @@ type Client struct {
 	// downloading large items such as drive item content or outlook
 	// mail and event attachments.
 	LargeItem graph.Servicer
+
+	// The Requester provides a client specifically for calling
+	// arbitrary urls instead of constructing queries using the
+	// graph api client.
+	Requester graph.Requester
 }
 
 // NewClient produces a new exchange api client.  Must be used in
@@ -42,7 +50,9 @@ func NewClient(creds account.M365Config) (Client, error) {
 		return Client{}, err
 	}
 
-	return Client{creds, s, li}, nil
+	rqr := graph.NewNoTimeoutHTTPWrapper()
+
+	return Client{creds, s, li, rqr}, nil
 }
 
 // Service generates a new graph servicer.  New servicers are used for paged
@@ -74,4 +84,21 @@ func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
 	}
 
 	return a, nil
+}
+
+type Getter interface {
+	Get(
+		ctx context.Context,
+		url string,
+		headers map[string]string,
+	) (*http.Response, error)
+}
+
+// Get performs an ad-hoc get request using its graph.Requester
+func (c Client) Get(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+) (*http.Response, error) {
+	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers)
 }

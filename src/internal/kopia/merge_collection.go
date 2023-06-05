@@ -86,7 +86,7 @@ func (mc *mergeCollection) Items(
 // match found or the first error that is not data.ErrNotFound. If multiple
 // collections have the requested item, the instance in the collection with the
 // lexicographically smallest storage path is returned.
-func (mc *mergeCollection) Fetch(
+func (mc *mergeCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
 ) (data.Stream, error) {
@@ -99,7 +99,7 @@ func (mc *mergeCollection) Fetch(
 
 		logger.Ctx(ictx).Debug("looking for item in merged collection")
 
-		s, err := c.Fetch(ictx, name)
+		s, err := c.FetchItemByName(ictx, name)
 		if err == nil {
 			return s, nil
 		} else if err != nil && !errors.Is(err, data.ErrNotFound) {
