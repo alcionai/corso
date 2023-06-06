@@ -467,8 +467,8 @@ func (c *Collections) addURLCacheToDriveCollections(
 	uc, err := newURLCache(
 		driveID,
 		urlCacheRefreshInterval,
-		errs,
-		c.handler.ItemPager(driveID, "", api.DriveItemSelectDefault()))
+		c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+		errs)
 	if err != nil {
 		return err
 	}
