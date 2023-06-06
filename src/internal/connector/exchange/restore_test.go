@@ -228,22 +228,24 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 		// 		return ptr.Val(folder.GetId())
 		// 	},
 		// },
-		// {
-		// 	name: "Test Mail: Hydrated Item Attachment Mail One Attach",
-		// 	bytes: exchMock.MessageWithNestedItemAttachmentMail(t,
-		// 		exchMock.MessageWithDirectAttachment("Item Attachment Included"),
-		// 		"Mail Item Attachment",
-		// 	),
-		// 	category: path.EmailCategory,
-		// 	destination: func(t *testing.T, ctx context.Context) string {
-		// 		folderName := tester.DefaultTestRestoreDestination("mailnestattch").ContainerName
-		// 		folder, err := handlers[path.EmailCategory].
-		// 			CreateContainer(ctx, userID, folderName, "")
-		// 		require.NoError(t, err, clues.ToCore(err))
+		// vales here////
+		{
+			name: "Test Mail: Hydrated Item Attachment Mail One Attach",
+			bytes: exchMock.MessageWithNestedItemAttachmentMail(t,
+				exchMock.MessageWithDirectAttachment("Item Attachment Included"),
+				"Mail Item Attachment",
+			),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := tester.DefaultTestRestoreDestination("mailnestattch").ContainerName
+				folder, err := handlers[path.EmailCategory].
+					CreateContainer(ctx, userID, folderName, "")
+				require.NoError(t, err, clues.ToCore(err))
 
-		// 		return ptr.Val(folder.GetId())
-		// 	},
-		// },
+				return ptr.Val(folder.GetId())
+			},
+		},
+		// end here
 		{
 			name: "Test Mail: Item Attachment_Contact",
 			bytes: exchMock.MessageWithNestedItemAttachmentContact(t,
@@ -260,19 +262,19 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				return ptr.Val(folder.GetId())
 			},
 		},
-		{ // Restore will upload the Message without uploading the attachment
-			name:     "Test Mail: Item Attachment_NestedEvent",
-			bytes:    exchMock.MessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
-			category: path.EmailCategory,
-			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreDestination("nestedattch").ContainerName
-				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
-				require.NoError(t, err, clues.ToCore(err))
+		// { // Restore will upload the Message without uploading the attachment
+		// 	name:     "Test Mail: Item Attachment_NestedEvent",
+		// 	bytes:    exchMock.MessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
+		// 	category: path.EmailCategory,
+		// 	destination: func(t *testing.T, ctx context.Context) string {
+		// 		folderName := tester.DefaultTestRestoreDestination("nestedattch").ContainerName
+		// 		folder, err := handlers[path.EmailCategory].
+		// 			CreateContainer(ctx, userID, folderName, "")
+		// 		require.NoError(t, err, clues.ToCore(err))
 
-				return ptr.Val(folder.GetId())
-			},
-		},
+		// 		return ptr.Val(folder.GetId())
+		// 	},
+		// },
 		{
 			name:     "Test Mail: One Large Attachment",
 			bytes:    exchMock.MessageWithLargeAttachment("Restore Large Attachment"),

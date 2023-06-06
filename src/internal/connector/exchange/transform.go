@@ -210,26 +210,26 @@ func toItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 }
 
 // TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
-// func sanitizeAttachments(attached []models.Attachmentable) ([]models.Attachmentable, error) {
-// 	attachments := make([]models.Attachmentable, len(attached))
+func sanitizeAttachments(attached []models.Attachmentable) ([]models.Attachmentable, error) {
+	attachments := make([]models.Attachmentable, len(attached))
 
-// 	for _, ax := range attached {
-// 		if ptr.Val(ax.GetOdataType()) == itemAttachment {
-// 			newAttachment, err := ToItemAttachment(ax)
-// 			if err != nil {
-// 				return nil, err
-// 			}
+	for _, ax := range attached {
+		if ptr.Val(ax.GetOdataType()) == itemAttachment {
+			newAttachment, err := toItemAttachment(ax)
+			if err != nil {
+				return nil, err
+			}
 
-// 			attachments = append(attachments, newAttachment)
+			attachments = append(attachments, newAttachment)
 
-// 			continue
-// 		}
+			continue
+		}
 
-// 		attachments = append(attachments, ax)
-// 	}
+		attachments = append(attachments, ax)
+	}
 
-// 	return attachments, nil
-// }
+	return attachments, nil
+}
 
 // sanitizeContact removes fields which prevent a Contact from
 // being uploaded as an attachment.
@@ -280,11 +280,11 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 
 	// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
 	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
-	// attachments, err := sanitizeAttachments(message.GetAttachments())
-	// if err != nil {
-	// 	return nil, err
-	// }
-	newEvent.SetAttachments(nil)
+	attachments, err := sanitizeAttachments(orig.GetAttachments())
+	if err != nil {
+		return nil, err
+	}
+	newEvent.SetAttachments(attachments)
 
 	return newEvent, nil
 }
@@ -294,11 +294,11 @@ func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
 
 	// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
 	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
-	// attachments, err := sanitizeAttachments(message.GetAttachments())
-	// if err != nil {
-	// 	return nil, err
-	// }
-	message.SetAttachments(nil)
+	attachments, err := sanitizeAttachments(message.GetAttachments())
+	if err != nil {
+		return nil, err
+	}
+	message.SetAttachments(attachments)
 
 	// The following fields are set to nil to
 	// not interfere with M365 guard checks.
