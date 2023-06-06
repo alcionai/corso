@@ -54,7 +54,7 @@ type Collection struct {
 	jobs []string
 	// M365 IDs of the items of this collection
 	category      DataCategory
-	service       graph.Servicer
+	client        api.Sites
 	ctrl          control.Options
 	betaService   *betaAPI.BetaService
 	statusUpdater support.StatusUpdater
@@ -63,7 +63,7 @@ type Collection struct {
 // NewCollection helper function for creating a Collection
 func NewCollection(
 	folderPath path.Path,
-	service graph.Servicer,
+	ac api.Client,
 	category DataCategory,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
@@ -72,7 +72,7 @@ func NewCollection(
 		fullPath:      folderPath,
 		jobs:          make([]string, 0),
 		data:          make(chan data.Stream, collectionChannelBufferSize),
-		service:       service,
+		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
 		category:      category,
 		ctrl:          ctrlOpts,
@@ -175,7 +175,10 @@ func (sc *Collection) populate(ctx context.Context, errs *fault.Bus) {
 	sc.finishPopulation(ctx, metrics)
 }
 
-func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support.CollectionMetrics, error) {
+func (sc *Collection) runPopulate(
+	ctx context.Context,
+	errs *fault.Bus,
+) (support.CollectionMetrics, error) {
 	var (
 		err     error
 		metrics support.CollectionMetrics
@@ -197,7 +200,7 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 	case List:
 		metrics, err = sc.retrieveLists(ctx, writer, colProgress, errs)
 	case Pages:
-		metrics, err = sc.retrievePages(ctx, writer, colProgress, errs)
+		metrics, err = sc.retrievePages(ctx, sc.client, writer, colProgress, errs)
 	}
 
 	return metrics, err
@@ -216,7 +219,12 @@ func (sc *Collection) retrieveLists(
 		el      = errs.Local()
 	)
 
-	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	lists, err := loadSiteLists(
+		ctx,
+		sc.client.Stable,
+		sc.fullPath.ResourceOwner(),
+		sc.jobs,
+		errs)
 	if err != nil {
 		return metrics, err
 	}
@@ -262,6 +270,7 @@ func (sc *Collection) retrieveLists(
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
+	as api.Sites,
 	wtr *kjson.JsonSerializationWriter,
 	progress chan<- struct{},
 	errs *fault.Bus,
@@ -276,7 +285,7 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := api.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	parent, err := as.GetByID(ctx, sc.fullPath.ResourceOwner())
 	if err != nil {
 		return metrics, err
 	}

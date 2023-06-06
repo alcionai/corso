@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type statusUpdater interface {
@@ -29,19 +30,18 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
-	itemClient graph.Requester,
+	ac api.Client,
 	selector selectors.Selector,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
 	creds account.M365Config,
-	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, false, clues.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	ctx = clues.Add(
@@ -50,10 +50,11 @@ func DataCollections(
 		"site_url", clues.Hide(site.Name()))
 
 	var (
-		el          = errs.Local()
-		collections = []data.BackupCollection{}
-		categories  = map[path.CategoryType]struct{}{}
-		ssmb        = prefixmatcher.NewStringSetBuilder()
+		el                   = errs.Local()
+		collections          = []data.BackupCollection{}
+		categories           = map[path.CategoryType]struct{}{}
+		ssmb                 = prefixmatcher.NewStringSetBuilder()
+		canUsePreviousBackup bool
 	)
 
 	for _, scope := range b.Scopes() {
@@ -72,7 +73,7 @@ func DataCollections(
 		case path.ListsCategory:
 			spcs, err = collectLists(
 				ctx,
-				serv,
+				ac,
 				creds.AzureTenantID,
 				site,
 				su,
@@ -83,11 +84,14 @@ func DataCollections(
 				continue
 			}
 
+			// Lists don't make use of previous metadata
+			// TODO: Revisit when we add support of lists
+			canUsePreviousBackup = true
+
 		case path.LibrariesCategory:
-			spcs, err = collectLibraries(
+			spcs, canUsePreviousBackup, err = collectLibraries(
 				ctx,
-				itemClient,
-				serv,
+				ac.Drives(),
 				creds.AzureTenantID,
 				site,
 				metadata,
@@ -105,7 +109,7 @@ func DataCollections(
 			spcs, err = collectPages(
 				ctx,
 				creds,
-				serv,
+				ac,
 				site,
 				su,
 				ctrlOpts,
@@ -114,6 +118,10 @@ func DataCollections(
 				el.AddRecoverable(err)
 				continue
 			}
+
+			// Lists don't make use of previous metadata
+			// TODO: Revisit when we add support of pages
+			canUsePreviousBackup = true
 		}
 
 		collections = append(collections, spcs...)
@@ -133,18 +141,18 @@ func DataCollections(
 			su.UpdateStatus,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, ssmb.ToReader(), el.Failure()
+	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
 
 func collectLists(
 	ctx context.Context,
-	serv graph.Servicer,
+	ac api.Client,
 	tenantID string,
 	site idname.Provider,
 	updater statusUpdater,
@@ -158,7 +166,7 @@ func collectLists(
 		spcs = make([]data.BackupCollection, 0)
 	)
 
-	lists, err := preFetchLists(ctx, serv, site.ID())
+	lists, err := preFetchLists(ctx, ac.Stable, site.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +187,12 @@ func collectLists(
 			el.AddRecoverable(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
-		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
+		collection := NewCollection(
+			dir,
+			ac,
+			List,
+			updater.UpdateStatus,
+			ctrlOpts)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
@@ -192,8 +205,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	itemClient graph.Requester,
-	serv graph.Servicer,
+	ad api.Drives,
 	tenantID string,
 	site idname.Provider,
 	metadata []data.RestoreCollection,
@@ -202,28 +214,26 @@ func collectLibraries(
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
+) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
 	var (
 		collections = []data.BackupCollection{}
 		colls       = onedrive.NewCollections(
-			itemClient,
+			&libraryBackupHandler{ad},
 			tenantID,
 			site.ID(),
-			onedrive.SharePointSource,
 			folderMatcher{scope},
-			serv,
 			updater.UpdateStatus,
 			ctrlOpts)
 	)
 
-	odcs, err := colls.Get(ctx, metadata, ssmb, errs)
+	odcs, canUsePreviousBackup, err := colls.Get(ctx, metadata, ssmb, errs)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting library")
+		return nil, false, graph.Wrap(ctx, err, "getting library")
 	}
 
-	return append(collections, odcs...), nil
+	return append(collections, odcs...), canUsePreviousBackup, nil
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
@@ -231,7 +241,7 @@ func collectLibraries(
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
-	serv graph.Servicer,
+	ac api.Client,
 	site idname.Provider,
 	updater statusUpdater,
 	ctrlOpts control.Options,
@@ -277,7 +287,12 @@ func collectPages(
 			el.AddRecoverable(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
-		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
+		collection := NewCollection(
+			dir,
+			ac,
+			Pages,
+			updater.UpdateStatus,
+			ctrlOpts)
 		collection.betaService = betaService
 		collection.AddJob(tuple.ID)
 

@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -21,7 +20,6 @@ import (
 
 type RestoreIntgSuite struct {
 	tester.Suite
-	gs          graph.Servicer
 	credentials account.M365Config
 	ac          api.Client
 }
@@ -44,14 +42,6 @@ func (suite *RestoreIntgSuite) SetupSuite() {
 	suite.credentials = m365
 	suite.ac, err = api.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
-
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.gs = graph.NewService(adpt)
 }
 
 // TestRestoreContact ensures contact object can be created, placed into

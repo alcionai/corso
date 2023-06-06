@@ -843,16 +843,28 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	ic := i64counter{}
 
-	_, err = suite.w.ProduceRestoreCollections(
+	dcs, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(stats.SnapshotID),
 		toRestorePaths(t, failedPath),
 		&ic,
 		fault.New(true))
+	assert.NoError(t, err, "error producing restore collections")
+
+	require.Len(t, dcs, 1, "number of restore collections")
+
+	errs := fault.New(true)
+	items := dcs[0].Items(suite.ctx, errs)
+
+	// Get all the items from channel
+	//nolint:revive
+	for range items {
+	}
+
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
+	assert.ErrorIs(t, errs.Failure(), data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
 }
 
 type backedupFile struct {
@@ -1223,13 +1235,25 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			ic := i64counter{}
 
-			_, err = suite.w.ProduceRestoreCollections(
+			dcs, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(stats.SnapshotID),
 				toRestorePaths(t, suite.files[suite.testPath1.String()][0].itemPath),
 				&ic,
 				fault.New(true))
-			test.restoreCheck(t, err, clues.ToCore(err))
+
+			assert.NoError(t, err, "errors producing collection", clues.ToCore(err))
+			require.Len(t, dcs, 1, "unexpected number of restore collections")
+
+			errs := fault.New(true)
+			items := dcs[0].Items(suite.ctx, errs)
+
+			// Get all the items from channel
+			//nolint:revive
+			for range items {
+			}
+
+			test.restoreCheck(t, errs.Failure(), errs)
 		})
 	}
 }
@@ -1248,18 +1272,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	// suite's map of files. Files that are not in the suite's map are assumed to
 	// generate errors and not be in the output.
 	table := []struct {
-		name                string
-		inputPaths          []path.Path
-		expectedCollections int
-		expectedErr         assert.ErrorAssertionFunc
+		name                  string
+		inputPaths            []path.Path
+		expectedCollections   int
+		expectedErr           assert.ErrorAssertionFunc
+		expectedCollectionErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "SingleItem",
 			inputPaths: []path.Path{
 				suite.files[suite.testPath1.String()][0].itemPath,
 			},
-			expectedCollections: 1,
-			expectedErr:         assert.NoError,
+			expectedCollections:   1,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "MultipleItemsSameCollection",
@@ -1267,8 +1293,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				suite.files[suite.testPath1.String()][0].itemPath,
 				suite.files[suite.testPath1.String()][1].itemPath,
 			},
-			expectedCollections: 1,
-			expectedErr:         assert.NoError,
+			expectedCollections:   1,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "MultipleItemsDifferentCollections",
@@ -1276,8 +1303,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				suite.files[suite.testPath1.String()][0].itemPath,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 2,
-			expectedErr:         assert.NoError,
+			expectedCollections:   2,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "TargetNotAFile",
@@ -1286,8 +1314,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				suite.testPath1,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 0,
-			expectedErr:         assert.Error,
+			expectedCollections:   0,
+			expectedErr:           assert.Error,
+			expectedCollectionErr: assert.NoError,
 		},
 		{
 			name: "NonExistentFile",
@@ -1296,8 +1325,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				doesntExist,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 0,
-			expectedErr:         assert.Error,
+			expectedCollections:   0,
+			expectedErr:           assert.NoError,
+			expectedCollectionErr: assert.Error, // folder for doesntExist does not exist
 		},
 	}
 
@@ -1330,9 +1360,25 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				toRestorePaths(t, test.inputPaths...),
 				&ic,
 				fault.New(true))
-			test.expectedErr(t, err, clues.ToCore(err))
+			test.expectedCollectionErr(t, err, clues.ToCore(err), "producing collections")
 
 			if err != nil {
+				return
+			}
+
+			errs := fault.New(true)
+
+			for _, dc := range result {
+				// Get all the items from channel
+				items := dc.Items(suite.ctx, errs)
+				//nolint:revive
+				for range items {
+				}
+			}
+
+			test.expectedErr(t, errs.Failure(), errs.Failure(), "getting items")
+
+			if errs.Failure() != nil {
 				return
 			}
 
@@ -1456,7 +1502,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Len(t, result, test.expectedCollections)
-			assert.Less(t, int64(0), ic.i)
 			testForFiles(t, ctx, expected, result)
 		})
 	}
@@ -1465,7 +1510,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 // TestProduceRestoreCollections_Fetch tests that the Fetch function still works
 // properly even with different Restore and Storage paths and items from
 // different kopia directories.
-func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetch() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_FetchItemByName() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -1507,7 +1552,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 	// Item from first kopia directory.
 	f := suite.files[suite.testPath1.String()][0]
 
-	item, err := result[0].Fetch(ctx, f.itemPath.Item())
+	item, err := result[0].FetchItemByName(ctx, f.itemPath.Item())
 	require.NoError(t, err, "fetching file", clues.ToCore(err))
 
 	r := item.ToReader()
@@ -1520,7 +1565,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 	// Item from second kopia directory.
 	f = suite.files[suite.testPath2.String()][0]
 
-	item, err = result[0].Fetch(ctx, f.itemPath.Item())
+	item, err = result[0].FetchItemByName(ctx, f.itemPath.Item())
 	require.NoError(t, err, "fetching file", clues.ToCore(err))
 
 	r = item.ToReader()
