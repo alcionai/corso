@@ -392,7 +392,7 @@ func (c *Collections) Get(
 				driveID,
 				errs)
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 		}
 	}
