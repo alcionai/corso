@@ -8,11 +8,9 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -270,41 +268,12 @@ func (c Events) EnumerateContainers(
 
 const (
 	eventDeltaBetaURLTemplate      = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
-	eventExceptionsBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/events/%s"
+	eventExceptionsBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/events/%s?$expand=exceptionOccurrences"
 )
 
 // ---------------------------------------------------------------------------
 // items
 // ---------------------------------------------------------------------------
-
-// This was extracted and reworked from msgraph-sdk-go as we needed to use expand queryparam
-func getEventsWithExceptions(
-	ctx context.Context,
-	m *users.ItemCalendarsItemEventsDeltaRequestBuilder,
-	requestConfiguration *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration,
-) (users.ItemCalendarsItemEventsDeltaResponseable, error) {
-	requestInfo, err := m.ToGetRequestInformation(ctx, requestConfiguration)
-	if err != nil {
-		return nil, err
-	}
-
-	errorMapping := abstractions.ErrorMappings{
-		"4XX": odataerrors.CreateODataErrorFromDiscriminatorValue,
-		"5XX": odataerrors.CreateODataErrorFromDiscriminatorValue,
-	}
-
-	requestInfo.QueryParameters["$expand"] = "exceptionOccurrences" // Extra bit needed to get event exceptions
-	res, err := m.BaseRequestBuilder.RequestAdapter.Send(ctx, requestInfo, users.CreateItemCalendarsItemEventsDeltaResponseFromDiscriminatorValue, errorMapping)
-	if err != nil {
-		return nil, err
-	}
-	if res == nil {
-		return nil, nil
-	}
-
-	fmt.Println("events.go:298 res:", res)
-	return res.(users.ItemCalendarsItemEventsDeltaResponseable), nil
-}
 
 // GetItem retrieves an Eventable item.
 func (c Events) GetItem(
@@ -314,40 +283,17 @@ func (c Events) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		err    error
-		event  models.Eventable
+		err   error
+		event models.Eventable
+		// TODO Headers don't seem to be set
 		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
 			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 	)
 
 	rawURL := fmt.Sprintf(eventExceptionsBetaURLTemplate, userID, itemID)
-	builder := users.NewItemCalendarEventsRequestBuilder(rawURL, c.Stable.Adapter())
-
-	// betaEvent, err := getEventsWithExceptions(ctx, builder, &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{})
-	betaEvent, err := builder.Get(ctx, &users.ItemCalendarEventsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemCalendarEventsRequestBuilderGetQueryParameters{Expand: []string{"exceptionOccurrences"}},
-	})
-	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
-	}
-
-	add := betaEvent.GetAdditionalData()
-	fmt.Println("Additional data", add)
-
-	cancelled, err := betaEvent.GetBackingStore().Get("cancelledOccurrences")
-	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
-	}
-	fmt.Println("events.go:339 cancelled:", cancelled)
-
-	event, err = c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		Events().
-		ByEventId(itemID).
-		Get(ctx, config)
+	builder := users.NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
+	event, err = builder.Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
