@@ -32,12 +32,23 @@ func GetAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 
 	repoID := cfg.RepoID
 	if len(repoID) == 0 {
-		repoID = "not_found"
+		repoID = events.RepoID
 	}
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
+	}
+
+	s3Config, errS3Config := cfg.Storage.S3Config()
+	m365Config, errm365Config := cfg.Account.M365Config()
+
+	// repo config is already set while repo connect and init. This is just to confirm correct values.
+	// So won't fail is the write fails
+	err = config.WriteRepoConfig(ctx, s3Config, m365Config, r.GetID())
+	if err != nil || errS3Config != nil || errm365Config != nil {
+		logger.CtxErr(ctx, err).Info("Failed to write repository configuration")
+		return nil, nil, nil
 	}
 
 	return r, &cfg.Account, nil
