@@ -269,6 +269,7 @@ func (c Events) EnumerateContainers(
 const (
 	eventDeltaBetaURLTemplate      = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
 	eventExceptionsBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/events/%s?$expand=exceptionOccurrences"
+	eventPostBetaURLTemplate       = "https://graph.microsoft.com/beta/users/%s//calendars/%s/events"
 )
 
 // ---------------------------------------------------------------------------
@@ -329,14 +330,9 @@ func (c Events) PostItem(
 	userID, containerID string,
 	body models.Eventable,
 ) (models.Eventable, error) {
-	itm, err := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		Calendars().
-		ByCalendarId(containerID).
-		Events().
-		Post(ctx, body, nil)
+	rawURL := fmt.Sprintf(eventPostBetaURLTemplate, userID, containerID)
+	builder := users.NewItemCalendarsItemEventsRequestBuilder(rawURL, c.Stable.Adapter())
+	itm, err := builder.Post(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar event")
 	}

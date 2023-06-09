@@ -70,7 +70,6 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	newContent := insertStringToBody(origBody, attendees)
 	newBody := models.NewItemBody()
 	newBody.SetContentType(origBody.GetContentType())
-	newBody.SetAdditionalData(origBody.GetAdditionalData())
 	newBody.SetOdataType(origBody.GetOdataType())
 	newBody.SetContent(&newContent)
 	orig.SetBody(newBody)
@@ -88,6 +87,12 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 			orig.GetRecurrence().GetRange().SetRecurrenceTimeZone(nil)
 		}
 	}
+
+	// Remove exceptions for recuring events
+	additionalData := origBody.GetAdditionalData()
+	delete(additionalData, "cancelledOccurrences")
+	delete(additionalData, "exceptionOccurrences")
+	newBody.SetAdditionalData(additionalData)
 
 	return orig
 }
