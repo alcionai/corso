@@ -267,9 +267,12 @@ func (c Events) EnumerateContainers(
 }
 
 const (
-	eventDeltaBetaURLTemplate      = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
+	eventDeltaBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
+	// Beta version cannot have /calendars/%s for get and Patch
+	// https://stackoverflow.com/questions/50492177/microsoft-graph-get-user-calendar-event-with-beta-version
 	eventExceptionsBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/events/%s?$expand=exceptionOccurrences"
-	eventPostBetaURLTemplate       = "https://graph.microsoft.com/beta/users/%s//calendars/%s/events"
+	eventPostBetaURLTemplate       = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events"
+	eventPatchBetaURLTemplate      = "https://graph.microsoft.com/beta/users/%s/events/%s"
 )
 
 // ---------------------------------------------------------------------------
@@ -325,6 +328,35 @@ func (c Events) GetItem(
 	return event, EventInfo(event), nil
 }
 
+func (c Events) GetItemInstances(
+	ctx context.Context,
+	userID, itemID string,
+	startDate, endDate string,
+) ([]models.Eventable, error) {
+	config := &users.ItemEventsItemInstancesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemEventsItemInstancesRequestBuilderGetQueryParameters{
+			Select:        []string{"id"},
+			StartDateTime: ptr.To(startDate),
+			EndDateTime:   ptr.To(endDate),
+			// Top:           ptr.To[int32](1), // can use this as a check??
+		},
+	}
+
+	events, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Events().
+		ByEventId(itemID).
+		Instances().
+		Get(ctx, config)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return events.GetValue(), nil
+}
+
 func (c Events) PostItem(
 	ctx context.Context,
 	userID, containerID string,
@@ -341,6 +373,41 @@ func (c Events) PostItem(
 
 	return itm, nil
 }
+
+func (c Events) UpdateItem(
+	ctx context.Context,
+	userID, eventID string,
+	body models.Eventable,
+) (models.Eventable, error) {
+	rawURL := fmt.Sprintf(eventPatchBetaURLTemplate, userID, eventID)
+	builder := users.NewItemCalendarsItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
+	itm, err := builder.Patch(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "updating calendar event")
+	}
+
+	return itm, nil
+}
+
+// func (c Events) UpdateItem(
+// 	ctx context.Context,
+// 	userID, containerID, itemID string,
+// 	body models.Eventable,
+// ) (models.Eventable, error) {
+// 	itm, err := c.Stable.
+// 		Client().
+// 		Users().
+// 		ByUserId(userID).
+// 		Calendars().
+// 		ByCalendarId(containerID).
+// 		Events().
+// 		ByEventId(itemID).
+// 		Patch(ctx, body, nil)
+// 	if err != nil {
+// 		return nil, graph.Wrap(ctx, err, "updating calendar event")
+// 	}
+// 	return itm, nil
+// }
 
 func (c Events) DeleteItem(
 	ctx context.Context,

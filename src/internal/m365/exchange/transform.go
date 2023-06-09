@@ -88,8 +88,9 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 		}
 	}
 
-	// Remove exceptions for recuring events
-	// TODO(meain): Should we check if they exist before deleting?
+	// Remove exceptions for recurring events
+	// These will be present in objects once we start using the API
+	// that is currently in beta
 	additionalData := origBody.GetAdditionalData()
 	delete(additionalData, "cancelledOccurrences")
 	delete(additionalData, "exceptionOccurrences")
