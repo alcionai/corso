@@ -89,6 +89,7 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	}
 
 	// Remove exceptions for recuring events
+	// TODO(meain): Should we check if they exist before deleting?
 	additionalData := origBody.GetAdditionalData()
 	delete(additionalData, "cancelledOccurrences")
 	delete(additionalData, "exceptionOccurrences")

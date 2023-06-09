@@ -286,7 +286,7 @@ func (c Events) GetItem(
 	var (
 		err   error
 		event models.Eventable
-		// TODO Headers don't seem to be set
+		// TODO(meain) Headers don't seem to be set
 		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
 			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
@@ -330,6 +330,8 @@ func (c Events) PostItem(
 	userID, containerID string,
 	body models.Eventable,
 ) (models.Eventable, error) {
+	// TODO(meain): Make sure we can restore older versions with beta API.
+	// There seems to be a small change in "address" field
 	rawURL := fmt.Sprintf(eventPostBetaURLTemplate, userID, containerID)
 	builder := users.NewItemCalendarsItemEventsRequestBuilder(rawURL, c.Stable.Adapter())
 	itm, err := builder.Post(ctx, body, nil)
