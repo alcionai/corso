@@ -47,7 +47,8 @@ func newURLCache(
 	err := validateCacheParams(
 		driveID,
 		refreshInterval,
-		itemPager)
+		itemPager,
+		errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "cache params")
 	}
@@ -68,17 +69,22 @@ func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
 	itemPager api.DriveItemEnumerator,
+	errors *fault.Bus,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")
 	}
 
-	if refreshInterval < 1*time.Second {
+	if refreshInterval <= 1*time.Second {
 		return clues.New("invalid refresh interval")
 	}
 
 	if itemPager == nil {
 		return clues.New("nil item pager")
+	}
+
+	if errors == nil {
+		return clues.New("nil error bus")
 	}
 
 	return nil
