@@ -1,3 +1,4 @@
+# See https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions#common-dependabot-automations
 name: auto-merge
 
 on:
@@ -5,11 +6,23 @@ on:
     paths-ignore:
       - "src/**" # prevent auto-merge for go dependencies
 
+permissions:
+  pull-requests: write
+
 jobs:
-  auto-merge:
+  auto-approve-label:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: ahmadnassri/action-dependabot-auto-merge@v2 # https://github.com/marketplace/actions/dependabot-auto-merge
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1
         with:
-          github-token: ${{ secrets.DEPENDABOT_TOKEN }}
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Enable auto-merge for Dependabot PRs
+        if: ${{steps.metadata.outputs.update-type == 'version-update:semver-minor'}}
+        run: |
+          gh pr edit "$PR_URL" --add-label "mergequeue"
+          gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
