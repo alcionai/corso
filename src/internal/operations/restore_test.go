@@ -12,14 +12,14 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
-	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -141,7 +141,7 @@ type bupResults struct {
 	selectorResourceOwners []string
 	backupID               model.StableID
 	items                  int
-	gc                     *connector.GraphConnector
+	gc                     *m365.GraphConnector
 }
 
 type RestoreOpIntegrationSuite struct {
@@ -279,7 +279,7 @@ func setupExchangeBackup(
 		esel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
 		esel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-	gc, sel := GCWithSelector(t, ctx, acct, connector.Users, esel.Selector, nil, nil)
+	gc, sel := GCWithSelector(t, ctx, acct, m365.Users, esel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -330,7 +330,7 @@ func setupSharePointBackup(
 	ssel.Include(ssel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 	ssel.DiscreteOwner = owner
 
-	gc, sel := GCWithSelector(t, ctx, acct, connector.Sites, ssel.Selector, nil, nil)
+	gc, sel := GCWithSelector(t, ctx, acct, m365.Sites, ssel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -460,10 +460,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	rsel := selectors.NewExchangeRestore(selectors.None())
 	rsel.Include(rsel.AllData())
 
-	gc, err := connector.NewGraphConnector(
+	gc, err := m365.NewGraphConnector(
 		ctx,
 		suite.acct,
-		connector.Users)
+		m365.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

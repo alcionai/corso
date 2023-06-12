@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -20,12 +20,12 @@ func GCWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
-	cr connector.Resource,
+	cr m365.Resource,
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(),
-) (*connector.GraphConnector, selectors.Selector) {
-	gc, err := connector.NewGraphConnector(ctx, acct, cr)
+) (*m365.GraphConnector, selectors.Selector) {
+	gc, err := m365.NewGraphConnector(ctx, acct, cr)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()

@@ -21,20 +21,20 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
-	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	exchTD "github.com/alcionai/corso/src/internal/connector/exchange/testdata"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mock"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	exchTD "github.com/alcionai/corso/src/internal/m365/exchange/testdata"
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/mock"
+	"github.com/alcionai/corso/src/internal/m365/onedrive"
+	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -79,7 +79,7 @@ func prepNewTestBackupOp(
 	*kopia.Wrapper,
 	*kopia.ModelStore,
 	streamstore.Streamer,
-	*connector.GraphConnector,
+	*m365.GraphConnector,
 	selectors.Selector,
 	func(),
 ) {
@@ -120,9 +120,9 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
-	connectorResource := connector.Users
+	connectorResource := m365.Users
 	if sel.Service == selectors.ServiceSharePoint {
-		connectorResource = connector.Sites
+		connectorResource = m365.Sites
 	}
 
 	gc, sel := GCWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
@@ -142,7 +142,7 @@ func newTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
-	gc *connector.GraphConnector,
+	gc *m365.GraphConnector,
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
@@ -346,7 +346,7 @@ type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
 func generateContainerOfItems(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	gc *connector.GraphConnector,
+	gc *m365.GraphConnector,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
@@ -766,7 +766,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		whatSet    = deeTD.CategoryFromRepoRef
 	)
 
-	gc, sels := GCWithSelector(t, ctx, acct, connector.Users, sel.Selector, nil, nil)
+	gc, sels := GCWithSelector(t, ctx, acct, m365.Users, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
 
@@ -776,10 +776,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		sel.MailFolders(containers, selectors.PrefixMatch()),
 		sel.ContactFolders(containers, selectors.PrefixMatch()))
 
-	m365, err := acct.M365Config()
+	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := api.NewClient(m365)
+	ac, err := api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.
@@ -859,7 +859,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				service,
 				category,
 				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-				m365.AzureTenantID, uidn.ID(), "", destName,
+				creds.AzureTenantID, uidn.ID(), "", destName,
 				2,
 				version.Backup,
 				gen.dbf)
@@ -1040,7 +1040,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						m365.AzureTenantID, suite.user, "", container3,
+						creds.AzureTenantID, suite.user, "", container3,
 						2,
 						version.Backup,
 						gen.dbf)
@@ -1246,7 +1246,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				t     = suite.T()
 				incMB = evmock.NewBus()
 				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sels, incMB, toggles, closer)
-				atid  = m365.AzureTenantID
+				atid  = creds.AzureTenantID
 			)
 
 			test.updateUserData(t)
@@ -1347,7 +1347,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		suite,
 		suite.user,
 		suite.user,
-		connector.Users,
+		m365.Users,
 		path.OneDriveService,
 		path.FilesCategory,
 		ic,
@@ -1390,7 +1390,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		suite,
 		suite.site,
 		suite.user,
-		connector.Sites,
+		m365.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
@@ -1402,7 +1402,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 func runDriveIncrementalTest(
 	suite *BackupOpIntegrationSuite,
 	owner, permissionsUser string,
-	resource connector.Resource,
+	resource m365.Resource,
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
@@ -1841,7 +1841,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanGC, err := connector.NewGraphConnector(ctx, acct, resource)
+			cleanGC, err := m365.NewGraphConnector(ctx, acct, resource)
 			require.NoError(t, err, clues.ToCore(err))
 
 			var (
@@ -1914,10 +1914,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc, err := connector.NewGraphConnector(
+	gc, err := m365.NewGraphConnector(
 		ctx,
 		acct,
-		connector.Users)
+		m365.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := gc.AC.Users().GetByID(ctx, suite.user)
