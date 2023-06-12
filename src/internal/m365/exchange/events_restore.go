@@ -94,7 +94,7 @@ func (h eventRestoreHandler) restore(
 
 	item, err := h.ip.PostItem(ctx, userID, destinationID, event)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring mail message")
+		return nil, graph.Wrap(ctx, err, "restoring calendar item")
 	}
 
 	err = uploadAttachments(
