@@ -110,7 +110,7 @@ func (h eventRestoreHandler) restore(
 	}
 
 	// Fix up event instances in case we have a recurring event
-	err = h.updateRecurringEvents(ctx, userID, destinationID, *item.GetId(), event)
+	err = h.updateRecurringEvents(ctx, userID, destinationID, ptr.Val(item.GetId()), event)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -153,7 +153,7 @@ func (h eventRestoreHandler) updateRecurringEvents(
 					With("type", fmt.Sprintf("%T", insti))
 			}
 
-			splits := strings.Split(*inst, ".")
+			splits := strings.Split(ptr.Val(inst), ".")
 			startStr := splits[len(splits)-1]
 			start, err := time.Parse(string(dttm.DateOnly), startStr)
 			if err != nil {
@@ -172,7 +172,7 @@ func (h eventRestoreHandler) updateRecurringEvents(
 					With("count", len(evts))
 			}
 
-			err = h.ac.DeleteItem(ctx, userID, *evts[0].GetId())
+			err = h.ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
 			if err != nil {
 				return clues.Wrap(err, "deleting event instance")
 			}
@@ -204,8 +204,7 @@ func (h eventRestoreHandler) updateRecurringEvents(
 					With("type", fmt.Sprintf("%T", originalStartI))
 			}
 
-			// TODO(meain): Use ptr helpers everywhere
-			start, err := time.Parse(string(dttm.TabularOutput), *originalStart)
+			start, err := time.Parse(string(dttm.TabularOutput), ptr.Val(originalStart))
 			if err != nil {
 				return clues.Wrap(err, "parsing original start")
 			}
@@ -220,7 +219,7 @@ func (h eventRestoreHandler) updateRecurringEvents(
 
 			if len(evts) != 1 {
 				return clues.New("invalid number of instances for modified").
-					With("count", len(evts), "original_start", *originalStart)
+					With("count", len(evts), "original_start", ptr.Val(originalStart))
 			}
 
 			instBytes, err := json.Marshal(inst)
@@ -237,7 +236,7 @@ func (h eventRestoreHandler) updateRecurringEvents(
 			body = toEventSimplified(body)
 
 			// _, err = h.ac.UpdateItem(ctx, userID, containerID, *evts[0].GetId(), body)
-			_, err = h.ac.UpdateItem(ctx, userID, *evts[0].GetId(), body)
+			_, err = h.ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), body)
 			if err != nil {
 				return clues.Wrap(err, "updating event instance")
 			}
