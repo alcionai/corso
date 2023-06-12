@@ -87,7 +87,9 @@ func (h eventRestoreHandler) restore(
 
 	if ptr.Val(event.GetHasAttachments()) {
 		attachments = event.GetAttachments()
-		event.SetAttachments([]models.Attachmentable{})
+		// We cannot use `[]models.Attbachmentable{}` instead of nil
+		// for beta endpoint.
+		event.SetAttachments(nil)
 	}
 
 	item, err := h.ip.PostItem(ctx, userID, destinationID, event)
