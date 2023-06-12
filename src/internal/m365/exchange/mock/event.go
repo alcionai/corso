@@ -95,6 +95,7 @@ const (
 	%s
 	"webLink":"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%%3D&exvsurl=1&path=/calendar/item",
 	"recurrence":%s,
+	%s
 	"attendees":%s
 }`
 
@@ -170,6 +171,10 @@ const (
 		}
 	}`
 
+	cancelledOccurrencesFormat        = `"cancelledOccurrences": [%s],`
+	cancelledOccurrenceInstanceFormat = `"OID.AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAENAABBFDg0JJk7TY1fmsJrh7tNAADHGTZoAAA=.%s"`
+	NoCancelledOccurrences            = ""
+
 	NoAttendees   = `[]`
 	attendeesTmpl = `[{
 		"emailAddress": {
@@ -227,7 +232,8 @@ func EventWithSubjectBytes(subject string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, endTime, NoRecurrence, NoAttendees, false,
+		atTime, endTime, NoRecurrence, NoAttendees,
+		false, NoCancelledOccurrences,
 	)
 }
 
@@ -239,7 +245,8 @@ func EventWithAttachment(subject string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, NoRecurrence, NoAttendees, true,
+		atTime, atTime, NoRecurrence, NoAttendees,
+		true, NoCancelledOccurrences,
 	)
 }
 
@@ -258,7 +265,32 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, recurrence, attendeesTmpl, true,
+		atTime, atTime, recurrence, attendeesTmpl,
+		true, NoCancelledOccurrences,
+	)
+}
+
+func EventWithRecurrenceAndCancellationBytes(subject, recurrenceTimeZone string) []byte {
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
+	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+	atTime := dttm.Format(at)
+	timeSlice := strings.Split(atTime, "T")
+	nextYear := tomorrow.AddDate(1, 0, 0)
+
+	recurrence := string(fmt.Sprintf(
+		recurrenceTmpl,
+		timeSlice[0],
+		recurrenceTimeZone,
+	))
+
+	cancelledInstances := []string{fmt.Sprintf(cancelledOccurrenceInstanceFormat, dttm.FormatTo(nextYear, dttm.DateOnly))}
+	cancelledOccurrences := fmt.Sprintf(cancelledOccurrencesFormat, strings.Join(cancelledInstances, ","))
+
+	return EventWith(
+		defaultEventOrganizer, subject,
+		defaultEventBody, defaultEventBodyPreview,
+		atTime, atTime, recurrence, attendeesTmpl,
+		true, cancelledOccurrences,
 	)
 }
 
@@ -270,7 +302,8 @@ func EventWithAttendeesBytes(subject string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, NoRecurrence, attendeesTmpl, true,
+		atTime, atTime, NoRecurrence, attendeesTmpl,
+		true, NoCancelledOccurrences,
 	)
 }
 
@@ -282,7 +315,7 @@ func EventWithAttendeesBytes(subject string) []byte {
 func EventWith(
 	organizer, subject, body, bodyPreview,
 	startDateTime, endDateTime, recurrence, attendees string,
-	hasAttachments bool,
+	hasAttachments bool, cancelledOccurrences string,
 ) []byte {
 	var attachments string
 	if hasAttachments {
@@ -311,6 +344,7 @@ func EventWith(
 		hasAttachments,
 		attachments,
 		recurrence,
+		cancelledOccurrences,
 		attendees,
 	))
 }

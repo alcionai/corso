@@ -137,13 +137,19 @@ func (h eventRestoreHandler) updateRecurringEvents(
 
 	// OPTIMIZATION: Group instances whose dates are close by
 	if cancelledOccurrences != nil {
-		co, ok := cancelledOccurrences.([]*string)
+		co, ok := cancelledOccurrences.([]interface{})
 		if !ok {
-			return clues.New("converting cancelledOccurrences to []*string").
+			return clues.New("converting cancelledOccurrences to []interface{}").
 				With("type", fmt.Sprintf("%T", cancelledOccurrences))
 		}
 
-		for _, inst := range co {
+		for _, insti := range co {
+			inst, ok := insti.(*string)
+			if !ok {
+				return clues.New("converting canceled instance to *string").
+					With("type", fmt.Sprintf("%T", insti))
+			}
+
 			splits := strings.Split(ptr.Val(inst), ".")
 			startStr := splits[len(splits)-1]
 

@@ -115,6 +115,10 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 			name:  "Test recurrenceTimeZone: Empty",
 			bytes: exchMock.EventWithRecurrenceBytes(subject, `""`),
 		},
+		{
+			name:  "Test cancelledOccurrences",
+			bytes: exchMock.EventWithRecurrenceAndCancellationBytes(subject, `"Pacific Standard Time"`),
+		},
 	}
 
 	for _, test := range tests {
