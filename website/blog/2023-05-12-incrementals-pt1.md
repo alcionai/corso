@@ -154,5 +154,5 @@ accurately reflect all updates. If you have feedback, questions, or want more in
 ## Try Corso Today
 
 Corso implements compression, deduplication *and* incremental backups to give
-you the best backup performance. Check
-[our quickstart guide](http://localhost:3000/docs/quickstart/) to see how to get started.
+you the best backup performance. Check out
+[our quickstart guide](../../docs/quickstart/) to see how to get started.

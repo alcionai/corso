@@ -51,16 +51,14 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	}()
 
 	from := make([]byte, 100)
-	prog, closer := ItemProgress(
+	prog, abort := ItemProgress(
 		ctx,
 		io.NopCloser(bytes.NewReader(from)),
 		"folder",
 		tst,
 		100)
 	require.NotNil(t, prog)
-	require.NotNil(t, closer)
-
-	defer closer()
+	require.NotNil(t, abort)
 
 	var i int
 
@@ -105,9 +103,8 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := CollectionProgress(ctx, testcat, testertons)
+	progCh := CollectionProgress(ctx, testcat, testertons)
 	require.NotNil(t, progCh)
-	require.NotNil(t, closer)
 
 	defer close(progCh)
 
@@ -119,9 +116,6 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		time.Sleep(1 * time.Second)
 		cancel()
 	}()
-
-	// blocks, but should resolve due to the ctx cancel
-	closer()
 }
 
 func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelClose() {
@@ -140,9 +134,8 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := CollectionProgress(ctx, testcat, testertons)
+	progCh := CollectionProgress(ctx, testcat, testertons)
 	require.NotNil(t, progCh)
-	require.NotNil(t, closer)
 
 	for i := 0; i < 50; i++ {
 		progCh <- struct{}{}
@@ -152,9 +145,6 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		time.Sleep(1 * time.Second)
 		close(progCh)
 	}()
-
-	// blocks, but should resolve due to the cancel
-	closer()
 }
 
 func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
@@ -197,13 +187,10 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 
 	message := "Test Message"
 
-	ch, closer := MessageWithCompletion(ctx, message)
+	ch := MessageWithCompletion(ctx, message)
 
 	// Trigger completion
 	ch <- struct{}{}
-
-	// Run the closer - this should complete because the bar was compelted above
-	closer()
 
 	Complete()
 
@@ -229,13 +216,10 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 
 	message := "Test Message"
 
-	ch, closer := MessageWithCompletion(ctx, message)
+	ch := MessageWithCompletion(ctx, message)
 
 	// Close channel without completing
 	close(ch)
-
-	// Run the closer - this should complete because the channel was closed above
-	closer()
 
 	Complete()
 
@@ -263,13 +247,10 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 
 	message := "Test Message"
 
-	_, closer := MessageWithCompletion(ctx, message)
+	_ = MessageWithCompletion(ctx, message)
 
 	// cancel context
 	cancel()
-
-	// Run the closer - this should complete because the context was closed above
-	closer()
 
 	Complete()
 
@@ -296,14 +277,11 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 	message := "Test Message"
 	count := 3
 
-	ch, closer := ProgressWithCount(ctx, header, message, int64(count))
+	ch := ProgressWithCount(ctx, header, message, int64(count))
 
 	for i := 0; i < count; i++ {
 		ch <- struct{}{}
 	}
-
-	// Run the closer - this should complete because the context was closed above
-	closer()
 
 	Complete()
 
@@ -331,12 +309,9 @@ func (suite *ObserveProgressUnitSuite) TestrogressWithCountChannelClosed() {
 	message := "Test Message"
 	count := 3
 
-	ch, closer := ProgressWithCount(ctx, header, message, int64(count))
+	ch := ProgressWithCount(ctx, header, message, int64(count))
 
 	close(ch)
-
-	// Run the closer - this should complete because the context was closed above
-	closer()
 
 	Complete()
 

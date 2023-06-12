@@ -324,7 +324,7 @@ func (op *BackupOperation) do(
 		}
 	}
 
-	cs, ssmb, err := produceBackupDataCollections(
+	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
@@ -348,7 +348,7 @@ func (op *BackupOperation) do(
 		cs,
 		ssmb,
 		backupID,
-		op.incremental && canUseMetaData,
+		op.incremental && canUseMetaData && canUsePreviousBackup,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
@@ -406,12 +406,11 @@ func produceBackupDataCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+	complete := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	return bp.ProduceBackupCollections(
@@ -490,11 +489,10 @@ func consumeBackupCollections(
 	isIncremental bool,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
+	complete := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
-		closer()
 	}()
 
 	tags := map[string]string{

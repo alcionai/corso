@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -79,16 +78,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 		return false, clues.Wrap(err, "getting mailbox").WithClues(ctx)
 	}
 
-	requestParameters := users.ItemMailFoldersRequestBuilderGetQueryParameters{
-		Select: []string{"id"},
-		Top:    ptr.To[int32](1), // if we get any folders, then we have access.
-	}
-
-	options := users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
-		QueryParameters: &requestParameters,
-	}
-
-	_, err = uapi.GetMailFolders(ctx, userID, options)
+	_, err = uapi.GetMailInbox(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
 		// answers the question the caller is asking.
@@ -98,6 +88,10 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 
 		if graph.IsErrUserNotFound(err) {
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
+		if graph.IsErrExchangeMailFolderNotFound(err) {
+			return false, nil
 		}
 
 		return false, clues.Stack(err)
@@ -114,7 +108,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 		return false, clues.Wrap(err, "getting drives").WithClues(ctx)
 	}
 
-	_, err = uapi.GetDrives(ctx, userID)
+	_, err = uapi.GetDefaultDrive(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
 		// answers the question the caller is asking.

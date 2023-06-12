@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -27,9 +26,7 @@ import (
 // store through GraphAPI.
 func RestoreCollections(
 	ctx context.Context,
-	creds account.M365Config,
 	ac api.Client,
-	gs graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
@@ -145,11 +142,10 @@ func restoreCollection(
 		category = fullPath.Category()
 	)
 
-	colProgress, closer := observe.CollectionProgress(
+	colProgress := observe.CollectionProgress(
 		ctx,
 		category.String(),
 		fullPath.Folder(false))
-	defer closer()
 	defer close(colProgress)
 
 	for {

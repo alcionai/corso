@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
-	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -32,9 +32,7 @@ var (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	Service    graph.Servicer
-	Discovery  m365api.Client
-	itemClient graph.Requester // configured to handle large item downloads
+	AC api.Client
 
 	tenant      string
 	credentials account.M365Config
@@ -64,12 +62,7 @@ func NewGraphConnector(
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	service, err := createService(creds)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
-	}
-
-	ac, err := m365api.NewClient(creds)
+	ac, err := api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
@@ -80,35 +73,16 @@ func NewGraphConnector(
 	}
 
 	gc := GraphConnector{
-		Discovery:    ac,
+		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
-		Service:      service,
 
 		credentials: creds,
-		itemClient:  graph.NewNoTimeoutHTTPWrapper(),
 		ownerLookup: rc,
 		tenant:      acct.ID(),
 		wg:          &sync.WaitGroup{},
 	}
 
 	return &gc, nil
-}
-
-// ---------------------------------------------------------------------------
-// Service Client
-// ---------------------------------------------------------------------------
-
-// createService constructor for graphService component
-func createService(creds account.M365Config) (*graph.Service, error) {
-	adapter, err := graph.CreateAdapter(
-		creds.AzureTenantID,
-		creds.AzureClientID,
-		creds.AzureClientSecret)
-	if err != nil {
-		return &graph.Service{}, err
-	}
-
-	return graph.NewService(adapter), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +154,7 @@ const (
 	Sites
 )
 
-func (r Resource) resourceClient(ac m365api.Client) (*resourceClient, error) {
+func (r Resource) resourceClient(ac api.Client) (*resourceClient, error) {
 	switch r {
 	case Users:
 		return &resourceClient{enum: r, getter: ac.Users()}, nil
@@ -209,7 +183,7 @@ var _ getOwnerIDAndNamer = &resourceClient{}
 type getOwnerIDAndNamer interface {
 	getOwnerIDAndNameFrom(
 		ctx context.Context,
-		discovery m365api.Client,
+		discovery api.Client,
 		owner string,
 		ins idname.Cacher,
 	) (
@@ -227,7 +201,7 @@ type getOwnerIDAndNamer interface {
 // (PrincipalName for users, WebURL for sites).
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
-	discovery m365api.Client,
+	discovery api.Client,
 	owner string,
 	ins idname.Cacher,
 ) (string, string, error) {
@@ -275,7 +249,7 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	owner string, // input value, can be either id or name
 	ins idname.Cacher,
 ) (string, string, error) {
-	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
+	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.AC, owner, ins)
 	if err != nil {
 		return "", "", clues.Wrap(err, "identifying resource owner")
 	}

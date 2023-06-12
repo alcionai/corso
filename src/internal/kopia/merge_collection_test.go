@@ -76,8 +76,8 @@ func (suite *MergeCollectionUnitSuite) TestItems() {
 
 	// Not testing fetch here so safe to use this wrapper.
 	cols := []data.RestoreCollection{
-		data.NotFoundRestoreCollection{Collection: c1},
-		data.NotFoundRestoreCollection{Collection: c2},
+		data.NoFetchRestoreCollection{Collection: c1},
+		data.NoFetchRestoreCollection{Collection: c2},
 	}
 
 	dc := &mergeCollection{fullPath: pth}
@@ -123,7 +123,7 @@ func (suite *MergeCollectionUnitSuite) TestAddCollection_DifferentPathFails() {
 	assert.Error(t, err, clues.ToCore(err))
 }
 
-func (suite *MergeCollectionUnitSuite) TestFetch() {
+func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 	var (
 		fileData1 = []byte("abcdefghijklmnopqrstuvwxyz")
 		fileData2 = []byte("zyxwvutsrqponmlkjihgfedcba")
@@ -275,7 +275,7 @@ func (suite *MergeCollectionUnitSuite) TestFetch() {
 				require.NoError(t, err, "adding collection", clues.ToCore(err))
 			}
 
-			s, err := dc.Fetch(ctx, test.fileName)
+			s, err := dc.FetchItemByName(ctx, test.fileName)
 			test.expectError(t, err, clues.ToCore(err))
 
 			if err != nil {

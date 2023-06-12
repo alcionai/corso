@@ -392,9 +392,8 @@ func loadDirsAndItems(
 	bus *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	var (
-		el        = bus.Local()
-		res       = make([]data.RestoreCollection, 0, len(toLoad))
-		loadCount = 0
+		el  = bus.Local()
+		res = make([]data.RestoreCollection, 0, len(toLoad))
 	)
 
 	for _, col := range toLoad {
@@ -426,6 +425,7 @@ func loadDirsAndItems(
 			dc := &kopiaDataCollection{
 				path:            col.restorePath,
 				dir:             dir,
+				items:           dirItems.items,
 				counter:         bcounter,
 				expectedVersion: serializationVersion,
 			}
@@ -437,34 +437,8 @@ func loadDirsAndItems(
 
 				continue
 			}
-
-			for _, item := range dirItems.items {
-				if el.Failure() != nil {
-					return nil, el.Failure()
-				}
-
-				err := dc.addStream(ictx, item)
-				if err != nil {
-					el.AddRecoverable(clues.Wrap(err, "loading item").
-						WithClues(ictx).
-						Label(fault.LabelForceNoBackupCreation))
-
-					continue
-				}
-
-				loadCount++
-				if loadCount%1000 == 0 {
-					logger.Ctx(ctx).Infow(
-						"loading items from kopia",
-						"loaded_items", loadCount)
-				}
-			}
 		}
 	}
-
-	logger.Ctx(ctx).Infow(
-		"done loading items from kopia",
-		"loaded_items", loadCount)
 
 	return res, el.Failure()
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -347,7 +348,6 @@ func generateContainerOfItems(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	gc *connector.GraphConnector,
 	service path.ServiceType,
-	acct account.Account,
 	cat path.CategoryType,
 	sel selectors.Selector,
 	tenantID, resourceOwner, driveID, destFldr string,
@@ -397,7 +397,6 @@ func generateContainerOfItems(
 	deets, err := gc.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
-		acct,
 		sel,
 		dest,
 		opts,
@@ -468,7 +467,7 @@ func buildCollections(
 			mc.Data[i] = c.items[i].data
 		}
 
-		collections = append(collections, data.NotFoundRestoreCollection{Collection: mc})
+		collections = append(collections, data.NoFetchRestoreCollection{Collection: mc})
 	}
 
 	return collections
@@ -513,6 +512,7 @@ func toDataLayerPath(
 type BackupOpIntegrationSuite struct {
 	tester.Suite
 	user, site string
+	ac         api.Client
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
@@ -524,8 +524,18 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	suite.user = tester.M365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
+	t := suite.T()
+
+	suite.user = tester.M365UserID(t)
+	suite.site = tester.M365SiteID(t)
+
+	a := tester.NewM365Account(t)
+
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
@@ -847,7 +857,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				ctx,
 				gc,
 				service,
-				acct,
 				category,
 				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
 				m365.AzureTenantID, uidn.ID(), "", destName,
@@ -1029,7 +1038,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 						ctx,
 						gc,
 						service,
-						acct,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
 						m365.AzureTenantID, suite.user, "", container3,
@@ -1316,9 +1324,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 	gtdi := func(
 		t *testing.T,
 		ctx context.Context,
-		gs graph.Servicer,
 	) string {
-		d, err := api.GetUsersDrive(ctx, gs, suite.user)
+		d, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
 				With("user", suite.user)
@@ -1332,6 +1339,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		return id
 	}
 
+	grh := func(ac api.Client) onedrive.RestoreHandler {
+		return onedrive.NewRestoreHandler(ac)
+	}
+
 	runDriveIncrementalTest(
 		suite,
 		suite.user,
@@ -1341,6 +1352,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		path.FilesCategory,
 		ic,
 		gtdi,
+		grh,
 		false)
 }
 
@@ -1355,9 +1367,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 	gtdi := func(
 		t *testing.T,
 		ctx context.Context,
-		gs graph.Servicer,
 	) string {
-		d, err := api.GetSitesDefaultDrive(ctx, gs, suite.site)
+		d, err := suite.ac.Sites().GetDefaultDrive(ctx, suite.site)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
 				With("site", suite.site)
@@ -1371,6 +1382,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		return id
 	}
 
+	grh := func(ac api.Client) onedrive.RestoreHandler {
+		return sharepoint.NewRestoreHandler(ac)
+	}
+
 	runDriveIncrementalTest(
 		suite,
 		suite.site,
@@ -1380,6 +1395,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		path.LibrariesCategory,
 		ic,
 		gtdi,
+		grh,
 		true)
 }
 
@@ -1390,7 +1406,8 @@ func runDriveIncrementalTest(
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
-	getTestDriveID func(*testing.T, context.Context, graph.Servicer) string,
+	getTestDriveID func(*testing.T, context.Context) string,
+	getRestoreHandler func(api.Client) onedrive.RestoreHandler,
 	skipPermissionsTests bool,
 ) {
 	t := suite.T()
@@ -1429,12 +1446,14 @@ func runDriveIncrementalTest(
 	require.NoError(t, err, clues.ToCore(err))
 
 	gc, sel := GCWithSelector(t, ctx, acct, resource, sel, nil, nil)
+	ac := gc.AC.Drives()
+	rh := getRestoreHandler(gc.AC)
 
 	roidn := inMock.NewProvider(sel.ID(), sel.Name())
 
 	var (
 		atid    = creds.AzureTenantID
-		driveID = getTestDriveID(t, ctx, gc.Service)
+		driveID = getTestDriveID(t, ctx)
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)
 		}
@@ -1462,7 +1481,6 @@ func runDriveIncrementalTest(
 			ctx,
 			gc,
 			service,
-			acct,
 			category,
 			sel,
 			atid, roidn.ID(), driveID, destName,
@@ -1488,7 +1506,7 @@ func runDriveIncrementalTest(
 		// onedrive package `getFolder` function.
 		itemURL := fmt.Sprintf("https://graph.microsoft.com/v1.0/drives/%s/root:/%s", driveID, destName)
 		resp, err := drives.
-			NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+			NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.AC.Stable.Adapter()).
 			Get(ctx, nil)
 		require.NoError(t, err, "getting drive folder ID", "folder name", destName, clues.ToCore(err))
 
@@ -1543,9 +1561,8 @@ func runDriveIncrementalTest(
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				newFile, err = onedrive.CreateItem(
+				newFile, err = ac.PostItemInContainer(
 					ctx,
-					gc.Service,
 					driveID,
 					targetContainer,
 					driveItem)
@@ -1562,19 +1579,14 @@ func runDriveIncrementalTest(
 		{
 			name: "add permission to new file",
 			updateFiles: func(t *testing.T) {
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
-					gc.Service,
+					rh,
 					driveID,
-					*newFile.GetId(),
+					ptr.Val(newFile.GetId()),
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings,
-				)
+					permissionIDMappings)
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
@@ -1585,13 +1597,9 @@ func runDriveIncrementalTest(
 		{
 			name: "remove permission from new file",
 			updateFiles: func(t *testing.T) {
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
-					gc.Service,
+					rh,
 					driveID,
 					*newFile.GetId(),
 					[]metadata.Permission{},
@@ -1608,13 +1616,9 @@ func runDriveIncrementalTest(
 			name: "add permission to container",
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
-					gc.Service,
+					rh,
 					driveID,
 					targetContainer,
 					[]metadata.Permission{writePerm},
@@ -1631,13 +1635,9 @@ func runDriveIncrementalTest(
 			name: "remove permission from container",
 			updateFiles: func(t *testing.T) {
 				targetContainer := containerIDs[container1]
-				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
-				driveItem.SetFile(models.NewFile())
 				err = onedrive.UpdatePermissions(
 					ctx,
-					creds,
-					gc.Service,
+					rh,
 					driveID,
 					targetContainer,
 					[]metadata.Permission{},
@@ -1653,9 +1653,8 @@ func runDriveIncrementalTest(
 		{
 			name: "update contents of a file",
 			updateFiles: func(t *testing.T) {
-				err := api.PutDriveItemContent(
+				err := suite.ac.Drives().PutItemContent(
 					ctx,
-					gc.Service,
 					driveID,
 					ptr.Val(newFile.GetId()),
 					[]byte("new content"))
@@ -1678,9 +1677,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&container)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					ptr.Val(newFile.GetId()),
 					driveItem)
@@ -1702,9 +1700,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&dest)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					ptr.Val(newFile.GetId()),
 					driveItem)
@@ -1723,9 +1720,8 @@ func runDriveIncrementalTest(
 		{
 			name: "delete file",
 			updateFiles: func(t *testing.T) {
-				err := api.DeleteDriveItem(
+				err := suite.ac.Drives().DeleteItem(
 					ctx,
-					newDeleteServicer(t),
 					driveID,
 					ptr.Val(newFile.GetId()))
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
@@ -1748,9 +1744,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					child,
 					driveItem)
@@ -1777,9 +1772,8 @@ func runDriveIncrementalTest(
 				parentRef.SetId(&parent)
 				driveItem.SetParentReference(parentRef)
 
-				err := api.PatchDriveItem(
+				err := suite.ac.Drives().PatchItem(
 					ctx,
-					gc.Service,
 					driveID,
 					child,
 					driveItem)
@@ -1800,9 +1794,8 @@ func runDriveIncrementalTest(
 			name: "delete a folder",
 			updateFiles: func(t *testing.T) {
 				container := containerIDs[containerRename]
-				err := api.DeleteDriveItem(
+				err := suite.ac.Drives().DeleteItem(
 					ctx,
-					newDeleteServicer(t),
 					driveID,
 					container)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
@@ -1821,7 +1814,6 @@ func runDriveIncrementalTest(
 					ctx,
 					gc,
 					service,
-					acct,
 					category,
 					sel,
 					atid, roidn.ID(), driveID, container3,
@@ -1834,7 +1826,7 @@ func runDriveIncrementalTest(
 					"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
 					driveID,
 					container3)
-				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.AC.Stable.Adapter()).
 					Get(ctx, nil)
 				require.NoError(t, err, "getting drive folder ID", "folder name", container3, clues.ToCore(err))
 
@@ -1928,7 +1920,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		connector.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
-	userable, err := gc.Discovery.Users().GetByID(ctx, suite.user)
+	userable, err := gc.AC.Users().GetByID(ctx, suite.user)
 	require.NoError(t, err, clues.ToCore(err))
 
 	uid := ptr.Val(userable.GetId())
@@ -2045,20 +2037,4 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 	checkBackupIsInManifests(t, ctx, kw, &bo, sels, suite.site, path.LibrariesCategory)
-}
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-func newDeleteServicer(t *testing.T) graph.Servicer {
-	acct := tester.NewM365Account(t)
-
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	a, err := graph.CreateAdapter(acct.ID(), m365.AzureClientID, m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
-
-	return graph.NewService(a)
 }
