@@ -288,9 +288,8 @@ func (c Events) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		err   error
-		event models.Eventable
-		// TODO(meain) Headers don't seem to be set
+		err    error
+		event  models.Eventable
 		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
 			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
@@ -298,6 +297,7 @@ func (c Events) GetItem(
 
 	rawURL := fmt.Sprintf(eventExceptionsBetaURLTemplate, userID, itemID)
 	builder := users.NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
+
 	event, err = builder.Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -339,11 +339,11 @@ func (c Events) GetItem(
 					With("exception_event_id", ptr.Val(evt.GetId()))
 			}
 
-			// This hack is required as the json serialization at the
-			// end does not serialize if you just pass in a
-			// models.Attachmentable
-			// TODO: Is there a better way to do this?
+			// This odd roundabout way of doing this is required as
+			// the json serialization at the end does not serialize if
+			// you just pass in a models.Attachmentable
 			atts := []map[string]interface{}{}
+
 			for _, att := range attachments {
 				writer := kjson.NewJsonSerializationWriter()
 				defer writer.Close()
@@ -358,6 +358,7 @@ func (c Events) GetItem(
 				}
 
 				atm := map[string]interface{}{}
+
 				err = json.Unmarshal(ats, &atm)
 				if err != nil {
 					return nil, nil, clues.Wrap(err, "unmarshalling serialized attachment")
@@ -416,7 +417,6 @@ func (c Events) GetItemInstances(
 			Select:        []string{"id"},
 			StartDateTime: ptr.To(startDate),
 			EndDateTime:   ptr.To(endDate),
-			// Top:           ptr.To[int32](1), // can use this as a check??
 		},
 	}
 
@@ -440,10 +440,9 @@ func (c Events) PostItem(
 	userID, containerID string,
 	body models.Eventable,
 ) (models.Eventable, error) {
-	// TODO(meain): Make sure we can restore older versions with beta API.
-	// There seems to be a small change in "address" field
 	rawURL := fmt.Sprintf(eventPostBetaURLTemplate, userID, containerID)
 	builder := users.NewItemCalendarsItemEventsRequestBuilder(rawURL, c.Stable.Adapter())
+
 	itm, err := builder.Post(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar event")
@@ -459,6 +458,7 @@ func (c Events) UpdateItem(
 ) (models.Eventable, error) {
 	rawURL := fmt.Sprintf(eventPatchBetaURLTemplate, userID, eventID)
 	builder := users.NewItemCalendarsItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
+
 	itm, err := builder.Patch(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "updating calendar event")
@@ -466,26 +466,6 @@ func (c Events) UpdateItem(
 
 	return itm, nil
 }
-
-// func (c Events) UpdateItem(
-// 	ctx context.Context,
-// 	userID, containerID, itemID string,
-// 	body models.Eventable,
-// ) (models.Eventable, error) {
-// 	itm, err := c.Stable.
-// 		Client().
-// 		Users().
-// 		ByUserId(userID).
-// 		Calendars().
-// 		ByCalendarId(containerID).
-// 		Events().
-// 		ByEventId(itemID).
-// 		Patch(ctx, body, nil)
-// 	if err != nil {
-// 		return nil, graph.Wrap(ctx, err, "updating calendar event")
-// 	}
-// 	return itm, nil
-// }
 
 func (c Events) DeleteItem(
 	ctx context.Context,

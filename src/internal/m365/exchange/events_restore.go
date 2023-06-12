@@ -132,28 +132,21 @@ func (h eventRestoreHandler) updateRecurringEvents(
 	// Cancellations and exceptions are currently in additional data
 	// but will get their own fields once the beta API lands and
 	// should be moved then
-	// TODO(meain): What will be the date of canceled items if it was
-	// first moved and hen cancelled
 	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
 	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
 
 	// OPTIMIZATION: Group instances whose dates are close by
 	if cancelledOccurrences != nil {
-		co, ok := cancelledOccurrences.([]interface{})
+		co, ok := cancelledOccurrences.([]*string)
 		if !ok {
-			return clues.New("converting cancelledOccurrences to []interface{}").
+			return clues.New("converting cancelledOccurrences to []*string").
 				With("type", fmt.Sprintf("%T", cancelledOccurrences))
 		}
 
-		for _, insti := range co {
-			inst, ok := insti.(*string)
-			if !ok {
-				return clues.New("converting instance to *string").
-					With("type", fmt.Sprintf("%T", insti))
-			}
-
+		for _, inst := range co {
 			splits := strings.Split(ptr.Val(inst), ".")
 			startStr := splits[len(splits)-1]
+
 			start, err := time.Parse(string(dttm.DateOnly), startStr)
 			if err != nil {
 				return clues.Wrap(err, "parsing cancelled event date")
@@ -178,7 +171,6 @@ func (h eventRestoreHandler) updateRecurringEvents(
 		}
 	}
 
-	// TODO See if we can simplify the type conversion if else
 	if exceptionOccurrences != nil {
 		eo, ok := exceptionOccurrences.([]interface{})
 		if !ok {
@@ -208,8 +200,11 @@ func (h eventRestoreHandler) updateRecurringEvents(
 
 			evt = toEventSimplified(evt)
 
-			// _, err = h.ac.UpdateItem(ctx, userID, containerID, *evts[0].GetId(), body)
-			// TODO: Update attachments (might have to diff the attachments using ids and delete or add)
+			// TODO(meain): Update attachments (might have to diff the
+			// attachments using ids and delete or add). We will have
+			// to get the id of the existing attachments, diff them
+			// with what we need a then create/delete items kinda like
+			// permissions
 			_, err = h.ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
 			if err != nil {
 				return clues.Wrap(err, "updating event instance")
