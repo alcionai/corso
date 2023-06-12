@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -302,30 +303,107 @@ func (c Events) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-		config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
-				Expand: []string{"microsoft.graph.itemattachment/item"},
-			},
-			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+	attachments, err := c.getAttachments(ctx, event, immutableIDs, userID, itemID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	event.SetAttachments(attachments)
+
+	// Fetch attachments for exceptions
+	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
+	if exceptionOccurrences != nil {
+		eo, ok := exceptionOccurrences.([]interface{})
+		if !ok {
+			return nil, nil, clues.New("converting exceptionOccurrences to []interface{}").
+				With("type", fmt.Sprintf("%T", exceptionOccurrences))
 		}
 
-		attached, err := c.LargeItem.
-			Client().
-			Users().
-			ByUserId(userID).
-			Events().
-			ByEventId(itemID).
-			Attachments().
-			Get(ctx, config)
-		if err != nil {
-			return nil, nil, graph.Wrap(ctx, err, "event attachment download")
-		}
+		for _, inst := range eo {
+			evi, ok := inst.(map[string]interface{})
+			if !ok {
+				return nil, nil, clues.New("converting instance to map[string]interface{}").
+					With("type", fmt.Sprintf("%T", inst))
+			}
 
-		event.SetAttachments(attached.GetValue())
+			evt, err := EventFromMap(inst)
+			if err != nil {
+				return nil, nil, clues.Wrap(err, "parsing exception event")
+			}
+
+			// OPTIMIZATION: We don't have to store any of the
+			// attachments that carry over from the original
+			attachments, err := c.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
+			if err != nil {
+				return nil, nil, clues.Wrap(err, "getting exception attachments").
+					With("exception_event_id", ptr.Val(evt.GetId()))
+			}
+
+			// This hack is required as the json serialization at the
+			// end does not serialize if you just pass in a
+			// models.Attachmentable
+			// TODO: Is there a better way to do this?
+			atts := []map[string]interface{}{}
+			for _, att := range attachments {
+				writer := kjson.NewJsonSerializationWriter()
+				defer writer.Close()
+
+				if err := writer.WriteObjectValue("", att); err != nil {
+					return nil, nil, graph.Stack(ctx, err)
+				}
+
+				ats, err := writer.GetSerializedContent()
+				if err != nil {
+					return nil, nil, graph.Wrap(ctx, err, "serializing event")
+				}
+
+				atm := map[string]interface{}{}
+				err = json.Unmarshal(ats, &atm)
+				if err != nil {
+					return nil, nil, clues.Wrap(err, "unmarshalling serialized attachment")
+				}
+
+				atts = append(atts, atm)
+			}
+
+			evi["attachments"] = atts
+		}
 	}
 
 	return event, EventInfo(event), nil
+}
+
+func (c Events) getAttachments(
+	ctx context.Context,
+	event models.Eventable,
+	immutableIDs bool,
+	userID string,
+	itemID string,
+) ([]models.Attachmentable, error) {
+	if !ptr.Val(event.GetHasAttachments()) && !HasAttachments(event.GetBody()) {
+		return nil, nil
+	}
+
+	config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+			Expand: []string{"microsoft.graph.itemattachment/item"},
+		},
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+	}
+
+	attached, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(userID).
+		Events().
+		ByEventId(itemID).
+		Attachments().
+		Get(ctx, config)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "event attachment download")
+	}
+
+	return attached.GetValue(), nil
 }
 
 func (c Events) GetItemInstances(
@@ -763,4 +841,24 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		Created:     created,
 		Modified:    ptr.OrNow(evt.GetLastModifiedDateTime()),
 	}
+}
+
+func EventFromMap(evi any) (models.Eventable, error) {
+	ev, ok := evi.(map[string]interface{})
+	if !ok {
+		return nil, clues.New("converting instance to map[string]interface{}").
+			With("type", fmt.Sprintf("%T", evi))
+	}
+
+	instBytes, err := json.Marshal(ev)
+	if err != nil {
+		return nil, clues.Wrap(err, "marshaling event exception instance")
+	}
+
+	body, err := BytesToEventable(instBytes)
+	if err != nil {
+		return nil, clues.Wrap(err, "converting exception event bytes to Eventable")
+	}
+
+	return body, nil
 }

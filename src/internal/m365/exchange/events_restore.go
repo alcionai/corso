@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -179,6 +178,7 @@ func (h eventRestoreHandler) updateRecurringEvents(
 		}
 	}
 
+	// TODO See if we can simplify the type conversion if else
 	if exceptionOccurrences != nil {
 		eo, ok := exceptionOccurrences.([]interface{})
 		if !ok {
@@ -186,29 +186,13 @@ func (h eventRestoreHandler) updateRecurringEvents(
 				With("type", fmt.Sprintf("%T", exceptionOccurrences))
 		}
 
-		for _, insti := range eo {
-			inst, ok := insti.(map[string]interface{})
-			if !ok {
-				return clues.New("converting instance to map[string]interface{}").
-					With("type", fmt.Sprintf("%T", insti))
-			}
-
-			originalStartI, ok := inst["originalStart"]
-			if !ok {
-				return clues.New("no originalStart for exception occurrence")
-			}
-
-			originalStart, ok := originalStartI.(*string)
-			if !ok {
-				return clues.New("converting instance to *string").
-					With("type", fmt.Sprintf("%T", originalStartI))
-			}
-
-			start, err := time.Parse(string(dttm.TabularOutput), ptr.Val(originalStart))
+		for _, inst := range eo {
+			evt, err := api.EventFromMap(inst)
 			if err != nil {
-				return clues.Wrap(err, "parsing original start")
+				return clues.Wrap(err, "parsing exception event")
 			}
 
+			start := ptr.Val(evt.GetOriginalStart())
 			startStr := dttm.FormatTo(start, dttm.DateOnly)
 			endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
 
@@ -219,24 +203,14 @@ func (h eventRestoreHandler) updateRecurringEvents(
 
 			if len(evts) != 1 {
 				return clues.New("invalid number of instances for modified").
-					With("count", len(evts), "original_start", ptr.Val(originalStart))
+					With("count", len(evts), "original_start", start)
 			}
 
-			instBytes, err := json.Marshal(inst)
-			if err != nil {
-				return clues.Wrap(err, "marshaling event exception instance")
-			}
-
-			body, err := api.BytesToEventable(instBytes)
-			if err != nil {
-				return clues.Wrap(err, "converting exception event bytes to Eventable")
-			}
-
-			// TODO: What about attachments?
-			body = toEventSimplified(body)
+			evt = toEventSimplified(evt)
 
 			// _, err = h.ac.UpdateItem(ctx, userID, containerID, *evts[0].GetId(), body)
-			_, err = h.ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), body)
+			// TODO: Update attachments (might have to diff the attachments using ids and delete or add)
+			_, err = h.ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
 			if err != nil {
 				return clues.Wrap(err, "updating event instance")
 			}
