@@ -2496,8 +2496,8 @@ func driveItem(
 
 func fileItem(
 	id, name, parentPath, parentID, url string,
-	deleted bool) models.DriveItemable {
-
+	deleted bool,
+) models.DriveItemable {
 	di := driveItem(id, name, parentPath, parentID, true, false, false)
 	di.SetAdditionalData(map[string]interface{}{
 		"@microsoft.graph.downloadUrl": url,

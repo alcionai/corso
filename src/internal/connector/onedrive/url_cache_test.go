@@ -466,7 +466,6 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	// none of the above
 	cache.lastRefreshTime = time.Now()
 	require.False(t, cache.needsRefresh())
-
 }
 
 // Test newURLCache
