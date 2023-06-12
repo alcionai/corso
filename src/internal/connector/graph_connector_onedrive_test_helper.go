@@ -339,7 +339,7 @@ func GetCollectionsAndExpected(
 			config.Service,
 			config.Tenant,
 			owner,
-			config.Dest,
+			config.RestoreCfg,
 			testCollections,
 			backupVersion,
 		)

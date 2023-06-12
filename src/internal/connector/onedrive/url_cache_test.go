@@ -63,7 +63,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		t              = suite.T()
 		ac             = suite.ac.Drives()
 		driveID        = suite.driveID
-		newFolderName  = tester.DefaultTestRestoreDestination("folder").ContainerName
+		newFolderName  = tester.DefaultTestRestoreConfig("folder").Location
 		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault())
 	)
 

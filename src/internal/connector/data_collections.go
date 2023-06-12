@@ -233,7 +233,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	sels selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
@@ -251,13 +251,13 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreCollections(ctx, gc.AC, dest, dcs, deets, errs)
+		status, err = exchange.RestoreCollections(ctx, gc.AC, restoreCfg, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(
 			ctx,
 			onedrive.NewRestoreHandler(gc.AC),
 			backupVersion,
-			dest,
+			restoreCfg,
 			opts,
 			dcs,
 			deets,
@@ -267,7 +267,7 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 			ctx,
 			backupVersion,
 			gc.AC,
-			dest,
+			restoreCfg,
 			opts,
 			dcs,
 			deets,

@@ -83,9 +83,9 @@ func generateAndRestoreItems(
 		items:        items,
 	}}
 
-	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)
-	dest.ContainerName = destFldr
-	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
+	dest := control.DefaultRestoreConfig(dttm.SafeForTesting)
+	dest.Location = destFldr
+	print.Infof(ctx, "Restoring to folder %s", dest.Location)
 
 	dataColls, err := buildCollections(
 		service,
@@ -163,7 +163,7 @@ type collection struct {
 func buildCollections(
 	service path.ServiceType,
 	tenant, user string,
-	dest control.RestoreDestination,
+	dest control.RestoreConfig,
 	colls []collection,
 ) ([]data.RestoreCollection, error) {
 	collections := make([]data.RestoreCollection, 0, len(colls))
@@ -224,9 +224,9 @@ func generateAndRestoreDriveItems(
 	ctx, flush := tester.NewContext(nil)
 	defer flush()
 
-	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)
-	dest.ContainerName = destFldr
-	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
+	dest := control.DefaultRestoreConfig(dttm.SafeForTesting)
+	dest.Location = destFldr
+	print.Infof(ctx, "Restoring to folder %s", dest.Location)
 
 	var driveID string
 
@@ -394,7 +394,7 @@ func generateAndRestoreDriveItems(
 		Service:        service,
 		Tenant:         tenantID,
 		ResourceOwners: []string{resourceOwner},
-		Dest:           tester.DefaultTestRestoreDestination(""),
+		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
 	}
 
 	_, _, collections, _, err := connector.GetCollectionsAndExpected(

@@ -60,7 +60,7 @@ func (gc GraphConnector) ConsumeRestoreCollections(
 	_ context.Context,
 	_ int,
 	_ selectors.Selector,
-	_ control.RestoreDestination,
+	_ control.RestoreConfig,
 	_ control.Options,
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
