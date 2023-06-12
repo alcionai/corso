@@ -64,7 +64,7 @@ func RestoreCollections(
 	ctx context.Context,
 	rh RestoreHandler,
 	backupVersion int,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
@@ -79,7 +79,7 @@ func RestoreCollections(
 	ctx = clues.Add(
 		ctx,
 		"backup_version", backupVersion,
-		"destination", dest.ContainerName)
+		"restore_location", restoreCfg.Location)
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
@@ -97,7 +97,7 @@ func RestoreCollections(
 			ictx    = clues.Add(
 				ctx,
 				"category", dc.FullPath().Category(),
-				"destination", clues.Hide(dest.ContainerName),
+				"destination", clues.Hide(restoreCfg.Location),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"full_path", dc.FullPath())
 		)
@@ -108,7 +108,7 @@ func RestoreCollections(
 			backupVersion,
 			dc,
 			caches,
-			dest.ContainerName,
+			restoreCfg.Location,
 			deets,
 			opts.RestorePermissions,
 			errs)
@@ -128,7 +128,7 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		dest.ContainerName)
+		restoreCfg.Location)
 
 	return status, el.Failure()
 }

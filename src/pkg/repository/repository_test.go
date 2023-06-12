@@ -242,7 +242,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	defer flush()
 
 	acct := tester.NewM365Account(t)
-	dest := tester.DefaultTestRestoreDestination("")
+	restoreCfg := tester.DefaultTestRestoreConfig("")
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -250,7 +250,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	r, err := repository.Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, dest)
+	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, restoreCfg)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, ro)
 }

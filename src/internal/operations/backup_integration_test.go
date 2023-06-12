@@ -381,14 +381,14 @@ func generateContainerOfItems(
 		items:       items,
 	}}
 
-	dest := control.DefaultRestoreDestination(dttm.SafeForTesting)
-	dest.ContainerName = destFldr
+	restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
+	restoreCfg.Location = destFldr
 
 	dataColls := buildCollections(
 		t,
 		service,
 		tenantID, resourceOwner,
-		dest,
+		restoreCfg,
 		collections)
 
 	opts := control.Defaults()
@@ -398,7 +398,7 @@ func generateContainerOfItems(
 		ctx,
 		backupVersion,
 		sel,
-		dest,
+		restoreCfg,
 		opts,
 		dataColls,
 		fault.New(true))
@@ -443,7 +443,7 @@ func buildCollections(
 	t *testing.T,
 	service path.ServiceType,
 	tenant, user string,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	colls []incrementalCollection,
 ) []data.RestoreCollection {
 	t.Helper()
