@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -72,7 +73,7 @@ func validateCacheParams(
 		return clues.New("drive id is empty")
 	}
 
-	if refreshInterval <= 1*time.Second {
+	if refreshInterval < 1*time.Second {
 		return clues.New("invalid refresh interval")
 	}
 
@@ -94,7 +95,6 @@ func (uc *urlCache) getItemProperties(
 
 	ctx = clues.Add(ctx, "drive_id", uc.driveID)
 
-	// Lazy refresh
 	if uc.needsRefresh() {
 		err := uc.refreshCache(ctx)
 		if err != nil {
@@ -146,6 +146,9 @@ func (uc *urlCache) refreshCache(
 
 	err := uc.deltaQuery(ctx)
 	if err != nil {
+		// clear cache
+		uc.idToProps = make(map[string]itemProps)
+
 		return err
 	}
 
@@ -224,12 +227,14 @@ func (uc *urlCache) updateCache(
 			continue
 		}
 
-		var url string
+		var (
+			url string
+			ad  = item.GetAdditionalData()
+		)
 
 		for _, key := range downloadURLKeys {
-			tmp, ok := item.GetAdditionalData()[key].(*string)
-			if ok {
-				url = ptr.Val(tmp)
+			if v, err := str.AnyValueToString(key, ad); err == nil {
+				url = v
 				break
 			}
 		}
