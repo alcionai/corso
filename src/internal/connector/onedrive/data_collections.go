@@ -44,17 +44,19 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(err, "parsing selector").WithClues(ctx)
 	}
 
 	var (
-		el          = errs.Local()
-		categories  = map[path.CategoryType]struct{}{}
-		collections = []data.BackupCollection{}
-		ssmb        = prefixmatcher.NewStringSetBuilder()
+		el                   = errs.Local()
+		categories           = map[path.CategoryType]struct{}{}
+		collections          = []data.BackupCollection{}
+		ssmb                 = prefixmatcher.NewStringSetBuilder()
+		odcs                 []data.BackupCollection
+		canUsePreviousBackup bool
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -73,7 +75,7 @@ func DataCollections(
 			su,
 			ctrlOpts)
 
-		odcs, err := nc.Get(ctx, metadata, ssmb, errs)
+		odcs, canUsePreviousBackup, err = nc.Get(ctx, metadata, ssmb, errs)
 		if err != nil {
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
@@ -90,7 +92,7 @@ func DataCollections(
 		su,
 		ctrlOpts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	collections = append(collections, mcs...)
@@ -106,13 +108,13 @@ func DataCollections(
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, ssmb.ToReader(), el.Failure()
+	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
 
 // adds data migrations to the collection set.

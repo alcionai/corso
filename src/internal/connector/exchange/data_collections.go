@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -64,8 +65,7 @@ type DeltaPath struct {
 func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
-	errs *fault.Bus,
-) (CatDeltaPaths, error) {
+) (CatDeltaPaths, bool, error) {
 	// cdp stores metadata
 	cdp := CatDeltaPaths{
 		path.ContactsCategory: {},
@@ -81,6 +81,10 @@ func parseMetadataCollections(
 		path.EventsCategory:   {},
 	}
 
+	// errors from metadata items should not stop the backup,
+	// but it should prevent us from using previous backups
+	errs := fault.New(true)
+
 	for _, coll := range colls {
 		var (
 			breakLoop bool
@@ -91,10 +95,10 @@ func parseMetadataCollections(
 		for {
 			select {
 			case <-ctx.Done():
-				return nil, clues.Wrap(ctx.Err(), "parsing collection metadata").WithClues(ctx)
+				return nil, false, clues.Wrap(ctx.Err(), "parsing collection metadata").WithClues(ctx)
 
 			case item, ok := <-items:
-				if !ok {
+				if !ok || errs.Failure() != nil {
 					breakLoop = true
 					break
 				}
@@ -106,13 +110,13 @@ func parseMetadataCollections(
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
-					return nil, clues.New("decoding metadata json").WithClues(ctx)
+					return nil, false, clues.New("decoding metadata json").WithClues(ctx)
 				}
 
 				switch item.UUID() {
 				case graph.PreviousPathFileName:
 					if _, ok := found[category]["path"]; ok {
-						return nil, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
+						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
 					}
 
 					for k, p := range m {
@@ -123,7 +127,7 @@ func parseMetadataCollections(
 
 				case graph.DeltaURLsFileName:
 					if _, ok := found[category]["delta"]; ok {
-						return nil, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
+						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
 					}
 
 					for k, d := range m {
@@ -142,6 +146,16 @@ func parseMetadataCollections(
 		}
 	}
 
+	if errs.Failure() != nil {
+		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
+
+		return CatDeltaPaths{
+			path.ContactsCategory: {},
+			path.EmailCategory:    {},
+			path.EventsCategory:   {},
+		}, false, nil
+	}
+
 	// Remove any entries that contain a path or a delta, but not both.
 	// That metadata is considered incomplete, and needs to incur a
 	// complete backup on the next run.
@@ -153,7 +167,7 @@ func parseMetadataCollections(
 		}
 	}
 
-	return cdp, nil
+	return cdp, true, nil
 }
 
 // DataCollections returns a DataCollection which the caller can
@@ -168,10 +182,10 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
 	}
 
 	var (
@@ -187,9 +201,9 @@ func DataCollections(
 		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
 	}
 
-	cdps, err := parseMetadataCollections(ctx, metadata, errs)
+	cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, metadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	for _, scope := range eb.Scopes() {
@@ -228,13 +242,13 @@ func DataCollections(
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, nil, el.Failure()
+	return collections, nil, canUsePreviousBackup, el.Failure()
 }
 
 // createCollections - utility function that retrieves M365

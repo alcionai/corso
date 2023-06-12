@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"testing"
 
@@ -42,18 +43,20 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 	}
 
 	table := []struct {
-		name        string
-		data        []fileValues
-		expect      map[string]DeltaPath
-		expectError assert.ErrorAssertionFunc
+		name                 string
+		data                 []fileValues
+		expect               map[string]DeltaPath
+		canUsePreviousBackup bool
+		expectError          assert.ErrorAssertionFunc
 	}{
 		{
 			name: "delta urls only",
 			data: []fileValues{
 				{graph.DeltaURLsFileName, "delta-link"},
 			},
-			expect:      map[string]DeltaPath{},
-			expectError: assert.NoError,
+			expect:               map[string]DeltaPath{},
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "multiple delta urls",
@@ -61,7 +64,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.DeltaURLsFileName, "delta-link-2"},
 			},
-			expectError: assert.Error,
+			canUsePreviousBackup: false,
+			expectError:          assert.Error,
 		},
 		{
 			name: "previous path only",
@@ -74,7 +78,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					Path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "multiple previous paths",
@@ -82,7 +87,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.PreviousPathFileName, "prev-path"},
 				{graph.PreviousPathFileName, "prev-path-2"},
 			},
-			expectError: assert.Error,
+			canUsePreviousBackup: false,
+			expectError:          assert.Error,
 		},
 		{
 			name: "delta urls and previous paths",
@@ -96,7 +102,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					Path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "delta urls and empty previous paths",
@@ -104,8 +111,9 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.PreviousPathFileName, ""},
 			},
-			expect:      map[string]DeltaPath{},
-			expectError: assert.NoError,
+			expect:               map[string]DeltaPath{},
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "empty delta urls and previous paths",
@@ -119,7 +127,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					Path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "delta urls with special chars",
@@ -133,7 +142,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					Path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "delta urls with escaped chars",
@@ -147,7 +157,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					Path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 		{
 			name: "delta urls with newline char runes",
@@ -164,7 +175,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					Path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			canUsePreviousBackup: true,
+			expectError:          assert.NoError,
 		},
 	}
 	for _, test := range table {
@@ -191,10 +203,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			)
 			require.NoError(t, err, clues.ToCore(err))
 
-			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+			cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NoFetchRestoreCollection{Collection: coll},
-			}, fault.New(true))
+			})
 			test.expectError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
 			emails := cdps[path.EmailCategory]
 
@@ -206,6 +220,52 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			}
 		})
 	}
+}
+
+type failingColl struct {
+	t *testing.T
+}
+
+func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
+	ic := make(chan data.Stream)
+	defer close(ic)
+
+	errs.AddRecoverable(assert.AnError)
+
+	return ic
+}
+
+func (f failingColl) FullPath() path.Path {
+	tmp, err := path.Build(
+		"tenant",
+		"user",
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"inbox")
+	require.NoError(f.t, err, clues.ToCore(err))
+
+	return tmp
+}
+
+func (f failingColl) FetchItemByName(context.Context, string) (data.Stream, error) {
+	// no fetch calls will be made
+	return nil, nil
+}
+
+// This check is to ensure that we don't error out, but still return
+// canUsePreviousBackup as false on read errors
+func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections_ReadFailure() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	fc := failingColl{t}
+
+	_, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{fc})
+	require.NoError(t, err)
+	require.False(t, canUsePreviousBackup)
 }
 
 // ---------------------------------------------------------------------------
@@ -401,10 +461,11 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
-			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+			cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NoFetchRestoreCollection{Collection: metadata},
-			}, fault.New(true))
+			})
 			require.NoError(t, err, clues.ToCore(err))
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
 
 			dps := cdps[test.scope.Category().PathType()]
 

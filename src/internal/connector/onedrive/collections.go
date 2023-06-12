@@ -92,8 +92,7 @@ func NewCollections(
 func deserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
-	errs *fault.Bus,
-) (map[string]string, map[string]map[string]string, error) {
+) (map[string]string, map[string]map[string]string, bool, error) {
 	logger.Ctx(ctx).Infow(
 		"deserialzing previous backup metadata",
 		"num_collections", len(cols))
@@ -101,11 +100,11 @@ func deserializeMetadata(
 	var (
 		prevDeltas  = map[string]string{}
 		prevFolders = map[string]map[string]string{}
-		el          = errs.Local()
+		errs        = fault.New(true) // metadata item reads should not fail backup
 	)
 
 	for _, col := range cols {
-		if el.Failure() != nil {
+		if errs.Failure() != nil {
 			break
 		}
 
@@ -114,7 +113,7 @@ func deserializeMetadata(
 		for breakLoop := false; !breakLoop; {
 			select {
 			case <-ctx.Done():
-				return nil, nil, clues.Wrap(ctx.Err(), "deserialzing previous backup metadata").WithClues(ctx)
+				return nil, nil, false, clues.Wrap(ctx.Err(), "deserialzing previous backup metadata").WithClues(ctx)
 
 			case item, ok := <-items:
 				if !ok {
@@ -154,7 +153,7 @@ func deserializeMetadata(
 				// these cases. We can make the logic for deciding when to continue vs.
 				// when to fail less strict in the future if needed.
 				if err != nil {
-					return nil, nil, clues.Stack(err).WithClues(ictx)
+					return nil, nil, false, clues.Stack(err).WithClues(ictx)
 				}
 			}
 		}
@@ -186,7 +185,14 @@ func deserializeMetadata(
 		}
 	}
 
-	return prevDeltas, prevFolders, el.Failure()
+	// if reads from items failed, return empty but no error
+	if errs.Failure() != nil {
+		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
+
+		return map[string]string{}, map[string]map[string]string{}, false, nil
+	}
+
+	return prevDeltas, prevFolders, true, nil
 }
 
 var errExistingMapping = clues.New("mapping already exists for same drive ID")
@@ -229,10 +235,10 @@ func (c *Collections) Get(
 	prevMetadata []data.RestoreCollection,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
-	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)
+) ([]data.BackupCollection, bool, error) {
+	prevDeltas, oldPathsByDriveID, canUsePreviousBackup, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	driveTombstones := map[string]struct{}{}
@@ -249,7 +255,7 @@ func (c *Collections) Get(
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var (
@@ -294,7 +300,7 @@ func (c *Collections) Get(
 			prevDelta,
 			errs)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		// Used for logging below.
@@ -332,7 +338,7 @@ func (c *Collections) Get(
 
 			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID, c.resourceOwner)
 			if err != nil {
-				return nil, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+				return nil, false, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
 
 			ssmb.Add(p.String(), excluded)
@@ -360,7 +366,7 @@ func (c *Collections) Get(
 			prevPath, err := path.FromDataLayerPath(p, false)
 			if err != nil {
 				err = clues.Wrap(err, "invalid previous path").WithClues(ictx).With("deleted_path", p)
-				return nil, err
+				return nil, false, err
 			}
 
 			col, err := NewCollection(
@@ -373,7 +379,7 @@ func (c *Collections) Get(
 				CollectionScopeUnknown,
 				true)
 			if err != nil {
-				return nil, clues.Wrap(err, "making collection").WithClues(ictx)
+				return nil, false, clues.Wrap(err, "making collection").WithClues(ictx)
 			}
 
 			c.CollectionMap[driveID][fldID] = col
@@ -395,7 +401,7 @@ func (c *Collections) Get(
 	for driveID := range driveTombstones {
 		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.resourceOwner, driveID)
 		if err != nil {
-			return nil, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
+			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}
 
 		coll, err := NewCollection(
@@ -408,7 +414,7 @@ func (c *Collections) Get(
 			CollectionScopeUnknown,
 			true)
 		if err != nil {
-			return nil, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
+			return nil, false, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
 		}
 
 		collections = append(collections, coll)
@@ -436,7 +442,7 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
-	return collections, nil
+	return collections, canUsePreviousBackup, nil
 }
 
 func updateCollectionPaths(
