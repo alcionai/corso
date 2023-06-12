@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 // Control produces the control options based on the user's flags.
@@ -50,10 +51,39 @@ var (
 	skipReduceFV         bool
 )
 
+// s3 bucket info from flags
+var (
+	Bucket          string
+	Endpoint        string
+	Prefix          string
+	DoNotUseTLS     bool
+	DoNotVerifyTLS  bool
+	AccessKey       string
+	SecretAccessKey string
+	SessionToken    string
+)
+
 // AddGlobalOperationFlags adds the global operations flag set.
 func AddGlobalOperationFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	fs.BoolVar(&noStatsFV, NoStatsFN, false, "disable anonymous usage statistics gathering")
+
+	// Flags addition ordering should follow the order we want them to appear in help and docs:
+	// More generic and more frequently used flags take precedence.
+
+	// S3 flags
+	fs.StringVar(&Bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
+	fs.StringVar(&Prefix, "prefix", "", "Repo prefix within bucket.")
+	fs.StringVar(&Endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
+	fs.BoolVar(&DoNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&DoNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
+	fs.StringVar(&AccessKey, "access-key", "", "S3 access key")
+	fs.StringVar(&SecretAccessKey, "secret-access-key", "", "S3 access key")
+	fs.StringVar(&SessionToken, "session-token", "", "S3 session token")
+
+	// M365 flags
+	fs.StringVar(&credentials.AClientID, "client-id", "", "Azure app client ID")
+	fs.StringVar(&credentials.AClientSecret, "client-secret", "", "Azure app client secret")
 }
 
 // AddFailFastFlag adds a flag to toggle fail-fast error handling behavior.

@@ -44,6 +44,7 @@ func AddCommands(parent *cobra.Command) {
 	fs := exCmd.PersistentFlags()
 	fs.StringVar(&m365ID, "id", "", "m365 identifier for object")
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
+	// TODO: Neha: check if this is to be removed
 	fs.StringVar(&tenant, "tenant", "", "m365 identifier for the tenant")
 
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("user"))
