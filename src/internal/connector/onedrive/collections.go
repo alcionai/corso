@@ -663,7 +663,7 @@ func (c *Collections) UpdateCollections(
 				skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 			}
 
-			errs.AddSkip(skip)
+			errs.AddSkip(ctx, skip)
 			logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
 
 			continue
@@ -689,7 +689,7 @@ func (c *Collections) UpdateCollections(
 
 		collectionPath, err := c.getCollectionPath(driveID, item)
 		if err != nil {
-			el.AddRecoverable(clues.Stack(err).
+			el.AddRecoverable(ctx, clues.Stack(err).
 				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
 
@@ -711,7 +711,7 @@ func (c *Collections) UpdateCollections(
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 				if err != nil {
-					el.AddRecoverable(clues.Wrap(err, "invalid previous path").
+					el.AddRecoverable(ctx, clues.Wrap(err, "invalid previous path").
 						WithClues(ictx).
 						With("path_string", prevPathStr))
 				}

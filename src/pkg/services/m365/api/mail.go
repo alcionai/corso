@@ -264,7 +264,7 @@ func (c Mail) EnumerateContainers(
 			}
 
 			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
-				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -275,7 +275,7 @@ func (c Mail) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 		}

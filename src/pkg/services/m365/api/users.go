@@ -97,7 +97,7 @@ func (c Users) GetAll(
 
 		err := validateUser(item)
 		if err != nil {
-			el.AddRecoverable(graph.Wrap(ctx, err, "validating user"))
+			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating user"))
 		} else {
 			us = append(us, item)
 		}

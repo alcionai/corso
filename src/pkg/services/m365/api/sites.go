@@ -72,7 +72,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		}
 
 		if err != nil {
-			el.AddRecoverable(graph.Wrap(ctx, err, "validating site"))
+			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating site"))
 			return true
 		}
 

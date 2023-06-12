@@ -130,13 +130,13 @@ func loadSiteLists(
 
 			entry, err = gs.Client().Sites().BySiteId(siteID).Lists().ByListId(id).Get(ctx, nil)
 			if err != nil {
-				el.AddRecoverable(graph.Wrap(ctx, err, "getting site list"))
+				el.AddRecoverable(ctx, graph.Wrap(ctx, err, "getting site list"))
 				return
 			}
 
 			cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, id, errs)
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting list contents"))
+				el.AddRecoverable(ctx, clues.Wrap(err, "getting list contents"))
 				return
 			}
 
@@ -220,7 +220,7 @@ func fetchListItems(
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
-				el.AddRecoverable(graph.Wrap(ctx, err, "getting list fields"))
+				el.AddRecoverable(ctx, graph.Wrap(ctx, err, "getting list fields"))
 				continue
 			}
 
@@ -336,7 +336,7 @@ func fetchContentTypes(
 
 			links, err := fetchColumnLinks(ctx, gs, siteID, listID, id)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -344,7 +344,7 @@ func fetchContentTypes(
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 

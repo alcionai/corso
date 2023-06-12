@@ -403,7 +403,7 @@ func (cr *containerResolver) populatePaths(
 		_, err := cr.idToPath(ctx, ptr.Val(f.GetId()), 0)
 		if err != nil {
 			err = clues.Wrap(err, "populating path")
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 			lastErr = err
 		}
 	}

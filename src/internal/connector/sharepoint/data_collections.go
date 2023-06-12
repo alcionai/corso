@@ -80,7 +80,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -101,7 +101,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -115,7 +115,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -184,7 +184,7 @@ func collectLists(
 			false,
 			tuple.name)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "creating list collection path").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(
@@ -284,7 +284,7 @@ func collectPages(
 			false,
 			tuple.Name)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "creating page collection path").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(

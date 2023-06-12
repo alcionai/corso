@@ -114,7 +114,7 @@ func RestoreCollections(
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 		}
 
 		if errors.Is(err, context.Canceled) {
@@ -251,7 +251,7 @@ func RestoreListCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -259,7 +259,7 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -331,7 +331,7 @@ func RestorePageCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -339,7 +339,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 

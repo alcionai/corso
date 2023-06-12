@@ -113,7 +113,7 @@ func RestoreCollections(
 			opts.RestorePermissions,
 			errs)
 		if err != nil {
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
@@ -273,7 +273,7 @@ func RestoreCollection(
 
 				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 				if err != nil {
-					el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ictx))
+					el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ictx))
 					return
 				}
 
@@ -297,7 +297,7 @@ func RestoreCollection(
 				}
 
 				if err != nil {
-					el.AddRecoverable(clues.Wrap(err, "restoring item"))
+					el.AddRecoverable(ctx, clues.Wrap(err, "restoring item"))
 					return
 				}
 

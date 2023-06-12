@@ -83,7 +83,7 @@ func BaseCollections(
 		if err != nil {
 			// Shouldn't happen.
 			err = clues.Wrap(err, "making path").WithClues(ictx)
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 			lastErr = err
 
 			continue

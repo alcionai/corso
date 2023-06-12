@@ -230,7 +230,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 					atomic.AddInt64(&success, 1)
 					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
 				} else {
-					errs.AddRecoverable(clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
+					errs.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
 				return
@@ -238,7 +238,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 			data, err := col.items.Serialize(ctx, item, user, id)
 			if err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation))
 				return
 			}
 

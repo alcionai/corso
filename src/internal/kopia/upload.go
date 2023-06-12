@@ -183,7 +183,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.info == nil {
 		if d.prevPath == nil {
-			cp.errs.AddRecoverable(clues.New("item sourced from previous backup with no previous path").
+			cp.errs.AddRecoverable(ctx, clues.New("item sourced from previous backup with no previous path").
 				With(
 					"service", d.repoPath.Service().String(),
 					"category", d.repoPath.Category().String(),
@@ -198,7 +198,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath, d.locationPath)
 		if err != nil {
-			cp.errs.AddRecoverable(clues.Wrap(err, "adding item to merge list").
+			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding item to merge list").
 				With(
 					"service", d.repoPath.Service().String(),
 					"category", d.repoPath.Category().String(),
@@ -215,7 +215,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		!d.cached,
 		*d.info)
 	if err != nil {
-		cp.errs.AddRecoverable(clues.New("adding item to details").
+		cp.errs.AddRecoverable(ctx, clues.New("adding item to details").
 			With(
 				"service", d.repoPath.Service().String(),
 				"category", d.repoPath.Category().String(),
@@ -278,7 +278,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
-	cp.errs.AddRecoverable(clues.Wrap(err, "kopia reported error").
+	cp.errs.AddRecoverable(ctx, clues.Wrap(err, "kopia reported error").
 		With("is_ignored", isIgnored, "relative_path", relpath).
 		Label(fault.LabelForceNoBackupCreation))
 }
@@ -350,7 +350,7 @@ func collectionEntries(
 			itemPath, err := streamedEnts.FullPath().AppendItem(e.UUID())
 			if err != nil {
 				err = clues.Wrap(err, "getting full item path")
-				progress.errs.AddRecoverable(err)
+				progress.errs.AddRecoverable(ctx, err)
 
 				logger.CtxErr(ctx, err).Error("getting full item path")
 
