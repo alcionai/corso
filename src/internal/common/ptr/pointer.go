@@ -1,6 +1,9 @@
 package ptr
 
-import "time"
+import (
+	"reflect"
+	"time"
+)
 
 // ptr package is a common package used for pointer
 // access and deserialization.
@@ -49,4 +52,18 @@ func OrNow(t *time.Time) time.Time {
 // without needing to store a second variable.
 func To[T any](t T) *T {
 	return &t
+}
+
+// IsNil check if type provided is nil
+func IsNil(i any) bool {
+	if i == nil {
+		return true
+	}
+
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+
+	return false
 }

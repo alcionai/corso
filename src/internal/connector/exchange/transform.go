@@ -257,7 +257,11 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetImportance(orig.GetImportance())
 	newEvent.SetIsAllDay(orig.GetIsAllDay())
 	newEvent.SetIsOnlineMeeting(orig.GetIsOnlineMeeting())
-	newEvent.SetLocation(orig.GetLocation())
+
+	if !ptr.IsNil(orig.GetLocation()) {
+		newEvent.SetLocation(orig.GetLocation())
+	}
+
 	newEvent.SetLocations(orig.GetLocations())
 	newEvent.SetSensitivity(orig.GetSensitivity())
 	newEvent.SetReminderMinutesBeforeStart(orig.GetReminderMinutesBeforeStart())
