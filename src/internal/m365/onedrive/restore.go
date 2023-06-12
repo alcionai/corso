@@ -102,7 +102,7 @@ func RestoreCollections(
 				"full_path", dc.FullPath())
 		)
 
-		metrics, err = RestoreCollection(
+		metrics, err = ProduceRestoreCollection(
 			ictx,
 			rh,
 			backupVersion,
@@ -133,12 +133,12 @@ func RestoreCollections(
 	return status, el.Failure()
 }
 
-// RestoreCollection handles restoration of an individual collection.
+// ProduceRestoreCollection handles restoration of an individual collection.
 // returns:
 // - the collection's item and byte count metrics
 // - the updated metadata map that include metadata for folders in this collection
 // - error, if any besides recoverable
-func RestoreCollection(
+func ProduceRestoreCollection(
 	ctx context.Context,
 	rh RestoreHandler,
 	backupVersion int,

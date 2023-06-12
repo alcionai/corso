@@ -31,9 +31,9 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 	return fm.scope.Matches(selectors.OneDriveFolder, dir)
 }
 
-// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
+// ProduceBackupCollections returns a set of DataCollection which represents the OneDrive data
 // for the specified user
-func DataCollections(
+func ProduceBackupCollections(
 	ctx context.Context,
 	ac api.Client,
 	selector selectors.Selector,

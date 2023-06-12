@@ -46,20 +46,19 @@ func (mi *mockItemer) Serialize(
 	return nil, mi.serializeErr
 }
 
-type ExchangeDataCollectionSuite struct {
+type CollectionSuite struct {
 	tester.Suite
 }
 
-func TestExchangeDataCollectionSuite(t *testing.T) {
-	suite.Run(t, &ExchangeDataCollectionSuite{Suite: tester.NewUnitSuite(t)})
+func TestCollectionSuite(t *testing.T) {
+	suite.Run(t, &CollectionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
+func (suite *CollectionSuite) TestReader_Valid() {
 	m := []byte("test message")
 	description := "aFile"
 	ed := &Stream{id: description, message: m}
 
-	// Read the message using the `ExchangeData` reader and validate it matches what we set
 	buf := &bytes.Buffer{}
 	_, err := buf.ReadFrom(ed.ToReader())
 	assert.NoError(suite.T(), err, clues.ToCore(err))
@@ -67,7 +66,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
 	assert.Equal(suite.T(), description, ed.UUID())
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
+func (suite *CollectionSuite) TestReader_Empty() {
 	var (
 		empty    []byte
 		expected int64
@@ -82,7 +81,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
+func (suite *CollectionSuite) TestColleciton_FullPath() {
 	t := suite.T()
 	tenant := "a-tenant"
 	user := "a-user"
@@ -105,7 +104,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 	assert.Equal(t, fullPath, edc.FullPath())
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
+func (suite *CollectionSuite) TestCollection_NewCollection() {
 	t := suite.T()
 	tenant := "a-tenant"
 	user := "a-user"
@@ -129,7 +128,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 	assert.Equal(t, fullPath, edc.FullPath())
 }
 
-func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
+func (suite *CollectionSuite) TestNewCollection_state() {
 	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
@@ -189,7 +188,7 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 	}
 }
 
-func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
+func (suite *CollectionSuite) TestGetItemWithRetries() {
 	table := []struct {
 		name           string
 		items          *mockItemer

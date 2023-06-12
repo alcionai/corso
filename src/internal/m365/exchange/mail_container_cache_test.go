@@ -87,7 +87,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 			acm := ac.Mail()
 
-			mfc := mailFolderCache{
+			mfc := mailContainerCache{
 				userID: userID,
 				enumer: acm,
 				getter: acm,

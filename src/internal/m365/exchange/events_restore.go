@@ -33,7 +33,7 @@ func newEventRestoreHandler(
 }
 
 func (h eventRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
-	return &eventCalendarCache{
+	return &eventContainerCache{
 		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,

@@ -31,7 +31,7 @@ func newContactRestoreHandler(
 }
 
 func (h contactRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
-	return &contactFolderCache{
+	return &contactContainerCache{
 		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,

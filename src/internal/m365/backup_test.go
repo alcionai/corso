@@ -127,7 +127,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				ctrlOpts := control.Defaults()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
-				collections, excludes, canUsePreviousBackup, err := exchange.DataCollections(
+				collections, excludes, canUsePreviousBackup, err := exchange.ProduceBackupCollections(
 					ctx,
 					suite.ac,
 					sel,
@@ -297,7 +297,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			sel := test.getSelector()
 
-			collections, excludes, canUsePreviousBackup, err := sharepoint.DataCollections(
+			collections, excludes, canUsePreviousBackup, err := sharepoint.ProduceBackupCollections(
 				ctx,
 				suite.ac,
 				sel,

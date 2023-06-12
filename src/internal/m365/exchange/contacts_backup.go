@@ -32,7 +32,7 @@ func (h contactBackupHandler) itemHandler() itemGetterSerializer {
 func (h contactBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {
-	return DefaultContactFolder, &contactFolderCache{
+	return DefaultContactFolder, &contactContainerCache{
 		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,

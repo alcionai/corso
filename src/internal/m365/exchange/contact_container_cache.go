@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	_ graph.ContainerResolver = &contactFolderCache{}
+	_ graph.ContainerResolver = &contactContainerCache{}
 	_ containerRefresher      = &contactRefresher{}
 )
 
@@ -35,14 +35,14 @@ func (r *contactRefresher) refreshContainer(
 	return &f, nil
 }
 
-type contactFolderCache struct {
+type contactContainerCache struct {
 	*containerResolver
 	enumer containersEnumerator
 	getter containerGetter
 	userID string
 }
 
-func (cfc *contactFolderCache) populateContactRoot(
+func (cfc *contactContainerCache) populateContactRoot(
 	ctx context.Context,
 	directoryID string,
 	baseContainerPath []string,
@@ -67,7 +67,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 // objects into the Contact Folder Cache
 // Function does NOT use Delta Queries as it is not supported
 // as of (Oct-07-2022)
-func (cfc *contactFolderCache) Populate(
+func (cfc *contactContainerCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,
@@ -89,7 +89,7 @@ func (cfc *contactFolderCache) Populate(
 	return nil
 }
 
-func (cfc *contactFolderCache) init(
+func (cfc *contactContainerCache) init(
 	ctx context.Context,
 	baseNode string,
 	baseContainerPath []string,

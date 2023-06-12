@@ -22,9 +22,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// RestoreCollections restores M365 objects in data.RestoreCollection to MSFT
+// ConsumeRestoreCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.
-func RestoreCollections(
+func ConsumeRestoreCollections(
 	ctx context.Context,
 	ac api.Client,
 	restoreCfg control.RestoreConfig,
