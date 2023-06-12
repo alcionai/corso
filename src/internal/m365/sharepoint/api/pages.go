@@ -70,7 +70,7 @@ func GetSitePages(
 
 			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
 			if err != nil {
-				el.AddRecoverable(graph.Wrap(ctx, err, "fetching page"))
+				el.AddRecoverable(ctx, graph.Wrap(ctx, err, "fetching page"))
 				return
 			}
 

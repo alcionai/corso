@@ -12,6 +12,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type Bus struct {
@@ -118,27 +119,45 @@ func (e *Bus) setFailure(err error) *Bus {
 //
 // TODO: nil return, not Bus, since we don't want people to return
 // from errors.AddRecoverable().
-func (e *Bus) AddRecoverable(err error) *Bus {
+func (e *Bus) AddRecoverable(ctx context.Context, err error) {
 	if err == nil {
-		return e
+		return
 	}
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.addRecoverableErr(err)
+	e.logAndAddRecoverable(ctx, err, 1)
+}
+
+// logs the error and adds it to the bus.  If the error is a failure,
+// it gets logged at an Error level.  Otherwise logs an Info.
+func (e *Bus) logAndAddRecoverable(ctx context.Context, err error, skip int) {
+	log := logger.CtxErrStack(ctx, err, skip+1)
+	isFail := e.addRecoverableErr(err)
+
+	if isFail {
+		log.Error("recoverable error")
+	} else {
+		log.Info("recoverable error")
+	}
 }
 
 // addErr handles adding errors to errors.errs.  Sync locking
-// gets handled upstream of this call.
-func (e *Bus) addRecoverableErr(err error) *Bus {
+// gets handled upstream of this call.  Returns true if the
+// error is a failure, false otherwise.
+func (e *Bus) addRecoverableErr(err error) bool {
+	var isFail bool
+
 	if e.failure == nil && e.failFast {
 		e.setFailure(err)
+
+		isFail = true
 	}
 
 	e.recoverable = append(e.recoverable, err)
 
-	return e
+	return isFail
 }
 
 // AddSkip appends a record of a Skipped item to the fault bus.
@@ -151,15 +170,23 @@ func (e *Bus) addRecoverableErr(err error) *Bus {
 // 2. Skipping avoids a permanent and consistent failure.  If
 // the underlying reason is transient or otherwise recoverable,
 // the item should not be skipped.
-func (e *Bus) AddSkip(s *Skipped) *Bus {
+func (e *Bus) AddSkip(ctx context.Context, s *Skipped) {
 	if s == nil {
-		return e
+		return
 	}
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.addSkip(s)
+	e.logAndAddSkip(ctx, s, 1)
+}
+
+// logs the error and adds a skipped item.
+func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, skip int) {
+	logger.CtxStack(ctx, skip+1).
+		With("skipped", s).
+		Info("recoverable error")
+	e.AddSkip(ctx, s)
 }
 
 func (e *Bus) addSkip(s *Skipped) *Bus {
@@ -344,7 +371,7 @@ type localBus struct {
 	current error
 }
 
-func (e *localBus) AddRecoverable(err error) {
+func (e *localBus) AddRecoverable(ctx context.Context, err error) {
 	if err == nil {
 		return
 	}
@@ -356,7 +383,7 @@ func (e *localBus) AddRecoverable(err error) {
 		e.current = err
 	}
 
-	e.bus.AddRecoverable(err)
+	e.bus.logAndAddRecoverable(ctx, err, 1)
 }
 
 // AddSkip appends a record of a Skipped item to the local bus.
@@ -369,7 +396,7 @@ func (e *localBus) AddRecoverable(err error) {
 // 2. Skipping avoids a permanent and consistent failure.  If
 // the underlying reason is transient or otherwise recoverable,
 // the item should not be skipped.
-func (e *localBus) AddSkip(s *Skipped) {
+func (e *localBus) AddSkip(ctx context.Context, s *Skipped) {
 	if s == nil {
 		return
 	}
@@ -377,7 +404,7 @@ func (e *localBus) AddSkip(s *Skipped) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.bus.AddSkip(s)
+	e.bus.logAndAddSkip(ctx, s, 1)
 }
 
 // Failure returns the failure that happened within the local bus.

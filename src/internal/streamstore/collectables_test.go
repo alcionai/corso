@@ -1,6 +1,7 @@
 package streamstore
 
 import (
+	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -73,13 +74,13 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 	table := []struct {
 		name      string
 		deets     func(*testing.T) *details.Details
-		errs      func() *fault.Errors
+		errs      func(context.Context) *fault.Errors
 		hasSnapID assert.ValueAssertionFunc
 	}{
 		{
 			name:      "none",
 			deets:     func(*testing.T) *details.Details { return nil },
-			errs:      func() *fault.Errors { return nil },
+			errs:      func(context.Context) *fault.Errors { return nil },
 			hasSnapID: assert.Empty,
 		},
 		{
@@ -98,18 +99,18 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 					}))
 				return deetsBuilder.Details()
 			},
-			errs:      func() *fault.Errors { return nil },
+			errs:      func(context.Context) *fault.Errors { return nil },
 			hasSnapID: assert.NotEmpty,
 		},
 		{
 			name:  "errors",
 			deets: func(*testing.T) *details.Details { return nil },
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
-				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(ctx, clues.New("bar"))
+				bus.AddRecoverable(ctx, fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
@@ -133,12 +134,12 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 
 				return deetsBuilder.Details()
 			},
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
-				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(ctx, clues.New("bar"))
+				bus.AddRecoverable(ctx, fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
@@ -164,7 +165,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				require.NoError(t, err)
 			}
 
-			errs := test.errs()
+			errs := test.errs(ctx)
 			if errs != nil {
 				err = ss.Collect(ctx, FaultErrorsCollector(errs))
 				require.NoError(t, err)

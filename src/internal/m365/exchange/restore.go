@@ -64,7 +64,7 @@ func ConsumeRestoreCollections(
 
 		handler, ok := handlers[category]
 		if !ok {
-			el.AddRecoverable(clues.New("unsupported restore path category").WithClues(ictx))
+			el.AddRecoverable(ctx, clues.New("unsupported restore path category").WithClues(ictx))
 			continue
 		}
 
@@ -82,7 +82,7 @@ func ConsumeRestoreCollections(
 			isNewCache,
 			errs)
 		if err != nil {
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 			continue
 		}
 
@@ -107,7 +107,7 @@ func ConsumeRestoreCollections(
 				break
 			}
 
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 		}
 	}
 
@@ -166,7 +166,7 @@ func restoreCollection(
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "reading item bytes").WithClues(ictx))
+				el.AddRecoverable(ctx, clues.Wrap(err, "reading item bytes").WithClues(ictx))
 				continue
 			}
 
@@ -174,7 +174,7 @@ func restoreCollection(
 
 			info, err := ir.restore(ictx, body, userID, destinationID, errs)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -185,7 +185,7 @@ func restoreCollection(
 			// destination folder, then the restore path no longer matches the fullPath.
 			itemPath, err := fullPath.AppendItem(itemData.UUID())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "adding item to collection path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.Wrap(err, "adding item to collection path").WithClues(ctx))
 				continue
 			}
 
@@ -343,7 +343,7 @@ func uploadAttachments(
 				continue
 			}
 
-			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.Wrap(err, "uploading mail attachment").WithClues(ctx))
 		}
 	}
 
