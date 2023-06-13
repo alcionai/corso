@@ -7,13 +7,13 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
-// ConnectorOperationStatus is a data type used to describe the state of
+// ControllerOperationStatus is a data type used to describe the state of
 // the sequence of operations.
 // @param ObjectCount integer representation of how many objects have downloaded or uploaded.
 // @param Successful: Number of objects that are sent through the connector without incident.
 // @param incomplete: Bool representation of whether all intended items were download or uploaded.
 // @param bytes: represents the total number of bytes that have been downloaded or uploaded.
-type ConnectorOperationStatus struct {
+type ControllerOperationStatus struct {
 	Folders int
 	Metrics CollectionMetrics
 	details string
@@ -49,8 +49,8 @@ func CreateStatus(
 	folders int,
 	cm CollectionMetrics,
 	details string,
-) *ConnectorOperationStatus {
-	status := ConnectorOperationStatus{
+) *ControllerOperationStatus {
+	status := ControllerOperationStatus{
 		Folders: folders,
 		Metrics: cm,
 		details: details,
@@ -63,10 +63,10 @@ func CreateStatus(
 // Function signature for a status updater
 // Used to define a function that an async connector task can call
 // to on completion with its ConnectorOperationStatus
-type StatusUpdater func(*ConnectorOperationStatus)
+type StatusUpdater func(*ControllerOperationStatus)
 
 // MergeStatus combines ConnectorOperationsStatus value into a single status
-func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
+func MergeStatus(one, two ControllerOperationStatus) ControllerOperationStatus {
 	if one.op == OpUnknown {
 		return two
 	}
@@ -75,7 +75,7 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 		return one
 	}
 
-	status := ConnectorOperationStatus{
+	status := ControllerOperationStatus{
 		Folders: one.Folders + two.Folders,
 		Metrics: CombineMetrics(one.Metrics, two.Metrics),
 		details: one.details + ", " + two.details,
@@ -85,7 +85,7 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 	return status
 }
 
-func (cos *ConnectorOperationStatus) String() string {
+func (cos *ControllerOperationStatus) String() string {
 	var operationStatement string
 
 	switch cos.op {

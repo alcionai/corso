@@ -172,20 +172,20 @@ func (si suiteInfoImpl) Resource() Resource {
 // only test simple things here and leave the more extensive testing to
 // OneDrive.
 
-type GraphConnectorSharePointIntegrationSuite struct {
+type SharePointIntegrationSuite struct {
 	tester.Suite
 	suiteInfo
 }
 
-func TestGraphConnectorSharePointIntegrationSuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorSharePointIntegrationSuite{
+func TestSharePointIntegrationSuite(t *testing.T) {
+	suite.Run(t, &SharePointIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
+func (suite *SharePointIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -209,23 +209,23 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	suite.suiteInfo = si
 }
 
-func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
+func (suite *SharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
 }
 
-func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
+func (suite *SharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+func (suite *SharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
 	testPermissionsBackupAndNoRestore(suite, version.Backup)
 }
 
-func (suite *GraphConnectorSharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
+func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
+func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
 }
@@ -233,20 +233,20 @@ func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreFolderNamedFol
 // ---------------------------------------------------------------------------
 // OneDrive most recent backup version
 // ---------------------------------------------------------------------------
-type GraphConnectorOneDriveIntegrationSuite struct {
+type OneDriveIntegrationSuite struct {
 	tester.Suite
 	suiteInfo
 }
 
-func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorOneDriveIntegrationSuite{
+func TestOneDriveIntegrationSuite(t *testing.T) {
+	suite.Run(t, &OneDriveIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
+func (suite *OneDriveIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -269,23 +269,23 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	suite.suiteInfo = si
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
+func (suite *OneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBackup() {
+func (suite *OneDriveIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+func (suite *OneDriveIntegrationSuite) TestPermissionsBackupAndNoRestore() {
 	testPermissionsBackupAndNoRestore(suite, version.Backup)
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
+func (suite *OneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
+func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
 }
@@ -293,20 +293,20 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreFolderNamedFolde
 // ---------------------------------------------------------------------------
 // OneDrive regression
 // ---------------------------------------------------------------------------
-type GraphConnectorOneDriveNightlySuite struct {
+type OneDriveNightlySuite struct {
 	tester.Suite
 	suiteInfo
 }
 
-func TestGraphConnectorOneDriveNightlySuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorOneDriveNightlySuite{
+func TestOneDriveNightlySuite(t *testing.T) {
+	suite.Run(t, &OneDriveNightlySuite{
 		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
+func (suite *OneDriveNightlySuite) SetupSuite() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -329,24 +329,24 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	suite.suiteInfo = si
 }
 
-func (suite *GraphConnectorOneDriveNightlySuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
+func (suite *OneDriveNightlySuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, 0)
 }
 
-func (suite *GraphConnectorOneDriveNightlySuite) TestPermissionsRestoreAndBackup() {
+func (suite *OneDriveNightlySuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.OneDrive1DataAndMetaFiles)
 }
 
-func (suite *GraphConnectorOneDriveNightlySuite) TestPermissionsBackupAndNoRestore() {
+func (suite *OneDriveNightlySuite) TestPermissionsBackupAndNoRestore() {
 	testPermissionsBackupAndNoRestore(suite, version.OneDrive1DataAndMetaFiles)
 }
 
-func (suite *GraphConnectorOneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
+func (suite *OneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testPermissionsInheritanceRestoreAndBackup(suite, version.OneDrive4DirIncludesPermissions)
 }
 
-func (suite *GraphConnectorOneDriveNightlySuite) TestRestoreFolderNamedFolderRegression() {
+func (suite *OneDriveNightlySuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
 }

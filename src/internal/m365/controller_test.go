@@ -29,15 +29,15 @@ import (
 // Unit tests
 // ---------------------------------------------------------------------------
 
-type GraphConnectorUnitSuite struct {
+type ControllerUnitSuite struct {
 	tester.Suite
 }
 
-func TestGraphConnectorUnitSuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestControllerUnitSuite(t *testing.T) {
+	suite.Run(t, &ControllerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
+func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
 		id   = "owner-id"
 		name = "owner-name"
@@ -221,7 +221,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	}
 }
 
-func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
+func (suite *ControllerUnitSuite) TestController_Wait() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -257,15 +257,15 @@ func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
 // Integration tests
 // ---------------------------------------------------------------------------
 
-type GraphConnectorIntegrationSuite struct {
+type ControllerIntegrationSuite struct {
 	tester.Suite
-	connector     *Controller
+	ctrl          *Controller
 	user          string
 	secondaryUser string
 }
 
-func TestGraphConnectorIntegrationSuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorIntegrationSuite{
+func TestControllerIntegrationSuite(t *testing.T) {
+	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
@@ -273,20 +273,20 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	})
 }
 
-func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
+func (suite *ControllerIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.connector = loadController(ctx, t, Users)
+	suite.ctrl = loadController(ctx, t, Users)
 	suite.user = tester.M365UserID(t)
 	suite.secondaryUser = tester.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
+func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -299,7 +299,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.ConsumeRestoreCollections(
+	deets, err := suite.ctrl.ConsumeRestoreCollections(
 		ctx,
 		version.Backup,
 		sel,
@@ -313,13 +313,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := suite.connector.Wait()
+	status := suite.ctrl.Wait()
 	assert.Equal(t, 0, status.Objects)
 	assert.Equal(t, 0, status.Folders)
 	assert.Equal(t, 0, status.Successes)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
+func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 	restoreCfg := tester.DefaultTestRestoreConfig("")
 	table := []struct {
 		name string
@@ -377,7 +377,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			deets, err := suite.connector.ConsumeRestoreCollections(
+			deets, err := suite.ctrl.ConsumeRestoreCollections(
 				ctx,
 				version.Backup,
 				test.sel,
@@ -391,7 +391,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
-			stats := suite.connector.Wait()
+			stats := suite.ctrl.Wait()
 			assert.Zero(t, stats.Objects)
 			assert.Zero(t, stats.Folders)
 			assert.Zero(t, stats.Successes)
@@ -652,7 +652,7 @@ func runRestoreBackupTestVersions(
 		test.collectionsLatest)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
+func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
@@ -909,7 +909,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			runRestoreBackupTest(
 				suite.T(),
 				test,
-				suite.connector.tenant,
+				suite.ctrl.tenant,
 				[]string{suite.user},
 				control.Options{
 					RestorePermissions: true,
@@ -919,7 +919,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
+func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
 			name:     "Contacts",
@@ -1005,7 +1005,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 				totalItems, _, collections, expectedData, err := collectionsForInfo(
 					test.service,
-					suite.connector.tenant,
+					suite.ctrl.tenant,
 					suite.user,
 					restoreCfg,
 					[]ColInfo{collection},
@@ -1097,7 +1097,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 // TODO: this should only be run during smoke tests, not part of the standard CI.
 // That's why it's set aside instead of being included in the other test set.
-func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
+func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
 	subjectText := "Test message for restore with large attachment"
 
 	test := restoreBackupInfo{
@@ -1122,7 +1122,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 	runRestoreBackupTest(
 		suite.T(),
 		test,
-		suite.connector.tenant,
+		suite.ctrl.tenant,
 		[]string{suite.user},
 		control.Options{
 			RestorePermissions: true,
@@ -1131,7 +1131,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 	)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections() {
+func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 	table := []struct {
 		name         string
 		resource     Resource

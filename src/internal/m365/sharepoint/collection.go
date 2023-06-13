@@ -90,7 +90,7 @@ func (sc *Collection) FullPath() path.Path {
 	return sc.fullPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// TODO(ashmrtn): Fill in with previous path once the Controller compares old
 // and new folder hierarchies.
 func (sc Collection) PreviousPath() path.Path {
 	return nil

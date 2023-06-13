@@ -251,7 +251,7 @@ type Site struct {
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
 	sites, err := discovery.Sites(ctx, acct, errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing M365 graph connection")
+		return nil, clues.Wrap(err, "initializing M365 api connection")
 	}
 
 	ret := make([]*Site, 0, len(sites))

@@ -984,7 +984,7 @@ func checkCollections(
 	checkHasCollections(t, expected, collectionsWithItems)
 
 	// Return how many metadata files were skipped so we can account for it in the
-	// check on GraphConnector status.
+	// check on Controller status.
 	return skipped
 }
 

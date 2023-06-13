@@ -18,10 +18,10 @@ import (
 type MockGraphService struct{}
 
 type MockUpdater struct {
-	UpdateState func(*support.ConnectorOperationStatus)
+	UpdateState func(*support.ControllerOperationStatus)
 }
 
-func (mu *MockUpdater) UpdateStatus(input *support.ConnectorOperationStatus) {
+func (mu *MockUpdater) UpdateStatus(input *support.ControllerOperationStatus) {
 	if mu.UpdateState != nil {
 		mu.UpdateState(input)
 	}
@@ -39,7 +39,7 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (ms *MockGraphService) UpdateStatus(*support.ConnectorOperationStatus) {
+func (ms *MockGraphService) UpdateStatus(*support.ControllerOperationStatus) {
 }
 
 // ---------------------------------------------------------------------------

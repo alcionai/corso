@@ -125,7 +125,7 @@ func (col *Collection) LocationPath() *path.Builder {
 	return col.locationPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// TODO(ashmrtn): Fill in with previous path once the Controller compares old
 // and new folder hierarchies.
 func (col Collection) PreviousPath() path.Path {
 	return col.prevPath

@@ -13,7 +13,7 @@ type StatusUnitSuite struct {
 	tester.Suite
 }
 
-func TestGraphConnectorStatus(t *testing.T) {
+func TestStatusUnitSuite(t *testing.T) {
 	suite.Run(t, &StatusUnitSuite{tester.NewUnitSuite(t)})
 }
 
@@ -71,8 +71,8 @@ func (suite *StatusUnitSuite) TestMergeStatus() {
 
 	table := []struct {
 		name          string
-		one           ConnectorOperationStatus
-		two           ConnectorOperationStatus
+		one           ControllerOperationStatus
+		two           ControllerOperationStatus
 		expectOp      Operation
 		expectMetrics CollectionMetrics
 		expectFolders int
@@ -80,14 +80,14 @@ func (suite *StatusUnitSuite) TestMergeStatus() {
 		{
 			name:          "Test:  Status + unknown",
 			one:           *CreateStatus(ctx, Backup, 1, CollectionMetrics{1, 1, 0}, ""),
-			two:           ConnectorOperationStatus{},
+			two:           ControllerOperationStatus{},
 			expectOp:      Backup,
 			expectMetrics: CollectionMetrics{1, 1, 0},
 			expectFolders: 1,
 		},
 		{
 			name:          "Test: unknown + Status",
-			one:           ConnectorOperationStatus{},
+			one:           ControllerOperationStatus{},
 			two:           *CreateStatus(ctx, Backup, 1, CollectionMetrics{1, 1, 0}, ""),
 			expectOp:      Backup,
 			expectMetrics: CollectionMetrics{1, 1, 0},

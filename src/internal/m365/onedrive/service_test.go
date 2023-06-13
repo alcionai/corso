@@ -15,7 +15,7 @@ import (
 // TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
 type oneDriveService struct {
 	credentials account.M365Config
-	status      support.ConnectorOperationStatus
+	status      support.ControllerOperationStatus
 	ac          api.Client
 }
 
@@ -33,7 +33,7 @@ func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error
 	return &service, nil
 }
 
-func (ods *oneDriveService) updateStatus(status *support.ConnectorOperationStatus) {
+func (ods *oneDriveService) updateStatus(status *support.ControllerOperationStatus) {
 	if status == nil {
 		return
 	}

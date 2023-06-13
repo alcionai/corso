@@ -16,10 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// ---------------------------------------------------------------------------
-// Graph Connector
-// ---------------------------------------------------------------------------
-
 // must comply with BackupProducer and RestoreConsumer
 var (
 	_ inject.BackupProducer  = &Controller{}
@@ -47,7 +43,7 @@ type Controller struct {
 
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
-	status support.ConnectorOperationStatus // contains the status of the last run status
+	status support.ControllerOperationStatus // contains the status of the last run status
 }
 
 func NewController(
@@ -107,13 +103,13 @@ func (ctrl *Controller) Wait() *data.CollectionStats {
 	}
 
 	ctrl.wg = &sync.WaitGroup{}
-	ctrl.status = support.ConnectorOperationStatus{}
+	ctrl.status = support.ControllerOperationStatus{}
 
 	return &dcs
 }
 
 // UpdateStatus is used by initiated tasks to indicate completion
-func (ctrl *Controller) UpdateStatus(status *support.ConnectorOperationStatus) {
+func (ctrl *Controller) UpdateStatus(status *support.ControllerOperationStatus) {
 	defer ctrl.wg.Done()
 
 	if status == nil {
@@ -125,8 +121,8 @@ func (ctrl *Controller) UpdateStatus(status *support.ConnectorOperationStatus) {
 	ctrl.status = support.MergeStatus(ctrl.status, *status)
 }
 
-// Status returns the current status of the graphConnector operation.
-func (ctrl *Controller) Status() support.ConnectorOperationStatus {
+// Status returns the current status of the controller process.
+func (ctrl *Controller) Status() support.ControllerOperationStatus {
 	return ctrl.status
 }
 

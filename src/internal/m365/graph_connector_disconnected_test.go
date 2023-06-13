@@ -17,12 +17,12 @@ import (
 // ---------------------------------------------------------------
 // Disconnected Test Section
 // ---------------------------------------------------------------
-type DisconnectedGraphConnectorSuite struct {
+type DisconnectedSuite struct {
 	tester.Suite
 }
 
-func TestDisconnectedGraphSuite(t *testing.T) {
-	s := &DisconnectedGraphConnectorSuite{
+func TestSuite(t *testing.T) {
+	s := &DisconnectedSuite{
 		Suite: tester.NewUnitSuite(t),
 	}
 
@@ -49,7 +49,7 @@ func statusTestTask(
 	ctrl.UpdateStatus(status)
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
+func (suite *DisconnectedSuite) TestController_Status() {
 	t := suite.T()
 	ctrl := Controller{wg: &sync.WaitGroup{}}
 
@@ -72,7 +72,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	assert.Equal(t, 2, stats.Folders)
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {
+func (suite *DisconnectedSuite) TestVerifyBackupInputs_allServices() {
 	sites := []string{"abc.site.foo", "bar.site.baz"}
 
 	tests := []struct {

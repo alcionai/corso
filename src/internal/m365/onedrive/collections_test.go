@@ -1135,7 +1135,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					path.OneDriveService,
 					path.FilesCategory,
 					c(),
-					func(*support.ConnectorOperationStatus) {})
+					func(*support.ControllerOperationStatus) {})
 				require.NoError(t, err, clues.ToCore(err))
 
 				cols = append(cols, data.NoFetchRestoreCollection{Collection: mc})
@@ -2346,7 +2346,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				tenant,
 				user,
 				testFolderMatcher{anyFolder},
-				func(*support.ConnectorOperationStatus) {},
+				func(*support.ControllerOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}})
 
 			prevDelta := "prev-delta"
@@ -2366,7 +2366,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 						graph.PreviousPathFileName,
 						test.prevFolderPaths),
 				},
-				func(*support.ConnectorOperationStatus) {},
+				func(*support.ControllerOperationStatus) {},
 			)
 			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 

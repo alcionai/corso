@@ -31,7 +31,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-) (*support.ConnectorOperationStatus, error) {
+) (*support.ControllerOperationStatus, error) {
 	if len(dcs) == 0 {
 		return support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
 	}

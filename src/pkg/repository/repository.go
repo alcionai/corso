@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	connector "github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -623,12 +623,12 @@ func newRepoID(s storage.Storage) string {
 // helpers
 // ---------------------------------------------------------------------------
 
-// produces a graph connector.
+// produces a graph m365.
 func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-) (*connector.Controller, error) {
+) (*m365.Controller, error) {
 	complete := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
 		complete <- struct{}{}
@@ -636,12 +636,12 @@ func connectToM365(
 	}()
 
 	// retrieve data from the producer
-	resource := connector.Users
+	resource := m365.Users
 	if sel.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
+		resource = m365.Sites
 	}
 
-	ctrl, err := connector.NewController(ctx, acct, resource)
+	ctrl, err := m365.NewController(ctx, acct, resource)
 	if err != nil {
 		return nil, err
 	}

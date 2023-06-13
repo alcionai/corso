@@ -115,13 +115,13 @@ func (md MetadataCollection) FullPath() path.Path {
 	return md.fullPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
+// TODO(ashmrtn): Fill in with previous path once the Controller compares old
 // and new folder hierarchies.
 func (md MetadataCollection) PreviousPath() path.Path {
 	return nil
 }
 
-// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
+// TODO(ashmrtn): Fill in once the Controller compares old and new folder
 // hierarchies.
 func (md MetadataCollection) State() data.CollectionState {
 	return data.NewState

@@ -36,7 +36,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
 
 	var (
-		status *support.ConnectorOperationStatus
+		status *support.ControllerOperationStatus
 		deets  = &details.Builder{}
 		err    error
 	)
