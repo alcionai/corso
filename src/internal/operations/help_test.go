@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -20,7 +21,7 @@ func ControllerWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
-	cr m365.Resource,
+	cr resource.Category,
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(),

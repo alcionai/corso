@@ -12,6 +12,7 @@ import (
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -65,7 +66,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 	selUsers := []string{suite.user}
 
-	ctrl := loadController(ctx, suite.T(), Users)
+	ctrl := loadController(ctx, suite.T(), resource.Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -166,7 +167,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 	defer flush()
 
 	owners := []string{"snuffleupagus"}
-	ctrl := loadController(ctx, suite.T(), Users)
+	ctrl := loadController(ctx, suite.T(), resource.Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -252,7 +253,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	defer flush()
 
 	selSites := []string{suite.site}
-	ctrl := loadController(ctx, suite.T(), Sites)
+	ctrl := loadController(ctx, suite.T(), resource.Sites)
 	tests := []struct {
 		name        string
 		expected    int
@@ -347,7 +348,7 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	suite.connector = loadController(ctx, suite.T(), Sites)
+	suite.connector = loadController(ctx, suite.T(), resource.Sites)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -361,7 +362,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		ctrl    = loadController(ctx, t, Sites)
+		ctrl    = loadController(ctx, t, resource.Sites)
 		siteIDs = []string{siteID}
 	)
 
@@ -408,7 +409,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		ctrl    = loadController(ctx, t, Sites)
+		ctrl    = loadController(ctx, t, resource.Sites)
 		siteIDs = []string{siteID}
 	)
 

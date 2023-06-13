@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/mock"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -279,7 +280,7 @@ func setupExchangeBackup(
 		esel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
 		esel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, m365.Users, esel.Selector, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Users, esel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -330,7 +331,7 @@ func setupSharePointBackup(
 	ssel.Include(ssel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 	ssel.DiscreteOwner = owner
 
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, m365.Sites, ssel.Selector, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Sites, ssel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -463,7 +464,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	ctrl, err := m365.NewController(
 		ctx,
 		suite.acct,
-		m365.Users)
+		resource.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

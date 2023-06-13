@@ -34,6 +34,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -120,9 +121,9 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
-	connectorResource := m365.Users
+	connectorResource := resource.Users
 	if sel.Service == selectors.ServiceSharePoint {
-		connectorResource = m365.Sites
+		connectorResource = resource.Sites
 	}
 
 	ctrl, sel := ControllerWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
@@ -766,7 +767,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		whatSet    = deeTD.CategoryFromRepoRef
 	)
 
-	ctrl, sels := ControllerWithSelector(t, ctx, acct, m365.Users, sel.Selector, nil, nil)
+	ctrl, sels := ControllerWithSelector(t, ctx, acct, resource.Users, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
 
@@ -1347,7 +1348,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
 		suite,
 		suite.user,
 		suite.user,
-		m365.Users,
+		resource.Users,
 		path.OneDriveService,
 		path.FilesCategory,
 		ic,
@@ -1390,7 +1391,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 		suite,
 		suite.site,
 		suite.user,
-		m365.Sites,
+		resource.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
@@ -1402,7 +1403,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 func runDriveIncrementalTest(
 	suite *BackupOpIntegrationSuite,
 	owner, permissionsUser string,
-	resource m365.Resource,
+	resource resource.Category,
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
@@ -1917,7 +1918,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
-		m365.Users)
+		resource.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.user)

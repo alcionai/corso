@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -86,7 +87,7 @@ type suiteInfo interface {
 	// also be a site.
 	ResourceOwner() string
 	Service() path.ServiceType
-	Resource() Resource
+	Resource() resource.Category
 }
 
 type oneDriveSuite interface {
@@ -98,7 +99,7 @@ type suiteInfoImpl struct {
 	ac              api.Client
 	controller      *Controller
 	resourceOwner   string
-	resourceType    Resource
+	resourceCat     resource.Category
 	secondaryUser   string
 	secondaryUserID string
 	service         path.ServiceType
@@ -114,18 +115,18 @@ func NewSuiteInfoImpl(
 	resourceOwner string,
 	service path.ServiceType,
 ) suiteInfoImpl {
-	resource := Users
+	rc := resource.Users
 	if service == path.SharePointService {
-		resource = Sites
+		rc = resource.Sites
 	}
 
-	ctrl := loadController(ctx, t, resource)
+	ctrl := loadController(ctx, t, rc)
 
 	return suiteInfoImpl{
 		ac:            ctrl.AC,
 		controller:    ctrl,
 		resourceOwner: resourceOwner,
-		resourceType:  resource,
+		resourceCat:   rc,
 		secondaryUser: tester.SecondaryM365UserID(t),
 		service:       service,
 		tertiaryUser:  tester.TertiaryM365UserID(t),
@@ -161,8 +162,8 @@ func (si suiteInfoImpl) Service() path.ServiceType {
 	return si.service
 }
 
-func (si suiteInfoImpl) Resource() Resource {
-	return si.resourceType
+func (si suiteInfoImpl) Resource() resource.Category {
+	return si.resourceCat
 }
 
 // ---------------------------------------------------------------------------

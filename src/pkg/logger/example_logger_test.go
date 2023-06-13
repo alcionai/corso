@@ -6,9 +6,9 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ func Example_logger_clues_standards() {
 	// preferred
 	log.With(
 		// internal type, safe to log plainly
-		"resource_type", m365.Users,
+		"resource_type", resource.Users,
 		// string containing sensitive info, wrap with Hide()
 		"user_name", clues.Hide("your_user_name@microsoft.example"),
 		// string partially concealed by a managed concealer.
