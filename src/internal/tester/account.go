@@ -16,7 +16,7 @@ var M365AcctCredEnvs = []string{
 }
 
 // NewM365Account returns an account.Account object initialized with environment
-// variables used for integration tests that use Graph Connector.
+// variables used for integration tests that use the m365 Controller.
 func NewM365Account(t *testing.T) account.Account {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "configuring m365 account from test configuration", clues.ToCore(err))
