@@ -224,7 +224,7 @@ func ProduceBackupCollections(
 			su,
 			errs)
 		if err != nil {
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 			continue
 		}
 
