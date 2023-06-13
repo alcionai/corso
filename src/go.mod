@@ -1,6 +1,6 @@
 module github.com/alcionai/corso/src
 
-go 1.19
+go 1.20
 
 replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20230502235504-2509b1d72a79
 
