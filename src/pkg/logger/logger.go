@@ -442,14 +442,7 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 // If skip is non-zero, it skips the stack calls starting from the
 // first.  Skip always adds +1 to account for this wrapper.
 func CtxStack(ctx context.Context, skip int) *zap.SugaredLogger {
-	l := ctx.Value(ctxKey)
-	if l == nil {
-		l = singleton(Settings{}.EnsureDefaults())
-	}
-
-	return l.(*zap.SugaredLogger).
-		With(zap.StackSkip("trace", skip+1)).
-		With(clues.In(ctx).Slice()...)
+	return Ctx(ctx).With(zap.StackSkip("trace", skip+1))
 }
 
 // CtxErr retrieves the logger embedded in the context
