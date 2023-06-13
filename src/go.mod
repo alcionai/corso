@@ -2,7 +2,7 @@ module github.com/alcionai/corso/src
 
 go 1.19
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20230502235504-2509b1d72a79
+replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20230609054250-707b0ac13fa6
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
@@ -38,6 +38,7 @@ require (
 )
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.0.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect

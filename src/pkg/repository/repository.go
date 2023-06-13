@@ -147,7 +147,7 @@ func Initialize(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	bus, err := events.NewBus(ctx, acct.ID(), opts)
 	if err != nil {
 		return nil, clues.Wrap(err, "constructing event bus")
 	}
@@ -224,7 +224,7 @@ func Connect(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	bus, err := events.NewBus(ctx, acct.ID(), opts)
 	if err != nil {
 		return nil, clues.Wrap(err, "constructing event bus")
 	}

@@ -152,7 +152,7 @@ func SendStartCorsoEvent(
 	repoID string,
 	opts control.Options,
 ) {
-	bus, err := events.NewBus(ctx, s, tenID, opts)
+	bus, err := events.NewBus(ctx, tenID, opts)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("sending start event")
 	}
