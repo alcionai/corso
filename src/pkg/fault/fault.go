@@ -186,7 +186,7 @@ func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, skip int) {
 	logger.CtxStack(ctx, skip+1).
 		With("skipped", s).
 		Info("recoverable error")
-	e.AddSkip(ctx, s)
+	e.addSkip(s)
 }
 
 func (e *Bus) addSkip(s *Skipped) *Bus {
