@@ -332,7 +332,7 @@ func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Str
 	ic := make(chan data.Stream)
 	defer close(ic)
 
-	errs.AddRecoverable(assert.AnError)
+	errs.AddRecoverable(ctx, assert.AnError)
 
 	return ic
 }

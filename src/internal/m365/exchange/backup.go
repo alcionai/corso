@@ -224,7 +224,7 @@ func ProduceBackupCollections(
 			su,
 			errs)
 		if err != nil {
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 			continue
 		}
 
@@ -404,7 +404,7 @@ func populateCollections(
 				!ctrlOpts.ToggleFeatures.DisableDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
-				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
+				el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -467,7 +467,7 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
 			continue
 		}
 

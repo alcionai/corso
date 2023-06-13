@@ -238,7 +238,7 @@ func GetAllFolders(
 			"",
 			errs)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "enumerating items in drive"))
+			el.AddRecoverable(ctx, clues.Wrap(err, "enumerating items in drive"))
 		}
 	}
 

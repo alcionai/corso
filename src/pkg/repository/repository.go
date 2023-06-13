@@ -402,7 +402,7 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 
 		b, err := sw.GetBackup(ictx, model.StableID(id))
 		if err != nil {
-			errs.AddRecoverable(errWrapper(err))
+			errs.AddRecoverable(ctx, errWrapper(err))
 		}
 
 		bups = append(bups, b)

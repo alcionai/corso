@@ -271,14 +271,14 @@ func (oc *Collection) getDriveItemContent(
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
-			el.AddSkip(fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
+			el.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
-			el.AddSkip(fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
+			el.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
@@ -293,13 +293,13 @@ func (oc *Collection) getDriveItemContent(
 			// restore, or we have to handle it separately by somehow
 			// deleting the entire collection.
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
-			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
+			el.AddSkip(ctx, fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
 		logger.CtxErr(ctx, err).Error("downloading item")
-		el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+		el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
@@ -431,7 +431,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			// Fetch metadata for the file
 			itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+				el.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 				return
 			}
 

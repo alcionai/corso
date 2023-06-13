@@ -42,7 +42,7 @@ func (kdc *kopiaDataCollection) Items(
 		for _, item := range kdc.items {
 			s, err := kdc.FetchItemByName(ctx, item)
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "fetching item").
+				el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").
 					WithClues(ctx).
 					Label(fault.LabelForceNoBackupCreation))
 
