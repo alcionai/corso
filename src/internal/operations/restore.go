@@ -35,11 +35,11 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID    model.StableID             `json:"backupID"`
-	Destination control.RestoreDestination `json:"destination"`
-	Results     RestoreResults             `json:"results"`
-	Selectors   selectors.Selector         `json:"selectors"`
-	Version     string                     `json:"version"`
+	BackupID   model.StableID
+	Results    RestoreResults
+	Selectors  selectors.Selector
+	RestoreCfg control.RestoreConfig
+	Version    string
 
 	acct account.Account
 	rc   inject.RestoreConsumer
@@ -61,17 +61,17 @@ func NewRestoreOperation(
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:   newOperation(opts, bus, kw, sw),
-		acct:        acct,
-		BackupID:    backupID,
-		Destination: dest,
-		Selectors:   sel,
-		Version:     "v0",
-		rc:          rc,
+		operation:  newOperation(opts, bus, kw, sw),
+		acct:       acct,
+		BackupID:   backupID,
+		RestoreCfg: restoreCfg,
+		Selectors:  sel,
+		Version:    "v0",
+		rc:         rc,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -138,7 +138,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
-		"destination_container", clues.Hide(op.Destination.ContainerName))
+		"destination_container", clues.Hide(op.RestoreCfg.Location))
 
 	defer func() {
 		op.bus.Event(
@@ -257,7 +257,7 @@ func (op *RestoreOperation) do(
 		op.rc,
 		bup.Version,
 		op.Selectors,
-		op.Destination,
+		op.RestoreCfg,
 		op.Options,
 		dcs,
 		op.Errors)
@@ -314,7 +314,7 @@ func consumeRestoreCollections(
 	rc inject.RestoreConsumer,
 	backupVersion int,
 	sel selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
@@ -329,7 +329,7 @@ func consumeRestoreCollections(
 		ctx,
 		backupVersion,
 		sel,
-		dest,
+		restoreCfg,
 		opts,
 		dcs,
 		errs)

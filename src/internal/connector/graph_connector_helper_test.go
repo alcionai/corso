@@ -936,7 +936,7 @@ func checkCollections(
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == config.Dest.ContainerName
+			rootDir         = folders[len(folders)-1] == config.RestoreCfg.Location
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
