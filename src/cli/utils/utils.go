@@ -44,19 +44,19 @@ func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.
 }
 
 func AccountConnectAndWriteRepoConfig(ctx context.Context) (repository.Repository, *account.Account, error) {
-	r, storage, account, err := GetAccountAndConnect(ctx)
+	r, stg, acc, err := GetAccountAndConnect(ctx)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("Failed to  get and connect account")
 		return nil, nil, nil
 	}
 
-	s3Config, err := storage.S3Config()
+	s3Config, err := stg.S3Config()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("Failed to  get storage configuration")
 		return nil, nil, nil
 	}
 
-	m365Config, err := account.M365Config()
+	m365Config, err := acc.M365Config()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("Failed to  get m365 configuration")
 		return nil, nil, nil
@@ -70,7 +70,7 @@ func AccountConnectAndWriteRepoConfig(ctx context.Context) (repository.Repositor
 		return nil, nil, nil
 	}
 
-	return r, account, nil
+	return r, acc, nil
 }
 
 // CloseRepo handles closing a repo.
