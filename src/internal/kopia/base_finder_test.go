@@ -230,6 +230,10 @@ func (msm *mockSnapshotManager) LoadSnapshot(
 
 	for _, mi := range msm.data {
 		if mi.man.ID == id {
+			if mi.err != nil {
+				return nil, mi.err
+			}
+
 			return mi.man, nil
 		}
 	}
@@ -259,10 +263,12 @@ func newBackupModel(
 		err: err,
 	}
 
-	if !oldDetailsID {
-		res.b.StreamStoreID = "ssid"
-	} else {
-		res.b.DetailsID = "ssid"
+	if hasDetailsSnap {
+		if !oldDetailsID {
+			res.b.StreamStoreID = "ssid"
+		} else {
+			res.b.DetailsID = "ssid"
+		}
 	}
 
 	return res
@@ -393,14 +399,14 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				),
 			},
 			expectedBaseReasons: map[int][]Reason{
-				0: testUser1Mail,
+				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
-				0: testUser1Mail,
+				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
 				newBackupModel(testBackup2, true, true, false, nil),
-				newBackupModel(testBackup1, false, false, false, assert.AnError),
+				newBackupModel(testBackup1, true, true, false, nil),
 			},
 		},
 		{
@@ -427,14 +433,14 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				),
 			},
 			expectedBaseReasons: map[int][]Reason{
-				0: testUser1Mail,
+				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
-				0: testUser1Mail,
+				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil),
-				newBackupModel(testBackup1, false, false, false, assert.AnError),
+				newBackupModel(testBackup2, false, false, false, assert.AnError),
+				newBackupModel(testBackup1, true, true, false, nil),
 			},
 		},
 		{
@@ -461,14 +467,14 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				),
 			},
 			expectedBaseReasons: map[int][]Reason{
-				0: testUser1Mail,
+				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
-				0: testUser1Mail,
+				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil),
-				newBackupModel(testBackup1, true, false, false, nil),
+				newBackupModel(testBackup2, true, false, false, nil),
+				newBackupModel(testBackup1, true, true, false, nil),
 			},
 		},
 		{
