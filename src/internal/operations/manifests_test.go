@@ -362,7 +362,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
 				},
 			},
 			reasons: []kopia.Reason{
@@ -417,8 +417,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"id2": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id2"}}},
+					"id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
 				},
 			},
 			reasons: []kopia.Reason{
@@ -450,8 +450,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"id2": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id2"}}},
+					"id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
 				},
 			},
 			reasons: []kopia.Reason{
@@ -523,7 +523,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			for _, dc := range dcs {
 				if !assert.IsTypef(
 					t,
-					data.NotFoundRestoreCollection{},
+					data.NoFetchRestoreCollection{},
 					dc,
 					"unexpected type returned [%T]",
 					dc,
@@ -531,7 +531,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					continue
 				}
 
-				tmp := dc.(data.NotFoundRestoreCollection)
+				tmp := dc.(data.NoFetchRestoreCollection)
 
 				if !assert.IsTypef(
 					t,
@@ -646,7 +646,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
 			fallbackReasons: []kopia.Reason{fbEmailReason},
@@ -676,8 +676,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"id1":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
 			reasons:         []kopia.Reason{emailReason},
@@ -704,8 +704,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id2":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id2"}}},
-					"fb_id2": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
+					"id2":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
+					"fb_id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
 				},
 			},
 			reasons:         []kopia.Reason{emailReason},
@@ -738,10 +738,10 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"id2":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id2"}}},
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
-					"fb_id2": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
+					"id1":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"id2":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"fb_id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
 				},
 			},
 			reasons:         []kopia.Reason{emailReason},
@@ -772,8 +772,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id2":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id2"}}},
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"id2":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
 			reasons:         []kopia.Reason{emailReason},
@@ -804,8 +804,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"fb_id2": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
+					"id1":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"fb_id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
 				},
 			},
 			reasons:         []kopia.Reason{emailReason},
@@ -834,8 +834,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"id1":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
 			reasons: []kopia.Reason{
@@ -878,8 +878,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"id1":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
 			reasons: []kopia.Reason{emailReason},
@@ -917,8 +917,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			rp: mockRestoreProducer{
 				collsByID: map[string][]data.RestoreCollection{
-					"id1":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "id1"}}},
-					"fb_id1": {data.NotFoundRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+					"id1":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
 			reasons: []kopia.Reason{
@@ -954,7 +954,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			mans, dcs, b, err := produceManifestsAndMetadata(

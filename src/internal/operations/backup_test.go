@@ -1116,8 +1116,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	defer flush()
 
 	var (
-		mds   = ssmock.Streamer{Deets: populatedDetails}
-		deets = details.Builder{}
+		mds        = ssmock.Streamer{Deets: populatedDetails}
+		deets      = details.Builder{}
 		writeStats = kopia.BackupStats{}
 	)
 
