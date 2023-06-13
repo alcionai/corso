@@ -8,7 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 )
 
 // ---------------------------------------------------------------------------

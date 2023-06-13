@@ -12,8 +12,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	onedrive "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	onedrive "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 

@@ -19,7 +19,7 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
