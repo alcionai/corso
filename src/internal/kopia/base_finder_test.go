@@ -342,8 +342,8 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 
 	bb, err := bf.findBases(ctx, reasons, nil)
 	assert.NoError(t, err, "getting bases: %v", clues.ToCore(err))
-	assert.Empty(t, bb.mergeBases)
-	assert.Empty(t, bb.assistBases)
+	assert.Empty(t, bb.MergeBases())
+	assert.Empty(t, bb.AssistBases())
 }
 
 func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
@@ -366,8 +366,8 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 
 	bb, err := bf.findBases(ctx, reasons, nil)
 	assert.NoError(t, err, "getting bases: %v", clues.ToCore(err))
-	assert.Empty(t, bb.mergeBases)
-	assert.Empty(t, bb.assistBases)
+	assert.Empty(t, bb.MergeBases())
+	assert.Empty(t, bb.AssistBases())
 }
 
 func (suite *BaseFinderUnitSuite) TestGetBases() {
@@ -831,24 +831,24 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 
 			checkBackupEntriesMatch(
 				t,
-				bb.backups,
+				bb.Backups(),
 				test.backupData,
 				test.expectedBaseReasons)
 			checkManifestEntriesMatch(
 				t,
-				bb.mergeBases,
+				bb.MergeBases(),
 				test.manifestData,
 				test.expectedBaseReasons)
 			checkManifestEntriesMatch(
 				t,
-				bb.assistBases,
+				bb.AssistBases(),
 				test.manifestData,
 				test.expectedAssistManifestReasons)
 		})
 	}
 }
 
-func (suite *BaseFinderUnitSuite) TestFetchPrevSnapshots_CustomTags() {
+func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 	manifestData := []manifestInfo{
 		newManifestInfo2(
 			testID1,
@@ -926,7 +926,7 @@ func (suite *BaseFinderUnitSuite) TestFetchPrevSnapshots_CustomTags() {
 
 			checkManifestEntriesMatch(
 				t,
-				bb.mergeBases,
+				bb.MergeBases(),
 				manifestData,
 				test.expectedIdxs)
 		})
