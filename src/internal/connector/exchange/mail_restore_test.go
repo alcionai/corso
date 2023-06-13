@@ -51,7 +51,7 @@ func (suite *MailRestoreIntgSuite) TestCreateContainerDestination() {
 		path.EmailCategory,
 		suite.creds.AzureTenantID,
 		suite.userID,
-		tester.DefaultTestRestoreDestination("").ContainerName,
+		tester.DefaultTestRestoreConfig("").Location,
 		[]string{"Griffindor", "Croix"},
 		[]string{"Griffindor", "Felicius"})
 }

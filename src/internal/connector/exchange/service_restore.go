@@ -27,7 +27,7 @@ import (
 func RestoreCollections(
 	ctx context.Context,
 	ac api.Client,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -76,7 +76,7 @@ func RestoreCollections(
 		containerID, gcr, err := createDestination(
 			ictx,
 			handler,
-			handler.formatRestoreDestination(dest.ContainerName, dc.FullPath()),
+			handler.formatRestoreDestination(restoreCfg.Location, dc.FullPath()),
 			userID,
 			directoryCache[category],
 			isNewCache,
@@ -116,7 +116,7 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		metrics,
-		dest.ContainerName)
+		restoreCfg.Location)
 
 	return status, el.Failure()
 }

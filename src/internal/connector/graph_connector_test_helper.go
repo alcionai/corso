@@ -43,7 +43,7 @@ type ConfigInfo struct {
 	Service        path.ServiceType
 	Tenant         string
 	ResourceOwners []string
-	Dest           control.RestoreDestination
+	RestoreCfg     control.RestoreConfig
 }
 
 func mustToDataLayerPath(
@@ -66,15 +66,15 @@ func mustToDataLayerPath(
 // combination of the location the data was recently restored to and where the
 // data was originally in the hierarchy.
 func backupOutputPathFromRestore(
-	restoreDest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	inputPath path.Path,
 ) (path.Path, error) {
-	base := []string{restoreDest.ContainerName}
+	base := []string{restoreCfg.Location}
 
 	// OneDrive has leading information like the drive ID.
 	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
 		folders := inputPath.Folders()
-		base = append(append([]string{}, folders[:3]...), restoreDest.ContainerName)
+		base = append(append([]string{}, folders[:3]...), restoreCfg.Location)
 
 		if len(folders) > 3 {
 			base = append(base, folders[3:]...)
@@ -117,7 +117,7 @@ func (rc mockRestoreCollection) FetchItemByName(
 func collectionsForInfo(
 	service path.ServiceType,
 	tenant, user string,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	allInfo []ColInfo,
 	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
@@ -142,7 +142,7 @@ func collectionsForInfo(
 
 		mc := exchMock.NewCollection(pth, pth, len(info.Items))
 
-		baseDestPath, err := backupOutputPathFromRestore(dest, pth)
+		baseDestPath, err := backupOutputPathFromRestore(restoreCfg, pth)
 		if err != nil {
 			return totalItems, kopiaEntries, collections, expectedData, err
 		}

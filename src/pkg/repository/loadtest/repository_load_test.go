@@ -151,9 +151,9 @@ func runRestoreLoadTest(
 			t.Skip("restore load test is toggled off")
 		}
 
-		dest := tester.DefaultTestRestoreDestination("")
+		restoreCfg := tester.DefaultTestRestoreConfig("")
 
-		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
+		rst, err := r.NewRestore(ctx, backupID, restSel, restoreCfg)
 		require.NoError(t, err, clues.ToCore(err))
 
 		doRestoreLoadTest(t, ctx, rst, service, bup.Results.ItemsWritten, usersUnderTest)

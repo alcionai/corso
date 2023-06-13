@@ -43,7 +43,7 @@ func RestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	ac api.Client,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
@@ -71,7 +71,7 @@ func RestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"destination", clues.Hide(dest.ContainerName),
+				"restore_location", restoreCfg.Location,
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"full_path", dc.FullPath())
 		)
@@ -84,7 +84,7 @@ func RestoreCollections(
 				backupVersion,
 				dc,
 				caches,
-				dest.ContainerName,
+				restoreCfg.Location,
 				deets,
 				opts.RestorePermissions,
 				errs)
@@ -94,7 +94,7 @@ func RestoreCollections(
 				ictx,
 				ac.Stable,
 				dc,
-				dest.ContainerName,
+				restoreCfg.Location,
 				deets,
 				errs)
 
@@ -103,7 +103,7 @@ func RestoreCollections(
 				ictx,
 				ac.Stable,
 				dc,
-				dest.ContainerName,
+				restoreCfg.Location,
 				deets,
 				errs)
 
@@ -127,7 +127,7 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		dest.ContainerName)
+		restoreCfg.Location)
 
 	return status, el.Failure()
 }

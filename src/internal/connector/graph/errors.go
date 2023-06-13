@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -169,27 +167,11 @@ func IsMalware(err error) bool {
 }
 
 func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
-	if resp == nil {
-		return false
-	}
-
 	// https://learn.microsoft.com/en-us/openspecs/sharepoint_protocols/ms-wsshp/ba4ee7a8-704c-4e9c-ab14-fa44c574bdf4
 	// https://learn.microsoft.com/en-us/openspecs/sharepoint_protocols/ms-wdvmoduu/6fa6d4a9-ac18-4cd7-b696-8a3b14a98291
-	if len(resp.Header) > 0 && resp.Header.Get("X-Virus-Infected") == "true" {
-		return true
-	}
-
-	respDump, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		logger.Ctx(ctx).Errorw("dumping http response", "error", err)
-		return false
-	}
-
-	if strings.Contains(string(respDump), string(malwareDetected)) {
-		return true
-	}
-
-	return false
+	return resp != nil &&
+		len(resp.Header) > 0 &&
+		resp.Header.Get("X-Virus-Infected") == "true"
 }
 
 func IsErrFolderExists(err error) bool {
