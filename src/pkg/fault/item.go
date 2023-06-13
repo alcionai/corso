@@ -15,6 +15,7 @@ type itemType string
 
 const (
 	FileType          itemType = "file"
+	AttachmentType    itemType = "attachment"
 	ContainerType     itemType = "container"
 	ResourceOwnerType itemType = "resource_owner"
 )
@@ -248,6 +249,11 @@ func ContainerSkip(cause skipCause, namespace, id, name string, addtl map[string
 // FileSkip produces a File-kind Item for tracking skipped items.
 func FileSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return itemSkip(FileType, cause, namespace, id, name, addtl)
+}
+
+// AttachmentSkip produces a Attachment-kind Item for tracking skipped items.
+func AttachmentSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(AttachmentType, cause, namespace, id, name, addtl)
 }
 
 // OnwerSkip produces a ResourceOwner-kind Item for tracking skipped items.

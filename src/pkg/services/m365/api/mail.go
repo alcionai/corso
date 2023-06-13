@@ -304,6 +304,7 @@ func (c Mail) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
+		el       = errs.Local()
 		size     int64
 		mailBody models.ItemBodyable
 		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
@@ -406,6 +407,24 @@ func (c Mail) GetItem(
 			ByAttachmentId(ptr.Val(a.GetId())).
 			Get(ctx, attachConfig)
 		if err != nil {
+			if graph.IsErrCannotOpenFileAttachment(err) {
+				logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("attachment not found")
+				el.AddSkip(
+					fault.AttachmentSkip(
+						fault.SkipNotFound,
+						itemID,
+						ptr.Val(a.GetId()),
+						ptr.Val(a.GetName()),
+						map[string]any{
+							"user_id":         userID,
+							"attachment_size": ptr.Val(a.GetSize()),
+						},
+					),
+				)
+
+				continue
+			}
+
 			return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").
 				With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
 		}
