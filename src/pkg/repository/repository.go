@@ -229,7 +229,7 @@ func Connect(
 		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
-	if repoid == events.RepoID {
+	if repoid == events.RepoIDNotFound {
 		rm, err := getRepoModel(ctx, ms)
 		if err != nil {
 			return nil, clues.New("retrieving repo info")

@@ -194,7 +194,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	repoID := cfg.RepoID
 	if len(repoID) == 0 {
-		repoID = events.RepoID
+		repoID = events.RepoIDNotFound
 	}
 
 	s3Cfg, err := cfg.Storage.S3Config()

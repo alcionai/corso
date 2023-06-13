@@ -24,34 +24,53 @@ const (
 	Wildcard = "*"
 )
 
-func GetAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
+func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.Storage, *account.Account, error) {
 	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	repoID := cfg.RepoID
 	if len(repoID) == 0 {
-		repoID = events.RepoID
+		repoID = events.RepoIDNotFound
 	}
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
+		return nil, nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
-	s3Config, errS3Config := cfg.Storage.S3Config()
-	m365Config, errm365Config := cfg.Account.M365Config()
+	return r, &cfg.Storage, &cfg.Account, nil
+}
+
+func AccountConnectAndWriteRepoConfig(ctx context.Context) (repository.Repository, *account.Account, error) {
+	r, storage, account, err := GetAccountAndConnect(ctx)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("Failed to  get and connect account")
+		return nil, nil, nil
+	}
+
+	s3Config, err := storage.S3Config()
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("Failed to  get storage configuration")
+		return nil, nil, nil
+	}
+
+	m365Config, err := account.M365Config()
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("Failed to  get m365 configuration")
+		return nil, nil, nil
+	}
 
 	// repo config is already set while repo connect and init. This is just to confirm correct values.
 	// So won't fail is the write fails
 	err = config.WriteRepoConfig(ctx, s3Config, m365Config, r.GetID())
-	if err != nil || errS3Config != nil || errm365Config != nil {
+	if err != nil {
 		logger.CtxErr(ctx, err).Info("Failed to write repository configuration")
 		return nil, nil, nil
 	}
 
-	return r, &cfg.Account, nil
+	return r, account, nil
 }
 
 // CloseRepo handles closing a repo.
