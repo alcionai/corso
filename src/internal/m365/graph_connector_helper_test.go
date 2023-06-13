@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -102,14 +103,14 @@ type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
 	collections []ColInfo
-	resource    Resource
+	resourceCat resource.Category
 }
 
 type restoreBackupInfoMultiVersion struct {
 	service             path.ServiceType
 	collectionsLatest   []ColInfo
 	collectionsPrevious []ColInfo
-	resource            Resource
+	resource            resource.Category
 	backupVersion       int
 }
 
@@ -1151,7 +1152,7 @@ func getSelectorWith(
 	}
 }
 
-func loadController(ctx context.Context, t *testing.T, r Resource) *Controller {
+func loadController(ctx context.Context, t *testing.T, r resource.Category) *Controller {
 	a := tester.NewM365Account(t)
 
 	connector, err := NewController(ctx, a, r)

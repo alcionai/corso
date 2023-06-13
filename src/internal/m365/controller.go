@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -49,7 +50,7 @@ type Controller struct {
 func NewController(
 	ctx context.Context,
 	acct account.Account,
-	r Resource,
+	rc resource.Category,
 ) (*Controller, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
@@ -61,7 +62,7 @@ func NewController(
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
-	rc, err := r.resourceClient(ac)
+	rCli, err := getResourceClient(rc, ac)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
 	}
@@ -71,7 +72,7 @@ func NewController(
 		IDNameLookup: idname.NewCache(nil),
 
 		credentials: creds,
-		ownerLookup: rc,
+		ownerLookup: rCli,
 		tenant:      acct.ID(),
 		wg:          &sync.WaitGroup{},
 	}
@@ -139,28 +140,19 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 // Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
-type Resource int
-
-const (
-	UnknownResource Resource = iota
-	AllResources             // unused
-	Users
-	Sites
-)
-
-func (r Resource) resourceClient(ac api.Client) (*resourceClient, error) {
-	switch r {
-	case Users:
-		return &resourceClient{enum: r, getter: ac.Users()}, nil
-	case Sites:
-		return &resourceClient{enum: r, getter: ac.Sites()}, nil
+func getResourceClient(rc resource.Category, ac api.Client) (*resourceClient, error) {
+	switch rc {
+	case resource.Users:
+		return &resourceClient{enum: rc, getter: ac.Users()}, nil
+	case resource.Sites:
+		return &resourceClient{enum: rc, getter: ac.Sites()}, nil
 	default:
-		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", r)
+		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", rc)
 	}
 }
 
 type resourceClient struct {
-	enum   Resource
+	enum   resource.Category
 	getter getIDAndNamer
 }
 

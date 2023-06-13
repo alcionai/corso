@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -636,12 +637,12 @@ func connectToM365(
 	}()
 
 	// retrieve data from the producer
-	resource := m365.Users
+	rc := resource.Users
 	if sel.Service == selectors.ServiceSharePoint {
-		resource = m365.Sites
+		rc = resource.Sites
 	}
 
-	ctrl, err := m365.NewController(ctx, acct, resource)
+	ctrl, err := m365.NewController(ctx, acct, rc)
 	if err != nil {
 		return nil, err
 	}

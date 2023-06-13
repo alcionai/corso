@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/mock"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -47,10 +48,10 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		itn    = map[string]string{id: name}
 		nti    = map[string]string{name: id}
 		lookup = &resourceClient{
-			enum:   Users,
+			enum:   resource.Users,
 			getter: &mock.IDNameGetter{ID: id, Name: name},
 		}
-		noLookup = &resourceClient{enum: Users, getter: &mock.IDNameGetter{}}
+		noLookup = &resourceClient{enum: resource.Users, getter: &mock.IDNameGetter{}}
 	)
 
 	table := []struct {
@@ -279,7 +280,7 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.ctrl = loadController(ctx, t, Users)
+	suite.ctrl = loadController(ctx, t, resource.Users)
 	suite.user = tester.M365UserID(t)
 	suite.secondaryUser = tester.SecondaryM365UserID(t)
 
@@ -532,7 +533,7 @@ func runRestoreBackupTest(
 
 	config := ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resource,
+		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -658,9 +659,9 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 
 	table := []restoreBackupInfo{
 		{
-			name:     "EmailsWithAttachments",
-			service:  path.ExchangeService,
-			resource: Users,
+			name:        "EmailsWithAttachments",
+			service:     path.ExchangeService,
+			resourceCat: resource.Users,
 			collections: []ColInfo{
 				{
 					PathElements: []string{"Inbox"},
@@ -685,9 +686,9 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:     "MultipleEmailsMultipleFolders",
-			service:  path.ExchangeService,
-			resource: Users,
+			name:        "MultipleEmailsMultipleFolders",
+			service:     path.ExchangeService,
+			resourceCat: resource.Users,
 			collections: []ColInfo{
 				{
 					PathElements: []string{"Inbox"},
@@ -761,9 +762,9 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:     "MultipleContactsSingleFolder",
-			service:  path.ExchangeService,
-			resource: Users,
+			name:        "MultipleContactsSingleFolder",
+			service:     path.ExchangeService,
+			resourceCat: resource.Users,
 			collections: []ColInfo{
 				{
 					PathElements: []string{"Contacts"},
@@ -789,9 +790,9 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:     "MultipleContactsMultipleFolders",
-			service:  path.ExchangeService,
-			resource: Users,
+			name:        "MultipleContactsMultipleFolders",
+			service:     path.ExchangeService,
+			resourceCat: resource.Users,
 			collections: []ColInfo{
 				{
 					PathElements: []string{"Work"},
@@ -922,9 +923,9 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
-			name:     "Contacts",
-			service:  path.ExchangeService,
-			resource: Users,
+			name:        "Contacts",
+			service:     path.ExchangeService,
+			resourceCat: resource.Users,
 			collections: []ColInfo{
 				{
 					PathElements: []string{"Work"},
@@ -1026,7 +1027,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					restoreCfg.Location,
 				)
 
-				restoreCtrl := loadController(ctx, t, test.resource)
+				restoreCtrl := loadController(ctx, t, test.resourceCat)
 				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
@@ -1056,7 +1057,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Run a backup and compare its output with what we put in.
 
-			backupCtrl := loadController(ctx, t, test.resource)
+			backupCtrl := loadController(ctx, t, test.resourceCat)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1101,9 +1102,9 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 	subjectText := "Test message for restore with large attachment"
 
 	test := restoreBackupInfo{
-		name:     "EmailsWithLargeAttachments",
-		service:  path.ExchangeService,
-		resource: Users,
+		name:        "EmailsWithLargeAttachments",
+		service:     path.ExchangeService,
+		resourceCat: resource.Users,
 		collections: []ColInfo{
 			{
 				PathElements: []string{"Inbox"},
@@ -1134,14 +1135,14 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 	table := []struct {
 		name         string
-		resource     Resource
+		resourceCat  resource.Category
 		selectorFunc func(t *testing.T) selectors.Selector
 		service      path.ServiceType
 		categories   []string
 	}{
 		{
-			name:     "Exchange",
-			resource: Users,
+			name:        "Exchange",
+			resourceCat: resource.Users,
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup([]string{suite.user})
 				sel.Include(
@@ -1160,8 +1161,8 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			},
 		},
 		{
-			name:     "OneDrive",
-			resource: Users,
+			name:        "OneDrive",
+			resourceCat: resource.Users,
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{suite.user})
 				sel.Include(sel.Folders([]string{selectors.NoneTgt}))
@@ -1174,8 +1175,8 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			},
 		},
 		{
-			name:     "SharePoint",
-			resource: Sites,
+			name:        "SharePoint",
+			resourceCat: resource.Sites,
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
 				sel.Include(
@@ -1205,7 +1206,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = loadController(ctx, t, test.resource)
+				backupCtrl = loadController(ctx, t, test.resourceCat)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()

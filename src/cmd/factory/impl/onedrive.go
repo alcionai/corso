@@ -7,7 +7,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,7 +36,7 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, m365.Users, User)
+	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
