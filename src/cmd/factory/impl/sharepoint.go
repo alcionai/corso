@@ -36,7 +36,7 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, inp, err := getGCAndVerifyResourceOwner(ctx, connector.Sites, Site)
+	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, connector.Sites, Site)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -45,7 +45,7 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 	sel.SetDiscreteOwnerIDName(inp.ID(), inp.Name())
 
 	deets, err := generateAndRestoreDriveItems(
-		gc,
+		ctrl,
 		inp.ID(),
 		SecondaryUser,
 		strings.ToLower(SecondaryUser),

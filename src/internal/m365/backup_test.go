@@ -71,7 +71,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 	selUsers := []string{suite.user}
 
-	connector := loadConnector(ctx, suite.T(), Users)
+	connector := loadController(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -173,7 +173,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 
 	owners := []string{"snuffleupagus"}
 
-	connector := loadConnector(ctx, suite.T(), Users)
+	connector := loadController(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -263,7 +263,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 	selSites := []string{suite.site}
 
-	connector := loadConnector(ctx, suite.T(), Sites)
+	connector := loadController(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
 		expected    int
@@ -341,7 +341,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 type SPCollectionIntgSuite struct {
 	tester.Suite
-	connector *GraphConnector
+	connector *Controller
 	user      string
 }
 
@@ -358,7 +358,7 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), Sites)
+	suite.connector = loadController(ctx, suite.T(), Sites)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -372,11 +372,11 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, Sites)
+		ctrl    = loadController(ctx, t, Sites)
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -384,7 +384,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,
@@ -419,11 +419,11 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, Sites)
+		ctrl    = loadController(ctx, t, Sites)
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -431,7 +431,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,

@@ -20,8 +20,8 @@ import (
 
 // ConsumeRestoreCollections restores data from the specified collections
 // into M365 using the GraphAPI.
-// SideEffect: gc.status is updated at the completion of operation
-func (gc *GraphConnector) ConsumeRestoreCollections(
+// SideEffect: status is updated at the completion of operation
+func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	sels selectors.Selector,
@@ -43,11 +43,11 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.ConsumeRestoreCollections(ctx, gc.AC, restoreCfg, dcs, deets, errs)
+		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(
 			ctx,
-			onedrive.NewRestoreHandler(gc.AC),
+			onedrive.NewRestoreHandler(ctrl.AC),
 			backupVersion,
 			restoreCfg,
 			opts,
@@ -55,10 +55,10 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 			deets,
 			errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(
+		status, err = sharepoint.ConsumeRestoreCollections(
 			ctx,
 			backupVersion,
-			gc.AC,
+			ctrl.AC,
 			restoreCfg,
 			opts,
 			dcs,
@@ -68,8 +68,8 @@ func (gc *GraphConnector) ConsumeRestoreCollections(
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}
 
-	gc.incrementAwaitingMessages()
-	gc.UpdateStatus(status)
+	ctrl.incrementAwaitingMessages()
+	ctrl.UpdateStatus(status)
 
 	return deets.Details(), err
 }

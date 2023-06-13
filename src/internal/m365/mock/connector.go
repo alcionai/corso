@@ -14,9 +14,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var _ inject.BackupProducer = &GraphConnector{}
+var _ inject.BackupProducer = &Controller{}
 
-type GraphConnector struct {
+type Controller struct {
 	Collections []data.BackupCollection
 	Exclude     *prefixmatcher.StringSetMatcher
 
@@ -27,7 +27,7 @@ type GraphConnector struct {
 	Stats data.CollectionStats
 }
 
-func (gc GraphConnector) ProduceBackupCollections(
+func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
 	_ idname.Provider,
 	_ selectors.Selector,
@@ -41,22 +41,22 @@ func (gc GraphConnector) ProduceBackupCollections(
 	bool,
 	error,
 ) {
-	return gc.Collections, gc.Exclude, gc.Err == nil, gc.Err
+	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
 }
 
-func (gc GraphConnector) IsBackupRunnable(
+func (ctrl Controller) IsBackupRunnable(
 	_ context.Context,
 	_ path.ServiceType,
 	_ string,
 ) (bool, error) {
-	return true, gc.Err
+	return true, ctrl.Err
 }
 
-func (gc GraphConnector) Wait() *data.CollectionStats {
-	return &gc.Stats
+func (ctrl Controller) Wait() *data.CollectionStats {
+	return &ctrl.Stats
 }
 
-func (gc GraphConnector) ConsumeRestoreCollections(
+func (ctrl Controller) ConsumeRestoreCollections(
 	_ context.Context,
 	_ int,
 	_ selectors.Selector,
@@ -65,5 +65,5 @@ func (gc GraphConnector) ConsumeRestoreCollections(
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
 ) (*details.Details, error) {
-	return gc.Deets, gc.Err
+	return ctrl.Deets, ctrl.Err
 }

@@ -117,7 +117,7 @@ func (op BackupOperation) validate() error {
 // get populated asynchronously.
 type backupStats struct {
 	k             *kopia.BackupStats
-	gc            *data.CollectionStats
+	ctrl          *data.CollectionStats
 	resourceCount int
 }
 
@@ -370,9 +370,9 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "merging details")
 	}
 
-	opStats.gc = op.bp.Wait()
+	opStats.ctrl = op.bp.Wait()
 
-	logger.Ctx(ctx).Debug(opStats.gc)
+	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	return deets, nil
 }
@@ -870,16 +870,16 @@ func (op *BackupOperation) persistResults(
 	op.Results.NonMetaItemsWritten = opStats.k.TotalNonMetaFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc == nil {
+	if opStats.ctrl == nil {
 		op.Status = Failed
 		return clues.New("backup population never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.IsZero() {
+	if op.Status != Failed && opStats.ctrl.IsZero() {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsRead = opStats.gc.Successes
+	op.Results.ItemsRead = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
 }

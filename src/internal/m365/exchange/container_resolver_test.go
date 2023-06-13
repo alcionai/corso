@@ -802,7 +802,7 @@ func runCreateDestinationTest(
 
 	var (
 		svc = path.ExchangeService
-		gcr = handler.newContainerCache(userID)
+		gcc = handler.newContainerCache(userID)
 	)
 
 	path1, err := path.Build(
@@ -814,17 +814,17 @@ func runCreateDestinationTest(
 		containerNames1...)
 	require.NoError(t, err, clues.ToCore(err))
 
-	containerID, gcr, err := createDestination(
+	containerID, gcc, err := createDestination(
 		ctx,
 		handler,
 		handler.formatRestoreDestination(destinationName, path1),
 		userID,
-		gcr,
+		gcc,
 		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	_, _, err = gcr.IDToPath(ctx, containerID)
+	_, _, err = gcc.IDToPath(ctx, containerID)
 	assert.NoError(t, err, clues.ToCore(err))
 
 	path2, err := path.Build(
@@ -836,22 +836,22 @@ func runCreateDestinationTest(
 		containerNames2...)
 	require.NoError(t, err, clues.ToCore(err))
 
-	containerID, gcr, err = createDestination(
+	containerID, gcc, err = createDestination(
 		ctx,
 		handler,
 		handler.formatRestoreDestination(destinationName, path2),
 		userID,
-		gcr,
+		gcc,
 		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	p, l, err := gcr.IDToPath(ctx, containerID)
+	p, l, err := gcc.IDToPath(ctx, containerID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	_, ok := gcr.LocationInCache(l.String())
+	_, ok := gcc.LocationInCache(l.String())
 	require.True(t, ok, "looking for location in cache: %s", l)
 
-	_, ok = gcr.PathInCache(p.String())
+	_, ok = gcc.PathInCache(p.String())
 	require.True(t, ok, "looking for path in cache: %s", p)
 }

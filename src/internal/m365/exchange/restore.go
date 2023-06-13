@@ -73,7 +73,7 @@ func ConsumeRestoreCollections(
 			isNewCache = true
 		}
 
-		containerID, gcr, err := createDestination(
+		containerID, gcc, err := createDestination(
 			ictx,
 			handler,
 			handler.formatRestoreDestination(restoreCfg.Location, dc.FullPath()),
@@ -86,7 +86,7 @@ func ConsumeRestoreCollections(
 			continue
 		}
 
-		directoryCache[category] = gcr
+		directoryCache[category] = gcc
 
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
 
@@ -131,7 +131,7 @@ func restoreCollection(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:exchange:restoreCollection", diagnostics.Label("path", dc.FullPath()))
+	ctx, end := diagnostics.Span(ctx, "m365:exchange:restoreCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -159,7 +159,7 @@ func restoreCollection(
 			}
 
 			ictx := clues.Add(ctx, "item_id", itemData.UUID())
-			trace.Log(ictx, "gc:exchange:restoreCollection:item", itemData.UUID())
+			trace.Log(ictx, "m365:exchange:restoreCollection:item", itemData.UUID())
 			metrics.Objects++
 
 			buf := &bytes.Buffer{}

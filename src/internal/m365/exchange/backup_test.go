@@ -109,12 +109,12 @@ func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
 
-func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container) error {
+func (m mockResolver) AddToCache(ctx context.Context, ctrl graph.Container) error {
 	if len(m.added) == 0 {
 		m.added = map[string]string{}
 	}
 
-	m.added[ptr.Val(gc.GetDisplayName())] = ptr.Val(gc.GetId())
+	m.added[ptr.Val(ctrl.GetDisplayName())] = ptr.Val(ctrl.GetId())
 
 	return nil
 }
@@ -769,13 +769,13 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		bdayID   string
 	)
 
-	fn := func(gcf graph.CachedContainer) error {
-		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
-			calID = ptr.Val(gcf.GetId())
+	fn := func(gcc graph.CachedContainer) error {
+		if ptr.Val(gcc.GetDisplayName()) == DefaultCalendar {
+			calID = ptr.Val(gcc.GetId())
 		}
 
-		if ptr.Val(gcf.GetDisplayName()) == "Birthdays" {
-			bdayID = ptr.Val(gcf.GetId())
+		if ptr.Val(gcc.GetDisplayName()) == "Birthdays" {
+			bdayID = ptr.Val(gcc.GetId())
 		}
 
 		return nil

@@ -414,7 +414,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mock.GraphConnector{}
+		ctrl = &mock.Controller{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -435,7 +435,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 					TotalHashedBytes:   1,
 					TotalUploadedBytes: 1,
 				},
-				gc: &data.CollectionStats{Successes: 1},
+				ctrl: &data.CollectionStats{Successes: 1},
 			},
 		},
 		{
@@ -443,16 +443,16 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			expectErr:    assert.Error,
 			fail:         assert.AnError,
 			stats: backupStats{
-				k:  &kopia.BackupStats{},
-				gc: &data.CollectionStats{},
+				k:    &kopia.BackupStats{},
+				ctrl: &data.CollectionStats{},
 			},
 		},
 		{
 			expectStatus: NoData,
 			expectErr:    assert.NoError,
 			stats: backupStats{
-				k:  &kopia.BackupStats{},
-				gc: &data.CollectionStats{},
+				k:    &kopia.BackupStats{},
+				ctrl: &data.CollectionStats{},
 			},
 		},
 	}
@@ -471,7 +471,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				control.Defaults(),
 				kw,
 				sw,
-				gc,
+				ctrl,
 				acct,
 				sel,
 				sel,
@@ -483,7 +483,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.ctrl.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")

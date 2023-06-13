@@ -50,7 +50,7 @@ type dataBuilderFunc func(id, now, subject, body string) []byte
 
 func generateAndRestoreItems(
 	ctx context.Context,
-	gc *connector.GraphConnector,
+	ctrl *connector.Controller,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
@@ -98,19 +98,19 @@ func generateAndRestoreItems(
 
 	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return gc.ConsumeRestoreCollections(ctx, version.Backup, sel, dest, opts, dataColls, errs)
+	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, dest, opts, dataColls, errs)
 }
 
 // ------------------------------------------------------------------------------------------
 // Common Helpers
 // ------------------------------------------------------------------------------------------
 
-func getGCAndVerifyResourceOwner(
+func getControllerAndVerifyResourceOwner(
 	ctx context.Context,
 	resource connector.Resource,
 	resourceOwner string,
 ) (
-	*connector.GraphConnector,
+	*connector.Controller,
 	account.Account,
 	idname.Provider,
 	error,
@@ -132,17 +132,17 @@ func getGCAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "finding m365 account details")
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct, resource)
+	ctrl, err := connector.NewController(ctx, acct, resource)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
 
-	id, _, err := gc.PopulateOwnerIDAndNamesFrom(ctx, resourceOwner, nil)
+	id, _, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, resourceOwner, nil)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "verifying user")
 	}
 
-	return gc, acct, gc.IDNameLookup.ProviderForID(id), nil
+	return ctrl, acct, ctrl.IDNameLookup.ProviderForID(id), nil
 }
 
 type item struct {
@@ -208,7 +208,7 @@ var (
 )
 
 func generateAndRestoreDriveItems(
-	gc *connector.GraphConnector,
+	ctrl *connector.Controller,
 	resourceOwner, secondaryUserID, secondaryUserName string,
 	acct account.Account,
 	service path.ServiceType,
@@ -232,14 +232,14 @@ func generateAndRestoreDriveItems(
 
 	switch service {
 	case path.SharePointService:
-		d, err := gc.AC.Stable.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := ctrl.AC.Stable.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting site's default drive")
 		}
 
 		driveID = ptr.Val(d.GetId())
 	default:
-		d, err := gc.AC.Stable.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := ctrl.AC.Stable.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user's default drive")
 		}
@@ -405,5 +405,5 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	return gc.ConsumeRestoreCollections(ctx, version.Backup, sel, dest, opts, collections, errs)
+	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, dest, opts, collections, errs)
 }

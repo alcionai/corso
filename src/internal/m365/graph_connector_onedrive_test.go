@@ -96,7 +96,7 @@ type oneDriveSuite interface {
 
 type suiteInfoImpl struct {
 	ac              api.Client
-	connector       *GraphConnector
+	controller      *Controller
 	resourceOwner   string
 	resourceType    Resource
 	secondaryUser   string
@@ -119,11 +119,11 @@ func NewSuiteInfoImpl(
 		resource = Sites
 	}
 
-	gc := loadConnector(ctx, t, resource)
+	ctrl := loadController(ctx, t, resource)
 
 	return suiteInfoImpl{
-		ac:            gc.AC,
-		connector:     gc,
+		ac:            ctrl.AC,
+		controller:    ctrl,
 		resourceOwner: resourceOwner,
 		resourceType:  resource,
 		secondaryUser: tester.SecondaryM365UserID(t),
@@ -138,7 +138,7 @@ func (si suiteInfoImpl) APIClient() api.Client {
 }
 
 func (si suiteInfoImpl) Tenant() string {
-	return si.connector.tenant
+	return si.controller.tenant
 }
 
 func (si suiteInfoImpl) PrimaryUser() (string, string) {
@@ -194,15 +194,15 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	si := NewSuiteInfoImpl(suite.T(), ctx, tester.M365SiteID(suite.T()), path.SharePointService)
 
 	// users needed for permissions
-	user, err := si.connector.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.connector.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
@@ -254,15 +254,15 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 
 	si := NewSuiteInfoImpl(t, ctx, tester.M365UserID(t), path.OneDriveService)
 
-	user, err := si.connector.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.connector.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
@@ -314,15 +314,15 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 
 	si := NewSuiteInfoImpl(t, ctx, tester.M365UserID(t), path.OneDriveService)
 
-	user, err := si.connector.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.connector.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
