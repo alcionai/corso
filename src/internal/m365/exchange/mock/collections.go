@@ -89,8 +89,6 @@ func NewContactCollection(pathRepresentation path.Path, numMessagesToReturn int)
 		Names:        []string{},
 	}
 
-	rand.Seed(time.Now().UnixNano())
-
 	middleNames := []string{
 		"Argon",
 		"Bernard",
