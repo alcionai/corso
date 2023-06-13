@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -63,7 +64,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		t              = suite.T()
 		ac             = suite.ac.Drives()
 		driveID        = suite.driveID
-		newFolderName  = tester.DefaultTestRestoreConfig("folder").Location
+		newFolderName  = ctrlTD.DefaultRestoreConfig("folder").Location
 		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault())
 	)
 

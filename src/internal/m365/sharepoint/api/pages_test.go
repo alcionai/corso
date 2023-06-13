@@ -16,6 +16,7 @@ import (
 	spMock "github.com/alcionai/corso/src/internal/m365/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -92,7 +93,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	destName := tester.DefaultTestRestoreConfig("").Location
+	destName := ctrlTD.DefaultRestoreConfig("").Location
 	testName := "MockPage"
 
 	// Create Test Page
