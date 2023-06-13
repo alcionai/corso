@@ -1,0 +1,89 @@
+name: Send a message to slack
+
+inputs:
+  job:
+    descrption: passthrough for env.GITHUB_JOB
+  msg:
+    description: The slack message text
+  ref:
+    description: passthrough for env.GITHUB_REF
+  run_id:
+    description: passthrough for env.GITHUB_RUN_ID
+  sha:
+    description: passthrough for env.GITHUB_SHA
+  slack_url:
+    description: passthrough for secrets.SLACK_WEBHOOK_URL
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: trim ref
+      shell: bash
+      run: |
+        echo IN_REF=${{ inputs.ref }} >> $GITHUB_ENV
+        echo trimmed_ref=${IN_REF#refs/} >> $GITHUB_ENV
+
+    - shell: bash
+      run: |
+        echo "-----"
+        echo "j ${{inputs.job}}"
+        echo "r ${{inputs.ref}}"
+        echo "s ${{inputs.run_id}}"
+        echo "i ${{inputs.sha}}"
+        echo "-----"
+        echo "j ${{github.job}}"
+        echo "r ${{github.ref}}"
+        echo "s ${{github.run_id}}"
+        echo "i ${{github.sha}}"
+        echo "u ${{github.server_url}}"
+        echo "e ${{github.repository}}"
+        echo "-----"
+        echo "j ${{env.JOB}}"
+        echo "r ${{env.LOGS}}"
+        echo "s ${{env.COMMIT}}"
+        echo "i ${{env.REF}}"
+        echo "-----"
+        echo "j ${env.GITHUB_JOB}"
+        echo "r ${env.GITHUB_REF}"
+        echo "s ${env.GITHUB_SHA}"
+        echo "i ${env.GITHUB_RUN_ID}"
+        echo "-----"
+
+    - name: compose links
+      shell: bash
+      run: |
+        echo JOB=${{ inputs.job && ' -:- ${{ inputs.job }}' || ''}} >> $GITHUB_ENV
+        echo LOGS=${{ inputs.run_id && format('<https://github.com/alcionai/corso/actions/runs/${0}|[Logs]>', inputs.run_id) || ''}} >> $GITHUB_ENV
+        echo COMMIT=${{ inputs.sha && format('<https://github.com/alcionai/corso/commit/${0}|[Commit]>', inputs.sha) || ''}} >> $GITHUB_ENV
+        echo REF=${{ env.trimmed_ref && format('<https://github.com/alcionai/corso/${0}|[Ref]>', env.trimmed_ref) || ''}} >> $GITHUB_ENV
+
+    - shell: bash
+      run: |
+        echo "-----"
+        echo "j ${{env.GITHUB_JOB}}"
+        echo "r ${{env.GITHUB_REF}}"
+        echo "s ${{env.GITHUB_SHA}}"
+        echo "i ${{env.GITHUB_RUN_ID}}"
+        echo "-----"
+
+    - id: slack-message
+      uses: slackapi/slack-github-action@v1.24.0
+      env:
+        SLACK_WEBHOOK_URL: ${{ inputs.slack_url }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      with:
+        payload: |
+          {
+            "text": "${{ inputs.msg }} :: ${{ env.LOGS }} ${{ env.COMMIT }} ${{ env.REF }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "${{ inputs.msg }}${{ env.JOB }}\n${{ env.LOGS }} ${{ env.COMMIT }} ${{ env.REF }}"
+                }
+              }
+            ]
+          }
