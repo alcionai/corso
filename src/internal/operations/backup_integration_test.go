@@ -79,7 +79,7 @@ func prepNewTestBackupOp(
 	*kopia.Wrapper,
 	*kopia.ModelStore,
 	streamstore.Streamer,
-	*m365.GraphConnector,
+	*m365.Controller,
 	selectors.Selector,
 	func(),
 ) {
@@ -125,12 +125,12 @@ func prepNewTestBackupOp(
 		connectorResource = m365.Sites
 	}
 
-	gc, sel := GCWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
-	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
+	bo := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, bus, featureToggles, closer)
 
 	ss := streamstore.NewStreamer(kw, acct.ID(), sel.PathService())
 
-	return bo, acct, kw, ms, ss, gc, sel, closer
+	return bo, acct, kw, ms, ss, ctrl, sel, closer
 }
 
 // newTestBackupOp accepts the clients required to compose a backup operation, plus
@@ -142,7 +142,7 @@ func newTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
-	gc *m365.GraphConnector,
+	ctrl *m365.Controller,
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
@@ -155,9 +155,9 @@ func newTestBackupOp(
 	)
 
 	opts.ToggleFeatures = featureToggles
-	gc.IDNameLookup = idname.NewCache(map[string]string{sel.ID(): sel.Name()})
+	ctrl.IDNameLookup = idname.NewCache(map[string]string{sel.ID(): sel.Name()})
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, ctrl, acct, sel, sel, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -346,7 +346,7 @@ type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
 func generateContainerOfItems(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	gc *m365.GraphConnector,
+	ctrl *m365.Controller,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
@@ -394,7 +394,7 @@ func generateContainerOfItems(
 	opts := control.Defaults()
 	opts.RestorePermissions = true
 
-	deets, err := gc.ConsumeRestoreCollections(
+	deets, err := ctrl.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		sel,
@@ -405,8 +405,8 @@ func generateContainerOfItems(
 	require.NoError(t, err, clues.ToCore(err))
 
 	// have to wait here, both to ensure the process
-	// finishes, and also to clean up the gc status
-	gc.Wait()
+	// finishes, and also to clean up the status
+	ctrl.Wait()
 
 	return deets
 }
@@ -542,7 +542,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mock.GraphConnector{}
+		ctrl = &mock.Controller{}
 		acct = tester.NewM365Account(suite.T())
 		opts = control.Defaults()
 	)
@@ -556,9 +556,9 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, gc, acct, nil, assert.NoError},
-		{"missing kopia", nil, sw, gc, acct, nil, assert.Error},
-		{"missing modelstore", kw, nil, gc, acct, nil, assert.Error},
+		{"good", kw, sw, ctrl, acct, nil, assert.NoError},
+		{"missing kopia", nil, sw, ctrl, acct, nil, assert.Error},
+		{"missing modelstore", kw, nil, ctrl, acct, nil, assert.Error},
 		{"missing backup producer", kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
@@ -645,7 +645,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, acct, kw, ms, ss, gc, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+			bo, acct, kw, ms, ss, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 			defer closer()
 
 			userID := sel.ID()
@@ -684,7 +684,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, ffs, closer)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
@@ -766,7 +766,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		whatSet    = deeTD.CategoryFromRepoRef
 	)
 
-	gc, sels := GCWithSelector(t, ctx, acct, m365.Users, sel.Selector, nil, nil)
+	ctrl, sels := ControllerWithSelector(t, ctx, acct, m365.Users, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
 
@@ -855,7 +855,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			deets := generateContainerOfItems(
 				t,
 				ctx,
-				gc,
+				ctrl,
 				service,
 				category,
 				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
@@ -883,7 +883,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		}
 	}
 
-	bo, acct, kw, ms, ss, gc, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
+	bo, acct, kw, ms, ss, ctrl, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1036,7 +1036,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 					deets := generateContainerOfItems(
 						t,
 						ctx,
-						gc,
+						ctrl,
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
@@ -1245,7 +1245,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sels, incMB, toggles, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
 				atid  = creds.AzureTenantID
 			)
 
@@ -1445,9 +1445,9 @@ func runDriveIncrementalTest(
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc, sel := GCWithSelector(t, ctx, acct, resource, sel, nil, nil)
-	ac := gc.AC.Drives()
-	rh := getRestoreHandler(gc.AC)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource, sel, nil, nil)
+	ac := ctrl.AC.Drives()
+	rh := getRestoreHandler(ctrl.AC)
 
 	roidn := inMock.NewProvider(sel.ID(), sel.Name())
 
@@ -1479,7 +1479,7 @@ func runDriveIncrementalTest(
 		deets := generateContainerOfItems(
 			t,
 			ctx,
-			gc,
+			ctrl,
 			service,
 			category,
 			sel,
@@ -1506,14 +1506,14 @@ func runDriveIncrementalTest(
 		// onedrive package `getFolder` function.
 		itemURL := fmt.Sprintf("https://graph.microsoft.com/v1.0/drives/%s/root:/%s", driveID, destName)
 		resp, err := drives.
-			NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.AC.Stable.Adapter()).
+			NewItemItemsDriveItemItemRequestBuilder(itemURL, ctrl.AC.Stable.Adapter()).
 			Get(ctx, nil)
 		require.NoError(t, err, "getting drive folder ID", "folder name", destName, clues.ToCore(err))
 
 		containerIDs[destName] = ptr.Val(resp.GetId())
 	}
 
-	bo, _, kw, ms, ss, gc, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+	bo, _, kw, ms, ss, ctrl, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1812,7 +1812,7 @@ func runDriveIncrementalTest(
 				generateContainerOfItems(
 					t,
 					ctx,
-					gc,
+					ctrl,
 					service,
 					category,
 					sel,
@@ -1826,7 +1826,7 @@ func runDriveIncrementalTest(
 					"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
 					driveID,
 					container3)
-				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, gc.AC.Stable.Adapter()).
+				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, ctrl.AC.Stable.Adapter()).
 					Get(ctx, nil)
 				require.NoError(t, err, "getting drive folder ID", "folder name", container3, clues.ToCore(err))
 
@@ -1841,13 +1841,13 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanGC, err := m365.NewGraphConnector(ctx, acct, resource)
+			cleanCtrl, err := m365.NewController(ctx, acct, resource)
 			require.NoError(t, err, clues.ToCore(err))
 
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, cleanGC, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, cleanCtrl, acct, sel, incMB, ffs, closer)
 			)
 
 			tester.LogTimeOfTest(suite.T())
@@ -1914,13 +1914,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc, err := m365.NewGraphConnector(
+	ctrl, err := m365.NewController(
 		ctx,
 		acct,
 		m365.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
-	userable, err := gc.AC.Users().GetByID(ctx, suite.user)
+	userable, err := ctrl.AC.Users().GetByID(ctx, suite.user)
 	require.NoError(t, err, clues.ToCore(err))
 
 	uid := ptr.Val(userable.GetId())
@@ -1929,7 +1929,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
 	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
-	bo, _, kw, ms, _, gc, sel, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
+	bo, _, kw, ms, _, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
 	defer closer()
 
 	// ensure the initial owner uses name in both cases
@@ -1955,7 +1955,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	var (
 		incMB = evmock.NewBus()
 		// the incremental backup op should have a proper user ID for the id.
-		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
+		incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, ffs, closer)
 	)
 
 	require.NotEqualf(

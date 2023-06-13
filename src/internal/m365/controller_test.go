@@ -29,15 +29,15 @@ import (
 // Unit tests
 // ---------------------------------------------------------------------------
 
-type GraphConnectorUnitSuite struct {
+type ControllerUnitSuite struct {
 	tester.Suite
 }
 
-func TestGraphConnectorUnitSuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestControllerUnitSuite(t *testing.T) {
+	suite.Run(t, &ControllerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
+func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
 		id   = "owner-id"
 		name = "owner-name"
@@ -211,9 +211,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			gc := &GraphConnector{ownerLookup: test.rc}
+			ctrl := &Controller{ownerLookup: test.rc}
 
-			rID, rName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
+			rID, rName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectID, rID, "id")
 			assert.Equal(t, test.expectName, rName, "name")
@@ -221,14 +221,14 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	}
 }
 
-func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
+func (suite *ControllerUnitSuite) TestController_Wait() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		gc = &GraphConnector{
+		ctrl = &Controller{
 			wg:     &sync.WaitGroup{},
 			region: &trace.Region{},
 		}
@@ -240,13 +240,13 @@ func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
 		status = support.CreateStatus(ctx, support.Backup, 1, metrics, "details")
 	)
 
-	gc.wg.Add(1)
-	gc.UpdateStatus(status)
+	ctrl.wg.Add(1)
+	ctrl.UpdateStatus(status)
 
-	result := gc.Wait()
+	result := ctrl.Wait()
 	require.NotNil(t, result)
-	assert.Nil(t, gc.region, "region")
-	assert.Empty(t, gc.status, "status")
+	assert.Nil(t, ctrl.region, "region")
+	assert.Empty(t, ctrl.status, "status")
 	assert.Equal(t, 1, result.Folders)
 	assert.Equal(t, 2, result.Objects)
 	assert.Equal(t, 3, result.Successes)
@@ -257,15 +257,15 @@ func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
 // Integration tests
 // ---------------------------------------------------------------------------
 
-type GraphConnectorIntegrationSuite struct {
+type ControllerIntegrationSuite struct {
 	tester.Suite
-	connector     *GraphConnector
+	ctrl          *Controller
 	user          string
 	secondaryUser string
 }
 
-func TestGraphConnectorIntegrationSuite(t *testing.T) {
-	suite.Run(t, &GraphConnectorIntegrationSuite{
+func TestControllerIntegrationSuite(t *testing.T) {
+	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
@@ -273,20 +273,20 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 	})
 }
 
-func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
+func (suite *ControllerIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.connector = loadConnector(ctx, t, Users)
+	suite.ctrl = loadController(ctx, t, Users)
 	suite.user = tester.M365UserID(t)
 	suite.secondaryUser = tester.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
+func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -299,7 +299,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.ConsumeRestoreCollections(
+	deets, err := suite.ctrl.ConsumeRestoreCollections(
 		ctx,
 		version.Backup,
 		sel,
@@ -313,13 +313,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := suite.connector.Wait()
+	status := suite.ctrl.Wait()
 	assert.Equal(t, 0, status.Objects)
 	assert.Equal(t, 0, status.Folders)
 	assert.Equal(t, 0, status.Successes)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
+func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 	restoreCfg := tester.DefaultTestRestoreConfig("")
 	table := []struct {
 		name string
@@ -377,7 +377,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			deets, err := suite.connector.ConsumeRestoreCollections(
+			deets, err := suite.ctrl.ConsumeRestoreCollections(
 				ctx,
 				version.Backup,
 				test.sel,
@@ -391,7 +391,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
-			stats := suite.connector.Wait()
+			stats := suite.ctrl.Wait()
 			assert.Zero(t, stats.Objects)
 			assert.Zero(t, stats.Folders)
 			assert.Zero(t, stats.Successes)
@@ -418,9 +418,9 @@ func runRestore(
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, config.Resource)
+	restoreCtrl := loadController(ctx, t, config.Resource)
 	restoreSel := getSelectorWith(t, config.Service, config.ResourceOwners, true)
-	deets, err := restoreGC.ConsumeRestoreCollections(
+	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		restoreSel,
@@ -431,7 +431,7 @@ func runRestore(
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := restoreGC.Wait()
+	status := restoreCtrl.Wait()
 	runTime := time.Since(start)
 
 	assert.Equal(t, numRestoreItems, status.Objects, "restored status.Objects")
@@ -480,14 +480,14 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupGC := loadConnector(ctx, t, config.Resource)
-	backupGC.IDNameLookup = inMock.NewCache(idToName, nameToID)
+	backupCtrl := loadController(ctx, t, config.Resource)
+	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
 	backupSel := backupSelectorForExpected(t, config.Service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
-	dcs, excludes, canUsePreviousBackup, err := backupGC.ProduceBackupCollections(
+	dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 		ctx,
 		backupSel,
 		backupSel,
@@ -512,7 +512,7 @@ func runBackupAndCompare(
 		dcs,
 		config)
 
-	status := backupGC.Wait()
+	status := backupCtrl.Wait()
 
 	assert.Equalf(t, totalItems+skipped, status.Objects,
 		"backup status.Objects; wanted %d items + %d skipped", totalItems, skipped)
@@ -652,7 +652,7 @@ func runRestoreBackupTestVersions(
 		test.collectionsLatest)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
+func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
@@ -909,7 +909,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			runRestoreBackupTest(
 				suite.T(),
 				test,
-				suite.connector.tenant,
+				suite.ctrl.tenant,
 				[]string{suite.user},
 				control.Options{
 					RestorePermissions: true,
@@ -919,7 +919,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
+func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
 			name:     "Contacts",
@@ -1005,7 +1005,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 				totalItems, _, collections, expectedData, err := collectionsForInfo(
 					test.service,
-					suite.connector.tenant,
+					suite.ctrl.tenant,
 					suite.user,
 					restoreCfg,
 					[]ColInfo{collection},
@@ -1026,8 +1026,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					restoreCfg.Location,
 				)
 
-				restoreGC := loadConnector(ctx, t, test.resource)
-				deets, err := restoreGC.ConsumeRestoreCollections(
+				restoreCtrl := loadController(ctx, t, test.resource)
+				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
 					restoreSel,
@@ -1041,7 +1041,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
-				status := restoreGC.Wait()
+				status := restoreCtrl.Wait()
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, totalItems, status.Objects, "status.Objects")
 				assert.Equal(t, totalItems, status.Successes, "status.Successes")
@@ -1056,11 +1056,11 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Run a backup and compare its output with what we put in.
 
-			backupGC := loadConnector(ctx, t, test.resource)
+			backupCtrl := loadController(ctx, t, test.resource)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, excludes, canUsePreviousBackup, err := backupGC.ProduceBackupCollections(
+			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
 				backupSel,
 				backupSel,
@@ -1088,7 +1088,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			// deadlock.
 			skipped := checkCollections(t, ctx, allItems, allExpectedData, dcs, ci)
 
-			status := backupGC.Wait()
+			status := backupCtrl.Wait()
 			assert.Equal(t, allItems+skipped, status.Objects, "status.Objects")
 			assert.Equal(t, allItems+skipped, status.Successes, "status.Successes")
 		})
@@ -1097,7 +1097,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 // TODO: this should only be run during smoke tests, not part of the standard CI.
 // That's why it's set aside instead of being included in the other test set.
-func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
+func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
 	subjectText := "Test message for restore with large attachment"
 
 	test := restoreBackupInfo{
@@ -1122,7 +1122,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 	runRestoreBackupTest(
 		suite.T(),
 		test,
-		suite.connector.tenant,
+		suite.ctrl.tenant,
 		[]string{suite.user},
 		control.Options{
 			RestorePermissions: true,
@@ -1131,7 +1131,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 	)
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections() {
+func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 	table := []struct {
 		name         string
 		resource     Resource
@@ -1205,18 +1205,18 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 			defer flush()
 
 			var (
-				backupGC  = loadConnector(ctx, t, test.resource)
-				backupSel = test.selectorFunc(t)
-				errs      = fault.New(true)
-				start     = time.Now()
+				backupCtrl = loadController(ctx, t, test.resource)
+				backupSel  = test.selectorFunc(t)
+				errs       = fault.New(true)
+				start      = time.Now()
 			)
 
-			id, name, err := backupGC.PopulateOwnerIDAndNamesFrom(ctx, backupSel.DiscreteOwner, nil)
+			id, name, err := backupCtrl.PopulateOwnerIDAndNamesFrom(ctx, backupSel.DiscreteOwner, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			backupSel.SetDiscreteOwnerIDName(id, name)
 
-			dcs, excludes, canUsePreviousBackup, err := backupGC.ProduceBackupCollections(
+			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
 				inMock.NewProvider(id, name),
 				backupSel,
@@ -1263,7 +1263,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			assert.ElementsMatch(t, test.categories, foundCategories)
 
-			backupGC.Wait()
+			backupCtrl.Wait()
 
 			assert.NoError(t, errs.Failure())
 		})

@@ -109,12 +109,12 @@ func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
 
-func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container) error {
+func (m mockResolver) AddToCache(ctx context.Context, ctrl graph.Container) error {
 	if len(m.added) == 0 {
 		m.added = map[string]string{}
 	}
 
-	m.added[ptr.Val(gc.GetDisplayName())] = ptr.Val(gc.GetId())
+	m.added[ptr.Val(ctrl.GetDisplayName())] = ptr.Val(ctrl.GetId())
 
 	return nil
 }
@@ -301,7 +301,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				path.ExchangeService,
 				path.EmailCategory,
 				entries,
-				func(cos *support.ConnectorOperationStatus) {},
+				func(cos *support.ControllerOperationStatus) {},
 			)
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -374,8 +374,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections_ReadFailure(
 // Integration tests
 // ---------------------------------------------------------------------------
 
-func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.ConnectorOperationStatus) {
-	updater := func(status *support.ConnectorOperationStatus) {
+func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.ControllerOperationStatus) {
+	updater := func(status *support.ControllerOperationStatus) {
 		defer wg.Done()
 	}
 
@@ -470,7 +470,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				test.scope,
 				DeltaPaths{},
 				ctrlOpts,
-				func(status *support.ConnectorOperationStatus) {},
+				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -548,7 +548,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				DeltaPaths{},
 				control.Defaults(),
-				func(status *support.ConnectorOperationStatus) {},
+				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
@@ -581,7 +581,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				dps,
 				control.Defaults(),
-				func(status *support.ConnectorOperationStatus) {},
+				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -769,13 +769,13 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		bdayID   string
 	)
 
-	fn := func(gcf graph.CachedContainer) error {
-		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
-			calID = ptr.Val(gcf.GetId())
+	fn := func(gcc graph.CachedContainer) error {
+		if ptr.Val(gcc.GetDisplayName()) == DefaultCalendar {
+			calID = ptr.Val(gcc.GetId())
 		}
 
-		if ptr.Val(gcf.GetDisplayName()) == "Birthdays" {
-			bdayID = ptr.Val(gcf.GetId())
+		if ptr.Val(gcc.GetDisplayName()) == "Birthdays" {
+			bdayID = ptr.Val(gcc.GetId())
 		}
 
 		return nil
@@ -885,7 +885,7 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 			TenantID:      suite.creds.AzureTenantID,
 		}
-		statusUpdater = func(*support.ConnectorOperationStatus) {}
+		statusUpdater = func(*support.ControllerOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		dps           = DeltaPaths{} // incrementals are tested separately
 		commonResult  = mockGetterResults{
@@ -1181,7 +1181,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 			TenantID:      suite.creds.AzureTenantID,
 		}
 
-		statusUpdater = func(*support.ConnectorOperationStatus) {}
+		statusUpdater = func(*support.ControllerOperationStatus) {}
 
 		dataTypes = []scopeCat{
 			{
@@ -1566,7 +1566,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 					ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 					TenantID:      suite.creds.AzureTenantID,
 				}
-				statusUpdater = func(*support.ConnectorOperationStatus) {}
+				statusUpdater = func(*support.ControllerOperationStatus) {}
 				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 				dps           = DeltaPaths{} // incrementals are tested separately
 				container1    = mockContainer{
@@ -1651,7 +1651,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
 			TenantID:      suite.creds.AzureTenantID,
 		}
-		statusUpdater = func(*support.ConnectorOperationStatus) {}
+		statusUpdater = func(*support.ControllerOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		commonResults = mockGetterResults{
 			added:    []string{"added"},

@@ -82,7 +82,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 	c := NewMetadataCollection(
 		p,
 		items,
-		func(c *support.ConnectorOperationStatus) {
+		func(c *support.ControllerOperationStatus) {
 			assert.Equal(t, len(itemNames), c.Metrics.Objects)
 			assert.Equal(t, len(itemNames), c.Metrics.Successes)
 		},
@@ -167,7 +167,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 				test.service,
 				test.cat,
 				[]MetadataCollectionEntry{test.metadata},
-				func(*support.ConnectorOperationStatus) {})
+				func(*support.ControllerOperationStatus) {})
 
 			test.errCheck(t, err, clues.ToCore(err))
 			if err != nil {

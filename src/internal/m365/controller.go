@@ -16,20 +16,16 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// ---------------------------------------------------------------------------
-// Graph Connector
-// ---------------------------------------------------------------------------
-
 // must comply with BackupProducer and RestoreConsumer
 var (
-	_ inject.BackupProducer  = &GraphConnector{}
-	_ inject.RestoreConsumer = &GraphConnector{}
+	_ inject.BackupProducer  = &Controller{}
+	_ inject.RestoreConsumer = &Controller{}
 )
 
-// GraphConnector is a struct used to wrap the GraphServiceClient and
+// Controller is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
-type GraphConnector struct {
+type Controller struct {
 	AC api.Client
 
 	tenant      string
@@ -41,20 +37,20 @@ type GraphConnector struct {
 	// reference for processes that choose to populate the values.
 	IDNameLookup idname.Cacher
 
-	// wg is used to track completion of GC tasks
+	// wg is used to track completion of tasks
 	wg     *sync.WaitGroup
 	region *trace.Region
 
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
-	status support.ConnectorOperationStatus // contains the status of the last run status
+	status support.ControllerOperationStatus // contains the status of the last run status
 }
 
-func NewGraphConnector(
+func NewController(
 	ctx context.Context,
 	acct account.Account,
 	r Resource,
-) (*GraphConnector, error) {
+) (*Controller, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
@@ -70,7 +66,7 @@ func NewGraphConnector(
 		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
 	}
 
-	gc := GraphConnector{
+	ctrl := Controller{
 		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
 
@@ -80,63 +76,63 @@ func NewGraphConnector(
 		wg:          &sync.WaitGroup{},
 	}
 
-	return &gc, nil
+	return &ctrl, nil
 }
 
 // ---------------------------------------------------------------------------
 // Processing Status
 // ---------------------------------------------------------------------------
 
-// AwaitStatus waits for all gc tasks to complete and then returns status
-func (gc *GraphConnector) Wait() *data.CollectionStats {
+// AwaitStatus waits for all tasks to complete and then returns status
+func (ctrl *Controller) Wait() *data.CollectionStats {
 	defer func() {
-		if gc.region != nil {
-			gc.region.End()
-			gc.region = nil
+		if ctrl.region != nil {
+			ctrl.region.End()
+			ctrl.region = nil
 		}
 	}()
-	gc.wg.Wait()
+	ctrl.wg.Wait()
 
 	// clean up and reset statefulness
 	dcs := data.CollectionStats{
-		Folders:   gc.status.Folders,
-		Objects:   gc.status.Metrics.Objects,
-		Successes: gc.status.Metrics.Successes,
-		Bytes:     gc.status.Metrics.Bytes,
-		Details:   gc.status.String(),
+		Folders:   ctrl.status.Folders,
+		Objects:   ctrl.status.Metrics.Objects,
+		Successes: ctrl.status.Metrics.Successes,
+		Bytes:     ctrl.status.Metrics.Bytes,
+		Details:   ctrl.status.String(),
 	}
 
-	gc.wg = &sync.WaitGroup{}
-	gc.status = support.ConnectorOperationStatus{}
+	ctrl.wg = &sync.WaitGroup{}
+	ctrl.status = support.ControllerOperationStatus{}
 
 	return &dcs
 }
 
-// UpdateStatus is used by gc initiated tasks to indicate completion
-func (gc *GraphConnector) UpdateStatus(status *support.ConnectorOperationStatus) {
-	defer gc.wg.Done()
+// UpdateStatus is used by initiated tasks to indicate completion
+func (ctrl *Controller) UpdateStatus(status *support.ControllerOperationStatus) {
+	defer ctrl.wg.Done()
 
 	if status == nil {
 		return
 	}
 
-	gc.mu.Lock()
-	defer gc.mu.Unlock()
-	gc.status = support.MergeStatus(gc.status, *status)
+	ctrl.mu.Lock()
+	defer ctrl.mu.Unlock()
+	ctrl.status = support.MergeStatus(ctrl.status, *status)
 }
 
-// Status returns the current status of the graphConnector operation.
-func (gc *GraphConnector) Status() support.ConnectorOperationStatus {
-	return gc.status
+// Status returns the current status of the controller process.
+func (ctrl *Controller) Status() support.ControllerOperationStatus {
+	return ctrl.status
 }
 
-// PrintableStatus returns a string formatted version of the GC status.
-func (gc *GraphConnector) PrintableStatus() string {
-	return gc.status.String()
+// PrintableStatus returns a string formatted version of the status.
+func (ctrl *Controller) PrintableStatus() string {
+	return ctrl.status.String()
 }
 
-func (gc *GraphConnector) incrementAwaitingMessages() {
-	gc.wg.Add(1)
+func (ctrl *Controller) incrementAwaitingMessages() {
+	ctrl.wg.Add(1)
 }
 
 // ---------------------------------------------------------------------------
@@ -241,18 +237,18 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 // The id-name swapper is optional.  Some processes will look up all owners in
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
-// data gets stored inside the gc instance for later re-use.
-func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+// data gets stored inside the controller instance for later re-use.
+func (ctrl *Controller) PopulateOwnerIDAndNamesFrom(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
 	ins idname.Cacher,
 ) (string, string, error) {
-	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.AC, owner, ins)
+	id, name, err := ctrl.ownerLookup.getOwnerIDAndNameFrom(ctx, ctrl.AC, owner, ins)
 	if err != nil {
 		return "", "", clues.Wrap(err, "identifying resource owner")
 	}
 
-	gc.IDNameLookup = idname.NewCache(map[string]string{id: name})
+	ctrl.IDNameLookup = idname.NewCache(map[string]string{id: name})
 
 	return id, name, nil
 }

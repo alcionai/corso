@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	connector "github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -306,12 +306,12 @@ func (r repository) NewBackupWithLookup(
 	sel selectors.Selector,
 	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account)
+	ctrl, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	ownerID, ownerName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
 	}
@@ -324,7 +324,7 @@ func (r repository) NewBackupWithLookup(
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
-		gc,
+		ctrl,
 		r.Account,
 		sel,
 		sel, // the selector acts as an IDNamer for its discrete resource owner.
@@ -338,7 +338,7 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 ) (operations.RestoreOperation, error) {
-	gc, err := connectToM365(ctx, sel, r.Account)
+	ctrl, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
 		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
 	}
@@ -348,7 +348,7 @@ func (r repository) NewRestore(
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
-		gc,
+		ctrl,
 		r.Account,
 		model.StableID(backupID),
 		sel,
@@ -623,12 +623,12 @@ func newRepoID(s storage.Storage) string {
 // helpers
 // ---------------------------------------------------------------------------
 
-// produces a graph connector.
+// produces a graph m365.
 func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-) (*connector.GraphConnector, error) {
+) (*m365.Controller, error) {
 	complete := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
 		complete <- struct{}{}
@@ -636,17 +636,17 @@ func connectToM365(
 	}()
 
 	// retrieve data from the producer
-	resource := connector.Users
+	resource := m365.Users
 	if sel.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
+		resource = m365.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, acct, resource)
+	ctrl, err := m365.NewController(ctx, acct, resource)
 	if err != nil {
 		return nil, err
 	}
 
-	return gc, nil
+	return ctrl, nil
 }
 
 func errWrapper(err error) error {

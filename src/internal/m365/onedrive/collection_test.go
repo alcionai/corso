@@ -46,9 +46,9 @@ func TestCollectionUnitTestSuite(t *testing.T) {
 // Returns a status update function that signals the specified WaitGroup when it is done
 func (suite *CollectionUnitTestSuite) testStatusUpdater(
 	wg *sync.WaitGroup,
-	statusToUpdate *support.ConnectorOperationStatus,
+	statusToUpdate *support.ControllerOperationStatus,
 ) support.StatusUpdater {
-	return func(s *support.ConnectorOperationStatus) {
+	return func(s *support.ControllerOperationStatus) {
 		suite.T().Logf("Update status %v, count %d, success %d", s, s.Metrics.Objects, s.Metrics.Successes)
 		*statusToUpdate = *s
 
@@ -170,7 +170,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			var (
 				wg         = sync.WaitGroup{}
-				collStatus = support.ConnectorOperationStatus{}
+				collStatus = support.ControllerOperationStatus{}
 				readItems  = []data.Stream{}
 			)
 
@@ -276,7 +276,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	var (
 		t                = suite.T()
 		stubItemID       = "fakeItemID"
-		collStatus       = support.ConnectorOperationStatus{}
+		collStatus       = support.ControllerOperationStatus{}
 		wg               = sync.WaitGroup{}
 		name             = "name"
 		size       int64 = 42
@@ -343,7 +343,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 	var (
 		t                = suite.T()
 		stubItemID       = "fakeItemID"
-		collStatus       = support.ConnectorOperationStatus{}
+		collStatus       = support.ControllerOperationStatus{}
 		wg               = sync.WaitGroup{}
 		name             = "name"
 		size       int64 = 42
@@ -412,7 +412,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 		stubItemID   = "fakeItemID"
 		stubItemName = "Fake Item"
 		stubItemSize = int64(10)
-		collStatus   = support.ConnectorOperationStatus{}
+		collStatus   = support.ControllerOperationStatus{}
 		wg           = sync.WaitGroup{}
 	)
 

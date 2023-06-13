@@ -69,7 +69,7 @@ func RestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-) (*support.ConnectorOperationStatus, error) {
+) (*support.ControllerOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
 		caches         = NewRestoreCaches()

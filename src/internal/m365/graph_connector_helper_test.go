@@ -940,7 +940,7 @@ func checkCollections(
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
-		// because otherwise we'll deadlock waiting for GC status. Unexpected or
+		// because otherwise we'll deadlock waiting for the status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
 		for item := range returned.Items(ctx, fault.New(true)) {
 			// Skip metadata collections as they aren't directly related to items to
@@ -984,7 +984,7 @@ func checkCollections(
 	checkHasCollections(t, expected, collectionsWithItems)
 
 	// Return how many metadata files were skipped so we can account for it in the
-	// check on GraphConnector status.
+	// check on Controller status.
 	return skipped
 }
 
@@ -1151,10 +1151,10 @@ func getSelectorWith(
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T, r Resource) *GraphConnector {
+func loadController(ctx context.Context, t *testing.T, r Resource) *Controller {
 	a := tester.NewM365Account(t)
 
-	connector, err := NewGraphConnector(ctx, a, r)
+	connector, err := NewController(ctx, a, r)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return connector

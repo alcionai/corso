@@ -5,7 +5,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	connector "github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -52,14 +52,14 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, _, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, m365.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreItems(
 		ctx,
-		gc,
+		ctrl,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
@@ -98,14 +98,14 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, _, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, m365.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreItems(
 		ctx,
-		gc,
+		ctrl,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
@@ -143,14 +143,14 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, _, _, err := getGCAndVerifyResourceOwner(ctx, connector.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, m365.Users, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreItems(
 		ctx,
-		gc,
+		ctrl,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,

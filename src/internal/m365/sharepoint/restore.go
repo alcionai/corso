@@ -25,21 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-//----------------------------------------------------------------------------
-// SharePoint Restore WorkFlow:
-// - RestoreCollections called by GC component
-// -- Collections are iterated within, Control Flow Switch
-// -- Switch:
-// ---- Libraries restored via the same workflow as oneDrive
-// ---- Lists call RestoreCollection()
-// ----> for each data.Stream within  RestoreCollection.Items()
-// ----> restoreListItems() is called
-// Restored List can be found in the Site's `Site content` page
-// Restored Libraries can be found within the Site's `Pages` page
-//------------------------------------------
-
-// RestoreCollections will restore the specified data collections into OneDrive
-func RestoreCollections(
+// ConsumeRestoreCollections will restore the specified data collections into OneDrive
+func ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	ac api.Client,
@@ -48,7 +35,7 @@ func RestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-) (*support.ConnectorOperationStatus, error) {
+) (*support.ControllerOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
 		caches         = onedrive.NewRestoreCaches()

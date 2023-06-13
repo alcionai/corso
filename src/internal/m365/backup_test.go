@@ -59,19 +59,13 @@ func (suite *DataCollectionIntgSuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 }
 
-// TestExchangeDataCollection verifies interface between operation and
-// GraphConnector remains stable to receive a non-zero amount of Collections
-// for the Exchange Package. Enabled exchange applications:
-// - mail
-// - contacts
-// - events
 func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	selUsers := []string{suite.user}
 
-	connector := loadConnector(ctx, suite.T(), Users)
+	ctrl := loadController(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -134,7 +128,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					suite.tenantID,
 					uidn,
 					nil,
-					connector.UpdateStatus,
+					ctrl.UpdateStatus,
 					ctrlOpts,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
@@ -142,7 +136,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				assert.True(t, excludes.Empty())
 
 				for range collections {
-					connector.incrementAwaitingMessages()
+					ctrl.incrementAwaitingMessages()
 				}
 
 				// Categories with delta endpoints will produce a collection for metadata
@@ -158,7 +152,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					}
 				}
 
-				status := connector.Wait()
+				status := ctrl.Wait()
 				assert.NotZero(t, status.Successes)
 				t.Log(status.String())
 			})
@@ -172,8 +166,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 	defer flush()
 
 	owners := []string{"snuffleupagus"}
-
-	connector := loadConnector(ctx, suite.T(), Users)
+	ctrl := loadController(ctx, suite.T(), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -238,7 +231,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			collections, excludes, canUsePreviousBackup, err := connector.ProduceBackupCollections(
+			collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 				ctx,
 				test.getSelector(t),
 				test.getSelector(t),
@@ -254,16 +247,12 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 	}
 }
 
-// TestSharePointDataCollection verifies interface between operation and
-// GraphConnector remains stable to receive a non-zero amount of Collections
-// for the SharePoint Package.
 func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
 	selSites := []string{suite.site}
-
-	connector := loadConnector(ctx, suite.T(), Sites)
+	ctrl := loadController(ctx, suite.T(), Sites)
 	tests := []struct {
 		name        string
 		expected    int
@@ -303,8 +292,8 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				sel,
 				sel,
 				nil,
-				connector.credentials,
-				connector,
+				ctrl.credentials,
+				ctrl,
 				control.Defaults(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -313,7 +302,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			assert.True(t, excludes.Empty())
 
 			for range collections {
-				connector.incrementAwaitingMessages()
+				ctrl.incrementAwaitingMessages()
 			}
 
 			// we don't know an exact count of drives this will produce,
@@ -328,7 +317,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				}
 			}
 
-			status := connector.Wait()
+			status := ctrl.Wait()
 			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
@@ -341,7 +330,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 type SPCollectionIntgSuite struct {
 	tester.Suite
-	connector *GraphConnector
+	connector *Controller
 	user      string
 }
 
@@ -358,7 +347,7 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), Sites)
+	suite.connector = loadController(ctx, suite.T(), Sites)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -372,11 +361,11 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, Sites)
+		ctrl    = loadController(ctx, t, Sites)
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -384,7 +373,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,
@@ -419,11 +408,11 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, Sites)
+		ctrl    = loadController(ctx, t, Sites)
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -431,7 +420,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
-	cols, excludes, canUsePreviousBackup, err := gc.ProduceBackupCollections(
+	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		inMock.NewProvider(id, name),
 		sel.Selector,

@@ -13,10 +13,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-// A QoL builder for live GC instances that updates
+// A QoL builder for live instances that updates
 // the selector's owner id and name in the process
 // to help avoid gotchas.
-func GCWithSelector(
+func ControllerWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
@@ -24,8 +24,8 @@ func GCWithSelector(
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(),
-) (*m365.GraphConnector, selectors.Selector) {
-	gc, err := m365.NewGraphConnector(ctx, acct, cr)
+) (*m365.Controller, selectors.Selector) {
+	ctrl, err := m365.NewController(ctx, acct, cr)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()
@@ -34,7 +34,7 @@ func GCWithSelector(
 		t.FailNow()
 	}
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()
@@ -45,5 +45,5 @@ func GCWithSelector(
 
 	sel = sel.SetDiscreteOwnerIDName(id, name)
 
-	return gc, sel
+	return ctrl, sel
 }

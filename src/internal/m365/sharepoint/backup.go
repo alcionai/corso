@@ -23,7 +23,7 @@ import (
 )
 
 type statusUpdater interface {
-	UpdateStatus(status *support.ConnectorOperationStatus)
+	UpdateStatus(status *support.ControllerOperationStatus)
 }
 
 // ProduceBackupCollections returns a set of DataCollection which represents the SharePoint data
