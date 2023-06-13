@@ -29,25 +29,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// TODO(ashmrtn): Make this an actual mock class that can be used in other
-// packages.
-type mockRestoreCollection struct {
-	data.Collection
-	auxItems map[string]data.Stream
-}
-
-func (rc mockRestoreCollection) FetchItemByName(
-	ctx context.Context,
-	name string,
-) (data.Stream, error) {
-	res := rc.auxItems[name]
-	if res == nil {
-		return nil, data.ErrNotFound
-	}
-
-	return res, nil
-}
-
 func testElementsMatch[T any](
 	t *testing.T,
 	expected []T,
