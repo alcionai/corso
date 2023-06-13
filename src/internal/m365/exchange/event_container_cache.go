@@ -11,9 +11,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ graph.ContainerResolver = &eventCalendarCache{}
+var _ graph.ContainerResolver = &eventContainerCache{}
 
-type eventCalendarCache struct {
+type eventContainerCache struct {
 	*containerResolver
 	enumer containersEnumerator
 	getter containerGetter
@@ -23,7 +23,7 @@ type eventCalendarCache struct {
 // init ensures that the structure's fields are initialized.
 // Fields Initialized when cache == nil:
 // [mc.cache]
-func (ecc *eventCalendarCache) init(
+func (ecc *eventContainerCache) init(
 	ctx context.Context,
 ) error {
 	if ecc.containerResolver == nil {
@@ -37,7 +37,7 @@ func (ecc *eventCalendarCache) init(
 // DefaultCalendar is the traditional "Calendar".
 // Action ensures that cache will stop at appropriate level.
 // @error iff the struct is not properly instantiated
-func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
+func (ecc *eventContainerCache) populateEventRoot(ctx context.Context) error {
 	container := DefaultCalendar
 
 	f, err := ecc.getter.GetContainerByID(ctx, ecc.userID, container)
@@ -59,7 +59,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 // Populate utility function for populating eventCalendarCache.
 // Executes 1 additional Graph Query
 // @param baseID: ignored. Present to conform to interface
-func (ecc *eventCalendarCache) Populate(
+func (ecc *eventContainerCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,
@@ -88,7 +88,7 @@ func (ecc *eventCalendarCache) Populate(
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
+func (ecc *eventContainerCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkIDAndName(f); err != nil {
 		return clues.Wrap(err, "validating container").WithClues(ctx)
 	}

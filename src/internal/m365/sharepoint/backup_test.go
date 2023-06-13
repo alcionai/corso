@@ -45,15 +45,15 @@ func (fm testFolderMatcher) Matches(p string) bool {
 // tests
 // ---------------------------------------------------------------------------
 
-type SharePointLibrariesUnitSuite struct {
+type LibrariesBackupUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharePointLibrariesUnitSuite(t *testing.T) {
-	suite.Run(t, &SharePointLibrariesUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestLibrariesBackupUnitSuite(t *testing.T) {
+	suite.Run(t, &LibrariesBackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
+func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.SharePointBackup{}).LibraryFolders(selectors.Any())[0]
 
 	const (

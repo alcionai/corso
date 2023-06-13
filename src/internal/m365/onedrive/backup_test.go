@@ -16,15 +16,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-type DataCollectionsUnitSuite struct {
+type BackupUnitSuite struct {
 	tester.Suite
 }
 
-func TestDataCollectionsUnitSuite(t *testing.T) {
-	suite.Run(t, &DataCollectionsUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *DataCollectionsUnitSuite) TestMigrationCollections() {
+func (suite *BackupUnitSuite) TestMigrationCollections() {
 	u := selectors.Selector{}
 	u = u.SetDiscreteOwnerIDName("i", "n")
 

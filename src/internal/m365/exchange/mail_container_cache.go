@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	_ graph.ContainerResolver = &mailFolderCache{}
+	_ graph.ContainerResolver = &mailContainerCache{}
 	_ containerRefresher      = &mailRefresher{}
 )
 
@@ -34,10 +34,10 @@ func (r *mailRefresher) refreshContainer(
 	return &f, nil
 }
 
-// mailFolderCache struct used to improve lookup of directories within exchange.Mail
+// mailContainerCache struct used to improve lookup of directories within exchange.Mail
 // cache map of cachedContainers where the  key =  M365ID
 // nameLookup map: Key: DisplayName Value: ID
-type mailFolderCache struct {
+type mailContainerCache struct {
 	*containerResolver
 	enumer containersEnumerator
 	getter containerGetter
@@ -47,7 +47,7 @@ type mailFolderCache struct {
 // init ensures that the structure's fields are initialized.
 // Fields Initialized when cache == nil:
 // [mc.cache]
-func (mc *mailFolderCache) init(
+func (mc *mailContainerCache) init(
 	ctx context.Context,
 ) error {
 	if mc.containerResolver == nil {
@@ -64,7 +64,7 @@ func (mc *mailFolderCache) init(
 // rootFolderAlias is the top-level directory for exchange.Mail.
 // Action ensures that cache will stop at appropriate level.
 // @error iff the struct is not properly instantiated
-func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
+func (mc *mailContainerCache) populateMailRoot(ctx context.Context) error {
 	f, err := mc.getter.GetContainerByID(ctx, mc.userID, rootFolderAlias)
 	if err != nil {
 		return clues.Wrap(err, "fetching root folder")
@@ -89,7 +89,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 // @param baseID: M365ID of the base of the exchange.Mail.Folder
 // @param baseContainerPath: the set of folder elements that make up the path
 // for the base container in the cache.
-func (mc *mailFolderCache) Populate(
+func (mc *mailContainerCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,

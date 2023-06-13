@@ -26,9 +26,9 @@ type statusUpdater interface {
 	UpdateStatus(status *support.ConnectorOperationStatus)
 }
 
-// DataCollections returns a set of DataCollection which represents the SharePoint data
+// ProduceBackupCollections returns a set of DataCollection which represents the SharePoint data
 // for the specified user
-func DataCollections(
+func ProduceBackupCollections(
 	ctx context.Context,
 	ac api.Client,
 	selector selectors.Selector,

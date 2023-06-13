@@ -34,7 +34,7 @@ func newMailRestoreHandler(
 }
 
 func (h mailRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
-	return &mailFolderCache{
+	return &mailContainerCache{
 		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,

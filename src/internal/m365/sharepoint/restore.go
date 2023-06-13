@@ -78,7 +78,7 @@ func RestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, err = onedrive.RestoreCollection(
+			metrics, err = onedrive.ProduceRestoreCollection(
 				ictx,
 				libraryRestoreHandler{ac.Drives()},
 				backupVersion,
