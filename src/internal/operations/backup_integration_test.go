@@ -1403,7 +1403,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalSharePoint() {
 func runDriveIncrementalTest(
 	suite *BackupOpIntegrationSuite,
 	owner, permissionsUser string,
-	resource resource.Category,
+	rc resource.Category,
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
@@ -1446,7 +1446,7 @@ func runDriveIncrementalTest(
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource, sel, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, rc, sel, nil, nil)
 	ac := ctrl.AC.Drives()
 	rh := getRestoreHandler(ctrl.AC)
 
@@ -1842,7 +1842,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, resource)
+			cleanCtrl, err := m365.NewController(ctx, acct, rc)
 			require.NoError(t, err, clues.ToCore(err))
 
 			var (
