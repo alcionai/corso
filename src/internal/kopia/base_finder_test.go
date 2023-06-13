@@ -436,6 +436,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
+				0: testUser1Mail,
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -470,6 +471,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
+				0: testUser1Mail,
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{

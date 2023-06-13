@@ -203,6 +203,18 @@ func (b *baseFinder) findBasesInSet(
 			// Safe to continue here as we'll just end up attempting to use an older
 			// backup as the base.
 			logger.CtxErr(ictx, err).Debug("searching for base backup")
+
+			if !foundIncomplete {
+				foundIncomplete = true
+
+				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
+					Manifest: man,
+					Reasons:  []Reason{reason},
+				})
+
+				logger.Ctx(ictx).Infow("found incomplete backup")
+			}
+
 			continue
 		}
 
@@ -215,6 +227,17 @@ func (b *baseFinder) findBasesInSet(
 			logger.Ctx(ictx).Debugw(
 				"empty backup stream store ID",
 				"search_backup_id", bup.ID)
+
+			if !foundIncomplete {
+				foundIncomplete = true
+
+				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
+					Manifest: man,
+					Reasons:  []Reason{reason},
+				})
+
+				logger.Ctx(ictx).Infow("found incomplete backup")
+			}
 
 			continue
 		}
