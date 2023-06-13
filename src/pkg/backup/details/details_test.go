@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
+	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
