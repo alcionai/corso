@@ -59,8 +59,8 @@ func NewRestoreCaches() *restoreCaches {
 	}
 }
 
-// RestoreCollections will restore the specified data collections into OneDrive
-func RestoreCollections(
+// ConsumeRestoreCollections will restore the specified data collections into OneDrive
+func ConsumeRestoreCollections(
 	ctx context.Context,
 	rh RestoreHandler,
 	backupVersion int,
@@ -102,7 +102,7 @@ func RestoreCollections(
 				"full_path", dc.FullPath())
 		)
 
-		metrics, err = ProduceRestoreCollection(
+		metrics, err = RestoreCollection(
 			ictx,
 			rh,
 			backupVersion,
@@ -133,12 +133,12 @@ func RestoreCollections(
 	return status, el.Failure()
 }
 
-// ProduceRestoreCollection handles restoration of an individual collection.
+// RestoreCollection handles restoration of an individual collection.
 // returns:
 // - the collection's item and byte count metrics
 // - the updated metadata map that include metadata for folders in this collection
 // - error, if any besides recoverable
-func ProduceRestoreCollection(
+func RestoreCollection(
 	ctx context.Context,
 	rh RestoreHandler,
 	backupVersion int,
