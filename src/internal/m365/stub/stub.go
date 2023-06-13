@@ -1,12 +1,14 @@
-package m365
+package stub
 
 import (
 	"bytes"
-	"context"
 	"io"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -33,9 +35,9 @@ type ItemInfo struct {
 	// be the same before and after restoring the item in M365 and may not be
 	// the M365 ID. When restoring items out of place, the item is assigned a
 	// new ID making it unsuitable for a lookup key.
-	lookupKey string
-	name      string
-	data      []byte
+	LookupKey string
+	Name      string
+	Data      []byte
 }
 
 type ConfigInfo struct {
@@ -47,19 +49,113 @@ type ConfigInfo struct {
 	RestoreCfg     control.RestoreConfig
 }
 
-func mustToDataLayerPath(
-	service path.ServiceType,
-	tenant, resourceOwner string,
-	category path.CategoryType,
-	elements []string,
-	isItem bool,
-) (path.Path, error) {
-	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
-	if err != nil {
-		return nil, err
+func GetCollectionsAndExpected(
+	config ConfigInfo,
+	testCollections []ColInfo,
+	backupVersion int,
+) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
+	var (
+		collections     []data.RestoreCollection
+		expectedData    = map[string]map[string][]byte{}
+		totalItems      = 0
+		totalKopiaItems = 0
+	)
+
+	for _, owner := range config.ResourceOwners {
+		numItems, kopiaItems, ownerCollections, userExpectedData, err := CollectionsForInfo(
+			config.Service,
+			config.Tenant,
+			owner,
+			config.RestoreCfg,
+			testCollections,
+			backupVersion,
+		)
+		if err != nil {
+			return totalItems, totalKopiaItems, collections, expectedData, err
+		}
+
+		collections = append(collections, ownerCollections...)
+		totalItems += numItems
+		totalKopiaItems += kopiaItems
+
+		maps.Copy(expectedData, userExpectedData)
 	}
 
-	return res, err
+	return totalItems, totalKopiaItems, collections, expectedData, nil
+}
+
+func CollectionsForInfo(
+	service path.ServiceType,
+	tenant, user string,
+	restoreCfg control.RestoreConfig,
+	allInfo []ColInfo,
+	backupVersion int,
+) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
+	var (
+		collections  = make([]data.RestoreCollection, 0, len(allInfo))
+		expectedData = make(map[string]map[string][]byte, len(allInfo))
+		totalItems   = 0
+		kopiaEntries = 0
+	)
+
+	for _, info := range allInfo {
+		pth, err := path.Build(
+			tenant,
+			user,
+			service,
+			info.Category,
+			false,
+			info.PathElements...)
+		if err != nil {
+			return totalItems, kopiaEntries, collections, expectedData, err
+		}
+
+		mc := exchMock.NewCollection(pth, pth, len(info.Items))
+
+		baseDestPath, err := backupOutputPathFromRestore(restoreCfg, pth)
+		if err != nil {
+			return totalItems, kopiaEntries, collections, expectedData, err
+		}
+
+		baseExpected := expectedData[baseDestPath.String()]
+		if baseExpected == nil {
+			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.Items))
+			baseExpected = expectedData[baseDestPath.String()]
+		}
+
+		for i := 0; i < len(info.Items); i++ {
+			mc.Names[i] = info.Items[i].Name
+			mc.Data[i] = info.Items[i].Data
+
+			baseExpected[info.Items[i].LookupKey] = info.Items[i].Data
+
+			// We do not count metadata files against item count
+			if backupVersion > 0 &&
+				(service == path.OneDriveService || service == path.SharePointService) &&
+				metadata.HasMetaSuffix(info.Items[i].Name) {
+				continue
+			}
+
+			totalItems++
+		}
+
+		c := mock.RestoreCollection{
+			Collection: mc,
+			AuxItems:   map[string]data.Stream{},
+		}
+
+		for _, aux := range info.AuxItems {
+			c.AuxItems[aux.Name] = &exchMock.Data{
+				ID:     aux.Name,
+				Reader: io.NopCloser(bytes.NewReader(aux.Data)),
+			}
+		}
+
+		collections = append(collections, c)
+		kopiaEntries += len(info.Items)
+	}
+
+	return totalItems, kopiaEntries, collections, expectedData, nil
 }
 
 // backupOutputPathFromRestore returns a path.Path denoting the location in
@@ -86,102 +182,11 @@ func backupOutputPathFromRestore(
 		base = append(base, inputPath.Folders()...)
 	}
 
-	return mustToDataLayerPath(
-		inputPath.Service(),
+	return path.Build(
 		inputPath.Tenant(),
 		inputPath.ResourceOwner(),
+		inputPath.Service(),
 		inputPath.Category(),
-		base,
 		false,
-	)
-}
-
-// TODO(ashmrtn): Make this an actual mock class that can be used in other
-// packages.
-type mockRestoreCollection struct {
-	data.Collection
-	auxItems map[string]data.Stream
-}
-
-func (rc mockRestoreCollection) FetchItemByName(
-	ctx context.Context,
-	name string,
-) (data.Stream, error) {
-	res := rc.auxItems[name]
-	if res == nil {
-		return nil, data.ErrNotFound
-	}
-
-	return res, nil
-}
-
-func collectionsForInfo(
-	service path.ServiceType,
-	tenant, user string,
-	restoreCfg control.RestoreConfig,
-	allInfo []ColInfo,
-	backupVersion int,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
-	var (
-		collections  = make([]data.RestoreCollection, 0, len(allInfo))
-		expectedData = make(map[string]map[string][]byte, len(allInfo))
-		totalItems   = 0
-		kopiaEntries = 0
-	)
-
-	for _, info := range allInfo {
-		pth, err := mustToDataLayerPath(
-			service,
-			tenant,
-			user,
-			info.Category,
-			info.PathElements,
-			false)
-		if err != nil {
-			return totalItems, kopiaEntries, collections, expectedData, err
-		}
-
-		mc := exchMock.NewCollection(pth, pth, len(info.Items))
-
-		baseDestPath, err := backupOutputPathFromRestore(restoreCfg, pth)
-		if err != nil {
-			return totalItems, kopiaEntries, collections, expectedData, err
-		}
-
-		baseExpected := expectedData[baseDestPath.String()]
-		if baseExpected == nil {
-			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.Items))
-			baseExpected = expectedData[baseDestPath.String()]
-		}
-
-		for i := 0; i < len(info.Items); i++ {
-			mc.Names[i] = info.Items[i].name
-			mc.Data[i] = info.Items[i].data
-
-			baseExpected[info.Items[i].lookupKey] = info.Items[i].data
-
-			// We do not count metadata files against item count
-			if backupVersion > 0 &&
-				(service == path.OneDriveService || service == path.SharePointService) &&
-				metadata.HasMetaSuffix(info.Items[i].name) {
-				continue
-			}
-
-			totalItems++
-		}
-
-		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
-
-		for _, aux := range info.AuxItems {
-			c.auxItems[aux.name] = &exchMock.Data{
-				ID:     aux.name,
-				Reader: io.NopCloser(bytes.NewReader(aux.data)),
-			}
-		}
-
-		collections = append(collections, c)
-		kopiaEntries += len(info.Items)
-	}
-
-	return totalItems, kopiaEntries, collections, expectedData, nil
+		base...)
 }
