@@ -133,6 +133,12 @@ type itemDetails struct {
 }
 
 type corsoProgress struct {
+	// this is an unwanted hack.  We can't extend the kopia interface
+	// funcs to pass through a context.  This is the second best way to
+	// get an at least partially formed context into funcs that need it
+	// for logging and other purposes.
+	ctx context.Context
+
 	snapshotfs.UploadProgress
 	pending map[string]*itemDetails
 	deets   *details.Builder
@@ -183,11 +189,10 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.info == nil {
 		if d.prevPath == nil {
-			cp.errs.AddRecoverable(ctx, clues.New("item sourced from previous backup with no previous path").
+			cp.errs.AddRecoverable(cp.ctx, clues.New("item sourced from previous backup with no previous path").
 				With(
 					"service", d.repoPath.Service().String(),
-					"category", d.repoPath.Category().String(),
-				).
+					"category", d.repoPath.Category().String()).
 				Label(fault.LabelForceNoBackupCreation))
 
 			return
@@ -198,11 +203,10 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath, d.locationPath)
 		if err != nil {
-			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding item to merge list").
+			cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "adding item to merge list").
 				With(
 					"service", d.repoPath.Service().String(),
-					"category", d.repoPath.Category().String(),
-				).
+					"category", d.repoPath.Category().String()).
 				Label(fault.LabelForceNoBackupCreation))
 		}
 
@@ -215,11 +219,10 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		!d.cached,
 		*d.info)
 	if err != nil {
-		cp.errs.AddRecoverable(ctx, clues.New("adding item to details").
+		cp.errs.AddRecoverable(cp.ctx, clues.New("adding item to details").
 			With(
 				"service", d.repoPath.Service().String(),
-				"category", d.repoPath.Category().String(),
-			).
+				"category", d.repoPath.Category().String()).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
@@ -278,7 +281,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
-	cp.errs.AddRecoverable(ctx, clues.Wrap(err, "kopia reported error").
+	cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "kopia reported error").
 		With("is_ignored", isIgnored, "relative_path", relpath).
 		Label(fault.LabelForceNoBackupCreation))
 }

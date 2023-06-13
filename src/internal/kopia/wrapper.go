@@ -160,6 +160,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	}
 
 	progress := &corsoProgress{
+		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
 		toMerge: newMergeDetails(),
@@ -415,7 +416,7 @@ func loadDirsAndItems(
 
 			dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "loading storage directory").
+				el.AddRecoverable(ctx, clues.Wrap(err, "loading storage directory").
 					WithClues(ictx).
 					Label(fault.LabelForceNoBackupCreation))
 
@@ -431,7 +432,7 @@ func loadDirsAndItems(
 			}
 
 			if err := mergeCol.addCollection(dirItems.dir.String(), dc); err != nil {
-				el.AddRecoverable(clues.Wrap(err, "adding collection to merge collection").
+				el.AddRecoverable(ctx, clues.Wrap(err, "adding collection to merge collection").
 					WithClues(ctx).
 					Label(fault.LabelForceNoBackupCreation))
 
@@ -493,7 +494,7 @@ func (w Wrapper) ProduceRestoreCollections(
 
 		parentStoragePath, err := itemPaths.StoragePath.Dir()
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "getting storage directory path").
+			el.AddRecoverable(ictx, clues.Wrap(err, "getting storage directory path").
 				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
 
