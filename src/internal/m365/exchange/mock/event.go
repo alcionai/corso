@@ -25,11 +25,6 @@ import (
 //nolint:lll
 const (
 	eventTmpl = `{
-	"id":"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA=",
-	"calendar@odata.navigationLink":"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')",
-	"calendar@odata.associationLink":"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')/$ref",
-	"@odata.etag":"W/\"0hATW1CAfUS+njw3hdxSGAAAJIxNug==\"",
-	"@odata.context":"https://graph.microsoft.com/v1.0/$metadata#users('foobar%%408qzvrj.onmicrosoft.com')/events/$entity",
 	"categories":[],
 	"changeKey":"0hATW1CAfUS+njw3hdxSGAAAJIxNug==",
 	"createdDateTime":"2022-03-28T03:42:03Z",
@@ -46,7 +41,6 @@ const (
 		"timeZone":"UTC"
 	},
 	"hideAttendees":false,
-	"iCalUId":"040000008200E00074C5B7101A82E0080000000035723BC75542D801000000000000000010000000E1E7C8F785242E4894DA13AEFB947B85",
 	"importance":"normal",
 	"isAllDay":false,
 	"isCancelled":false,
