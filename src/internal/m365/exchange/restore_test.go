@@ -117,7 +117,7 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 		},
 		{
 			name:  "Test cancelledOccurrences",
-			bytes: exchMock.EventWithRecurrenceAndCancellationBytes(subject, `"Pacific Standard Time"`),
+			bytes: exchMock.EventWithRecurrenceAndCancellationBytes(subject, `"UTC"`),
 		},
 	}
 

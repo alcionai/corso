@@ -157,8 +157,8 @@ const (
 		"pattern": {
 			"type": "absoluteYearly",
 			"interval": 1,
-			"month": 1,
-			"dayOfMonth": 1,
+			"month": %s,
+			"dayOfMonth": %s,
 			"firstDayOfWeek": "sunday",
 			"index": "first"
 		},
@@ -258,6 +258,8 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
+		strconv.Itoa(int(at.Month())),
+		strconv.Itoa(at.Day()),
 		timeSlice[0],
 		recurrenceTimeZone,
 	))
@@ -279,6 +281,8 @@ func EventWithRecurrenceAndCancellationBytes(subject, recurrenceTimeZone string)
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
+		strconv.Itoa(int(at.Month())),
+		strconv.Itoa(at.Day()),
 		timeSlice[0],
 		recurrenceTimeZone,
 	))
