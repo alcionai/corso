@@ -111,13 +111,6 @@ func (sm mockEmptySnapshotManager) FindManifests(
 	return nil, nil
 }
 
-func (sm mockEmptySnapshotManager) LoadSnapshots(
-	context.Context,
-	[]manifest.ID,
-) ([]*snapshot.Manifest, error) {
-	return nil, clues.New("not implemented")
-}
-
 func (sm mockEmptySnapshotManager) LoadSnapshot(
 	context.Context,
 	manifest.ID,
@@ -145,7 +138,7 @@ type manifestInfo struct {
 	err      error
 }
 
-func newManifestInfo2(
+func newManifestInfo(
 	id manifest.ID,
 	modTime time.Time,
 	incomplete bool,
@@ -189,12 +182,12 @@ func newManifestInfo2(
 	return res
 }
 
-type mockSnapshotManager2 struct {
+type mockSnapshotManager struct {
 	data    []manifestInfo
 	findErr error
 }
 
-func matchesTags2(mi manifestInfo, tags map[string]string) bool {
+func matchesTags(mi manifestInfo, tags map[string]string) bool {
 	for k := range tags {
 		if _, ok := mi.tags[k]; !ok {
 			return false
@@ -204,7 +197,7 @@ func matchesTags2(mi manifestInfo, tags map[string]string) bool {
 	return true
 }
 
-func (msm *mockSnapshotManager2) FindManifests(
+func (msm *mockSnapshotManager) FindManifests(
 	ctx context.Context,
 	tags map[string]string,
 ) ([]*manifest.EntryMetadata, error) {
@@ -219,7 +212,7 @@ func (msm *mockSnapshotManager2) FindManifests(
 	res := []*manifest.EntryMetadata{}
 
 	for _, mi := range msm.data {
-		if matchesTags2(mi, tags) {
+		if matchesTags(mi, tags) {
 			res = append(res, mi.metadata)
 		}
 	}
@@ -227,14 +220,7 @@ func (msm *mockSnapshotManager2) FindManifests(
 	return res, nil
 }
 
-func (msm *mockSnapshotManager2) LoadSnapshots(
-	ctx context.Context,
-	ids []manifest.ID,
-) ([]*snapshot.Manifest, error) {
-	return nil, clues.New("not implemented")
-}
-
-func (msm *mockSnapshotManager2) LoadSnapshot(
+func (msm *mockSnapshotManager) LoadSnapshot(
 	ctx context.Context,
 	id manifest.ID,
 ) (*snapshot.Manifest, error) {
@@ -353,7 +339,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 	defer flush()
 
 	bf := baseFinder{
-		sm: &mockSnapshotManager2{findErr: assert.AnError},
+		sm: &mockSnapshotManager{findErr: assert.AnError},
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []Reason{
@@ -387,7 +373,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Return Older Base If Fail To Get Manifest",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testCompleteMan,
@@ -396,7 +382,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -421,7 +407,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Return Older Base If Fail To Get Backup",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testCompleteMan,
@@ -430,7 +416,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -455,7 +441,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Return Older Base If Missing Details",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testCompleteMan,
@@ -464,7 +450,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -489,7 +475,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Old Backup Details Pointer",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -516,7 +502,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "All One Snapshot",
 			input: testAllUsersAllCats,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -543,7 +529,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Multiple Bases Some Overlapping Reasons",
 			input: testAllUsersAllCats,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -555,7 +541,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser2,
 					testUser3,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testCompleteMan,
@@ -648,7 +634,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Newer Incomplete Assist Snapshot",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -657,7 +643,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testIncompleteMan,
@@ -684,7 +670,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Incomplete Older Than Complete",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testIncompleteMan,
@@ -693,7 +679,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testCompleteMan,
@@ -719,7 +705,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Newest Incomplete Only Incomplete",
 			input: testUser1Mail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testIncompleteMan,
@@ -728,7 +714,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testIncompleteMan,
@@ -752,7 +738,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			name:  "Some Bases Not Found",
 			input: testAllUsersMail,
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -778,7 +764,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			// Manifests are currently returned in the order they're defined by the
 			// mock.
 			manifestData: []manifestInfo{
-				newManifestInfo2(
+				newManifestInfo(
 					testID2,
 					testT2,
 					testCompleteMan,
@@ -787,7 +773,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testMail,
 					testUser1,
 				),
-				newManifestInfo2(
+				newManifestInfo(
 					testID1,
 					testT1,
 					testCompleteMan,
@@ -819,7 +805,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			defer flush()
 
 			bf := baseFinder{
-				sm: &mockSnapshotManager2{data: test.manifestData},
+				sm: &mockSnapshotManager{data: test.manifestData},
 				bg: &mockModelGetter{data: test.backupData},
 			}
 
@@ -850,7 +836,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 
 func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 	manifestData := []manifestInfo{
-		newManifestInfo2(
+		newManifestInfo(
 			testID1,
 			testT1,
 			testCompleteMan,
@@ -914,7 +900,7 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 			defer flush()
 
 			bf := baseFinder{
-				sm: &mockSnapshotManager2{data: manifestData},
+				sm: &mockSnapshotManager{data: manifestData},
 				bg: &mockModelGetter{data: backupData},
 			}
 
