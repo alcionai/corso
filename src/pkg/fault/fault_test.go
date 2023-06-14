@@ -1,6 +1,7 @@
 package fault_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -75,6 +76,9 @@ func (suite *FaultErrorsUnitSuite) TestErr() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
 			require.NoError(t, n.Failure(), clues.ToCore(n.Failure()))
@@ -83,8 +87,7 @@ func (suite *FaultErrorsUnitSuite) TestErr() {
 			e := n.Fail(test.fail)
 			require.NotNil(t, e)
 
-			e = n.AddRecoverable(test.add)
-			require.NotNil(t, e)
+			n.AddRecoverable(ctx, test.add)
 
 			test.expect(t, n.Failure())
 		})
@@ -152,14 +155,16 @@ func (suite *FaultErrorsUnitSuite) TestErrs() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
 
 			e := n.Fail(test.fail)
 			require.NotNil(t, e)
 
-			e = n.AddRecoverable(test.add)
-			require.NotNil(t, e)
+			n.AddRecoverable(ctx, test.add)
 
 			test.expect(t, n.Recovered())
 		})
@@ -169,14 +174,17 @@ func (suite *FaultErrorsUnitSuite) TestErrs() {
 func (suite *FaultErrorsUnitSuite) TestAdd() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	n := fault.New(true)
 	require.NotNil(t, n)
 
-	n.AddRecoverable(assert.AnError)
+	n.AddRecoverable(ctx, assert.AnError)
 	assert.Error(t, n.Failure())
 	assert.Len(t, n.Recovered(), 1)
 
-	n.AddRecoverable(assert.AnError)
+	n.AddRecoverable(ctx, assert.AnError)
 	assert.Error(t, n.Failure())
 	assert.Len(t, n.Recovered(), 2)
 }
@@ -184,29 +192,35 @@ func (suite *FaultErrorsUnitSuite) TestAdd() {
 func (suite *FaultErrorsUnitSuite) TestAddSkip() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	n := fault.New(true)
 	require.NotNil(t, n)
 
 	n.Fail(assert.AnError)
 	assert.Len(t, n.Skipped(), 0)
 
-	n.AddRecoverable(assert.AnError)
+	n.AddRecoverable(ctx, assert.AnError)
 	assert.Len(t, n.Skipped(), 0)
 
-	n.AddSkip(fault.OwnerSkip(fault.SkipMalware, "ns", "id", "name", nil))
+	n.AddSkip(ctx, fault.OwnerSkip(fault.SkipMalware, "ns", "id", "name", nil))
 	assert.Len(t, n.Skipped(), 1)
 }
 
 func (suite *FaultErrorsUnitSuite) TestErrors() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	// not fail-fast
 	n := fault.New(false)
 	require.NotNil(t, n)
 
 	n.Fail(clues.New("fail"))
-	n.AddRecoverable(clues.New("1"))
-	n.AddRecoverable(clues.New("2"))
+	n.AddRecoverable(ctx, clues.New("1"))
+	n.AddRecoverable(ctx, clues.New("2"))
 
 	d := n.Errors()
 	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
@@ -218,8 +232,8 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	require.NotNil(t, n)
 
 	n.Fail(clues.New("fail"))
-	n.AddRecoverable(clues.New("1"))
-	n.AddRecoverable(clues.New("2"))
+	n.AddRecoverable(ctx, clues.New("1"))
+	n.AddRecoverable(ctx, clues.New("2"))
 
 	d = n.Errors()
 	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
@@ -234,13 +248,13 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 	table := []struct {
 		name              string
-		errs              func() *fault.Errors
+		errs              func(context.Context) *fault.Errors
 		expectItems       []fault.Item
 		expectRecoverable []*clues.ErrCore
 	}{
 		{
 			name: "no errors",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				return fault.New(false).Errors()
 			},
 			expectItems:       []fault.Item{},
@@ -248,10 +262,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "no items",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(ae)
+				b.AddRecoverable(ctx, ae)
 
 				return b.Errors()
 			},
@@ -260,10 +274,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "failure item",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "ns", "id", "name", addtl))
-				b.AddRecoverable(ae)
+				b.AddRecoverable(ctx, ae)
 
 				return b.Errors()
 			},
@@ -272,10 +286,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "recoverable item",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.OwnerErr(ae, "ns", "id", "name", addtl))
+				b.AddRecoverable(ctx, fault.OwnerErr(ae, "ns", "id", "name", addtl))
 
 				return b.Errors()
 			},
@@ -284,10 +298,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "two items",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "ns", "oid", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name", addtl))
+				b.AddRecoverable(ctx, fault.FileErr(ae, "ns", "fid", "name", addtl))
 
 				return b.Errors()
 			},
@@ -299,10 +313,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "two items - diff namespace same id",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "ns", "id", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "ns2", "id", "name", addtl))
+				b.AddRecoverable(ctx, fault.FileErr(ae, "ns2", "id", "name", addtl))
 
 				return b.Errors()
 			},
@@ -314,10 +328,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "duplicate items - failure priority",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "ns", "id", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "ns", "id", "name", addtl))
+				b.AddRecoverable(ctx, fault.FileErr(ae, "ns", "id", "name", addtl))
 
 				return b.Errors()
 			},
@@ -328,11 +342,11 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "duplicate items - last recoverable priority",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name", addtl))
-				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name2", addtl))
+				b.AddRecoverable(ctx, fault.FileErr(ae, "ns", "fid", "name", addtl))
+				b.AddRecoverable(ctx, fault.FileErr(ae, "ns", "fid", "name2", addtl))
 
 				return b.Errors()
 			},
@@ -343,11 +357,11 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "recoverable item and non-items",
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.FileErr(ae, "ns", "fid", "name", addtl))
-				b.AddRecoverable(ae)
+				b.AddRecoverable(ctx, fault.FileErr(ae, "ns", "fid", "name", addtl))
+				b.AddRecoverable(ctx, ae)
 
 				return b.Errors()
 			},
@@ -360,7 +374,11 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			fe := test.errs()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			fe := test.errs(ctx)
 
 			assert.ElementsMatch(t, test.expectItems, fe.Items)
 			require.Equal(t, test.expectRecoverable, fe.Recovered)
@@ -378,12 +396,15 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	// not fail-fast
 	n := fault.New(false)
 	require.NotNil(t, n)
 
-	n.AddRecoverable(clues.New("1"))
-	n.AddRecoverable(clues.New("2"))
+	n.AddRecoverable(ctx, clues.New("1"))
+	n.AddRecoverable(ctx, clues.New("2"))
 
 	bs, err := json.Marshal(n.Errors())
 	require.NoError(t, err, clues.ToCore(err))
@@ -419,13 +440,16 @@ func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
 func (suite *FaultErrorsUnitSuite) TestTracker() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	eb := fault.New(false)
 
 	lb := eb.Local()
 	assert.NoError(t, lb.Failure(), clues.ToCore(lb.Failure()))
 	assert.Empty(t, eb.Recovered())
 
-	lb.AddRecoverable(assert.AnError)
+	lb.AddRecoverable(ctx, assert.AnError)
 	assert.NoError(t, lb.Failure(), clues.ToCore(lb.Failure()))
 	assert.NoError(t, eb.Failure(), clues.ToCore(eb.Failure()))
 	assert.NotEmpty(t, eb.Recovered())
@@ -436,7 +460,7 @@ func (suite *FaultErrorsUnitSuite) TestTracker() {
 	assert.NoError(t, lbt.Failure(), clues.ToCore(lbt.Failure()))
 	assert.Empty(t, ebt.Recovered())
 
-	lbt.AddRecoverable(assert.AnError)
+	lbt.AddRecoverable(ctx, assert.AnError)
 	assert.Error(t, lbt.Failure())
 	assert.Error(t, ebt.Failure())
 	assert.NotEmpty(t, ebt.Recovered())

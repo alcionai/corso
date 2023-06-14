@@ -7,7 +7,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,7 +36,7 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, inp, err := getGCAndVerifyResourceOwner(ctx, connector.Sites, Site)
+	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Sites, Site)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -45,7 +45,7 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 	sel.SetDiscreteOwnerIDName(inp.ID(), inp.Name())
 
 	deets, err := generateAndRestoreDriveItems(
-		gc,
+		ctrl,
 		inp.ID(),
 		SecondaryUser,
 		strings.ToLower(SecondaryUser),

@@ -168,7 +168,7 @@ func GetPaths(
 
 		restorePaths, err := makeRestorePathsForEntry(ctx, backupVersion, ent)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "getting restore paths"))
+			el.AddRecoverable(ctx, clues.Wrap(err, "getting restore paths"))
 			continue
 		}
 

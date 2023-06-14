@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
-	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
+	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -472,8 +472,12 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 				suite.Run(test.name, func() {
 					t := suite.T()
 
+					ctx, flush := tester.NewContext(t)
+					defer flush()
+
 					bd := &details.Builder{}
 					cp := corsoProgress{
+						ctx:            ctx,
 						UploadProgress: &snapshotfs.NullUploadProgress{},
 						deets:          bd,
 						pending:        map[string]*itemDetails{},
@@ -526,6 +530,10 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	bd := &details.Builder{}
 	cachedItems := map[string]testInfo{
 		suite.targetFileName: {
@@ -535,6 +543,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 		},
 	}
 	cp := corsoProgress{
+		ctx:            ctx,
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
@@ -565,6 +574,9 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	prevPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir, testFileName2},
@@ -582,6 +594,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	// Setup stuff.
 	db := &details.Builder{}
 	cp := corsoProgress{
+		ctx:            ctx,
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          db,
 		pending:        map[string]*itemDetails{},
@@ -617,8 +630,12 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			bd := &details.Builder{}
 			cp := corsoProgress{
+				ctx:            ctx,
 				UploadProgress: &snapshotfs.NullUploadProgress{},
 				deets:          bd,
 				pending:        map[string]*itemDetails{},
@@ -682,6 +699,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	}
 
 	progress := &corsoProgress{
+		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
@@ -801,6 +819,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 			defer flush()
 
 			progress := &corsoProgress{
+				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
@@ -908,6 +927,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 			defer flush()
 
 			progress := &corsoProgress{
+				ctx:     ctx,
 				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
@@ -1004,6 +1024,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 			defer flush()
 
 			progress := &corsoProgress{
+				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
@@ -1298,6 +1319,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			defer flush()
 
 			progress := &corsoProgress{
+				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
@@ -2221,6 +2243,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			defer flush()
 
 			progress := &corsoProgress{
+				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
@@ -2375,6 +2398,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	)
 
 	progress := &corsoProgress{
+		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
@@ -2477,6 +2501,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	)
 
 	progress := &corsoProgress{
+		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
@@ -2733,6 +2758,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	)
 
 	progress := &corsoProgress{
+		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
@@ -2901,6 +2927,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	)
 
 	progress := &corsoProgress{
+		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
