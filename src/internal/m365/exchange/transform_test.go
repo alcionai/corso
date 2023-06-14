@@ -134,6 +134,19 @@ func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 				return e.GetAdditionalData()["cancelledOccurrences"] == nil
 			},
 		},
+		{
+			name: "Test exceptionOccurrences",
+			event: func() models.Eventable {
+				bytes := exchMock.EventWithRecurrenceAndExceptionBytes(subject)
+				event, err := api.BytesToEventable(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return event
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetAdditionalData()["exceptionOccurrences"] == nil
+			},
+		},
 	}
 
 	for _, test := range tests {

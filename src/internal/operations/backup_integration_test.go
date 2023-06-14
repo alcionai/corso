@@ -815,8 +815,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.EventWith(
 			suite.user, subject, body, body,
-			now, now, exchMock.NoRecurrence, exchMock.NoAttendees,
-			false, exchMock.NoCancelledOccurrences)
+			exchMock.NoOriginalStartDate, now, now,
+			exchMock.NoRecurrence, exchMock.NoAttendees,
+			false, exchMock.NoCancelledOccurrences,
+			exchMock.NoExceptionOccurrences)
 	}
 
 	// test data set
