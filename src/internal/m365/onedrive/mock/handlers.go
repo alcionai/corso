@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -222,4 +224,69 @@ func (m GetsItemPermission) GetItemPermission(
 	_, _ string,
 ) (models.PermissionCollectionResponseable, error) {
 	return m.Perm, m.Err
+}
+
+// ---------------------------------------------------------------------------
+// Restore Handler
+// ---------------------------------------------------------------------------
+
+type RestoreHandler struct {
+	ItemInfo details.ItemInfo
+
+	PostItemResp models.DriveItemable
+	PostItemErr  error
+}
+
+func (h RestoreHandler) AugmentItemInfo(
+	details.ItemInfo,
+	models.DriveItemable,
+	int64,
+	*path.Builder,
+) details.ItemInfo {
+	return h.ItemInfo
+}
+
+func (h RestoreHandler) NewItemContentUpload(
+	context.Context,
+	string, string,
+) (models.UploadSessionable, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (h RestoreHandler) DeleteItemPermission(
+	context.Context,
+	string, string, string,
+) error {
+	return clues.New("not implemented")
+}
+
+func (h RestoreHandler) PostItemPermissionUpdate(
+	context.Context,
+	string, string,
+	*drives.ItemItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (h RestoreHandler) PostItemInContainer(
+	context.Context,
+	string, string,
+	models.DriveItemable,
+	control.CollisionPolicy,
+) (models.DriveItemable, error) {
+	return h.PostItemResp, h.PostItemErr
+}
+
+func (h RestoreHandler) GetFolderByName(
+	context.Context,
+	string, string, string,
+) (models.DriveItemable, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (h RestoreHandler) GetRootFolder(
+	context.Context,
+	string,
+) (models.DriveItemable, error) {
+	return nil, clues.New("not implemented")
 }

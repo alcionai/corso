@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 // ---------------------------------------------------------------------------
@@ -123,21 +124,44 @@ func (c Drives) NewItemContentUpload(
 	return r, nil
 }
 
-const itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+//nolint:lll
+const itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children?@microsoft.graph.conflictBehavior=%s"
+
+const (
+	conflictBehaviorFail    = "fail"
+	conflictBehaviorRename  = "rename"
+	conflictBehaviorReplace = "replace"
+)
 
 // PostItemInContainer creates a new item in the specified folder
 func (c Drives) PostItemInContainer(
 	ctx context.Context,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
+	onCollision control.CollisionPolicy,
 ) (models.DriveItemable, error) {
+	// graph api has no policy for Skip; instead we catch
+	// and ignore the same-name failure.
+	conflictBehavior := conflictBehaviorFail
+
+	switch onCollision {
+	case control.Replace:
+		conflictBehavior = conflictBehaviorReplace
+	case control.Copy:
+		conflictBehavior = conflictBehaviorRename
+	}
+
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
-	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
+	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID, conflictBehavior)
 	builder := drives.NewItemItemsRequestBuilder(rawURL, c.Stable.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
+		if graph.IsErrItemAlreadyExistsConflict(err) {
+			return nil, clues.Stack(graph.ErrItemAlreadyExistsConflict, err)
+		}
+
 		return nil, graph.Wrap(ctx, err, "creating item in folder")
 	}
 

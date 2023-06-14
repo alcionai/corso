@@ -68,10 +68,10 @@ func ConsumeRestoreCollections(
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
 				libraryRestoreHandler{ac.Drives()},
+				restoreCfg,
 				backupVersion,
 				dc,
 				caches,
-				restoreCfg.Location,
 				deets,
 				opts.RestorePermissions,
 				errs)

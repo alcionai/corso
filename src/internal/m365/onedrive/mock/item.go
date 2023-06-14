@@ -1,5 +1,90 @@
 package mock
 
+import (
+	"bytes"
+	"context"
+	"io"
+	"time"
+
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+)
+
+// ---------------------------------------------------------------------------
+// data.Stream
+// ---------------------------------------------------------------------------
+
+var _ data.Stream = &Data{}
+
+// TODO: move to data/mock for service-agnostic mocking
+// Data represents a single item retrieved from, or restored to, onedrive
+type Data struct {
+	ID           string
+	Reader       io.ReadCloser
+	ReadErr      error
+	size         int64
+	modifiedTime time.Time
+	deleted      bool
+}
+
+func (d *Data) UUID() string       { return d.ID }
+func (d *Data) Deleted() bool      { return d.deleted }
+func (d *Data) Size() int64        { return d.size }
+func (d *Data) ModTime() time.Time { return d.modifiedTime }
+
+func (d *Data) ToReader() io.ReadCloser {
+	if d.ReadErr != nil {
+		return io.NopCloser(errReader{d.ReadErr})
+	}
+
+	return d.Reader
+}
+
+func (d *Data) Info() details.ItemInfo {
+	return details.ItemInfo{
+		OneDrive: &details.OneDriveInfo{
+			ItemType: details.OneDriveItem,
+			ItemName: "test.txt",
+			Size:     1,
+		},
+	}
+}
+
+type errReader struct {
+	readErr error
+}
+
+func (er errReader) Read([]byte) (int, error) {
+	return 0, er.readErr
+}
+
+// ---------------------------------------------------------------------------
+// FetchItemByNamer
+// ---------------------------------------------------------------------------
+
+var _ data.FetchItemByNamer = &FetchItemByName{}
+
+type FetchItemByName struct {
+	Item data.Stream
+	Err  error
+}
+
+func (f FetchItemByName) FetchItemByName(context.Context, string) (data.Stream, error) {
+	return f.Item, f.Err
+}
+
+// ---------------------------------------------------------------------------
+// stub payload
+// ---------------------------------------------------------------------------
+
+func FileRespReadCloser(pl string) io.ReadCloser {
+	return io.NopCloser(bytes.NewReader([]byte(pl)))
+}
+
+const DriveFileMetaData = `{
+    "fileName": "fnords.txt"
+}`
+
 //nolint:lll
 const DriveFilePayloadData = `{
     "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#drives('b%22-8wC6Jt04EWvKr1fQUDOyw5Gk8jIUJdEjzqonlSRf48i67LJdwopT4-6kiycJ5AV')/items/$entity",
