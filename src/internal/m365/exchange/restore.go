@@ -174,7 +174,7 @@ func restoreCollection(
 
 			info, err := ir.restore(ictx, body, userID, destinationID, errs)
 			if err != nil {
-				el.AddRecoverable(ctx, err)
+				el.AddRecoverable(ictx, err)
 				continue
 			}
 

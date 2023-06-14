@@ -744,10 +744,10 @@ func serialize(t *testing.T, item serialization.Parsable) []byte {
 	return byteArray
 }
 
-func hydrateMessage(byteArray []byte) (models.Messageable, error) {
-	parseNode, err := kjson.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
+func hydrateMessage(body []byte) (models.Messageable, error) {
+	parseNode, err := kjson.NewJsonParseNodeFactory().GetRootParseNode("application/json", body)
 	if err != nil {
-		return nil, clues.Wrap(err, "deserializing bytes into base m365 object")
+		return nil, clues.Wrap(err, "deserializing bytes into base m365 object").With("body_size", len(body))
 	}
 
 	anObject, err := parseNode.GetObjectValue(models.CreateMessageFromDiscriminatorValue)
