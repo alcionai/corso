@@ -19,7 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -209,7 +209,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
 
-	destName := ctrlTD.DefaultRestoreConfig("").Location
+	destName := testdata.DefaultRestoreConfig("").Location
 
 	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
 	assert.NoError(t, err, clues.ToCore(err))

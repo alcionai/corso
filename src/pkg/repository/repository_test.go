@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
-	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -243,7 +243,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	defer flush()
 
 	acct := tester.NewM365Account(t)
-	restoreCfg := ctrlTD.DefaultRestoreConfig("")
+	restoreCfg := testdata.DefaultRestoreConfig("")
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)

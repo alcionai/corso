@@ -24,7 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -396,7 +396,7 @@ func generateAndRestoreDriveItems(
 		Service:        service,
 		Tenant:         tenantID,
 		ResourceOwners: []string{resourceOwner},
-		RestoreCfg:     ctrlTD.DefaultRestoreConfig(""),
+		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
 	_, _, collections, _, err := m365.GetCollectionsAndExpected(

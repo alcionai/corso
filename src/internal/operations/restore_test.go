@@ -28,7 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
-	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -52,7 +52,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		sw         = &store.Wrapper{}
 		ctrl       = &mock.Controller{}
 		now        = time.Now()
-		restoreCfg = ctrlTD.DefaultRestoreConfig("")
+		restoreCfg = testdata.DefaultRestoreConfig("")
 	)
 
 	table := []struct {
@@ -220,7 +220,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		kw         = &kopia.Wrapper{}
 		sw         = &store.Wrapper{}
 		ctrl       = &mock.Controller{}
-		restoreCfg = ctrlTD.DefaultRestoreConfig("")
+		restoreCfg = testdata.DefaultRestoreConfig("")
 		opts       = control.Defaults()
 	)
 
@@ -379,7 +379,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		{
 			name:       "Exchange_Restore",
 			owner:      tester.M365UserID(suite.T()),
-			restoreCfg: ctrlTD.DefaultRestoreConfig(""),
+			restoreCfg: testdata.DefaultRestoreConfig(""),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewExchangeRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -455,7 +455,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	defer flush()
 
 	var (
-		restoreCfg = ctrlTD.DefaultRestoreConfig("")
+		restoreCfg = testdata.DefaultRestoreConfig("")
 		mb         = evmock.NewBus()
 	)
 

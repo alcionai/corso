@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
-	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -156,7 +156,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			newFolderName := ctrlTD.DefaultRestoreConfig("folder").Location
+			newFolderName := testdata.DefaultRestoreConfig("folder").Location
 			t.Logf("creating folder %s", newFolderName)
 
 			newFolder, err := rh.PostItemInContainer(

@@ -110,7 +110,9 @@ func EnsureRestoreConfigDefaults(
 ) RestoreConfig {
 	if !slices.Contains([]CollisionPolicy{Skip, Copy, Replace}, rc.OnCollision) {
 		logger.Ctx(ctx).
-			With("bad_collision_policy", rc.OnCollision).
+			With(
+				"bad_collision_policy", rc.OnCollision,
+				"default_collision_policy", Skip).
 			Info("setting collision policy to default")
 
 		rc.OnCollision = Skip

@@ -9,7 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -52,7 +52,7 @@ func (suite *EventsRestoreIntgSuite) TestCreateContainerDestination() {
 		path.EmailCategory,
 		suite.creds.AzureTenantID,
 		suite.userID,
-		ctrlTD.DefaultRestoreConfig("").Location,
+		testdata.DefaultRestoreConfig("").Location,
 		[]string{"Durmstrang"},
 		[]string{"Beauxbatons"})
 }
