@@ -304,7 +304,6 @@ func (c Mail) GetItem(
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		el       = errs.Local()
 		size     int64
 		mailBody models.ItemBodyable
 		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
@@ -408,19 +407,15 @@ func (c Mail) GetItem(
 			Get(ctx, attachConfig)
 		if err != nil {
 			if graph.IsErrCannotOpenFileAttachment(err) {
-				logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("attachment not found")
-				el.AddSkip(
-					fault.AttachmentSkip(
-						fault.SkipNotFound,
-						itemID,
-						ptr.Val(a.GetId()),
-						ptr.Val(a.GetName()),
-						map[string]any{
-							"user_id":         userID,
-							"attachment_size": ptr.Val(a.GetSize()),
-						},
-					),
-				)
+				logger.CtxErr(ctx, err).
+					With(
+						"skipped_reason", fault.SkipNotFound,
+						"attachment_id", ptr.Val(a.GetId()),
+						"attachment_size", ptr.Val(a.GetSize()),
+					).Info("attachment not found")
+				// TODO This should use a `AddSkip` once we have
+				// figured out the semantics for skipping
+				// subcomponents of an item
 
 				continue
 			}
