@@ -91,10 +91,10 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	// Remove exceptions for recurring events
 	// These will be present in objects once we start using the API
 	// that is currently in beta
-	additionalData := origBody.GetAdditionalData()
+	additionalData := orig.GetAdditionalData()
 	delete(additionalData, "cancelledOccurrences")
 	delete(additionalData, "exceptionOccurrences")
-	newBody.SetAdditionalData(additionalData)
+	orig.SetAdditionalData(additionalData)
 
 	return orig
 }
