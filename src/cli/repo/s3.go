@@ -47,6 +47,8 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
 	utils.AddAWSCredsFlags(c)
+	utils.AddAzureCredsFlags(c)
+	utils.AddCorsoPassphaseFlags(c)
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.

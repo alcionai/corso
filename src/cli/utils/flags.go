@@ -74,9 +74,10 @@ const (
 	ForceMaintenanceFN = "force"
 
 	AccessKeyFN       = "aws-access-key"
-	SecretAccessKeyFN = "aws-secret-access-ke"
+	SecretAccessKeyFN = "aws-secret-access-key"
 	SessionTokenFN    = "aws-session-token"
 
+	AzureClientTenantFN = "azure-tenant-id"
 	AzureClientIDFN     = "azure-client-id"
 	AzureClientSecretFN = "azure-client-secret"
 )
@@ -279,9 +280,19 @@ func AddAWSCredsFlags(cmd *cobra.Command) {
 	fs.StringVar(&SessionTokenFV, SessionTokenFN, "", "S3 session token")
 }
 
-// M365 flags
+// AddAzureCredsFlags adds M365 cred flags
 func AddAzureCredsFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
+	fs.StringVar(&credentials.AzureClientTenantFV, AzureClientTenantFN, "", "Azure tenant ID")
 	fs.StringVar(&credentials.AzureClientIDFV, AzureClientIDFN, "", "Azure app client ID")
 	fs.StringVar(&credentials.AzureClientSecretFV, AzureClientSecretFN, "", "Azure app client secret")
+}
+
+// M365 flags
+func AddCorsoPassphaseFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(&credentials.CorsoPassphraseFV,
+		credentials.CorsoPassphraseFN,
+		"",
+		"Passphrase to protect encrypted repository contents")
 }

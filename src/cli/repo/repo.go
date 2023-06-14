@@ -121,7 +121,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx, S3Overrides())
 	if err != nil {
 		return print.Only(ctx, err)
 	}

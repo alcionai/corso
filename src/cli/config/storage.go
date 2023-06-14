@@ -75,12 +75,16 @@ func configureStorage(
 		}
 	}
 
-	_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
-	if err != nil {
-		return store, clues.Wrap(err, "validating aws credentials")
+	aws := credentials.GetAWS(overrides)
+	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
+		_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
+		if err != nil {
+			return store, clues.Wrap(err, "validating aws credentials")
+		}
 	}
 
 	s3Cfg = storage.S3Config{
+		AWS:      aws,
 		Bucket:   str.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
 		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
 		Prefix:   str.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),

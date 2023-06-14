@@ -4,12 +4,18 @@ import (
 	"os"
 
 	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/internal/common/str"
 )
 
 // envvar consts
 const (
 	CorsoPassphrase = "CORSO_PASSPHRASE"
+	// Corso Flags
+	CorsoPassphraseFN = "passphrase"
 )
+
+var CorsoPassphraseFV string
 
 // Corso aggregates corso credentials from flag and env_var values.
 type Corso struct {
@@ -20,7 +26,7 @@ type Corso struct {
 func GetCorso() Corso {
 	// todo (rkeeprs): read from either corso config file or env vars.
 	// https://github.com/alcionai/corso/issues/120
-	corsoPassph := os.Getenv(CorsoPassphrase)
+	corsoPassph := str.First(CorsoPassphraseFV, os.Getenv(CorsoPassphrase))
 
 	return Corso{
 		CorsoPassphrase: corsoPassph,

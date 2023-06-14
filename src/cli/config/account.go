@@ -57,7 +57,7 @@ func configureAccount(
 	}
 
 	// compose the m365 config and credentials
-	m365 := credentials.GetM365()
+	m365 := GetM365(m365Cfg)
 	if err := m365.Validate(); err != nil {
 		return acct, clues.Wrap(err, "validating m365 credentials")
 	}
@@ -66,8 +66,9 @@ func configureAccount(
 		M365: m365,
 		AzureTenantID: str.First(
 			overrides[account.AzureTenantID],
-			m365Cfg.AzureTenantID,
-			os.Getenv(account.AzureTenantID)),
+			credentials.AzureClientTenantFV,
+			os.Getenv(account.AzureTenantID),
+			m365Cfg.AzureTenantID),
 	}
 
 	// ensure required properties are present
@@ -86,4 +87,23 @@ func configureAccount(
 	}
 
 	return acct, nil
+}
+
+// M365 is a helper for aggregating m365 secrets and credentials.
+func GetM365(m365Cfg account.M365Config) credentials.M365 {
+	// check env and overide is flags found
+	// var AzureClientID, AzureClientSecret string
+	AzureClientID := str.First(
+		credentials.AzureClientIDFV,
+		os.Getenv(credentials.AzureClientID),
+		m365Cfg.AzureClientID)
+	AzureClientSecret := str.First(
+		credentials.AzureClientSecretFV,
+		os.Getenv(credentials.AzureClientSecret),
+		m365Cfg.AzureClientSecret)
+
+	return credentials.M365{
+		AzureClientID:     AzureClientID,
+		AzureClientSecret: AzureClientSecret,
+	}
 }

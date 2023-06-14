@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
@@ -32,6 +33,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
@@ -92,7 +94,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}

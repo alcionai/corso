@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -86,6 +87,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddSiteFlag(c)
 		utils.AddSiteIDFlag(c)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		utils.AddDataFlag(c, []string{dataLibraries}, true)
@@ -97,6 +99,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, false)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
@@ -112,6 +115,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		options.AddSkipReduceFlag(c)
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
@@ -124,6 +128,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = sharePointServiceCommandDeleteExamples
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 	}
@@ -158,7 +163,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.GetAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -320,7 +325,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}

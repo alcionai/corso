@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -84,6 +85,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		utils.AddMailBoxFlag(c)
 		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		options.AddFetchParallelismFlag(c)
@@ -98,6 +100,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, false)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
@@ -116,6 +119,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		utils.AddExchangeDetailsAndRestoreFlags(c)
@@ -128,6 +132,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = exchangeServiceCommandDeleteExamples
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 	}
@@ -161,7 +166,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.GetAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -270,7 +275,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}

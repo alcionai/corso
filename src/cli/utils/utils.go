@@ -24,8 +24,11 @@ const (
 	Wildcard = "*"
 )
 
-func GetAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+func GetAccountAndConnect(
+	ctx context.Context,
+	overrides map[string]string,
+) (repository.Repository, *account.Account, error) {
+	cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
 	if err != nil {
 		return nil, nil, err
 	}

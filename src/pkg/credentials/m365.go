@@ -15,6 +15,7 @@ const (
 )
 
 var (
+	AzureClientTenantFV string
 	AzureClientIDFV     string
 	AzureClientSecretFV string
 )

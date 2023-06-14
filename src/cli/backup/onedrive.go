@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -71,6 +72,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandCreateExamples
 
 		utils.AddUserFlag(c)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 
@@ -82,6 +84,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, false)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
@@ -97,6 +100,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		options.AddSkipReduceFlag(c)
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
@@ -109,6 +113,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandDeleteExamples
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddCorsoPassphaseFlags(c)
 		utils.AddAWSCredsFlags(c)
 		utils.AddAzureCredsFlags(c)
 	}
@@ -143,7 +148,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.GetAccountAndConnect(ctx)
+	r, acct, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -229,7 +234,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}

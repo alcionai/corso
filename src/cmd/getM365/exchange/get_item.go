@@ -30,6 +30,7 @@ var (
 	user, tenant, m365ID, category string
 )
 
+// TODO: Neha: question: where is this commands getting used?
 func AddCommands(parent *cobra.Command) {
 	exCmd := &cobra.Command{
 		Use:   "exchange",
