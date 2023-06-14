@@ -8,10 +8,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-// sharePointPageInfo propagates metadata from  the SharePoint Page data type
+// pageToSPInfo propagates metadata from  the SharePoint Page data type
 // into searchable content.
 // Page Details: https://learn.microsoft.com/en-us/graph/api/resources/sitepage?view=graph-rest-beta
-func sharePointPageInfo(page models.SitePageable, root string, size int64) *details.SharePointInfo {
+func pageToSPInfo(page models.SitePageable, root string, size int64) *details.SharePointInfo {
 	var (
 		name, prefix, webURL string
 		created, modified    time.Time

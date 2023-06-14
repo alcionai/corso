@@ -65,7 +65,7 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, err = onedrive.ProduceRestoreCollection(
+			metrics, err = onedrive.RestoreCollection(
 				ictx,
 				libraryRestoreHandler{ac.Drives()},
 				backupVersion,
@@ -129,7 +129,7 @@ func restoreListItem(
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
 	ctx = clues.Add(ctx, "list_item_id", itemData.UUID())
@@ -190,7 +190,7 @@ func restoreListItem(
 		}
 	}
 
-	dii.SharePoint = sharePointListInfo(restoredList, int64(len(byteArray)))
+	dii.SharePoint = listToSPInfo(restoredList, int64(len(byteArray)))
 
 	return dii, nil
 }
@@ -203,7 +203,7 @@ func RestoreListCollection(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -214,7 +214,7 @@ func RestoreListCollection(
 		el        = errs.Local()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
+	trace.Log(ctx, "m365:sharepoint:restoreListCollection", directory.String())
 
 	for {
 		if el.Failure() != nil {
@@ -285,8 +285,8 @@ func RestorePageCollection(
 		siteID    = directory.ResourceOwner()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
-	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restorePageCollection", diagnostics.Label("path", dc.FullPath()))
+	trace.Log(ctx, "m365:sharepoint:restorePageCollection", directory.String())
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restorePageCollection", diagnostics.Label("path", dc.FullPath()))
 
 	defer end()
 
