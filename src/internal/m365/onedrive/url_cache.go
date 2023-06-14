@@ -34,7 +34,7 @@ type urlCache struct {
 
 	itemPager api.DriveItemEnumerator
 
-	errors *fault.Bus
+	errs *fault.Bus
 }
 
 // newURLache creates a new URL cache for the specified drive ID
@@ -42,13 +42,12 @@ func newURLCache(
 	driveID string,
 	refreshInterval time.Duration,
 	itemPager api.DriveItemEnumerator,
-	errors *fault.Bus,
+	errs *fault.Bus,
 ) (*urlCache, error) {
 	err := validateCacheParams(
 		driveID,
 		refreshInterval,
-		itemPager,
-		errors)
+		itemPager)
 	if err != nil {
 		return nil, clues.Wrap(err, "cache params")
 	}
@@ -59,7 +58,7 @@ func newURLCache(
 			driveID:         driveID,
 			refreshInterval: refreshInterval,
 			itemPager:       itemPager,
-			errors:          errors,
+			errs:            errs,
 		},
 		nil
 }
@@ -69,22 +68,17 @@ func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
 	itemPager api.DriveItemEnumerator,
-	errors *fault.Bus,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")
 	}
 
-	if refreshInterval <= 1*time.Second {
+	if refreshInterval < 1*time.Second {
 		return clues.New("invalid refresh interval")
 	}
 
 	if itemPager == nil {
 		return clues.New("nil item pager")
-	}
-
-	if errors == nil {
-		return clues.New("nil error bus")
 	}
 
 	return nil
@@ -180,7 +174,7 @@ func (uc *urlCache) deltaQuery(
 		uc.updateCache,
 		map[string]string{},
 		"",
-		uc.errors)
+		uc.errs)
 	if err != nil {
 		return clues.Wrap(err, "delta query")
 	}

@@ -441,7 +441,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	driveID := "drive1"
 	t := suite.T()
-	refreshInterval := 2 * time.Second
+	refreshInterval := 1 * time.Second
 
 	cache, err := newURLCache(
 		driveID,
@@ -501,14 +501,6 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			refreshInt:  1 * time.Hour,
 			itemPager:   nil,
 			errors:      fault.New(true),
-			expectedErr: require.Error,
-		},
-		{
-			name:        "nil error bus",
-			driveID:     "drive1",
-			refreshInt:  1 * time.Hour,
-			itemPager:   &mockItemPager{},
-			errors:      nil,
 			expectedErr: require.Error,
 		},
 		{
