@@ -272,7 +272,7 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 	)
 }
 
-func EventWithRecurrenceAndCancellationBytes(subject, recurrenceTimeZone string) []byte {
+func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
 	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
 	atTime := dttm.Format(at)
@@ -284,7 +284,7 @@ func EventWithRecurrenceAndCancellationBytes(subject, recurrenceTimeZone string)
 		strconv.Itoa(int(at.Month())),
 		strconv.Itoa(at.Day()),
 		timeSlice[0],
-		recurrenceTimeZone,
+		"UTC",
 	))
 
 	cancelledInstances := []string{fmt.Sprintf(cancelledOccurrenceInstanceFormat, dttm.FormatTo(nextYear, dttm.DateOnly))}
