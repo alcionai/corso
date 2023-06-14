@@ -19,7 +19,9 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -102,15 +104,15 @@ func testElementsMatch[T any](
 type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
-	collections []ColInfo
+	collections []m365Stub.ColInfo
 	resourceCat resource.Category
 }
 
 type restoreBackupInfoMultiVersion struct {
 	service             path.ServiceType
-	collectionsLatest   []ColInfo
-	collectionsPrevious []ColInfo
-	resource            resource.Category
+	collectionsLatest   []m365Stub.ColInfo
+	collectionsPrevious []m365Stub.ColInfo
+	resourceCat         resource.Category
 	backupVersion       int
 }
 
@@ -686,7 +688,7 @@ func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
-	config ConfigInfo,
+	config m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
@@ -793,7 +795,7 @@ func compareDriveItem(
 		return true
 	}
 
-	var fileData testOneDriveData
+	var fileData odStub.FileData
 
 	err = json.Unmarshal(buf, &fileData)
 	if !assert.NoError(t, err, "unmarshalling file data for file", name, clues.ToCore(err)) {
@@ -829,7 +831,7 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
-	config ConfigInfo,
+	config m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
@@ -923,7 +925,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
-	config ConfigInfo,
+	config m365Stub.ConfigInfo,
 ) int {
 	collectionsWithItems := []data.BackupCollection{}
 
@@ -985,7 +987,7 @@ func checkCollections(
 	checkHasCollections(t, expected, collectionsWithItems)
 
 	// Return how many metadata files were skipped so we can account for it in the
-	// check on Controller status.
+	// check on controller status.
 	return skipped
 }
 
@@ -1152,11 +1154,11 @@ func getSelectorWith(
 	}
 }
 
-func loadController(ctx context.Context, t *testing.T, r resource.Category) *Controller {
+func newController(ctx context.Context, t *testing.T, r resource.Category) *Controller {
 	a := tester.NewM365Account(t)
 
-	connector, err := NewController(ctx, a, r)
+	controller, err := NewController(ctx, a, r)
 	require.NoError(t, err, clues.ToCore(err))
 
-	return connector
+	return controller
 }

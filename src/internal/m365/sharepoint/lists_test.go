@@ -4,21 +4,23 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
-type SharePointSuite struct {
+type ListsUnitSuite struct {
 	tester.Suite
 	creds account.M365Config
 }
 
-func (suite *SharePointSuite) SetupSuite() {
+func (suite *ListsUnitSuite) SetupSuite() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -27,8 +29,8 @@ func (suite *SharePointSuite) SetupSuite() {
 	suite.creds = m365
 }
 
-func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, &SharePointSuite{
+func TestListsUnitSuite(t *testing.T) {
+	suite.Run(t, &ListsUnitSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
@@ -47,7 +49,7 @@ func TestSharePointSuite(t *testing.T) {
 // to verify if these 2 calls are valid
 // - fetchContentBaseTypes
 // - fetchColumnPositions
-func (suite *SharePointSuite) TestLoadList() {
+func (suite *ListsUnitSuite) TestLoadList() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -62,4 +64,43 @@ func (suite *SharePointSuite) TestLoadList() {
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.Greater(t, len(lists), 0)
 	t.Logf("Length: %d\n", len(lists))
+}
+
+func (suite *ListsUnitSuite) TestSharePointInfo() {
+	tests := []struct {
+		name         string
+		listAndDeets func() (models.Listable, *details.SharePointInfo)
+	}{
+		{
+			name: "Empty List",
+			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
+				i := &details.SharePointInfo{ItemType: details.SharePointList}
+				return models.NewList(), i
+			},
+		}, {
+			name: "Only Name",
+			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
+				aTitle := "Whole List"
+				listing := models.NewList()
+				listing.SetDisplayName(&aTitle)
+				i := &details.SharePointInfo{
+					ItemType: details.SharePointList,
+					ItemName: aTitle,
+				}
+
+				return listing, i
+			},
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			list, expected := test.listAndDeets()
+			info := listToSPInfo(list, 10)
+			assert.Equal(t, expected.ItemType, info.ItemType)
+			assert.Equal(t, expected.ItemName, info.ItemName)
+			assert.Equal(t, expected.WebURL, info.WebURL)
+		})
+	}
 }

@@ -28,13 +28,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
-// Unit tests
-type OneDriveUnitSuite struct {
+type ItemCollectorUnitSuite struct {
 	tester.Suite
 }
 
 func TestOneDriveUnitSuite(t *testing.T) {
-	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
+	suite.Run(t, &ItemCollectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 const (
@@ -51,7 +50,7 @@ func odErr(code string) *odataerrors.ODataError {
 	return odErr
 }
 
-func (suite *OneDriveUnitSuite) TestDrives() {
+func (suite *ItemCollectorUnitSuite) TestDrives() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
