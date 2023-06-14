@@ -118,7 +118,7 @@ issues:
       linters:
         - forbidigo
       text: "context.(Background|TODO)"
-    - path: internal/connector/graph/betasdk
+    - path: internal/m365/graph/betasdk
       linters:
         - wsl
         - revive

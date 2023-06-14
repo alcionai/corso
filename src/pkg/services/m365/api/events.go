@@ -15,7 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -236,7 +236,7 @@ func (c Events) EnumerateContainers(
 
 			cd := CalendarDisplayable{Calendarable: cal}
 			if err := graph.CheckIDAndName(cd); err != nil {
-				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -250,7 +250,7 @@ func (c Events) EnumerateContainers(
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
 			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 		}
