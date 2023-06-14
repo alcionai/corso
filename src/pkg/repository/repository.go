@@ -69,7 +69,7 @@ type Repository interface {
 		ctx context.Context,
 		backupID string,
 		sel selectors.Selector,
-		dest control.RestoreDestination,
+		restoreCfg control.RestoreConfig,
 	) (operations.RestoreOperation, error)
 	NewMaintenance(
 		ctx context.Context,
@@ -345,7 +345,7 @@ func (r repository) NewRestore(
 	ctx context.Context,
 	backupID string,
 	sel selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 ) (operations.RestoreOperation, error) {
 	gc, err := connectToM365(ctx, sel, r.Account)
 	if err != nil {
@@ -361,7 +361,7 @@ func (r repository) NewRestore(
 		r.Account,
 		model.StableID(backupID),
 		sel,
-		dest,
+		restoreCfg,
 		r.Bus)
 }
 

@@ -9,10 +9,10 @@ import (
 
 const RestoreFolderPrefix = "Corso_Test"
 
-func DefaultTestRestoreDestination(namespace string) control.RestoreDestination {
+func DefaultTestRestoreConfig(namespace string) control.RestoreConfig {
 	var (
-		dest = control.DefaultRestoreDestination(dttm.SafeForTesting)
-		sft  = dttm.FormatNow(dttm.SafeForTesting)
+		restoreCfg = control.DefaultRestoreConfig(dttm.SafeForTesting)
+		sft        = dttm.FormatNow(dttm.SafeForTesting)
 	)
 
 	parts := []string{RestoreFolderPrefix, namespace, sft}
@@ -20,7 +20,7 @@ func DefaultTestRestoreDestination(namespace string) control.RestoreDestination 
 		parts = []string{RestoreFolderPrefix, sft}
 	}
 
-	dest.ContainerName = strings.Join(parts, "_")
+	restoreCfg.Location = strings.Join(parts, "_")
 
-	return dest
+	return restoreCfg
 }

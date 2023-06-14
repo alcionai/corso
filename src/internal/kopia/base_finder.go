@@ -47,12 +47,6 @@ func (r Reason) Key() string {
 	return r.ResourceOwner + r.Service.String() + r.Category.String()
 }
 
-type backupBases struct {
-	backups     []BackupEntry
-	mergeBases  []ManifestEntry
-	assistBases []ManifestEntry
-}
-
 type BackupEntry struct {
 	*backup.Backup
 	Reasons []Reason

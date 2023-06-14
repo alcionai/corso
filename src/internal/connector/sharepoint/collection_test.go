@@ -208,7 +208,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
 
-	destName := tester.DefaultTestRestoreDestination("").ContainerName
+	destName := tester.DefaultTestRestoreConfig("").Location
 
 	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
 	assert.NoError(t, err, clues.ToCore(err))
