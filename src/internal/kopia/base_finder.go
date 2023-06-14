@@ -192,6 +192,8 @@ func (b *baseFinder) findBasesInSet(
 					Manifest: man,
 					Reasons:  []Reason{reason},
 				})
+
+				logger.Ctx(ictx).Info("found incomplete backup")
 			}
 
 			continue
@@ -212,7 +214,7 @@ func (b *baseFinder) findBasesInSet(
 					Reasons:  []Reason{reason},
 				})
 
-				logger.Ctx(ictx).Infow("found incomplete backup")
+				logger.Ctx(ictx).Info("found incomplete backup")
 			}
 
 			continue
@@ -236,7 +238,9 @@ func (b *baseFinder) findBasesInSet(
 					Reasons:  []Reason{reason},
 				})
 
-				logger.Ctx(ictx).Infow("found incomplete backup")
+				logger.Ctx(ictx).Infow(
+					"found incomplete backup",
+					"search_backup_id", bup.ID)
 			}
 
 			continue
