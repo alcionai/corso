@@ -52,8 +52,6 @@ func preRun(cc *cobra.Command, args []string) error {
 		flagSl = append(flagSl, f)
 	}
 
-	repo.SetS3Config()
-
 	avoidTheseCommands := []string{
 		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
 	}

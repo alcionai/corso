@@ -32,6 +32,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
 		// restore permissions

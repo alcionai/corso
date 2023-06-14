@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"os"
 	"strconv"
 	"strings"
 
@@ -23,6 +22,11 @@ import (
 // s3 bucket info from flags
 var (
 	succeedIfExists bool
+	bucket          string
+	endpoint        string
+	prefix          string
+	doNotUseTLS     bool
+	doNotVerifyTLS  bool
 )
 
 // called by repo.go to map subcommands to provider-specific handling.
@@ -42,7 +46,16 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	// cobra.CheckErr(c.MarkFlagRequired("bucket"))
+	utils.AddAWSCredsFlags(c)
+
+	// Flags addition ordering should follow the order we want them to appear in help and docs:
+	// More generic and more frequently used flags take precedence.
+	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
+	cobra.CheckErr(c.MarkFlagRequired("bucket"))
+	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
+	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
 
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
@@ -221,26 +234,15 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 func S3Overrides() map[string]string {
 	return map[string]string{
-		config.AccountProviderTypeKey: account.ProviderM365.String(),
-		config.StorageProviderTypeKey: storage.ProviderS3.String(),
-		storage.Bucket:                options.Bucket,
-		storage.Endpoint:              options.Endpoint,
-		storage.Prefix:                options.Prefix,
-		storage.DoNotUseTLS:           strconv.FormatBool(options.DoNotUseTLS),
-		storage.DoNotVerifyTLS:        strconv.FormatBool(options.DoNotVerifyTLS),
-	}
-}
-
-func SetS3Config() {
-	if len(options.AccessKey) > 0 {
-		os.Setenv(credentials.AWSAccessKeyID, options.AccessKey)
-	}
-
-	if len(options.SecretAccessKey) > 0 {
-		os.Setenv(credentials.AWSSecretAccessKey, options.SecretAccessKey)
-	}
-
-	if len(options.SecretAccessKey) > 0 {
-		os.Setenv(credentials.AWSSessionToken, options.SecretAccessKey)
+		config.AccountProviderTypeKey:  account.ProviderM365.String(),
+		config.StorageProviderTypeKey:  storage.ProviderS3.String(),
+		credentials.AWSAccessKeyID:     utils.AccessKeyFV,
+		credentials.AWSSecretAccessKey: utils.SecretAccessKeyFV,
+		credentials.AWSSessionToken:    utils.SessionTokenFV,
+		storage.Bucket:                 bucket,
+		storage.Endpoint:               endpoint,
+		storage.Prefix:                 prefix,
+		storage.DoNotUseTLS:            strconv.FormatBool(doNotUseTLS),
+		storage.DoNotVerifyTLS:         strconv.FormatBool(doNotVerifyTLS),
 	}
 }

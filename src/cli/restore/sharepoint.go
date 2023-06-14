@@ -32,6 +32,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 		options.AddRestorePermissionsFlag(c)

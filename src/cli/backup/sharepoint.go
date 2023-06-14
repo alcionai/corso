@@ -86,6 +86,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddSiteFlag(c)
 		utils.AddSiteIDFlag(c)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		utils.AddDataFlag(c, []string{dataLibraries}, true)
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
@@ -95,6 +97,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, false)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -108,6 +112,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		options.AddSkipReduceFlag(c)
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -118,6 +124,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = sharePointServiceCommandDeleteExamples
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 	}
 
 	return c

@@ -14,10 +14,9 @@ const (
 	AzureClientSecret = "AZURE_CLIENT_SECRET"
 )
 
-// M355 creds from flags
 var (
-	AClientID     string
-	AClientSecret string
+	AzureClientIDFV     string
+	AzureClientSecretFV string
 )
 
 // M365 aggregates m365 credentials from flag and env_var values.
@@ -30,8 +29,8 @@ type M365 struct {
 func GetM365() M365 {
 	// check env and overide is flags found
 	// var AzureClientID, AzureClientSecret string
-	AzureClientID := str.First(AClientID, os.Getenv(AzureClientID))
-	AzureClientSecret := str.First(AClientSecret, os.Getenv(AzureClientSecret))
+	AzureClientID := str.First(AzureClientIDFV, os.Getenv(AzureClientID))
+	AzureClientSecret := str.First(AzureClientSecretFV, os.Getenv(AzureClientSecret))
 
 	return M365{
 		AzureClientID:     AzureClientID,

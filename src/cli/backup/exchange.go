@@ -84,6 +84,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		utils.AddMailBoxFlag(c)
 		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		options.AddFetchParallelismFlag(c)
 		options.AddFailFastFlag(c)
 		options.AddDisableIncrementalsFlag(c)
@@ -96,6 +98,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, false)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -112,6 +116,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		utils.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -122,6 +128,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = exchangeServiceCommandDeleteExamples
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 	}
 
 	return c

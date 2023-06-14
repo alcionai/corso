@@ -33,6 +33,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		utils.AddBackupIDFlag(c, true)
+		utils.AddAWSCredsFlags(c)
+		utils.AddAzureCredsFlags(c)
 		utils.AddExchangeDetailsAndRestoreFlags(c)
 		options.AddFailFastFlag(c)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -41,6 +42,10 @@ var (
 
 	MaintenanceModeFV  string
 	ForceMaintenanceFV bool
+
+	AccessKeyFV       string
+	SecretAccessKeyFV string
+	SessionTokenFV    string
 )
 
 // common flag names (eg: FN)
@@ -67,6 +72,13 @@ const (
 	// Maintenance stuff.
 	MaintenanceModeFN  = "mode"
 	ForceMaintenanceFN = "force"
+
+	AccessKeyFN       = "aws-access-key"
+	SecretAccessKeyFN = "aws-secret-access-ke"
+	SessionTokenFN    = "aws-session-token"
+
+	AzureClientIDFN     = "azure-client-id"
+	AzureClientSecretFN = "azure-client-secret"
 )
 
 // well-known flag values
@@ -258,4 +270,18 @@ func trimFolderSlash(folders []string) []string {
 	}
 
 	return res
+}
+
+func AddAWSCredsFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(&AccessKeyFV, AccessKeyFN, "", "S3 access key")
+	fs.StringVar(&SecretAccessKeyFV, SecretAccessKeyFN, "", "S3 access secret")
+	fs.StringVar(&SessionTokenFV, SessionTokenFN, "", "S3 session token")
+}
+
+// M365 flags
+func AddAzureCredsFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(&credentials.AzureClientIDFV, AzureClientIDFN, "", "Azure app client ID")
+	fs.StringVar(&credentials.AzureClientSecretFV, AzureClientSecretFN, "", "Azure app client secret")
 }
