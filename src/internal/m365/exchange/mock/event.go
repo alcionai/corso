@@ -90,7 +90,7 @@ const (
 		"timeZone":"UTC"
 	},
 	"subject":"%s",
-	"type":"singleInstance",
+	"type":"%s",
 	"hasAttachments":%v,
 	%s
 	"webLink":"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%%3D&exvsurl=1&path=/calendar/item",
@@ -333,6 +333,11 @@ func EventWith(
 		endDateTime += ".0000000"
 	}
 
+	eventType := "singleInstance"
+	if recurrence != "null" {
+		eventType = "seriesMaster"
+	}
+
 	return []byte(fmt.Sprintf(
 		eventTmpl,
 		body,
@@ -341,6 +346,7 @@ func EventWith(
 		organizer,
 		startDateTime,
 		subject,
+		eventType,
 		hasAttachments,
 		attachments,
 		recurrence,
