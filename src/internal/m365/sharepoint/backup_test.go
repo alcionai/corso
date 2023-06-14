@@ -29,18 +29,6 @@ var testBaseDrivePath = path.Builder{}.Append(
 	"driveID1",
 	odConsts.RootPathDir)
 
-type testFolderMatcher struct {
-	scope selectors.SharePointScope
-}
-
-func (fm testFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
-}
-
-func (fm testFolderMatcher) Matches(p string) bool {
-	return fm.scope.Matches(selectors.SharePointLibraryFolder, p)
-}
-
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
