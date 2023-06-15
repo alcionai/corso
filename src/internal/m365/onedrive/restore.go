@@ -708,12 +708,16 @@ func createRestoreFolders(
 		}
 
 		// create the folder if not found
+		// the Replace collision policy is used since collisions on that
+		// policy will no-op and return the existing folder.  This has two
+		// benefits: first, we get to treat the post as idempotent; and
+		// second, we don't have to worry about race conditions.
 		folderItem, err = fr.PostItemInContainer(
 			ictx,
 			driveID,
 			parentFolderID,
 			newItem(folder, true),
-			control.Replace) // folders can be replaced without issue.
+			control.Replace)
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}

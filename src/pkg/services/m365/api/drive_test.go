@@ -31,7 +31,7 @@ func (suite *DriveAPISuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	userID := tester.LoadTestM365UserID(t)
+	userID := tester.M365UserID(t)
 	a := tester.NewM365Account(t)
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -124,20 +124,6 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mus, err := suite.ac.Drives().NewItemContentUpload(
-		ctx,
-		suite.driveID,
-		ptr.Val(origFile.GetId()))
-	require.NoError(t, err, clues.ToCore(err))
-
-	iw := graph.NewLargeItemWriter(
-		ptr.Val(origFile.GetId()),
-		ptr.Val(mus.GetUploadUrl()),
-		int64(len("{}")))
-
-	_, err = iw.Write([]byte("{}"))
-	require.NoError(t, err, clues.ToCore(err))
-
 	table := []struct {
 		name        string
 		onCollision control.CollisionPolicy
@@ -168,7 +154,13 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 					t,
 					ptr.Val(origFolder.GetId()),
 					ptr.Val(i.GetId()),
-					"replaced item should be different from the original")
+					"renamed item should have a different id")
+				assert.NotEqual(
+					t,
+					ptr.Val(origFolder.GetName()),
+					ptr.Val(i.GetName()),
+					"renamed item should have a different name")
+
 			},
 		},
 		{
@@ -183,7 +175,13 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 					t,
 					ptr.Val(origFolder.GetId()),
 					ptr.Val(i.GetId()),
-					"replaced item should be the same as the original")
+					"replaced item should have the same id")
+				assert.Equal(
+					t,
+					ptr.Val(origFolder.GetName()),
+					ptr.Val(i.GetName()),
+					"replaced item should have the same name")
+
 			},
 		},
 		{
@@ -209,7 +207,12 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 					t,
 					ptr.Val(origFile.GetId()),
 					ptr.Val(i.GetId()),
-					"replaced item should be different from the original")
+					"renamed item should have a different id")
+				assert.NotEqual(
+					t,
+					ptr.Val(origFolder.GetName()),
+					ptr.Val(i.GetName()),
+					"renamed item should have a different name")
 			},
 		},
 		// FIXME: this *should* behave the same as folder collision, but there's either a
@@ -239,28 +242,6 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 
 			test.expectErr(t, err)
 			test.expectItem(t, i)
-
-			if err != nil {
-				return
-			}
-
-			if test.postItem == folder {
-				return // no uploadSession needed
-			}
-
-			mus, err := suite.ac.Drives().NewItemContentUpload(
-				ctx,
-				suite.driveID,
-				ptr.Val(i.GetId()))
-			require.NoError(t, err, clues.ToCore(err))
-
-			iw := graph.NewLargeItemWriter(
-				ptr.Val(i.GetId()),
-				ptr.Val(mus.GetUploadUrl()),
-				int64(len(test.name)))
-
-			_, err = iw.Write([]byte(test.name))
-			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }

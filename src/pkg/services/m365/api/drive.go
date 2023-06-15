@@ -140,8 +140,8 @@ func (c Drives) PostItemInContainer(
 	newItem models.DriveItemable,
 	onCollision control.CollisionPolicy,
 ) (models.DriveItemable, error) {
-	// graph api has no policy for Skip; instead we catch
-	// and ignore the same-name failure.
+	// graph api has no policy for Skip; instead we wrap the same-name failure
+	// as a graph.ErrItemAlreadyExistsConflict.
 	conflictBehavior := conflictBehaviorFail
 
 	switch onCollision {
