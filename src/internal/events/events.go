@@ -52,7 +52,9 @@ const (
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"
-	RepoID           = "not_found"
+
+	// default values for keys
+	RepoIDNotFound = "not_found"
 )
 
 const (
