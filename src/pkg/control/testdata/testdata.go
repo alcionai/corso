@@ -1,4 +1,4 @@
-package tester
+package testdata
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 
 const RestoreFolderPrefix = "Corso_Test"
 
-func DefaultTestRestoreConfig(namespace string) control.RestoreConfig {
+func DefaultRestoreConfig(namespace string) control.RestoreConfig {
 	var (
 		restoreCfg = control.DefaultRestoreConfig(dttm.SafeForTesting)
 		sft        = dttm.FormatNow(dttm.SafeForTesting)
