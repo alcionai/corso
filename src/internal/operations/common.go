@@ -13,19 +13,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-func getBackupFromID(
-	ctx context.Context,
-	backupID model.StableID,
-	ms *store.Wrapper,
-) (*backup.Backup, error) {
-	bup, err := ms.GetBackup(ctx, backupID)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting backup")
-	}
-
-	return bup, nil
-}
-
 func getBackupAndDetailsFromID(
 	ctx context.Context,
 	backupID model.StableID,
@@ -38,6 +25,20 @@ func getBackupAndDetailsFromID(
 		return nil, nil, clues.Wrap(err, "getting backup")
 	}
 
+	deets, err := getDetailsFromBackup(ctx, bup, detailsStore, errs)
+	if err != nil {
+		return nil, nil, clues.Stack(err)
+	}
+
+	return bup, deets, nil
+}
+
+func getDetailsFromBackup(
+	ctx context.Context,
+	bup *backup.Backup,
+	detailsStore streamstore.Reader,
+	errs *fault.Bus,
+) (*details.Details, error) {
 	var (
 		deets details.Details
 		umt   = streamstore.DetailsReader(details.UnmarshalTo(&deets))
@@ -49,12 +50,12 @@ func getBackupAndDetailsFromID(
 	}
 
 	if len(ssid) == 0 {
-		return bup, nil, clues.New("no details or errors in backup").WithClues(ctx)
+		return nil, clues.New("no details or errors in backup").WithClues(ctx)
 	}
 
 	if err := detailsStore.Read(ctx, ssid, umt, errs); err != nil {
-		return nil, nil, clues.Wrap(err, "reading backup data from streamstore")
+		return nil, clues.Wrap(err, "reading backup data from streamstore")
 	}
 
-	return bup, &deets, nil
+	return &deets, nil
 }
