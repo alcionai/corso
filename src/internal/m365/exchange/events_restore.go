@@ -109,6 +109,13 @@ func (h eventRestoreHandler) restore(
 		return nil, clues.Stack(err)
 	}
 
+	// Have to parse event again as we modified the original event and
+	// removed cancelled and exceptions events form it
+	event, err = api.BytesToEventable(body)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating event from bytes").WithClues(ctx)
+	}
+
 	// Fix up event instances in case we have a recurring event
 	err = updateRecurringEvents(ctx, h.ac, userID, destinationID, ptr.Val(item.GetId()), event)
 	if err != nil {
