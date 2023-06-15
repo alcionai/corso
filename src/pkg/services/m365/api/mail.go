@@ -406,6 +406,9 @@ func (c Mail) GetItem(
 			ByAttachmentId(ptr.Val(a.GetId())).
 			Get(ctx, attachConfig)
 		if err != nil {
+			// CannotOpenFileAttachment errors are not transient and
+			// happens possibly from the original item somehow getting
+			// deleted from M365 and so we can skip these
 			if graph.IsErrCannotOpenFileAttachment(err) {
 				logger.CtxErr(ctx, err).
 					With(
