@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -301,6 +302,30 @@ func (c Events) GetItem(
 	event, err = builder.Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
+	}
+
+	// Adding checks to ensure that the data is in the format that we expect M365 to return
+	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
+	if cancelledOccurrences != nil {
+		co, ok := cancelledOccurrences.([]*string)
+		if !ok {
+			return nil, nil, clues.New("converting cancelledOccurrences to []*string").
+				With("type", fmt.Sprintf("%T", cancelledOccurrences))
+		}
+
+		for _, instance := range co {
+			splits := strings.Split(ptr.Val(instance), ".")
+			if len(splits) < 2 { // There might be multiple `.` in the ID and hence >2
+				return nil, nil, clues.New("unexpected cancelled event format").
+					With("instance", instance)
+			}
+
+			startStr := splits[len(splits)-1]
+			_, err := dttm.ParseTime(startStr)
+			if err != nil {
+				return nil, nil, clues.Wrap(err, "parsing cancelled event date")
+			}
+		}
 	}
 
 	attachments, err := c.getAttachments(ctx, event, immutableIDs, userID, itemID)
