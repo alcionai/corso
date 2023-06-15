@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -96,17 +97,17 @@ type oneDriveSuite interface {
 }
 
 type suiteInfoImpl struct {
-	ac              api.Client
-	controller      *Controller
-	resourceOwner   string
-	resourceCat     resource.Category
-	secondaryUser   string
-	secondaryUserID string
-	service         path.ServiceType
-	tertiaryUser    string
-	tertiaryUserID  string
-	user            string
-	userID          string
+	ac               api.Client
+	controller       *Controller
+	resourceOwner    string
+	resourceCategory resource.Category
+	secondaryUser    string
+	secondaryUserID  string
+	service          path.ServiceType
+	tertiaryUser     string
+	tertiaryUserID   string
+	user             string
+	userID           string
 }
 
 func NewSuiteInfoImpl(
@@ -115,22 +116,22 @@ func NewSuiteInfoImpl(
 	resourceOwner string,
 	service path.ServiceType,
 ) suiteInfoImpl {
-	rc := resource.Users
+	rsc := resource.Users
 	if service == path.SharePointService {
-		rc = resource.Sites
+		rsc = resource.Sites
 	}
 
-	ctrl := loadController(ctx, t, rc)
+	ctrl := newController(ctx, t, rsc)
 
 	return suiteInfoImpl{
-		ac:            ctrl.AC,
-		controller:    ctrl,
-		resourceOwner: resourceOwner,
-		resourceCat:   rc,
-		secondaryUser: tester.SecondaryM365UserID(t),
-		service:       service,
-		tertiaryUser:  tester.TertiaryM365UserID(t),
-		user:          tester.M365UserID(t),
+		ac:               ctrl.AC,
+		controller:       ctrl,
+		resourceOwner:    resourceOwner,
+		resourceCategory: rsc,
+		secondaryUser:    tester.SecondaryM365UserID(t),
+		service:          service,
+		tertiaryUser:     tester.TertiaryM365UserID(t),
+		user:             tester.M365UserID(t),
 	}
 }
 
@@ -163,7 +164,7 @@ func (si suiteInfoImpl) Service() path.ServiceType {
 }
 
 func (si suiteInfoImpl) Resource() resource.Category {
-	return si.resourceCat
+	return si.resourceCategory
 }
 
 // ---------------------------------------------------------------------------
@@ -402,16 +403,16 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		folderBName,
 	}
 
-	cols := []OnedriveColInfo{
+	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileAData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderAName,
 				},
@@ -422,13 +423,13 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: folderAPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileBData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderBName,
 				},
@@ -436,13 +437,13 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: subfolderBPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileCData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderAName,
 				},
@@ -450,7 +451,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: subfolderAPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileDData,
@@ -459,7 +460,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: folderBPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileEData,
@@ -468,18 +469,18 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 	}
 
-	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input, err := DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resource:            suite.Resource(),
+				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -549,15 +550,15 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		folderCName,
 	}
 
-	cols := []OnedriveColInfo{
+	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					// Test restoring a file that doesn't inherit permissions.
 					Name: fileName,
 					Data: fileAData,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    writePerm,
@@ -570,13 +571,13 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Data: fileBData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderBName,
 				},
 				{
 					Name: folderAName,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    readPerm,
@@ -584,7 +585,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				},
 				{
 					Name: folderCName,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    readPerm,
@@ -594,23 +595,23 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 		{
 			PathElements: folderBPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					// Test restoring a file in a non-root folder that doesn't inherit
 					// permissions.
 					Name: fileName,
 					Data: fileBData,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    writePerm,
 					},
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderAName,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    readPerm,
@@ -624,18 +625,18 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		// 	// Tests a folder that has permissions with an item in the folder with
 		// 	// the same permissions.
 		// 	pathElements: subfolderAPath,
-		// 	files: []itemData{
+		// 	files: []stub.ItemData{
 		// 		{
 		// 			name: fileName,
 		// 			data: fileDData,
-		// 			perms: permData{
+		// 			perms: stub.PermData{
 		// 				user:     secondaryUserName,
 		// 				entityID: secondaryUserID,
 		// 				roles:    readPerm,
 		// 			},
 		// 		},
 		// 	},
-		// 	Perms: PermData{
+		// 	Perms: stub.PermData{
 		// 		User:     secondaryUserName,
 		// 		EntityID: secondaryUserID,
 		// 		Roles:    readPerm,
@@ -645,18 +646,18 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Tests a folder that has permissions with an item in the folder with
 			// the different permissions.
 			PathElements: folderAPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileEData,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    writePerm,
 					},
 				},
 			},
-			Perms: PermData{
+			Perms: stub.PermData{
 				User:     secondaryUserName,
 				EntityID: secondaryUserID,
 				Roles:    readPerm,
@@ -666,13 +667,13 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Tests a folder that has permissions with an item in the folder with
 			// no permissions.
 			PathElements: folderCPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileAData,
 				},
 			},
-			Perms: PermData{
+			Perms: stub.PermData{
 				User:     secondaryUserName,
 				EntityID: secondaryUserID,
 				Roles:    readPerm,
@@ -680,7 +681,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 	bss := suite.Service().String()
 
@@ -690,12 +691,12 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resource:            suite.Resource(),
+				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -730,18 +731,18 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		suite.Service(),
 		suite.ResourceOwner())
 
-	inputCols := []OnedriveColInfo{
+	inputCols := []stub.ColInfo{
 		{
 			PathElements: []string{
 				odConsts.DrivesPathDir,
 				driveID,
 				odConsts.RootPathDir,
 			},
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileAData,
-					Perms: PermData{
+					Perms: stub.PermData{
 						User:     secondaryUserName,
 						EntityID: secondaryUserID,
 						Roles:    writePerm,
@@ -751,14 +752,14 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expectedCols := []OnedriveColInfo{
+	expectedCols := []stub.ColInfo{
 		{
 			PathElements: []string{
 				odConsts.DrivesPathDir,
 				driveID,
 				odConsts.RootPathDir,
 			},
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					// No permissions on the output since they weren't restored.
 					Name: fileName,
@@ -768,19 +769,19 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected, err := DataForInfo(suite.Service(), expectedCols, version.Backup)
+	expected, err := stub.DataForInfo(suite.Service(), expectedCols, version.Backup)
 	require.NoError(suite.T(), err)
 	bss := suite.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := DataForInfo(suite.Service(), inputCols, vn)
+			input, err := stub.DataForInfo(suite.Service(), inputCols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resource:            suite.Resource(),
+				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -855,11 +856,11 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		folderCName,
 	}
 
-	fileSet := []ItemData{
+	fileSet := []stub.ItemData{
 		{
 			Name: "file-custom",
 			Data: fileAData,
-			Perms: PermData{
+			Perms: stub.PermData{
 				User:        secondaryUserName,
 				EntityID:    secondaryUserID,
 				Roles:       writePerm,
@@ -869,14 +870,14 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		{
 			Name: "file-inherited",
 			Data: fileAData,
-			Perms: PermData{
+			Perms: stub.PermData{
 				SharingMode: metadata.SharingModeInherited,
 			},
 		},
 		{
 			Name: "file-empty",
 			Data: fileAData,
-			Perms: PermData{
+			Perms: stub.PermData{
 				SharingMode: metadata.SharingModeCustom,
 			},
 		},
@@ -900,23 +901,23 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	// 	   - inherted-permission-file
 	//     - empty-permission-file (empty/empty might have interesting behavior)
 
-	cols := []OnedriveColInfo{
+	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
-			Files:        []ItemData{},
-			Folders: []ItemData{
+			Files:        []stub.ItemData{},
+			Folders: []stub.ItemData{
 				{Name: folderAName},
 			},
 		},
 		{
 			PathElements: folderAPath,
 			Files:        fileSet,
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{Name: folderAName},
 				{Name: folderBName},
 				{Name: folderCName},
 			},
-			Perms: PermData{
+			Perms: stub.PermData{
 				User:     tertiaryUserName,
 				EntityID: tertiaryUserID,
 				Roles:    readPerm,
@@ -925,7 +926,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		{
 			PathElements: subfolderAAPath,
 			Files:        fileSet,
-			Perms: PermData{
+			Perms: stub.PermData{
 				User:        tertiaryUserName,
 				EntityID:    tertiaryUserID,
 				Roles:       writePerm,
@@ -935,20 +936,20 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		{
 			PathElements: subfolderABPath,
 			Files:        fileSet,
-			Perms: PermData{
+			Perms: stub.PermData{
 				SharingMode: metadata.SharingModeInherited,
 			},
 		},
 		{
 			PathElements: subfolderACPath,
 			Files:        fileSet,
-			Perms: PermData{
+			Perms: stub.PermData{
 				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 	}
 
-	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 	bss := suite.Service().String()
 
@@ -958,12 +959,12 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resource:            suite.Resource(),
+				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1018,16 +1019,16 @@ func testRestoreFolderNamedFolderRegression(
 		folderBName,
 	}
 
-	cols := []OnedriveColInfo{
+	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileAData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderNamedFolder,
 				},
@@ -1038,13 +1039,13 @@ func testRestoreFolderNamedFolderRegression(
 		},
 		{
 			PathElements: folderFolderPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileBData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderBName,
 				},
@@ -1052,13 +1053,13 @@ func testRestoreFolderNamedFolderRegression(
 		},
 		{
 			PathElements: subfolderPath,
-			Files: []ItemData{
+			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileCData,
 				},
 			},
-			Folders: []ItemData{
+			Folders: []stub.ItemData{
 				{
 					Name: folderNamedFolder,
 				},
@@ -1066,19 +1067,19 @@ func testRestoreFolderNamedFolderRegression(
 		},
 	}
 
-	expected, err := DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 	bss := suite.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(suite.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resource:            suite.Resource(),
+				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,

@@ -1,4 +1,4 @@
-package m365
+package stub
 
 import (
 	"encoding/json"
@@ -6,11 +6,10 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/data"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -61,59 +60,59 @@ type ItemData struct {
 	Perms PermData
 }
 
-type OnedriveColInfo struct {
+type ColInfo struct {
 	PathElements []string
 	Perms        PermData
 	Files        []ItemData
 	Folders      []ItemData
 }
 
-type onedriveCollection struct {
-	service       path.ServiceType
+type collection struct {
+	Service       path.ServiceType
 	PathElements  []string
-	items         []ItemInfo
-	aux           []ItemInfo
-	backupVersion int
+	Items         []m365Stub.ItemInfo
+	Aux           []m365Stub.ItemInfo
+	BackupVersion int
 }
 
-func (c onedriveCollection) collection() ColInfo {
+func (c collection) ColInfo() m365Stub.ColInfo {
 	cat := path.FilesCategory
-	if c.service == path.SharePointService {
+	if c.Service == path.SharePointService {
 		cat = path.LibrariesCategory
 	}
 
-	return ColInfo{
+	return m365Stub.ColInfo{
 		PathElements: c.PathElements,
 		Category:     cat,
-		Items:        c.items,
-		AuxItems:     c.aux,
+		Items:        c.Items,
+		AuxItems:     c.Aux,
 	}
 }
 
-func NewOneDriveCollection(
+func NewCollection(
 	service path.ServiceType,
 	PathElements []string,
 	backupVersion int,
-) *onedriveCollection {
-	return &onedriveCollection{
-		service:       service,
+) *collection {
+	return &collection{
+		Service:       service,
 		PathElements:  PathElements,
-		backupVersion: backupVersion,
+		BackupVersion: backupVersion,
 	}
 }
 
 func DataForInfo(
 	service path.ServiceType,
-	cols []OnedriveColInfo,
+	cols []ColInfo,
 	backupVersion int,
-) ([]ColInfo, error) {
+) ([]m365Stub.ColInfo, error) {
 	var (
-		res []ColInfo
+		res []m365Stub.ColInfo
 		err error
 	)
 
 	for _, c := range cols {
-		onedriveCol := NewOneDriveCollection(service, c.PathElements, backupVersion)
+		onedriveCol := NewCollection(service, c.PathElements, backupVersion)
 
 		for _, f := range c.Files {
 			_, err = onedriveCol.withFile(f.Name, f.Data, f.Perms)
@@ -134,18 +133,18 @@ func DataForInfo(
 			return res, err
 		}
 
-		res = append(res, onedriveCol.collection())
+		res = append(res, onedriveCol.ColInfo())
 	}
 
 	return res, nil
 }
 
-func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermData) (*onedriveCollection, error) {
-	switch c.backupVersion {
+func (c *collection) withFile(name string, fileData []byte, perm PermData) (*collection, error) {
+	switch c.BackupVersion {
 	case 0:
 		// Lookups will occur using the most recent version of things so we need
 		// the embedded file name to match that.
-		item, err := onedriveItemWithData(
+		item, err := FileWithData(
 			name,
 			name+metadata.DataFileSuffix,
 			fileData)
@@ -153,12 +152,12 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 			return c, err
 		}
 
-		c.items = append(c.items, item)
+		c.Items = append(c.Items, item)
 
 		// v1-5, early metadata design
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
 		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
-		items, err := onedriveItemWithData(
+		items, err := FileWithData(
 			name+metadata.DataFileSuffix,
 			name+metadata.DataFileSuffix,
 			fileData)
@@ -166,24 +165,24 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 			return c, err
 		}
 
-		c.items = append(c.items, items)
+		c.Items = append(c.Items, items)
 
-		md, err := onedriveMetadata(
+		md, err := ItemWithMetadata(
 			"",
 			name+metadata.MetaFileSuffix,
 			name+metadata.MetaFileSuffix,
 			perm,
-			c.backupVersion >= versionPermissionSwitchedToID)
+			c.BackupVersion >= versionPermissionSwitchedToID)
 		if err != nil {
 			return c, err
 		}
 
-		c.items = append(c.items, md)
-		c.aux = append(c.aux, md)
+		c.Items = append(c.Items, md)
+		c.Aux = append(c.Aux, md)
 
 		// v6+ current metadata design
 	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef, version.All8MigrateUserPNToID:
-		item, err := onedriveItemWithData(
+		item, err := FileWithData(
 			name+metadata.DataFileSuffix,
 			name+metadata.DataFileSuffix,
 			fileData)
@@ -191,50 +190,50 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm PermDat
 			return c, err
 		}
 
-		c.items = append(c.items, item)
+		c.Items = append(c.Items, item)
 
-		md, err := onedriveMetadata(
+		md, err := ItemWithMetadata(
 			name,
 			name+metadata.MetaFileSuffix,
 			name,
 			perm,
-			c.backupVersion >= versionPermissionSwitchedToID)
+			c.BackupVersion >= versionPermissionSwitchedToID)
 		if err != nil {
 			return c, err
 		}
 
-		c.items = append(c.items, md)
-		c.aux = append(c.aux, md)
+		c.Items = append(c.Items, md)
+		c.Aux = append(c.Aux, md)
 
 	default:
-		return c, clues.New(fmt.Sprintf("bad backup version. version %d", c.backupVersion))
+		return c, clues.New(fmt.Sprintf("bad backup version. version %d", c.BackupVersion))
 	}
 
 	return c, nil
 }
 
-func (c *onedriveCollection) withFolder(name string, perm PermData) (*onedriveCollection, error) {
-	switch c.backupVersion {
+func (c *collection) withFolder(name string, perm PermData) (*collection, error) {
+	switch c.BackupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
 		version.OneDrive6NameInMeta, version.OneDrive7LocationRef, version.All8MigrateUserPNToID:
 		return c, nil
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
-		item, err := onedriveMetadata(
+		item, err := ItemWithMetadata(
 			"",
 			name+metadata.DirMetaFileSuffix,
 			name+metadata.DirMetaFileSuffix,
 			perm,
-			c.backupVersion >= versionPermissionSwitchedToID)
+			c.BackupVersion >= versionPermissionSwitchedToID)
 
-		c.items = append(c.items, item)
+		c.Items = append(c.Items, item)
 
 		if err != nil {
 			return c, err
 		}
 
 	default:
-		return c, clues.New(fmt.Sprintf("bad backup version.version %d", c.backupVersion))
+		return c, clues.New(fmt.Sprintf("bad backup version.version %d", c.BackupVersion))
 	}
 
 	return c, nil
@@ -242,17 +241,17 @@ func (c *onedriveCollection) withFolder(name string, perm PermData) (*onedriveCo
 
 // withPermissions adds permissions to the folder represented by this
 // onedriveCollection.
-func (c *onedriveCollection) withPermissions(perm PermData) (*onedriveCollection, error) {
+func (c *collection) withPermissions(perm PermData) (*collection, error) {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
+	if c.BackupVersion < version.OneDrive4DirIncludesPermissions {
 		return c, nil
 	}
 
 	name := c.PathElements[len(c.PathElements)-1]
 	metaName := name
 
-	if c.backupVersion >= version.OneDrive5DirMetaNoName {
+	if c.BackupVersion >= version.OneDrive5DirMetaNoName {
 		// We switched to just .dirmeta for metadata file names.
 		metaName = ""
 	}
@@ -261,98 +260,63 @@ func (c *onedriveCollection) withPermissions(perm PermData) (*onedriveCollection
 		return c, nil
 	}
 
-	md, err := onedriveMetadata(
+	md, err := ItemWithMetadata(
 		name,
 		metaName+metadata.DirMetaFileSuffix,
 		metaName+metadata.DirMetaFileSuffix,
 		perm,
-		c.backupVersion >= versionPermissionSwitchedToID)
+		c.BackupVersion >= versionPermissionSwitchedToID)
 	if err != nil {
 		return c, err
 	}
 
-	c.items = append(c.items, md)
-	c.aux = append(c.aux, md)
+	c.Items = append(c.Items, md)
+	c.Aux = append(c.Aux, md)
 
 	return c, err
 }
 
-type testOneDriveData struct {
+type FileData struct {
 	FileName string `json:"fileName,omitempty"`
 	Data     []byte `json:"data,omitempty"`
 }
 
-func onedriveItemWithData(
+func FileWithData(
 	name, lookupKey string,
 	fileData []byte,
-) (ItemInfo, error) {
-	content := testOneDriveData{
+) (m365Stub.ItemInfo, error) {
+	content := FileData{
 		FileName: lookupKey,
 		Data:     fileData,
 	}
 
 	serialized, err := json.Marshal(content)
 	if err != nil {
-		return ItemInfo{}, clues.Stack(err)
+		return m365Stub.ItemInfo{}, clues.Stack(err)
 	}
 
-	return ItemInfo{
-		name:      name,
-		data:      serialized,
-		lookupKey: lookupKey,
+	return m365Stub.ItemInfo{
+		Name:      name,
+		Data:      serialized,
+		LookupKey: lookupKey,
 	}, nil
 }
 
-func onedriveMetadata(
+func ItemWithMetadata(
 	fileName, itemID, lookupKey string,
 	perm PermData,
 	permUseID bool,
-) (ItemInfo, error) {
+) (m365Stub.ItemInfo, error) {
 	testMeta := getMetadata(fileName, perm, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
 	if err != nil {
-		return ItemInfo{}, clues.Wrap(err, "marshalling metadata")
+		return m365Stub.ItemInfo{}, clues.Wrap(err, "marshalling metadata")
 	}
 
-	return ItemInfo{
-		name:      itemID,
-		data:      testMetaJSON,
-		lookupKey: lookupKey,
+	return m365Stub.ItemInfo{
+		Name:      itemID,
+		Data:      testMetaJSON,
+		LookupKey: lookupKey,
 	}, nil
-}
-
-func GetCollectionsAndExpected(
-	config ConfigInfo,
-	testCollections []ColInfo,
-	backupVersion int,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte, error) {
-	var (
-		collections     []data.RestoreCollection
-		expectedData    = map[string]map[string][]byte{}
-		totalItems      = 0
-		totalKopiaItems = 0
-	)
-
-	for _, owner := range config.ResourceOwners {
-		numItems, kopiaItems, ownerCollections, userExpectedData, err := collectionsForInfo(
-			config.Service,
-			config.Tenant,
-			owner,
-			config.RestoreCfg,
-			testCollections,
-			backupVersion,
-		)
-		if err != nil {
-			return totalItems, totalKopiaItems, collections, expectedData, err
-		}
-
-		collections = append(collections, ownerCollections...)
-		totalItems += numItems
-		totalKopiaItems += kopiaItems
-
-		maps.Copy(expectedData, userExpectedData)
-	}
-
-	return totalItems, totalKopiaItems, collections, expectedData, nil
 }

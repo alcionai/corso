@@ -116,7 +116,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				data := &Item{
 					id:   name,
 					data: io.NopCloser(bytes.NewReader(byteArray)),
-					info: sharePointListInfo(listing, int64(len(byteArray))),
+					info: listToSPInfo(listing, int64(len(byteArray))),
 				}
 
 				return data
@@ -205,7 +205,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	listData := &Item{
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: sharePointListInfo(listing, int64(len(byteArray))),
+		info: listToSPInfo(listing, int64(len(byteArray))),
 	}
 
 	destName := tester.DefaultTestRestoreConfig("").Location
