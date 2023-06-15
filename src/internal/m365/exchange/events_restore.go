@@ -163,9 +163,9 @@ func updateExceptionOccurrences(
 		return nil
 	}
 
-	eo, ok := exceptionOccurrences.([]any)
+	eo, ok := exceptionOccurrences.([]map[string]any)
 	if !ok {
-		return clues.New("converting exceptionOccurrences to []any").
+		return clues.New("converting exceptionOccurrences to []map[string]any").
 			With("type", fmt.Sprintf("%T", exceptionOccurrences))
 	}
 
@@ -218,20 +218,14 @@ func updateCancelledOccurrences(
 		return nil
 	}
 
-	co, ok := cancelledOccurrences.([]any)
+	co, ok := cancelledOccurrences.([]*string)
 	if !ok {
-		return clues.New("converting cancelledOccurrences to []any").
+		return clues.New("converting cancelledOccurrences to []*string").
 			With("type", fmt.Sprintf("%T", cancelledOccurrences))
 	}
 
 	// OPTIMIZATION: Group instances whose dates are close by
-	for _, insti := range co {
-		inst, ok := insti.(*string)
-		if !ok {
-			return clues.New("converting canceled instance to *string").
-				With("type", fmt.Sprintf("%T", insti))
-		}
-
+	for _, inst := range co {
 		splits := strings.Split(ptr.Val(inst), ".")
 		startStr := splits[len(splits)-1]
 

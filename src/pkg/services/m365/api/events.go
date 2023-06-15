@@ -320,13 +320,13 @@ func (c Events) GetItem(
 		}
 
 		for _, inst := range eo {
-			evi, ok := inst.(map[string]interface{})
+			evi, ok := inst.(map[string]any)
 			if !ok {
 				return nil, nil, clues.New("converting instance to map[string]interface{}").
 					With("type", fmt.Sprintf("%T", inst))
 			}
 
-			evt, err := EventFromMap(inst)
+			evt, err := EventFromMap(evi)
 			if err != nil {
 				return nil, nil, clues.Wrap(err, "parsing exception event")
 			}
@@ -823,13 +823,7 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	}
 }
 
-func EventFromMap(evi any) (models.Eventable, error) {
-	ev, ok := evi.(map[string]interface{})
-	if !ok {
-		return nil, clues.New("converting instance to map[string]interface{}").
-			With("type", fmt.Sprintf("%T", evi))
-	}
-
+func EventFromMap(ev map[string]any) (models.Eventable, error) {
 	instBytes, err := json.Marshal(ev)
 	if err != nil {
 		return nil, clues.Wrap(err, "marshaling event exception instance")
