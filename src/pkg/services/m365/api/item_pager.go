@@ -66,11 +66,9 @@ func (e EmptyDeltaLinker[T]) GetValue() []T {
 
 type itemPager[T any] interface {
 	// getPage get a page with the specified options from graph
-	getPage(context.Context) (PageLinker, error)
+	getPage(context.Context) (PageLinkValuer[T], error)
 	// setNext is used to pass in the next url got from graph
 	setNext(string)
-	// valuesIn gets us the values in a page
-	valuesIn(PageLinker) ([]T, error)
 }
 
 func enumerateItems[T any](
@@ -90,14 +88,7 @@ func enumerateItems[T any](
 			return nil, graph.Stack(ctx, err)
 		}
 
-		// each category type responds with a different interface, but all
-		// of them comply with GetValue, which is where we'll get our item data.
-		items, err := pager.valuesIn(resp)
-		if err != nil {
-			return nil, graph.Stack(ctx, err)
-		}
-
-		result = append(result, items...)
+		result = append(result, resp.GetValue()...)
 		nextLink = NextLink(resp)
 
 		pager.setNext(nextLink)

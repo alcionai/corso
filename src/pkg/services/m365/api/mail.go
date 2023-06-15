@@ -12,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -539,4 +540,20 @@ func UnwrapEmailAddress(contact models.Recipientable) string {
 	}
 
 	return ptr.Val(contact.GetEmailAddress().GetAddress())
+}
+
+// MailCollisionKey constructs a key from the messageable's creation time, subject, and sender.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func MailCollisionKey(item models.Messageable) string {
+	if item == nil {
+		return ""
+	}
+
+	sender := "unknown"
+
+	if item.GetSender() != nil && item.GetSender().GetEmailAddress() != nil {
+		sender = ptr.Val(item.GetSender().GetEmailAddress().GetAddress())
+	}
+
+	return dttm.Format(ptr.Val(item.GetCreatedDateTime())) + ptr.Val(item.GetSubject()) + sender
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -264,4 +265,20 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 		Created:     created,
 		Modified:    ptr.OrNow(contact.GetLastModifiedDateTime()),
 	}
+}
+
+// ContactCollisionKey constructs a key from the contactable's creation time and either displayName or given+surname.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func ContactCollisionKey(item models.Contactable) string {
+	if item == nil {
+		return ""
+	}
+
+	name := ptr.Val(item.GetDisplayName())
+
+	if len(name) == 0 {
+		name = ptr.Val(item.GetGivenName()) + ptr.Val(item.GetSurname())
+	}
+
+	return dttm.Format(ptr.Val(item.GetCreatedDateTime())) + name
 }

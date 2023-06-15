@@ -679,3 +679,19 @@ func EventFromMap(ev map[string]any) (models.Eventable, error) {
 
 	return body, nil
 }
+
+// EventCollisionKey constructs a key from the eventable's creation time, subject, and organizer.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func EventCollisionKey(item models.Eventable) string {
+	if item == nil {
+		return ""
+	}
+
+	organizer := "unknown"
+
+	if item.GetOrganizer() != nil && item.GetOrganizer().GetEmailAddress() != nil {
+		organizer = ptr.Val(item.GetOrganizer().GetEmailAddress().GetAddress())
+	}
+
+	return dttm.Format(ptr.Val(item.GetCreatedDateTime())) + ptr.Val(item.GetSubject()) + organizer
+}
