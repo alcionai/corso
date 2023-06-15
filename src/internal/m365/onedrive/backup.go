@@ -19,20 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type odFolderMatcher struct {
-	scope selectors.OneDriveScope
-}
-
-func (fm odFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.OneDriveFolder)
-}
-
-func (fm odFolderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, dir)
-}
-
-// ProduceBackupCollections returns a set of DataCollection which represents the OneDrive data
-// for the specified user
 func ProduceBackupCollections(
 	ctx context.Context,
 	ac api.Client,
@@ -68,10 +54,9 @@ func ProduceBackupCollections(
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
 		nc := NewCollections(
-			&itemBackupHandler{ac.Drives()},
+			&itemBackupHandler{ac.Drives(), scope},
 			tenant,
 			user.ID(),
-			odFolderMatcher{scope},
 			su,
 			ctrlOpts)
 

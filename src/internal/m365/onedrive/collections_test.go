@@ -743,10 +743,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				&itemBackupHandler{api.Drives{}},
+				&itemBackupHandler{api.Drives{}, tt.scope},
 				tenant,
 				user,
-				testFolderMatcher{tt.scope},
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -1238,13 +1237,12 @@ func (p *mockItemPager) ValuesIn(api.DeltaPageLinker) ([]models.DriveItemable, e
 
 func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	var (
-		anyFolder = (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
-		tenant    = "a-tenant"
-		user      = "a-user"
-		empty     = ""
-		next      = "next"
-		delta     = "delta1"
-		delta2    = "delta2"
+		tenant = "a-tenant"
+		user   = "a-user"
+		empty  = ""
+		next   = "next"
+		delta  = "delta1"
+		delta2 = "delta2"
 	)
 
 	metadataPath, err := path.Builder{}.ToServiceCategoryMetadataPath(
@@ -2345,7 +2343,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				mbh,
 				tenant,
 				user,
-				testFolderMatcher{anyFolder},
 				func(*support.ControllerOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}})
 
