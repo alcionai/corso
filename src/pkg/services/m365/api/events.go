@@ -296,6 +296,10 @@ func (c Events) GetItem(
 		}
 	)
 
+	// Beta endpoint helps us fetch the event exceptions, but since we
+	// don't use the beta SDK, the exceptionOccurrences and
+	// cancelledOccurrences end up in AdditionalData
+	// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-beta#properties
 	rawURL := fmt.Sprintf(eventExceptionsBetaURLTemplate, userID, itemID)
 	builder := users.NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
 
