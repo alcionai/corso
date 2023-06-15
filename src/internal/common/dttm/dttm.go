@@ -41,7 +41,7 @@ const (
 
 	// M365dateTimeTimeZoneTimeFormat is the format used by M365 for datetimetimezone resource
 	// https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0
-	M365DateTimeTimeZone TimeFormat = "2006-01-02T15:04:05.000000"
+	M365DateTimeTimeZone TimeFormat = "2006-01-02T15:04:05.0000000"
 )
 
 // these regexes are used to extract time formats from strings.  Their primary purpose is to

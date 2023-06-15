@@ -11,7 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -183,7 +183,7 @@ func (c Contacts) EnumerateContainers(
 			}
 
 			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
-				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -194,7 +194,7 @@ func (c Contacts) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 		}

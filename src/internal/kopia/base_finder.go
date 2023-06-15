@@ -47,12 +47,6 @@ func (r Reason) Key() string {
 	return r.ResourceOwner + r.Service.String() + r.Category.String()
 }
 
-type backupBases struct {
-	backups     []BackupEntry
-	mergeBases  []ManifestEntry
-	assistBases []ManifestEntry
-}
-
 type BackupEntry struct {
 	*backup.Backup
 	Reasons []Reason
@@ -198,6 +192,8 @@ func (b *baseFinder) findBasesInSet(
 					Manifest: man,
 					Reasons:  []Reason{reason},
 				})
+
+				logger.Ctx(ictx).Info("found incomplete backup")
 			}
 
 			continue
@@ -209,6 +205,18 @@ func (b *baseFinder) findBasesInSet(
 			// Safe to continue here as we'll just end up attempting to use an older
 			// backup as the base.
 			logger.CtxErr(ictx, err).Debug("searching for base backup")
+
+			if !foundIncomplete {
+				foundIncomplete = true
+
+				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
+					Manifest: man,
+					Reasons:  []Reason{reason},
+				})
+
+				logger.Ctx(ictx).Info("found incomplete backup")
+			}
+
 			continue
 		}
 
@@ -221,6 +229,19 @@ func (b *baseFinder) findBasesInSet(
 			logger.Ctx(ictx).Debugw(
 				"empty backup stream store ID",
 				"search_backup_id", bup.ID)
+
+			if !foundIncomplete {
+				foundIncomplete = true
+
+				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
+					Manifest: man,
+					Reasons:  []Reason{reason},
+				})
+
+				logger.Ctx(ictx).Infow(
+					"found incomplete backup",
+					"search_backup_id", bup.ID)
+			}
 
 			continue
 		}

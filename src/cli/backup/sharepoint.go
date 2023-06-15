@@ -163,7 +163,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx,, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -325,7 +325,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
+	r, _, _,err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}

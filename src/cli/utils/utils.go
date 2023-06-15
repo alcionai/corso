@@ -27,23 +27,53 @@ const (
 func GetAccountAndConnect(
 	ctx context.Context,
 	overrides map[string]string,
-) (repository.Repository, *account.Account, error) {
+) (repository.Repository, *storage.Storage, *account.Account, error) {
 	cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	repoID := cfg.RepoID
 	if len(repoID) == 0 {
-		repoID = "not_found"
+		repoID = events.RepoIDNotFound
 	}
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
+		return nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
-	return r, &cfg.Account, nil
+	return r, &cfg.Storage, &cfg.Account, nil
+}
+
+func AccountConnectAndWriteRepoConfig(ctx context.Context, overrides map[string]string) (repository.Repository, *account.Account, error) {
+	r, stg, acc, err := GetAccountAndConnect(ctx, overrides)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("getting and connecting account")
+		return nil, nil, err
+	}
+
+	s3Config, err := stg.S3Config()
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("getting storage configuration")
+		return nil, nil, err
+	}
+
+	m365Config, err := acc.M365Config()
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("getting m365 configuration")
+		return nil, nil, err
+	}
+
+	// repo config is already set while repo connect and init. This is just to confirm correct values.
+	// So won't fail is the write fails
+	err = config.WriteRepoConfig(ctx, s3Config, m365Config, r.GetID())
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("writing to repository configuration")
+		return nil, nil, err
+	}
+
+	return r, acc, nil
 }
 
 // CloseRepo handles closing a repo.

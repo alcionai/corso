@@ -7,17 +7,14 @@ import (
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision          CollisionPolicy    `json:"-"`
 	DisableMetrics     bool               `json:"disableMetrics"`
-	FailureHandling    FailureBehavior    `json:"failureHandling"`
+	FailureHandling    FailurePolicy      `json:"failureHandling"`
 	RestorePermissions bool               `json:"restorePermissions"`
 	SkipReduce         bool               `json:"skipReduce"`
 	ToggleFeatures     Toggles            `json:"toggleFeatures"`
 	Parallelism        Parallelism        `json:"parallelism"`
 	Repo               repository.Options `json:"repo"`
 }
-
-type FailureBehavior string
 
 type Parallelism struct {
 	// sets the collection buffer size before blocking.
@@ -26,13 +23,15 @@ type Parallelism struct {
 	ItemFetch int
 }
 
+type FailurePolicy string
+
 const (
 	// fails and exits the run immediately
-	FailFast FailureBehavior = "fail-fast"
+	FailFast FailurePolicy = "fail-fast"
 	// recovers whenever possible, reports non-zero recoveries as a failure
-	FailAfterRecovery FailureBehavior = "fail-after-recovery"
+	FailAfterRecovery FailurePolicy = "fail-after-recovery"
 	// recovers whenever possible, does not report recovery as failure
-	BestEffort FailureBehavior = "best-effort"
+	BestEffort FailurePolicy = "best-effort"
 )
 
 // Defaults provides an Options with the default values set.
@@ -48,44 +47,50 @@ func Defaults() Options {
 }
 
 // ---------------------------------------------------------------------------
-// Restore Item Collision Policy
-// ---------------------------------------------------------------------------
-
-// CollisionPolicy describes how the datalayer behaves in case of a collision.
-type CollisionPolicy int
-
-//go:generate stringer -type=CollisionPolicy
-const (
-	Unknown CollisionPolicy = iota
-	Copy
-	Skip
-	Replace
-)
-
-// ---------------------------------------------------------------------------
-// Restore Destination
+// Restore Configuration
 // ---------------------------------------------------------------------------
 
 const (
 	defaultRestoreLocation = "Corso_Restore_"
 )
 
-// RestoreDestination is a POD that contains an override of the resource owner
-// to restore data under and the name of the root of the restored container
-// hierarchy.
-type RestoreDestination struct {
-	// ResourceOwnerOverride overrides the default resource owner to restore to.
-	// If it is not populated items should be restored under the previous resource
-	// owner of the item.
-	ResourceOwnerOverride string
-	// ContainerName is the name of the root of the restored container hierarchy.
-	// This field must be populated for a restore.
-	ContainerName string
+// CollisionPolicy describes how the datalayer behaves in case of a collision.
+type CollisionPolicy string
+
+const (
+	Unknown CollisionPolicy = ""
+	Skip    CollisionPolicy = "skip"
+	Copy    CollisionPolicy = "copy"
+	Replace CollisionPolicy = "replace"
+)
+
+// RestoreConfig contains
+type RestoreConfig struct {
+	// Defines the per-item collision handling policy.
+	// Defaults to Skip.
+	OnCollision CollisionPolicy
+
+	// ProtectedResource specifies which resource the data will be restored to.
+	// If empty, restores to the same resource that was backed up.
+	// Defaults to empty.
+	ProtectedResource string
+
+	// Location specifies the container into which the data will be restored.
+	// Only accepts container names, does not accept IDs.
+	// If empty or "/", data will get restored in place, beginning at the root.
+	// Defaults to "Corso_Restore_<current_dttm>"
+	Location string
+
+	// Drive specifies the drive into which the data will be restored.
+	// If empty, data is restored to the same drive that was backed up.
+	// Defaults to empty.
+	Drive string
 }
 
-func DefaultRestoreDestination(timeFormat dttm.TimeFormat) RestoreDestination {
-	return RestoreDestination{
-		ContainerName: defaultRestoreLocation + dttm.FormatNow(timeFormat),
+func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
+	return RestoreConfig{
+		OnCollision: Skip,
+		Location:    defaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
 }
 

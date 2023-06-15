@@ -94,20 +94,20 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
+	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(dttm.HumanReadableDriveItem)
-	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
+	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, restoreCfg)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
 	}

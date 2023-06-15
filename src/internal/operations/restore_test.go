@@ -12,14 +12,15 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
-	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/mock"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -46,11 +47,11 @@ func TestRestoreOpSuite(t *testing.T) {
 
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
-		kw   = &kopia.Wrapper{}
-		sw   = &store.Wrapper{}
-		gc   = &mock.GraphConnector{}
-		now  = time.Now()
-		dest = tester.DefaultTestRestoreDestination("")
+		kw         = &kopia.Wrapper{}
+		sw         = &store.Wrapper{}
+		ctrl       = &mock.Controller{}
+		now        = time.Now()
+		restoreCfg = tester.DefaultTestRestoreConfig("")
 	)
 
 	table := []struct {
@@ -72,7 +73,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 						Collection: &exchMock.DataCollection{},
 					},
 				},
-				gc: &data.CollectionStats{
+				ctrl: &data.CollectionStats{
 					Objects:   1,
 					Successes: 1,
 				},
@@ -84,7 +85,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
-				gc:        &data.CollectionStats{},
+				ctrl:      &data.CollectionStats{},
 			},
 		},
 		{
@@ -93,7 +94,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.RestoreCollection{},
-				gc:        &data.CollectionStats{},
+				ctrl:      &data.CollectionStats{},
 			},
 		},
 	}
@@ -109,11 +110,11 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				control.Defaults(),
 				kw,
 				sw,
-				gc,
+				ctrl,
 				account.Account{},
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
-				dest,
+				restoreCfg,
 				evmock.NewBus())
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -124,7 +125,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsWritten, "items written")
+			assert.Equal(t, test.stats.ctrl.Successes, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
@@ -141,7 +142,7 @@ type bupResults struct {
 	selectorResourceOwners []string
 	backupID               model.StableID
 	items                  int
-	gc                     *connector.GraphConnector
+	ctrl                   *m365.Controller
 }
 
 type RestoreOpIntegrationSuite struct {
@@ -215,11 +216,11 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	var (
-		kw   = &kopia.Wrapper{}
-		sw   = &store.Wrapper{}
-		gc   = &mock.GraphConnector{}
-		dest = tester.DefaultTestRestoreDestination("")
-		opts = control.Defaults()
+		kw         = &kopia.Wrapper{}
+		sw         = &store.Wrapper{}
+		ctrl       = &mock.Controller{}
+		restoreCfg = tester.DefaultTestRestoreConfig("")
+		opts       = control.Defaults()
 	)
 
 	table := []struct {
@@ -230,9 +231,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, gc, nil, assert.NoError},
-		{"missing kopia", nil, sw, gc, nil, assert.Error},
-		{"missing modelstore", kw, nil, gc, nil, assert.Error},
+		{"good", kw, sw, ctrl, nil, assert.NoError},
+		{"missing kopia", nil, sw, ctrl, nil, assert.Error},
+		{"missing modelstore", kw, nil, ctrl, nil, assert.Error},
 		{"missing restore consumer", kw, sw, nil, nil, assert.Error},
 	}
 	for _, test := range table {
@@ -251,7 +252,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				tester.NewM365Account(t),
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
-				dest,
+				restoreCfg,
 				evmock.NewBus())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
@@ -279,14 +280,14 @@ func setupExchangeBackup(
 		esel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
 		esel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 
-	gc, sel := GCWithSelector(t, ctx, acct, connector.Users, esel.Selector, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Users, esel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
 		control.Defaults(),
 		kw,
 		sw,
-		gc,
+		ctrl,
 		acct,
 		sel,
 		inMock.NewProvider(owner, owner),
@@ -304,7 +305,7 @@ func setupExchangeBackup(
 		// These meta files are used to aid restore, but are not themselves
 		// restored (ie: counted as writes).
 		items: bo.Results.ItemsWritten - 6,
-		gc:    gc,
+		ctrl:  ctrl,
 	}
 }
 
@@ -330,21 +331,21 @@ func setupSharePointBackup(
 	ssel.Include(ssel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 	ssel.DiscreteOwner = owner
 
-	gc, sel := GCWithSelector(t, ctx, acct, connector.Sites, ssel.Selector, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Sites, ssel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
 		control.Defaults(),
 		kw,
 		sw,
-		gc,
+		ctrl,
 		acct,
 		sel,
 		inMock.NewProvider(owner, owner),
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	spPgr := gc.AC.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
+	spPgr := ctrl.AC.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
 
 	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
 	require.NoError(t, err, clues.ToCore(err))
@@ -362,7 +363,7 @@ func setupSharePointBackup(
 		// These meta files are used to aid restore, but are not themselves
 		// restored (ie: counted as writes).
 		items: bo.Results.ItemsWritten - 2 - len(drives) - len(drives),
-		gc:    gc,
+		ctrl:  ctrl,
 	}
 }
 
@@ -370,14 +371,14 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	tables := []struct {
 		name        string
 		owner       string
-		dest        control.RestoreDestination
+		restoreCfg  control.RestoreConfig
 		getSelector func(t *testing.T, owners []string) selectors.Selector
 		setup       func(t *testing.T, kw *kopia.Wrapper, sw *store.Wrapper, acct account.Account, owner string) bupResults
 	}{
 		{
-			name:  "Exchange_Restore",
-			owner: tester.M365UserID(suite.T()),
-			dest:  tester.DefaultTestRestoreDestination(""),
+			name:       "Exchange_Restore",
+			owner:      tester.M365UserID(suite.T()),
+			restoreCfg: tester.DefaultTestRestoreConfig(""),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewExchangeRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -387,9 +388,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			setup: setupExchangeBackup,
 		},
 		{
-			name:  "SharePoint_Restore",
-			owner: tester.M365SiteID(suite.T()),
-			dest:  control.DefaultRestoreDestination(dttm.SafeForTesting),
+			name:       "SharePoint_Restore",
+			owner:      tester.M365SiteID(suite.T()),
+			restoreCfg: control.DefaultRestoreConfig(dttm.SafeForTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
 				rsel.Include(rsel.AllData())
@@ -419,11 +420,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				control.Options{FailureHandling: control.FailFast},
 				suite.kw,
 				suite.sw,
-				bup.gc,
+				bup.ctrl,
 				tester.NewM365Account(t),
 				bup.backupID,
 				test.getSelector(t, bup.selectorResourceOwners),
-				test.dest,
+				test.restoreCfg,
 				mb)
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -453,17 +454,17 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	defer flush()
 
 	var (
-		dest = tester.DefaultTestRestoreDestination("")
-		mb   = evmock.NewBus()
+		restoreCfg = tester.DefaultTestRestoreConfig("")
+		mb         = evmock.NewBus()
 	)
 
 	rsel := selectors.NewExchangeRestore(selectors.None())
 	rsel.Include(rsel.AllData())
 
-	gc, err := connector.NewGraphConnector(
+	ctrl, err := m365.NewController(
 		ctx,
 		suite.acct,
-		connector.Users)
+		resource.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(
@@ -471,11 +472,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		control.Defaults(),
 		suite.kw,
 		suite.sw,
-		gc,
+		ctrl,
 		tester.NewM365Account(t),
 		"backupID",
 		rsel.Selector,
-		dest,
+		restoreCfg,
 		mb)
 	require.NoError(t, err, clues.ToCore(err))
 

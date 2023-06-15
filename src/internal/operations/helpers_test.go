@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,13 +23,13 @@ func TestHelpersUnitSuite(t *testing.T) {
 func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 	table := []struct {
 		name      string
-		errs      func() *fault.Bus
+		errs      func(context.Context) *fault.Bus
 		opts      control.Options
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "no errors",
-			errs: func() *fault.Bus {
+			errs: func(ctx context.Context) *fault.Bus {
 				return fault.New(false)
 			},
 			opts: control.Options{
@@ -38,7 +39,7 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 		},
 		{
 			name: "already failed",
-			errs: func() *fault.Bus {
+			errs: func(ctx context.Context) *fault.Bus {
 				fn := fault.New(false)
 				fn.Fail(assert.AnError)
 				return fn
@@ -50,9 +51,9 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 		},
 		{
 			name: "best effort",
-			errs: func() *fault.Bus {
+			errs: func(ctx context.Context) *fault.Bus {
 				fn := fault.New(false)
-				fn.AddRecoverable(assert.AnError)
+				fn.AddRecoverable(ctx, assert.AnError)
 				return fn
 			},
 			opts: control.Options{
@@ -62,9 +63,9 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 		},
 		{
 			name: "recoverable errors produce hard fail",
-			errs: func() *fault.Bus {
+			errs: func(ctx context.Context) *fault.Bus {
 				fn := fault.New(false)
-				fn.AddRecoverable(assert.AnError)
+				fn.AddRecoverable(ctx, assert.AnError)
 				return fn
 			},
 			opts: control.Options{
@@ -74,11 +75,11 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 		},
 		{
 			name: "multiple recoverable errors produce hard fail",
-			errs: func() *fault.Bus {
+			errs: func(ctx context.Context) *fault.Bus {
 				fn := fault.New(false)
-				fn.AddRecoverable(assert.AnError)
-				fn.AddRecoverable(assert.AnError)
-				fn.AddRecoverable(assert.AnError)
+				fn.AddRecoverable(ctx, assert.AnError)
+				fn.AddRecoverable(ctx, assert.AnError)
+				fn.AddRecoverable(ctx, assert.AnError)
 				return fn
 			},
 			opts: control.Options{
@@ -94,7 +95,7 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			errs := test.errs()
+			errs := test.errs(ctx)
 
 			finalizeErrorHandling(ctx, test.opts, errs, "test")
 			test.expectErr(t, errs.Failure())
