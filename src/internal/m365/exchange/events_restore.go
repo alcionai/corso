@@ -123,7 +123,7 @@ func (h eventRestoreHandler) restore(
 func updateRecurringEvents(
 	ctx context.Context,
 	ac api.Events,
-	userID, containerID, eventID string,
+	userID, containerID, itemID string,
 	event models.Eventable,
 ) error {
 	if event.GetRecurrence() == nil {
@@ -136,12 +136,12 @@ func updateRecurringEvents(
 	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
 	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
 
-	err := updateCancelledOccurrences(ctx, ac, userID, eventID, cancelledOccurrences)
+	err := updateCancelledOccurrences(ctx, ac, userID, itemID, cancelledOccurrences)
 	if err != nil {
 		return clues.Wrap(err, "update cancelled occurrences")
 	}
 
-	err = updateExceptionOccurrences(ctx, ac, userID, eventID, exceptionOccurrences)
+	err = updateExceptionOccurrences(ctx, ac, userID, itemID, exceptionOccurrences)
 	if err != nil {
 		return clues.Wrap(err, "update exception occurrences")
 	}
@@ -156,7 +156,7 @@ func updateExceptionOccurrences(
 	ctx context.Context,
 	ac api.Events,
 	userID string,
-	eventID string,
+	itemID string,
 	exceptionOccurrences any,
 ) error {
 	if exceptionOccurrences == nil {
@@ -169,8 +169,8 @@ func updateExceptionOccurrences(
 			With("type", fmt.Sprintf("%T", exceptionOccurrences))
 	}
 
-	for _, inst := range eo {
-		evt, err := api.EventFromMap(inst)
+	for _, instance := range eo {
+		evt, err := api.EventFromMap(instance)
 		if err != nil {
 			return clues.Wrap(err, "parsing exception event")
 		}
@@ -179,14 +179,19 @@ func updateExceptionOccurrences(
 		startStr := dttm.FormatTo(start, dttm.DateOnly)
 		endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
 
-		evts, err := ac.GetItemInstances(ctx, userID, eventID, startStr, endStr)
+		// Get all instances on the day of the instance which should
+		// just the one we need to modify
+		evts, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
 
+		// Since the min recurrence interval is 1 day and we are
+		// querying for only a single day worth of instances, we
+		// should not have more than one instance here.
 		if len(evts) != 1 {
 			return clues.New("invalid number of instances for modified").
-				With("count", len(evts), "original_start", start)
+				With("instances_count", len(evts), "original_start", start)
 		}
 
 		evt = toEventSimplified(evt)
@@ -211,7 +216,7 @@ func updateCancelledOccurrences(
 	ctx context.Context,
 	ac api.Events,
 	userID string,
-	eventID string,
+	itemID string,
 	cancelledOccurrences any,
 ) error {
 	if cancelledOccurrences == nil {
@@ -224,9 +229,11 @@ func updateCancelledOccurrences(
 			With("type", fmt.Sprintf("%T", cancelledOccurrences))
 	}
 
-	// OPTIMIZATION: Group instances whose dates are close by
-	for _, inst := range co {
-		splits := strings.Split(ptr.Val(inst), ".")
+	// OPTIMIZATION: We can fetch a date range instead of fetching
+	// instances if we have multiple cancelled events which are nearby
+	// and reduce the number of API calls that we have to make
+	for _, instance := range co {
+		splits := strings.Split(ptr.Val(instance), ".")
 		startStr := splits[len(splits)-1]
 
 		start, err := dttm.ParseTime(startStr)
@@ -236,14 +243,19 @@ func updateCancelledOccurrences(
 
 		endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
 
-		evts, err := ac.GetItemInstances(ctx, userID, eventID, startStr, endStr)
+		// Get all instances on the day of the instance which should
+		// just the one we need to modify
+		evts, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
 
+		// Since the min recurrence interval is 1 day and we are
+		// querying for only a single day worth of instances, we
+		// should not have more than one instance here.
 		if len(evts) != 1 {
-			return clues.New("invalid number of instances").
-				With("count", len(evts))
+			return clues.New("invalid number of instances for cancelled").
+				With("instances_count", len(evts), "original_start", start)
 		}
 
 		err = ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
