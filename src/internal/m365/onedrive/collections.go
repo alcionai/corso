@@ -42,11 +42,6 @@ const (
 
 const restrictedDirectory = "Site Pages"
 
-type folderMatcher interface {
-	IsAny() bool
-	Matches(string) bool
-}
-
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
@@ -54,7 +49,7 @@ type Collections struct {
 
 	tenantID      string
 	resourceOwner string
-	matcher       folderMatcher
+
 	statusUpdater support.StatusUpdater
 
 	ctrl control.Options
@@ -74,7 +69,6 @@ func NewCollections(
 	bh BackupHandler,
 	tenantID string,
 	resourceOwner string,
-	matcher folderMatcher,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 ) *Collections {
@@ -82,7 +76,6 @@ func NewCollections(
 		handler:       bh,
 		tenantID:      tenantID,
 		resourceOwner: resourceOwner,
-		matcher:       matcher,
 		CollectionMap: map[string]map[string]*Collection{},
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
@@ -697,7 +690,7 @@ func (c *Collections) UpdateCollections(
 		}
 
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+		if shouldSkip(ctx, collectionPath, c.handler, driveName) {
 			logger.Ctx(ictx).Debugw("path not selected", "skipped_path", collectionPath.String())
 			continue
 		}
@@ -827,12 +820,17 @@ func (c *Collections) UpdateCollections(
 	return el.Failure()
 }
 
-func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
-	return !includePath(ctx, m, drivePath) ||
+type dirScopeChecker interface {
+	IsAllPass() bool
+	IncludesDir(dir string) bool
+}
+
+func shouldSkip(ctx context.Context, drivePath path.Path, dsc dirScopeChecker, driveName string) bool {
+	return !includePath(ctx, dsc, drivePath) ||
 		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }
 
-func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) bool {
+func includePath(ctx context.Context, dsc dirScopeChecker, folderPath path.Path) bool {
 	// Check if the folder is allowed by the scope.
 	pb, err := path.GetDriveFolderPath(folderPath)
 	if err != nil {
@@ -842,11 +840,11 @@ func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) boo
 
 	// Hack for the edge case where we're looking at the root folder and can
 	// select any folder. Right now the root folder has an empty folder path.
-	if len(pb.Elements()) == 0 && m.IsAny() {
+	if len(pb.Elements()) == 0 && dsc.IsAllPass() {
 		return true
 	}
 
-	return m.Matches(pb.String())
+	return dsc.IncludesDir(pb.String())
 }
 
 func updatePath(paths map[string]string, id, newPath string) {

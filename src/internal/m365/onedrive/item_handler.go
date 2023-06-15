@@ -12,6 +12,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -22,7 +23,8 @@ import (
 var _ BackupHandler = &itemBackupHandler{}
 
 type itemBackupHandler struct {
-	ac api.Drives
+	ac    api.Drives
+	scope selectors.OneDriveScope
 }
 
 func (h itemBackupHandler) Get(
@@ -106,6 +108,14 @@ func (h itemBackupHandler) GetItem(
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
 	return h.ac.GetItem(ctx, driveID, itemID)
+}
+
+func (h itemBackupHandler) IsAllPass() bool {
+	return h.scope.IsAny(selectors.OneDriveFolder)
+}
+
+func (h itemBackupHandler) IncludesDir(dir string) bool {
+	return h.scope.Matches(selectors.OneDriveFolder, dir)
 }
 
 // ---------------------------------------------------------------------------

@@ -184,6 +184,14 @@ var defaultSharePointLocationIDer = func(driveID string, elems ...string) detail
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
 
+func (h BackupHandler) IsAllPass() bool {
+	return true
+}
+
+func (h BackupHandler) IncludesDir(string) bool {
+	return true
+}
+
 // ---------------------------------------------------------------------------
 // Get Itemer
 // ---------------------------------------------------------------------------

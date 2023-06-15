@@ -390,7 +390,10 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			bh := itemBackupHandler{suite.ac.Drives()}
+			bh := itemBackupHandler{
+				suite.ac.Drives(),
+				(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
+			}
 			pager := suite.ac.Drives().NewUserDrivePager(suite.userID, nil)
 
 			ctx, flush := tester.NewContext(t)
@@ -413,18 +416,6 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 			assert.ElementsMatch(t, folderIDs, foundFolderIDs)
 		})
 	}
-}
-
-type testFolderMatcher struct {
-	scope selectors.OneDriveScope
-}
-
-func (fm testFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.OneDriveFolder)
-}
-
-func (fm testFolderMatcher) Matches(p string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, p)
 }
 
 func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
@@ -459,10 +450,9 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				&itemBackupHandler{suite.ac.Drives()},
+				&itemBackupHandler{suite.ac.Drives(), scope},
 				creds.AzureTenantID,
 				test.user,
-				testFolderMatcher{scope},
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},

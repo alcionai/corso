@@ -54,6 +54,10 @@ type BackupHandler interface {
 	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
 	NewLocationIDer(driveID string, elems ...string) details.LocationIDer
+
+	// scope wrapper funcs
+	IsAllPass() bool
+	IncludesDir(dir string) bool
 }
 
 type GetItemPermissioner interface {
