@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
