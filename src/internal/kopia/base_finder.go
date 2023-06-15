@@ -249,6 +249,8 @@ func (b *baseFinder) findBasesInSet(
 		// If we've made it to this point then we're considering the backup
 		// complete as it has both an item data snapshot and a backup details
 		// snapshot.
+		logger.Ctx(ictx).Infow("found complete backup", "base_backup_id", bup.ID)
+
 		me := ManifestEntry{
 			Manifest: man,
 			Reasons:  []Reason{reason},
