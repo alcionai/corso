@@ -46,7 +46,10 @@ func GetAccountAndConnect(
 	return r, &cfg.Storage, &cfg.Account, nil
 }
 
-func AccountConnectAndWriteRepoConfig(ctx context.Context, overrides map[string]string) (repository.Repository, *account.Account, error) {
+func AccountConnectAndWriteRepoConfig(
+	ctx context.Context,
+	overrides map[string]string,
+) (repository.Repository, *account.Account, error) {
 	r, stg, acc, err := GetAccountAndConnect(ctx, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")

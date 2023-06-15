@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type S3CfgSuite struct {
