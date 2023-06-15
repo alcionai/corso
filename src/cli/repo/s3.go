@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -193,7 +194,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	repoID := cfg.RepoID
 	if len(repoID) == 0 {
-		repoID = "not_found"
+		repoID = events.RepoIDNotFound
 	}
 
 	s3Cfg, err := cfg.Storage.S3Config()

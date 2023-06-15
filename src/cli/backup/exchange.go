@@ -153,7 +153,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.GetAccountAndConnect(ctx)
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -262,7 +262,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
