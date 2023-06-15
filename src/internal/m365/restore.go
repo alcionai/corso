@@ -45,7 +45,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	case selectors.ServiceExchange:
 		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(
+		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
 			onedrive.NewRestoreHandler(ctrl.AC),
 			backupVersion,

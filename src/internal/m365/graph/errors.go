@@ -44,6 +44,10 @@ const (
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
 	folderExists errorCode = "ErrorFolderExists"
+	// cannotOpenFileAttachment happen when an attachment is
+	// inaccessible. The error message is usually "OLE conversion
+	// failed for an attachment."
+	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
 )
 
 type errorMessage string
@@ -124,6 +128,10 @@ func IsErrUserNotFound(err error) bool {
 
 func IsErrResourceNotFound(err error) bool {
 	return hasErrorCode(err, resourceNotFound)
+}
+
+func IsErrCannotOpenFileAttachment(err error) bool {
+	return hasErrorCode(err, cannotOpenFileAttachment)
 }
 
 func IsErrAccessDenied(err error) bool {

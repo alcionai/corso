@@ -65,7 +65,7 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, err = onedrive.ProduceRestoreCollection(
+			metrics, err = onedrive.RestoreCollection(
 				ictx,
 				libraryRestoreHandler{ac.Drives()},
 				backupVersion,
@@ -101,7 +101,7 @@ func ConsumeRestoreCollections(
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
-			el.AddRecoverable(err)
+			el.AddRecoverable(ctx, err)
 		}
 
 		if errors.Is(err, context.Canceled) {
@@ -129,7 +129,7 @@ func restoreListItem(
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
 	ctx = clues.Add(ctx, "list_item_id", itemData.UUID())
@@ -190,7 +190,7 @@ func restoreListItem(
 		}
 	}
 
-	dii.SharePoint = sharePointListInfo(restoredList, int64(len(byteArray)))
+	dii.SharePoint = listToSPInfo(restoredList, int64(len(byteArray)))
 
 	return dii, nil
 }
@@ -203,7 +203,7 @@ func RestoreListCollection(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -214,7 +214,7 @@ func RestoreListCollection(
 		el        = errs.Local()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
+	trace.Log(ctx, "m365:sharepoint:restoreListCollection", directory.String())
 
 	for {
 		if el.Failure() != nil {
@@ -238,7 +238,7 @@ func RestoreListCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -246,7 +246,7 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -285,8 +285,8 @@ func RestorePageCollection(
 		siteID    = directory.ResourceOwner()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
-	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restorePageCollection", diagnostics.Label("path", dc.FullPath()))
+	trace.Log(ctx, "m365:sharepoint:restorePageCollection", directory.String())
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restorePageCollection", diagnostics.Label("path", dc.FullPath()))
 
 	defer end()
 
@@ -318,7 +318,7 @@ func RestorePageCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -326,7 +326,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 

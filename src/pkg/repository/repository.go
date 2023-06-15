@@ -230,6 +230,15 @@ func Connect(
 		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
+	if repoid == events.RepoIDNotFound {
+		rm, err := getRepoModel(ctx, ms)
+		if err != nil {
+			return nil, clues.New("retrieving repo info")
+		}
+
+		repoid = string(rm.ID)
+	}
+
 	// Do not query repo ID if metrics are disabled
 	if !opts.DisableMetrics {
 		bus.SetRepoID(repoid)
@@ -402,7 +411,7 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 
 		b, err := sw.GetBackup(ictx, model.StableID(id))
 		if err != nil {
-			errs.AddRecoverable(errWrapper(err))
+			errs.AddRecoverable(ctx, errWrapper(err))
 		}
 
 		bups = append(bups, b)

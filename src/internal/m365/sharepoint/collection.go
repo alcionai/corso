@@ -239,7 +239,7 @@ func (sc *Collection) retrieveLists(
 
 		byteArray, err := serializeContent(ctx, wtr, lst)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "serializing list").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(ctx, clues.Wrap(err, "serializing list").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
@@ -257,7 +257,7 @@ func (sc *Collection) retrieveLists(
 			sc.data <- &Item{
 				id:      ptr.Val(lst.GetId()),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sharePointListInfo(lst, size),
+				info:    listToSPInfo(lst, size),
 				modTime: t,
 			}
 
@@ -308,7 +308,7 @@ func (sc *Collection) retrievePages(
 
 		byteArray, err := serializeContent(ctx, wtr, pg)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "serializing page").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(ctx, clues.Wrap(err, "serializing page").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
@@ -320,7 +320,7 @@ func (sc *Collection) retrievePages(
 			sc.data <- &Item{
 				id:      ptr.Val(pg.GetId()),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sharePointPageInfo(pg, root, size),
+				info:    pageToSPInfo(pg, root, size),
 				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),
 			}
 

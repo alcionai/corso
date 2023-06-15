@@ -264,7 +264,7 @@ func (c Mail) EnumerateContainers(
 			}
 
 			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
-				errs.AddRecoverable(graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -275,7 +275,7 @@ func (c Mail) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 		}
@@ -406,6 +406,20 @@ func (c Mail) GetItem(
 			ByAttachmentId(ptr.Val(a.GetId())).
 			Get(ctx, attachConfig)
 		if err != nil {
+			if graph.IsErrCannotOpenFileAttachment(err) {
+				logger.CtxErr(ctx, err).
+					With(
+						"skipped_reason", fault.SkipNotFound,
+						"attachment_id", ptr.Val(a.GetId()),
+						"attachment_size", ptr.Val(a.GetSize()),
+					).Info("attachment not found")
+				// TODO This should use a `AddSkip` once we have
+				// figured out the semantics for skipping
+				// subcomponents of an item
+
+				continue
+			}
+
 			return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").
 				With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
 		}

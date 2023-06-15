@@ -17,6 +17,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -25,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -281,7 +283,7 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.ctrl = loadController(ctx, t, resource.Users)
+	suite.ctrl = newController(ctx, t, resource.Users)
 	suite.user = tester.M365UserID(t)
 	suite.secondaryUser = tester.SecondaryM365UserID(t)
 
@@ -408,7 +410,7 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 func runRestore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config ConfigInfo,
+	config stub.ConfigInfo,
 	backupVersion int,
 	collections []data.RestoreCollection,
 	numRestoreItems int,
@@ -420,7 +422,7 @@ func runRestore(
 
 	start := time.Now()
 
-	restoreCtrl := loadController(ctx, t, config.Resource)
+	restoreCtrl := newController(ctx, t, config.Resource)
 	restoreSel := getSelectorWith(t, config.Service, config.ResourceOwners, true)
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
@@ -451,11 +453,11 @@ func runRestore(
 func runBackupAndCompare(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config ConfigInfo,
+	config stub.ConfigInfo,
 	expectedData map[string]map[string][]byte,
 	totalItems int,
 	totalKopiaItems int,
-	inputCollections []ColInfo,
+	inputCollections []stub.ColInfo,
 ) {
 	t.Helper()
 
@@ -482,7 +484,7 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupCtrl := loadController(ctx, t, config.Resource)
+	backupCtrl := newController(ctx, t, config.Resource)
 	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
 	backupSel := backupSelectorForExpected(t, config.Service, expectedDests)
@@ -532,7 +534,7 @@ func runRestoreBackupTest(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := ConfigInfo{
+	config := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -541,7 +543,7 @@ func runRestoreBackupTest(
 		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
-	totalItems, totalKopiaItems, collections, expectedData, err := GetCollectionsAndExpected(
+	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
 		config,
 		test.collections,
 		version.Backup)
@@ -577,16 +579,16 @@ func runRestoreTestWithVersion(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := ConfigInfo{
+	config := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resource,
+		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
 		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
-	totalItems, _, collections, _, err := GetCollectionsAndExpected(
+	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
@@ -614,16 +616,16 @@ func runRestoreBackupTestVersions(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := ConfigInfo{
+	config := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resource,
+		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
 		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
-	totalItems, _, collections, _, err := GetCollectionsAndExpected(
+	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
 		config,
 		test.collectionsPrevious,
 		test.backupVersion)
@@ -638,7 +640,7 @@ func runRestoreBackupTestVersions(
 		totalItems)
 
 	// Get expected output for new version.
-	totalItems, totalKopiaItems, _, expectedData, err := GetCollectionsAndExpected(
+	totalItems, totalKopiaItems, _, expectedData, err := stub.GetCollectionsAndExpected(
 		config,
 		test.collectionsLatest,
 		version.Backup)
@@ -663,24 +665,24 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			name:        "EmailsWithAttachments",
 			service:     path.ExchangeService,
 			resourceCat: resource.Users,
-			collections: []ColInfo{
+			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Inbox"},
 					Category:     path.EmailCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name: "someencodeditemID",
-							data: exchMock.MessageWithDirectAttachment(
+							Name: "someencodeditemID",
+							Data: exchMock.MessageWithDirectAttachment(
 								subjectText + "-1",
 							),
-							lookupKey: subjectText + "-1",
+							LookupKey: subjectText + "-1",
 						},
 						{
-							name: "someencodeditemID2",
-							data: exchMock.MessageWithTwoAttachments(
+							Name: "someencodeditemID2",
+							Data: exchMock.MessageWithTwoAttachments(
 								subjectText + "-2",
 							),
-							lookupKey: subjectText + "-2",
+							LookupKey: subjectText + "-2",
 						},
 					},
 				},
@@ -690,73 +692,73 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			name:        "MultipleEmailsMultipleFolders",
 			service:     path.ExchangeService,
 			resourceCat: resource.Users,
-			collections: []ColInfo{
+			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Inbox"},
 					Category:     path.EmailCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name: "someencodeditemID",
-							data: exchMock.MessageWithBodyBytes(
+							Name: "someencodeditemID",
+							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
 								bodyText+" 1.",
 							),
-							lookupKey: subjectText + "-1",
+							LookupKey: subjectText + "-1",
 						},
 					},
 				},
 				{
 					PathElements: []string{"Work"},
 					Category:     path.EmailCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name: "someencodeditemID2",
-							data: exchMock.MessageWithBodyBytes(
+							Name: "someencodeditemID2",
+							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
 								bodyText+" 2.",
 							),
-							lookupKey: subjectText + "-2",
+							LookupKey: subjectText + "-2",
 						},
 						{
-							name: "someencodeditemID3",
-							data: exchMock.MessageWithBodyBytes(
+							Name: "someencodeditemID3",
+							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-3",
 								bodyText+" 3.",
 								bodyText+" 3.",
 							),
-							lookupKey: subjectText + "-3",
+							LookupKey: subjectText + "-3",
 						},
 					},
 				},
 				{
 					PathElements: []string{"Work", "Inbox"},
 					Category:     path.EmailCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name: "someencodeditemID4",
-							data: exchMock.MessageWithBodyBytes(
+							Name: "someencodeditemID4",
+							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-4",
 								bodyText+" 4.",
 								bodyText+" 4.",
 							),
-							lookupKey: subjectText + "-4",
+							LookupKey: subjectText + "-4",
 						},
 					},
 				},
 				{
 					PathElements: []string{"Work", "Inbox", "Work"},
 					Category:     path.EmailCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name: "someencodeditemID5",
-							data: exchMock.MessageWithBodyBytes(
+							Name: "someencodeditemID5",
+							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-5",
 								bodyText+" 5.",
 								bodyText+" 5.",
 							),
-							lookupKey: subjectText + "-5",
+							LookupKey: subjectText + "-5",
 						},
 					},
 				},
@@ -766,25 +768,25 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			name:        "MultipleContactsSingleFolder",
 			service:     path.ExchangeService,
 			resourceCat: resource.Users,
-			collections: []ColInfo{
+			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Contacts"},
 					Category:     path.ContactsCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name:      "someencodeditemID",
-							data:      exchMock.ContactBytes("Ghimley"),
-							lookupKey: "Ghimley",
+							Name:      "someencodeditemID",
+							Data:      exchMock.ContactBytes("Ghimley"),
+							LookupKey: "Ghimley",
 						},
 						{
-							name:      "someencodeditemID2",
-							data:      exchMock.ContactBytes("Irgot"),
-							lookupKey: "Irgot",
+							Name:      "someencodeditemID2",
+							Data:      exchMock.ContactBytes("Irgot"),
+							LookupKey: "Irgot",
 						},
 						{
-							name:      "someencodeditemID3",
-							data:      exchMock.ContactBytes("Jannes"),
-							lookupKey: "Jannes",
+							Name:      "someencodeditemID3",
+							Data:      exchMock.ContactBytes("Jannes"),
+							LookupKey: "Jannes",
 						},
 					},
 				},
@@ -794,41 +796,41 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			name:        "MultipleContactsMultipleFolders",
 			service:     path.ExchangeService,
 			resourceCat: resource.Users,
-			collections: []ColInfo{
+			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Work"},
 					Category:     path.ContactsCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name:      "someencodeditemID",
-							data:      exchMock.ContactBytes("Ghimley"),
-							lookupKey: "Ghimley",
+							Name:      "someencodeditemID",
+							Data:      exchMock.ContactBytes("Ghimley"),
+							LookupKey: "Ghimley",
 						},
 						{
-							name:      "someencodeditemID2",
-							data:      exchMock.ContactBytes("Irgot"),
-							lookupKey: "Irgot",
+							Name:      "someencodeditemID2",
+							Data:      exchMock.ContactBytes("Irgot"),
+							LookupKey: "Irgot",
 						},
 						{
-							name:      "someencodeditemID3",
-							data:      exchMock.ContactBytes("Jannes"),
-							lookupKey: "Jannes",
+							Name:      "someencodeditemID3",
+							Data:      exchMock.ContactBytes("Jannes"),
+							LookupKey: "Jannes",
 						},
 					},
 				},
 				{
 					PathElements: []string{"Personal"},
 					Category:     path.ContactsCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name:      "someencodeditemID4",
-							data:      exchMock.ContactBytes("Argon"),
-							lookupKey: "Argon",
+							Name:      "someencodeditemID4",
+							Data:      exchMock.ContactBytes("Argon"),
+							LookupKey: "Argon",
 						},
 						{
-							name:      "someencodeditemID5",
-							data:      exchMock.ContactBytes("Bernard"),
-							lookupKey: "Bernard",
+							Name:      "someencodeditemID5",
+							Data:      exchMock.ContactBytes("Bernard"),
+							LookupKey: "Bernard",
 						},
 					},
 				},
@@ -927,26 +929,26 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			name:        "Contacts",
 			service:     path.ExchangeService,
 			resourceCat: resource.Users,
-			collections: []ColInfo{
+			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Work"},
 					Category:     path.ContactsCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name:      "someencodeditemID",
-							data:      exchMock.ContactBytes("Ghimley"),
-							lookupKey: "Ghimley",
+							Name:      "someencodeditemID",
+							Data:      exchMock.ContactBytes("Ghimley"),
+							LookupKey: "Ghimley",
 						},
 					},
 				},
 				{
 					PathElements: []string{"Personal"},
 					Category:     path.ContactsCategory,
-					Items: []ItemInfo{
+					Items: []stub.ItemInfo{
 						{
-							name:      "someencodeditemID2",
-							data:      exchMock.ContactBytes("Irgot"),
-							lookupKey: "Irgot",
+							Name:      "someencodeditemID2",
+							Data:      exchMock.ContactBytes("Irgot"),
+							LookupKey: "Irgot",
 						},
 					},
 				},
@@ -1005,12 +1007,12 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					},
 				})
 
-				totalItems, _, collections, expectedData, err := collectionsForInfo(
+				totalItems, _, collections, expectedData, err := stub.CollectionsForInfo(
 					test.service,
 					suite.ctrl.tenant,
 					suite.user,
 					restoreCfg,
-					[]ColInfo{collection},
+					[]stub.ColInfo{collection},
 					version.Backup,
 				)
 				require.NoError(t, err)
@@ -1028,7 +1030,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					restoreCfg.Location,
 				)
 
-				restoreCtrl := loadController(ctx, t, test.resourceCat)
+				restoreCtrl := newController(ctx, t, test.resourceCat)
 				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
@@ -1058,7 +1060,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Run a backup and compare its output with what we put in.
 
-			backupCtrl := loadController(ctx, t, test.resourceCat)
+			backupCtrl := newController(ctx, t, test.resourceCat)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1080,7 +1082,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			t.Log("Backup enumeration complete")
 
-			ci := ConfigInfo{
+			ci := stub.ConfigInfo{
 				Opts: control.Options{RestorePermissions: true},
 				// Alright to be empty, needed for OneDrive.
 				RestoreCfg: control.RestoreConfig{},
@@ -1106,15 +1108,15 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 		name:        "EmailsWithLargeAttachments",
 		service:     path.ExchangeService,
 		resourceCat: resource.Users,
-		collections: []ColInfo{
+		collections: []stub.ColInfo{
 			{
 				PathElements: []string{"Inbox"},
 				Category:     path.EmailCategory,
-				Items: []ItemInfo{
+				Items: []stub.ItemInfo{
 					{
-						name:      "35mbAttachment",
-						data:      exchMock.MessageWithSizedAttachment(subjectText, 35),
-						lookupKey: subjectText,
+						Name:      "35mbAttachment",
+						Data:      exchMock.MessageWithSizedAttachment(subjectText, 35),
+						LookupKey: subjectText,
 					},
 				},
 			},
@@ -1207,7 +1209,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = loadController(ctx, t, test.resourceCat)
+				backupCtrl = newController(ctx, t, test.resourceCat)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()
@@ -1268,6 +1270,169 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			backupCtrl.Wait()
 
 			assert.NoError(t, errs.Failure())
+		})
+	}
+}
+
+type DisconnectedUnitSuite struct {
+	tester.Suite
+}
+
+func TestDisconnectedUnitSuite(t *testing.T) {
+	s := &DisconnectedUnitSuite{
+		Suite: tester.NewUnitSuite(t),
+	}
+
+	suite.Run(t, s)
+}
+
+func statusTestTask(
+	t *testing.T,
+	ctrl *Controller,
+	objects, success, folder int,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	status := support.CreateStatus(
+		ctx,
+		support.Restore, folder,
+		support.CollectionMetrics{
+			Objects:   objects,
+			Successes: success,
+			Bytes:     0,
+		},
+		"statusTestTask")
+	ctrl.UpdateStatus(status)
+}
+
+func (suite *DisconnectedUnitSuite) TestController_Status() {
+	t := suite.T()
+	ctrl := Controller{wg: &sync.WaitGroup{}}
+
+	// Two tasks
+	ctrl.incrementAwaitingMessages()
+	ctrl.incrementAwaitingMessages()
+
+	// Each helper task processes 4 objects, 1 success, 3 errors, 1 folders
+	go statusTestTask(t, &ctrl, 4, 1, 1)
+	go statusTestTask(t, &ctrl, 4, 1, 1)
+
+	stats := ctrl.Wait()
+
+	assert.NotEmpty(t, ctrl.PrintableStatus())
+	// Expect 8 objects
+	assert.Equal(t, 8, stats.Objects)
+	// Expect 2 success
+	assert.Equal(t, 2, stats.Successes)
+	// Expect 2 folders
+	assert.Equal(t, 2, stats.Folders)
+}
+
+func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
+	sites := []string{"abc.site.foo", "bar.site.baz"}
+
+	tests := []struct {
+		name       string
+		excludes   func(t *testing.T) selectors.Selector
+		filters    func(t *testing.T) selectors.Selector
+		includes   func(t *testing.T) selectors.Selector
+		checkError assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "Valid User",
+			checkError: assert.NoError,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
+				sel.Exclude(selTD.OneDriveBackupFolderScope(sel))
+				sel.DiscreteOwner = "elliotReid@someHospital.org"
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
+				sel.Filter(selTD.OneDriveBackupFolderScope(sel))
+				sel.DiscreteOwner = "elliotReid@someHospital.org"
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
+				sel.DiscreteOwner = "elliotReid@someHospital.org"
+				return sel.Selector
+			},
+		},
+		{
+			name:       "Invalid User",
+			checkError: assert.NoError,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
+				sel.Exclude(selTD.OneDriveBackupFolderScope(sel))
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
+				sel.Filter(selTD.OneDriveBackupFolderScope(sel))
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
+				sel.Include(selTD.OneDriveBackupFolderScope(sel))
+				return sel.Selector
+			},
+		},
+		{
+			name:       "valid sites",
+			checkError: assert.NoError,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
+				sel.DiscreteOwner = "abc.site.foo"
+				sel.Exclude(sel.AllData())
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
+				sel.DiscreteOwner = "abc.site.foo"
+				sel.Filter(sel.AllData())
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
+				sel.DiscreteOwner = "abc.site.foo"
+				sel.Include(sel.AllData())
+				return sel.Selector
+			},
+		},
+		{
+			name:       "invalid sites",
+			checkError: assert.Error,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
+				sel.Exclude(sel.AllData())
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
+				sel.Filter(sel.AllData())
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
+				sel.Include(sel.AllData())
+				return sel.Selector
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			err := verifyBackupInputs(test.excludes(t), sites)
+			test.checkError(t, err, clues.ToCore(err))
+			err = verifyBackupInputs(test.filters(t), sites)
+			test.checkError(t, err, clues.ToCore(err))
+			err = verifyBackupInputs(test.includes(t), sites)
+			test.checkError(t, err, clues.ToCore(err))
 		})
 	}
 }

@@ -1157,7 +1157,7 @@ func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Str
 	ic := make(chan data.Stream)
 	defer close(ic)
 
-	errs.AddRecoverable(assert.AnError)
+	errs.AddRecoverable(ctx, assert.AnError)
 
 	return ic
 }
@@ -2492,6 +2492,22 @@ func driveItem(
 	isFile, isFolder, isPackage bool,
 ) models.DriveItemable {
 	return coreItem(id, name, parentPath, parentID, isFile, isFolder, isPackage)
+}
+
+func fileItem(
+	id, name, parentPath, parentID, url string,
+	deleted bool,
+) models.DriveItemable {
+	di := driveItem(id, name, parentPath, parentID, true, false, false)
+	di.SetAdditionalData(map[string]interface{}{
+		"@microsoft.graph.downloadUrl": url,
+	})
+
+	if deleted {
+		di.SetDeleted(models.NewDeleted())
+	}
+
+	return di
 }
 
 func malwareItem(

@@ -1,6 +1,7 @@
 package fault_test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/alcionai/clues"
@@ -15,6 +16,8 @@ import (
 var (
 	ctrl  any
 	items = []string{}
+	//nolint:forbidigo
+	ctx = context.Background()
 )
 
 type mockController struct {
@@ -133,7 +136,7 @@ func ExampleBus_AddRecoverable() {
 			// to aggregate the error using fault.
 			// Side note: technically, you should use a local bus
 			// here (see below) instead of errs.
-			errs.AddRecoverable(err)
+			errs.AddRecoverable(ctx, err)
 		}
 	}
 
@@ -150,7 +153,7 @@ func ExampleBus_AddRecoverable() {
 		}
 
 		if err := getIthItem(i); err != nil {
-			errs.AddRecoverable(err)
+			errs.AddRecoverable(ctx, err)
 		}
 	}
 }
@@ -175,13 +178,13 @@ func ExampleBus_Failure() {
 
 	// If Failure() is nil, then you can assume the operation completed.
 	// A complete operation is not necessarily an error-free operation.
-	// Recoverable errors may still have been added using AddRecoverable(err).
+	// Recoverable errors may still have been added using AddRecoverable(ctx, err).
 	// Make sure you check both.
 
 	// If failFast is set to true, then the first recoerable error Added gets
 	// promoted to the Err() position.
 	errs = fault.New(true)
-	errs.AddRecoverable(clues.New("not catastrophic, but still becomes the Failure()"))
+	errs.AddRecoverable(ctx, clues.New("not catastrophic, but still becomes the Failure()"))
 	err = errs.Failure()
 	fmt.Println(err)
 
@@ -194,8 +197,8 @@ func ExampleBus_Failure() {
 // recover from and continue.
 func ExampleErrors_Recovered() {
 	errs := fault.New(false)
-	errs.AddRecoverable(clues.New("not catastrophic"))
-	errs.AddRecoverable(clues.New("something unwanted"))
+	errs.AddRecoverable(ctx, clues.New("not catastrophic"))
+	errs.AddRecoverable(ctx, clues.New("something unwanted"))
 
 	// Recovered() gets the slice of all recoverable errors added during
 	// the run, but which did not cause a failure.
@@ -247,12 +250,12 @@ func ExampleBus_Local() {
 			}
 
 			if err := getIthItem(i); err != nil {
-				// instead of calling errs.AddRecoverable(err), we call the
+				// instead of calling errs.AddRecoverable(ctx, err), we call the
 				// local bus's Add method.  The error will still get
 				// added to the errs.Recovered() set.  But if this err
 				// causes the run to fail, only this local bus treats
 				// it as the causal failure.
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 			}
 		}
 
@@ -330,7 +333,7 @@ func Example_e2e() {
 			if err := storer(d); err != nil {
 				// Since we're at the top of the iteration, we need
 				// to add each error to the fault.localBus struct.
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 			}
 		}
 
@@ -383,7 +386,7 @@ func ExampleErrors_Failure_return() {
 			}
 
 			if err := dependency.do(); err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "recoverable"))
+				errs.AddRecoverable(ctx, clues.Wrap(err, "recoverable"))
 			}
 		}
 
@@ -426,7 +429,7 @@ func ExampleBus_AddSkip() {
 	// over, instead of error out.  An initial case is when Graph API identifies
 	// a file as containing malware.  We can't download the file: it'll always
 	// error.  Our only option is to skip it.
-	errs.AddSkip(fault.FileSkip(
+	errs.AddSkip(ctx, fault.FileSkip(
 		fault.SkipMalware,
 		"deduplication-namespace",
 		"file-id",

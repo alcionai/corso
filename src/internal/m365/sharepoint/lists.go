@@ -10,8 +10,29 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
+
+// listToSPInfo translates models.Listable metadata into searchable content
+// List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
+func listToSPInfo(lst models.Listable, size int64) *details.SharePointInfo {
+	var (
+		name     = ptr.Val(lst.GetDisplayName())
+		webURL   = ptr.Val(lst.GetWebUrl())
+		created  = ptr.Val(lst.GetCreatedDateTime())
+		modified = ptr.Val(lst.GetLastModifiedDateTime())
+	)
+
+	return &details.SharePointInfo{
+		ItemType: details.SharePointList,
+		ItemName: name,
+		Created:  created,
+		Modified: modified,
+		WebURL:   webURL,
+		Size:     size,
+	}
+}
 
 type listTuple struct {
 	name string
@@ -130,13 +151,13 @@ func loadSiteLists(
 
 			entry, err = gs.Client().Sites().BySiteId(siteID).Lists().ByListId(id).Get(ctx, nil)
 			if err != nil {
-				el.AddRecoverable(graph.Wrap(ctx, err, "getting site list"))
+				el.AddRecoverable(ctx, graph.Wrap(ctx, err, "getting site list"))
 				return
 			}
 
 			cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, id, errs)
 			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting list contents"))
+				el.AddRecoverable(ctx, clues.Wrap(err, "getting list contents"))
 				return
 			}
 
@@ -220,7 +241,7 @@ func fetchListItems(
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
-				el.AddRecoverable(graph.Wrap(ctx, err, "getting list fields"))
+				el.AddRecoverable(ctx, graph.Wrap(ctx, err, "getting list fields"))
 				continue
 			}
 
@@ -336,7 +357,7 @@ func fetchContentTypes(
 
 			links, err := fetchColumnLinks(ctx, gs, siteID, listID, id)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
@@ -344,7 +365,7 @@ func fetchContentTypes(
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
-				el.AddRecoverable(err)
+				el.AddRecoverable(ctx, err)
 				continue
 			}
 
