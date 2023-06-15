@@ -109,7 +109,7 @@ func (h eventRestoreHandler) restore(
 	}
 
 	// Fix up event instances in case we have a recurring event
-	err = h.updateRecurringEvents(ctx, userID, destinationID, ptr.Val(item.GetId()), event)
+	err = updateRecurringEvents(ctx, h.ac, userID, destinationID, ptr.Val(item.GetId()), event)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -120,8 +120,9 @@ func (h eventRestoreHandler) restore(
 	return info, nil
 }
 
-func (h eventRestoreHandler) updateRecurringEvents(
+func updateRecurringEvents(
 	ctx context.Context,
+	ac api.Events,
 	userID, containerID, eventID string,
 	event models.Eventable,
 ) error {
@@ -135,86 +136,125 @@ func (h eventRestoreHandler) updateRecurringEvents(
 	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
 	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
 
-	// OPTIMIZATION: Group instances whose dates are close by
-	if cancelledOccurrences != nil {
-		co, ok := cancelledOccurrences.([]interface{})
-		if !ok {
-			return clues.New("converting cancelledOccurrences to []interface{}").
-				With("type", fmt.Sprintf("%T", cancelledOccurrences))
-		}
-
-		for _, insti := range co {
-			inst, ok := insti.(*string)
-			if !ok {
-				return clues.New("converting canceled instance to *string").
-					With("type", fmt.Sprintf("%T", insti))
-			}
-
-			splits := strings.Split(ptr.Val(inst), ".")
-			startStr := splits[len(splits)-1]
-
-			start, err := time.Parse(string(dttm.DateOnly), startStr)
-			if err != nil {
-				return clues.Wrap(err, "parsing cancelled event date")
-			}
-
-			endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
-
-			evts, err := h.ac.GetItemInstances(ctx, userID, eventID, startStr, endStr)
-			if err != nil {
-				return clues.Wrap(err, "getting instances")
-			}
-
-			if len(evts) != 1 {
-				return clues.New("invalid number of instances").
-					With("count", len(evts))
-			}
-
-			err = h.ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
-			if err != nil {
-				return clues.Wrap(err, "deleting event instance")
-			}
-		}
+	err := updateCancelledOccurrences(ctx, ac, userID, eventID, cancelledOccurrences)
+	if err != nil {
+		return clues.Wrap(err, "update cancelled occurrences")
 	}
 
-	if exceptionOccurrences != nil {
-		eo, ok := exceptionOccurrences.([]interface{})
-		if !ok {
-			return clues.New("converting exceptionOccurrences to []interface{}").
-				With("type", fmt.Sprintf("%T", exceptionOccurrences))
+	err = updateExceptionOccurrences(ctx, ac, userID, eventID, exceptionOccurrences)
+	if err != nil {
+		return clues.Wrap(err, "update exception occurrences")
+	}
+
+	return nil
+}
+
+// updateExceptionOccurrences take events that have exceptions, uses
+// the originalStart date to find the instance and modify it to match
+// the backup by updating the instance to match the backed up one
+func updateExceptionOccurrences(
+	ctx context.Context,
+	ac api.Events,
+	userID string,
+	eventID string,
+	exceptionOccurrences any,
+) error {
+	if exceptionOccurrences == nil {
+		return nil
+	}
+
+	eo, ok := exceptionOccurrences.([]any)
+	if !ok {
+		return clues.New("converting exceptionOccurrences to []any").
+			With("type", fmt.Sprintf("%T", exceptionOccurrences))
+	}
+
+	for _, inst := range eo {
+		evt, err := api.EventFromMap(inst)
+		if err != nil {
+			return clues.Wrap(err, "parsing exception event")
 		}
 
-		for _, inst := range eo {
-			evt, err := api.EventFromMap(inst)
-			if err != nil {
-				return clues.Wrap(err, "parsing exception event")
-			}
+		start := ptr.Val(evt.GetOriginalStart())
+		startStr := dttm.FormatTo(start, dttm.DateOnly)
+		endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
 
-			start := ptr.Val(evt.GetOriginalStart())
-			startStr := dttm.FormatTo(start, dttm.DateOnly)
-			endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
+		evts, err := ac.GetItemInstances(ctx, userID, eventID, startStr, endStr)
+		if err != nil {
+			return clues.Wrap(err, "getting instances")
+		}
 
-			evts, err := h.ac.GetItemInstances(ctx, userID, eventID, startStr, endStr)
-			if err != nil {
-				return clues.Wrap(err, "getting instances")
-			}
+		if len(evts) != 1 {
+			return clues.New("invalid number of instances for modified").
+				With("count", len(evts), "original_start", start)
+		}
 
-			if len(evts) != 1 {
-				return clues.New("invalid number of instances for modified").
-					With("count", len(evts), "original_start", start)
-			}
+		evt = toEventSimplified(evt)
 
-			evt = toEventSimplified(evt)
+		// TODO(meain): Update attachments (might have to diff the
+		// attachments using ids and delete or add). We will have
+		// to get the id of the existing attachments, diff them
+		// with what we need a then create/delete items kinda like
+		// permissions
+		_, err = ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
+		if err != nil {
+			return clues.Wrap(err, "updating event instance")
+		}
+	}
+	return nil
+}
 
-			// TODO(meain): Update attachments (might have to diff the
-			// attachments using ids and delete or add). We will have
-			// to get the id of the existing attachments, diff them
-			// with what we need a then create/delete items kinda like
-			// permissions
-			_, err = h.ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
-			if err != nil {
-				return clues.Wrap(err, "updating event instance")
-			}
+// updateCancelledOccurrences get the cancelled occurrences which is a
+// list of strings of the format "<id>.<date>", parses the date out of
+// that and uses the to get the event instance at that date to delete.
+func updateCancelledOccurrences(
+	ctx context.Context,
+	ac api.Events,
+	userID string,
+	eventID string,
+	cancelledOccurrences any,
+) error {
+	if cancelledOccurrences == nil {
+		return nil
+	}
+
+	co, ok := cancelledOccurrences.([]any)
+	if !ok {
+		return clues.New("converting cancelledOccurrences to []any").
+			With("type", fmt.Sprintf("%T", cancelledOccurrences))
+	}
+
+	// OPTIMIZATION: Group instances whose dates are close by
+	for _, insti := range co {
+		inst, ok := insti.(*string)
+		if !ok {
+			return clues.New("converting canceled instance to *string").
+				With("type", fmt.Sprintf("%T", insti))
+		}
+
+		splits := strings.Split(ptr.Val(inst), ".")
+		startStr := splits[len(splits)-1]
+
+		start, err := time.Parse(string(dttm.DateOnly), startStr)
+		if err != nil {
+			return clues.Wrap(err, "parsing cancelled event date")
+		}
+
+		endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
+
+		evts, err := ac.GetItemInstances(ctx, userID, eventID, startStr, endStr)
+		if err != nil {
+			return clues.Wrap(err, "getting instances")
+		}
+
+		if len(evts) != 1 {
+			return clues.New("invalid number of instances").
+				With("count", len(evts))
+		}
+
+		err = ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
+		if err != nil {
+			return clues.Wrap(err, "deleting event instance")
 		}
 	}
 
