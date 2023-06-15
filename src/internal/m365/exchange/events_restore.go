@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -163,13 +164,19 @@ func updateExceptionOccurrences(
 		return nil
 	}
 
-	eo, ok := exceptionOccurrences.([]map[string]any)
+	eo, ok := exceptionOccurrences.([]any)
 	if !ok {
-		return clues.New("converting exceptionOccurrences to []map[string]any").
+		return clues.New("converting exceptionOccurrences to []any").
 			With("type", fmt.Sprintf("%T", exceptionOccurrences))
 	}
 
 	for _, instance := range eo {
+		instance, ok := instance.(map[string]any)
+		if !ok {
+			return clues.New("converting instance to map[string]any").
+				With("type", fmt.Sprintf("%T", instance))
+		}
+
 		evt, err := api.EventFromMap(instance)
 		if err != nil {
 			return clues.Wrap(err, "parsing exception event")
@@ -224,9 +231,9 @@ func updateCancelledOccurrences(
 		return nil
 	}
 
-	co, ok := cancelledOccurrences.([]*string)
+	co, ok := cancelledOccurrences.([]any)
 	if !ok {
-		return clues.New("converting cancelledOccurrences to []*string").
+		return clues.New("converting cancelledOccurrences to []any").
 			With("type", fmt.Sprintf("%T", cancelledOccurrences))
 	}
 
@@ -234,7 +241,13 @@ func updateCancelledOccurrences(
 	// instances if we have multiple cancelled events which are nearby
 	// and reduce the number of API calls that we have to make
 	for _, instance := range co {
-		splits := strings.Split(ptr.Val(instance), ".")
+		instance, err := str.AnyToString(instance)
+		if err != nil {
+			return err
+		}
+
+		splits := strings.Split(instance, ".")
+
 		startStr := splits[len(splits)-1]
 
 		start, err := dttm.ParseTime(startStr)

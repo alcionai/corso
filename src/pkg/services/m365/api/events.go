@@ -17,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -311,14 +312,19 @@ func (c Events) GetItem(
 	// Adding checks to ensure that the data is in the format that we expect M365 to return
 	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
 	if cancelledOccurrences != nil {
-		co, ok := cancelledOccurrences.([]*string)
+		co, ok := cancelledOccurrences.([]any)
 		if !ok {
-			return nil, nil, clues.New("converting cancelledOccurrences to []*string").
+			return nil, nil, clues.New("converting cancelledOccurrences to []any").
 				With("type", fmt.Sprintf("%T", cancelledOccurrences))
 		}
 
 		for _, instance := range co {
-			splits := strings.Split(ptr.Val(instance), ".")
+			instance, err := str.AnyToString(instance)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			splits := strings.Split(instance, ".")
 			if len(splits) < 2 { // There might be multiple `.` in the ID and hence >2
 				return nil, nil, clues.New("unexpected cancelled event format").
 					With("instance", instance)
@@ -326,7 +332,7 @@ func (c Events) GetItem(
 
 			startStr := splits[len(splits)-1]
 
-			_, err := dttm.ParseTime(startStr)
+			_, err = dttm.ParseTime(startStr)
 			if err != nil {
 				return nil, nil, clues.Wrap(err, "parsing cancelled event date")
 			}
@@ -346,13 +352,19 @@ func (c Events) GetItem(
 		return event, EventInfo(event), nil
 	}
 
-	eo, ok := exceptionOccurrences.([]map[string]any)
+	eo, ok := exceptionOccurrences.([]any)
 	if !ok {
-		return nil, nil, clues.New("converting exceptionOccurrences to []map[string]any").
+		return nil, nil, clues.New("converting exceptionOccurrences to []any").
 			With("type", fmt.Sprintf("%T", exceptionOccurrences))
 	}
 
 	for _, instance := range eo {
+		instance, ok := instance.(map[string]any)
+		if !ok {
+			return nil, nil, clues.New("converting instance to map[string]any").
+				With("type", fmt.Sprintf("%T", instance))
+		}
+
 		evt, err := EventFromMap(instance)
 		if err != nil {
 			return nil, nil, clues.Wrap(err, "parsing exception event")
