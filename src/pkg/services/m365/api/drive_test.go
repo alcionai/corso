@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -93,7 +94,7 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	rc := tester.DefaultTestRestoreConfig("drive_api_post_item")
+	rc := testdata.DefaultRestoreConfig("drive_api_post_item")
 
 	// generate a parent for the test data
 	parent, err := suite.ac.Drives().PostItemInContainer(
@@ -160,7 +161,6 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 					ptr.Val(origFolder.GetName()),
 					ptr.Val(i.GetName()),
 					"renamed item should have a different name")
-
 			},
 		},
 		{
@@ -181,7 +181,6 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 					ptr.Val(origFolder.GetName()),
 					ptr.Val(i.GetName()),
 					"replaced item should have the same name")
-
 			},
 		},
 		{
