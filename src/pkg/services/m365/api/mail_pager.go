@@ -121,9 +121,9 @@ func (c Mail) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Messageable] = &mailPager{}
+var _ itemPager[models.Messageable] = &mailPageCtrl{}
 
-type mailPager struct {
+type mailPageCtrl struct {
 	gs      graph.Servicer
 	builder *users.ItemMailFoldersItemMessagesRequestBuilder
 	options *users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration
@@ -151,11 +151,11 @@ func (c Mail) NewMailPager(
 		ByMailFolderId(containerID).
 		Messages()
 
-	return &mailPager{c.Stable, builder, options}
+	return &mailPageCtrl{c.Stable, builder, options}
 }
 
 //lint:ignore U1000 False Positive
-func (p *mailPager) getPage(ctx context.Context) (PageLinkValuer[models.Messageable], error) {
+func (p *mailPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Messageable], error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -165,7 +165,7 @@ func (p *mailPager) getPage(ctx context.Context) (PageLinkValuer[models.Messagea
 }
 
 //lint:ignore U1000 False Positive
-func (p *mailPager) setNext(nextLink string) {
+func (p *mailPageCtrl) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
 }
 
@@ -231,7 +231,7 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewMailPager(userID, containerID, idAnd(createdDateTime, "subject")...)
 
-	items, err := enumerateItems[models.Messageable](ctx, pager)
+	items, err := enumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating mail")
 	}

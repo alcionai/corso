@@ -98,9 +98,9 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Eventable] = &eventsPager{}
+var _ itemPager[models.Eventable] = &eventsPageCtrl{}
 
-type eventsPager struct {
+type eventsPageCtrl struct {
 	gs      graph.Servicer
 	builder *users.ItemCalendarsItemEventsRequestBuilder
 	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
@@ -128,11 +128,11 @@ func (c Events) NewEventsPager(
 		ByCalendarId(containerID).
 		Events()
 
-	return &eventsPager{c.Stable, builder, options}
+	return &eventsPageCtrl{c.Stable, builder, options}
 }
 
 //lint:ignore U1000 False Positive
-func (p *eventsPager) getPage(ctx context.Context) (PageLinkValuer[models.Eventable], error) {
+func (p *eventsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -142,7 +142,7 @@ func (p *eventsPager) getPage(ctx context.Context) (PageLinkValuer[models.Eventa
 }
 
 //lint:ignore U1000 False Positive
-func (p *eventsPager) setNext(nextLink string) {
+func (p *eventsPageCtrl) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
@@ -154,7 +154,7 @@ func (c Events) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewEventsPager(userID, containerID, idAnd(createdDateTime, "subject")...)
 
-	items, err := enumerateItems[models.Eventable](ctx, pager)
+	items, err := enumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating events")
 	}

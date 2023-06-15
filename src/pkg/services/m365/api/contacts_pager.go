@@ -90,9 +90,9 @@ func (c Contacts) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Contactable] = &contactsPager{}
+var _ itemPager[models.Contactable] = &contactsPageCtrl{}
 
-type contactsPager struct {
+type contactsPageCtrl struct {
 	gs      graph.Servicer
 	builder *users.ItemContactFoldersItemContactsRequestBuilder
 	options *users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration
@@ -120,11 +120,11 @@ func (c Contacts) NewContactsPager(
 		ByContactFolderId(containerID).
 		Contacts()
 
-	return &contactsPager{c.Stable, builder, options}
+	return &contactsPageCtrl{c.Stable, builder, options}
 }
 
 //lint:ignore U1000 False Positive
-func (p *contactsPager) getPage(ctx context.Context) (PageLinkValuer[models.Contactable], error) {
+func (p *contactsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Contactable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -134,7 +134,7 @@ func (p *contactsPager) getPage(ctx context.Context) (PageLinkValuer[models.Cont
 }
 
 //lint:ignore U1000 False Positive
-func (p *contactsPager) setNext(nextLink string) {
+func (p *contactsPageCtrl) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
@@ -146,7 +146,7 @@ func (c Contacts) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewContactsPager(userID, containerID, idAnd(createdDateTime, displayName, givenName, surname)...)
 
-	items, err := enumerateItems[models.Contactable](ctx, pager)
+	items, err := enumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}

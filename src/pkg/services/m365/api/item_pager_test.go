@@ -198,7 +198,7 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			result, err := enumerateItems[any](ctx, test.getPager(t, ctx))
+			result, err := enumerateItems(ctx, test.getPager(t, ctx))
 			test.expectErr(t, err, clues.ToCore(err))
 
 			require.EqualValues(t, test.expect, result)
