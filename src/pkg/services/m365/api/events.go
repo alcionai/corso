@@ -312,66 +312,70 @@ func (c Events) GetItem(
 
 	// Fetch attachments for exceptions
 	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
-	if exceptionOccurrences != nil {
-		eo, ok := exceptionOccurrences.([]interface{})
-		if !ok {
-			return nil, nil, clues.New("converting exceptionOccurrences to []interface{}").
-				With("type", fmt.Sprintf("%T", exceptionOccurrences))
+	if exceptionOccurrences == nil {
+		return event, EventInfo(event), nil
+	}
+
+	eo, ok := exceptionOccurrences.([]map[string]any)
+	if !ok {
+		return nil, nil, clues.New("converting exceptionOccurrences to []map[string]any").
+			With("type", fmt.Sprintf("%T", exceptionOccurrences))
+	}
+
+	for _, instance := range eo {
+		evt, err := EventFromMap(instance)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "parsing exception event")
 		}
 
-		for _, inst := range eo {
-			evi, ok := inst.(map[string]any)
-			if !ok {
-				return nil, nil, clues.New("converting instance to map[string]interface{}").
-					With("type", fmt.Sprintf("%T", inst))
-			}
-
-			evt, err := EventFromMap(evi)
-			if err != nil {
-				return nil, nil, clues.Wrap(err, "parsing exception event")
-			}
-
-			// OPTIMIZATION: We don't have to store any of the
-			// attachments that carry over from the original
-			attachments, err := c.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
-			if err != nil {
-				return nil, nil, clues.Wrap(err, "getting exception attachments").
-					With("exception_event_id", ptr.Val(evt.GetId()))
-			}
-
-			// This odd roundabout way of doing this is required as
-			// the json serialization at the end does not serialize if
-			// you just pass in a models.Attachmentable
-			atts := []map[string]interface{}{}
-
-			for _, att := range attachments {
-				writer := kjson.NewJsonSerializationWriter()
-				defer writer.Close()
-
-				if err := writer.WriteObjectValue("", att); err != nil {
-					return nil, nil, graph.Stack(ctx, err)
-				}
-
-				ats, err := writer.GetSerializedContent()
-				if err != nil {
-					return nil, nil, graph.Wrap(ctx, err, "serializing event")
-				}
-
-				atm := map[string]interface{}{}
-
-				err = json.Unmarshal(ats, &atm)
-				if err != nil {
-					return nil, nil, clues.Wrap(err, "unmarshalling serialized attachment")
-				}
-
-				atts = append(atts, atm)
-			}
-
-			evi["attachments"] = atts
+		// OPTIMIZATION: We don't have to store any of the
+		// attachments that carry over from the original
+		attachments, err := c.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting exception attachments").
+				With("exception_event_id", ptr.Val(evt.GetId()))
 		}
+
+		// This odd roundabout way of doing this is required as
+		// the json serialization at the end does not serialize if
+		// you just pass in a models.Attachmentable
+		convertedAttachments := []map[string]interface{}{}
+		for _, attachment := range attachments {
+			am, err := parseableToMap(attachment)
+			if err != nil {
+				return nil, nil, clues.Wrap(err, "converting attachment")
+			}
+
+			convertedAttachments = append(convertedAttachments, am)
+		}
+
+		instance["attachments"] = convertedAttachments
 	}
 
 	return event, EventInfo(event), nil
+}
+
+func parseableToMap(att serialization.Parsable) (map[string]any, error) {
+	var item map[string]any
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	if err := writer.WriteObjectValue("", att); err != nil {
+		return nil, err
+	}
+
+	ats, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(ats, &item)
+	if err != nil {
+		return nil, clues.Wrap(err, "unmarshalling serialized attachment")
+	}
+
+	return item, nil
 }
 
 func (c Events) getAttachments(
