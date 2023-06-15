@@ -229,7 +229,7 @@ func updateCancelledOccurrences(
 		splits := strings.Split(ptr.Val(inst), ".")
 		startStr := splits[len(splits)-1]
 
-		start, err := time.Parse(string(dttm.DateOnly), startStr)
+		start, err := dttm.ParseTime(startStr)
 		if err != nil {
 			return clues.Wrap(err, "parsing cancelled event date")
 		}
