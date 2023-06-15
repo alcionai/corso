@@ -27,4 +27,4 @@ included in backup and restore.
 
 * Sharing information of items in OneDrive/SharePoint using sharing links aren't backed up and restored.
 
-* Changes to attachments in instances of recurring events compared to the series master are not restored
+* Changes to attachments in instances of recurring events compared to the series master aren't restored

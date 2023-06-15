@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.
 
 ### Known Issues
-- Changes to attachments in instances of recurring events compared to the series master are not restored
+- Changes to attachments in instances of recurring events compared to the series master aren't restored
 
 ## [v0.8.0] (beta) - 2023-05-15
 
