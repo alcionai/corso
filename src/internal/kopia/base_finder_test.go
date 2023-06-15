@@ -5,11 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -332,8 +330,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		},
 	}
 
-	bb, err := bf.findBases(ctx, reasons, nil)
-	assert.NoError(t, err, "getting bases: %v", clues.ToCore(err))
+	bb := bf.FindBases(ctx, reasons, nil)
 	assert.Empty(t, bb.MergeBases())
 	assert.Empty(t, bb.AssistBases())
 }
@@ -356,8 +353,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		},
 	}
 
-	bb, err := bf.findBases(ctx, reasons, nil)
-	assert.NoError(t, err, "getting bases: %v", clues.ToCore(err))
+	bb := bf.FindBases(ctx, reasons, nil)
 	assert.Empty(t, bb.MergeBases())
 	assert.Empty(t, bb.AssistBases())
 }
@@ -817,11 +813,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				bg: &mockModelGetter{data: test.backupData},
 			}
 
-			bb, err := bf.findBases(
+			bb := bf.FindBases(
 				ctx,
 				test.input,
 				nil)
-			require.NoError(t, err, "getting bases: %v", clues.ToCore(err))
 
 			checkBackupEntriesMatch(
 				t,
@@ -912,11 +907,10 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 				bg: &mockModelGetter{data: backupData},
 			}
 
-			bb, err := bf.findBases(
+			bb := bf.FindBases(
 				ctx,
 				testAllUsersAllCats,
 				test.tags)
-			require.NoError(t, err, "getting bases: %v", clues.ToCore(err))
 
 			checkManifestEntriesMatch(
 				t,

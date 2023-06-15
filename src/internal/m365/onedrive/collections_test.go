@@ -2491,6 +2491,22 @@ func driveItem(
 	return coreItem(id, name, parentPath, parentID, isFile, isFolder, isPackage)
 }
 
+func fileItem(
+	id, name, parentPath, parentID, url string,
+	deleted bool,
+) models.DriveItemable {
+	di := driveItem(id, name, parentPath, parentID, true, false, false)
+	di.SetAdditionalData(map[string]interface{}{
+		"@microsoft.graph.downloadUrl": url,
+	})
+
+	if deleted {
+		di.SetDeleted(models.NewDeleted())
+	}
+
+	return di
+}
+
 func malwareItem(
 	id string,
 	name string,

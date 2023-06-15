@@ -249,6 +249,8 @@ func (b *baseFinder) findBasesInSet(
 		// If we've made it to this point then we're considering the backup
 		// complete as it has both an item data snapshot and a backup details
 		// snapshot.
+		logger.Ctx(ictx).Infow("found complete backup", "base_backup_id", bup.ID)
+
 		me := ManifestEntry{
 			Manifest: man,
 			Reasons:  []Reason{reason},
@@ -293,11 +295,11 @@ func (b *baseFinder) getBase(
 	return b.findBasesInSet(ctx, reason, metas)
 }
 
-func (b *baseFinder) findBases(
+func (b *baseFinder) FindBases(
 	ctx context.Context,
 	reasons []Reason,
 	tags map[string]string,
-) (backupBases, error) {
+) BackupBases {
 	var (
 		// All maps go from ID -> entry. We need to track by ID so we can coalesce
 		// the reason for selecting something. Kopia assisted snapshots also use
@@ -361,24 +363,13 @@ func (b *baseFinder) findBases(
 		}
 	}
 
-	return backupBases{
+	res := &backupBases{
 		backups:     maps.Values(baseBups),
 		mergeBases:  maps.Values(baseSnaps),
 		assistBases: maps.Values(kopiaAssistSnaps),
-	}, nil
-}
-
-func (b *baseFinder) FindBases(
-	ctx context.Context,
-	reasons []Reason,
-	tags map[string]string,
-) ([]ManifestEntry, error) {
-	bb, err := b.findBases(ctx, reasons, tags)
-	if err != nil {
-		return nil, clues.Stack(err)
 	}
 
-	// assistBases contains all snapshots so we can return it while maintaining
-	// almost all compatibility.
-	return bb.assistBases, nil
+	res.fixupAndVerify(ctx)
+
+	return res
 }
