@@ -104,7 +104,7 @@ type eventsPager struct {
 	// TODO(rkeeprs)
 }
 
-func (c Contacts) NewEventsPager() itemPager[models.Eventable] {
+func (c Events) NewEventsPager() itemPager[models.Eventable] {
 	// TODO(rkeepers)
 	return nil
 }
@@ -135,7 +135,7 @@ type eventIDPager struct {
 	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
 }
 
-func (c Events) NewEventPager(
+func (c Events) NewEventIDsPager(
 	ctx context.Context,
 	userID, containerID string,
 	immutableIDs bool,
@@ -189,7 +189,7 @@ type eventDeltaIDPager struct {
 	options     *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (c Events) NewEventDeltaPager(
+func (c Events) NewEventDeltaIDsPager(
 	ctx context.Context,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
@@ -258,12 +258,12 @@ func (c Events) GetAddedAndRemovedItemIDs(
 ) ([]string, []string, DeltaUpdate, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
 
-	pager, err := c.NewEventPager(ctx, userID, containerID, immutableIDs)
+	pager, err := c.NewEventIDsPager(ctx, userID, containerID, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
 	}
 
-	deltaPager, err := c.NewEventDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs)
+	deltaPager, err := c.NewEventDeltaIDsPager(ctx, userID, containerID, oldDelta, immutableIDs)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
 	}

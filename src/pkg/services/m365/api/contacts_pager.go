@@ -194,7 +194,7 @@ func getContactDeltaBuilder(
 	return builder
 }
 
-func (c Contacts) NewContactDeltaPager(
+func (c Contacts) NewContactDeltaIDsPager(
 	ctx context.Context,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
@@ -249,7 +249,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"container_id", containerID)
 
 	pager := c.NewContactIDsPager(ctx, userID, containerID, immutableIDs)
-	deltaPager := c.NewContactDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs)
+	deltaPager := c.NewContactDeltaIDsPager(ctx, userID, containerID, oldDelta, immutableIDs)
 
 	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }

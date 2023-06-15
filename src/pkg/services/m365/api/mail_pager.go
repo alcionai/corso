@@ -127,7 +127,7 @@ type mailPager struct {
 	// TODO(rkeeprs)
 }
 
-func (c Contacts) NewMailPager() itemPager[models.Messageable] {
+func (c Mail) NewMailPager() itemPager[models.Messageable] {
 	// TODO(rkeepers)
 	return nil
 }
@@ -158,7 +158,7 @@ type mailIDPager struct {
 	options *users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration
 }
 
-func (c Mail) NewMailPager(
+func (c Mail) NewMailIDsPager(
 	ctx context.Context,
 	userID, containerID string,
 	immutableIDs bool,
@@ -233,7 +233,7 @@ func getMailDeltaBuilder(
 	return builder
 }
 
-func (c Mail) NewMailDeltaPager(
+func (c Mail) NewMailDeltaIDsPager(
 	ctx context.Context,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
@@ -295,8 +295,8 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeMail,
 		"container_id", containerID)
 
-	pager := c.NewMailPager(ctx, userID, containerID, immutableIDs)
-	deltaPager := c.NewMailDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs)
+	pager := c.NewMailIDsPager(ctx, userID, containerID, immutableIDs)
+	deltaPager := c.NewMailDeltaIDsPager(ctx, userID, containerID, oldDelta, immutableIDs)
 
 	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
 }
