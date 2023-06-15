@@ -13,7 +13,8 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	rep "github.com/alcionai/corso/src/pkg/control/repository"
+	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -242,7 +243,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	defer flush()
 
 	acct := tester.NewM365Account(t)
-	restoreCfg := tester.DefaultTestRestoreConfig("")
+	restoreCfg := testdata.DefaultRestoreConfig("")
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
@@ -269,7 +270,7 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 	r, err := repository.Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
-	mo, err := r.NewMaintenance(ctx, rep.Maintenance{})
+	mo, err := r.NewMaintenance(ctx, ctrlRepo.Maintenance{})
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, mo)
 }
