@@ -206,6 +206,7 @@ func updateExceptionOccurrences(
 			return clues.Wrap(err, "updating event instance")
 		}
 	}
+
 	return nil
 }
 

@@ -325,6 +325,7 @@ func (c Events) GetItem(
 			}
 
 			startStr := splits[len(splits)-1]
+
 			_, err := dttm.ParseTime(startStr)
 			if err != nil {
 				return nil, nil, clues.Wrap(err, "parsing cancelled event date")
@@ -369,6 +370,7 @@ func (c Events) GetItem(
 		// the json serialization at the end does not serialize if
 		// you just pass in a models.Attachmentable
 		convertedAttachments := []map[string]interface{}{}
+
 		for _, attachment := range attachments {
 			am, err := parseableToMap(attachment)
 			if err != nil {
