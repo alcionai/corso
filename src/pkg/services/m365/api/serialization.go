@@ -13,7 +13,7 @@ func createFromBytes(
 ) (serialization.Parsable, error) {
 	parseNode, err := kjson.NewJsonParseNodeFactory().GetRootParseNode("application/json", bytes)
 	if err != nil {
-		return nil, clues.Wrap(err, "deserializing bytes into base m365 object")
+		return nil, clues.Wrap(err, "deserializing bytes into base m365 object").With("bytes_len", len(bytes))
 	}
 
 	v, err := parseNode.GetObjectValue(createFunc)

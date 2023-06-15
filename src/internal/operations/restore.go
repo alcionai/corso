@@ -68,7 +68,7 @@ func NewRestoreOperation(
 		operation:  newOperation(opts, bus, kw, sw),
 		acct:       acct,
 		BackupID:   backupID,
-		RestoreCfg: restoreCfg,
+		RestoreCfg: control.EnsureRestoreConfigDefaults(ctx, restoreCfg),
 		Selectors:  sel,
 		Version:    "v0",
 		rc:         rc,

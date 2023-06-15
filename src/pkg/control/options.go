@@ -1,8 +1,14 @@
 package control
 
 import (
+	"context"
+	"strings"
+
+	"golang.org/x/exp/slices"
+
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // Options holds the optional configurations for a process
@@ -64,6 +70,8 @@ const (
 	Replace CollisionPolicy = "replace"
 )
 
+const RootLocation = "/"
+
 // RestoreConfig contains
 type RestoreConfig struct {
 	// Defines the per-item collision handling policy.
@@ -92,6 +100,29 @@ func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
 		OnCollision: Skip,
 		Location:    defaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
+}
+
+// EnsureRestoreConfigDefaults sets all non-supported values in the config
+// struct to the default value.
+func EnsureRestoreConfigDefaults(
+	ctx context.Context,
+	rc RestoreConfig,
+) RestoreConfig {
+	if !slices.Contains([]CollisionPolicy{Skip, Copy, Replace}, rc.OnCollision) {
+		logger.Ctx(ctx).
+			With(
+				"bad_collision_policy", rc.OnCollision,
+				"default_collision_policy", Skip).
+			Info("setting collision policy to default")
+
+		rc.OnCollision = Skip
+	}
+
+	if strings.TrimSpace(rc.Location) == RootLocation {
+		rc.Location = ""
+	}
+
+	return rc
 }
 
 // ---------------------------------------------------------------------------
