@@ -112,6 +112,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// Create a new URL cache with a long TTL
 	cache, err := newURLCache(
 		suite.driveID,
+		"",
 		1*time.Hour,
 		driveItemPager,
 		fault.New(true))

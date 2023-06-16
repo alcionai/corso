@@ -394,6 +394,7 @@ func (c *Collections) Get(
 			err = c.addURLCacheToDriveCollections(
 				ictx,
 				driveID,
+				prevDelta,
 				errs)
 			if err != nil {
 				return nil, false, err
@@ -465,11 +466,12 @@ func (c *Collections) Get(
 // a drive.
 func (c *Collections) addURLCacheToDriveCollections(
 	ctx context.Context,
-	driveID string,
+	driveID, prevDelta string,
 	errs *fault.Bus,
 ) error {
 	uc, err := newURLCache(
 		driveID,
+		prevDelta,
 		urlCacheRefreshInterval,
 		c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
 		errs)

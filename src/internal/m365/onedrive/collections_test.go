@@ -2739,6 +2739,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 			err := c.addURLCacheToDriveCollections(
 				ctx,
 				driveID,
+				"",
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
