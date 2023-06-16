@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -81,7 +82,8 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		ctx,
 		driveID,
 		ptr.Val(root.GetId()),
-		newItem(newFolderName, true))
+		newItem(newFolderName, true),
+		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, newFolder.GetId())
 
@@ -97,7 +99,8 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			ctx,
 			driveID,
 			nfid,
-			newItem(newItemName, false))
+			newItem(newItemName, false),
+			control.Copy)
 		if err != nil {
 			// Something bad happened, skip this item
 			continue

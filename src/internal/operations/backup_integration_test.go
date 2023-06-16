@@ -1564,7 +1564,8 @@ func runDriveIncrementalTest(
 					ctx,
 					driveID,
 					targetContainer,
-					driveItem)
+					driveItem,
+					control.Copy)
 				require.NoErrorf(t, err, "creating new file %v", clues.ToCore(err))
 
 				newFileID = ptr.Val(newFile.GetId())
