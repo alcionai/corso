@@ -138,6 +138,7 @@ func (medc *DataCollection) Items(
 	return res
 }
 
+// TODO: move to data/mock for service-agnostic mocking
 // Data represents a single item retrieved from exchange
 type Data struct {
 	ID           string
