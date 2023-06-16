@@ -63,6 +63,23 @@ func (c Mail) CreateMailFolder(
 	return mdl, nil
 }
 
+func (c Mail) DeleteMailFolder(
+	ctx context.Context,
+	userID, id string,
+) error {
+	err := c.Stable.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(id).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting mail folder")
+	}
+
+	return nil
+}
+
 func (c Mail) CreateContainer(
 	ctx context.Context,
 	userID, containerName, parentContainerID string,
