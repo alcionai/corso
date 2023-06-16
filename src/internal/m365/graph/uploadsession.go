@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -21,8 +22,11 @@ const (
 // Writer implements an io.Writer for a M365
 // UploadSession URL
 type largeItemWriter struct {
+	// ID is the id of the item created.
+	// Will be available after the upload is complete
+	ID string
 	// Identifier
-	id string
+	parentID string
 	// Upload URL for this item
 	url string
 	// Tracks how much data will be written
@@ -32,8 +36,13 @@ type largeItemWriter struct {
 	client            httpWrapper
 }
 
-func NewLargeItemWriter(id, url string, size int64) *largeItemWriter {
-	return &largeItemWriter{id: id, url: url, contentLength: size, client: *NewNoTimeoutHTTPWrapper()}
+func NewLargeItemWriter(parentID, url string, size int64) *largeItemWriter {
+	return &largeItemWriter{
+		parentID:      parentID,
+		url:           url,
+		contentLength: size,
+		client:        *NewNoTimeoutHTTPWrapper(),
+	}
 }
 
 // Write will upload the provided data to M365. It sets the `Content-Length` and `Content-Range` headers based on
@@ -44,7 +53,7 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 
 	logger.Ctx(ctx).
 		Debugf("WRITE for %s. Size:%d, Offset: %d, TotalSize: %d",
-			iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
+			iw.parentID, rangeLength, iw.lastWrittenOffset, iw.contentLength)
 
 	endOffset := iw.lastWrittenOffset + int64(rangeLength)
 
@@ -58,7 +67,7 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 		iw.contentLength)
 	headers[contentLengthHeaderKey] = fmt.Sprintf("%d", rangeLength)
 
-	_, err := iw.client.Request(
+	resp, err := iw.client.Request(
 		ctx,
 		http.MethodPut,
 		iw.url,
@@ -66,7 +75,7 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 		headers)
 	if err != nil {
 		return 0, clues.Wrap(err, "uploading item").With(
-			"upload_id", iw.id,
+			"upload_id", iw.parentID,
 			"upload_chunk_size", rangeLength,
 			"upload_offset", iw.lastWrittenOffset,
 			"upload_size", iw.contentLength)
@@ -74,6 +83,22 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 
 	// Update last offset
 	iw.lastWrittenOffset = endOffset
+
+	// Once the upload is complete, we get a Location header in the
+	// below format from which we can get the id of the uploaded
+	// item. This will only be available after we have uploaded the
+	// entire content(based on the size in the req header).
+	// https://outlook.office.com/api/v2.0/Users('<user-id>')/Messages('<message-id>')/Attachments('<attachment-id>')
+	loc := resp.Header.Get("Location")
+	if loc != "" {
+		splits := strings.Split(loc, "'")
+		if len(splits) != 7 || splits[4] != ")/Attachments(" || splits[5] == "" {
+			return 0, clues.New("invalid format for upload completion url").
+				With("location", loc)
+		}
+
+		iw.ID = splits[5]
+	}
 
 	return rangeLength, nil
 }
