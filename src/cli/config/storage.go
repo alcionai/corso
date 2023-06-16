@@ -24,6 +24,10 @@ func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 		return s3Config, clues.New("unsupported storage provider: " + providerType)
 	}
 
+	s3Config.AccessKey = vpr.GetString(AccessKey)
+	s3Config.SecretKey = vpr.GetString(SecretAccessKey)
+	s3Config.SessionToken = vpr.GetString(SessionToken)
+
 	s3Config.Bucket = vpr.GetString(BucketNameKey)
 	s3Config.Endpoint = vpr.GetString(EndpointKey)
 	s3Config.Prefix = vpr.GetString(PrefixKey)
@@ -76,8 +80,14 @@ func configureStorage(
 	}
 
 	aws := credentials.GetAWS(overrides)
+
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
 		_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
+		if err != nil && (len(s3Cfg.AccessKey) > 0 || len(s3Cfg.SecretKey) > 0) {
+			aws = credentials.AWS{AccessKey: s3Cfg.AccessKey, SecretKey: s3Cfg.SecretKey, SessionToken: s3Cfg.SessionToken}
+			err = nil
+		}
+
 		if err != nil {
 			return store, clues.Wrap(err, "validating aws credentials")
 		}

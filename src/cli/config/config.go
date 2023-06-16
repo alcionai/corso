@@ -26,6 +26,10 @@ const (
 	DisableTLSVerificationKey = "disable_tls_verification"
 	RepoID                    = "repo_id"
 
+	AccessKey       = "aws_access_key_id"
+	SecretAccessKey = "aws_secret_access_key"
+	SessionToken    = "aws_session_token"
+
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
 	AzureTenantIDKey       = "azure_tenantid"
