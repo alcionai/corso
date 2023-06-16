@@ -22,7 +22,7 @@ type attachmentPoster interface {
 		ctx context.Context,
 		userID, containerID, itemID, name string,
 		content []byte,
-	) (models.UploadSessionable, error)
+	) (string, error)
 }
 
 const (
