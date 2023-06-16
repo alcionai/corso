@@ -76,10 +76,7 @@ func ConsumeRestoreCollections(
 		el             = errs.Local()
 	)
 
-	ctx = clues.Add(
-		ctx,
-		"backup_version", backupVersion,
-		"restore_location", restoreCfg.Location)
+	ctx = clues.Add(ctx, "backup_version", backupVersion)
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
@@ -97,7 +94,6 @@ func ConsumeRestoreCollections(
 			ictx    = clues.Add(
 				ctx,
 				"category", dc.FullPath().Category(),
-				"destination", clues.Hide(restoreCfg.Location),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"full_path", dc.FullPath())
 		)
@@ -105,10 +101,10 @@ func ConsumeRestoreCollections(
 		metrics, err = RestoreCollection(
 			ictx,
 			rh,
+			restoreCfg,
 			backupVersion,
 			dc,
 			caches,
-			restoreCfg.Location,
 			deets,
 			opts.RestorePermissions,
 			errs)
@@ -141,12 +137,12 @@ func ConsumeRestoreCollections(
 func RestoreCollection(
 	ctx context.Context,
 	rh RestoreHandler,
+	restoreCfg control.RestoreConfig,
 	backupVersion int,
 	dc data.RestoreCollection,
 	caches *restoreCaches,
-	restoreContainerName string,
 	deets *details.Builder,
-	restorePerms bool,
+	restorePerms bool, // TODD: move into restoreConfig
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
@@ -181,7 +177,13 @@ func RestoreCollection(
 	// from the backup under this the restore folder instead of root)
 	// i.e. Restore into `<restoreContainerName>/<original folder path>`
 	// the drive into which this folder gets restored is tracked separately in drivePath.
-	restoreDir := path.Builder{}.Append(restoreContainerName).Append(drivePath.Folders...)
+	restoreDir := &path.Builder{}
+
+	if len(restoreCfg.Location) > 0 {
+		restoreDir = restoreDir.Append(restoreCfg.Location)
+	}
+
+	restoreDir = restoreDir.Append(drivePath.Folders...)
 
 	ctx = clues.Add(
 		ctx,
@@ -280,6 +282,7 @@ func RestoreCollection(
 				itemInfo, skipped, err := restoreItem(
 					ictx,
 					rh,
+					restoreCfg,
 					dc,
 					backupVersion,
 					drivePath,
@@ -328,6 +331,7 @@ func RestoreCollection(
 func restoreItem(
 	ctx context.Context,
 	rh RestoreHandler,
+	restoreCfg control.RestoreConfig,
 	fibn data.FetchItemByNamer,
 	backupVersion int,
 	drivePath *path.DrivePath,
@@ -345,12 +349,17 @@ func restoreItem(
 		itemInfo, err := restoreV0File(
 			ctx,
 			rh,
+			restoreCfg,
 			drivePath,
 			fibn,
 			restoreFolderID,
 			copyBuffer,
 			itemData)
 		if err != nil {
+			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
+				return details.ItemInfo{}, true, nil
+			}
+
 			return details.ItemInfo{}, false, clues.Wrap(err, "v0 restore")
 		}
 
@@ -394,6 +403,7 @@ func restoreItem(
 		itemInfo, err := restoreV1File(
 			ctx,
 			rh,
+			restoreCfg,
 			drivePath,
 			fibn,
 			restoreFolderID,
@@ -403,6 +413,10 @@ func restoreItem(
 			itemPath,
 			itemData)
 		if err != nil {
+			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
+				return details.ItemInfo{}, true, nil
+			}
+
 			return details.ItemInfo{}, false, clues.Wrap(err, "v1 restore")
 		}
 
@@ -414,6 +428,7 @@ func restoreItem(
 	itemInfo, err := restoreV6File(
 		ctx,
 		rh,
+		restoreCfg,
 		drivePath,
 		fibn,
 		restoreFolderID,
@@ -423,6 +438,10 @@ func restoreItem(
 		itemPath,
 		itemData)
 	if err != nil {
+		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
+			return details.ItemInfo{}, true, nil
+		}
+
 		return details.ItemInfo{}, false, clues.Wrap(err, "v6 restore")
 	}
 
@@ -432,6 +451,7 @@ func restoreItem(
 func restoreV0File(
 	ctx context.Context,
 	rh RestoreHandler,
+	restoreCfg control.RestoreConfig,
 	drivePath *path.DrivePath,
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
@@ -440,6 +460,7 @@ func restoreV0File(
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
 		ctx,
+		restoreCfg,
 		rh,
 		fibn,
 		itemData.UUID(),
@@ -457,6 +478,7 @@ func restoreV0File(
 func restoreV1File(
 	ctx context.Context,
 	rh RestoreHandler,
+	restoreCfg control.RestoreConfig,
 	drivePath *path.DrivePath,
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
@@ -470,6 +492,7 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
+		restoreCfg,
 		rh,
 		fibn,
 		trimmedName,
@@ -513,6 +536,7 @@ func restoreV1File(
 func restoreV6File(
 	ctx context.Context,
 	rh RestoreHandler,
+	restoreCfg control.RestoreConfig,
 	drivePath *path.DrivePath,
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
@@ -550,6 +574,7 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreData(
 		ctx,
+		restoreCfg,
 		rh,
 		fibn,
 		meta.FileName,
@@ -683,7 +708,16 @@ func createRestoreFolders(
 		}
 
 		// create the folder if not found
-		folderItem, err = fr.PostItemInContainer(ictx, driveID, parentFolderID, newItem(folder, true))
+		// the Replace collision policy is used since collisions on that
+		// policy will no-op and return the existing folder.  This has two
+		// benefits: first, we get to treat the post as idempotent; and
+		// second, we don't have to worry about race conditions.
+		folderItem, err = fr.PostItemInContainer(
+			ictx,
+			driveID,
+			parentFolderID,
+			newItem(folder, true),
+			control.Replace)
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -706,6 +740,7 @@ type itemRestorer interface {
 // restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreData(
 	ctx context.Context,
+	restoreCfg control.RestoreConfig,
 	ir itemRestorer,
 	fibn data.FetchItemByNamer,
 	name string,
@@ -725,7 +760,12 @@ func restoreData(
 	}
 
 	// Create Item
-	newItem, err := ir.PostItemInContainer(ctx, driveID, parentFolderID, newItem(name, false))
+	newItem, err := ir.PostItemInContainer(
+		ctx,
+		driveID,
+		parentFolderID,
+		newItem(name, false),
+		restoreCfg.OnCollision)
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}

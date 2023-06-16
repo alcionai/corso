@@ -33,13 +33,16 @@ const (
 	itemNotFoundShort           errorCode = "itemNotFound"
 	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
-	requestResourceNotFound     errorCode = "Request_ResourceNotFound"
-	quotaExceeded               errorCode = "ErrorQuotaExceeded"
-	resourceNotFound            errorCode = "ResourceNotFound"
-	resyncRequired              errorCode = "ResyncRequired" // alt: resyncRequired
-	syncFolderNotFound          errorCode = "ErrorSyncFolderNotFound"
-	syncStateInvalid            errorCode = "SyncStateInvalid"
-	syncStateNotFound           errorCode = "SyncStateNotFound"
+	// nameAlreadyExists occurs when a request with
+	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
+	nameAlreadyExists       errorCode = "nameAlreadyExists"
+	quotaExceeded           errorCode = "ErrorQuotaExceeded"
+	requestResourceNotFound errorCode = "Request_ResourceNotFound"
+	resourceNotFound        errorCode = "ResourceNotFound"
+	resyncRequired          errorCode = "ResyncRequired" // alt: resyncRequired
+	syncFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
+	syncStateInvalid        errorCode = "SyncStateInvalid"
+	syncStateNotFound       errorCode = "SyncStateNotFound"
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
@@ -78,6 +81,12 @@ var (
 	// becomes invalid, and cannot be used again.
 	// https://learn.microsoft.com/en-us/graph/errors#code-property
 	ErrInvalidDelta = clues.New("invalid delta token")
+
+	// ErrItemAlreadyExistsConflict denotes that a post or put attempted to create
+	// an item which already exists by some unique identifier.  The identifier is
+	// not always the id.  For example, in onedrive, this error can be produced
+	// when filenames collide in a @microsoft.graph.conflictBehavior=fail request.
+	ErrItemAlreadyExistsConflict = clues.New("item already exists")
 
 	// ErrServiceNotEnabled identifies that a resource owner does not have
 	// access to a given service.
@@ -160,6 +169,11 @@ func IsErrUnauthorized(err error) bool {
 	// a specific item download url expired, or if the full connection
 	// auth expired.
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized))
+}
+
+func IsErrItemAlreadyExistsConflict(err error) bool {
+	return hasErrorCode(err, nameAlreadyExists) ||
+		errors.Is(err, ErrItemAlreadyExistsConflict)
 }
 
 // LabelStatus transforms the provided statusCode into

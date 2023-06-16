@@ -13,6 +13,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -54,7 +55,7 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 
 	var (
 		userID     = tester.M365UserID(t)
-		folderName = tester.DefaultTestRestoreConfig("contact").Location
+		folderName = testdata.DefaultRestoreConfig("contact").Location
 		handler    = newContactRestoreHandler(suite.ac)
 	)
 
@@ -88,7 +89,7 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 
 	var (
 		userID  = tester.M365UserID(t)
-		subject = tester.DefaultTestRestoreConfig("event").Location
+		subject = testdata.DefaultRestoreConfig("event").Location
 		handler = newEventRestoreHandler(suite.ac)
 	)
 
@@ -162,7 +163,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageBytes("Restore Exchange Object"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailobj").Location
+				folderName := testdata.DefaultRestoreConfig("mailobj").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -175,7 +176,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithDirectAttachment("Restore 1 Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailwattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailwattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -188,7 +189,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithItemAttachmentEvent("Event Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("eventwattch").Location
+				folderName := testdata.DefaultRestoreConfig("eventwattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -201,7 +202,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithItemAttachmentMail("Mail Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailitemattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailitemattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -217,7 +218,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailbasicattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailbasicattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -233,7 +234,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailnestattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailnestattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -249,7 +250,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailcontactattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailcontactattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -262,7 +263,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("nestedattch").Location
+				folderName := testdata.DefaultRestoreConfig("nestedattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -275,7 +276,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithLargeAttachment("Restore Large Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("maillargeattch").Location
+				folderName := testdata.DefaultRestoreConfig("maillargeattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -288,7 +289,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithTwoAttachments("Restore 2 Attachments"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailtwoattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailtwoattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -301,7 +302,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.MessageWithOneDriveAttachment("Restore Reference(OneDrive) Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("mailrefattch").Location
+				folderName := testdata.DefaultRestoreConfig("mailrefattch").Location
 				folder, err := handlers[path.EmailCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -314,7 +315,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.ContactBytes("Test_Omega"),
 			category: path.ContactsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("contact").Location
+				folderName := testdata.DefaultRestoreConfig("contact").Location
 				folder, err := handlers[path.ContactsCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -327,7 +328,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.EventBytes("Restored Event Object"),
 			category: path.EventsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("event").Location
+				folderName := testdata.DefaultRestoreConfig("event").Location
 				calendar, err := handlers[path.EventsCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
@@ -340,7 +341,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			bytes:    exchMock.EventWithAttachment("Restored Event Attachment"),
 			category: path.EventsCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := tester.DefaultTestRestoreConfig("eventobj").Location
+				folderName := testdata.DefaultRestoreConfig("eventobj").Location
 				calendar, err := handlers[path.EventsCategory].
 					CreateContainer(ctx, userID, folderName, "")
 				require.NoError(t, err, clues.ToCore(err))
