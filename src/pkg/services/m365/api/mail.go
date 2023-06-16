@@ -407,14 +407,9 @@ func (c Mail) PostSmallAttachment(
 func (c Mail) PostLargeAttachment(
 	ctx context.Context,
 	userID, containerID, parentItemID, itemName string,
-	size int64,
-	body models.Attachmentable,
+	content []byte,
 ) (models.UploadSessionable, error) {
-	bs, err := GetAttachmentContent(body)
-	if err != nil {
-		return nil, clues.Wrap(err, "serializing attachment content").WithClues(ctx)
-	}
-
+	size := int64(len(content))
 	session := users.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(itemName, size))
 
@@ -437,7 +432,7 @@ func (c Mail) PostLargeAttachment(
 	w := graph.NewLargeItemWriter(parentItemID, url, size)
 	copyBuffer := make([]byte, graph.AttachmentChunkSize)
 
-	_, err = io.CopyBuffer(w, bytes.NewReader(bs), copyBuffer)
+	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)
 	if err != nil {
 		return nil, clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
 	}

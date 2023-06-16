@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type attachmentPoster interface {
@@ -20,15 +21,14 @@ type attachmentPoster interface {
 	PostLargeAttachment(
 		ctx context.Context,
 		userID, containerID, itemID, name string,
-		size int64,
-		body models.Attachmentable,
+		content []byte,
 	) (models.UploadSessionable, error)
 }
 
 const (
 	// Use large attachment logic for attachments > 3MB
 	// https://learn.microsoft.com/en-us/graph/outlook-large-attachments
-	largeAttachmentSize           = int32(3 * 1024 * 1024)
+	largeAttachmentSize           = 3 * 1024 * 1024
 	fileAttachmentOdataValue      = "#microsoft.graph.fileAttachment"
 	itemAttachmentOdataValue      = "#microsoft.graph.itemAttachment"
 	referenceAttachmentOdataValue = "#microsoft.graph.referenceAttachment"
@@ -61,8 +61,16 @@ func uploadAttachment(
 		attachmentType = attachmentType(attachment)
 		id             = ptr.Val(attachment.GetId())
 		name           = ptr.Val(attachment.GetName())
-		size           = ptr.Val(attachment.GetSize())
 	)
+
+	content, err := api.GetAttachmentContent(attachment)
+	if err != nil {
+		return clues.Wrap(err, "serializing attachment content").WithClues(ctx)
+	}
+
+	// We cannot rely on attachment.GetSize() as that seems to be
+	// higher than the actual size for some reason
+	size := len(content)
 
 	ctx = clues.Add(
 		ctx,
@@ -95,7 +103,7 @@ func uploadAttachment(
 
 	// for file attachments sized >= 3MB
 	if attachmentType == models.FILE_ATTACHMENTTYPE && size >= largeAttachmentSize {
-		_, err := cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, int64(size), attachment)
+		_, err := cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, content)
 		return err
 	}
 
