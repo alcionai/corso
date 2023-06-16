@@ -41,9 +41,7 @@ func ConsumeRestoreCollections(
 		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
 		handlers       = restoreHandlers(ac)
 		metrics        support.CollectionMetrics
-		// TODO policy to be updated from external source after completion of refactoring
-		policy = control.Copy
-		el     = errs.Local()
+		el             = errs.Local()
 	)
 
 	ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
@@ -87,8 +85,13 @@ func ConsumeRestoreCollections(
 		}
 
 		directoryCache[category] = gcc
-
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
+
+		collisionKeyToItemID, err := handler.getItemsInContainerByCollisionKey(ctx, userID, containerID)
+		if err != nil {
+			el.AddRecoverable(ctx, clues.Wrap(err, "building item collision cache"))
+			continue
+		}
 
 		temp, err := restoreCollection(
 			ictx,
@@ -96,7 +99,8 @@ func ConsumeRestoreCollections(
 			dc,
 			userID,
 			containerID,
-			policy,
+			collisionKeyToItemID,
+			restoreCfg.OnCollision,
 			deets,
 			errs)
 
@@ -127,7 +131,8 @@ func restoreCollection(
 	ir itemRestorer,
 	dc data.RestoreCollection,
 	userID, destinationID string,
-	policy control.CollisionPolicy,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -172,9 +177,19 @@ func restoreCollection(
 
 			body := buf.Bytes()
 
-			info, err := ir.restore(ictx, body, userID, destinationID, errs)
+			info, err := ir.restore(
+				ictx,
+				body,
+				userID,
+				destinationID,
+				collisionKeyToItemID,
+				collisionPolicy,
+				errs)
 			if err != nil {
-				el.AddRecoverable(ictx, err)
+				if !graph.IsErrItemAlreadyExistsConflict(err) {
+					el.AddRecoverable(ictx, err)
+				}
+
 				continue
 			}
 

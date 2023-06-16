@@ -13,6 +13,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -74,6 +75,8 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 		ctx,
 		exchMock.ContactBytes("Corso TestContact"),
 		userID, folderID,
+		nil,
+		control.Copy,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "contact item info")
@@ -141,6 +144,8 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 				ctx,
 				test.bytes,
 				userID, calendarID,
+				nil,
+				control.Copy,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "event item info")
@@ -367,6 +372,8 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				ctx,
 				test.bytes,
 				userID, destination,
+				nil,
+				control.Copy,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "item info was not populated")

@@ -10,7 +10,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -19,17 +21,13 @@ var _ itemRestorer = &mailRestoreHandler{}
 
 type mailRestoreHandler struct {
 	ac api.Mail
-	ip itemPoster[models.Messageable]
 }
 
 func newMailRestoreHandler(
 	ac api.Client,
 ) mailRestoreHandler {
-	acm := ac.Mail()
-
 	return mailRestoreHandler{
-		ac: acm,
-		ip: acm,
+		ac: ac.Mail(),
 	}
 }
 
@@ -72,6 +70,32 @@ func (h mailRestoreHandler) restore(
 	ctx context.Context,
 	body []byte,
 	userID, destinationID string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
+	errs *fault.Bus,
+) (*details.ExchangeInfo, error) {
+	return restoreMail(
+		ctx,
+		h.ac,
+		body,
+		userID, destinationID,
+		collisionKeyToItemID,
+		collisionPolicy,
+		errs)
+}
+
+type mailRestorer interface {
+	postItemer[models.Messageable]
+	attachmentPoster
+}
+
+func restoreMail(
+	ctx context.Context,
+	mr mailRestorer,
+	body []byte,
+	userID, destinationID string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	msg, err := api.BytesToMessageable(body)
@@ -80,20 +104,33 @@ func (h mailRestoreHandler) restore(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
+	collisionKey := api.MailCollisionKey(msg)
+
+	if _, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		// TODO(rkeepers): Replace probably shouldn't no-op.  Just a starting point.
+		if collisionPolicy == control.Skip || collisionPolicy == control.Replace {
+			log.Debug("skipping item with collision")
+			return nil, graph.ErrItemAlreadyExistsConflict
+		}
+	}
+
 	msg = setMessageSVEPs(toMessage(msg))
 
 	attachments := msg.GetAttachments()
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	msg.SetAttachments([]models.Attachmentable{})
 
-	item, err := h.ip.PostItem(ctx, userID, destinationID, msg)
+	item, err := mr.PostItem(ctx, userID, destinationID, msg)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "restoring mail message")
 	}
 
 	err = uploadAttachments(
 		ctx,
-		h.ac,
+		mr,
 		attachments,
 		userID,
 		destinationID,
@@ -137,4 +174,16 @@ func setMessageSVEPs(msg models.Messageable) models.Messageable {
 	msg.SetSingleValueExtendedProperties(svlep)
 
 	return msg
+}
+
+func (h mailRestoreHandler) getItemsInContainerByCollisionKey(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]string, error) {
+	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, userID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }

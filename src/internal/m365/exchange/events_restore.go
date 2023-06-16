@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -25,17 +26,13 @@ var _ itemRestorer = &eventRestoreHandler{}
 
 type eventRestoreHandler struct {
 	ac api.Events
-	ip itemPoster[models.Eventable]
 }
 
 func newEventRestoreHandler(
 	ac api.Client,
 ) eventRestoreHandler {
-	ace := ac.Events()
-
 	return eventRestoreHandler{
-		ac: ace,
-		ip: ace,
+		ac: ac.Events(),
 	}
 }
 
@@ -74,6 +71,32 @@ func (h eventRestoreHandler) restore(
 	ctx context.Context,
 	body []byte,
 	userID, destinationID string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
+	errs *fault.Bus,
+) (*details.ExchangeInfo, error) {
+	return restoreEvent(
+		ctx,
+		h.ac,
+		body,
+		userID, destinationID,
+		collisionKeyToItemID,
+		collisionPolicy,
+		errs)
+}
+
+type eventRestorer interface {
+	postItemer[models.Eventable]
+	attachmentPoster
+}
+
+func restoreEvent(
+	ctx context.Context,
+	er eventRestorer,
+	body []byte,
+	userID, destinationID string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
@@ -82,6 +105,18 @@ func (h eventRestoreHandler) restore(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
+	collisionKey := api.EventCollisionKey(event)
+
+	if _, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		// TODO(rkeepers): Replace probably shouldn't no-op.  Just a starting point.
+		if collisionPolicy == control.Skip || collisionPolicy == control.Replace {
+			log.Debug("skipping item with collision")
+			return nil, graph.ErrItemAlreadyExistsConflict
+		}
+	}
 
 	event = toEventSimplified(event)
 
@@ -94,14 +129,14 @@ func (h eventRestoreHandler) restore(
 		event.SetAttachments(nil)
 	}
 
-	item, err := h.ip.PostItem(ctx, userID, destinationID, event)
+	item, err := er.PostItem(ctx, userID, destinationID, event)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "restoring calendar item")
 	}
 
 	err = uploadAttachments(
 		ctx,
-		h.ac,
+		er,
 		attachments,
 		userID,
 		destinationID,
@@ -415,4 +450,16 @@ func updateCancelledOccurrences(
 	}
 
 	return nil
+}
+
+func (h eventRestoreHandler) getItemsInContainerByCollisionKey(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]string, error) {
+	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, userID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }
