@@ -11,9 +11,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
 
 type EventsAPIUnitSuite struct {
@@ -211,4 +214,74 @@ func (suite *EventsAPIUnitSuite) TestBytesToEventable() {
 			test.isNil(t, result)
 		})
 	}
+}
+
+type EventsAPIIntgSuite struct {
+	tester.Suite
+	credentials account.M365Config
+	ac          Client
+}
+
+func TestEventsAPIntgSuite(t *testing.T) {
+	suite.Run(t, &EventsAPIIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs}),
+	})
+}
+
+func (suite *EventsAPIIntgSuite) SetupSuite() {
+	t := suite.T()
+
+	a := tester.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.credentials = m365
+	suite.ac, err = NewClient(m365)
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *EventsAPIIntgSuite) TestRestoreLargeAttachment() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	userID := tester.M365UserID(suite.T())
+
+	folderName := testdata.DefaultRestoreConfig("eventrestoretest").Location
+	evts := suite.ac.Events()
+	calendar, err := evts.CreateContainer(ctx, userID, folderName, "")
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Delete on exit
+	defer func() { _ = evts.DeleteContainer(ctx, userID, ptr.Val(calendar.GetId())) }()
+
+	tomorrow := time.Now().Add(24 * time.Hour)
+	evt := models.NewEvent()
+	sdtz := models.NewDateTimeTimeZone()
+	edtz := models.NewDateTimeTimeZone()
+
+	evt.SetSubject(ptr.To("Event with attachment"))
+	sdtz.SetDateTime(ptr.To(dttm.Format(tomorrow)))
+	sdtz.SetTimeZone(ptr.To("UTC"))
+	edtz.SetDateTime(ptr.To(dttm.Format(tomorrow.Add(30 * time.Minute))))
+	edtz.SetTimeZone(ptr.To("UTC"))
+	evt.SetStart(sdtz)
+	evt.SetEnd(edtz)
+
+	item, err := evts.PostItem(ctx, userID, ptr.Val(calendar.GetId()), evt)
+	require.NoError(t, err, clues.ToCore(err))
+
+	id, err := evts.PostLargeAttachment(
+		ctx,
+		userID,
+		ptr.Val(calendar.GetId()),
+		ptr.Val(item.GetId()),
+		"raboganm",
+		[]byte("mangobar"),
+	)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotEmpty(t, id, "empty id for large attachment")
 }
