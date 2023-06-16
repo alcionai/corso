@@ -7,6 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -54,6 +55,10 @@ type BackupHandler interface {
 	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
 	NewLocationIDer(driveID string, elems ...string) details.LocationIDer
+
+	// scope wrapper funcs
+	IsAllPass() bool
+	IncludesDir(dir string) bool
 }
 
 type GetItemPermissioner interface {
@@ -113,6 +118,7 @@ type PostItemInContainerer interface {
 		ctx context.Context,
 		driveID, parentFolderID string,
 		newItem models.DriveItemable,
+		onCollision control.CollisionPolicy,
 	) (models.DriveItemable, error)
 }
 

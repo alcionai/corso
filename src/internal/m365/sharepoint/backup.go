@@ -220,10 +220,9 @@ func collectLibraries(
 	var (
 		collections = []data.BackupCollection{}
 		colls       = onedrive.NewCollections(
-			&libraryBackupHandler{ad},
+			&libraryBackupHandler{ad, scope},
 			tenantID,
 			site.ID(),
-			folderMatcher{scope},
 			updater.UpdateStatus,
 			ctrlOpts)
 	)
@@ -300,16 +299,4 @@ func collectPages(
 	}
 
 	return spcs, el.Failure()
-}
-
-type folderMatcher struct {
-	scope selectors.SharePointScope
-}
-
-func (fm folderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
-}
-
-func (fm folderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.SharePointLibraryFolder, dir)
 }

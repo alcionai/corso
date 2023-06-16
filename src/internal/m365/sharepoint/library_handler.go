@@ -12,14 +12,17 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var _ onedrive.BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
-	ac api.Drives
+	ac    api.Drives
+	scope selectors.SharePointScope
 }
 
 func (h libraryBackupHandler) Get(
@@ -139,6 +142,14 @@ func (h libraryBackupHandler) GetItem(
 	return h.ac.GetItem(ctx, driveID, itemID)
 }
 
+func (h libraryBackupHandler) IsAllPass() bool {
+	return h.scope.IsAny(selectors.SharePointLibraryFolder)
+}
+
+func (h libraryBackupHandler) IncludesDir(dir string) bool {
+	return h.scope.Matches(selectors.SharePointLibraryFolder, dir)
+}
+
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
@@ -188,8 +199,9 @@ func (h libraryRestoreHandler) PostItemInContainer(
 	ctx context.Context,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
+	onCollision control.CollisionPolicy,
 ) (models.DriveItemable, error) {
-	return h.ac.PostItemInContainer(ctx, driveID, parentFolderID, newItem)
+	return h.ac.PostItemInContainer(ctx, driveID, parentFolderID, newItem, onCollision)
 }
 
 func (h libraryRestoreHandler) GetFolderByName(
