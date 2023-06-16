@@ -205,7 +205,7 @@ func updateExceptionOccurrences(
 		// should not have more than one instance here.
 		if len(evts) != 1 {
 			return clues.New("invalid number of instances for modified").
-				With("instances_count", len(evts), "original_start", start)
+				With("instances_count", len(evts), "search_start", startStr, "search_end", endStr)
 		}
 
 		evt = toEventSimplified(evt)
@@ -276,7 +276,7 @@ func updateCancelledOccurrences(
 		// should not have more than one instance here.
 		if len(evts) != 1 {
 			return clues.New("invalid number of instances for cancelled").
-				With("instances_count", len(evts), "original_start", start)
+				With("instances_count", len(evts), "search_start", startStr, "search_end", endStr)
 		}
 
 		err = ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
