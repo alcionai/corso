@@ -12,44 +12,17 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DriveAPISuite struct {
 	tester.Suite
-	creds        account.M365Config
-	ac           api.Client
-	driveID      string
-	rootFolderID string
+	its intgTesterSetup
 }
 
 func (suite *DriveAPISuite) SetupSuite() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	userID := tester.M365UserID(t)
-	a := tester.NewM365Account(t)
-	creds, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.creds = creds
-	suite.ac, err = api.NewClient(creds)
-	require.NoError(t, err, clues.ToCore(err))
-
-	drive, err := suite.ac.Users().GetDefaultDrive(ctx, userID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.driveID = ptr.Val(drive.GetId())
-
-	rootFolder, err := suite.ac.Drives().GetRootFolder(ctx, suite.driveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.rootFolderID = ptr.Val(rootFolder.GetId())
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func TestDriveAPIs(t *testing.T) {
@@ -67,7 +40,7 @@ func (suite *DriveAPISuite) TestDrives_CreatePagerAndGetPage() {
 	defer flush()
 
 	siteID := tester.M365SiteID(t)
-	pager := suite.ac.Drives().NewSiteDrivePager(siteID, []string{"name"})
+	pager := suite.its.ac.Drives().NewSiteDrivePager(siteID, []string{"name"})
 
 	a, err := pager.GetPage(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -95,21 +68,22 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 	defer flush()
 
 	rc := testdata.DefaultRestoreConfig("drive_api_post_item")
+	acd := suite.its.ac.Drives()
 
 	// generate a parent for the test data
-	parent, err := suite.ac.Drives().PostItemInContainer(
+	parent, err := acd.PostItemInContainer(
 		ctx,
-		suite.driveID,
-		suite.rootFolderID,
+		suite.its.userDriveID,
+		suite.its.userDriveRootFolderID,
 		newItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate a folder to use for collision testing
 	folder := newItem("collision", true)
-	origFolder, err := suite.ac.Drives().PostItemInContainer(
+	origFolder, err := acd.PostItemInContainer(
 		ctx,
-		suite.driveID,
+		suite.its.userDriveID,
 		ptr.Val(parent.GetId()),
 		folder,
 		control.Copy)
@@ -117,9 +91,9 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 
 	// generate an item to use for collision testing
 	file := newItem("collision.txt", false)
-	origFile, err := suite.ac.Drives().PostItemInContainer(
+	origFile, err := acd.PostItemInContainer(
 		ctx,
-		suite.driveID,
+		suite.its.userDriveID,
 		ptr.Val(parent.GetId()),
 		file,
 		control.Copy)
@@ -232,9 +206,9 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			i, err := suite.ac.Drives().PostItemInContainer(
+			i, err := acd.PostItemInContainer(
 				ctx,
-				suite.driveID,
+				suite.its.userDriveID,
 				ptr.Val(parent.GetId()),
 				test.postItem,
 				test.onCollision)

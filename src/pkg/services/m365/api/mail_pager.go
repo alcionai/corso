@@ -136,7 +136,7 @@ func (c Mail) NewMailPager(
 	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
-			Top: ptr.To[int32](maxNonDeltaPageSize),
+			Top: ptr.To(maxNonDeltaPageSize),
 		},
 	}
 
@@ -190,7 +190,7 @@ func (c Mail) NewMailIDsPager(
 	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
-			Top:    ptr.To[int32](maxNonDeltaPageSize),
+			Top:    ptr.To(maxNonDeltaPageSize),
 		},
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
@@ -287,7 +287,7 @@ func (c Mail) NewMailDeltaIDsPager(
 	config := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
-			Top:    ptr.To[int32](maxDeltaPageSize),
+			Top:    ptr.To(maxDeltaPageSize),
 		},
 		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
