@@ -232,10 +232,8 @@ func checkBackupIsInManifests(
 			bf, err := kw.NewBaseFinder(bo.store)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mans, err := bf.FindBases(ctx, reasons, tags)
-			require.NoError(t, err, clues.ToCore(err))
-
-			for _, man := range mans {
+			mans := bf.FindBases(ctx, reasons, tags)
+			for _, man := range mans.MergeBases() {
 				bID, ok := man.GetTag(kopia.TagBackupID)
 				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
 					continue
@@ -1566,7 +1564,8 @@ func runDriveIncrementalTest(
 					ctx,
 					driveID,
 					targetContainer,
-					driveItem)
+					driveItem,
+					control.Copy)
 				require.NoErrorf(t, err, "creating new file %v", clues.ToCore(err))
 
 				newFileID = ptr.Val(newFile.GetId())

@@ -15,7 +15,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -117,7 +120,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.user,
 		suite.userDriveID)
 
-	bh := itemBackupHandler{suite.service.ac.Drives()}
+	bh := itemBackupHandler{
+		suite.service.ac.Drives(),
+		(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
+	}
 
 	// Read data for the file
 	itemData, err := downloadItem(ctx, bh, driveItem)
@@ -155,14 +161,15 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			newFolderName := tester.DefaultTestRestoreConfig("folder").Location
+			newFolderName := testdata.DefaultRestoreConfig("folder").Location
 			t.Logf("creating folder %s", newFolderName)
 
 			newFolder, err := rh.PostItemInContainer(
 				ctx,
 				test.driveID,
 				ptr.Val(root.GetId()),
-				newItem(newFolderName, true))
+				newItem(newFolderName, true),
+				control.Copy)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
 
@@ -173,7 +180,8 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				ctx,
 				test.driveID,
 				ptr.Val(newFolder.GetId()),
-				newItem(newItemName, false))
+				newItem(newItemName, false),
+				control.Copy)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newItem.GetId())
 

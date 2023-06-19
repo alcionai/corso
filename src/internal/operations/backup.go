@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo/manifest"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -296,20 +297,10 @@ func (op *BackupOperation) do(
 		return nil, clues.Stack(err)
 	}
 
-	type baseFinder struct {
-		kinject.BaseFinder
-		kinject.RestoreProducer
-	}
-
-	bf := baseFinder{
-		BaseFinder:      kbf,
-		RestoreProducer: op.kopia,
-	}
-
 	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(
 		ctx,
-		bf,
-		op.store,
+		kbf,
+		op.kopia,
 		reasons, fallbackReasons,
 		op.account.ID(),
 		op.incremental)
@@ -318,10 +309,7 @@ func (op *BackupOperation) do(
 	}
 
 	if canUseMetaData {
-		_, lastBackupVersion, err = lastCompleteBackups(ctx, op.store, mans)
-		if err != nil {
-			return nil, clues.Wrap(err, "retrieving prior backups")
-		}
+		lastBackupVersion = mans.MinBackupVersion()
 	}
 
 	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
@@ -358,9 +346,8 @@ func (op *BackupOperation) do(
 
 	err = mergeDetails(
 		ctx,
-		op.store,
 		detailsStore,
-		mans,
+		mans.Backups(),
 		toMerge,
 		deets,
 		writeStats,
@@ -482,7 +469,7 @@ func consumeBackupCollections(
 	bc kinject.BackupConsumer,
 	tenantID string,
 	reasons []kopia.Reason,
-	mans []kopia.ManifestEntry,
+	bbs kopia.BackupBases,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
@@ -506,9 +493,24 @@ func consumeBackupCollections(
 		}
 	}
 
-	bases := make([]kopia.IncrementalBase, 0, len(mans))
+	// AssistBases should be the upper bound for how many snapshots we pass in.
+	bases := make([]kopia.IncrementalBase, 0, len(bbs.AssistBases()))
+	// Track IDs we've seen already so we don't accidentally duplicate some
+	// manifests. This can be removed when we move the code below into the kopia
+	// package.
+	ids := map[manifest.ID]struct{}{}
 
-	for _, m := range mans {
+	var mb []kopia.ManifestEntry
+
+	if bbs != nil {
+		mb = bbs.MergeBases()
+	}
+
+	// TODO(ashmrtn): Make a wrapper for Reson that allows adding a tenant and
+	// make a function that will spit out a prefix that includes the tenant. With
+	// that done this code can be moved to kopia wrapper since it's really more
+	// specific to that.
+	for _, m := range mb {
 		paths := make([]*path.Builder, 0, len(m.Reasons))
 		services := map[string]struct{}{}
 		categories := map[string]struct{}{}
@@ -523,6 +525,8 @@ func consumeBackupCollections(
 			services[reason.Service.String()] = struct{}{}
 			categories[reason.Category.String()] = struct{}{}
 		}
+
+		ids[m.ID] = struct{}{}
 
 		bases = append(bases, kopia.IncrementalBase{
 			Manifest:     m.Manifest,
@@ -550,6 +554,18 @@ func consumeBackupCollections(
 			"services", svcs,
 			"categories", cats,
 			"base_backup_id", mbID)
+	}
+
+	// At the moment kopia assisted snapshots are in the same set as merge bases.
+	// When we fixup generating subtree paths we can remove this.
+	if bbs != nil {
+		for _, ab := range bbs.AssistBases() {
+			if _, ok := ids[ab.ID]; ok {
+				continue
+			}
+
+			bases = append(bases, kopia.IncrementalBase{Manifest: ab.Manifest})
+		}
 	}
 
 	kopiaStats, deets, itemsSourcedFromBase, err := bc.ConsumeBackupCollections(
@@ -663,61 +679,10 @@ func getNewPathRefs(
 	return newPath, newLoc, updated, nil
 }
 
-func lastCompleteBackups(
-	ctx context.Context,
-	ms *store.Wrapper,
-	mans []kopia.ManifestEntry,
-) (map[string]*backup.Backup, int, error) {
-	var (
-		oldestVersion = version.NoBackup
-		result        = map[string]*backup.Backup{}
-	)
-
-	if len(mans) == 0 {
-		return result, -1, nil
-	}
-
-	for _, man := range mans {
-		// For now skip snapshots that aren't complete. We will need to revisit this
-		// when we tackle restartability.
-		if len(man.IncompleteReason) > 0 {
-			continue
-		}
-
-		var (
-			mctx    = clues.Add(ctx, "base_manifest_id", man.ID)
-			reasons = man.Reasons
-		)
-
-		bID, ok := man.GetTag(kopia.TagBackupID)
-		if !ok {
-			return result, oldestVersion, clues.New("no backup ID in snapshot manifest").WithClues(mctx)
-		}
-
-		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
-
-		bup, err := getBackupFromID(mctx, model.StableID(bID), ms)
-		if err != nil {
-			return result, oldestVersion, err
-		}
-
-		for _, r := range reasons {
-			result[r.Key()] = bup
-		}
-
-		if oldestVersion == -1 || bup.Version < oldestVersion {
-			oldestVersion = bup.Version
-		}
-	}
-
-	return result, oldestVersion, nil
-}
-
 func mergeDetails(
 	ctx context.Context,
-	ms *store.Wrapper,
 	detailsStore streamstore.Streamer,
-	mans []kopia.ManifestEntry,
+	backups []kopia.BackupEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	writeStats *kopia.BackupStats,
@@ -738,29 +703,15 @@ func mergeDetails(
 
 	var addedEntries int
 
-	for _, man := range mans {
+	for _, baseBackup := range backups {
 		var (
-			mctx                 = clues.Add(ctx, "base_manifest_id", man.ID)
+			mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
 			manifestAddedEntries int
 		)
 
-		// For now skip snapshots that aren't complete. We will need to revisit this
-		// when we tackle restartability.
-		if len(man.IncompleteReason) > 0 {
-			continue
-		}
-
-		bID, ok := man.GetTag(kopia.TagBackupID)
-		if !ok {
-			return clues.New("no backup ID in snapshot manifest").WithClues(mctx)
-		}
-
-		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
-
-		baseBackup, baseDeets, err := getBackupAndDetailsFromID(
+		baseDeets, err := getDetailsFromBackup(
 			mctx,
-			model.StableID(bID),
-			ms,
+			baseBackup.Backup,
 			detailsStore,
 			errs)
 		if err != nil {
@@ -781,7 +732,7 @@ func mergeDetails(
 			//
 			// TODO(ashmrtn): This logic will need expanded to cover entries from
 			// checkpoints if we start doing kopia-assisted incrementals for those.
-			if !matchesReason(man.Reasons, rr) {
+			if !matchesReason(baseBackup.Reasons, rr) {
 				continue
 			}
 

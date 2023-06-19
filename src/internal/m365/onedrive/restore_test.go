@@ -4,12 +4,17 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -312,6 +317,77 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 			// Ordering of paths matter here as we need dirmeta files
 			// to show up before file in dir
 			assert.Equal(t, outPaths, actual, "augmented paths")
+		})
+	}
+}
+
+func (suite *RestoreUnitSuite) TestRestoreItem_errItemAlreadyExists() {
+	table := []struct {
+		name          string
+		onCollision   control.CollisionPolicy
+		expectErr     func(*testing.T, error)
+		expectSkipped assert.BoolAssertionFunc
+	}{
+		{
+			name:        "skip",
+			onCollision: control.Skip,
+			expectErr: func(t *testing.T, err error) {
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectSkipped: assert.True,
+		},
+		{
+			name:        "replace",
+			onCollision: control.Replace,
+			expectErr: func(t *testing.T, err error) {
+				require.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+			},
+			expectSkipped: assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var (
+				rh = mock.RestoreHandler{
+					PostItemErr: graph.ErrItemAlreadyExistsConflict,
+				}
+				restoreCfg = control.RestoreConfig{
+					OnCollision: test.onCollision,
+				}
+				dpb = odConsts.DriveFolderPrefixBuilder("driveID1")
+			)
+
+			dpp, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+			require.NoError(t, err)
+
+			dp, err := path.ToDrivePath(dpp)
+			require.NoError(t, err)
+
+			_, skip, err := restoreItem(
+				ctx,
+				rh,
+				restoreCfg,
+				mock.FetchItemByName{
+					Item: &mock.Data{
+						Reader: mock.FileRespReadCloser(mock.DriveFileMetaData),
+					},
+				},
+				version.Backup,
+				dp,
+				"",
+				[]byte{},
+				NewRestoreCaches(),
+				false,
+				&mock.Data{ID: uuid.NewString()},
+				nil)
+
+			test.expectErr(t, err)
+			test.expectSkipped(t, skip)
 		})
 	}
 }

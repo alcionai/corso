@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -296,7 +297,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 	defer flush()
 
 	var (
-		restoreCfg = tester.DefaultTestRestoreConfig("")
+		restoreCfg = testdata.DefaultRestoreConfig("")
 		sel        = selectors.Selector{
 			Service: selectors.ServiceUnknown,
 		}
@@ -323,7 +324,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 }
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
-	restoreCfg := tester.DefaultTestRestoreConfig("")
+	restoreCfg := testdata.DefaultRestoreConfig("")
 	table := []struct {
 		name string
 		col  []data.RestoreCollection
@@ -539,7 +540,7 @@ func runRestoreBackupTest(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
+		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
@@ -584,7 +585,7 @@ func runRestoreTestWithVersion(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
+		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
@@ -621,7 +622,7 @@ func runRestoreBackupTestVersions(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     tester.DefaultTestRestoreConfig(""),
+		RestoreCfg:     testdata.DefaultRestoreConfig(""),
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
@@ -997,7 +998,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			for i, collection := range test.collections {
 				// Get a restoreCfg per collection so they're independent.
-				restoreCfg := tester.DefaultTestRestoreConfig("")
+				restoreCfg := testdata.DefaultRestoreConfig("")
 				expectedDests = append(expectedDests, destAndCats{
 					resourceOwner: suite.user,
 					dest:          restoreCfg.Location,
