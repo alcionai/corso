@@ -121,6 +121,32 @@ func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 				return ptr.Val(e.GetRecurrence().GetRange().GetRecurrenceTimeZone()) == "Pacific Standard Time"
 			},
 		},
+		{
+			name: "Test cancelledOccurrences",
+			event: func() models.Eventable {
+				bytes := exchMock.EventWithRecurrenceAndCancellationBytes(subject)
+				event, err := api.BytesToEventable(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return event
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetAdditionalData()["cancelledOccurrences"] == nil
+			},
+		},
+		{
+			name: "Test exceptionOccurrences",
+			event: func() models.Eventable {
+				bytes := exchMock.EventWithRecurrenceAndExceptionBytes(subject)
+				event, err := api.BytesToEventable(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return event
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetAdditionalData()["exceptionOccurrences"] == nil
+			},
+		},
 	}
 
 	for _, test := range tests {
