@@ -23,10 +23,10 @@ type Corso struct {
 }
 
 // GetCorso is a helper for aggregating Corso secrets and credentials.
-func GetCorso() Corso {
-	// todo (rkeeprs): read from either corso config file or env vars.
-	// https://github.com/alcionai/corso/issues/120
-	corsoPassph := str.First(CorsoPassphraseFV, os.Getenv(CorsoPassphrase))
+func GetAndInsertCorso(passphase string) Corso {
+	// fetch data from flag, env var or func param giving priority to func param
+	// Func param generally will be value fetched from config file using viper.
+	corsoPassph := str.First(passphase, CorsoPassphraseFV, os.Getenv(CorsoPassphrase))
 
 	return Corso{
 		CorsoPassphrase: corsoPassph,

@@ -24,15 +24,20 @@ func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 		return s3Config, clues.New("unsupported storage provider: " + providerType)
 	}
 
-	s3Config.AccessKey = vpr.GetString(AccessKey)
-	s3Config.SecretKey = vpr.GetString(SecretAccessKey)
-	s3Config.SessionToken = vpr.GetString(SessionToken)
-
 	s3Config.Bucket = vpr.GetString(BucketNameKey)
 	s3Config.Endpoint = vpr.GetString(EndpointKey)
 	s3Config.Prefix = vpr.GetString(PrefixKey)
 	s3Config.DoNotUseTLS = vpr.GetBool(DisableTLSKey)
 	s3Config.DoNotVerifyTLS = vpr.GetBool(DisableTLSVerificationKey)
+
+	return s3Config, nil
+}
+
+// prerequisite: readRepoConfig must have been run prior to this to populate the global viper values.
+func s3CredsFromViper(vpr *viper.Viper, s3Config storage.S3Config) (storage.S3Config, error) {
+	s3Config.AccessKey = vpr.GetString(AccessKey)
+	s3Config.SecretKey = vpr.GetString(SecretAccessKey)
+	s3Config.SessionToken = vpr.GetString(SessionToken)
 
 	return s3Config, nil
 }
@@ -79,6 +84,11 @@ func configureStorage(
 		}
 	}
 
+	if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
+		return store, clues.Wrap(err, "reading s3 configs from corso config file")
+	}
+	s3Overrides(overrides)
+
 	aws := credentials.GetAWS(overrides)
 
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
@@ -109,7 +119,7 @@ func configureStorage(
 	}
 
 	// compose the common config and credentials
-	corso := credentials.GetCorso()
+	corso := credentials.GetAndInsertCorso(vpr.GetString(CorsoPassphrase))
 	if err := corso.Validate(); err != nil {
 		return store, clues.Wrap(err, "validating corso credentials")
 	}

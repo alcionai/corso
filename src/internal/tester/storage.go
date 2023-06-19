@@ -40,7 +40,7 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 			Prefix: prefix,
 		},
 		storage.CommonConfig{
-			Corso:       credentials.GetCorso(),
+			Corso:       credentials.GetAndInsertCorso(""),
 			KopiaCfgDir: t.TempDir(),
 		},
 	)

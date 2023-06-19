@@ -28,6 +28,10 @@ const (
 ` + AzureTenantIDKey + ` = '%s'
 ` + DisableTLSKey + ` = 'false'
 ` + DisableTLSVerificationKey + ` = 'false'
+` + AccessKey + ` = '%s'
+` + SecretAccessKey + ` = '%s'
+` + SessionToken + ` = '%s'
+` + CorsoPassphrase + ` = '%s'
 `
 )
 
@@ -67,12 +71,16 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	)
 
 	const (
-		b   = "read-repo-config-basic-bucket"
-		tID = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+		b          = "read-repo-config-basic-bucket"
+		tID        = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+		accKey     = "aws-test-access-key"
+		secret     = "aws-test-secret-key"
+		token      = "aws-test-session-token"
+		passphrase = "passphrase-test"
 	)
 
 	// Generate test config file
-	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
+	testConfigData := fmt.Sprintf(configFileTemplate, b, tID, accKey, secret, token, passphrase)
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
 	require.NoError(t, err, clues.ToCore(err))
@@ -87,6 +95,12 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	s3Cfg, err := s3ConfigsFromViper(vpr)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, b, s3Cfg.Bucket)
+
+	s3Cfg, err = s3CredsFromViper(vpr, s3Cfg)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, accKey, s3Cfg.AWS.AccessKey)
+	assert.Equal(t, secret, s3Cfg.AWS.SecretKey)
+	assert.Equal(t, token, s3Cfg.AWS.SessionToken)
 
 	m365, err := m365ConfigsFromViper(vpr)
 	require.NoError(t, err, clues.ToCore(err))
