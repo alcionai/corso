@@ -12,8 +12,8 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -279,7 +279,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -300,7 +300,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType, args []string) error {
 	ctx := cmd.Context()
 
-	r, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}

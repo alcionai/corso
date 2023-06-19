@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -72,7 +72,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		}
 
 		if err != nil {
-			el.AddRecoverable(graph.Wrap(ctx, err, "validating site"))
+			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating site"))
 			return true
 		}
 

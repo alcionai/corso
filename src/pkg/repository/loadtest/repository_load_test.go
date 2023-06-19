@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -151,9 +152,9 @@ func runRestoreLoadTest(
 			t.Skip("restore load test is toggled off")
 		}
 
-		dest := tester.DefaultTestRestoreDestination("")
+		restoreCfg := ctrlTD.DefaultRestoreConfig("")
 
-		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
+		rst, err := r.NewRestore(ctx, backupID, restSel, restoreCfg)
 		require.NoError(t, err, clues.ToCore(err))
 
 		doRestoreLoadTest(t, ctx, rst, service, bup.Results.ItemsWritten, usersUnderTest)

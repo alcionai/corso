@@ -10,11 +10,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -35,11 +35,11 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID    model.StableID             `json:"backupID"`
-	Destination control.RestoreDestination `json:"destination"`
-	Results     RestoreResults             `json:"results"`
-	Selectors   selectors.Selector         `json:"selectors"`
-	Version     string                     `json:"version"`
+	BackupID   model.StableID
+	Results    RestoreResults
+	Selectors  selectors.Selector
+	RestoreCfg control.RestoreConfig
+	Version    string
 
 	acct account.Account
 	rc   inject.RestoreConsumer
@@ -61,17 +61,17 @@ func NewRestoreOperation(
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:   newOperation(opts, bus, kw, sw),
-		acct:        acct,
-		BackupID:    backupID,
-		Destination: dest,
-		Selectors:   sel,
-		Version:     "v0",
-		rc:          rc,
+		operation:  newOperation(opts, bus, kw, sw),
+		acct:       acct,
+		BackupID:   backupID,
+		RestoreCfg: control.EnsureRestoreConfigDefaults(ctx, restoreCfg),
+		Selectors:  sel,
+		Version:    "v0",
+		rc:         rc,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -94,7 +94,7 @@ func (op RestoreOperation) validate() error {
 // get populated asynchronously.
 type restoreStats struct {
 	cs            []data.RestoreCollection
-	gc            *data.CollectionStats
+	ctrl          *data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -138,7 +138,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
-		"destination_container", clues.Hide(op.Destination.ContainerName))
+		"destination_container", clues.Hide(op.RestoreCfg.Location))
 
 	defer func() {
 		op.bus.Event(
@@ -257,7 +257,7 @@ func (op *RestoreOperation) do(
 		op.rc,
 		bup.Version,
 		op.Selectors,
-		op.Destination,
+		op.RestoreCfg,
 		op.Options,
 		dcs,
 		op.Errors)
@@ -265,9 +265,9 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "restoring collections")
 	}
 
-	opStats.gc = op.rc.Wait()
+	opStats.ctrl = op.rc.Wait()
 
-	logger.Ctx(ctx).Debug(opStats.gc)
+	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	return deets, nil
 }
@@ -291,16 +291,16 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc == nil {
+	if opStats.ctrl == nil {
 		op.Status = Failed
 		return clues.New("restoration never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.IsZero() {
+	if op.Status != Failed && opStats.ctrl.IsZero() {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsWritten = opStats.gc.Successes
+	op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
 }
@@ -314,7 +314,7 @@ func consumeRestoreCollections(
 	rc inject.RestoreConsumer,
 	backupVersion int,
 	sel selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
@@ -329,7 +329,7 @@ func consumeRestoreCollections(
 		ctx,
 		backupVersion,
 		sel,
-		dest,
+		restoreCfg,
 		opts,
 		dcs,
 		errs)

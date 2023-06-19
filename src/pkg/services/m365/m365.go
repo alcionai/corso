@@ -8,8 +8,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/m365/discovery"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -251,7 +251,7 @@ type Site struct {
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
 	sites, err := discovery.Sites(ctx, acct, errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing M365 graph connection")
+		return nil, clues.Wrap(err, "initializing M365 api connection")
 	}
 
 	ret := make([]*Site, 0, len(sites))

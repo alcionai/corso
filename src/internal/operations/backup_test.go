@@ -2,24 +2,22 @@ package operations
 
 import (
 	"context"
-	"fmt"
 	stdpath "path"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/connector/mock"
-	odConsts "github.com/alcionai/corso/src/internal/connector/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365/mock"
+	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -128,77 +126,6 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 
 // ----- model store for backups
 
-type mockBackupStorer struct {
-	// Only using this to store backup models right now.
-	entries map[model.StableID]backup.Backup
-}
-
-func (mbs mockBackupStorer) Get(
-	ctx context.Context,
-	s model.Schema,
-	id model.StableID,
-	toPopulate model.Model,
-) error {
-	ctx = clues.Add(
-		ctx,
-		"model_schema", s,
-		"model_id", id,
-		"model_type", fmt.Sprintf("%T", toPopulate))
-
-	if s != model.BackupSchema {
-		return clues.New("unexpected schema").WithClues(ctx)
-	}
-
-	r, ok := mbs.entries[id]
-	if !ok {
-		return clues.New("model not found").WithClues(ctx)
-	}
-
-	bu, ok := toPopulate.(*backup.Backup)
-	if !ok {
-		return clues.New("bad population type").WithClues(ctx)
-	}
-
-	*bu = r
-
-	return nil
-}
-
-func (mbs mockBackupStorer) Delete(context.Context, model.Schema, model.StableID) error {
-	return clues.New("not implemented")
-}
-
-func (mbs mockBackupStorer) DeleteWithModelStoreID(context.Context, manifest.ID) error {
-	return clues.New("not implemented")
-}
-
-func (mbs mockBackupStorer) GetIDsForType(
-	context.Context,
-	model.Schema,
-	map[string]string,
-) ([]*model.BaseModel, error) {
-	return nil, clues.New("not implemented")
-}
-
-func (mbs mockBackupStorer) GetWithModelStoreID(
-	context.Context,
-	model.Schema,
-	manifest.ID,
-	model.Model,
-) error {
-	return clues.New("not implemented")
-}
-
-func (mbs mockBackupStorer) Put(context.Context, model.Schema, model.Model) error {
-	return clues.New("not implemented")
-}
-
-func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) error {
-	return clues.New("not implemented")
-}
-
-// ----- model store for backups
-
 type mockDetailsMergeInfoer struct {
 	repoRefs map[string]path.Path
 	locs     map[string]*path.Builder
@@ -255,27 +182,6 @@ func makeMetadataBasePath(
 		service,
 		category,
 		false)
-	require.NoError(t, err, clues.ToCore(err))
-
-	return p
-}
-
-func makeMetadataPath(
-	t *testing.T,
-	tenant string,
-	service path.ServiceType,
-	resourceOwner string,
-	category path.CategoryType,
-	fileName string,
-) path.Path {
-	t.Helper()
-
-	p, err := path.Builder{}.Append(fileName).ToServiceCategoryMetadataPath(
-		tenant,
-		resourceOwner,
-		service,
-		category,
-		true)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return p
@@ -379,25 +285,6 @@ func makeDetailsEntry(
 	return res
 }
 
-// TODO(ashmrtn): This should belong to some code that lives in the kopia
-// package that is only compiled when running tests.
-func makeKopiaTagKey(k string) string {
-	return "tag:" + k
-}
-
-func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string) *snapshot.Manifest {
-	t.Helper()
-
-	tagKey := makeKopiaTagKey(kopia.TagBackupID)
-
-	return &snapshot.Manifest{
-		Tags: map[string]string{
-			tagKey: string(backupID),
-		},
-		IncompleteReason: incompleteReason,
-	}
-}
-
 // ---------------------------------------------------------------------------
 // unit tests
 // ---------------------------------------------------------------------------
@@ -414,7 +301,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mock.GraphConnector{}
+		ctrl = &mock.Controller{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -435,7 +322,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 					TotalHashedBytes:   1,
 					TotalUploadedBytes: 1,
 				},
-				gc: &data.CollectionStats{Successes: 1},
+				ctrl: &data.CollectionStats{Successes: 1},
 			},
 		},
 		{
@@ -443,16 +330,16 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			expectErr:    assert.Error,
 			fail:         assert.AnError,
 			stats: backupStats{
-				k:  &kopia.BackupStats{},
-				gc: &data.CollectionStats{},
+				k:    &kopia.BackupStats{},
+				ctrl: &data.CollectionStats{},
 			},
 		},
 		{
 			expectStatus: NoData,
 			expectErr:    assert.NoError,
 			stats: backupStats{
-				k:  &kopia.BackupStats{},
-				gc: &data.CollectionStats{},
+				k:    &kopia.BackupStats{},
+				ctrl: &data.CollectionStats{},
 			},
 		},
 	}
@@ -471,7 +358,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				control.Defaults(),
 				kw,
 				sw,
-				gc,
+				ctrl,
 				acct,
 				sel,
 				sel,
@@ -483,7 +370,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.ctrl.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
@@ -532,20 +419,20 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 	)
 
 	table := []struct {
-		name     string
-		inputMan []kopia.ManifestEntry
+		name string
+		// Backup model is untouched in this test so there's no need to populate it.
+		input    kopia.BackupBases
 		expected []kopia.IncrementalBase
 	}{
 		{
 			name: "SingleManifestSingleReason",
-			inputMan: []kopia.ManifestEntry{
-				{
+			input: kopia.NewMockBackupBases().WithMergeBases(
+				kopia.ManifestEntry{
 					Manifest: manifest1,
 					Reasons: []kopia.Reason{
 						emailReason,
 					},
-				},
-			},
+				}).ClearMockAssistBases(),
 			expected: []kopia.IncrementalBase{
 				{
 					Manifest: manifest1,
@@ -557,15 +444,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		},
 		{
 			name: "SingleManifestMultipleReasons",
-			inputMan: []kopia.ManifestEntry{
-				{
+			input: kopia.NewMockBackupBases().WithMergeBases(
+				kopia.ManifestEntry{
 					Manifest: manifest1,
 					Reasons: []kopia.Reason{
 						emailReason,
 						contactsReason,
 					},
-				},
-			},
+				}).ClearMockAssistBases(),
 			expected: []kopia.IncrementalBase{
 				{
 					Manifest: manifest1,
@@ -578,22 +464,21 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		},
 		{
 			name: "MultipleManifestsMultipleReasons",
-			inputMan: []kopia.ManifestEntry{
-				{
+			input: kopia.NewMockBackupBases().WithMergeBases(
+				kopia.ManifestEntry{
 					Manifest: manifest1,
 					Reasons: []kopia.Reason{
 						emailReason,
 						contactsReason,
 					},
 				},
-				{
+				kopia.ManifestEntry{
 					Manifest: manifest2,
 					Reasons: []kopia.Reason{
 						emailReason,
 						contactsReason,
 					},
-				},
-			},
+				}).ClearMockAssistBases(),
 			expected: []kopia.IncrementalBase{
 				{
 					Manifest: manifest1,
@@ -608,6 +493,33 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 						emailBuilder,
 						contactsBuilder,
 					},
+				},
+			},
+		},
+		{
+			name: "Single Manifest Single Reason With Assist Base",
+			input: kopia.NewMockBackupBases().WithMergeBases(
+				kopia.ManifestEntry{
+					Manifest: manifest1,
+					Reasons: []kopia.Reason{
+						emailReason,
+					},
+				}).WithAssistBases(
+				kopia.ManifestEntry{
+					Manifest: manifest2,
+					Reasons: []kopia.Reason{
+						contactsReason,
+					},
+				}),
+			expected: []kopia.IncrementalBase{
+				{
+					Manifest: manifest1,
+					SubtreePaths: []*path.Builder{
+						emailBuilder,
+					},
+				},
+				{
+					Manifest: manifest2,
 				},
 			},
 		},
@@ -637,7 +549,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 				mbu,
 				tenant,
 				nil,
-				test.inputMan,
+				test.input,
 				nil,
 				nil,
 				model.StableID(""),
@@ -731,9 +643,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 	table := []struct {
 		name             string
-		populatedModels  map[model.StableID]backup.Backup
 		populatedDetails map[string]*details.Details
-		inputMans        []kopia.ManifestEntry
+		inputBackups     []kopia.BackupEntry
 		mdm              *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
@@ -753,24 +664,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			expectedEntries: []*details.Entry{},
 		},
 		{
-			name: "BackupIDNotFound",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
-
-				return res
-			}(),
-			inputMans: []kopia.ManifestEntry{
-				{
-					Manifest: makeManifest(suite.T(), "foo", ""),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-			},
-			errCheck: assert.Error,
-		},
-		{
 			name: "DetailsIDNotFound",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
@@ -778,20 +671,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup.Backup{
+						BaseModel: model.BaseModel{
+							ID: backup1.ID,
+						},
+						DetailsID: "foo",
+					},
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
-				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: {
-					BaseModel: model.BaseModel{
-						ID: backup1.ID,
-					},
-					DetailsID: "foo",
 				},
 			},
 			errCheck: assert.Error,
@@ -805,16 +695,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -835,22 +722,19 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -871,16 +755,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -933,16 +814,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -963,16 +841,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -996,16 +871,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -1029,16 +901,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -1063,16 +932,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -1097,23 +963,19 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputMans: []kopia.ManifestEntry{
+			inputBackups: []kopia.BackupEntry{
 				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Backup: &backup1,
 					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
 				{
-					Manifest: makeManifest(suite.T(), backup2.ID, ""),
+					Backup: &backup2,
 					Reasons: []kopia.Reason{
 						pathReason3,
 					},
 				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
-				backup2.ID: backup2,
 			},
 			populatedDetails: map[string]*details.Details{
 				backup1.DetailsID: {
@@ -1140,54 +1002,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
 			},
 		},
-		{
-			name: "SomeBasesIncomplete",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
-
-				return res
-			}(),
-			inputMans: []kopia.ManifestEntry{
-				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-				{
-					Manifest: makeManifest(suite.T(), backup2.ID, "checkpoint"),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
-				backup2.ID: backup2,
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.Entry{
-							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
-						},
-					},
-				},
-				backup2.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.Entry{
-							// This entry should not be picked due to being incomplete.
-							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 84, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-			expectedEntries: []*details.Entry{
-				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
-			},
-		},
 	}
 
 	for _, test := range table {
@@ -1198,15 +1012,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			defer flush()
 
 			mds := ssmock.Streamer{Deets: test.populatedDetails}
-			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
 			deets := details.Builder{}
 			writeStats := kopia.BackupStats{}
 
 			err := mergeDetails(
 				ctx,
-				w,
 				mds,
-				test.inputMans,
+				test.inputBackups,
 				test.mdm,
 				&deets,
 				&writeStats,
@@ -1247,30 +1059,22 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 		locPath1 = path.Builder{}.Append(itemPath1.Folders()...)
 
-		backup1 = backup.Backup{
-			BaseModel: model.BaseModel{
-				ID: "bid1",
-			},
-			DetailsID: "did1",
-		}
-
 		pathReason1 = kopia.Reason{
 			ResourceOwner: itemPath1.ResourceOwner(),
 			Service:       itemPath1.Service(),
 			Category:      itemPath1.Category(),
 		}
 
-		inputMans = []kopia.ManifestEntry{
-			{
-				Manifest: makeManifest(t, backup1.ID, ""),
-				Reasons: []kopia.Reason{
-					pathReason1,
+		backup1 = kopia.BackupEntry{
+			Backup: &backup.Backup{
+				BaseModel: model.BaseModel{
+					ID: "bid1",
 				},
+				DetailsID: "did1",
 			},
-		}
-
-		populatedModels = map[model.StableID]backup.Backup{
-			backup1.ID: backup1,
+			Reasons: []kopia.Reason{
+				pathReason1,
+			},
 		}
 
 		itemSize = 42
@@ -1313,16 +1117,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 	var (
 		mds        = ssmock.Streamer{Deets: populatedDetails}
-		w          = &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
 		deets      = details.Builder{}
 		writeStats = kopia.BackupStats{}
 	)
 
 	err := mergeDetails(
 		ctx,
-		w,
 		mds,
-		inputMans,
+		[]kopia.BackupEntry{backup1},
 		mdm,
 		&deets,
 		&writeStats,

@@ -47,12 +47,6 @@ func (r Reason) Key() string {
 	return r.ResourceOwner + r.Service.String() + r.Category.String()
 }
 
-type backupBases struct {
-	backups     []BackupEntry
-	mergeBases  []ManifestEntry
-	assistBases []ManifestEntry
-}
-
 type BackupEntry struct {
 	*backup.Backup
 	Reasons []Reason
@@ -198,6 +192,8 @@ func (b *baseFinder) findBasesInSet(
 					Manifest: man,
 					Reasons:  []Reason{reason},
 				})
+
+				logger.Ctx(ictx).Info("found incomplete backup")
 			}
 
 			continue
@@ -209,6 +205,18 @@ func (b *baseFinder) findBasesInSet(
 			// Safe to continue here as we'll just end up attempting to use an older
 			// backup as the base.
 			logger.CtxErr(ictx, err).Debug("searching for base backup")
+
+			if !foundIncomplete {
+				foundIncomplete = true
+
+				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
+					Manifest: man,
+					Reasons:  []Reason{reason},
+				})
+
+				logger.Ctx(ictx).Info("found incomplete backup")
+			}
+
 			continue
 		}
 
@@ -222,12 +230,27 @@ func (b *baseFinder) findBasesInSet(
 				"empty backup stream store ID",
 				"search_backup_id", bup.ID)
 
+			if !foundIncomplete {
+				foundIncomplete = true
+
+				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
+					Manifest: man,
+					Reasons:  []Reason{reason},
+				})
+
+				logger.Ctx(ictx).Infow(
+					"found incomplete backup",
+					"search_backup_id", bup.ID)
+			}
+
 			continue
 		}
 
 		// If we've made it to this point then we're considering the backup
 		// complete as it has both an item data snapshot and a backup details
 		// snapshot.
+		logger.Ctx(ictx).Infow("found complete backup", "base_backup_id", bup.ID)
+
 		me := ManifestEntry{
 			Manifest: man,
 			Reasons:  []Reason{reason},
@@ -272,11 +295,11 @@ func (b *baseFinder) getBase(
 	return b.findBasesInSet(ctx, reason, metas)
 }
 
-func (b *baseFinder) findBases(
+func (b *baseFinder) FindBases(
 	ctx context.Context,
 	reasons []Reason,
 	tags map[string]string,
-) (backupBases, error) {
+) BackupBases {
 	var (
 		// All maps go from ID -> entry. We need to track by ID so we can coalesce
 		// the reason for selecting something. Kopia assisted snapshots also use
@@ -340,24 +363,13 @@ func (b *baseFinder) findBases(
 		}
 	}
 
-	return backupBases{
+	res := &backupBases{
 		backups:     maps.Values(baseBups),
 		mergeBases:  maps.Values(baseSnaps),
 		assistBases: maps.Values(kopiaAssistSnaps),
-	}, nil
-}
-
-func (b *baseFinder) FindBases(
-	ctx context.Context,
-	reasons []Reason,
-	tags map[string]string,
-) ([]ManifestEntry, error) {
-	bb, err := b.findBases(ctx, reasons, tags)
-	if err != nil {
-		return nil, clues.Stack(err)
 	}
 
-	// assistBases contains all snapshots so we can return it while maintaining
-	// almost all compatibility.
-	return bb.assistBases, nil
+	res.fixupAndVerify(ctx)
+
+	return res
 }
