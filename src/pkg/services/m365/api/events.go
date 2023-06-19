@@ -231,34 +231,14 @@ func (c Events) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	// Adding checks to ensure that the data is in the format that we expect M365 to return
-	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
-	if cancelledOccurrences != nil {
-		co, ok := cancelledOccurrences.([]any)
-		if !ok {
-			return nil, nil, clues.New("converting cancelledOccurrences to []any").
-				With("type", fmt.Sprintf("%T", cancelledOccurrences))
-		}
+	err = validateCancelledOccurrences(event)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "verify cancelled occurrences")
+	}
 
-		for _, instance := range co {
-			instance, err := str.AnyToString(instance)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			splits := strings.Split(instance, ".")
-			if len(splits) < 2 { // There might be multiple `.` in the ID and hence >2
-				return nil, nil, clues.New("unexpected cancelled event format").
-					With("instance", instance)
-			}
-
-			startStr := splits[len(splits)-1]
-
-			_, err = dttm.ParseTime(startStr)
-			if err != nil {
-				return nil, nil, clues.Wrap(err, "parsing cancelled event date")
-			}
-		}
+	err = fixupExceptionOccurrences(ctx, c, event, immutableIDs, userID)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "fixup exception occurrences")
 	}
 
 	attachments, err := c.getAttachments(ctx, event, immutableIDs, userID, itemID)
@@ -268,35 +248,47 @@ func (c Events) GetItem(
 
 	event.SetAttachments(attachments)
 
+	return event, EventInfo(event), nil
+}
+
+// fixupExceptionOccurrences gets attachments and converts the data
+// into a format that gets serialized when storing to kopia
+func fixupExceptionOccurrences(
+	ctx context.Context,
+	client Events,
+	event models.Eventable,
+	immutableIDs bool,
+	userID string,
+) error {
 	// Fetch attachments for exceptions
 	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
 	if exceptionOccurrences == nil {
-		return event, EventInfo(event), nil
+		return nil
 	}
 
 	eo, ok := exceptionOccurrences.([]any)
 	if !ok {
-		return nil, nil, clues.New("converting exceptionOccurrences to []any").
+		return clues.New("converting exceptionOccurrences to []any").
 			With("type", fmt.Sprintf("%T", exceptionOccurrences))
 	}
 
 	for _, instance := range eo {
 		instance, ok := instance.(map[string]any)
 		if !ok {
-			return nil, nil, clues.New("converting instance to map[string]any").
+			return clues.New("converting instance to map[string]any").
 				With("type", fmt.Sprintf("%T", instance))
 		}
 
 		evt, err := EventFromMap(instance)
 		if err != nil {
-			return nil, nil, clues.Wrap(err, "parsing exception event")
+			return clues.Wrap(err, "parsing exception event")
 		}
 
 		// OPTIMIZATION: We don't have to store any of the
 		// attachments that carry over from the original
-		attachments, err := c.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
+		attachments, err := client.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
 		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting exception attachments").
+			return clues.Wrap(err, "getting exception attachments").
 				With("exception_event_id", ptr.Val(evt.GetId()))
 		}
 
@@ -308,7 +300,7 @@ func (c Events) GetItem(
 		for _, attachment := range attachments {
 			am, err := parseableToMap(attachment)
 			if err != nil {
-				return nil, nil, clues.Wrap(err, "converting attachment")
+				return clues.Wrap(err, "converting attachment")
 			}
 
 			convertedAttachments = append(convertedAttachments, am)
@@ -317,7 +309,42 @@ func (c Events) GetItem(
 		instance["attachments"] = convertedAttachments
 	}
 
-	return event, EventInfo(event), nil
+	return nil
+}
+
+// Adding checks to ensure that the data is in the format that we expect M365 to return
+func validateCancelledOccurrences(event models.Eventable) error {
+	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
+	if cancelledOccurrences != nil {
+		co, ok := cancelledOccurrences.([]any)
+		if !ok {
+			return clues.New("converting cancelledOccurrences to []any").
+				With("type", fmt.Sprintf("%T", cancelledOccurrences))
+		}
+
+		for _, instance := range co {
+			instance, err := str.AnyToString(instance)
+			if err != nil {
+				return err
+			}
+
+			// There might be multiple `.` in the ID and hence >2
+			splits := strings.Split(instance, ".")
+			if len(splits) < 2 {
+				return clues.New("unexpected cancelled event format").
+					With("instance", instance)
+			}
+
+			startStr := splits[len(splits)-1]
+
+			_, err = dttm.ParseTime(startStr)
+			if err != nil {
+				return clues.Wrap(err, "parsing cancelled event date")
+			}
+		}
+	}
+
+	return nil
 }
 
 func parseableToMap(att serialization.Parsable) (map[string]any, error) {
@@ -420,7 +447,7 @@ func (c Events) PostItem(
 	return itm, nil
 }
 
-func (c Events) UpdateItem(
+func (c Events) PatchItem(
 	ctx context.Context,
 	userID, eventID string,
 	body models.Eventable,

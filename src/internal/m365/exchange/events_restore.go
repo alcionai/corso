@@ -215,7 +215,7 @@ func updateExceptionOccurrences(
 		// to get the id of the existing attachments, diff them
 		// with what we need a then create/delete items kinda like
 		// permissions
-		_, err = ac.UpdateItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
+		_, err = ac.PatchItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance")
 		}
