@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -167,6 +168,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.CtxErr(ctx, err).Error("running restore")
+
+		if strings.Contains(err.Error(), "no restore path given") {
+			op.Errors.Fail(clues.New("running restore: empty backup or unknown path provided"))
+		}
+
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
