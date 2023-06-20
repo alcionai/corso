@@ -124,6 +124,10 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 			name:  "Test exceptionOccurrences",
 			bytes: exchMock.EventWithRecurrenceAndExceptionBytes(subject),
 		},
+		{
+			name:  "Test exceptionOccurrences with different attachments",
+			bytes: exchMock.EventWithRecurrenceAndExceptionAndAttachmentBytes(subject),
+		},
 	}
 
 	for _, test := range tests {
