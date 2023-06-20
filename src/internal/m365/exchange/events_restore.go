@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -149,7 +150,7 @@ func updateRecurringEvents(
 		return clues.Wrap(err, "update cancelled occurrences")
 	}
 
-	err = updateExceptionOccurrences(ctx, ac, userID, itemID, exceptionOccurrences)
+	err = updateExceptionOccurrences(ctx, ac, userID, containerID, itemID, exceptionOccurrences)
 	if err != nil {
 		return clues.Wrap(err, "update exception occurrences")
 	}
@@ -164,6 +165,7 @@ func updateExceptionOccurrences(
 	ctx context.Context,
 	ac api.Events,
 	userID string,
+	containerID string,
 	itemID string,
 	exceptionOccurrences any,
 ) error {
@@ -210,14 +212,97 @@ func updateExceptionOccurrences(
 
 		evt = toEventSimplified(evt)
 
-		// TODO(meain): Update attachments (might have to diff the
-		// attachments using ids and delete or add). We will have
-		// to get the id of the existing attachments, diff them
-		// with what we need a then create/delete items kinda like
-		// permissions
 		_, err = ac.PatchItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance")
+		}
+
+		evt, err = api.EventFromMap(instance)
+		if err != nil {
+			return clues.Wrap(err, "parsing exception event (second)")
+		}
+
+		err = updateAttachments(ctx, ac, userID, containerID, ptr.Val(evts[0].GetId()), evt)
+		if err != nil {
+			return clues.Wrap(err, "updating attachments")
+		}
+	}
+
+	return nil
+}
+
+func updateAttachments(
+	ctx context.Context,
+	client api.Events,
+	userID, containerID, eventID string,
+	event models.Eventable,
+) error {
+	// Attachment can only be deleted or added (validate added) in
+	// modified events and for them, the attachment id will be
+	// different from the original one, both in the backup and during
+	// restore. And so we detect and item using its contentBytes.
+	attachments, err := client.GetAttachments(ctx, false, userID, eventID)
+	if err != nil {
+		return clues.Wrap(err, "getting attachments")
+	}
+
+	// Delete unnecessary attachments
+	for _, att := range attachments {
+		content, err := api.GetAttachmentContent(att)
+		if err != nil {
+			return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(att.GetId()))
+		}
+
+		found := false
+
+		for _, natt := range event.GetAttachments() {
+			bcontent, err := api.GetAttachmentContent(natt)
+			if err != nil {
+				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(natt.GetId()))
+			}
+
+			if bytes.Equal(content, bcontent) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			err = client.DeleteAttachment(ctx, userID, eventID, ptr.Val(att.GetId()))
+			if err != nil {
+				return clues.Wrap(err, "deleting attachment").
+					With("attachment_id", ptr.Val(att.GetId()))
+			}
+		}
+	}
+
+	// Create missing attachments
+	for _, att := range event.GetAttachments() {
+		content, err := api.GetAttachmentContent(att)
+		if err != nil {
+			return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(att.GetId()))
+		}
+
+		found := false
+
+		for _, natt := range attachments {
+			bcontent, err := api.GetAttachmentContent(natt)
+			if err != nil {
+				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(natt.GetId()))
+			}
+
+			if bytes.Equal(content, bcontent) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			err = uploadAttachment(ctx, client, userID, containerID, eventID, att)
+			if err != nil {
+				return clues.Wrap(err, "updating attachment").
+					With("attachment_id", ptr.Val(att.GetId()))
+			}
 		}
 	}
 
