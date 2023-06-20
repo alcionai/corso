@@ -20,6 +20,9 @@ func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 		return m365, clues.New("unsupported account provider: " + providerType)
 	}
 
+	m365.AzureClientID = vpr.GetString(AzureClientID)
+	m365.AzureClientSecret = vpr.GetString(AzureSecret)
+
 	m365.AzureTenantID = vpr.GetString(AzureTenantIDKey)
 
 	return m365, nil
@@ -45,6 +48,7 @@ func configureAccount(
 		err     error
 	)
 
+	// Currently only in case of repo init we don't fetch values from Config file
 	if readConfigFromViper {
 		m365Cfg, err = m365ConfigsFromViper(vpr)
 		if err != nil {

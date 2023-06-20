@@ -33,6 +33,8 @@ const (
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
 	AzureTenantIDKey       = "azure_tenantid"
+	AzureClientID          = "azure_clientid"
+	AzureSecret            = "azure_secret"
 
 	// Corso passphrase in config
 	CorsoPassphrase = "passphrase"
