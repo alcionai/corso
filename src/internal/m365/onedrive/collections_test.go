@@ -2683,6 +2683,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 	driveID := "test-drive"
 	collCount := 3
+	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
 
 	table := []struct {
 		name             string
@@ -2710,7 +2711,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 				mbh,
 				"test-tenant",
 				"test-user",
-				testFolderMatcher{(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]},
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2721,7 +2721,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 			// Add a few collections
 			for i := 0; i < collCount; i++ {
 				coll, err := NewCollection(
-					&itemBackupHandler{api.Drives{}},
+					&itemBackupHandler{api.Drives{}, anyFolder},
 					nil,
 					nil,
 					driveID,

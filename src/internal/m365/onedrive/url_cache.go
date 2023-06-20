@@ -15,6 +15,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+const (
+	urlCacheDriveItemThreshold = 300 * 1000
+	urlCacheRefreshInterval    = 1 * time.Hour
+)
+
 type getItemPropertyer interface {
 	getItemProperties(
 		ctx context.Context,
