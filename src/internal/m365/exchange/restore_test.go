@@ -373,3 +373,71 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 		})
 	}
 }
+
+func (suite *RestoreIntgSuite) TestRestoreAndBackupEventWithRecurringAndAttachments() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		userID  = tester.M365UserID(t)
+		subject = testdata.DefaultRestoreConfig("event").Location
+		handler = newEventRestoreHandler(suite.ac)
+	)
+
+	calendar, err := handler.ac.CreateContainer(ctx, userID, subject, "")
+	require.NoError(t, err, clues.ToCore(err))
+
+	calendarID := ptr.Val(calendar.GetId())
+
+	defer func() {
+		// Removes calendar containing events created during the test
+		err = suite.ac.Events().DeleteContainer(ctx, userID, calendarID)
+		assert.NoError(t, err, clues.ToCore(err))
+	}()
+
+	bytes := exchMock.EventWithRecurrenceAndExceptionAndAttachmentBytes("Reoccurring event restore and backup test")
+	info, err := handler.restore(
+		ctx,
+		bytes,
+		userID, calendarID,
+		fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
+
+	ec, err := handler.ac.GetCalendarEvents(ctx, userID, calendarID)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	evts := ec.GetValue()
+	assert.Equal(t, len(evts), 1, "count of events")
+
+	sp, info, err := suite.ac.Events().GetItem(ctx, userID, ptr.Val(evts[0].GetId()), false, fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
+
+	body, err := suite.ac.Events().Serialize(ctx, sp, userID, ptr.Val(evts[0].GetId()))
+	assert.NoError(t, err, clues.ToCore(err))
+
+	event, err := api.BytesToEventable(body)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	require.NotNil(t, event.GetRecurrence(), "recurrence")
+	eo := event.GetAdditionalData()["exceptionOccurrences"]
+	require.NotNil(t, eo, "exceptionOccurrences")
+
+	require.NotEqual(
+		t,
+		ptr.Val(event.GetSubject()),
+		ptr.Val(eo.([]interface{})[0].(map[string]interface{})["subject"].(*string)),
+		"name equal",
+	)
+
+	atts := eo.([]interface{})[0].(map[string]interface{})["attachments"]
+	require.NotEqual(
+		t,
+		ptr.Val(event.GetAttachments()[0].GetName()),
+		ptr.Val(atts.([]interface{})[0].(map[string]interface{})["name"].(*string)),
+		"attachment name equal",
+	)
+}

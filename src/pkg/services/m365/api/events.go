@@ -192,6 +192,25 @@ func (c Events) PatchCalendar(
 	return nil
 }
 
+func (c Events) GetCalendarEvents(
+	ctx context.Context,
+	userID, containerID string,
+) (models.EventCollectionResponseable, error) {
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
 const (
 	// Beta version cannot have /calendars/%s for get and Patch
 	// https://stackoverflow.com/questions/50492177/microsoft-graph-get-user-calendar-event-with-beta-version
