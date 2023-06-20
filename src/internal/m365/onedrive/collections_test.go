@@ -2733,14 +2733,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				c.CollectionMap[driveID][strconv.Itoa(i)] = coll
-				require.Equal(t, nil, coll.cache, "cache not nil")
+				require.Equal(t, nil, coll.urlCache, "cache not nil")
 			}
 
 			err := c.addURLCacheToDriveCollections(
 				ctx,
 				driveID,
 				fault.New(true))
-
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Check that all collections have the same cache instance attached
@@ -2748,11 +2747,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 			var uc *urlCache
 			for _, driveColls := range c.CollectionMap {
 				for _, coll := range driveColls {
-					require.NotNil(t, coll.cache, "cache is nil")
+					require.NotNil(t, coll.urlCache, "cache is nil")
 					if uc == nil {
-						uc = coll.cache.(*urlCache)
+						uc = coll.urlCache.(*urlCache)
 					} else {
-						require.Equal(t, uc, coll.cache, "cache not equal")
+						require.Equal(t, uc, coll.urlCache, "cache not equal")
 					}
 				}
 			}

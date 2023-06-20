@@ -85,7 +85,7 @@ type Collection struct {
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
 
-	cache urlCacher
+	urlCache getItemPropertyer
 }
 
 func pathToLocation(p path.Path) (*path.Builder, error) {
@@ -111,7 +111,7 @@ func NewCollection(
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
-	cache urlCacher,
+	urlCache getItemPropertyer,
 ) (*Collection, error) {
 	// TODO(ashmrtn): If OneDrive switches to using folder IDs then this will need
 	// to be changed as we won't be able to extract path information from the
@@ -136,7 +136,7 @@ func NewCollection(
 		ctrlOpts,
 		colScope,
 		doNotMergeItems,
-		cache)
+		urlCache)
 
 	c.locPath = locPath
 	c.prevLocPath = prevLocPath
@@ -153,7 +153,7 @@ func newColl(
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
-	cache urlCacher,
+	urlCache getItemPropertyer,
 ) *Collection {
 	c := &Collection{
 		handler:         handler,
@@ -167,7 +167,7 @@ func newColl(
 		state:           data.StateOf(prevPath, currPath),
 		scope:           colScope,
 		doNotMergeItems: doNotMergeItems,
-		cache:           cache,
+		urlCache:        urlCache,
 	}
 
 	return c
@@ -273,7 +273,7 @@ func (oc *Collection) getDriveItemContent(
 		el       = errs.Local()
 	)
 
-	itemData, err := oc.downloadContent(ctx, oc.handler, item, oc.driveID)
+	itemData, err := downloadContent(ctx, oc.handler, oc.urlCache, item, oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
@@ -323,9 +323,10 @@ type itemAndAPIGetter interface {
 // downloadContent attempts to fetch the item content.  If the content url
 // is expired (ie, returns a 401), it re-fetches the item to get a new download
 // url and tries again.
-func (oc *Collection) downloadContent(
+func downloadContent(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
+	uc getItemPropertyer,
 	item models.DriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
@@ -343,9 +344,9 @@ func (oc *Collection) downloadContent(
 	// token, and that we've overrun the available window to
 	// download the file.  Get a fresh url from the cache and attempt to
 	// download again.
-	content, err = oc.readFromCache(ctx, iaag, itemID)
+	content, err = readItemContents(ctx, iaag, uc, itemID)
 	if err == nil {
-		logger.Ctx(ctx).Debug("found item in cache", itemID)
+		logger.Ctx(ctx).Debug("found item in url cache")
 
 		return content, nil
 	}
@@ -353,7 +354,7 @@ func (oc *Collection) downloadContent(
 	// Consider cache errors(including deleted items) as cache misses. This is
 	// to preserve existing behavior. Fallback to refetching the item using the
 	// API.
-	logger.CtxErr(ctx, err).Info("cache miss. refetching from API")
+	logger.CtxErr(ctx, err).Info("url cache miss: refetching from API")
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
@@ -368,18 +369,19 @@ func (oc *Collection) downloadContent(
 	return content, nil
 }
 
-// readFromCache fetches latest download URL from the cache and attempts to
+// readItemContents fetches latest download URL from the cache and attempts to
 // download the file using the new URL.
-func (oc *Collection) readFromCache(
+func readItemContents(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
+	uc getItemPropertyer,
 	itemID string,
 ) (io.ReadCloser, error) {
-	if oc.cache == nil {
-		return nil, clues.New("nil cache")
+	if uc == nil {
+		return nil, clues.New("nil url cache")
 	}
 
-	props, err := oc.cache.getItemProperties(ctx, itemID)
+	props, err := uc.getItemProperties(ctx, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +389,6 @@ func (oc *Collection) readFromCache(
 	// Handle newly deleted items
 	if props.isDeleted {
 		logger.Ctx(ctx).Info("item deleted in cache")
-
 		return nil, graph.ErrDeletedInFlight
 	}
 

@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type urlCacher interface {
+type getItemPropertyer interface {
 	getItemProperties(
 		ctx context.Context,
 		itemID string,
@@ -27,7 +27,7 @@ type itemProps struct {
 	isDeleted   bool
 }
 
-var _ urlCacher = &urlCache{}
+var _ getItemPropertyer = &urlCache{}
 
 // urlCache caches download URLs for drive items
 type urlCache struct {

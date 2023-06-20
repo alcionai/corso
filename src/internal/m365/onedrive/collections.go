@@ -385,7 +385,7 @@ func (c *Collections) Get(
 
 		// Only create a drive cache if there are less than 300k items in the drive.
 		if numDriveItems < urlCacheDriveItemThreshold {
-			logger.Ctx(ictx).Info("adding url cache for drive ", driveID)
+			logger.Ctx(ictx).Info("adding url cache for drive")
 
 			err = c.addURLCacheToDriveCollections(
 				ictx,
@@ -457,7 +457,7 @@ func (c *Collections) Get(
 	return collections, canUsePreviousBackup, nil
 }
 
-// addURLCacheToDriveCollections adds a URL cache to all collections belonging to
+// addURLCacheToDriveCollections adds an URL cache to all collections belonging to
 // a drive.
 func (c *Collections) addURLCacheToDriveCollections(
 	ctx context.Context,
@@ -476,7 +476,7 @@ func (c *Collections) addURLCacheToDriveCollections(
 	// Set the URL cache for all collections in this drive
 	for _, driveColls := range c.CollectionMap {
 		for _, coll := range driveColls {
-			coll.cache = uc
+			coll.urlCache = uc
 		}
 	}
 

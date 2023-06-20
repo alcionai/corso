@@ -605,7 +605,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 	}
 }
 
-var _ urlCacher = &mockURLCache{}
+var _ getItemPropertyer = &mockURLCache{}
 
 type mockURLCache struct {
 	Get func(ctx context.Context, itemID string) (itemProps, error)
@@ -765,19 +765,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			coll, err := NewCollection(
-				mbh,
-				nil,
-				nil,
-				driveID,
-				nil,
-				control.Options{ToggleFeatures: control.Toggles{}},
-				CollectionScopeFolder,
-				true,
-				test.muc)
-			require.NoError(t, err, clues.ToCore(err))
-
-			r, err := coll.downloadContent(ctx, mbh, item, driveID)
+			r, err := downloadContent(ctx, mbh, test.muc, item, driveID)
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
