@@ -401,6 +401,7 @@ func readItemContents(
 		return nil, err
 	}
 
+	logger.CtxErr(ctx, err).Info("item served from url cache")
 	return rc, nil
 }
 

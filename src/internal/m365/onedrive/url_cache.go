@@ -177,6 +177,9 @@ func (uc *urlCache) deltaQuery(
 ) error {
 	logger.Ctx(ctx).Debug("starting delta query")
 
+	// Reset item pager to remove any previous state
+	uc.itemPager.Reset()
+
 	_, _, _, err := collectItems(
 		ctx,
 		uc.itemPager,
