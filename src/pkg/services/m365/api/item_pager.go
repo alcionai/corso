@@ -61,7 +61,7 @@ func (e EmptyDeltaLinker[T]) GetValue() []T {
 }
 
 // ---------------------------------------------------------------------------
-// generic handler for paging complete items in a container
+// generic handler for non-delta item paging in a container
 // ---------------------------------------------------------------------------
 
 type itemPager[T any] interface {
@@ -78,8 +78,9 @@ func enumerateItems[T any](
 	pager itemPager[T],
 ) ([]T, error) {
 	var (
-		result   = make([]T, 0)
-		nextLink = "init"
+		result = make([]T, 0)
+		// stubbed initial value to ensure we enter the loop.
+		nextLink = "do-while"
 	)
 
 	for len(nextLink) > 0 {
@@ -108,7 +109,7 @@ func enumerateItems[T any](
 }
 
 // ---------------------------------------------------------------------------
-// generic handler for paging item ids in a container
+// generic handler for delta-based ittem paging in a container
 // ---------------------------------------------------------------------------
 
 // uses a models interface compliant with { GetValues() []T }
