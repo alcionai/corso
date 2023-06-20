@@ -78,7 +78,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, false)
+		utils.AddDetailsAndRestoreFlags(c, false)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -91,7 +91,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandDetailsExamples
 
 		options.AddSkipReduceFlag(c)
-		utils.AddBackupIDFlag(c, true)
+		utils.AddDetailsAndRestoreFlags(c, true)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:

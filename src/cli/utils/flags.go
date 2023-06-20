@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -82,6 +83,11 @@ func AddBackupIDFlag(cmd *cobra.Command, require bool) {
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))
 	}
+}
+
+func AddDetailsAndRestoreFlags(cmd *cobra.Command, require bool) {
+	AddBackupIDFlag(cmd, require)
+	options.AddViewTimestampFlag(cmd)
 }
 
 func AddDataFlag(cmd *cobra.Command, allowed []string, hide bool) {

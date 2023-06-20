@@ -23,6 +23,8 @@ func Control() control.Options {
 	opt.ToggleFeatures.DisableConcurrencyLimiter = disableConcurrencyLimiterFV
 	opt.Parallelism.ItemFetch = fetchParallelismFV
 
+	opt.Repo.ViewTimestamp = viewTimestampFV.Get()
+
 	return opt
 }
 
@@ -40,6 +42,7 @@ const (
 	DisableIncrementalsFN       = "disable-incrementals"
 	EnableImmutableIDFN         = "enable-immutable-id"
 	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
+	ViewTimestampFN             = "point-in-time"
 )
 
 var (
@@ -48,6 +51,7 @@ var (
 	noStatsFV            bool
 	restorePermissionsFV bool
 	skipReduceFV         bool
+	viewTimestampFV      timestamp
 )
 
 // AddGlobalOperationFlags adds the global operations flag set.
@@ -88,6 +92,17 @@ func AddFetchParallelismFlag(cmd *cobra.Command) {
 		4,
 		"Control the number of concurrent data fetches for Exchange. Valid range is [1-4]. Default: 4")
 	cobra.CheckErr(fs.MarkHidden(FetchParallelismFN))
+}
+
+// AddViewTimestampFlag adds a hidden flag that allows callers to pass a
+// timestamp to view the corso repo at if immutable backups are enabled.
+func AddViewTimestampFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.Var(
+		&viewTimestampFV,
+		ViewTimestampFN,
+		"View the repository at a previous datetime by passing an RFC3339 timestamp")
+	cobra.CheckErr(fs.MarkHidden(ViewTimestampFN))
 }
 
 // ---------------------------------------------------------------------------

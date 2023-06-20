@@ -31,7 +31,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, true)
+		utils.AddDetailsAndRestoreFlags(c, true)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
 		// restore permissions

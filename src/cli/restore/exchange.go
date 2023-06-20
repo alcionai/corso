@@ -32,7 +32,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// general flags
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, true)
+		utils.AddDetailsAndRestoreFlags(c, true)
 		utils.AddExchangeDetailsAndRestoreFlags(c)
 		options.AddFailFastFlag(c)
 	}

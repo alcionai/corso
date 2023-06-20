@@ -94,7 +94,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, false)
+		utils.AddDetailsAndRestoreFlags(c, false)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -107,7 +107,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = sharePointServiceCommandDetailsExamples
 
 		options.AddSkipReduceFlag(c)
-		utils.AddBackupIDFlag(c, true)
+		utils.AddDetailsAndRestoreFlags(c, true)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
