@@ -2680,7 +2680,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 	}
 }
 
-func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
+func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 	driveID := "test-drive"
 	collCount := 3
 	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
@@ -2704,8 +2704,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestURLCacheIntegration() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			itemPagers := map[string]api.DriveItemEnumerator{}
+			itemPagers[driveID] = &mockItemPager{}
+
 			mbh := mock.DefaultOneDriveBH()
-			mbh.ItemPagerV = map[string]api.DriveItemEnumerator{}
+			mbh.ItemPagerV = itemPagers
 
 			c := NewCollections(
 				mbh,

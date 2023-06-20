@@ -347,7 +347,6 @@ func downloadContent(
 	content, err = readItemContents(ctx, iaag, uc, itemID)
 	if err == nil {
 		logger.Ctx(ctx).Debug("found item in url cache")
-
 		return content, nil
 	}
 
