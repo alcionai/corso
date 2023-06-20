@@ -237,10 +237,12 @@ func updateAttachments(
 	userID, containerID, eventID string,
 	event models.Eventable,
 ) error {
-	// Attachment can only be deleted or added (validate added) in
-	// modified events and for them, the attachment id will be
-	// different from the original one, both in the backup and during
-	// restore. And so we detect and item using its contentBytes.
+	// Attachment can only be deleted or added in modified events and
+	// when an event is modified, the attachment ids will be
+	// changed. This change is both present in the data that we backed
+	// up and so we cannot rely on the attachment id to decide if they
+	// are the same. Instead we make use of the contentBytes and name
+	// to ensure they are the same.
 	attachments, err := client.GetAttachments(ctx, false, userID, eventID)
 	if err != nil {
 		return clues.Wrap(err, "getting attachments")
@@ -248,6 +250,8 @@ func updateAttachments(
 
 	// Delete unnecessary attachments
 	for _, att := range attachments {
+		name := ptr.Val(att.GetName())
+
 		content, err := api.GetAttachmentContent(att)
 		if err != nil {
 			return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(att.GetId()))
@@ -256,12 +260,14 @@ func updateAttachments(
 		found := false
 
 		for _, natt := range event.GetAttachments() {
+			bname := ptr.Val(natt.GetName())
+
 			bcontent, err := api.GetAttachmentContent(natt)
 			if err != nil {
 				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(natt.GetId()))
 			}
 
-			if bytes.Equal(content, bcontent) {
+			if name == bname && bytes.Equal(content, bcontent) {
 				found = true
 				break
 			}
@@ -278,6 +284,8 @@ func updateAttachments(
 
 	// Create missing attachments
 	for _, att := range event.GetAttachments() {
+		name := ptr.Val(att.GetName())
+
 		content, err := api.GetAttachmentContent(att)
 		if err != nil {
 			return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(att.GetId()))
@@ -286,12 +294,14 @@ func updateAttachments(
 		found := false
 
 		for _, natt := range attachments {
+			bname := ptr.Val(natt.GetName())
+
 			bcontent, err := api.GetAttachmentContent(natt)
 			if err != nil {
 				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(natt.GetId()))
 			}
 
-			if bytes.Equal(content, bcontent) {
+			if name == bname && bytes.Equal(content, bcontent) {
 				found = true
 				break
 			}
