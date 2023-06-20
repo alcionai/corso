@@ -3,8 +3,10 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -189,6 +192,14 @@ func (c Events) PatchCalendar(
 	return nil
 }
 
+const (
+	// Beta version cannot have /calendars/%s for get and Patch
+	// https://stackoverflow.com/questions/50492177/microsoft-graph-get-user-calendar-event-with-beta-version
+	eventExceptionsBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/events/%s?$expand=exceptionOccurrences"
+	eventPostBetaURLTemplate       = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events"
+	eventPatchBetaURLTemplate      = "https://graph.microsoft.com/beta/users/%s/events/%s"
+)
+
 // ---------------------------------------------------------------------------
 // items
 // ---------------------------------------------------------------------------
@@ -208,41 +219,216 @@ func (c Events) GetItem(
 		}
 	)
 
-	event, err = c.Stable.
+	// Beta endpoint helps us fetch the event exceptions, but since we
+	// don't use the beta SDK, the exceptionOccurrences and
+	// cancelledOccurrences end up in AdditionalData
+	// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-beta#properties
+	rawURL := fmt.Sprintf(eventExceptionsBetaURLTemplate, userID, itemID)
+	builder := users.NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
+
+	event, err = builder.Get(ctx, config)
+	if err != nil {
+		return nil, nil, graph.Stack(ctx, err)
+	}
+
+	err = validateCancelledOccurrences(event)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "verify cancelled occurrences")
+	}
+
+	err = fixupExceptionOccurrences(ctx, c, event, immutableIDs, userID)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "fixup exception occurrences")
+	}
+
+	attachments, err := c.getAttachments(ctx, event, immutableIDs, userID, itemID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	event.SetAttachments(attachments)
+
+	return event, EventInfo(event), nil
+}
+
+// fixupExceptionOccurrences gets attachments and converts the data
+// into a format that gets serialized when storing to kopia
+func fixupExceptionOccurrences(
+	ctx context.Context,
+	client Events,
+	event models.Eventable,
+	immutableIDs bool,
+	userID string,
+) error {
+	// Fetch attachments for exceptions
+	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
+	if exceptionOccurrences == nil {
+		return nil
+	}
+
+	eo, ok := exceptionOccurrences.([]any)
+	if !ok {
+		return clues.New("converting exceptionOccurrences to []any").
+			With("type", fmt.Sprintf("%T", exceptionOccurrences))
+	}
+
+	for _, instance := range eo {
+		instance, ok := instance.(map[string]any)
+		if !ok {
+			return clues.New("converting instance to map[string]any").
+				With("type", fmt.Sprintf("%T", instance))
+		}
+
+		evt, err := EventFromMap(instance)
+		if err != nil {
+			return clues.Wrap(err, "parsing exception event")
+		}
+
+		// OPTIMIZATION: We don't have to store any of the
+		// attachments that carry over from the original
+		attachments, err := client.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
+		if err != nil {
+			return clues.Wrap(err, "getting exception attachments").
+				With("exception_event_id", ptr.Val(evt.GetId()))
+		}
+
+		// This odd roundabout way of doing this is required as
+		// the json serialization at the end does not serialize if
+		// you just pass in a models.Attachmentable
+		convertedAttachments := []map[string]interface{}{}
+
+		for _, attachment := range attachments {
+			am, err := parseableToMap(attachment)
+			if err != nil {
+				return clues.Wrap(err, "converting attachment")
+			}
+
+			convertedAttachments = append(convertedAttachments, am)
+		}
+
+		instance["attachments"] = convertedAttachments
+	}
+
+	return nil
+}
+
+// Adding checks to ensure that the data is in the format that we expect M365 to return
+func validateCancelledOccurrences(event models.Eventable) error {
+	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
+	if cancelledOccurrences != nil {
+		co, ok := cancelledOccurrences.([]any)
+		if !ok {
+			return clues.New("converting cancelledOccurrences to []any").
+				With("type", fmt.Sprintf("%T", cancelledOccurrences))
+		}
+
+		for _, instance := range co {
+			instance, err := str.AnyToString(instance)
+			if err != nil {
+				return err
+			}
+
+			// There might be multiple `.` in the ID and hence >2
+			splits := strings.Split(instance, ".")
+			if len(splits) < 2 {
+				return clues.New("unexpected cancelled event format").
+					With("instance", instance)
+			}
+
+			startStr := splits[len(splits)-1]
+
+			_, err = dttm.ParseTime(startStr)
+			if err != nil {
+				return clues.Wrap(err, "parsing cancelled event date")
+			}
+		}
+	}
+
+	return nil
+}
+
+func parseableToMap(att serialization.Parsable) (map[string]any, error) {
+	var item map[string]any
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	if err := writer.WriteObjectValue("", att); err != nil {
+		return nil, err
+	}
+
+	ats, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(ats, &item)
+	if err != nil {
+		return nil, clues.Wrap(err, "unmarshalling serialized attachment")
+	}
+
+	return item, nil
+}
+
+func (c Events) getAttachments(
+	ctx context.Context,
+	event models.Eventable,
+	immutableIDs bool,
+	userID string,
+	itemID string,
+) ([]models.Attachmentable, error) {
+	if !ptr.Val(event.GetHasAttachments()) && !HasAttachments(event.GetBody()) {
+		return nil, nil
+	}
+
+	config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+			Expand: []string{"microsoft.graph.itemattachment/item"},
+		},
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+	}
+
+	attached, err := c.LargeItem.
 		Client().
 		Users().
 		ByUserId(userID).
 		Events().
 		ByEventId(itemID).
+		Attachments().
 		Get(ctx, config)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, graph.Wrap(ctx, err, "event attachment download")
 	}
 
-	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-		config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
-				Expand: []string{"microsoft.graph.itemattachment/item"},
-			},
-			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
-		}
+	return attached.GetValue(), nil
+}
 
-		attached, err := c.LargeItem.
-			Client().
-			Users().
-			ByUserId(userID).
-			Events().
-			ByEventId(itemID).
-			Attachments().
-			Get(ctx, config)
-		if err != nil {
-			return nil, nil, graph.Wrap(ctx, err, "event attachment download")
-		}
-
-		event.SetAttachments(attached.GetValue())
+func (c Events) GetItemInstances(
+	ctx context.Context,
+	userID, itemID string,
+	startDate, endDate string,
+) ([]models.Eventable, error) {
+	config := &users.ItemEventsItemInstancesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemEventsItemInstancesRequestBuilderGetQueryParameters{
+			Select:        []string{"id"},
+			StartDateTime: ptr.To(startDate),
+			EndDateTime:   ptr.To(endDate),
+		},
 	}
 
-	return event, EventInfo(event), nil
+	events, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Events().
+		ByEventId(itemID).
+		Instances().
+		Get(ctx, config)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return events.GetValue(), nil
 }
 
 func (c Events) PostItem(
@@ -250,16 +436,28 @@ func (c Events) PostItem(
 	userID, containerID string,
 	body models.Eventable,
 ) (models.Eventable, error) {
-	itm, err := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		Calendars().
-		ByCalendarId(containerID).
-		Events().
-		Post(ctx, body, nil)
+	rawURL := fmt.Sprintf(eventPostBetaURLTemplate, userID, containerID)
+	builder := users.NewItemCalendarsItemEventsRequestBuilder(rawURL, c.Stable.Adapter())
+
+	itm, err := builder.Post(ctx, body, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar event")
+	}
+
+	return itm, nil
+}
+
+func (c Events) PatchItem(
+	ctx context.Context,
+	userID, eventID string,
+	body models.Eventable,
+) (models.Eventable, error) {
+	rawURL := fmt.Sprintf(eventPatchBetaURLTemplate, userID, eventID)
+	builder := users.NewItemCalendarsItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
+
+	itm, err := builder.Patch(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "updating calendar event")
 	}
 
 	return itm, nil
@@ -471,4 +669,18 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		Created:     created,
 		Modified:    ptr.OrNow(evt.GetLastModifiedDateTime()),
 	}
+}
+
+func EventFromMap(ev map[string]any) (models.Eventable, error) {
+	instBytes, err := json.Marshal(ev)
+	if err != nil {
+		return nil, clues.Wrap(err, "marshaling event exception instance")
+	}
+
+	body, err := BytesToEventable(instBytes)
+	if err != nil {
+		return nil, clues.Wrap(err, "converting exception event bytes to Eventable")
+	}
+
+	return body, nil
 }

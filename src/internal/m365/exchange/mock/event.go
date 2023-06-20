@@ -25,11 +25,6 @@ import (
 //nolint:lll
 const (
 	eventTmpl = `{
-	"id":"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA=",
-	"calendar@odata.navigationLink":"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')",
-	"calendar@odata.associationLink":"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')/$ref",
-	"@odata.etag":"W/\"0hATW1CAfUS+njw3hdxSGAAAJIxNug==\"",
-	"@odata.context":"https://graph.microsoft.com/v1.0/$metadata#users('foobar%%408qzvrj.onmicrosoft.com')/events/$entity",
 	"categories":[],
 	"changeKey":"0hATW1CAfUS+njw3hdxSGAAAJIxNug==",
 	"createdDateTime":"2022-03-28T03:42:03Z",
@@ -46,7 +41,6 @@ const (
 		"timeZone":"UTC"
 	},
 	"hideAttendees":false,
-	"iCalUId":"040000008200E00074C5B7101A82E0080000000035723BC75542D801000000000000000010000000E1E7C8F785242E4894DA13AEFB947B85",
 	"importance":"normal",
 	"isAllDay":false,
 	"isCancelled":false,
@@ -75,6 +69,7 @@ const (
 			"name":"Anu Pierson"
 		}
 	},
+	%s
 	"originalEndTimeZone":"UTC",
 	"originalStartTimeZone":"UTC",
 	"reminderMinutesBeforeStart":15,
@@ -90,11 +85,13 @@ const (
 		"timeZone":"UTC"
 	},
 	"subject":"%s",
-	"type":"singleInstance",
+	"type":"%s",
 	"hasAttachments":%v,
 	%s
 	"webLink":"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%%3D&exvsurl=1&path=/calendar/item",
 	"recurrence":%s,
+	%s
+	%s
 	"attendees":%s
 }`
 
@@ -151,13 +148,16 @@ const (
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}],"
 
+	originalStartDateFormat = `"originalStart": "%s",`
+	NoOriginalStartDate     = ``
+
 	NoRecurrence   = `null`
 	recurrenceTmpl = `{
 		"pattern": {
 			"type": "absoluteYearly",
 			"interval": 1,
-			"month": 1,
-			"dayOfMonth": 1,
+			"month": %s,
+			"dayOfMonth": %s,
 			"firstDayOfWeek": "sunday",
 			"index": "first"
 		},
@@ -169,6 +169,13 @@ const (
 			"recurrenceTimeZone": %s
 		}
 	}`
+
+	cancelledOccurrencesFormat        = `"cancelledOccurrences": [%s],`
+	cancelledOccurrenceInstanceFormat = `"OID.AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAENAABBFDg0JJk7TY1fmsJrh7tNAADHGTZoAAA=.%s"`
+	NoCancelledOccurrences            = ""
+
+	exceptionOccurrencesFormat = `"exceptionOccurrences": [%s],`
+	NoExceptionOccurrences     = ""
 
 	NoAttendees   = `[]`
 	attendeesTmpl = `[{
@@ -227,7 +234,8 @@ func EventWithSubjectBytes(subject string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, endTime, NoRecurrence, NoAttendees, false,
+		NoOriginalStartDate, atTime, endTime, NoRecurrence, NoAttendees,
+		false, NoCancelledOccurrences, NoExceptionOccurrences,
 	)
 }
 
@@ -239,7 +247,8 @@ func EventWithAttachment(subject string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, NoRecurrence, NoAttendees, true,
+		NoOriginalStartDate, atTime, atTime, NoRecurrence, NoAttendees,
+		true, NoCancelledOccurrences, NoExceptionOccurrences,
 	)
 }
 
@@ -251,6 +260,8 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
+		strconv.Itoa(int(at.Month())),
+		strconv.Itoa(at.Day()),
 		timeSlice[0],
 		recurrenceTimeZone,
 	))
@@ -258,7 +269,70 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, recurrence, attendeesTmpl, true,
+		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
+		true, NoCancelledOccurrences, NoExceptionOccurrences,
+	)
+}
+
+func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
+	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+	atTime := dttm.Format(at)
+	timeSlice := strings.Split(atTime, "T")
+	nextYear := tomorrow.AddDate(1, 0, 0)
+
+	recurrence := string(fmt.Sprintf(
+		recurrenceTmpl,
+		strconv.Itoa(int(at.Month())),
+		strconv.Itoa(at.Day()),
+		timeSlice[0],
+		`"UTC"`,
+	))
+
+	cancelledInstances := []string{fmt.Sprintf(cancelledOccurrenceInstanceFormat, dttm.FormatTo(nextYear, dttm.DateOnly))}
+	cancelledOccurrences := fmt.Sprintf(cancelledOccurrencesFormat, strings.Join(cancelledInstances, ","))
+
+	return EventWith(
+		defaultEventOrganizer, subject,
+		defaultEventBody, defaultEventBodyPreview,
+		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
+		true, cancelledOccurrences, NoExceptionOccurrences,
+	)
+}
+
+func EventWithRecurrenceAndExceptionBytes(subject string) []byte {
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
+	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+	atTime := dttm.Format(at)
+	timeSlice := strings.Split(atTime, "T")
+	newTime := dttm.Format(tomorrow.AddDate(0, 0, 1))
+	originalStartDate := dttm.FormatTo(at, dttm.TabularOutput)
+
+	recurrence := string(fmt.Sprintf(
+		recurrenceTmpl,
+		strconv.Itoa(int(at.Month())),
+		strconv.Itoa(at.Day()),
+		timeSlice[0],
+		`"UTC"`,
+	))
+
+	exceptionEvent := EventWith(
+		defaultEventOrganizer, subject+"(modified)",
+		defaultEventBody, defaultEventBodyPreview,
+		fmt.Sprintf(originalStartDateFormat, originalStartDate),
+		newTime, newTime, NoRecurrence, attendeesTmpl,
+		false, NoCancelledOccurrences, NoExceptionOccurrences,
+	)
+	exceptionOccurrences := fmt.Sprintf(
+		exceptionOccurrencesFormat,
+		strings.Join([]string{string(exceptionEvent)}, ","),
+	)
+
+	return EventWith(
+		defaultEventOrganizer, subject,
+		defaultEventBody, defaultEventBodyPreview,
+		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
+		true, NoCancelledOccurrences, exceptionOccurrences,
 	)
 }
 
@@ -270,7 +344,8 @@ func EventWithAttendeesBytes(subject string) []byte {
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, NoRecurrence, attendeesTmpl, true,
+		NoOriginalStartDate, atTime, atTime, NoRecurrence, attendeesTmpl,
+		true, NoCancelledOccurrences, NoExceptionOccurrences,
 	)
 }
 
@@ -281,8 +356,8 @@ func EventWithAttendeesBytes(subject string) []byte {
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func EventWith(
 	organizer, subject, body, bodyPreview,
-	startDateTime, endDateTime, recurrence, attendees string,
-	hasAttachments bool,
+	originalStartDate, startDateTime, endDateTime, recurrence, attendees string,
+	hasAttachments bool, cancelledOccurrences, exceptionOccurrences string,
 ) []byte {
 	var attachments string
 	if hasAttachments {
@@ -300,17 +375,26 @@ func EventWith(
 		endDateTime += ".0000000"
 	}
 
+	eventType := "singleInstance"
+	if recurrence != "null" {
+		eventType = "seriesMaster"
+	}
+
 	return []byte(fmt.Sprintf(
 		eventTmpl,
 		body,
 		bodyPreview,
 		endDateTime,
 		organizer,
+		originalStartDate,
 		startDateTime,
 		subject,
+		eventType,
 		hasAttachments,
 		attachments,
 		recurrence,
+		cancelledOccurrences,
+		exceptionOccurrences,
 		attendees,
 	))
 }
