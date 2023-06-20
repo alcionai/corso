@@ -80,10 +80,15 @@ type testPager struct {
 	valuesErr error
 }
 
+//lint:ignore U1000 False Positive
 func (p *testPager) getPage(ctx context.Context) (PageLinker, error) {
 	return testPage{}, p.pageErr
 }
+
+//lint:ignore U1000 False Positive
 func (p *testPager) setNext(nextLink string) {}
+
+//lint:ignore U1000 False Positive
 func (p *testPager) valuesIn(pl PageLinker) ([]any, error) {
 	return p.items, p.valuesErr
 }

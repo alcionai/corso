@@ -109,15 +109,18 @@ func (c Events) NewEventsPager() itemPager[models.Eventable] {
 	return nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *eventsPager) getPage(ctx context.Context) (PageLinker, error) {
 	// TODO(rkeepers)
 	return nil, nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *eventsPager) setNext(nextLink string) {
 	// TODO(rkeepers)
 }
 
+//lint:ignore U1000 False Positive
 func (p *eventsPager) valuesIn(pl PageLinker) ([]models.Eventable, error) {
 	// TODO(rkeepers)
 	return nil, nil

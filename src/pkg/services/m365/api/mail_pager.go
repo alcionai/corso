@@ -132,15 +132,18 @@ func (c Mail) NewMailPager() itemPager[models.Messageable] {
 	return nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *mailPager) getPage(ctx context.Context) (PageLinker, error) {
 	// TODO(rkeepers)
 	return nil, nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *mailPager) setNext(nextLink string) {
 	// TODO(rkeepers)
 }
 
+//lint:ignore U1000 False Positive
 func (p *mailPager) valuesIn(pl PageLinker) ([]models.Messageable, error) {
 	// TODO(rkeepers)
 	return nil, nil

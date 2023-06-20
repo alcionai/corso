@@ -101,15 +101,18 @@ func (c Contacts) NewContactsPager() itemPager[models.Contactable] {
 	return nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *contactsPager) getPage(ctx context.Context) (PageLinker, error) {
 	// TODO(rkeepers)
 	return nil, nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *contactsPager) setNext(nextLink string) {
 	// TODO(rkeepers)
 }
 
+//lint:ignore U1000 False Positive
 func (p *contactsPager) valuesIn(pl PageLinker) ([]models.Contactable, error) {
 	// TODO(rkeepers)
 	return nil, nil
