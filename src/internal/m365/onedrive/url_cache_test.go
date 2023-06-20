@@ -112,6 +112,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// Create a new URL cache with a long TTL
 	cache, err := newURLCache(
 		suite.driveID,
+		"",
 		1*time.Hour,
 		driveItemPager,
 		fault.New(true))
@@ -404,6 +405,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 
 			cache, err := newURLCache(
 				driveID,
+				"",
 				1*time.Hour,
 				itemPager,
 				fault.New(true))
@@ -446,6 +448,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 
 	cache, err := newURLCache(
 		driveID,
+		"",
 		refreshInterval,
 		&mockItemPager{},
 		fault.New(true))
@@ -519,6 +522,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			t := suite.T()
 			_, err := newURLCache(
 				test.driveID,
+				"",
 				test.refreshInt,
 				test.itemPager,
 				test.errors)
