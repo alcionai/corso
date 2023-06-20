@@ -118,9 +118,6 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = cache.refreshCache(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-
 	// Launch parallel requests to the cache, one per item
 	var wg sync.WaitGroup
 	for i := 0; i < len(items); i++ {

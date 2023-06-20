@@ -15,10 +15,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+const (
+	urlCacheDriveItemThreshold = 300 * 1000
+	urlCacheRefreshInterval    = 1 * time.Hour
+)
+
+type getItemPropertyer interface {
+	getItemProperties(
+		ctx context.Context,
+		itemID string,
+	) (itemProps, error)
+}
+
 type itemProps struct {
 	downloadURL string
 	isDeleted   bool
 }
+
+var _ getItemPropertyer = &urlCache{}
 
 // urlCache caches download URLs for drive items
 type urlCache struct {
