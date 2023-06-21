@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -409,4 +410,35 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 			assert.True(t, gock.IsDone(), "made all requests")
 		})
 	}
+}
+
+func (suite *MailAPIIntgSuite) TestRestoreLargeAttachment() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	userID := tester.M365UserID(suite.T())
+
+	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
+	msgs := suite.ac.Mail()
+	mailfolder, err := msgs.CreateMailFolder(ctx, userID, folderName)
+	require.NoError(t, err, clues.ToCore(err))
+
+	msg := models.NewMessage()
+	msg.SetSubject(ptr.To("Mail with attachment"))
+
+	item, err := msgs.PostItem(ctx, userID, ptr.Val(mailfolder.GetId()), msg)
+	require.NoError(t, err, clues.ToCore(err))
+
+	id, err := msgs.PostLargeAttachment(
+		ctx,
+		userID,
+		ptr.Val(mailfolder.GetId()),
+		ptr.Val(item.GetId()),
+		"raboganm",
+		[]byte("mangobar"),
+	)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotEmpty(t, id, "empty id for large attachment")
 }
