@@ -37,6 +37,7 @@ var _ getItemPropertyer = &urlCache{}
 // urlCache caches download URLs for drive items
 type urlCache struct {
 	driveID         string
+	prevDelta       string
 	idToProps       map[string]itemProps
 	lastRefreshTime time.Time
 	refreshInterval time.Duration
@@ -53,7 +54,7 @@ type urlCache struct {
 
 // newURLache creates a new URL cache for the specified drive ID
 func newURLCache(
-	driveID string,
+	driveID, prevDelta string,
 	refreshInterval time.Duration,
 	itemPager api.DriveItemEnumerator,
 	errs *fault.Bus,
@@ -70,6 +71,7 @@ func newURLCache(
 			idToProps:       make(map[string]itemProps),
 			lastRefreshTime: time.Time{},
 			driveID:         driveID,
+			prevDelta:       prevDelta,
 			refreshInterval: refreshInterval,
 			itemPager:       itemPager,
 			errs:            errs,
@@ -179,6 +181,8 @@ func (uc *urlCache) deltaQuery(
 	ctx context.Context,
 ) error {
 	logger.Ctx(ctx).Debug("starting delta query")
+	// Reset item pager to remove any previous state
+	uc.itemPager.Reset()
 
 	_, _, _, err := collectItems(
 		ctx,
@@ -187,7 +191,7 @@ func (uc *urlCache) deltaQuery(
 		"",
 		uc.updateCache,
 		map[string]string{},
-		"",
+		uc.prevDelta,
 		uc.errs)
 	if err != nil {
 		return clues.Wrap(err, "delta query")
