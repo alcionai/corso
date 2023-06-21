@@ -43,9 +43,9 @@ var (
 	MaintenanceModeFV  string
 	ForceMaintenanceFV bool
 
-	AccessKeyFV       string
-	SecretAccessKeyFV string
-	SessionTokenFV    string
+	AWSAccessKeyFV       string
+	AWSSecretAccessKeyFV string
+	AWSSessionTokenFV    string
 )
 
 // common flag names (eg: FN)
@@ -73,9 +73,9 @@ const (
 	MaintenanceModeFN  = "mode"
 	ForceMaintenanceFN = "force"
 
-	AccessKeyFN       = "aws-access-key"
-	SecretAccessKeyFN = "aws-secret-access-key"
-	SessionTokenFN    = "aws-session-token"
+	AWSAccessKeyFN       = "aws-access-key"
+	AWSSecretAccessKeyFN = "aws-secret-access-key"
+	AWSSessionTokenFN    = "aws-session-token"
 
 	AzureClientTenantFN = "azure-tenant-id"
 	AzureClientIDFN     = "azure-client-id"
@@ -275,9 +275,9 @@ func trimFolderSlash(folders []string) []string {
 
 func AddAWSCredsFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.StringVar(&AccessKeyFV, AccessKeyFN, "", "S3 access key")
-	fs.StringVar(&SecretAccessKeyFV, SecretAccessKeyFN, "", "S3 access secret")
-	fs.StringVar(&SessionTokenFV, SessionTokenFN, "", "S3 session token")
+	fs.StringVar(&AWSAccessKeyFV, AWSAccessKeyFN, "", "S3 access key")
+	fs.StringVar(&AWSSecretAccessKeyFV, AWSSecretAccessKeyFN, "", "S3 access secret")
+	fs.StringVar(&AWSSessionTokenFV, AWSSessionTokenFN, "", "S3 session token")
 }
 
 // AddAzureCredsFlags adds M365 cred flags

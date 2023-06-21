@@ -22,7 +22,6 @@ func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 
 	m365.AzureClientID = vpr.GetString(AzureClientID)
 	m365.AzureClientSecret = vpr.GetString(AzureSecret)
-
 	m365.AzureTenantID = vpr.GetString(AzureTenantIDKey)
 
 	return m365, nil
@@ -95,8 +94,6 @@ func configureAccount(
 
 // M365 is a helper for aggregating m365 secrets and credentials.
 func GetM365(m365Cfg account.M365Config) credentials.M365 {
-	// check env and overide is flags found
-	// var AzureClientID, AzureClientSecret string
 	AzureClientID := str.First(
 		credentials.AzureClientIDFV,
 		os.Getenv(credentials.AzureClientID),

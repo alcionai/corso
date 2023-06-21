@@ -97,7 +97,10 @@ func configureStorage(
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
 		_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
 		if err != nil && (len(s3Cfg.AccessKey) > 0 || len(s3Cfg.SecretKey) > 0) {
-			aws = credentials.AWS{AccessKey: s3Cfg.AccessKey, SecretKey: s3Cfg.SecretKey, SessionToken: s3Cfg.SessionToken}
+			aws = credentials.AWS{
+				AccessKey:    s3Cfg.AccessKey,
+				SecretKey:    s3Cfg.SecretKey,
+				SessionToken: s3Cfg.SessionToken}
 			err = nil
 		}
 

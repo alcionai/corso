@@ -21,12 +21,12 @@ type S3Config struct {
 
 // config key consts
 const (
-	keyS3AccessKey      = "s3_accessKey"
+	keyS3AccessKey      = "s3_access_key"
 	keyS3Bucket         = "s3_bucket"
 	keyS3Endpoint       = "s3_endpoint"
 	keyS3Prefix         = "s3_prefix"
-	keyS3SecretKey      = "s3_secretKey"
-	keyS3SessionToken   = "s3_sessionToken"
+	keyS3SecretKey      = "s3_secret_key"
+	keyS3SessionToken   = "s3_session_token"
 	keyS3DoNotUseTLS    = "s3_donotusetls"
 	keyS3DoNotVerifyTLS = "s3_donotverifytls"
 )
@@ -42,8 +42,7 @@ const (
 
 func (c S3Config) Normalize() S3Config {
 	return S3Config{
-		Bucket: common.NormalizeBucket(c.Bucket),
-		// TODO: questions: why is this normalized
+		Bucket:         common.NormalizeBucket(c.Bucket),
 		Endpoint:       c.Endpoint,
 		Prefix:         common.NormalizePrefix(c.Prefix),
 		DoNotUseTLS:    c.DoNotUseTLS,
