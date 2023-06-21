@@ -95,6 +95,8 @@ func uploadAttachment(
 
 	// for file attachments sized >= 3MB
 	if attachmentType == models.FILE_ATTACHMENTTYPE && size >= largeAttachmentSize {
+		// We expect the entire attachment to fit in memory.
+		// Max attachment size is 150MB.
 		content, err := api.GetAttachmentContent(attachment)
 		if err != nil {
 			return clues.Wrap(err, "serializing attachment content").WithClues(ctx)
