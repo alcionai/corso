@@ -250,13 +250,10 @@ func (suite *EventsAPIIntgSuite) TestRestoreLargeAttachment() {
 
 	userID := tester.M365UserID(suite.T())
 
-	folderName := testdata.DefaultRestoreConfig("eventrestoretest").Location
+	folderName := testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
 	evts := suite.ac.Events()
 	calendar, err := evts.CreateContainer(ctx, userID, folderName, "")
 	require.NoError(t, err, clues.ToCore(err))
-
-	// Delete on exit
-	defer func() { _ = evts.DeleteContainer(ctx, userID, ptr.Val(calendar.GetId())) }()
 
 	tomorrow := time.Now().Add(24 * time.Hour)
 	evt := models.NewEvent()

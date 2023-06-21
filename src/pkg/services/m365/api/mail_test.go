@@ -420,13 +420,10 @@ func (suite *MailAPIIntgSuite) TestRestoreLargeAttachment() {
 
 	userID := tester.M365UserID(suite.T())
 
-	folderName := testdata.DefaultRestoreConfig("mailrestoretest").Location
+	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
 	msgs := suite.ac.Mail()
 	mailfolder, err := msgs.CreateMailFolder(ctx, userID, folderName)
 	require.NoError(t, err, clues.ToCore(err))
-
-	// Delete on exit
-	defer func() { _ = msgs.DeleteMailFolder(ctx, userID, ptr.Val(mailfolder.GetId())) }()
 
 	msg := models.NewMessage()
 	msg.SetSubject(ptr.To("Mail with attachment"))
