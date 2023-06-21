@@ -513,14 +513,9 @@ func (c Events) PostSmallAttachment(
 func (c Events) PostLargeAttachment(
 	ctx context.Context,
 	userID, containerID, parentItemID, itemName string,
-	size int64,
-	body models.Attachmentable,
-) (models.UploadSessionable, error) {
-	bs, err := GetAttachmentContent(body)
-	if err != nil {
-		return nil, clues.Wrap(err, "serializing attachment content").WithClues(ctx)
-	}
-
+	content []byte,
+) (string, error) {
+	size := int64(len(content))
 	session := users.NewItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(itemName, size))
 
@@ -536,19 +531,19 @@ func (c Events) PostLargeAttachment(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "uploading large event attachment")
+		return "", graph.Wrap(ctx, err, "uploading large event attachment")
 	}
 
 	url := ptr.Val(us.GetUploadUrl())
 	w := graph.NewLargeItemWriter(parentItemID, url, size)
 	copyBuffer := make([]byte, graph.AttachmentChunkSize)
 
-	_, err = io.CopyBuffer(w, bytes.NewReader(bs), copyBuffer)
+	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)
 	if err != nil {
-		return nil, clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
+		return "", clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
 	}
 
-	return us, nil
+	return w.ID, nil
 }
 
 // ---------------------------------------------------------------------------

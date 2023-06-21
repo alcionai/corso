@@ -63,6 +63,23 @@ func (c Mail) CreateMailFolder(
 	return mdl, nil
 }
 
+func (c Mail) DeleteMailFolder(
+	ctx context.Context,
+	userID, id string,
+) error {
+	err := c.Stable.Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(id).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting mail folder")
+	}
+
+	return nil
+}
+
 func (c Mail) CreateContainer(
 	ctx context.Context,
 	userID, containerName, parentContainerID string,
@@ -407,14 +424,9 @@ func (c Mail) PostSmallAttachment(
 func (c Mail) PostLargeAttachment(
 	ctx context.Context,
 	userID, containerID, parentItemID, itemName string,
-	size int64,
-	body models.Attachmentable,
-) (models.UploadSessionable, error) {
-	bs, err := GetAttachmentContent(body)
-	if err != nil {
-		return nil, clues.Wrap(err, "serializing attachment content").WithClues(ctx)
-	}
-
+	content []byte,
+) (string, error) {
+	size := int64(len(content))
 	session := users.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(itemName, size))
 
@@ -430,19 +442,19 @@ func (c Mail) PostLargeAttachment(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "uploading large mail attachment")
+		return "", graph.Wrap(ctx, err, "uploading large mail attachment")
 	}
 
 	url := ptr.Val(us.GetUploadUrl())
 	w := graph.NewLargeItemWriter(parentItemID, url, size)
 	copyBuffer := make([]byte, graph.AttachmentChunkSize)
 
-	_, err = io.CopyBuffer(w, bytes.NewReader(bs), copyBuffer)
+	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)
 	if err != nil {
-		return nil, clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
+		return "", clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
 	}
 
-	return us, nil
+	return w.ID, nil
 }
 
 // ---------------------------------------------------------------------------
