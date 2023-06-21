@@ -125,7 +125,7 @@ func configureStorage(
 	}
 
 	// compose the common config and credentials
-	corso := credentials.GetAndInsertCorso(vpr.GetString(CorsoPassphrase))
+	corso := GetAndInsertCorso(vpr.GetString(CorsoPassphrase))
 	if err := corso.Validate(); err != nil {
 		return store, clues.Wrap(err, "validating corso credentials")
 	}
@@ -156,4 +156,15 @@ func configureStorage(
 	}
 
 	return store, nil
+}
+
+// GetCorso is a helper for aggregating Corso secrets and credentials.
+func GetAndInsertCorso(passphase string) credentials.Corso {
+	// fetch data from flag, env var or func param giving priority to func param
+	// Func param generally will be value fetched from config file using viper.
+	corsoPassph := str.First(credentials.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
+
+	return credentials.Corso{
+		CorsoPassphrase: corsoPassph,
+	}
 }

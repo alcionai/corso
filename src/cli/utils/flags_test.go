@@ -52,9 +52,9 @@ func (suite *FlagUnitSuite) TestAddAWSCredsFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "accesskey", AccessKeyFV, AccessKeyFN)
-			assert.Equal(t, "secretkey", SecretAccessKeyFV, SecretAccessKeyFN)
-			assert.Equal(t, "token", SessionTokenFV, SessionTokenFN)
+			assert.Equal(t, "accesskey", AWSAccessKeyFV, AWSAccessKeyFN)
+			assert.Equal(t, "secretkey", AWSSecretAccessKeyFV, AWSSecretAccessKeyFN)
+			assert.Equal(t, "token", AWSSessionTokenFV, AWSSessionTokenFN)
 		},
 	}
 
@@ -62,9 +62,9 @@ func (suite *FlagUnitSuite) TestAddAWSCredsFlags() {
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
-		"--" + AccessKeyFN, "accesskey",
-		"--" + SecretAccessKeyFN, "secretkey",
-		"--" + SessionTokenFN, "token",
+		"--" + AWSAccessKeyFN, "accesskey",
+		"--" + AWSSecretAccessKeyFN, "secretkey",
+		"--" + AWSSessionTokenFN, "token",
 	})
 
 	err := cmd.Execute()
@@ -77,7 +77,7 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "passphrase", credentials.CorsoPassphraseFV, credentials.CorsoPassphraseFN)
+			assert.Equal(t, "passphrase", CorsoPassphraseFV, credentials.CorsoPassphraseFN)
 		},
 	}
 

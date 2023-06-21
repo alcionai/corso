@@ -239,9 +239,9 @@ func S3Overrides() map[string]string {
 	return map[string]string{
 		config.AccountProviderTypeKey:  account.ProviderM365.String(),
 		config.StorageProviderTypeKey:  storage.ProviderS3.String(),
-		credentials.AWSAccessKeyID:     utils.AccessKeyFV,
-		credentials.AWSSecretAccessKey: utils.SecretAccessKeyFV,
-		credentials.AWSSessionToken:    utils.SessionTokenFV,
+		credentials.AWSAccessKeyID:     utils.AWSAccessKeyFV,
+		credentials.AWSSecretAccessKey: utils.AWSSecretAccessKeyFV,
+		credentials.AWSSessionToken:    utils.AWSSessionTokenFV,
 		storage.Bucket:                 bucket,
 		storage.Endpoint:               endpoint,
 		storage.Prefix:                 prefix,

@@ -1,11 +1,13 @@
 package tester
 
 import (
+	"os"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -40,11 +42,22 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 			Prefix: prefix,
 		},
 		storage.CommonConfig{
-			Corso:       credentials.GetAndInsertCorso(""),
+			Corso:       GetAndInsertCorso(""),
 			KopiaCfgDir: t.TempDir(),
 		},
 	)
 	require.NoError(t, err, "creating storage", clues.ToCore(err))
 
 	return st
+}
+
+// GetCorso is a helper for aggregating Corso secrets and credentials.
+func GetAndInsertCorso(passphase string) credentials.Corso {
+	// fetch data from flag, env var or func param giving priority to func param
+	// Func param generally will be value fetched from config file using viper.
+	corsoPassph := str.First(credentials.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
+
+	return credentials.Corso{
+		CorsoPassphrase: corsoPassph,
+	}
 }

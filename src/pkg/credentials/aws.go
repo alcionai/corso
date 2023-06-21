@@ -21,15 +21,15 @@ type AWS struct {
 // GetAWS is a helper for aggregating aws secrets and credentials.
 func GetAWS(override map[string]string) AWS {
 	var accessKey, secretKey, sessToken string
-	if ovr, ok := override[AWSAccessKeyID]; ok && ovr != "" {
+	if ovr := override[AWSAccessKeyID]; ovr != "" {
 		accessKey = ovr
 	}
 
-	if ovr, ok := override[AWSSecretAccessKey]; ok && ovr != "" {
+	if ovr := override[AWSSecretAccessKey]; ovr != "" {
 		secretKey = ovr
 	}
 
-	if ovr, ok := override[AWSSessionToken]; ok && ovr != "" {
+	if ovr := override[AWSSessionToken]; ovr != "" {
 		sessToken = ovr
 	}
 

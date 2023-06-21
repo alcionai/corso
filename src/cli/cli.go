@@ -70,12 +70,6 @@ func preRun(cc *cobra.Command, args []string) error {
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
 		overrides := repo.S3Overrides()
-		// TODO: Neha: check if this is required
-		// if cc.Short == "Connect to a S3 repository" {
-		// 	// Get s3 overrides for connect. Ideally we also need this
-		// 	// for init, but we don't reach this block for init.
-		// 	overrides = repo.S3Overrides()
-		// }
 
 		cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
 		if err != nil {
