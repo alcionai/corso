@@ -91,15 +91,16 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	nfid := ptr.Val(newFolder.GetId())
 
 	collectorFunc := func(
-		ctx context.Context,
-		driveID, driveName string,
-		driveItems []models.DriveItemable,
-		oldPaths map[string]string,
-		newPaths map[string]string,
-		excluded map[string]struct{},
-		itemCollection map[string]map[string]string,
-		doNotMergeItems bool,
-		errs *fault.Bus,
+		context.Context,
+		string,
+		string,
+		[]models.DriveItemable,
+		map[string]string,
+		map[string]string,
+		map[string]struct{},
+		map[string]map[string]string,
+		bool,
+		*fault.Bus,
 	) error {
 		return nil
 	}
