@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type ExchangeUnitSuite struct {
@@ -80,6 +81,16 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				"--" + utils.EventStartsAfterFN, testdata.EventStartsAfterInput,
 				"--" + utils.EventStartsBeforeFN, testdata.EventStartsBeforeInput,
 				"--" + utils.EventSubjectFN, testdata.EventSubjectInput,
+
+				"--" + utils.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + utils.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + utils.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+				"--" + utils.AzureClientIDFN, testdata.AzureClientID,
+				"--" + utils.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + utils.AzureClientSecretFN, testdata.AzureClientSecret,
+
+				"--" + credentials.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -108,6 +119,16 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			assert.Equal(t, testdata.EventStartsAfterInput, opts.EventStartsAfter)
 			assert.Equal(t, testdata.EventStartsBeforeInput, opts.EventStartsBefore)
 			assert.Equal(t, testdata.EventSubjectInput, opts.EventSubject)
+
+			assert.Equal(t, testdata.AWSAccessKeyID, utils.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, utils.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, utils.AWSSessionTokenFV)
+
+			assert.Equal(t, testdata.AzureClientID, credentials.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, credentials.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, credentials.AzureClientSecretFV)
+
+			assert.Equal(t, testdata.CorsoPassphrase, credentials.CorsoPassphraseFV)
 		})
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type SharePointUnitSuite struct {
@@ -74,6 +75,16 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 				"--" + utils.PageFN, testdata.FlgInputs(testdata.PageInput),
 				"--" + utils.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+
+				"--" + utils.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + utils.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + utils.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+				"--" + utils.AzureClientIDFN, testdata.AzureClientID,
+				"--" + utils.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + utils.AzureClientSecretFN, testdata.AzureClientSecret,
+
+				"--" + credentials.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -97,6 +108,17 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
 			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
+
+			assert.Equal(t, testdata.AWSAccessKeyID, utils.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, utils.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, utils.AWSSessionTokenFV)
+
+			assert.Equal(t, testdata.AzureClientID, credentials.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, credentials.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, credentials.AzureClientSecretFV)
+
+			assert.Equal(t, testdata.CorsoPassphrase, credentials.CorsoPassphraseFV)
+
 		})
 	}
 }
