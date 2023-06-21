@@ -374,7 +374,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 	}
 }
 
-func (suite *RestoreIntgSuite) TestRestoreAndBackupEventWithRecurringAndAttachments() {
+func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithAttachments() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -391,53 +391,52 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEventWithRecurringAndAttachme
 
 	calendarID := ptr.Val(calendar.GetId())
 
-	defer func() {
-		// Removes calendar containing events created during the test
-		err = suite.ac.Events().DeleteContainer(ctx, userID, calendarID)
-		assert.NoError(t, err, clues.ToCore(err))
-	}()
-
 	bytes := exchMock.EventWithRecurrenceAndExceptionAndAttachmentBytes("Reoccurring event restore and backup test")
 	info, err := handler.restore(
 		ctx,
 		bytes,
 		userID, calendarID,
 		fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
 
-	ec, err := handler.ac.GetCalendarEvents(ctx, userID, calendarID)
-	assert.NoError(t, err, clues.ToCore(err))
+	ec, err := handler.ac.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(calendarID).
+		Events().
+		Get(ctx, nil)
+	require.NoError(t, err, clues.ToCore(err))
 
 	evts := ec.GetValue()
-	assert.Equal(t, len(evts), 1, "count of events")
+	assert.Len(t, evts, 1, "count of events")
 
 	sp, info, err := suite.ac.Events().GetItem(ctx, userID, ptr.Val(evts[0].GetId()), false, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
 
 	body, err := suite.ac.Events().Serialize(ctx, sp, userID, ptr.Val(evts[0].GetId()))
-	assert.NoError(t, err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	event, err := api.BytesToEventable(body)
-	assert.NoError(t, err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
-	require.NotNil(t, event.GetRecurrence(), "recurrence")
+	assert.NotNil(t, event.GetRecurrence(), "recurrence")
 	eo := event.GetAdditionalData()["exceptionOccurrences"]
-	require.NotNil(t, eo, "exceptionOccurrences")
+	assert.NotNil(t, eo, "exceptionOccurrences")
 
-	require.NotEqual(
+	assert.NotEqual(
 		t,
 		ptr.Val(event.GetSubject()),
-		ptr.Val(eo.([]interface{})[0].(map[string]interface{})["subject"].(*string)),
-		"name equal",
-	)
+		ptr.Val(eo.([]any)[0].(map[string]any)["subject"].(*string)),
+		"name equal")
 
-	atts := eo.([]interface{})[0].(map[string]interface{})["attachments"]
-	require.NotEqual(
+	atts := eo.([]any)[0].(map[string]any)["attachments"]
+	assert.NotEqual(
 		t,
 		ptr.Val(event.GetAttachments()[0].GetName()),
-		ptr.Val(atts.([]interface{})[0].(map[string]interface{})["name"].(*string)),
-		"attachment name equal",
-	)
+		ptr.Val(atts.([]any)[0].(map[string]any)["name"].(*string)),
+		"attachment name equal")
 }

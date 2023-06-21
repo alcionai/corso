@@ -229,10 +229,12 @@ func EventBytes(subject string) []byte {
 }
 
 func EventWithSubjectBytes(subject string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
-	endTime := dttm.Format(at.Add(30 * time.Minute))
+	var (
+		tomorrow = time.Now().UTC().AddDate(0, 0, 1)
+		at       = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime   = dttm.Format(at)
+		endTime  = dttm.Format(at.Add(30 * time.Minute))
+	)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
@@ -243,9 +245,11 @@ func EventWithSubjectBytes(subject string) []byte {
 }
 
 func EventWithAttachment(subject string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
+	var (
+		tomorrow = time.Now().UTC().AddDate(0, 0, 1)
+		at       = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime   = dttm.Format(at)
+	)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
@@ -256,10 +260,12 @@ func EventWithAttachment(subject string) []byte {
 }
 
 func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
-	timeSlice := strings.Split(atTime, "T")
+	var (
+		tomorrow  = time.Now().UTC().AddDate(0, 0, 1)
+		at        = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime    = dttm.Format(at)
+		timeSlice = strings.Split(atTime, "T")
+	)
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
@@ -278,11 +284,13 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 }
 
 func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
-	timeSlice := strings.Split(atTime, "T")
-	nextYear := tomorrow.AddDate(1, 0, 0)
+	var (
+		tomorrow  = time.Now().UTC().AddDate(0, 0, 1)
+		at        = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime    = dttm.Format(at)
+		timeSlice = strings.Split(atTime, "T")
+		nextYear  = tomorrow.AddDate(1, 0, 0)
+	)
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
@@ -304,12 +312,14 @@ func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
 }
 
 func EventWithRecurrenceAndExceptionBytes(subject string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
-	timeSlice := strings.Split(atTime, "T")
-	newTime := dttm.Format(tomorrow.AddDate(0, 0, 1))
-	originalStartDate := dttm.FormatTo(at, dttm.TabularOutput)
+	var (
+		tomorrow          = time.Now().UTC().AddDate(0, 0, 1)
+		at                = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime            = dttm.Format(at)
+		timeSlice         = strings.Split(atTime, "T")
+		newTime           = dttm.Format(tomorrow.AddDate(0, 0, 1))
+		originalStartDate = dttm.FormatTo(at, dttm.TabularOutput)
+	)
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
@@ -326,10 +336,7 @@ func EventWithRecurrenceAndExceptionBytes(subject string) []byte {
 		newTime, newTime, NoRecurrence, attendeesTmpl,
 		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences,
 	)
-	exceptionOccurrences := fmt.Sprintf(
-		exceptionOccurrencesFormat,
-		strings.Join([]string{string(exceptionEvent)}, ","),
-	)
+	exceptionOccurrences := fmt.Sprintf(exceptionOccurrencesFormat, exceptionEvent)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
@@ -340,12 +347,14 @@ func EventWithRecurrenceAndExceptionBytes(subject string) []byte {
 }
 
 func EventWithRecurrenceAndExceptionAndAttachmentBytes(subject string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
-	timeSlice := strings.Split(atTime, "T")
-	newTime := dttm.Format(tomorrow.AddDate(0, 0, 1))
-	originalStartDate := dttm.FormatTo(at, dttm.TabularOutput)
+	var (
+		tomorrow          = time.Now().UTC().AddDate(0, 0, 1)
+		at                = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime            = dttm.Format(at)
+		timeSlice         = strings.Split(atTime, "T")
+		newTime           = dttm.Format(tomorrow.AddDate(0, 0, 1))
+		originalStartDate = dttm.FormatTo(at, dttm.TabularOutput)
+	)
 
 	recurrence := string(fmt.Sprintf(
 		recurrenceTmpl,
@@ -377,9 +386,11 @@ func EventWithRecurrenceAndExceptionAndAttachmentBytes(subject string) []byte {
 }
 
 func EventWithAttendeesBytes(subject string) []byte {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	at := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
-	atTime := dttm.Format(at)
+	var (
+		tomorrow = time.Now().UTC().AddDate(0, 0, 1)
+		at       = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime   = dttm.Format(at)
+	)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
@@ -399,7 +410,7 @@ func EventWith(
 	originalStartDate, startDateTime, endDateTime, recurrence, attendees string,
 	attachments string, cancelledOccurrences, exceptionOccurrences string,
 ) []byte {
-	hasAttachments := attachments != ""
+	hasAttachments := len(attachments) > 0
 	startDateTime = strings.TrimSuffix(startDateTime, "Z")
 	endDateTime = strings.TrimSuffix(endDateTime, "Z")
 

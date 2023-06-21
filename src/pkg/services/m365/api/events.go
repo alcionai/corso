@@ -192,25 +192,6 @@ func (c Events) PatchCalendar(
 	return nil
 }
 
-func (c Events) GetCalendarEvents(
-	ctx context.Context,
-	userID, containerID string,
-) (models.EventCollectionResponseable, error) {
-	resp, err := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		Calendars().
-		ByCalendarId(containerID).
-		Events().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
-}
-
 const (
 	// Beta version cannot have /calendars/%s for get and Patch
 	// https://stackoverflow.com/questions/50492177/microsoft-graph-get-user-calendar-event-with-beta-version
@@ -313,8 +294,8 @@ func fixupExceptionOccurrences(
 		if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
 			attachments, err = client.GetAttachments(ctx, immutableIDs, userID, ptr.Val(evt.GetId()))
 			if err != nil {
-				return clues.Wrap(err, "getting exception attachments").
-					With("exception_event_id", ptr.Val(evt.GetId()))
+				return clues.Wrap(err, "getting event instance attachments").
+					With("event_instance_id", ptr.Val(evt.GetId()))
 			}
 		}
 

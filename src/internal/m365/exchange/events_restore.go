@@ -197,7 +197,7 @@ func updateExceptionOccurrences(
 
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		evts, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
+		instances, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -205,103 +205,116 @@ func updateExceptionOccurrences(
 		// Since the min recurrence interval is 1 day and we are
 		// querying for only a single day worth of instances, we
 		// should not have more than one instance here.
-		if len(evts) != 1 {
+		if len(instances) != 1 {
 			return clues.New("invalid number of instances for modified").
-				With("instances_count", len(evts), "search_start", startStr, "search_end", endStr)
+				With("instances_count", len(instances), "search_start", startStr, "search_end", endStr)
 		}
 
 		evt = toEventSimplified(evt)
 
-		_, err = ac.PatchItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
+		_, err = ac.PatchItem(ctx, userID, ptr.Val(instances[0].GetId()), evt)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance")
 		}
 
+		// We are creating event again from map as `toEventSimplified`
+		// removed the attachments and creating a clone from start of
+		// the event is non-trivial
 		evt, err = api.EventFromMap(instance)
 		if err != nil {
-			return clues.Wrap(err, "parsing exception event (second)")
+			return clues.Wrap(err, "parsing event instance")
 		}
 
-		err = updateAttachments(ctx, ac, userID, containerID, ptr.Val(evts[0].GetId()), evt)
+		err = updateAttachments(ctx, ac, userID, containerID, ptr.Val(instances[0].GetId()), evt)
 		if err != nil {
-			return clues.Wrap(err, "updating attachments")
+			return clues.Wrap(err, "updating event instance attachments")
 		}
 	}
 
 	return nil
 }
 
+// updateAttachments updates the attachments of an event to match what
+// is present in the backed up event. Ideally we could make use of the
+// id of the series master event's attachments to see if we had
+// added/removed any attachments, but as soon an event is modified,
+// the id changes which makes the ids unusable. In this function, we
+// use the name and content bytes to detect the changes. This function
+// can be used to update the attachments of any event irrespective of
+// whether they are event instances of a series master although for
+// newer event, since we probably won't already have any events it
+// would be better use Post[Small|Large]Attachment.
 func updateAttachments(
 	ctx context.Context,
 	client api.Events,
 	userID, containerID, eventID string,
 	event models.Eventable,
 ) error {
-	// Attachment can only be deleted or added in modified events and
-	// when an event is modified, the attachment ids will be
-	// changed. This change is both present in the data that we backed
-	// up and so we cannot rely on the attachment id to decide if they
-	// are the same. Instead we make use of the contentBytes and name
-	// to ensure they are the same.
 	attachments, err := client.GetAttachments(ctx, false, userID, eventID)
 	if err != nil {
 		return clues.Wrap(err, "getting attachments")
 	}
 
-	// Delete unnecessary attachments
+	// Delete attachments that are not present in the backup but are
+	// present in the event(ones that were automatically inherited
+	// from series master).
 	for _, att := range attachments {
 		name := ptr.Val(att.GetName())
+		id := ptr.Val(att.GetId())
 
 		content, err := api.GetAttachmentContent(att)
 		if err != nil {
-			return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(att.GetId()))
+			return clues.Wrap(err, "getting attachment").With("attachment_id", id)
 		}
 
 		found := false
 
-		for _, natt := range event.GetAttachments() {
-			bname := ptr.Val(natt.GetName())
+		for _, nAtt := range event.GetAttachments() {
+			nName := ptr.Val(nAtt.GetName())
 
-			bcontent, err := api.GetAttachmentContent(natt)
+			nContent, err := api.GetAttachmentContent(nAtt)
 			if err != nil {
-				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(natt.GetId()))
+				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(nAtt.GetId()))
 			}
 
-			if name == bname && bytes.Equal(content, bcontent) {
+			if name == nName && bytes.Equal(content, nContent) {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			err = client.DeleteAttachment(ctx, userID, eventID, ptr.Val(att.GetId()))
+			err = client.DeleteAttachment(ctx, userID, eventID, id)
 			if err != nil {
 				return clues.Wrap(err, "deleting attachment").
-					With("attachment_id", ptr.Val(att.GetId()))
+					With("attachment_id", id)
 			}
 		}
 	}
 
-	// Create missing attachments
+	// Upload missing(attachments that are present in the individual
+	// instance but not in the series master event) attachments
 	for _, att := range event.GetAttachments() {
 		name := ptr.Val(att.GetName())
+		id := ptr.Val(att.GetId())
 
 		content, err := api.GetAttachmentContent(att)
 		if err != nil {
-			return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(att.GetId()))
+			return clues.Wrap(err, "getting attachment").With("attachment_id", id)
 		}
 
 		found := false
 
-		for _, natt := range attachments {
-			bname := ptr.Val(natt.GetName())
+		for _, nAtt := range attachments {
+			nName := ptr.Val(nAtt.GetName())
 
-			bcontent, err := api.GetAttachmentContent(natt)
+			bContent, err := api.GetAttachmentContent(nAtt)
 			if err != nil {
-				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(natt.GetId()))
+				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(nAtt.GetId()))
 			}
 
-			if name == bname && bytes.Equal(content, bcontent) {
+			// Max size allowed for an outlook attachment is 150MB
+			if name == nName && bytes.Equal(content, bContent) {
 				found = true
 				break
 			}
@@ -310,8 +323,8 @@ func updateAttachments(
 		if !found {
 			err = uploadAttachment(ctx, client, userID, containerID, eventID, att)
 			if err != nil {
-				return clues.Wrap(err, "updating attachment").
-					With("attachment_id", ptr.Val(att.GetId()))
+				return clues.Wrap(err, "uploading attachment").
+					With("attachment_id", id)
 			}
 		}
 	}
@@ -361,7 +374,7 @@ func updateCancelledOccurrences(
 
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		evts, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
+		instances, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -369,12 +382,12 @@ func updateCancelledOccurrences(
 		// Since the min recurrence interval is 1 day and we are
 		// querying for only a single day worth of instances, we
 		// should not have more than one instance here.
-		if len(evts) != 1 {
+		if len(instances) != 1 {
 			return clues.New("invalid number of instances for cancelled").
-				With("instances_count", len(evts), "search_start", startStr, "search_end", endStr)
+				With("instances_count", len(instances), "search_start", startStr, "search_end", endStr)
 		}
 
-		err = ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
+		err = ac.DeleteItem(ctx, userID, ptr.Val(instances[0].GetId()))
 		if err != nil {
 			return clues.Wrap(err, "deleting event instance")
 		}
