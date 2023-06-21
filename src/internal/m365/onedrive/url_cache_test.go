@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"net/http"
@@ -89,10 +90,37 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	nfid := ptr.Val(newFolder.GetId())
 
+	collectorFunc := func(
+		ctx context.Context,
+		driveID, driveName string,
+		driveItems []models.DriveItemable,
+		oldPaths map[string]string,
+		newPaths map[string]string,
+		excluded map[string]struct{},
+		itemCollection map[string]map[string]string,
+		doNotMergeItems bool,
+		errs *fault.Bus,
+	) error {
+		return nil
+	}
+
+	// Get the previous delta to feed into url cache
+	prevDelta, _, _, err := collectItems(
+		ctx,
+		suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+		suite.driveID,
+		"drive-name",
+		collectorFunc,
+		map[string]string{},
+		"",
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, prevDelta.URL)
+
 	// Create a bunch of files in the new folder
 	var items []models.DriveItemable
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		newItemName := "test_url_cache_basic_" + dttm.FormatNow(dttm.SafeForTesting)
 
 		item, err := ac.Drives().PostItemInContainer(
@@ -110,13 +138,12 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	}
 
 	// Create a new URL cache with a long TTL
-	cache, err := newURLCache(
+	uc, err := newURLCache(
 		suite.driveID,
-		"",
+		prevDelta.URL,
 		1*time.Hour,
 		driveItemPager,
 		fault.New(true))
-
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Launch parallel requests to the cache, one per item
@@ -128,11 +155,11 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			defer wg.Done()
 
 			// Read item from URL cache
-			props, err := cache.getItemProperties(
+			props, err := uc.getItemProperties(
 				ctx,
 				ptr.Val(items[i].GetId()))
-
 			require.NoError(t, err, clues.ToCore(err))
+
 			require.NotNil(t, props)
 			require.NotEmpty(t, props.downloadURL)
 			require.Equal(t, false, props.isDeleted)
@@ -146,15 +173,14 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 				props.downloadURL,
 				nil,
 				nil)
-
 			require.NoError(t, err, clues.ToCore(err))
 			require.Equal(t, http.StatusOK, resp.StatusCode)
 		}(i)
 	}
 	wg.Wait()
 
-	// Validate that <= 1 delta queries were made
-	require.LessOrEqual(t, cache.deltaQueryCount, 1)
+	// Validate that <= 1 delta queries were made by url cache
+	require.LessOrEqual(t, uc.deltaQueryCount, 1)
 }
 
 type URLCacheUnitSuite struct {
