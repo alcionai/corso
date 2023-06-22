@@ -320,35 +320,6 @@ func DriveItemCollisionKey(item models.DriveItemable) string {
 	return ptr.Val(item.GetName())
 }
 
-// TODO(meain): Is this the same as permissions one?
-// TODO(meain): Do we need separate function?
-func (c Drives) DeleteItemLinkShare(
-	ctx context.Context,
-	driveID, itemID, linkShareID string,
-) error {
-	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
-	if err != nil {
-		return graph.Wrap(ctx, err, "creating adapter to delete item link share")
-	}
-
-	err = srv.
-		Client().
-		Drives().
-		ByDriveId(driveID).
-		Items().
-		ByDriveItemId(itemID).
-		Permissions().
-		ByPermissionId(linkShareID).
-		Delete(graph.ConsumeNTokens(ctx, graph.PermissionsLC), nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting drive item permission")
-	}
-
-	return nil
-}
-
 func (c Drives) PostItemLinkShareUpdate(
 	ctx context.Context,
 	driveID, itemID string,

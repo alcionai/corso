@@ -229,7 +229,7 @@ func UpdatePermissions(
 }
 
 type updateDeleteItemLinkSharer interface {
-	DeleteItemLinkSharer
+	DeleteItemPermissioner // Deletion logic is same as permissions
 	UpdateItemLinkSharer
 }
 
@@ -262,7 +262,7 @@ func UpdateLinkShares(
 			return clues.New("no new link share id").WithClues(ctx)
 		}
 
-		err := upils.DeleteItemLinkShare(ictx, driveID, itemID, pid)
+		err := upils.DeleteItemPermission(ictx, driveID, itemID, pid)
 		if err != nil {
 			return clues.Stack(err)
 		}

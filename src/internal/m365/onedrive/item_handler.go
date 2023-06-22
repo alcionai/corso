@@ -169,13 +169,6 @@ func (h itemRestoreHandler) PostItemPermissionUpdate(
 	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
 }
 
-func (h itemRestoreHandler) DeleteItemLinkShare(
-	ctx context.Context,
-	driveID, itemID, linkShareID string,
-) error {
-	return h.ac.DeleteItemLinkShare(ctx, driveID, itemID, linkShareID)
-}
-
 func (h itemRestoreHandler) PostItemLinkShareUpdate(
 	ctx context.Context,
 	driveID, itemID string,
