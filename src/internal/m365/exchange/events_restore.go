@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -117,7 +119,15 @@ func (h eventRestoreHandler) restore(
 	}
 
 	// Fix up event instances in case we have a recurring event
-	err = updateRecurringEvents(ctx, h.ac, userID, destinationID, ptr.Val(item.GetId()), event)
+	err = updateRecurringEvents(
+		ctx,
+		h.ac,
+		userID,
+		destinationID,
+		ptr.Val(item.GetId()),
+		event,
+		errs,
+	)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -133,6 +143,7 @@ func updateRecurringEvents(
 	ac api.Events,
 	userID, containerID, itemID string,
 	event models.Eventable,
+	errs *fault.Bus,
 ) error {
 	if event.GetRecurrence() == nil {
 		return nil
@@ -149,7 +160,7 @@ func updateRecurringEvents(
 		return clues.Wrap(err, "update cancelled occurrences")
 	}
 
-	err = updateExceptionOccurrences(ctx, ac, userID, itemID, exceptionOccurrences)
+	err = updateExceptionOccurrences(ctx, ac, userID, containerID, itemID, exceptionOccurrences, errs)
 	if err != nil {
 		return clues.Wrap(err, "update exception occurrences")
 	}
@@ -164,8 +175,10 @@ func updateExceptionOccurrences(
 	ctx context.Context,
 	ac api.Events,
 	userID string,
+	containerID string,
 	itemID string,
 	exceptionOccurrences any,
+	errs *fault.Bus,
 ) error {
 	if exceptionOccurrences == nil {
 		return nil
@@ -193,9 +206,11 @@ func updateExceptionOccurrences(
 		startStr := dttm.FormatTo(start, dttm.DateOnly)
 		endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
 
+		ictx := clues.Add(ctx, "event_instance_id", ptr.Val(evt.GetId()), "event_instance_date", start)
+
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		evts, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
+		instances, err := ac.GetItemInstances(ictx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -203,25 +218,139 @@ func updateExceptionOccurrences(
 		// Since the min recurrence interval is 1 day and we are
 		// querying for only a single day worth of instances, we
 		// should not have more than one instance here.
-		if len(evts) != 1 {
+		if len(instances) != 1 {
 			return clues.New("invalid number of instances for modified").
-				With("instances_count", len(evts), "search_start", startStr, "search_end", endStr)
+				With("instances_count", len(instances), "search_start", startStr, "search_end", endStr)
 		}
 
 		evt = toEventSimplified(evt)
 
-		// TODO(meain): Update attachments (might have to diff the
-		// attachments using ids and delete or add). We will have
-		// to get the id of the existing attachments, diff them
-		// with what we need a then create/delete items kinda like
-		// permissions
-		_, err = ac.PatchItem(ctx, userID, ptr.Val(evts[0].GetId()), evt)
+		_, err = ac.PatchItem(ictx, userID, ptr.Val(instances[0].GetId()), evt)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance")
+		}
+
+		// We are creating event again from map as `toEventSimplified`
+		// removed the attachments and creating a clone from start of
+		// the event is non-trivial
+		evt, err = api.EventFromMap(instance)
+		if err != nil {
+			return clues.Wrap(err, "parsing event instance")
+		}
+
+		err = updateAttachments(ictx, ac, userID, containerID, ptr.Val(instances[0].GetId()), evt, errs)
+		if err != nil {
+			return clues.Wrap(err, "updating event instance attachments")
 		}
 	}
 
 	return nil
+}
+
+// updateAttachments updates the attachments of an event to match what
+// is present in the backed up event. Ideally we could make use of the
+// id of the series master event's attachments to see if we had
+// added/removed any attachments, but as soon an event is modified,
+// the id changes which makes the ids unusable. In this function, we
+// use the name and content bytes to detect the changes. This function
+// can be used to update the attachments of any event irrespective of
+// whether they are event instances of a series master although for
+// newer event, since we probably won't already have any events it
+// would be better use Post[Small|Large]Attachment.
+func updateAttachments(
+	ctx context.Context,
+	client api.Events,
+	userID, containerID, eventID string,
+	event models.Eventable,
+	errs *fault.Bus,
+) error {
+	el := errs.Local()
+
+	attachments, err := client.GetAttachments(ctx, false, userID, eventID)
+	if err != nil {
+		return clues.Wrap(err, "getting attachments")
+	}
+
+	// Delete attachments that are not present in the backup but are
+	// present in the event(ones that were automatically inherited
+	// from series master).
+	for _, att := range attachments {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
+
+		name := ptr.Val(att.GetName())
+		id := ptr.Val(att.GetId())
+
+		content, err := api.GetAttachmentContent(att)
+		if err != nil {
+			return clues.Wrap(err, "getting attachment").With("attachment_id", id)
+		}
+
+		found := false
+
+		for _, nAtt := range event.GetAttachments() {
+			nName := ptr.Val(nAtt.GetName())
+
+			nContent, err := api.GetAttachmentContent(nAtt)
+			if err != nil {
+				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(nAtt.GetId()))
+			}
+
+			if name == nName && bytes.Equal(content, nContent) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			err = client.DeleteAttachment(ctx, userID, containerID, eventID, id)
+			if err != nil {
+				logger.CtxErr(ctx, err).With("attachment_name", name).Info("attachment delete failed")
+				el.AddRecoverable(ctx, clues.Wrap(err, "deleting event attachment").
+					WithClues(ctx).With("attachment_name", name))
+			}
+		}
+	}
+
+	// Upload missing(attachments that are present in the individual
+	// instance but not in the series master event) attachments
+	for _, att := range event.GetAttachments() {
+		name := ptr.Val(att.GetName())
+		id := ptr.Val(att.GetId())
+
+		content, err := api.GetAttachmentContent(att)
+		if err != nil {
+			return clues.Wrap(err, "getting attachment").With("attachment_id", id)
+		}
+
+		found := false
+
+		for _, nAtt := range attachments {
+			nName := ptr.Val(nAtt.GetName())
+
+			bContent, err := api.GetAttachmentContent(nAtt)
+			if err != nil {
+				return clues.Wrap(err, "getting attachment").With("attachment_id", ptr.Val(nAtt.GetId()))
+			}
+
+			// Max size allowed for an outlook attachment is 150MB
+			if name == nName && bytes.Equal(content, bContent) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			err = uploadAttachment(ctx, client, userID, containerID, eventID, att)
+			if err != nil {
+				return clues.Wrap(err, "uploading attachment").
+					With("attachment_id", id)
+			}
+		}
+	}
+
+	return el.Failure()
 }
 
 // updateCancelledOccurrences get the cancelled occurrences which is a
@@ -266,7 +395,7 @@ func updateCancelledOccurrences(
 
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		evts, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
+		instances, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -274,12 +403,12 @@ func updateCancelledOccurrences(
 		// Since the min recurrence interval is 1 day and we are
 		// querying for only a single day worth of instances, we
 		// should not have more than one instance here.
-		if len(evts) != 1 {
+		if len(instances) != 1 {
 			return clues.New("invalid number of instances for cancelled").
-				With("instances_count", len(evts), "search_start", startStr, "search_end", endStr)
+				With("instances_count", len(instances), "search_start", startStr, "search_end", endStr)
 		}
 
-		err = ac.DeleteItem(ctx, userID, ptr.Val(evts[0].GetId()))
+		err = ac.DeleteItem(ctx, userID, ptr.Val(instances[0].GetId()))
 		if err != nil {
 			return clues.Wrap(err, "deleting event instance")
 		}
