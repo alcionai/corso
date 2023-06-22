@@ -159,6 +159,7 @@ func (uc *urlCache) refreshCache(
 
 	// Issue a delta query to graph
 	logger.Ctx(ctx).Info("refreshing url cache")
+	startTime := time.Now()
 
 	err := uc.deltaQuery(ctx)
 	if err != nil {
@@ -171,7 +172,7 @@ func (uc *urlCache) refreshCache(
 	logger.Ctx(ctx).Info("url cache refreshed")
 
 	// Update last refresh time
-	uc.lastRefreshTime = time.Now()
+	uc.lastRefreshTime = startTime
 
 	return nil
 }
