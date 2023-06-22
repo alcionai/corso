@@ -13,7 +13,7 @@ type Entity struct {
 type LinkShareLink struct {
 	Scope            string `json:"scope,omitempty"`
 	Type             string `json:"type,omitempty"`
-	WebUrl           string `json:"webUrl,omitempty"` // we cannot restore this, but can be used for comparisons
+	WebURL           string `json:"webUrl,omitempty"` // we cannot restore this, but can be used for comparisons
 	PreventsDownload bool   `json:"preventsDownload,omitempty"`
 }
 
@@ -22,12 +22,12 @@ type LinkShare struct {
 	Link        LinkShareLink `json:"link,omitempty"`
 	Roles       []string      `json:"role,omitempty"`
 	Entities    []Entity      `json:"entityId,omitempty"`    // this is the resource owner's ID
-	HasPassword bool          `json:"hasPassword,omitempty"` // Only anonymous ones require password and we don't restore them
+	HasPassword bool          `json:"hasPassword,omitempty"` // We cannot restore ones with password
 	Expiration  *time.Time    `json:"expiration,omitempty"`
 }
 
 func (ls LinkShare) Equals(other LinkShare) bool {
-	return ls.Link.WebUrl == other.Link.WebUrl
+	return ls.Link.WebURL == other.Link.WebURL
 }
 
 // ItemMeta contains metadata about the Item. It gets stored in a
@@ -39,7 +39,7 @@ type Metadata struct {
 	// - custom: use Permissions to set correct permissions ("shared" has value in delta)
 	SharingMode SharingMode  `json:"permissionMode,omitempty"`
 	Permissions []Permission `json:"permissions,omitempty"`
-	LinkShares []LinkShare `json:"linkShares,omitempty"`
+	LinkShares  []LinkShare  `json:"linkShares,omitempty"`
 }
 
 type Item struct {

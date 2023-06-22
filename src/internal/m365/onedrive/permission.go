@@ -291,6 +291,7 @@ func UpdateLinkShares(
 
 		idens := []map[string]string{}
 		entities := []string{}
+
 		for _, iden := range ls.Entities {
 			// TODO: sitegroup support.  Currently errors with "One or more users could not be resolved",
 			// likely due to the site group entityID consisting of a single integer (ex: 4)
