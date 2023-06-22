@@ -114,7 +114,10 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		func(id, now, subject, body string) []byte {
 			return exchMock.EventWith(
 				User, subject, body, body,
-				now, now, exchMock.NoRecurrence, exchMock.NoAttendees, false)
+				exchMock.NoOriginalStartDate, now, now,
+				exchMock.NoRecurrence, exchMock.NoAttendees,
+				exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
+				exchMock.NoExceptionOccurrences)
 		},
 		control.Defaults(),
 		errs)
