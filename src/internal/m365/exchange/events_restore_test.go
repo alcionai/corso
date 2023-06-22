@@ -64,21 +64,14 @@ func (m *eventRestoreMock) PostLargeAttachment(
 	return uuid.NewString(), m.postAttachmentErr
 }
 
-func (m mockEventRestorer) DeleteAttachment(
+func (m *eventRestoreMock) DeleteAttachment(
 	ctx context.Context,
 	userID, calendarID, eventID, attachmentID string,
 ) error {
 	return nil
 }
 
-func (m mockEventRestorer) DeleteItem(
-	ctx context.Context,
-	userID, itemID string,
-) error {
-	return nil
-}
-
-func (m mockEventRestorer) GetAttachments(
+func (m *eventRestoreMock) GetAttachments(
 	_ context.Context,
 	_ bool,
 	_, _ string,
@@ -86,14 +79,14 @@ func (m mockEventRestorer) GetAttachments(
 	return []models.Attachmentable{}, nil
 }
 
-func (m mockEventRestorer) GetItemInstances(
+func (m *eventRestoreMock) GetItemInstances(
 	_ context.Context,
 	_, _, _, _ string,
 ) ([]models.Eventable, error) {
 	return []models.Eventable{}, nil
 }
 
-func (m mockEventRestorer) PatchItem(
+func (m *eventRestoreMock) PatchItem(
 	_ context.Context,
 	_, _ string,
 	_ models.Eventable,
