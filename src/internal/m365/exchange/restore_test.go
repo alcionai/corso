@@ -403,6 +403,8 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithA
 		ctx,
 		bytes,
 		userID, calendarID,
+		nil,
+		control.Copy,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")

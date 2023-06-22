@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,10 +47,9 @@ func (m mockMailRestorer) PostSmallAttachment(
 func (m mockMailRestorer) PostLargeAttachment(
 	_ context.Context,
 	_, _, _, _ string,
-	_ int64,
-	_ models.Attachmentable,
-) (models.UploadSessionable, error) {
-	return models.NewUploadSession(), m.postAttachmentErr
+	_ []byte,
+) (string, error) {
+	return uuid.NewString(), m.postAttachmentErr
 }
 
 // ---------------------------------------------------------------------------

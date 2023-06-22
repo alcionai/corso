@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,10 +47,46 @@ func (m mockEventRestorer) PostSmallAttachment(
 func (m mockEventRestorer) PostLargeAttachment(
 	_ context.Context,
 	_, _, _, _ string,
-	_ int64,
-	_ models.Attachmentable,
-) (models.UploadSessionable, error) {
-	return models.NewUploadSession(), m.postAttachmentErr
+	_ []byte,
+) (string, error) {
+	return uuid.NewString(), m.postAttachmentErr
+}
+
+func (m mockEventRestorer) DeleteAttachment(
+	ctx context.Context,
+	userID, calendarID, eventID, attachmentID string,
+) error {
+	return nil
+}
+
+func (m mockEventRestorer) DeleteItem(
+	ctx context.Context,
+	userID, itemID string,
+) error {
+	return nil
+}
+
+func (m mockEventRestorer) GetAttachments(
+	_ context.Context,
+	_ bool,
+	_, _ string,
+) ([]models.Attachmentable, error) {
+	return []models.Attachmentable{}, nil
+}
+
+func (m mockEventRestorer) GetItemInstances(
+	_ context.Context,
+	_, _, _, _ string,
+) ([]models.Eventable, error) {
+	return []models.Eventable{}, nil
+}
+
+func (m mockEventRestorer) PatchItem(
+	_ context.Context,
+	_, _ string,
+	_ models.Eventable,
+) (models.Eventable, error) {
+	return models.NewEvent(), nil
 }
 
 // ---------------------------------------------------------------------------
