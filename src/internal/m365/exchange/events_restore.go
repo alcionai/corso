@@ -304,7 +304,7 @@ func updateAttachments(
 		}
 
 		if !found {
-			err = client.DeleteAttachment(ctx, userID, eventID, id)
+			err = client.DeleteAttachment(ctx, userID, containerID, eventID, id)
 			if err != nil {
 				logger.CtxErr(ctx, err).With("attachment_name", name).Info("attachment delete failed")
 				el.AddRecoverable(ctx, clues.Wrap(err, "deleting event attachment").

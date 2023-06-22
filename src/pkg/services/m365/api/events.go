@@ -407,12 +407,14 @@ func (c Events) GetAttachments(
 
 func (c Events) DeleteAttachment(
 	ctx context.Context,
-	userID, eventID, attachmentID string,
+	userID, calendarID, eventID, attachmentID string,
 ) error {
 	return c.Stable.
 		Client().
 		Users().
 		ByUserId(userID).
+		Calendars().
+		ByCalendarId(calendarID).
 		Events().
 		ByEventId(eventID).
 		Attachments().
