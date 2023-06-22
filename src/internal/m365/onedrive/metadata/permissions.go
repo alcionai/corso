@@ -47,6 +47,7 @@ func (p Permission) Equals(other Permission) bool {
 	// if EntityID/Email for one is not empty then the other will also
 	// have EntityID/Email as we backup permissions for all the
 	// parents and children when we have a change in permissions.
+	// We cannot just compare id because of the problem described in #3117
 	if p.EntityID != "" && p.EntityID != other.EntityID {
 		return false
 	}
