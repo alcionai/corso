@@ -116,45 +116,19 @@ func FilterPermissions(ctx context.Context, perms []models.Permissionable) []Per
 			continue
 		}
 
-		var (
-			// Below are the mapping from roles to "Advanced" permissions
-			// screen entries:
-			//
-			// owner - Full Control
-			// write - Design | Edit | Contribute (no difference in /permissions api)
-			// read  - Read
-			// empty - Restricted View
-			//
-			// helpful docs:
-			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
-			roles    = p.GetRoles()
-			gv2      = p.GetGrantedToV2()
-			entityID string
-			gv2t     GV2Type
-		)
+		// Below are the mapping from roles to "Advanced" permissions
+		// screen entries:
+		//
+		// owner - Full Control
+		// write - Design | Edit | Contribute (no difference in /permissions api)
+		// read  - Read
+		// empty - Restricted View
+		//
+		// helpful docs:
+		// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
+		roles := p.GetRoles()
 
-		switch true {
-		case gv2.GetUser() != nil:
-			gv2t = GV2User
-			entityID = ptr.Val(gv2.GetUser().GetId())
-		case gv2.GetSiteUser() != nil:
-			gv2t = GV2SiteUser
-			entityID = ptr.Val(gv2.GetSiteUser().GetId())
-		case gv2.GetGroup() != nil:
-			gv2t = GV2Group
-			entityID = ptr.Val(gv2.GetGroup().GetId())
-		case gv2.GetSiteGroup() != nil:
-			gv2t = GV2SiteGroup
-			entityID = ptr.Val(gv2.GetSiteGroup().GetId())
-		case gv2.GetApplication() != nil:
-			gv2t = GV2App
-			entityID = ptr.Val(gv2.GetApplication().GetId())
-		case gv2.GetDevice() != nil:
-			gv2t = GV2Device
-			entityID = ptr.Val(gv2.GetDevice().GetId())
-		default:
-			logger.Ctx(ctx).Info("untracked permission")
-		}
+		gv2t, entityID := getIdentityDetails(ctx, p.GetGrantedToV2())
 
 		// Technically GrantedToV2 can also contain devices, but the
 		// documentation does not mention about devices in permissions
@@ -173,4 +147,84 @@ func FilterPermissions(ctx context.Context, perms []models.Permissionable) []Per
 	}
 
 	return up
+}
+
+func FilterLinkShares(ctx context.Context, perms []models.Permissionable) []LinkShare {
+	up := []LinkShare{}
+
+	for _, p := range perms {
+		link := p.GetLink()
+		if link == nil {
+			// Non link share based permissions are handled separately
+			continue
+		}
+
+		var (
+			roles = p.GetRoles()
+			gv2   = p.GetGrantedToIdentitiesV2()
+		)
+
+		idens := []Entity{}
+
+		for _, g := range gv2 {
+			gv2t, entityID := getIdentityDetails(ctx, g)
+
+			// Technically GrantedToV2 can also contain devices, but the
+			// documentation does not mention about devices in permissions
+			if entityID == "" {
+				// This should ideally not be hit
+				continue
+			}
+
+			idens = append(idens, Entity{ID: entityID, EntityType: gv2t})
+		}
+
+		up = append(up, LinkShare{
+			ID: ptr.Val(p.GetId()),
+			Link: LinkShareLink{
+				Scope:            ptr.Val(link.GetScope()),
+				Type:             ptr.Val(link.GetType()),
+				WebUrl:           ptr.Val(link.GetWebUrl()),
+				PreventsDownload: ptr.Val(link.GetPreventsDownload()),
+			},
+			Roles:       roles,
+			Entities:    idens,
+			HasPassword: ptr.Val(p.GetHasPassword()),
+			Expiration:  p.GetExpirationDateTime(),
+		})
+	}
+
+	return up
+}
+
+func getIdentityDetails(ctx context.Context, gv2 models.SharePointIdentitySetable) (GV2Type, string) {
+	var (
+		gv2t     GV2Type
+		entityID string
+	)
+
+	switch true {
+	case gv2.GetUser() != nil:
+		gv2t = GV2User
+		entityID = ptr.Val(gv2.GetUser().GetId())
+	case gv2.GetSiteUser() != nil:
+		gv2t = GV2SiteUser
+		entityID = ptr.Val(gv2.GetSiteUser().GetId())
+	case gv2.GetGroup() != nil:
+		gv2t = GV2Group
+		entityID = ptr.Val(gv2.GetGroup().GetId())
+	case gv2.GetSiteGroup() != nil:
+		gv2t = GV2SiteGroup
+		entityID = ptr.Val(gv2.GetSiteGroup().GetId())
+	case gv2.GetApplication() != nil:
+		gv2t = GV2App
+		entityID = ptr.Val(gv2.GetApplication().GetId())
+	case gv2.GetDevice() != nil:
+		gv2t = GV2Device
+		entityID = ptr.Val(gv2.GetDevice().GetId())
+	default:
+		logger.Ctx(ctx).Info("untracked permission")
+	}
+
+	return gv2t, entityID
 }

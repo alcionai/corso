@@ -5,6 +5,27 @@ import (
 	"time"
 )
 
+type Entity struct {
+	ID         string  `json:"id,omitempty"`
+	EntityType GV2Type `json:"entityType,omitempty"`
+}
+
+type LinkShareLink struct {
+	Scope            string `json:"scope,omitempty"`
+	Type             string `json:"type,omitempty"`
+	WebUrl           string `json:"webUrl,omitempty"` // TODO(meain): Should we store this?
+	PreventsDownload bool   `json:"preventsDownload,omitempty"`
+}
+
+type LinkShare struct {
+	ID          string        `json:"id,omitempty"`
+	Link        LinkShareLink `json:"link,omitempty"`
+	Roles       []string      `json:"role,omitempty"`
+	Entities    []Entity      `json:"entityId,omitempty"`    // this is the resource owner's ID
+	HasPassword bool          `json:"hasPassword,omitempty"` // Only anonymous ones require password and we don't restore them
+	Expiration  *time.Time    `json:"expiration,omitempty"`
+}
+
 // ItemMeta contains metadata about the Item. It gets stored in a
 // separate file in kopia
 type Metadata struct {
@@ -14,6 +35,8 @@ type Metadata struct {
 	// - custom: use Permissions to set correct permissions ("shared" has value in delta)
 	SharingMode SharingMode  `json:"permissionMode,omitempty"`
 	Permissions []Permission `json:"permissions,omitempty"`
+	// TODO(meain): Maybe find a better name?
+	LinkShares []LinkShare `json:"linkShares,omitempty"`
 }
 
 type Item struct {
