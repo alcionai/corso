@@ -749,8 +749,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
-			// TODO: not currently functioning; cannot retrieve generated calendars
-			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
+			path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -773,7 +772,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
-		sel.ContactFolders(containers, selectors.PrefixMatch()))
+		sel.ContactFolders(containers, selectors.PrefixMatch()),
+		sel.EventCalendars(containers, selectors.PrefixMatch()))
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -838,22 +838,18 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				container2: {},
 			},
 		},
-		// TODO: not currently functioning; cannot retrieve generated calendars
-		// path.EventsCategory: {
-		// 	dbf: eventDBF,
-		// 	dests: map[string]contDeets{
-		// 		container1: {},
-		// 		container2: {},
-		// 	},
-		// },
+		path.EventsCategory: {
+			dbf: eventDBF,
+			dests: map[string]contDeets{
+				container1: {},
+				container2: {},
+			},
+		},
 	}
 
 	// populate initial test data
 	for category, gen := range dataset {
 		for destName := range gen.dests {
-			// TODO: the details.Builder returned by restore can contain entries with
-			// incorrect information.  non-representative repo-refs and the like.  Until
-			// that gets fixed, we can't consume that info for testing.
 			deets := generateContainerOfItems(
 				t,
 				ctx,
@@ -861,7 +857,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				service,
 				category,
 				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-				creds.AzureTenantID, uidn.ID(), "", destName,
+				creds.AzureTenantID,
+				uidn.ID(),
+				"",
+				destName,
 				2,
 				version.Backup,
 				gen.dbf)
@@ -926,7 +925,12 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				}
 			}
 
-			require.NotEmptyf(t, longestLR, "must find an expected details entry matching the generated folder: %s", destName)
+			require.NotEmptyf(
+				t,
+				longestLR,
+				"must find a details entry matching the generated %s container: %s",
+				category,
+				destName)
 
 			cd.locRef = longestLR
 
