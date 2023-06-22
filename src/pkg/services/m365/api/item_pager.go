@@ -61,26 +61,56 @@ func (e EmptyDeltaLinker[T]) GetValue() []T {
 }
 
 // ---------------------------------------------------------------------------
-// generic handler for paging item ids in a container
+// generic handler for non-delta item paging in a container
 // ---------------------------------------------------------------------------
 
-type itemPager interface {
+type itemPager[T any] interface {
 	// getPage get a page with the specified options from graph
-	getPage(context.Context) (DeltaPageLinker, error)
+	getPage(context.Context) (PageLinker, error)
 	// setNext is used to pass in the next url got from graph
 	setNext(string)
-	// reset is used to clear delta url in delta pagers. When
-	// reset is called, we reset the state(delta url) that we
-	// currently have and start a new delta query without the token.
-	reset(context.Context)
 	// valuesIn gets us the values in a page
-	valuesIn(PageLinker) ([]getIDAndAddtler, error)
+	valuesIn(PageLinker) ([]T, error)
 }
 
-type getIDAndAddtler interface {
-	GetId() *string
-	GetAdditionalData() map[string]any
+func enumerateItems[T any](
+	ctx context.Context,
+	pager itemPager[T],
+) ([]T, error) {
+	var (
+		result = make([]T, 0)
+		// stubbed initial value to ensure we enter the loop.
+		nextLink = "do-while"
+	)
+
+	for len(nextLink) > 0 {
+		// get the next page of data, check for standard errors
+		resp, err := pager.getPage(ctx)
+		if err != nil {
+			return nil, graph.Stack(ctx, err)
+		}
+
+		// each category type responds with a different interface, but all
+		// of them comply with GetValue, which is where we'll get our item data.
+		items, err := pager.valuesIn(resp)
+		if err != nil {
+			return nil, graph.Stack(ctx, err)
+		}
+
+		result = append(result, items...)
+		nextLink = NextLink(resp)
+
+		pager.setNext(nextLink)
+	}
+
+	logger.Ctx(ctx).Infow("completed enumeration", "count", len(result))
+
+	return result, nil
 }
+
+// ---------------------------------------------------------------------------
+// generic handler for delta-based ittem paging in a container
+// ---------------------------------------------------------------------------
 
 // uses a models interface compliant with { GetValues() []T }
 // to transform its results into a slice of getIDer interfaces.
@@ -110,16 +140,34 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	return r, nil
 }
 
+type itemIDPager interface {
+	// getPage get a page with the specified options from graph
+	getPage(context.Context) (DeltaPageLinker, error)
+	// setNext is used to pass in the next url got from graph
+	setNext(string)
+	// reset is used to clear delta url in delta pagers. When
+	// reset is called, we reset the state(delta url) that we
+	// currently have and start a new delta query without the token.
+	reset(context.Context)
+	// valuesIn gets us the values in a page
+	valuesIn(PageLinker) ([]getIDAndAddtler, error)
+}
+
+type getIDAndAddtler interface {
+	GetId() *string
+	GetAdditionalData() map[string]any
+}
+
 func getAddedAndRemovedItemIDs(
 	ctx context.Context,
 	service graph.Servicer,
-	pager itemPager,
-	deltaPager itemPager,
+	pager itemIDPager,
+	deltaPager itemIDPager,
 	oldDelta string,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	var (
-		pgr        itemPager
+		pgr        itemIDPager
 		resetDelta bool
 	)
 
@@ -161,16 +209,15 @@ func getAddedAndRemovedItemIDs(
 // generic controller for retrieving all item ids in a container.
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
-	pager itemPager,
+	pager itemIDPager,
 ) ([]string, []string, string, error) {
 	var (
 		addedIDs   = []string{}
 		removedIDs = []string{}
 		deltaURL   string
+		itemCount  int
+		page       int
 	)
-
-	itemCount := 0
-	page := 0
 
 	for {
 		// get the next page of data, check for standard errors
