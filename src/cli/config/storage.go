@@ -71,14 +71,6 @@ func configureStorage(
 			return store, clues.Wrap(err, "reading s3 configs from corso config file")
 		}
 
-		// currently only in case of repo init we don't fetch values from config file
-
-		if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
-			return store, clues.Wrap(err, "reading s3 configs from corso config file")
-		}
-
-		s3Overrides := s3Overrides(overrides)
-
 		if b, ok := overrides[storage.Bucket]; ok {
 			overrides[storage.Bucket] = common.NormalizeBucket(b)
 		}
@@ -87,9 +79,13 @@ func configureStorage(
 			overrides[storage.Prefix] = common.NormalizePrefix(p)
 		}
 
-		if err := mustMatchConfig(vpr, s3Overrides); err != nil {
+		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}
+	}
+
+	if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
+		return store, clues.Wrap(err, "reading s3 configs from corso config file")
 	}
 
 	aws := credentials.GetAWS(overrides)

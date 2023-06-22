@@ -32,7 +32,7 @@ const (
 
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
-	AzureTenantIDKey       = "azure_tenant_id"
+	AzureTenantIDKey       = "azure_tenantid"
 	AzureClientID          = "azure_client_id"
 	AzureSecret            = "azure_secret"
 
