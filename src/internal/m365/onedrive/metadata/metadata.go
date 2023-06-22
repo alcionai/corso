@@ -13,7 +13,7 @@ type Entity struct {
 type LinkShareLink struct {
 	Scope            string `json:"scope,omitempty"`
 	Type             string `json:"type,omitempty"`
-	WebUrl           string `json:"webUrl,omitempty"` // TODO(meain): Should we store this?
+	WebUrl           string `json:"webUrl,omitempty"` // we cannot restore this, but can be used for comparisons
 	PreventsDownload bool   `json:"preventsDownload,omitempty"`
 }
 
@@ -27,8 +27,6 @@ type LinkShare struct {
 }
 
 func (ls LinkShare) Equals(other LinkShare) bool {
-	// TODO(meain): See if we should compare actual values like in the
-	// case of permissions
 	return ls.Link.WebUrl == other.Link.WebUrl
 }
 
@@ -41,7 +39,6 @@ type Metadata struct {
 	// - custom: use Permissions to set correct permissions ("shared" has value in delta)
 	SharingMode SharingMode  `json:"permissionMode,omitempty"`
 	Permissions []Permission `json:"permissions,omitempty"`
-	// TODO(meain): Maybe find a better name?
 	LinkShares []LinkShare `json:"linkShares,omitempty"`
 }
 
