@@ -96,7 +96,8 @@ func configureStorage(
 			aws = credentials.AWS{
 				AccessKey:    s3Cfg.AccessKey,
 				SecretKey:    s3Cfg.SecretKey,
-				SessionToken: s3Cfg.SessionToken}
+				SessionToken: s3Cfg.SessionToken,
+			}
 			err = nil
 		}
 

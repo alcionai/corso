@@ -46,8 +46,6 @@ var (
 	AWSAccessKeyFV       string
 	AWSSecretAccessKeyFV string
 	AWSSessionTokenFV    string
-
-	CorsoPassphraseFV string
 )
 
 // common flag names (eg: FN)

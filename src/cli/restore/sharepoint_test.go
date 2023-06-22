@@ -118,7 +118,6 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, credentials.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, credentials.CorsoPassphraseFV)
-
 		})
 	}
 }

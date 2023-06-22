@@ -104,7 +104,6 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, credentials.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, credentials.CorsoPassphraseFV)
-
 		})
 	}
 }

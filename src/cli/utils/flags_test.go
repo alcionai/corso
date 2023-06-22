@@ -77,7 +77,7 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "passphrase", CorsoPassphraseFV, credentials.CorsoPassphraseFN)
+			assert.Equal(t, "passphrase", credentials.CorsoPassphraseFV, credentials.CorsoPassphraseFN)
 		},
 	}
 
