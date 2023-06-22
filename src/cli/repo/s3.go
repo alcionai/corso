@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"os"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -54,7 +56,6 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
 	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
-	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
 	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
@@ -113,11 +114,12 @@ func s3InitCmd() *cobra.Command {
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
+	// s3 values from flags
+	s3Override := S3Overrides()
+	// s3 values from envs
+	s3Override = S3UpdateFromEnvVar(s3Override)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, false, S3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -188,11 +190,12 @@ func s3ConnectCmd() *cobra.Command {
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
+	// s3 values from flags
+	s3Override := S3Overrides()
+	// s3 values from envs
+	s3Override = S3UpdateFromEnvVar(s3Override)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, S3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -247,5 +250,15 @@ func S3Overrides() map[string]string {
 		storage.Prefix:                 prefix,
 		storage.DoNotUseTLS:            strconv.FormatBool(doNotUseTLS),
 		storage.DoNotVerifyTLS:         strconv.FormatBool(doNotVerifyTLS),
+	}
+}
+
+func S3UpdateFromEnvVar(s3Flag map[string]string) map[string]string {
+	return map[string]string{
+		storage.Bucket:         str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey)),
+		storage.Endpoint:       str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey)),
+		storage.Prefix:         str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey)),
+		storage.DoNotUseTLS:    str.First(s3Flag[storage.DoNotUseTLS], os.Getenv(storage.DisableTLSKey)),
+		storage.DoNotVerifyTLS: str.First(s3Flag[storage.DoNotVerifyTLS], os.Getenv(storage.DisableTLSVerificationKey)),
 	}
 }

@@ -4,8 +4,6 @@ import (
 	"os"
 
 	"github.com/alcionai/clues"
-
-	"github.com/alcionai/corso/src/internal/common/str"
 )
 
 // envvar consts
@@ -30,8 +28,8 @@ type M365 struct {
 func GetM365() M365 {
 	// check env and overide is flags found
 	// var AzureClientID, AzureClientSecret string
-	AzureClientID := str.First(AzureClientIDFV, os.Getenv(AzureClientID))
-	AzureClientSecret := str.First(AzureClientSecretFV, os.Getenv(AzureClientSecret))
+	AzureClientID := os.Getenv(AzureClientID)
+	AzureClientSecret :=  os.Getenv(AzureClientSecret)
 
 	return M365{
 		AzureClientID:     AzureClientID,

@@ -71,6 +71,10 @@ func configureStorage(
 			return store, clues.Wrap(err, "reading s3 configs from corso config file")
 		}
 
+		if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
+			return store, clues.Wrap(err, "reading s3 configs from corso config file")
+		}
+
 		if b, ok := overrides[storage.Bucket]; ok {
 			overrides[storage.Bucket] = common.NormalizeBucket(b)
 		}
@@ -82,10 +86,6 @@ func configureStorage(
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}
-	}
-
-	if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
-		return store, clues.Wrap(err, "reading s3 configs from corso config file")
 	}
 
 	aws := credentials.GetAWS(overrides)
@@ -108,17 +108,17 @@ func configureStorage(
 
 	s3Cfg = storage.S3Config{
 		AWS:      aws,
-		Bucket:   str.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
-		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
-		Prefix:   str.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
+		Bucket:   str.First(overrides[storage.Bucket], s3Cfg.Bucket),
+		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint),
+		Prefix:   str.First(overrides[storage.Prefix], s3Cfg.Prefix),
 		DoNotUseTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotUseTLS],
 			strconv.FormatBool(s3Cfg.DoNotUseTLS),
-			os.Getenv(storage.PrefixKey))),
+		)),
 		DoNotVerifyTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotVerifyTLS],
 			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
-			os.Getenv(storage.PrefixKey))),
+		)),
 	}
 
 	// compose the common config and credentials

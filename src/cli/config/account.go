@@ -43,11 +43,11 @@ func configureAccount(
 ) (account.Account, error) {
 	var (
 		m365Cfg account.M365Config
+		m365    credentials.M365
 		acct    account.Account
 		err     error
 	)
 
-	// Currently only in case of repo init we don't fetch values from Config file
 	if readConfigFromViper {
 		m365Cfg, err = m365ConfigsFromViper(vpr)
 		if err != nil {
@@ -57,12 +57,12 @@ func configureAccount(
 		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
 			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 		}
-	}
 
-	// compose the m365 config and credentials
-	m365 := GetM365(m365Cfg)
-	if err := m365.Validate(); err != nil {
-		return acct, clues.Wrap(err, "validating m365 credentials")
+		// compose the m365 config and credentials
+		m365 = GetM365(m365Cfg)
+		if err := m365.Validate(); err != nil {
+			return acct, clues.Wrap(err, "validating m365 credentials")
+		}
 	}
 
 	m365Cfg = account.M365Config{
