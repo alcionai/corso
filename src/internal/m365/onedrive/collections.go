@@ -323,6 +323,23 @@ func (c *Collections) Get(
 			"num_deltas_entries", numDeltas,
 			"delta_reset", delta.Reset)
 
+		numDriveItems := c.NumItems - numPrevItems
+		numPrevItems = c.NumItems
+
+		// Attach an url cache
+		if numDriveItems < urlCacheDriveItemThreshold {
+			logger.Ctx(ictx).Info("adding url cache for drive")
+
+			err = c.addURLCacheToDriveCollections(
+				ictx,
+				driveID,
+				prevDelta,
+				errs)
+			if err != nil {
+				return nil, false, err
+			}
+		}
+
 		// For both cases we don't need to do set difference on folder map if the
 		// delta token was valid because we should see all the changes.
 		if !delta.Reset {
@@ -378,22 +395,6 @@ func (c *Collections) Get(
 			}
 
 			c.CollectionMap[driveID][fldID] = col
-		}
-
-		numDriveItems := c.NumItems - numPrevItems
-		numPrevItems = c.NumItems
-
-		// Only create a drive cache if there are less than 300k items in the drive.
-		if numDriveItems < urlCacheDriveItemThreshold {
-			logger.Ctx(ictx).Info("adding url cache for drive")
-
-			err = c.addURLCacheToDriveCollections(
-				ictx,
-				driveID,
-				errs)
-			if err != nil {
-				return nil, false, err
-			}
 		}
 	}
 
@@ -461,11 +462,12 @@ func (c *Collections) Get(
 // a drive.
 func (c *Collections) addURLCacheToDriveCollections(
 	ctx context.Context,
-	driveID string,
+	driveID, prevDelta string,
 	errs *fault.Bus,
 ) error {
 	uc, err := newURLCache(
 		driveID,
+		prevDelta,
 		urlCacheRefreshInterval,
 		c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
 		errs)
