@@ -98,32 +98,74 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Eventable] = &eventsPager{}
+var _ itemPager[models.Eventable] = &eventsPageCtrl{}
 
-type eventsPager struct {
-	// TODO(rkeeprs)
+type eventsPageCtrl struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsItemEventsRequestBuilder
+	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
 }
 
-func (c Events) NewEventsPager() itemPager[models.Eventable] {
-	// TODO(rkeepers)
-	return nil
+func (c Events) NewEventsPager(
+	userID, containerID string,
+	selectProps ...string,
+) itemPager[models.Eventable] {
+	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters = &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
+			Select: selectProps,
+		}
+	}
+
+	builder := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(containerID).
+		Events()
+
+	return &eventsPageCtrl{c.Stable, builder, options}
 }
 
 //lint:ignore U1000 False Positive
-func (p *eventsPager) getPage(ctx context.Context) (PageLinker, error) {
-	// TODO(rkeepers)
-	return nil, nil
+func (p *eventsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Eventable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
 }
 
 //lint:ignore U1000 False Positive
-func (p *eventsPager) setNext(nextLink string) {
-	// TODO(rkeepers)
+func (p *eventsPageCtrl) setNext(nextLink string) {
+	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 //lint:ignore U1000 False Positive
-func (p *eventsPager) valuesIn(pl PageLinker) ([]models.Eventable, error) {
-	// TODO(rkeepers)
-	return nil, nil
+func (c Events) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]string, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewEventsPager(userID, containerID, eventCollisionKeyProps()...)
+
+	items, err := enumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating events")
+	}
+
+	m := map[string]string{}
+
+	for _, item := range items {
+		m[EventCollisionKey(item)] = ptr.Val(item.GetId())
+	}
+
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------

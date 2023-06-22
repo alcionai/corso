@@ -90,32 +90,74 @@ func (c Contacts) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Contactable] = &contactsPager{}
+var _ itemPager[models.Contactable] = &contactsPageCtrl{}
 
-type contactsPager struct {
-	// TODO(rkeeprs)
+type contactsPageCtrl struct {
+	gs      graph.Servicer
+	builder *users.ItemContactFoldersItemContactsRequestBuilder
+	options *users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration
 }
 
-func (c Contacts) NewContactsPager() itemPager[models.Contactable] {
-	// TODO(rkeepers)
-	return nil
+func (c Contacts) NewContactsPager(
+	userID, containerID string,
+	selectProps ...string,
+) itemPager[models.Contactable] {
+	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters = &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
+			Select: selectProps,
+		}
+	}
+
+	builder := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		ByContactFolderId(containerID).
+		Contacts()
+
+	return &contactsPageCtrl{c.Stable, builder, options}
 }
 
 //lint:ignore U1000 False Positive
-func (p *contactsPager) getPage(ctx context.Context) (PageLinker, error) {
-	// TODO(rkeepers)
-	return nil, nil
+func (p *contactsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Contactable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
 }
 
 //lint:ignore U1000 False Positive
-func (p *contactsPager) setNext(nextLink string) {
-	// TODO(rkeepers)
+func (p *contactsPageCtrl) setNext(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 //lint:ignore U1000 False Positive
-func (p *contactsPager) valuesIn(pl PageLinker) ([]models.Contactable, error) {
-	// TODO(rkeepers)
-	return nil, nil
+func (c Contacts) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]string, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewContactsPager(userID, containerID, contactCollisionKeyProps()...)
+
+	items, err := enumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating contacts")
+	}
+
+	m := map[string]string{}
+
+	for _, item := range items {
+		m[ContactCollisionKey(item)] = ptr.Val(item.GetId())
+	}
+
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------
