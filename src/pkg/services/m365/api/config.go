@@ -17,8 +17,15 @@ const (
 // get easily misspelled.
 // eg: we don't need a const for "id"
 const (
-	parentFolderID    = "parentFolderId"
+	attendees         = "attendees"
+	bccRecipients     = "bccRecipients"
+	ccRecipients      = "ccRecipients"
+	createdDateTime   = "createdDateTime"
 	displayName       = "displayName"
+	givenName         = "givenName"
+	parentFolderID    = "parentFolderId"
+	surname           = "surname"
+	toRecipients      = "toRecipients"
 	userPrincipalName = "userPrincipalName"
 )
 

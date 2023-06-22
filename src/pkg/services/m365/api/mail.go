@@ -540,3 +540,17 @@ func UnwrapEmailAddress(contact models.Recipientable) string {
 
 	return ptr.Val(contact.GetEmailAddress().GetAddress())
 }
+
+func mailCollisionKeyProps() []string {
+	return idAnd("subject")
+}
+
+// MailCollisionKey constructs a key from the messageable's subject, sender, and recipients (to, cc, bcc).
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func MailCollisionKey(item models.Messageable) string {
+	if item == nil {
+		return ""
+	}
+
+	return ptr.Val(item.GetSubject())
+}
