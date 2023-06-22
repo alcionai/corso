@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -118,7 +119,15 @@ func (h eventRestoreHandler) restore(
 	}
 
 	// Fix up event instances in case we have a recurring event
-	err = updateRecurringEvents(ctx, h.ac, userID, destinationID, ptr.Val(item.GetId()), event)
+	err = updateRecurringEvents(
+		ctx,
+		h.ac,
+		userID,
+		destinationID,
+		ptr.Val(item.GetId()),
+		event,
+		errs,
+	)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -134,6 +143,7 @@ func updateRecurringEvents(
 	ac api.Events,
 	userID, containerID, itemID string,
 	event models.Eventable,
+	errs *fault.Bus,
 ) error {
 	if event.GetRecurrence() == nil {
 		return nil
@@ -150,7 +160,7 @@ func updateRecurringEvents(
 		return clues.Wrap(err, "update cancelled occurrences")
 	}
 
-	err = updateExceptionOccurrences(ctx, ac, userID, containerID, itemID, exceptionOccurrences)
+	err = updateExceptionOccurrences(ctx, ac, userID, containerID, itemID, exceptionOccurrences, errs)
 	if err != nil {
 		return clues.Wrap(err, "update exception occurrences")
 	}
@@ -168,6 +178,7 @@ func updateExceptionOccurrences(
 	containerID string,
 	itemID string,
 	exceptionOccurrences any,
+	errs *fault.Bus,
 ) error {
 	if exceptionOccurrences == nil {
 		return nil
@@ -195,9 +206,11 @@ func updateExceptionOccurrences(
 		startStr := dttm.FormatTo(start, dttm.DateOnly)
 		endStr := dttm.FormatTo(start.Add(24*time.Hour), dttm.DateOnly)
 
+		ictx := clues.Add(ctx, "event_instance_id", ptr.Val(evt.GetId()), "event_instance_date", start)
+
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		instances, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
+		instances, err := ac.GetItemInstances(ictx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -212,7 +225,7 @@ func updateExceptionOccurrences(
 
 		evt = toEventSimplified(evt)
 
-		_, err = ac.PatchItem(ctx, userID, ptr.Val(instances[0].GetId()), evt)
+		_, err = ac.PatchItem(ictx, userID, ptr.Val(instances[0].GetId()), evt)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance")
 		}
@@ -225,7 +238,7 @@ func updateExceptionOccurrences(
 			return clues.Wrap(err, "parsing event instance")
 		}
 
-		err = updateAttachments(ctx, ac, userID, containerID, ptr.Val(instances[0].GetId()), evt)
+		err = updateAttachments(ictx, ac, userID, containerID, ptr.Val(instances[0].GetId()), evt, errs)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance attachments")
 		}
@@ -249,7 +262,10 @@ func updateAttachments(
 	client api.Events,
 	userID, containerID, eventID string,
 	event models.Eventable,
+	errs *fault.Bus,
 ) error {
+	el := errs.Local()
+
 	attachments, err := client.GetAttachments(ctx, false, userID, eventID)
 	if err != nil {
 		return clues.Wrap(err, "getting attachments")
@@ -259,6 +275,10 @@ func updateAttachments(
 	// present in the event(ones that were automatically inherited
 	// from series master).
 	for _, att := range attachments {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
+
 		name := ptr.Val(att.GetName())
 		id := ptr.Val(att.GetId())
 
@@ -286,8 +306,9 @@ func updateAttachments(
 		if !found {
 			err = client.DeleteAttachment(ctx, userID, eventID, id)
 			if err != nil {
-				return clues.Wrap(err, "deleting attachment").
-					With("attachment_id", id)
+				logger.CtxErr(ctx, err).With("attachment_name", name).Info("attachment delete failed")
+				el.AddRecoverable(ctx, clues.Wrap(err, "deleting event attachment").
+					WithClues(ctx).With("attachment_name", name))
 			}
 		}
 	}
@@ -329,7 +350,7 @@ func updateAttachments(
 		}
 	}
 
-	return nil
+	return el.Failure()
 }
 
 // updateCancelledOccurrences get the cancelled occurrences which is a
