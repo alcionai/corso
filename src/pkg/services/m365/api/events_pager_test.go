@@ -65,4 +65,9 @@ func (suite *EventsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
 		assert.NotEmpty(t, k, "all keys should be populated")
 		assert.NotEmpty(t, v, "all values should be populated")
 	}
+
+	for _, e := range expect {
+		_, ok := results[e]
+		assert.Truef(t, ok, "expected results to contain collision key: %s", e)
+	}
 }
