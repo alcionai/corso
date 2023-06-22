@@ -249,7 +249,7 @@ func (c Contacts) NewContactDeltaIDsPager(
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
-			Top:    ptr.To[int32](maxDeltaPageSize),
+			// TOP is not allowed
 		},
 		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}

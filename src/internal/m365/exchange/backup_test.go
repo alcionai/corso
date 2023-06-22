@@ -382,7 +382,7 @@ func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.Con
 	return updater
 }
 
-type DataCollectionsIntegrationSuite struct {
+type BackupIntgSuite struct {
 	tester.Suite
 	user     string
 	site     string
@@ -390,16 +390,15 @@ type DataCollectionsIntegrationSuite struct {
 	ac       api.Client
 }
 
-func TestDataCollectionsIntegrationSuite(t *testing.T) {
-	suite.Run(t, &DataCollectionsIntegrationSuite{
+func TestBackupIntgSuite(t *testing.T) {
+	suite.Run(t, &BackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
+func (suite *BackupIntgSuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 
@@ -415,7 +414,7 @@ func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
-func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
+func (suite *BackupIntgSuite) TestMailFetch() {
 	var (
 		userID   = tester.M365UserID(suite.T())
 		users    = []string{userID}
@@ -499,7 +498,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 	}
 }
 
-func (suite *DataCollectionsIntegrationSuite) TestDelta() {
+func (suite *BackupIntgSuite) TestDelta() {
 	var (
 		userID   = tester.M365UserID(suite.T())
 		users    = []string{userID}
@@ -604,7 +603,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 // TestMailSerializationRegression verifies that all mail data stored in the
 // test account can be successfully downloaded into bytes and restored into
 // M365 mail objects
-func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() {
+func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -668,7 +667,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 // TestContactSerializationRegression verifies ability to query contact items
 // and to store contact within Collection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
-func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression() {
+func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	var (
 		users    = []string{suite.user}
 		handlers = BackupHandlers(suite.ac)
@@ -756,7 +755,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
-func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression() {
+func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
