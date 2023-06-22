@@ -152,7 +152,7 @@ func (c Events) GetItemsInContainerByCollisionKey(
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewEventsPager(userID, containerID, idAnd(createdDateTime, "subject")...)
+	pager := c.NewEventsPager(userID, containerID, eventCollisionKeyProps()...)
 
 	items, err := enumerateItems(ctx, pager)
 	if err != nil {

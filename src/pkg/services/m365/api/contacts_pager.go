@@ -144,7 +144,7 @@ func (c Contacts) GetItemsInContainerByCollisionKey(
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewContactsPager(userID, containerID, idAnd(createdDateTime, displayName, givenName, surname)...)
+	pager := c.NewContactsPager(userID, containerID, contactCollisionKeyProps()...)
 
 	items, err := enumerateItems(ctx, pager)
 	if err != nil {

@@ -229,7 +229,7 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewMailPager(userID, containerID, idAnd(createdDateTime, "subject")...)
+	pager := c.NewMailPager(userID, containerID, mailCollisionKeyProps()...)
 
 	items, err := enumerateItems(ctx, pager)
 	if err != nil {
