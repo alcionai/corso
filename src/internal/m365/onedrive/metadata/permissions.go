@@ -40,7 +40,7 @@ type Permission struct {
 	Expiration *time.Time `json:"expiration,omitempty"`
 }
 
-// isSamePermission checks equality of two UserPermission objects
+// Equal checks equality of two UserPermission objects
 func (p Permission) Equals(other Permission) bool {
 	// EntityID can be empty for older backups and Email can be empty
 	// for newer ones. It is not possible for both to be empty.  Also,
@@ -68,10 +68,10 @@ func (p Permission) Equals(other Permission) bool {
 // DiffPermissions compares the before and after set, returning
 // the permissions that were added and removed (in that order)
 // in the after set.
-func DiffPermissions(before, after []Permission) ([]Permission, []Permission) {
+func DiffPermissions[T interface{ Equals(T) bool }](before, after []T) ([]T, []T) {
 	var (
-		added   = []Permission{}
-		removed = []Permission{}
+		added   = []T{}
+		removed = []T{}
 	)
 
 	for _, cp := range after {

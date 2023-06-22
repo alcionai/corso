@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -227,6 +228,122 @@ func UpdatePermissions(
 	return nil
 }
 
+type updateDeleteItemLinkSharer interface {
+	DeleteItemLinkSharer
+	UpdateItemLinkSharer
+}
+
+func UpdateLinkShares(
+	ctx context.Context,
+	upils updateDeleteItemLinkSharer,
+	driveID string,
+	itemID string,
+	lsAdded, lsRemoved []metadata.LinkShare,
+	oldLinkShareIDToNewID map[string]string,
+) error {
+	// The ordering of the operations is important here. We first
+	// remove all the removed permissions and then add the added ones.
+	for _, ls := range lsRemoved {
+		ictx := clues.Add(ctx, "link_share_id", ls.ID)
+
+		// We do not restore ones with password, and so don't have to
+		// bother about them
+		if ls.HasPassword {
+			continue
+		}
+
+		// deletes require unique http clients
+		// https://github.com/alcionai/corso/issues/2707
+		// this is bad citizenship, and could end up consuming a lot of
+		// system resources if servicers leak client connections (sockets, etc).
+
+		pid, ok := oldLinkShareIDToNewID[ls.ID]
+		if !ok {
+			return clues.New("no new link share id").WithClues(ctx)
+		}
+
+		err := upils.DeleteItemLinkShare(ictx, driveID, itemID, pid)
+		if err != nil {
+			return clues.Stack(err)
+		}
+	}
+
+	for _, ls := range lsAdded {
+		ictx := clues.Add(ctx, "link_share_id", ls.ID)
+
+		// Links with password are not shared with a specific user
+		// even when we select a particular user, plus we are not
+		// able to get the password or retain the original link and
+		// so restoring them makes no sense.
+		if ls.HasPassword {
+			continue
+		}
+
+		// We are not able to restore permissions when there are no
+		// roles or for owner, this seems to be restriction in graph
+		roles := []string{}
+
+		for _, r := range ls.Roles {
+			if r != "owner" {
+				roles = append(roles, r)
+			}
+		}
+
+		idens := []map[string]string{}
+		entities := []string{}
+		for _, iden := range ls.Entities {
+			// TODO: sitegroup support.  Currently errors with "One or more users could not be resolved",
+			// likely due to the site group entityID consisting of a single integer (ex: 4)
+			if iden.EntityType == metadata.GV2SiteGroup {
+				continue
+			}
+
+			// Using DriveRecipient seems to error out on Graph end
+			idens = append(idens, map[string]string{"objectId": iden.ID})
+			entities = append(entities, iden.ID)
+		}
+
+		ictx = clues.Add(ictx, "link_share_entity_ids", strings.Join(entities, ","))
+
+		// https://learn.microsoft.com/en-us/graph/api/driveitem-createlink?view=graph-rest-beta&tabs=http
+		// v1.0 version of the graph API does not support creating a
+		// link without sending a notification to the user and so we
+		// use the beta API. Since we use the v1.0 API, we have to
+		// stuff some of the data into the AdditionalData fields as
+		// the actual fields don exist in the stable sdk.
+		// Here is the data that we have to send:
+		// {
+		//   "type": "view",
+		//   "scope": "anonymous",
+		//   "password": "String",
+		//   "expirationDateTime": "...",
+		//   "recipients": [{"@odata.type": "microsoft.graph.driveRecipient"}],
+		//   "sendNotification": true,
+		//   "retainInheritedPermissions": false
+		// }
+		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
+		lsbody.SetType(ptr.To(ls.Link.Type))
+		lsbody.SetScope(ptr.To(ls.Link.Scope))
+		lsbody.SetRetainInheritedPermissions(ptr.To(true))
+		lsbody.SetExpirationDateTime(ls.Expiration)
+
+		ad := map[string]any{
+			"sendNotification": false,
+			"recipients":       idens,
+		}
+		lsbody.SetAdditionalData(ad)
+
+		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
+		if err != nil {
+			return clues.Stack(err)
+		}
+
+		oldLinkShareIDToNewID[ls.ID] = ptr.Val(newLS.GetId())
+	}
+
+	return nil
+}
+
 // RestorePermissions takes in the permissions of an item, computes
 // what permissions need to added and removed based on the parent
 // folder metas and uses that to add/remove the necessary permissions
@@ -252,8 +369,9 @@ func RestorePermissions(
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
+	lsAdded, lsRemoved := metadata.DiffPermissions(previous.LinkShares, current.LinkShares)
 
-	return UpdatePermissions(
+	err = UpdatePermissions(
 		ctx,
 		rh,
 		driveID,
@@ -261,4 +379,21 @@ func RestorePermissions(
 		permAdded,
 		permRemoved,
 		caches.OldPermIDToNewID)
+	if err != nil {
+		return clues.Wrap(err, "updating permissions")
+	}
+
+	err = UpdateLinkShares(
+		ctx,
+		rh,
+		driveID,
+		itemID,
+		lsAdded,
+		lsRemoved,
+		caches.OldLinkShareIDToNewID)
+	if err != nil {
+		return clues.Wrap(err, "updating link shares")
+	}
+
+	return nil
 }

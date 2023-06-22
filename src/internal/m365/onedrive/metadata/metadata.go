@@ -26,6 +26,12 @@ type LinkShare struct {
 	Expiration  *time.Time    `json:"expiration,omitempty"`
 }
 
+func (ls LinkShare) Equals(other LinkShare) bool {
+	// TODO(meain): See if we should compare actual values like in the
+	// case of permissions
+	return ls.Link.WebUrl == other.Link.WebUrl
+}
+
 // ItemMeta contains metadata about the Item. It gets stored in a
 // separate file in kopia
 type Metadata struct {

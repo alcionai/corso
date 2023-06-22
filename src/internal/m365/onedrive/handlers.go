@@ -87,6 +87,8 @@ type RestoreHandler interface {
 	NewItemContentUploader
 	PostItemInContainerer
 	UpdateItemPermissioner
+	DeleteItemLinkSharer
+	UpdateItemLinkSharer
 }
 
 type NewItemContentUploader interface {
@@ -111,6 +113,21 @@ type UpdateItemPermissioner interface {
 		driveID, itemID string,
 		body *drives.ItemItemsItemInvitePostRequestBody,
 	) (drives.ItemItemsItemInviteResponseable, error)
+}
+
+type DeleteItemLinkSharer interface {
+	DeleteItemLinkShare(
+		ctx context.Context,
+		driveID, itemID, linkShareID string,
+	) error
+}
+
+type UpdateItemLinkSharer interface {
+	PostItemLinkShareUpdate(
+		ctx context.Context,
+		driveID, itemID string,
+		body *drives.ItemItemsItemCreateLinkPostRequestBody,
+	) (models.Permissionable, error)
 }
 
 type PostItemInContainerer interface {
