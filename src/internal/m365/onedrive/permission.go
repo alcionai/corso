@@ -81,11 +81,11 @@ func getCollectionMetadata(
 	return meta, nil
 }
 
-// computeParentPermissions computes the parent permissions by
+// computePreviousMetadata computes the parent permissions by
 // traversing parentMetas and finding the first item with custom
 // permissions. parentMetas is expected to have all the parent
 // directory metas for this to work.
-func computeParentPermissions(
+func computePreviousMetadata(
 	ctx context.Context,
 	originDir path.Path,
 	// map parent dir -> parent's metadata
@@ -246,12 +246,12 @@ func RestorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	parents, err := computeParentPermissions(ctx, itemPath, caches.ParentDirToMeta)
+	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "parent permissions")
+		return clues.Wrap(err, "previous metadata")
 	}
 
-	permAdded, permRemoved := metadata.DiffPermissions(parents.Permissions, current.Permissions)
+	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
 
 	return UpdatePermissions(
 		ctx,
