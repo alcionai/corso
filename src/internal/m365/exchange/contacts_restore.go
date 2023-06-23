@@ -101,9 +101,9 @@ func restoreContact(
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
 	var (
-		collisionKey = api.ContactCollisionKey(contact)
-		collisionID  string
-		replace      bool
+		collisionKey         = api.ContactCollisionKey(contact)
+		collisionID          string
+		shouldDeleteOriginal bool
 	)
 
 	if id, ok := collisionKeyToItemID[collisionKey]; ok {
@@ -116,7 +116,7 @@ func restoreContact(
 		}
 
 		collisionID = id
-		replace = collisionPolicy == control.Replace
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
 	item, err := cr.PostItem(ctx, userID, destinationID, contact)
@@ -129,7 +129,7 @@ func restoreContact(
 	// post first, then delete.  In case of failure between the two calls,
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
-	if replace {
+	if shouldDeleteOriginal {
 		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil {
 			return nil, graph.Wrap(ctx, err, "deleting colliding contact")
 		}

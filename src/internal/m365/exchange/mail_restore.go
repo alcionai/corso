@@ -107,9 +107,9 @@ func restoreMail(
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
 
 	var (
-		collisionKey = api.MailCollisionKey(msg)
-		collisionID  string
-		replace      bool
+		collisionKey         = api.MailCollisionKey(msg)
+		collisionID          string
+		shouldDeleteOriginal bool
 	)
 
 	if id, ok := collisionKeyToItemID[collisionKey]; ok {
@@ -122,7 +122,7 @@ func restoreMail(
 		}
 
 		collisionID = id
-		replace = collisionPolicy == control.Replace
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
 	msg = setMessageSVEPs(toMessage(msg))
@@ -141,7 +141,7 @@ func restoreMail(
 	// post first, then delete.  In case of failure between the two calls,
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
-	if replace {
+	if shouldDeleteOriginal {
 		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil {
 			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
 		}

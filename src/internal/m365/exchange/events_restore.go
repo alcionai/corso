@@ -107,9 +107,9 @@ func restoreEvent(
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
 	var (
-		collisionKey = api.EventCollisionKey(event)
-		collisionID  string
-		replace      bool
+		collisionKey         = api.EventCollisionKey(event)
+		collisionID          string
+		shouldDeleteOriginal bool
 	)
 
 	if id, ok := collisionKeyToItemID[collisionKey]; ok {
@@ -122,7 +122,7 @@ func restoreEvent(
 		}
 
 		collisionID = id
-		replace = collisionPolicy == control.Replace
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
 	event = toEventSimplified(event)
@@ -146,7 +146,7 @@ func restoreEvent(
 	// post first, then delete.  In case of failure between the two calls,
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
-	if replace {
+	if shouldDeleteOriginal {
 		if err := er.DeleteItem(ctx, userID, collisionID); err != nil {
 			return nil, graph.Wrap(ctx, err, "deleting colliding event")
 		}
