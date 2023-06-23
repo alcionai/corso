@@ -73,17 +73,13 @@ func (cl *concurrencyLimiter) Intercept(
 
 const (
 	// Default goal is to keep calls below the 10k-per-10-minute threshold.
-	// 14 tokens every second nets 840 per minute.  That's 8400 every 10 minutes,
+	// 16 tokens every second nets 960 per minute.  That's 9600 every 10 minutes,
 	// which is a bit below the mark.
-	// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
-	// We'll have built up 750 tokens in reserve, so the first 750 calls go through
-	// immediately.  Over the next 10 minutes, we'll partition out the other calls
-	// at a rate of 840-per-minute, ending at a total of 9150.  Theoretically, if
-	// the volume keeps up after that, we'll always stay between 8400 and 9150 out
-	// of 10k.  Worst case scenario, we have an extra minute of padding to allow
-	// up to 9990.
-	defaultPerSecond = 14  // 14 * 60 = 840
-	defaultMaxCap    = 750 // real cap is 10k-per-10-minutes
+	// If the bucket is full, we can push out 200 calls immediately, which brings
+	// the total in the first 10 minutes to 9800.  We can toe that line if we want,
+	// but doing so risks timeouts.  It's better to give the limits breathing room.
+	defaultPerSecond = 16  // 16 * 60 * 10 = 9600
+	defaultMaxCap    = 200 // real cap is 10k-per-10-minutes
 	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
 	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
 	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
