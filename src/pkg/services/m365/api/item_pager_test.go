@@ -57,7 +57,9 @@ func (v testPagerValue) GetAdditionalData() map[string]any {
 
 // mock page
 
-type testPage struct{}
+type testPage struct {
+	values []any
+}
 
 func (p testPage) GetOdataNextLink() *string {
 	// no next, just one page
@@ -69,29 +71,27 @@ func (p testPage) GetOdataDeltaLink() *string {
 	return ptr.To("")
 }
 
+func (p testPage) GetValue() []any {
+	return p.values
+}
+
 // mock item pager
 
 var _ itemPager[any] = &testPager{}
 
 type testPager struct {
-	t         *testing.T
-	items     []any
-	pageErr   error
-	valuesErr error
+	t       *testing.T
+	pager   testPage
+	pageErr error
 }
 
 //lint:ignore U1000 False Positive
-func (p *testPager) getPage(ctx context.Context) (PageLinker, error) {
-	return testPage{}, p.pageErr
+func (p *testPager) getPage(ctx context.Context) (PageLinkValuer[any], error) {
+	return p.pager, p.pageErr
 }
 
 //lint:ignore U1000 False Positive
 func (p *testPager) setNext(nextLink string) {}
-
-//lint:ignore U1000 False Positive
-func (p *testPager) valuesIn(pl PageLinker) ([]any, error) {
-	return p.items, p.valuesErr
-}
 
 // mock id pager
 
@@ -169,25 +169,11 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			) itemPager[any] {
 				return &testPager{
 					t:     t,
-					items: []any{"foo", "bar"},
+					pager: testPage{[]any{"foo", "bar"}},
 				}
 			},
 			expect:    []any{"foo", "bar"},
 			expectErr: require.NoError,
-		},
-		{
-			name: "get values err",
-			getPager: func(
-				t *testing.T,
-				ctx context.Context,
-			) itemPager[any] {
-				return &testPager{
-					t:         t,
-					valuesErr: assert.AnError,
-				}
-			},
-			expect:    nil,
-			expectErr: require.Error,
 		},
 		{
 			name: "next page err",
@@ -212,7 +198,7 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			result, err := enumerateItems[any](ctx, test.getPager(t, ctx))
+			result, err := enumerateItems(ctx, test.getPager(t, ctx))
 			test.expectErr(t, err, clues.ToCore(err))
 
 			require.EqualValues(t, test.expect, result)

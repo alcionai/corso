@@ -121,32 +121,53 @@ func (c Mail) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Messageable] = &mailPager{}
+var _ itemPager[models.Messageable] = &mailPageCtrl{}
 
-type mailPager struct {
-	// TODO(rkeeprs)
+type mailPageCtrl struct {
+	gs      graph.Servicer
+	builder *users.ItemMailFoldersItemMessagesRequestBuilder
+	options *users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration
 }
 
-func (c Mail) NewMailPager() itemPager[models.Messageable] {
-	// TODO(rkeepers)
-	return nil
+func (c Mail) NewMailPager(
+	userID, containerID string,
+	selectProps ...string,
+) itemPager[models.Messageable] {
+	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+			Top: ptr.To[int32](maxNonDeltaPageSize),
+		},
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	builder := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		Messages()
+
+	return &mailPageCtrl{c.Stable, builder, options}
 }
 
 //lint:ignore U1000 False Positive
-func (p *mailPager) getPage(ctx context.Context) (PageLinker, error) {
-	// TODO(rkeepers)
-	return nil, nil
+func (p *mailPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Messageable], error) {
+	page, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return EmptyDeltaLinker[models.Messageable]{PageLinkValuer: page}, nil
 }
 
 //lint:ignore U1000 False Positive
-func (p *mailPager) setNext(nextLink string) {
-	// TODO(rkeepers)
-}
-
-//lint:ignore U1000 False Positive
-func (p *mailPager) valuesIn(pl PageLinker) ([]models.Messageable, error) {
-	// TODO(rkeepers)
-	return nil, nil
+func (p *mailPageCtrl) setNext(nextLink string) {
+	p.builder = users.NewItemMailFoldersItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +190,7 @@ func (c Mail) NewMailIDsPager(
 	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
+			Top:    ptr.To[int32](maxNonDeltaPageSize),
 		},
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
@@ -202,6 +224,27 @@ func (p *mailIDPager) reset(context.Context) {}
 
 func (p *mailIDPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
+}
+
+func (c Mail) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]string, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewMailPager(userID, containerID, mailCollisionKeyProps()...)
+
+	items, err := enumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating mail")
+	}
+
+	m := map[string]string{}
+
+	for _, item := range items {
+		m[MailCollisionKey(item)] = ptr.Val(item.GetId())
+	}
+
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +287,7 @@ func (c Mail) NewMailDeltaIDsPager(
 	config := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
+			Top:    ptr.To[int32](maxDeltaPageSize),
 		},
 		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}

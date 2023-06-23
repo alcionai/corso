@@ -241,9 +241,12 @@ func (c Events) GetItem(
 		return nil, nil, clues.Wrap(err, "fixup exception occurrences")
 	}
 
-	attachments, err := c.getAttachments(ctx, event, immutableIDs, userID, itemID)
-	if err != nil {
-		return nil, nil, err
+	var attachments []models.Attachmentable
+	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
+		attachments, err = c.GetAttachments(ctx, immutableIDs, userID, itemID)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	event.SetAttachments(attachments)
@@ -286,10 +289,14 @@ func fixupExceptionOccurrences(
 
 		// OPTIMIZATION: We don't have to store any of the
 		// attachments that carry over from the original
-		attachments, err := client.getAttachments(ctx, evt, immutableIDs, userID, ptr.Val(evt.GetId()))
-		if err != nil {
-			return clues.Wrap(err, "getting exception attachments").
-				With("exception_event_id", ptr.Val(evt.GetId()))
+
+		var attachments []models.Attachmentable
+		if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
+			attachments, err = client.GetAttachments(ctx, immutableIDs, userID, ptr.Val(evt.GetId()))
+			if err != nil {
+				return clues.Wrap(err, "getting event instance attachments").
+					With("event_instance_id", ptr.Val(evt.GetId()))
+			}
 		}
 
 		// This odd roundabout way of doing this is required as
@@ -370,17 +377,12 @@ func parseableToMap(att serialization.Parsable) (map[string]any, error) {
 	return item, nil
 }
 
-func (c Events) getAttachments(
+func (c Events) GetAttachments(
 	ctx context.Context,
-	event models.Eventable,
 	immutableIDs bool,
 	userID string,
 	itemID string,
 ) ([]models.Attachmentable, error) {
-	if !ptr.Val(event.GetHasAttachments()) && !HasAttachments(event.GetBody()) {
-		return nil, nil
-	}
-
 	config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
@@ -401,6 +403,23 @@ func (c Events) getAttachments(
 	}
 
 	return attached.GetValue(), nil
+}
+
+func (c Events) DeleteAttachment(
+	ctx context.Context,
+	userID, calendarID, eventID, attachmentID string,
+) error {
+	return c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(calendarID).
+		Events().
+		ByEventId(eventID).
+		Attachments().
+		ByAttachmentId(attachmentID).
+		Delete(ctx, nil)
 }
 
 func (c Events) GetItemInstances(
@@ -678,4 +697,18 @@ func EventFromMap(ev map[string]any) (models.Eventable, error) {
 	}
 
 	return body, nil
+}
+
+func eventCollisionKeyProps() []string {
+	return idAnd("subject")
+}
+
+// EventCollisionKey constructs a key from the eventable's creation time, subject, and organizer.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func EventCollisionKey(item models.Eventable) string {
+	if item == nil {
+		return ""
+	}
+
+	return ptr.Val(item.GetSubject())
 }
