@@ -53,7 +53,7 @@ func attachmentType(attachment models.Attachmentable) models.AttachmentType {
 // uploadAttachment will upload the specified message attachment to M365
 func uploadAttachment(
 	ctx context.Context,
-	cli attachmentPoster,
+	ap attachmentPoster,
 	userID, containerID, parentItemID string,
 	attachment models.Attachmentable,
 ) error {
@@ -102,13 +102,13 @@ func uploadAttachment(
 			return clues.Wrap(err, "serializing attachment content").WithClues(ctx)
 		}
 
-		_, err = cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, content)
+		_, err = ap.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, content)
 
 		return err
 	}
 
 	// for all other attachments
-	return cli.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
+	return ap.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
 }
 
 func getOutlookOdataType(query models.Attachmentable) string {
