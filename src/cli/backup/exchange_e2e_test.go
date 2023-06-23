@@ -50,7 +50,7 @@ type ExchangeCMDWithFlagsE2ESuite struct {
 	recorder   strings.Builder
 }
 
-func TestBackupExchangeInvalidFlagValueSuite(t *testing.T) {
+func TestExchangeCMDWithFlagsE2ESuite(t *testing.T) {
 	suite.Run(t, &ExchangeCMDWithFlagsE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
@@ -74,7 +74,7 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(t)
 }
 
-func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupInvalidAzureClientIDCmd_empty() {
+func (suite *ExchangeCMDWithFlagsE2ESuite) TestBackupCreateExchange_badAzureClientID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 
@@ -98,7 +98,7 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupInvalidAzureClientI
 	require.Error(t, err, clues.ToCore(err))
 }
 
-func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupValueFromConfigCmd_empty() {
+func (suite *ExchangeCMDWithFlagsE2ESuite) TestBackupCreateExchange_azureIDFromConfigFile() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -128,7 +128,7 @@ func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupValueFromConfigCmd_empt
 	assert.Contains(t, result, suite.m365UserID)
 }
 
-func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupValueFromEnvCmd_empty() {
+func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupValueFromEnvCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -184,7 +184,7 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupInvalidAWSClientIDC
 	require.Error(t, err, clues.ToCore(err))
 }
 
-func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupAWSValueFromEnvCmd_empty() {
+func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupAWSValueFromEnvCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.vpr)

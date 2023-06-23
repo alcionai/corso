@@ -20,25 +20,10 @@ type AWS struct {
 
 // GetAWS is a helper for aggregating aws secrets and credentials.
 func GetAWS(override map[string]string) AWS {
-	var accessKey, secretKey, sessToken string
-	if ovr := override[AWSAccessKeyID]; ovr != "" {
-		accessKey = ovr
-	}
-
-	if ovr := override[AWSSecretAccessKey]; ovr != "" {
-		secretKey = ovr
-	}
-
-	if ovr := override[AWSSessionToken]; ovr != "" {
-		sessToken = ovr
-	}
-
-	// todo (rkeeprs): read from either corso config file or env vars.
-	// https://github.com/alcionai/corso/issues/120
 	return AWS{
-		AccessKey:    accessKey,
-		SecretKey:    secretKey,
-		SessionToken: sessToken,
+		AccessKey:    override[AWSAccessKeyID],
+		SecretKey:    override[AWSSecretAccessKey],
+		SessionToken: override[AWSSessionToken],
 	}
 }
 
