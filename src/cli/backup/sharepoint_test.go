@@ -10,8 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/options"
-	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -45,9 +44,9 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			expectUse + " " + sharePointServiceCommandCreateUseSuffix,
 			sharePointCreateCmd().Short,
 			[]string{
-				utils.SiteFN,
-				options.DisableIncrementalsFN,
-				options.FailFastFN,
+				flags.SiteFN,
+				flags.DisableIncrementalsFN,
+				flags.FailFastFN,
 			},
 			createSharePointCmd,
 		},
@@ -57,10 +56,10 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			expectUse,
 			sharePointListCmd().Short,
 			[]string{
-				utils.BackupFN,
-				failedItemsFN,
-				skippedItemsFN,
-				recoveredErrorsFN,
+				flags.BackupFN,
+				flags.FailedItemsFN,
+				flags.SkippedItemsFN,
+				flags.RecoveredErrorsFN,
 			},
 			listSharePointCmd,
 		},
@@ -70,14 +69,14 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
 			sharePointDetailsCmd().Short,
 			[]string{
-				utils.BackupFN,
-				utils.LibraryFN,
-				utils.FolderFN,
-				utils.FileFN,
-				utils.FileCreatedAfterFN,
-				utils.FileCreatedBeforeFN,
-				utils.FileModifiedAfterFN,
-				utils.FileModifiedBeforeFN,
+				flags.BackupFN,
+				flags.LibraryFN,
+				flags.FolderFN,
+				flags.FileFN,
+				flags.FileCreatedAfterFN,
+				flags.FileCreatedBeforeFN,
+				flags.FileModifiedAfterFN,
+				flags.FileModifiedBeforeFN,
 			},
 			detailsSharePointCmd,
 		},
@@ -86,7 +85,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			deleteCommand,
 			expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
 			sharePointDeleteCmd().Short,
-			[]string{utils.BackupFN},
+			[]string{flags.BackupFN},
 			deleteSharePointCmd,
 		},
 	}
@@ -183,13 +182,13 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 		},
 		{
 			name:            "site wildcard",
-			site:            []string{utils.Wildcard},
+			site:            []string{flags.Wildcard},
 			expect:          bothIDs,
 			expectScopesLen: 2,
 		},
 		{
 			name:            "url wildcard",
-			weburl:          []string{utils.Wildcard},
+			weburl:          []string{flags.Wildcard},
 			expect:          bothIDs,
 			expectScopesLen: 2,
 		},
@@ -221,7 +220,7 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 		},
 		{
 			name:            "unnecessary site wildcard",
-			site:            []string{id1, utils.Wildcard},
+			site:            []string{id1, flags.Wildcard},
 			weburl:          []string{url1, url2},
 			expect:          bothIDs,
 			expectScopesLen: 2,
@@ -229,7 +228,7 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 		{
 			name:            "unnecessary url wildcard",
 			site:            []string{id1},
-			weburl:          []string{url1, utils.Wildcard},
+			weburl:          []string{url1, flags.Wildcard},
 			expect:          bothIDs,
 			expectScopesLen: 2,
 		},

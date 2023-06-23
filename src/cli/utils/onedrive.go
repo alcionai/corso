@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/cli/flags"
 )
 
 type OneDriveOpts struct {
@@ -17,57 +18,22 @@ type OneDriveOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	Populated PopulatedFlags
+	Populated flags.PopulatedFlags
 }
 
 func MakeOneDriveOpts(cmd *cobra.Command) OneDriveOpts {
 	return OneDriveOpts{
-		Users: UserFV,
+		Users: flags.UserFV,
 
-		FileName:           FileNameFV,
-		FolderPath:         FolderPathFV,
-		FileCreatedAfter:   FileCreatedAfterFV,
-		FileCreatedBefore:  FileCreatedBeforeFV,
-		FileModifiedAfter:  FileModifiedAfterFV,
-		FileModifiedBefore: FileModifiedBeforeFV,
+		FileName:           flags.FileNameFV,
+		FolderPath:         flags.FolderPathFV,
+		FileCreatedAfter:   flags.FileCreatedAfterFV,
+		FileCreatedBefore:  flags.FileCreatedBeforeFV,
+		FileModifiedAfter:  flags.FileModifiedAfterFV,
+		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		Populated: GetPopulatedFlags(cmd),
+		Populated: flags.GetPopulatedFlags(cmd),
 	}
-}
-
-// AddOneDriveDetailsAndRestoreFlags adds flags that are common to both the
-// details and restore commands.
-func AddOneDriveDetailsAndRestoreFlags(cmd *cobra.Command) {
-	fs := cmd.Flags()
-
-	fs.StringSliceVar(
-		&FolderPathFV,
-		FolderFN, nil,
-		"Select files by OneDrive folder; defaults to root.")
-
-	fs.StringSliceVar(
-		&FileNameFV,
-		FileFN, nil,
-		"Select files by name.")
-
-	fs.StringVar(
-		&FileCreatedAfterFV,
-		FileCreatedAfterFN, "",
-		"Select files created after this datetime.")
-	fs.StringVar(
-		&FileCreatedBeforeFV,
-		FileCreatedBeforeFN, "",
-		"Select files created before this datetime.")
-
-	fs.StringVar(
-		&FileModifiedAfterFV,
-		FileModifiedAfterFN, "",
-		"Select files modified after this datetime.")
-
-	fs.StringVar(
-		&FileModifiedBeforeFV,
-		FileModifiedBeforeFN, "",
-		"Select files modified before this datetime.")
 }
 
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
@@ -76,19 +42,19 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return clues.New("a backup ID is required")
 	}
 
-	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
+	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
 		return clues.New("invalid time format for created-after")
 	}
 
-	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
+	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
 		return clues.New("invalid time format for created-before")
 	}
 
-	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
+	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
 		return clues.New("invalid time format for modified-after")
 	}
 
-	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
+	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
 		return clues.New("invalid time format for modified-before")
 	}
 

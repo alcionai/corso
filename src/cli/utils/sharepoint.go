@@ -10,23 +10,8 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/cli/flags"
 )
-
-const (
-	ListFolderFN = "list"
-	ListItemFN   = "list-item"
-	PageFolderFN = "page-folder"
-	PageFN       = "page"
-)
-
-// flag population variables
-var (
-	ListFolder []string
-	ListItem   []string
-	PageFolder []string
-	Page       []string
-)
-
 type SharePointOpts struct {
 	SiteID []string
 	WebURL []string
@@ -45,93 +30,30 @@ type SharePointOpts struct {
 	PageFolder []string
 	Page       []string
 
-	Populated PopulatedFlags
+	Populated flags.PopulatedFlags
 }
 
 func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 	return SharePointOpts{
-		SiteID: SiteIDFV,
-		WebURL: WebURLFV,
+		SiteID: flags.SiteIDFV,
+		WebURL: flags.WebURLFV,
 
-		Library:            LibraryFV,
-		FileName:           FileNameFV,
-		FolderPath:         FolderPathFV,
-		FileCreatedAfter:   FileCreatedAfterFV,
-		FileCreatedBefore:  FileCreatedBeforeFV,
-		FileModifiedAfter:  FileModifiedAfterFV,
-		FileModifiedBefore: FileModifiedBeforeFV,
+		Library:            flags.LibraryFV,
+		FileName:           flags.FileNameFV,
+		FolderPath:         flags.FolderPathFV,
+		FileCreatedAfter:   flags.FileCreatedAfterFV,
+		FileCreatedBefore:  flags.FileCreatedBeforeFV,
+		FileModifiedAfter:  flags.FileModifiedAfterFV,
+		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		ListFolder: ListFolder,
-		ListItem:   ListItem,
+		ListFolder: flags.ListFolderFV,
+		ListItem:   flags.ListItemFV,
 
-		Page:       Page,
-		PageFolder: PageFolder,
+		Page:       flags.PageFV,
+		PageFolder: flags.PageFolderFV,
 
-		Populated: GetPopulatedFlags(cmd),
+		Populated: flags.GetPopulatedFlags(cmd),
 	}
-}
-
-// AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
-// details and restore commands.
-func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
-	fs := cmd.Flags()
-
-	// libraries
-
-	fs.StringVar(
-		&LibraryFV,
-		LibraryFN, "",
-		"Select only this library; defaults to all libraries.")
-	fs.StringSliceVar(
-		&FolderPathFV,
-		FolderFN, nil,
-		"Select by folder; defaults to root.")
-	fs.StringSliceVar(
-		&FileNameFV,
-		FileFN, nil,
-		"Select by file name.")
-	fs.StringVar(
-		&FileCreatedAfterFV,
-		FileCreatedAfterFN, "",
-		"Select files created after this datetime.")
-	fs.StringVar(
-		&FileCreatedBeforeFV,
-		FileCreatedBeforeFN, "",
-		"Select files created before this datetime.")
-	fs.StringVar(
-		&FileModifiedAfterFV,
-		FileModifiedAfterFN, "",
-		"Select files modified after this datetime.")
-	fs.StringVar(
-		&FileModifiedBeforeFV,
-		FileModifiedBeforeFN, "",
-		"Select files modified before this datetime.")
-
-	// lists
-
-	fs.StringSliceVar(
-		&ListFolder,
-		ListFolderFN, nil,
-		"Select lists by name; accepts '"+Wildcard+"' to select all lists.")
-	cobra.CheckErr(fs.MarkHidden(ListFolderFN))
-	fs.StringSliceVar(
-		&ListItem,
-		ListItemFN, nil,
-		"Select lists by item name; accepts '"+Wildcard+"' to select all lists.")
-	cobra.CheckErr(fs.MarkHidden(ListItemFN))
-
-	// pages
-
-	fs.StringSliceVar(
-		&PageFolder,
-		PageFolderFN, nil,
-		"Select pages by folder name; accepts '"+Wildcard+"' to select all pages.")
-	cobra.CheckErr(fs.MarkHidden(PageFolderFN))
-	fs.StringSliceVar(
-		&Page,
-		PageFN, nil,
-		"Select pages by item name; accepts '"+Wildcard+"' to select all pages.")
-	cobra.CheckErr(fs.MarkHidden(PageFN))
 }
 
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
@@ -141,7 +63,7 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 	}
 
 	// ensure url can parse all weburls provided by --site.
-	if _, ok := opts.Populated[SiteFN]; ok {
+	if _, ok := opts.Populated[flags.SiteFN]; ok {
 		for _, wu := range opts.WebURL {
 			if _, err := url.Parse(wu); err != nil {
 				return clues.New("invalid site url: " + wu)
@@ -149,20 +71,20 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		}
 	}
 
-	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + FileCreatedAfterFN)
+	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
+		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
 	}
 
-	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + FileCreatedBeforeFN)
+	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
+		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
 	}
 
-	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + FileModifiedAfterFN)
+	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
+		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
 	}
 
-	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + FileModifiedBeforeFN)
+	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
+		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
 	}
 
 	return nil

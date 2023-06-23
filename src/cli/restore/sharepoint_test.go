@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -43,7 +44,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			// normally a persistent flag from the root.
 			// required to ensure a dry run.
-			utils.AddRunModeFlag(cmd, true)
+			flags.AddRunModeFlag(cmd, true)
 
 			c := addSharePointCommands(cmd)
 			require.NotNil(t, c)
@@ -58,22 +59,19 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			cmd.SetArgs([]string{
 				"sharepoint",
-				"--" + utils.RunModeFN, utils.RunModeFlagTest,
-				"--" + utils.BackupFN, testdata.BackupInput,
-
-				"--" + utils.LibraryFN, testdata.LibraryInput,
-				"--" + utils.FileFN, testdata.FlgInputs(testdata.FileNameInput),
-				"--" + utils.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
-				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
-				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
-				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
-				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
-
-				"--" + utils.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
-				"--" + utils.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
-
-				"--" + utils.PageFN, testdata.FlgInputs(testdata.PageInput),
-				"--" + utils.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, testdata.BackupInput,
+				"--" + flags.LibraryFN, testdata.LibraryInput,
+				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+				"--" + flags.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
+				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
+				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
+				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -82,7 +80,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeSharePointOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
+			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
 			assert.Equal(t, testdata.LibraryInput, opts.Library)
 			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
