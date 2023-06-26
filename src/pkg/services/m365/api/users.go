@@ -200,12 +200,12 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 		if graph.IsErrUserNotFound(err) {
 			logger.CtxErr(ctx, err).Error("user not found")
-			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
+			return nil, clues.Wrap(clues.Stack(graph.ErrResourceOwnerNotFound, err), "")
 		}
 
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-			return nil, err
+			return nil, clues.Wrap(err, "")
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
@@ -243,7 +243,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
 	if err != nil {
 		if !graph.IsErrQuotaExceeded(err) {
-			return nil, err
+			return nil, clues.Wrap(err, "")
 		}
 
 		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
