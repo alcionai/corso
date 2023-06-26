@@ -295,6 +295,10 @@ func (suite *OneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBacku
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
+func (suite *OneDriveIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
+	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
+}
+
 func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)

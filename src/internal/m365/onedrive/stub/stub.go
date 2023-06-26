@@ -3,6 +3,7 @@ package stub
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -44,9 +45,10 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 		testMeta.Permissions = []metadata.Permission{uperm}
 	}
 
-	fmt.Println("stub.go:47 len(meta.LinkShares.EntityIDs) != 0:", len(meta.LinkShares.EntityIDs) != 0)
 	if len(meta.LinkShares.EntityIDs) != 0 {
-		id := uuid.NewString()
+		// TODO(meain): should we use random generated ids?
+		// id := uuid.NewString()
+		id := strings.Join(meta.LinkShares.EntityIDs, "-") + meta.LinkShares.Scope + meta.LinkShares.Type
 		entities := []metadata.Entity{}
 		for _, e := range meta.LinkShares.EntityIDs {
 			entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})

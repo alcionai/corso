@@ -241,32 +241,11 @@ func UpdateLinkShares(
 	lsAdded, lsRemoved []metadata.LinkShare,
 	oldLinkShareIDToNewID map[string]string,
 ) error {
-	// The ordering of the operations is important here. We first
-	// remove all the removed permissions and then add the added ones.
-	for _, ls := range lsRemoved {
-		ictx := clues.Add(ctx, "link_share_id", ls.ID)
+	// You can only delete inherited sharing links the first time you
+	// create a sharing link which is done using
+	// `retainInheritedPermissions`.
 
-		// We do not restore ones with password, and so don't have to
-		// bother about them
-		if ls.HasPassword {
-			continue
-		}
-
-		// deletes require unique http clients
-		// https://github.com/alcionai/corso/issues/2707
-		// this is bad citizenship, and could end up consuming a lot of
-		// system resources if servicers leak client connections (sockets, etc).
-
-		pid, ok := oldLinkShareIDToNewID[ls.ID]
-		if !ok {
-			return clues.New("no new link share id").WithClues(ctx)
-		}
-
-		err := upils.DeleteItemPermission(ictx, driveID, itemID, pid)
-		if err != nil {
-			return clues.Stack(err)
-		}
-	}
+	first := true
 
 	for _, ls := range lsAdded {
 		ictx := clues.Add(ctx, "link_share_id", ls.ID)
@@ -323,6 +302,17 @@ func UpdateLinkShares(
 			"recipients":       idens,
 		}
 		lsbody.SetAdditionalData(ad)
+
+		if first {
+			// The only way to delete any is to use this and so if
+			// we have any deleted items, we can be sure that all the
+			// inherited permissions would have been removed.
+
+			// TODO(meain): What happens when we create the parent link shares after child?
+			// ie: create parent perm1 > create child perm1 with inherit delete > create parent perm2
+			lsbody.SetRetainInheritedPermissions(ptr.To(len(lsRemoved) > 0))
+			first = false
+		}
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if err != nil {
