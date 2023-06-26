@@ -234,7 +234,6 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				return ptr.Val(folder.GetId())
 			},
 		},
-		// end here
 		{
 			name: "Test Mail: Item Attachment_Contact",
 			bytes: exchMock.MessageWithNestedItemAttachmentContact(t,
@@ -251,6 +250,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				return ptr.Val(folder.GetId())
 			},
 		},
+		// failure Test start
 		{ // Restore will upload the Message without uploading the attachment
 			name:     "Test Mail: Item Attachment_NestedEvent",
 			bytes:    exchMock.MessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
@@ -264,6 +264,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				return ptr.Val(folder.GetId())
 			},
 		},
+		// test end
 		{
 			name:     "Test Mail: One Large Attachment",
 			bytes:    exchMock.MessageWithLargeAttachment("Restore Large Attachment"),
