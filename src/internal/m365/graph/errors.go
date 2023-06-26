@@ -26,9 +26,20 @@ import (
 type errorCode string
 
 const (
-	activityLimitReached        errorCode = "activityLimitReached"
-	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
-	errorAccessDenied           errorCode = "ErrorAccessDenied"
+	activityLimitReached errorCode = "activityLimitReached"
+	// cannotOpenFileAttachment happen when an attachment is
+	// inaccessible. The error message is usually "OLE conversion
+	// failed for an attachment."
+	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
+	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
+	errorAccessDenied        errorCode = "ErrorAccessDenied"
+	// This error occurs when an attempt is made to create a folder that has
+	// the same name as another folder in the same parent. Such duplicate folder
+	// names are not allowed by graph.
+	folderExists errorCode = "ErrorFolderExists"
+	// Some datacenters are returning this when we try to get the inbox of a user
+	// that doesn't exist.
+	invalidUser                 errorCode = "ErrorInvalidUser"
 	errorItemNotFound           errorCode = "ErrorItemNotFound"
 	itemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
@@ -39,22 +50,11 @@ const (
 	quotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	// Returned when we try to get the inbox of a user that doesn't exist.
-	ResourceNotFound errorCode = "ResourceNotFound"
-	// Some datacenters are returning this when we try to get the inbox of a user
-	// that doesn't exist.
-	invalidUser        errorCode = "ErrorInvalidUser"
+	ResourceNotFound   errorCode = "ResourceNotFound"
 	resyncRequired     errorCode = "ResyncRequired"
 	syncFolderNotFound errorCode = "ErrorSyncFolderNotFound"
 	syncStateInvalid   errorCode = "SyncStateInvalid"
 	syncStateNotFound  errorCode = "SyncStateNotFound"
-	// This error occurs when an attempt is made to create a folder that has
-	// the same name as another folder in the same parent. Such duplicate folder
-	// names are not allowed by graph.
-	folderExists errorCode = "ErrorFolderExists"
-	// cannotOpenFileAttachment happen when an attachment is
-	// inaccessible. The error message is usually "OLE conversion
-	// failed for an attachment."
-	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
 )
 
 type errorMessage string
