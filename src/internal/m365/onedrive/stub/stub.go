@@ -19,30 +19,50 @@ import (
 const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
 func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metadata {
-	// TODO(meain) : handle link share
-	if len(meta.Perms.User) == 0 || len(meta.Perms.Roles) == 0 ||
-		meta.SharingMode != metadata.SharingModeCustom {
+	if meta.SharingMode != metadata.SharingModeCustom {
 		return metadata.Metadata{
 			FileName:    fileName,
 			SharingMode: meta.SharingMode,
 		}
 	}
 
-	// In case of permissions, the id will usually be same for same
-	// user/role combo unless deleted and readded, but we have to do
-	// this as we only have two users of which one is already taken.
-	id := uuid.NewString()
-	uperm := metadata.Permission{ID: id, Roles: meta.Perms.Roles}
+	testMeta := metadata.Metadata{FileName: fileName}
 
-	if permUseID {
-		uperm.EntityID = meta.Perms.EntityID
-	} else {
-		uperm.Email = meta.Perms.User
+	if len(meta.Perms.User) != 0 {
+		// In case of permissions, the id will usually be same for same
+		// user/role combo unless deleted and readded, but we have to do
+		// this as we only have two users of which one is already taken.
+		id := uuid.NewString()
+		uperm := metadata.Permission{ID: id, Roles: meta.Perms.Roles}
+
+		if permUseID {
+			uperm.EntityID = meta.Perms.EntityID
+		} else {
+			uperm.Email = meta.Perms.User
+		}
+
+		testMeta.Permissions = []metadata.Permission{uperm}
 	}
 
-	testMeta := metadata.Metadata{
-		FileName:    fileName,
-		Permissions: []metadata.Permission{uperm},
+	fmt.Println("stub.go:47 len(meta.LinkShares.EntityIDs) != 0:", len(meta.LinkShares.EntityIDs) != 0)
+	if len(meta.LinkShares.EntityIDs) != 0 {
+		id := uuid.NewString()
+		entities := []metadata.Entity{}
+		for _, e := range meta.LinkShares.EntityIDs {
+			entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})
+		}
+
+		ls := metadata.LinkShare{
+			ID: id, // id is required for mapping from parent
+			Link: metadata.LinkShareLink{
+				Scope:  meta.LinkShares.Scope,
+				Type:   meta.LinkShares.Type,
+				WebURL: id,
+			},
+			Entities: entities,
+		}
+
+		testMeta.LinkShares = []metadata.LinkShare{ls}
 	}
 
 	return testMeta
@@ -56,8 +76,8 @@ type PermData struct {
 
 type LinkShareData struct {
 	EntityIDs []string
-	Scope    string
-	Type     string
+	Scope     string
+	Type      string
 }
 
 type MetaData struct {

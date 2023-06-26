@@ -1076,7 +1076,8 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: stub.LinkShareData{
 					EntityIDs: []string{secondaryUserID},
-					Scope:     "write",
+					Scope:     "users",
+					Type:      "edit",
 				},
 				SharingMode: metadata.SharingModeCustom,
 			},
@@ -1134,8 +1135,8 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: stub.LinkShareData{
 					EntityIDs: []string{tertiaryUserID},
-					Scope:     "view",
-					Type:      "users",
+					Scope:     "users",
+					Type:      "view",
 				},
 			},
 		},
@@ -1145,8 +1146,8 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: stub.LinkShareData{
 					EntityIDs: []string{tertiaryUserID},
-					Scope:     "write",
-					Type:      "users",
+					Scope:     "users",
+					Type:      "edit",
 				},
 				SharingMode: metadata.SharingModeCustom,
 			},

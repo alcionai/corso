@@ -279,16 +279,6 @@ func UpdateLinkShares(
 			continue
 		}
 
-		// We are not able to restore permissions when there are no
-		// roles or for owner, this seems to be restriction in graph
-		roles := []string{}
-
-		for _, r := range ls.Roles {
-			if r != "owner" {
-				roles = append(roles, r)
-			}
-		}
-
 		idens := []map[string]string{}
 		entities := []string{}
 
