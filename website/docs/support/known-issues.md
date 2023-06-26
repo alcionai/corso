@@ -27,4 +27,4 @@ included in backup and restore.
 
 * Sharing information of items in OneDrive/SharePoint using sharing links aren't backed up and restored.
 
-* Partial inheritance of link shares from a parent folder cannot be restored.
+* Partial inheritance of link shares from a parent folder can't be restored.

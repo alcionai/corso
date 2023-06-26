@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
 
 ### Known issues
-- Partial inheritance of link shares from a parent folder cannot be restored.
+- Partial inheritance of link shares from a parent folder can't be restored.
 
 ## [v0.10.0] (beta) - 2023-06-26
 
