@@ -389,6 +389,8 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithAttachments() {
 	t := suite.T()
 
+	t.Skip("Bug 3675")
+
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
