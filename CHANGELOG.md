@@ -7,20 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Exceptions and cancellations for recurring events are now backed up and restored
+
+### Fixed
+- Handle OLE conversion errors when trying to fetch attachments
+- Fix uploading large attachments for emails and calendar
+
 ## [v0.9.0] (beta) - 2023-06-05
 
 ### Added
 - Added ProtectedResourceName to the backup list json output.  ProtectedResourceName holds either a UPN or a WebURL, depending on the resource type.
 - Rework base selection logic for incremental backups so it's more likely to find a valid base.
 - Improve OneDrive restore performance by paralleling item restores
-- Exceptions and cancellations for recurring events are now backed up and restored
 
 ### Fixed
 - Fix Exchange folder cache population error when parent folder isn't found.
 - Fix Exchange backup issue caused by incorrect json serialization
 - Fix issues with details model containing duplicate entry for api consumers
-- Handle OLE conversion errors when trying to fetch attachments
-- Fix uploading large attachments for emails and calendar
 
 ### Changed
 - Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.
