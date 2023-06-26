@@ -192,6 +192,7 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 
 type MailAPIIntgSuite struct {
 	tester.Suite
+	cts         clientTesterSetup
 	credentials account.M365Config
 	ac          api.Client
 	user        string
@@ -203,13 +204,14 @@ func TestMailAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &MailAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *MailAPIIntgSuite) SetupSuite() {
 	t := suite.T()
+
+	suite.cts = newClientTesterSetup(t)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -442,3 +444,85 @@ func (suite *MailAPIIntgSuite) TestRestoreLargeAttachment() {
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id, "empty id for large attachment")
 }
+
+func (suite *MailAPIIntgSuite) TestMail_malformedJSONResp() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	defer gock.Off()
+
+	mid := "AAMkADMzZjZlNDg0LWIxNWUtNGUzOS1iNmViLWJhOGQ0NWFjOTJkNQBGAAAAAADb4v0HPlm8T5jPY51aTdZUBwCbSUNVDx_PTKATxbYuCKZlAAAAAAEMAACbSUNVDx_PTKATxbYuCKZlAABPQ75_AAA="
+
+	gock.New("https://graph.microsoft.com").
+		Get("/v1.0/users/rfinders@10rqc2.onmicrosoft.com/messages/"+mid).
+		Reply(200).
+		AddHeader("Content-Type", "application/json; odata.metadata=minimal; odata.streaming=true; IEEE754Compatible=false; charset=utf-8").
+		AddHeader("Content-Encoding", "gzip").
+		BodyString(string(m))
+
+	_, _, err := suite.ac.Mail().GetItem(ctx, "rfinders@10rqc2.onmicrosoft.com", mid, false, fault.New(true))
+	require.Error(t, err, clues.ToCore(err))
+	require.Contains(t, err.Error(), "invalid json type")
+
+	assert.True(t, gock.IsDone(), "made all requests")
+}
+
+const m = `{
+    "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('RFinders%4010rqc2.onmicrosoft.com')/messages/$entity",
+    "@odata.etag": "W/\"CQAAABYAAACbSUNVDx+PTKATxbYuCKZlAABPIl1/\"",
+    "id": "AAMkADMzZjZlNDg0LWIxNWUtNGUzOS1iNmViLWJhOGQ0NWFjOTJkNQBGAAAAAADb4v0HPlm8T5jPY51aTdZUBwCbSUNVDx_PTKATxbYuCKZlAAAAAAEMAACbSUNVDx_PTKATxbYuCKZlAABPQ75_AAA=",
+    "createdDateTime": "2023-06-22T17:49:27Z",
+    "lastModifiedDateTime": "2023-06-22T17:49:29Z",
+    "changeKey": "CQAAABYAAACbSUNVDx+PTKATxbYuCKZlAABPIl1/",
+    "categories": [],
+    "receivedDateTime": "2023-06-22T17:49:28Z",
+    "sentDateTime": "2023-06-22T17:49:21Z",
+    "hasAttachments": false,
+    "internetMessageId": "<PH8PR14MB7405D7605066409E4565A155D722A@PH8PR14MB7405.namprd14.prod.outlook.com>",
+    "subject": "zzazil",
+    "bodyPreview": "lizazz",
+    "importance": "normal",
+    "parentFolderId": "AQMkADMzAGY2ZTQ4NC1iMTVlLTRlMzktYjZlYi1iYThkNDVhYzkyZDUALgAAA9vi-Qc_WbxPmM9jnVpN1lQBAJtJQ1UPH49MoBPFti4IpmUAAAIBDAAAAA==",
+    "conversationId": "AAQkADMzZjZlNDg0LWIxNWUtNGUzOS1iNmViLWJhOGQ0NWFjOTJkNQAQABMgDVOQI6NNs9ZEbpFe4rY=",
+    "conversationIndex": "AQHZpTHUEyANU5Ajo02z1kRukV7itg==",
+    "isDeliveryReceiptRequested": null,
+    "isReadReceiptRequested": false,
+    "isRead": false,
+    "isDraft": false,
+    "webLink": "https://outlook.office365.com/owa/?ItemID=AAMkADMzZjZlNDg0LWIxNWUtNGUzOS1iNmViLWJhOGQ0NWFjOTJkNQBGAAAAAADb4v0HPlm8T5jPY51aTdZUBwCbSUNVDx%2BPTKATxbYuCKZlAAAAAAEMAACbSUNVDx%2BPTKATxbYuCKZlAABPQ75%2BAAA%3D&exvsurl=1&viewmodel=ReadMessageItem",
+    "inferenceClassification": "focused",
+    "body": {
+        "contentType": "html",
+        "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><meta name=\"Generator\" content=\"Microsoft Word 15 (filtered medium)\"><style>\r\n<!--\r\n@font-face\r\n\t{font-family:\"Cambria Math\"}\r\n@font-face\r\n\t{font-family:Calibri}\r\np.MsoNormal, li.MsoNormal, div.MsoNormal\r\n\t{margin:0in;\r\n\tfont-size:11.0pt;\r\n\tfont-family:\"Calibri\",sans-serif}\r\nspan.EmailStyle17\r\n\t{font-family:\"Calibri\",sans-serif;\r\n\tcolor:windowtext}\r\n.MsoChpDefault\r\n\t{font-family:\"Calibri\",sans-serif}\r\n@page WordSection1\r\n\t{margin:1.0in 1.0in 1.0in 1.0in}\r\ndiv.WordSection1\r\n\t{}\r\n-->\r\n</style></head><body lang=\"EN-US\" link=\"#0563C1\" vlink=\"#954F72\" style=\"word-wrap:break-word\"><div class=\"WordSection1\"><p class=\"MsoNormal\">lizazz</p></div></body></html>"
+    },
+    "sender": {
+        "emailAddress": {
+            "name": "Ryan Keepers",
+            "address": "rkeepers@alcion.ai"
+        }
+    },
+    "from": {
+        "emailAddress": {
+            "name": "Ryan Keepers",
+            "address": "rkeepers@alcion.ai"
+        }
+    },
+    "toRecipients": [
+        {
+            "emailAddress": {
+                "name": "Finders",
+                "address": "RFinders@10rqc2.onmicrosoft.com"
+            }
+        }
+    ],
+    "ccRecipients": [],
+    "bccRecipients": [],
+    "replyTo": [],
+    "flag": {
+        "flagStatus": "notFlagged"
+    }`
+
+// should have an ending curly bracket.
+// }`
