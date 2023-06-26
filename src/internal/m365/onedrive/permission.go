@@ -246,7 +246,6 @@ func UpdateLinkShares(
 	// `retainInheritedPermissions`. We get a 204 as a response if we
 	// try to delete an inherited link share, but it does not get
 	// deleted.
-
 	first := true
 
 	for _, ls := range lsAdded {
@@ -308,10 +307,10 @@ func UpdateLinkShares(
 			// The only way to delete any is to use this and so if
 			// we have any deleted items, we can be sure that all the
 			// inherited permissions would have been removed.
-
-			// TODO(meain): What happens when we create the parent link shares after child?
-			// ie: create parent perm1 > create child perm1 with inherit delete > create parent perm2
 			lsbody.SetRetainInheritedPermissions(ptr.To(len(lsRemoved) == 0))
+
+			// This value only effective on the first call, but lets
+			// make sure to not send it on followups.
 			first = false
 		}
 

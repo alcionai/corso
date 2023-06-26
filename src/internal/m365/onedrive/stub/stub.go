@@ -47,6 +47,7 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 
 	if len(meta.LinkShares.EntityIDs) != 0 {
 		id := strings.Join(meta.LinkShares.EntityIDs, "-") + meta.LinkShares.Scope + meta.LinkShares.Type
+
 		entities := []metadata.Entity{}
 		for _, e := range meta.LinkShares.EntityIDs {
 			entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})
