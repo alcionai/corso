@@ -8,9 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Added support for backing up and restoring link shares
 
 ### Fixed
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+
+### Known issues
+- Partial inheritance of link shares from a parent folder cannot be restored.
 
 ## [v0.10.0] (beta) - 2023-06-26
 

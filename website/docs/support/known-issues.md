@@ -26,3 +26,5 @@ included in backup and restore.
 * SharePoint document library data can't be restored after the library has been deleted.
 
 * Sharing information of items in OneDrive/SharePoint using sharing links aren't backed up and restored.
+
+* Partial inheritance of link shares from a parent folder cannot be restored.
