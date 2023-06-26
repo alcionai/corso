@@ -1278,8 +1278,9 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			checkMetadataFilesExist(t, ctx, bupID, kw, ms, atid, uidn.ID(), service, categories)
 			deeTD.CheckBackupDetails(t, ctx, bupID, whatSet, ms, ss, expectDeets, true)
 
-			// FIXME: commented tests are flaky due to interference with other tests
-			// we need to find a better way to make good assertions here.
+			// FIXME: commented tests are flaky due to delta calls retaining data that is
+			// out of scope of the test data.
+			// we need to find a better way to make isolated assertions here.
 			// The addition of the deeTD package gives us enough coverage to comment
 			// out the tests for now and look to their improvemeng later.
 
