@@ -265,3 +265,17 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 		Modified:    ptr.OrNow(contact.GetLastModifiedDateTime()),
 	}
 }
+
+func contactCollisionKeyProps() []string {
+	return idAnd(givenName)
+}
+
+// ContactCollisionKey constructs a key from the contactable's creation time and either displayName or given+surname.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func ContactCollisionKey(item models.Contactable) string {
+	if item == nil {
+		return ""
+	}
+
+	return ptr.Val(item.GetId())
+}
