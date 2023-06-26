@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const  BackupFN       = "backup"
+const BackupFN = "backup"
 
 var BackupIDFV string
 

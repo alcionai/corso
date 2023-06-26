@@ -44,11 +44,11 @@ func preRun(cc *cobra.Command, args []string) error {
 	ctx := cc.Context()
 	log := logger.Ctx(ctx)
 
-	flags := flags.GetPopulatedFlags(cc)
-	flagSl := make([]string, 0, len(flags))
+	fs := flags.GetPopulatedFlags(cc)
+	flagSl := make([]string, 0, len(fs))
 
 	// currently only tracking flag names to avoid pii leakage.
-	for f := range flags {
+	for f := range fs {
 		flagSl = append(flagSl, f)
 	}
 

@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 // Control produces the control options based on the user's flags.

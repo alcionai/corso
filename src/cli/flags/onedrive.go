@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	FileFN    = "file"
-	FolderFN  = "folder"
+	FileFN   = "file"
+	FolderFN = "folder"
 
 	FileCreatedAfterFN   = "file-created-after"
 	FileCreatedBeforeFN  = "file-created-before"

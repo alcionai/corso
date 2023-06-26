@@ -5,23 +5,23 @@ import (
 )
 
 const (
-	LibraryFN = "library"
+	LibraryFN    = "library"
 	ListFolderFN = "list"
 	ListItemFN   = "list-item"
 	PageFolderFN = "page-folder"
 	PageFN       = "page"
-	SiteFN    = "site"    // site only accepts WebURL values
-	SiteIDFN  = "site-id" // site-id accepts actual site ids
+	SiteFN       = "site"    // site only accepts WebURL values
+	SiteIDFN     = "site-id" // site-id accepts actual site ids
 )
 
 var (
-	LibraryFV string
+	LibraryFV    string
 	ListFolderFV []string
 	ListItemFV   []string
 	PageFolderFV []string
 	PageFV       []string
-	SiteIDFV  []string
-	WebURLFV  []string
+	SiteIDFV     []string
+	WebURLFV     []string
 )
 
 // AddSharePointDetailsAndRestoreFlags adds flags that are common to both the

@@ -13,7 +13,6 @@ const (
 
 var UserFV []string
 
-
 // AddUserFlag adds the --user flag.
 func AddUserFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(
