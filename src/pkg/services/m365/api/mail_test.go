@@ -203,8 +203,7 @@ func TestMailAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &MailAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -219,7 +218,7 @@ func (suite *MailAPIIntgSuite) SetupSuite() {
 	suite.ac, err = mock.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.user = tester.M365UserID(suite.T())
+	suite.user = tester.M365UserID(t)
 }
 
 func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interface{} {

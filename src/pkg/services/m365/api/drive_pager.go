@@ -292,8 +292,8 @@ func GetAllDrives(
 		for i := 0; i <= maxRetryCount; i++ {
 			page, err = pager.GetPage(ctx)
 			if err != nil {
-				if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
-					logger.Ctx(ctx).Infof("resource owner does not have a drive")
+				if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+					logger.CtxErr(ctx, err).Infof("resource owner does not have a drive")
 					return make([]models.Driveable, 0), nil // no license or drives.
 				}
 
