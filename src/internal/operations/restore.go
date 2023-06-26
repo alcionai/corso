@@ -2,8 +2,8 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -169,7 +169,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.CtxErr(ctx, err).Error("running restore")
 
-		if strings.Contains(err.Error(), "no restore path given") {
+		if errors.Is(err, kopia.ErrNoRestorePath) {
 			op.Errors.Fail(clues.New("running restore: empty backup or unknown path provided"))
 		}
 
