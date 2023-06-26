@@ -278,8 +278,6 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetIsDraft(nil)
 	newEvent.SetAdditionalData(orig.GetAdditionalData())
 
-	// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
-	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
 	attachments, err := sanitizeAttachments(orig.GetAttachments())
 	if err != nil {
 		return nil, err
@@ -291,15 +289,13 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 
 func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
 	message := toMessage(orig)
-
-	// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
-	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
 	attachments, err := sanitizeAttachments(message.GetAttachments())
+
 	if err != nil {
 		return nil, err
 	}
-	message.SetAttachments(attachments)
 
+	message.SetAttachments(attachments)
 	// The following fields are set to nil to
 	// not interfere with M365 guard checks.
 	message.SetHasAttachments(nil)
