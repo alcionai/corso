@@ -274,10 +274,12 @@ func generateAndRestoreDriveItems(
 					{
 						Name: fmt.Sprintf("file-1st-count-%d-at-%s", i, currentTime),
 						Data: fileAData,
-						Perms: odStub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
-							Roles:    writePerm,
+						Meta: odStub.MetaData{
+							Perms: odStub.PermData{
+								User:     secondaryUserName,
+								EntityID: secondaryUserID,
+								Roles:    writePerm,
+							},
 						},
 					},
 					{
@@ -291,18 +293,22 @@ func generateAndRestoreDriveItems(
 					},
 					{
 						Name: folderAName,
-						Perms: odStub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
-							Roles:    readPerm,
+						Meta: odStub.MetaData{
+							Perms: odStub.PermData{
+								User:     secondaryUserName,
+								EntityID: secondaryUserID,
+								Roles:    readPerm,
+							},
 						},
 					},
 					{
 						Name: folderCName,
-						Perms: odStub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
-							Roles:    readPerm,
+						Meta: odStub.MetaData{
+							Perms: odStub.PermData{
+								User:     secondaryUserName,
+								EntityID: secondaryUserID,
+								Roles:    readPerm,
+							},
 						},
 					},
 				},
@@ -315,17 +321,21 @@ func generateAndRestoreDriveItems(
 					{
 						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						Data: fileEData,
-						Perms: odStub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
-							Roles:    writePerm,
+						Meta: odStub.MetaData{
+							Perms: odStub.PermData{
+								User:     secondaryUserName,
+								EntityID: secondaryUserID,
+								Roles:    writePerm,
+							},
 						},
 					},
 				},
-				Perms: odStub.PermData{
-					User:     secondaryUserName,
-					EntityID: secondaryUserID,
-					Roles:    readPerm,
+				Meta: odStub.MetaData{
+					Perms: odStub.PermData{
+						User:     secondaryUserName,
+						EntityID: secondaryUserID,
+						Roles:    readPerm,
+					},
 				},
 			},
 			{
@@ -338,10 +348,12 @@ func generateAndRestoreDriveItems(
 						Data: fileAData,
 					},
 				},
-				Perms: odStub.PermData{
-					User:     secondaryUserName,
-					EntityID: secondaryUserID,
-					Roles:    readPerm,
+				Meta: odStub.MetaData{
+					Perms: odStub.PermData{
+						User:     secondaryUserName,
+						EntityID: secondaryUserID,
+						Roles:    readPerm,
+					},
 				},
 			},
 			{
@@ -352,20 +364,24 @@ func generateAndRestoreDriveItems(
 						// permissions.
 						Name: fmt.Sprintf("file-count-%d-at-%s", i, currentTime),
 						Data: fileBData,
-						Perms: odStub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
-							Roles:    writePerm,
+						Meta: odStub.MetaData{
+							Perms: odStub.PermData{
+								User:     secondaryUserName,
+								EntityID: secondaryUserID,
+								Roles:    writePerm,
+							},
 						},
 					},
 				},
 				Folders: []odStub.ItemData{
 					{
 						Name: folderAName,
-						Perms: odStub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
-							Roles:    readPerm,
+						Meta: odStub.MetaData{
+							Perms: odStub.PermData{
+								User:     secondaryUserName,
+								EntityID: secondaryUserID,
+								Roles:    readPerm,
+							},
 						},
 					},
 				},

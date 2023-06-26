@@ -231,6 +231,10 @@ func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBac
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
+func (suite *SharePointIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
+	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
+}
+
 func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
@@ -562,10 +566,12 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					// Test restoring a file that doesn't inherit permissions.
 					Name: fileName,
 					Data: fileAData,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    writePerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
+						},
 					},
 				},
 				{
@@ -581,18 +587,22 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				},
 				{
 					Name: folderAName,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    readPerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    readPerm,
+						},
 					},
 				},
 				{
 					Name: folderCName,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    readPerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    readPerm,
+						},
 					},
 				},
 			},
@@ -605,20 +615,24 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					// permissions.
 					Name: fileName,
 					Data: fileBData,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    writePerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
+						},
 					},
 				},
 			},
 			Folders: []stub.ItemData{
 				{
 					Name: folderAName,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    readPerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    readPerm,
+						},
 					},
 				},
 			},
@@ -654,17 +668,21 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				{
 					Name: fileName,
 					Data: fileEData,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    writePerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
+						},
 					},
 				},
 			},
-			Perms: stub.PermData{
-				User:     secondaryUserName,
-				EntityID: secondaryUserID,
-				Roles:    readPerm,
+			Meta: stub.MetaData{
+				Perms: stub.PermData{
+					User:     secondaryUserName,
+					EntityID: secondaryUserID,
+					Roles:    readPerm,
+				},
 			},
 		},
 		{
@@ -677,10 +695,12 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Data: fileAData,
 				},
 			},
-			Perms: stub.PermData{
-				User:     secondaryUserName,
-				EntityID: secondaryUserID,
-				Roles:    readPerm,
+			Meta: stub.MetaData{
+				Perms: stub.PermData{
+					User:     secondaryUserName,
+					EntityID: secondaryUserID,
+					Roles:    readPerm,
+				},
 			},
 		},
 	}
@@ -746,10 +766,12 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				{
 					Name: fileName,
 					Data: fileAData,
-					Perms: stub.PermData{
-						User:     secondaryUserName,
-						EntityID: secondaryUserID,
-						Roles:    writePerm,
+					Meta: stub.MetaData{
+						Perms: stub.PermData{
+							User:     secondaryUserName,
+							EntityID: secondaryUserID,
+							Roles:    writePerm,
+						},
 					},
 				},
 			},
@@ -864,24 +886,26 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		{
 			Name: "file-custom",
 			Data: fileAData,
-			Perms: stub.PermData{
-				User:        secondaryUserName,
-				EntityID:    secondaryUserID,
-				Roles:       writePerm,
+			Meta: stub.MetaData{
+				Perms: stub.PermData{
+					User:     secondaryUserName,
+					EntityID: secondaryUserID,
+					Roles:    writePerm,
+				},
 				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 		{
 			Name: "file-inherited",
 			Data: fileAData,
-			Perms: stub.PermData{
+			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeInherited,
 			},
 		},
 		{
 			Name: "file-empty",
 			Data: fileAData,
-			Perms: stub.PermData{
+			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeCustom,
 			},
 		},
@@ -921,33 +945,223 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				{Name: folderBName},
 				{Name: folderCName},
 			},
-			Perms: stub.PermData{
-				User:     tertiaryUserName,
-				EntityID: tertiaryUserID,
-				Roles:    readPerm,
+			Meta: stub.MetaData{
+				Perms: stub.PermData{
+					User:     tertiaryUserName,
+					EntityID: tertiaryUserID,
+					Roles:    readPerm,
+				},
 			},
 		},
 		{
 			PathElements: subfolderAAPath,
 			Files:        fileSet,
-			Perms: stub.PermData{
-				User:        tertiaryUserName,
-				EntityID:    tertiaryUserID,
-				Roles:       writePerm,
+			Meta: stub.MetaData{
+				Perms: stub.PermData{
+					User:     tertiaryUserName,
+					EntityID: tertiaryUserID,
+					Roles:    writePerm,
+				},
 				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 		{
 			PathElements: subfolderABPath,
 			Files:        fileSet,
-			Perms: stub.PermData{
+			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeInherited,
 			},
 		},
 		{
 			PathElements: subfolderACPath,
 			Files:        fileSet,
-			Perms: stub.PermData{
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeCustom,
+			},
+		},
+	}
+
+	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
+	require.NoError(suite.T(), err)
+	bss := suite.Service().String()
+
+	for vn := startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
+			t := suite.T()
+			// Ideally this can always be true or false and still
+			// work, but limiting older versions to use emails so as
+			// to validate that flow as well.
+			input, err := stub.DataForInfo(suite.Service(), cols, vn)
+			require.NoError(suite.T(), err)
+
+			testData := restoreBackupInfoMultiVersion{
+				service:             suite.Service(),
+				resourceCat:         suite.Resource(),
+				backupVersion:       vn,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
+
+			runRestoreBackupTestVersions(
+				t,
+				testData,
+				suite.Tenant(),
+				[]string{suite.ResourceOwner()},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{},
+				})
+		})
+	}
+}
+
+func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion int) {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	_, secondaryUserID := suite.SecondaryUser()
+	_, tertiaryUserID := suite.TertiaryUser()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		t,
+		ctx,
+		suite.APIClient(),
+		suite.Service(),
+		suite.ResourceOwner())
+
+	folderAName := "custom"
+	folderBName := "inherited"
+	folderCName := "empty"
+
+	rootPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+	}
+	folderAPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+		folderAName,
+	}
+	subfolderAAPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+		folderAName,
+		folderAName,
+	}
+	subfolderABPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+		folderAName,
+		folderBName,
+	}
+	subfolderACPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+		folderAName,
+		folderCName,
+	}
+
+	fileSet := []stub.ItemData{
+		{
+			Name: "file-custom",
+			Data: fileAData,
+			Meta: stub.MetaData{
+				LinkShares: stub.LinkShareData{
+					EntityIDs: []string{secondaryUserID},
+					Scope:     "write",
+				},
+				SharingMode: metadata.SharingModeCustom,
+			},
+		},
+		{
+			Name: "file-inherited",
+			Data: fileAData,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
+		},
+		{
+			Name: "file-empty",
+			Data: fileAData,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeCustom,
+			},
+		},
+	}
+
+	// Here is what this test is testing
+	// - custom-link-share-folder
+	//   - custom-link-share-file
+	//   - inherted-link-share-file
+	//   - empty-link-share-file
+	//   - custom-link-share-folder
+	// 	   - custom-link-share-file
+	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
+	//   - inherted-link-share-folder
+	// 	   - custom-link-share-file
+	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
+	//   - empty-link-share-folder
+	// 	   - custom-link-share-file
+	// 	   - inherted-link-share-file
+	//     - empty-link-share-file (empty/empty might have interesting behavior)
+
+	cols := []stub.ColInfo{
+		{
+			PathElements: rootPath,
+			Files:        []stub.ItemData{},
+			Folders: []stub.ItemData{
+				{Name: folderAName},
+			},
+		},
+		{
+			PathElements: folderAPath,
+			Files:        fileSet,
+			Folders: []stub.ItemData{
+				{Name: folderAName},
+				{Name: folderBName},
+				{Name: folderCName},
+			},
+			Meta: stub.MetaData{
+				LinkShares: stub.LinkShareData{
+					EntityIDs: []string{tertiaryUserID},
+					Scope:     "view",
+					Type:      "users",
+				},
+			},
+		},
+		{
+			PathElements: subfolderAAPath,
+			Files:        fileSet,
+			Meta: stub.MetaData{
+				LinkShares: stub.LinkShareData{
+					EntityIDs: []string{tertiaryUserID},
+					Scope:     "write",
+					Type:      "users",
+				},
+				SharingMode: metadata.SharingModeCustom,
+			},
+		},
+		{
+			PathElements: subfolderABPath,
+			Files:        fileSet,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
+		},
+		{
+			PathElements: subfolderACPath,
+			Files:        fileSet,
+			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeCustom,
 			},
 		},
