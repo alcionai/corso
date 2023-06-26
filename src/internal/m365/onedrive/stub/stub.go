@@ -46,8 +46,6 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 	}
 
 	if len(meta.LinkShares.EntityIDs) != 0 {
-		// TODO(meain): should we use random generated ids?
-		// id := uuid.NewString()
 		id := strings.Join(meta.LinkShares.EntityIDs, "-") + meta.LinkShares.Scope + meta.LinkShares.Type
 		entities := []metadata.Entity{}
 		for _, e := range meta.LinkShares.EntityIDs {

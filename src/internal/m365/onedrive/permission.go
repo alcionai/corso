@@ -243,7 +243,9 @@ func UpdateLinkShares(
 ) error {
 	// You can only delete inherited sharing links the first time you
 	// create a sharing link which is done using
-	// `retainInheritedPermissions`.
+	// `retainInheritedPermissions`. We get a 204 as a response if we
+	// try to delete an inherited link share, but it does not get
+	// deleted.
 
 	first := true
 
@@ -294,7 +296,6 @@ func UpdateLinkShares(
 		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
 		lsbody.SetType(ptr.To(ls.Link.Type))
 		lsbody.SetScope(ptr.To(ls.Link.Scope))
-		lsbody.SetRetainInheritedPermissions(ptr.To(true))
 		lsbody.SetExpirationDateTime(ls.Expiration)
 
 		ad := map[string]any{
@@ -310,7 +311,7 @@ func UpdateLinkShares(
 
 			// TODO(meain): What happens when we create the parent link shares after child?
 			// ie: create parent perm1 > create child perm1 with inherit delete > create parent perm2
-			lsbody.SetRetainInheritedPermissions(ptr.To(len(lsRemoved) > 0))
+			lsbody.SetRetainInheritedPermissions(ptr.To(len(lsRemoved) == 0))
 			first = false
 		}
 
