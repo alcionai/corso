@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
@@ -25,7 +25,7 @@ import (
 
 const (
 	oneDriveServiceCommand                 = "onedrive"
-	oneDriveServiceCommandCreateUseSuffix  = "--user <email> | '" + utils.Wildcard + "'"
+	oneDriveServiceCommandCreateUseSuffix  = "--user <email> | '" + flags.Wildcard + "'"
 	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -70,15 +70,15 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
-		utils.AddUserFlag(c)
-		options.AddFailFastFlag(c)
-		options.AddDisableIncrementalsFlag(c)
+		flags.AddUserFlag(c)
+		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -90,9 +90,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
 
-		options.AddSkipReduceFlag(c)
-		utils.AddBackupIDFlag(c, true)
-		utils.AddOneDriveDetailsAndRestoreFlags(c)
+		flags.AddSkipReduceFlag(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveDeleteCmd())
@@ -101,7 +101,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
 
-		utils.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true)
 	}
 
 	return c
@@ -130,7 +130,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateOneDriveBackupCreateFlags(utils.UserFV); err != nil {
+	if err := validateOneDriveBackupCreateFlags(flags.UserFV); err != nil {
 		return err
 	}
 
@@ -141,7 +141,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := oneDriveBackupCreateSelectors(utils.UserFV)
+	sel := oneDriveBackupCreateSelectors(flags.UserFV)
 
 	ins, err := utils.UsersMap(ctx, *acct, fault.New(true))
 	if err != nil {
@@ -193,7 +193,7 @@ func oneDriveListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupIDFV, path.OneDriveService, args)
+	return genericListCommand(cmd, flags.BackupIDFV, path.OneDriveService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -227,9 +227,9 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	ctrlOpts := options.Control()
+	ctrlOpts := utils.Control()
 
-	ds, err := runDetailsOneDriveCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsOneDriveCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -295,5 +295,5 @@ func oneDriveDeleteCmd() *cobra.Command {
 
 // deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupIDFV, "OneDrive", args)
+	return genericDeleteCommand(cmd, flags.BackupIDFV, "OneDrive", args)
 }

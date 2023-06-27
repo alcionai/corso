@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -62,7 +63,7 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 	stub := []string{"id-stub"}
 	many := []string{"fnord", "smarf"}
-	a := []string{utils.Wildcard}
+	a := []string{flags.Wildcard}
 
 	table := []struct {
 		name             string

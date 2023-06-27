@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
@@ -31,7 +31,7 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + utils.Wildcard + "'"
+	exchangeServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + flags.Wildcard + "'"
 	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -82,20 +82,20 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		utils.AddMailBoxFlag(c)
-		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
-		options.AddFetchParallelismFlag(c)
-		options.AddFailFastFlag(c)
-		options.AddDisableIncrementalsFlag(c)
-		options.AddDisableDeltaFlag(c)
-		options.AddEnableImmutableIDFlag(c)
-		options.AddDisableConcurrencyLimiterFlag(c)
+		flags.AddMailBoxFlag(c)
+		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		flags.AddFetchParallelismFlag(c)
+		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
+		flags.AddDisableDeltaFlag(c)
+		flags.AddEnableImmutableIDFlag(c)
+		flags.AddDisableConcurrencyLimiterFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -107,12 +107,12 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
 
-		options.AddSkipReduceFlag(c)
+		flags.AddSkipReduceFlag(c)
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		utils.AddBackupIDFlag(c, true)
-		utils.AddExchangeDetailsAndRestoreFlags(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
@@ -121,7 +121,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		utils.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true)
 	}
 
 	return c
@@ -149,7 +149,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(utils.UserFV, utils.CategoryDataFV); err != nil {
+	if err := validateExchangeBackupCreateFlags(flags.UserFV, flags.CategoryDataFV); err != nil {
 		return err
 	}
 
@@ -160,7 +160,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(utils.UserFV, utils.CategoryDataFV)
+	sel := exchangeBackupCreateSelectors(flags.UserFV, flags.CategoryDataFV)
 
 	ins, err := utils.UsersMap(ctx, *acct, fault.New(true))
 	if err != nil {
@@ -235,7 +235,7 @@ func exchangeListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupIDFV, path.ExchangeService, args)
+	return genericListCommand(cmd, flags.BackupIDFV, path.ExchangeService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -269,9 +269,9 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	ctrlOpts := options.Control()
+	ctrlOpts := utils.Control()
 
-	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsExchangeCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -340,5 +340,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupIDFV, "Exchange", args)
+	return genericDeleteCommand(cmd, flags.BackupIDFV, "Exchange", args)
 }
