@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -246,9 +247,10 @@ func (oc Collection) DoNotMergeItems() bool {
 
 // Item represents a single item retrieved from OneDrive
 type Item struct {
-	id   string
-	data io.ReadCloser
-	info details.ItemInfo
+	id            string
+	data          io.ReadCloser
+	info          details.ItemInfo
+	extensionData extensions.GetExtensionDataer
 }
 
 // Deleted implements an interface function. However, OneDrive items are marked
@@ -259,6 +261,9 @@ func (i *Item) UUID() string            { return i.id }
 func (i *Item) ToReader() io.ReadCloser { return i.data }
 func (i *Item) Info() details.ItemInfo  { return i.info }
 func (i *Item) ModTime() time.Time      { return i.info.Modified() }
+func (i *Item) ExtensionData() extensions.GetExtensionDataer {
+	return i.extensionData
+}
 
 // getDriveItemContent fetch drive item's contents with retries
 func (oc *Collection) getDriveItemContent(
@@ -414,6 +419,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		dirsFound  int64
 		wg         sync.WaitGroup
 		el         = errs.Local()
+		ehFactory  = extensions.ExtensionHandlerFactory(func(
+			info details.ItemInfo,
+			rc io.ReadCloser,
+			factory []extensions.CorsoItemExtensionFactory,
+		) (extensions.ExtensionHandler, error) {
+			return extensions.NewExtensionHandler(info, rc, factory)
+		})
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -445,6 +457,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
+		// TODO: Refactor this into a separate function to make it easier to test
+		// with dependencies
 		go func(ctx context.Context, item models.DriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
@@ -508,10 +522,15 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						return nil, err
 					}
 
+					eh, err := ehFactory(itemInfo, itemData, oc.ctrl.BackupItemExtensions)
+					if err != nil {
+						return nil, err
+					}
+
 					// display/log the item download
 					progReader, _ := observe.ItemProgress(
 						ctx,
-						itemData,
+						eh,
 						observe.ItemBackupMsg,
 						clues.Hide(itemName+dataSuffix),
 						itemSize)
@@ -523,6 +542,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					id:   itemID + dataSuffix,
 					data: itemReader,
 					info: itemInfo,
+					// extensionData: eh,
 				}
 			}
 

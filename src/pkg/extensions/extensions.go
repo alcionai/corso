@@ -42,7 +42,7 @@ type ExtensionHandlerFactory func(
 	factory []CorsoItemExtensionFactory,
 ) (ExtensionHandler, error)
 
-func newExtensionHandler(
+func NewExtensionHandler(
 	info details.ItemInfo,
 	rc io.ReadCloser,
 	factory []CorsoItemExtensionFactory,

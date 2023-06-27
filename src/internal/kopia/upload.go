@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -125,11 +126,12 @@ func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
 }
 
 type itemDetails struct {
-	info         *details.ItemInfo
-	repoPath     path.Path
-	prevPath     path.Path
-	locationPath *path.Builder
-	cached       bool
+	info          *details.ItemInfo
+	repoPath      path.Path
+	prevPath      path.Path
+	locationPath  *path.Builder
+	cached        bool
+	extensionData extensions.GetExtensionDataer
 }
 
 type corsoProgress struct {
@@ -212,6 +214,13 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 		return
 	}
+
+	_, err = d.extensionData.GetExtensionData(cp.ctx)
+	if err != nil {
+		cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "getting extension data"))
+	}
+
+	// TODO: Patch retrieved extension data into itemInfo
 
 	err = cp.deets.Add(
 		d.repoPath,
