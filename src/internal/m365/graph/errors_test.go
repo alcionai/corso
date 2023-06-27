@@ -511,9 +511,9 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 			}
 
 			labels := clues.Labels(result)
-			assert.LessOrEqual(t,
+			assert.Equal(t,
 				len(test.expect), len(labels),
-				"result should have at least as many labels as expected")
+				"result should have as many labels as expected")
 		})
 	}
 }
