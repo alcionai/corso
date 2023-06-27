@@ -83,35 +83,6 @@ func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
 	}
 }
 
-func (suite *M365IntegrationSuite) TestGetUserInfo() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	var (
-		acct = tester.NewM365Account(t)
-		uid  = tester.M365UserID(t)
-	)
-
-	info, err := GetUserInfo(ctx, acct, uid)
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotNil(t, info)
-	require.NotEmpty(t, info)
-
-	expectEnabled := map[path.ServiceType]struct{}{
-		path.ExchangeService: {},
-		path.OneDriveService: {},
-	}
-
-	assert.NotEmpty(t, info.ServicesEnabled)
-	assert.NotEmpty(t, info.Mailbox)
-	assert.Equal(t, expectEnabled, info.ServicesEnabled)
-	assert.Equal(t, "user", info.Mailbox.Purpose)
-}
-
 func (suite *M365IntegrationSuite) TestUserHasMailbox() {
 	t := suite.T()
 
@@ -440,23 +411,6 @@ func (suite *DiscoveryIntgSuite) TestUsers_InvalidCredentials() {
 	}
 }
 
-func (suite *DiscoveryIntgSuite) TestSites() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	errs := fault.New(true)
-
-	sites, err := Sites(ctx, suite.acct, errs)
-	assert.NoError(t, err, clues.ToCore(err))
-
-	ferrs := errs.Errors()
-	assert.Nil(t, ferrs.Failure)
-	assert.Empty(t, ferrs.Recovered)
-	assert.NotEmpty(t, sites)
-}
-
 func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
 	table := []struct {
 		name string
@@ -504,7 +458,7 @@ func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
 	}
 }
 
-func (suite *DiscoveryIntgSuite) TestUserInfo() {
+func (suite *DiscoveryIntgSuite) TestGetUserInfo() {
 	table := []struct {
 		name      string
 		user      string
@@ -555,7 +509,7 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 	}
 }
 
-func (suite *DiscoveryIntgSuite) TestUserWithoutDrive() {
+func (suite *DiscoveryIntgSuite) TestGetUserInfo_userWithoutDrive() {
 	userID := tester.M365UserID(suite.T())
 
 	table := []struct {
