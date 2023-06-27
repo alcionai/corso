@@ -13,6 +13,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -74,6 +75,8 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 		ctx,
 		exchMock.ContactBytes("Corso TestContact"),
 		userID, folderID,
+		nil,
+		control.Copy,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "contact item info")
@@ -116,9 +119,26 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 			name:  "Test recurrenceTimeZone: Empty",
 			bytes: exchMock.EventWithRecurrenceBytes(subject, `""`),
 		},
+		{
+			name:  "Test cancelledOccurrences",
+			bytes: exchMock.EventWithRecurrenceAndCancellationBytes(subject),
+		},
+		{
+			name:  "Test exceptionOccurrences",
+			bytes: exchMock.EventWithRecurrenceAndExceptionBytes(subject),
+		},
+		{
+			name:  "Test exceptionOccurrences with different attachments",
+			bytes: exchMock.EventWithRecurrenceAndExceptionAndAttachmentBytes(subject),
+		},
 	}
 
 	for _, test := range tests {
+		// Skip till https://github.com/alcionai/corso/issues/3675 is fixed
+		if test.name == "Test exceptionOccurrences" {
+			t.Skip("Bug 3675")
+		}
+
 		suite.Run(test.name, func() {
 			t := suite.T()
 
@@ -129,6 +149,8 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 				ctx,
 				test.bytes,
 				userID, calendarID,
+				nil,
+				control.Copy,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "event item info")
@@ -357,9 +379,82 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				ctx,
 				test.bytes,
 				userID, destination,
+				nil,
+				control.Copy,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "item info was not populated")
 		})
 	}
+}
+
+func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithAttachments() {
+	t := suite.T()
+
+	t.Skip("Bug 3675")
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		userID  = tester.M365UserID(t)
+		subject = testdata.DefaultRestoreConfig("event").Location
+		handler = newEventRestoreHandler(suite.ac)
+	)
+
+	calendar, err := handler.ac.CreateContainer(ctx, userID, subject, "")
+	require.NoError(t, err, clues.ToCore(err))
+
+	calendarID := ptr.Val(calendar.GetId())
+
+	bytes := exchMock.EventWithRecurrenceAndExceptionAndAttachmentBytes("Reoccurring event restore and backup test")
+	info, err := handler.restore(
+		ctx,
+		bytes,
+		userID, calendarID,
+		nil,
+		control.Copy,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
+
+	ec, err := handler.ac.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars().
+		ByCalendarId(calendarID).
+		Events().
+		Get(ctx, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	evts := ec.GetValue()
+	assert.Len(t, evts, 1, "count of events")
+
+	sp, info, err := suite.ac.Events().GetItem(ctx, userID, ptr.Val(evts[0].GetId()), false, fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
+
+	body, err := suite.ac.Events().Serialize(ctx, sp, userID, ptr.Val(evts[0].GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	event, err := api.BytesToEventable(body)
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.NotNil(t, event.GetRecurrence(), "recurrence")
+	eo := event.GetAdditionalData()["exceptionOccurrences"]
+	assert.NotNil(t, eo, "exceptionOccurrences")
+
+	assert.NotEqual(
+		t,
+		ptr.Val(event.GetSubject()),
+		ptr.Val(eo.([]any)[0].(map[string]any)["subject"].(*string)),
+		"name equal")
+
+	atts := eo.([]any)[0].(map[string]any)["attachments"]
+	assert.NotEqual(
+		t,
+		ptr.Val(event.GetAttachments()[0].GetName()),
+		ptr.Val(atts.([]any)[0].(map[string]any)["name"].(*string)),
+		"attachment name equal")
 }

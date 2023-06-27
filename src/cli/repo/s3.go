@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
@@ -124,7 +123,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		map[string]any{"command": "init repo"},
 		cfg.Account.ID(),
-		options.Control())
+		utils.Control())
 
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
@@ -143,7 +142,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, options.Control())
+	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, utils.Control())
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -214,7 +213,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
+	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, utils.Control())
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}

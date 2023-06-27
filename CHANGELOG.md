@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+
+### Fixed
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+
+## [v0.10.0] (beta) - 2023-06-26
+
+### Added
+- Exceptions and cancellations for recurring events are now backed up and restored
+- Introduced a URL cache for OneDrive that helps reduce Graph API calls for long running (>1hr) backups
+- Improve incremental backup behavior by leveraging information from incomplete backups
+- Improve restore performance and memory use for Exchange and OneDrive
+
+### Fixed
+- Handle OLE conversion errors when trying to fetch attachments
+- Fix uploading large attachments for emails and calendar
+- Fixed high memory use in OneDrive backup related to logging
+
+### Changed
+- Switched to Go 1.20
+  
 ## [v0.9.0] (beta) - 2023-06-05
 
 ### Added
@@ -18,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix Exchange folder cache population error when parent folder isn't found.
 - Fix Exchange backup issue caused by incorrect json serialization
 - Fix issues with details model containing duplicate entry for api consumers
-- Handle OLE conversion errors when trying to fetch attachments
 
 ### Changed
 - Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.

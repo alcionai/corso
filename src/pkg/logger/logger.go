@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
@@ -60,6 +61,7 @@ const (
 	LogLevelFN          = "log-level"
 	ReadableLogsFN      = "readable-logs"
 	MaskSensitiveDataFN = "mask-sensitive-data"
+	logStorageFN        = "log-storage"
 )
 
 // flag values
@@ -70,6 +72,7 @@ var (
 	LogLevelFV          string
 	ReadableLogsFV      bool
 	MaskSensitiveDataFV bool
+	logStorageFV        bool
 
 	ResolvedLogFile string // logFileFV after processing
 	piiHandling     string // piiHandling after MaskSensitiveDataFV processing
@@ -131,6 +134,13 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 		MaskSensitiveDataFN,
 		false,
 		"anonymize personal data in log output")
+
+	fs.BoolVar(
+		&logStorageFV,
+		logStorageFN,
+		false,
+		"include logs produced by the downstream storage systems. Uses the same log level as the corso logger")
+	cobra.CheckErr(fs.MarkHidden(logStorageFN))
 }
 
 // Due to races between the lazy evaluation of flags in cobra and the
@@ -197,6 +207,18 @@ func PreloadLoggingFlags(args []string) Settings {
 		set.PIIHandling = PIIHash
 	}
 
+	// retrieve the user's preferred settings for storage engine logging in the
+	// corso log.
+	// defaults to not logging it.
+	storageLog, err := fs.GetBool(logStorageFN)
+	if err != nil {
+		return set
+	}
+
+	if storageLog {
+		set.LogStorage = storageLog
+	}
+
 	return set
 }
 
@@ -241,6 +263,7 @@ type Settings struct {
 	Format      logFormat // whether to format as text (console) or json (cloud)
 	Level       logLevel  // what level to log at
 	PIIHandling piiAlg    // how to obscure pii
+	LogStorage  bool      // Whether kopia logs should be added to the corso log.
 }
 
 // EnsureDefaults sets any non-populated settings to their default value.
@@ -390,7 +413,7 @@ const ctxKey loggingKey = "corsoLogger"
 // a seeded context prior to cobra evaluating flags.
 func Seed(ctx context.Context, set Settings) (context.Context, *zap.SugaredLogger) {
 	zsl := singleton(set)
-	return Set(ctx, zsl), zsl
+	return SetWithSettings(ctx, zsl, set), zsl
 }
 
 func setCluesSecretsHash(alg piiAlg) {
@@ -412,7 +435,7 @@ func CtxOrSeed(ctx context.Context, set Settings) (context.Context, *zap.Sugared
 	l := ctx.Value(ctxKey)
 	if l == nil {
 		zsl := singleton(set)
-		return Set(ctx, zsl), zsl
+		return SetWithSettings(ctx, zsl, set), zsl
 	}
 
 	return ctx, l.(*zap.SugaredLogger)
@@ -420,8 +443,29 @@ func CtxOrSeed(ctx context.Context, set Settings) (context.Context, *zap.Sugared
 
 // Set allows users to embed their own zap.SugaredLogger within the context.
 func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
+	set := Settings{}.EnsureDefaults()
+
+	return SetWithSettings(ctx, logger, set)
+}
+
+// SetWithSettings allows users to embed their own zap.SugaredLogger within the
+// context and with the given logger settings.
+func SetWithSettings(
+	ctx context.Context,
+	logger *zap.SugaredLogger,
+	set Settings,
+) context.Context {
 	if logger == nil {
 		return ctx
+	}
+
+	// Add the kopia logger as well. Unfortunately we need to do this here instead
+	// of a kopia-specific package because we want it to be in the context that's
+	// used for the rest of execution.
+	if set.LogStorage {
+		ctx = logging.WithLogger(ctx, func(module string) logging.Logger {
+			return logger.Named("kopia-lib/" + module)
+		})
 	}
 
 	return context.WithValue(ctx, ctxKey, logger)

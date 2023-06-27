@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -43,7 +44,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 			// normally a persistent flag from the root.
 			// required to ensure a dry run.
-			utils.AddRunModeFlag(cmd, true)
+			flags.AddRunModeFlag(cmd, true)
 
 			c := addOneDriveCommands(cmd)
 			require.NotNil(t, c)
@@ -58,15 +59,14 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 			cmd.SetArgs([]string{
 				"onedrive",
-				"--" + utils.RunModeFN, utils.RunModeFlagTest,
-				"--" + utils.BackupFN, testdata.BackupInput,
-
-				"--" + utils.FileFN, testdata.FlgInputs(testdata.FileNameInput),
-				"--" + utils.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
-				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
-				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
-				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
-				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, testdata.BackupInput,
+				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -75,7 +75,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeOneDriveOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
+			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
 			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
 			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)

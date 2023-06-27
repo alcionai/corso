@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type attachmentPoster interface {
@@ -20,15 +21,14 @@ type attachmentPoster interface {
 	PostLargeAttachment(
 		ctx context.Context,
 		userID, containerID, itemID, name string,
-		size int64,
-		body models.Attachmentable,
-	) (models.UploadSessionable, error)
+		content []byte,
+	) (string, error)
 }
 
 const (
 	// Use large attachment logic for attachments > 3MB
 	// https://learn.microsoft.com/en-us/graph/outlook-large-attachments
-	largeAttachmentSize           = int32(3 * 1024 * 1024)
+	largeAttachmentSize           = 3 * 1024 * 1024
 	fileAttachmentOdataValue      = "#microsoft.graph.fileAttachment"
 	itemAttachmentOdataValue      = "#microsoft.graph.itemAttachment"
 	referenceAttachmentOdataValue = "#microsoft.graph.referenceAttachment"
@@ -53,7 +53,7 @@ func attachmentType(attachment models.Attachmentable) models.AttachmentType {
 // uploadAttachment will upload the specified message attachment to M365
 func uploadAttachment(
 	ctx context.Context,
-	cli attachmentPoster,
+	ap attachmentPoster,
 	userID, containerID, parentItemID string,
 	attachment models.Attachmentable,
 ) error {
@@ -95,12 +95,20 @@ func uploadAttachment(
 
 	// for file attachments sized >= 3MB
 	if attachmentType == models.FILE_ATTACHMENTTYPE && size >= largeAttachmentSize {
-		_, err := cli.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, int64(size), attachment)
+		// We expect the entire attachment to fit in memory.
+		// Max attachment size is 150MB.
+		content, err := api.GetAttachmentContent(attachment)
+		if err != nil {
+			return clues.Wrap(err, "serializing attachment content").WithClues(ctx)
+		}
+
+		_, err = ap.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, content)
+
 		return err
 	}
 
 	// for all other attachments
-	return cli.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
+	return ap.PostSmallAttachment(ctx, userID, containerID, parentItemID, attachment)
 }
 
 func getOutlookOdataType(query models.Attachmentable) string {

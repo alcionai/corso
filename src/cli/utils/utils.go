@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -18,10 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
-)
-
-const (
-	Wildcard = "*"
 )
 
 func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.Storage, *account.Account, error) {
@@ -35,7 +30,7 @@ func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.
 		repoID = events.RepoIDNotFound
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, Control())
 	if err != nil {
 		return nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}

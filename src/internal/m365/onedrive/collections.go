@@ -255,7 +255,8 @@ func (c *Collections) Get(
 		// Drive ID -> delta URL for drive
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
-		folderPaths = map[string]map[string]string{}
+		folderPaths  = map[string]map[string]string{}
+		numPrevItems = 0
 	)
 
 	for _, d := range drives {
@@ -322,6 +323,23 @@ func (c *Collections) Get(
 			"num_deltas_entries", numDeltas,
 			"delta_reset", delta.Reset)
 
+		numDriveItems := c.NumItems - numPrevItems
+		numPrevItems = c.NumItems
+
+		// Attach an url cache
+		if numDriveItems < urlCacheDriveItemThreshold {
+			logger.Ctx(ictx).Info("adding url cache for drive")
+
+			err = c.addURLCacheToDriveCollections(
+				ictx,
+				driveID,
+				prevDelta,
+				errs)
+			if err != nil {
+				return nil, false, err
+			}
+		}
+
 		// For both cases we don't need to do set difference on folder map if the
 		// delta token was valid because we should see all the changes.
 		if !delta.Reset {
@@ -370,7 +388,8 @@ func (c *Collections) Get(
 				c.statusUpdater,
 				c.ctrl,
 				CollectionScopeUnknown,
-				true)
+				true,
+				nil)
 			if err != nil {
 				return nil, false, clues.Wrap(err, "making collection").WithClues(ictx)
 			}
@@ -405,7 +424,8 @@ func (c *Collections) Get(
 			c.statusUpdater,
 			c.ctrl,
 			CollectionScopeUnknown,
-			true)
+			true,
+			nil)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
 		}
@@ -436,6 +456,33 @@ func (c *Collections) Get(
 	}
 
 	return collections, canUsePreviousBackup, nil
+}
+
+// addURLCacheToDriveCollections adds an URL cache to all collections belonging to
+// a drive.
+func (c *Collections) addURLCacheToDriveCollections(
+	ctx context.Context,
+	driveID, prevDelta string,
+	errs *fault.Bus,
+) error {
+	uc, err := newURLCache(
+		driveID,
+		prevDelta,
+		urlCacheRefreshInterval,
+		c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+		errs)
+	if err != nil {
+		return err
+	}
+
+	// Set the URL cache for all collections in this drive
+	for _, driveColls := range c.CollectionMap {
+		for _, coll := range driveColls {
+			coll.urlCache = uc
+		}
+	}
+
+	return nil
 }
 
 func updateCollectionPaths(
@@ -557,7 +604,8 @@ func (c *Collections) handleDelete(
 		c.ctrl,
 		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
-		false)
+		false,
+		nil)
 	if err != nil {
 		return clues.Wrap(err, "making collection").With(
 			"drive_id", driveID,
@@ -740,7 +788,8 @@ func (c *Collections) UpdateCollections(
 				c.statusUpdater,
 				c.ctrl,
 				colScope,
-				invalidPrevDelta)
+				invalidPrevDelta,
+				nil)
 			if err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}

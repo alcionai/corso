@@ -37,7 +37,7 @@ const (
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
 	quotaExceeded           errorCode = "ErrorQuotaExceeded"
-	requestResourceNotFound errorCode = "Request_ResourceNotFound"
+	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	resourceNotFound        errorCode = "ResourceNotFound"
 	resyncRequired          errorCode = "ResyncRequired" // alt: resyncRequired
 	syncFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
@@ -56,17 +56,16 @@ const (
 type errorMessage string
 
 const (
-	IOErrDuringRead errorMessage = "IO error during request payload read"
+	IOErrDuringRead   errorMessage = "IO error during request payload read"
+	MysiteURLNotFound errorMessage = "unable to retrieve user's mysite url"
+	MysiteNotFound    errorMessage = "user's mysite not found"
+	NoSPLicense       errorMessage = "Tenant does not have a SPO license"
 )
 
 const (
-	mysiteURLNotFound = "unable to retrieve user's mysite url"
-	mysiteNotFound    = "user's mysite not found"
-)
-
-const (
-	LabelsMalware        = "malware_detected"
-	LabelsMysiteNotFound = "mysite_not_found"
+	LabelsMalware             = "malware_detected"
+	LabelsMysiteNotFound      = "mysite_not_found"
+	LabelsNoSharePointLicense = "no_sharepoint_license"
 
 	// LabelsSkippable is used to determine if an error is skippable
 	LabelsSkippable = "skippable_errors"
@@ -132,7 +131,7 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 }
 
 func IsErrUserNotFound(err error) bool {
-	return hasErrorCode(err, requestResourceNotFound)
+	return hasErrorCode(err, RequestResourceNotFound)
 }
 
 func IsErrResourceNotFound(err error) bool {
@@ -297,9 +296,15 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 		return nil
 	}
 
-	ml := strings.ToLower(msg)
-	if strings.Contains(ml, mysiteNotFound) || strings.Contains(ml, mysiteURLNotFound) {
+	f := filters.Contains([]string{msg})
+
+	if f.Compare(string(MysiteNotFound)) ||
+		f.Compare(string(MysiteURLNotFound)) {
 		err = err.Label(LabelsMysiteNotFound)
+	}
+
+	if f.Compare(string(NoSPLicense)) {
+		err = err.Label(LabelsNoSharePointLicense)
 	}
 
 	if IsMalware(err) {

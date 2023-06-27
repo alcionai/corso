@@ -16,8 +16,8 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -469,7 +469,7 @@ func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category p
 	cmd := tester.StubRootCmd(
 		"backup", "details", "exchange",
 		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, string(bID))
+		"--"+flags.BackupFN, string(bID))
 	cli.BuildCommandTree(cmd)
 	cmd.SetOut(&suite.recorder)
 
@@ -568,7 +568,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -597,7 +597,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, uuid.NewString())
+		"--"+flags.BackupFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
@@ -617,8 +617,8 @@ func buildExchangeBackupCmd(
 	cmd := tester.StubRootCmd(
 		"backup", "create", "exchange",
 		"--config-file", configFile,
-		"--"+utils.UserFN, user,
-		"--"+utils.CategoryDataFN, category)
+		"--"+flags.UserFN, user,
+		"--"+flags.CategoryDataFN, category)
 	cli.BuildCommandTree(cmd)
 	cmd.SetOut(recorder)
 

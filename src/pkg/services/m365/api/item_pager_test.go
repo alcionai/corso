@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,8 @@ import (
 // ---------------------------------------------------------------------------
 // mock impls & stubs
 // ---------------------------------------------------------------------------
+
+// next and delta links
 
 type nextLink struct {
 	nextLink *string
@@ -36,6 +39,8 @@ func (l deltaNextLink) GetOdataDeltaLink() *string {
 	return l.deltaLink
 }
 
+// mock values
+
 type testPagerValue struct {
 	id      string
 	removed bool
@@ -50,7 +55,11 @@ func (v testPagerValue) GetAdditionalData() map[string]any {
 	return map[string]any{}
 }
 
-type testPage struct{}
+// mock page
+
+type testPage struct {
+	values []any
+}
 
 func (p testPage) GetOdataNextLink() *string {
 	// no next, just one page
@@ -62,9 +71,33 @@ func (p testPage) GetOdataDeltaLink() *string {
 	return ptr.To("")
 }
 
-var _ itemPager = &testPager{}
+func (p testPage) GetValue() []any {
+	return p.values
+}
+
+// mock item pager
+
+var _ itemPager[any] = &testPager{}
 
 type testPager struct {
+	t       *testing.T
+	pager   testPage
+	pageErr error
+}
+
+//lint:ignore U1000 False Positive
+func (p *testPager) getPage(ctx context.Context) (PageLinkValuer[any], error) {
+	return p.pager, p.pageErr
+}
+
+//lint:ignore U1000 False Positive
+func (p *testPager) setNext(nextLink string) {}
+
+// mock id pager
+
+var _ itemIDPager = &testIDsPager{}
+
+type testIDsPager struct {
 	t          *testing.T
 	added      []string
 	removed    []string
@@ -72,7 +105,7 @@ type testPager struct {
 	needsReset bool
 }
 
-func (p *testPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *testIDsPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	if p.errorCode != "" {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
@@ -85,8 +118,8 @@ func (p *testPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 
 	return testPage{}, nil
 }
-func (p *testPager) setNext(string) {}
-func (p *testPager) reset(context.Context) {
+func (p *testIDsPager) setNext(string) {}
+func (p *testIDsPager) reset(context.Context) {
 	if !p.needsReset {
 		require.Fail(p.t, "reset should not be called")
 	}
@@ -95,7 +128,7 @@ func (p *testPager) reset(context.Context) {
 	p.errorCode = ""
 }
 
-func (p *testPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
+func (p *testIDsPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	items := []getIDAndAddtler{}
 
 	for _, id := range p.added {
@@ -121,11 +154,69 @@ func TestItemPagerUnitSuite(t *testing.T) {
 	suite.Run(t, &ItemPagerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
+	tests := []struct {
+		name      string
+		getPager  func(*testing.T, context.Context) itemPager[any]
+		expect    []any
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "happy path",
+			getPager: func(
+				t *testing.T,
+				ctx context.Context,
+			) itemPager[any] {
+				return &testPager{
+					t:     t,
+					pager: testPage{[]any{"foo", "bar"}},
+				}
+			},
+			expect:    []any{"foo", "bar"},
+			expectErr: require.NoError,
+		},
+		{
+			name: "next page err",
+			getPager: func(
+				t *testing.T,
+				ctx context.Context,
+			) itemPager[any] {
+				return &testPager{
+					t:       t,
+					pageErr: assert.AnError,
+				}
+			},
+			expect:    nil,
+			expectErr: require.Error,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result, err := enumerateItems(ctx, test.getPager(t, ctx))
+			test.expectErr(t, err, clues.ToCore(err))
+
+			require.EqualValues(t, test.expect, result)
+		})
+	}
+}
+
 func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	tests := []struct {
-		name                string
-		pagerGetter         func(context.Context, graph.Servicer, string, string, bool) (itemPager, error)
-		deltaPagerGetter    func(context.Context, graph.Servicer, string, string, string, bool) (itemPager, error)
+		name             string
+		pagerGetter      func(*testing.T, context.Context, graph.Servicer, string, string, bool) (itemIDPager, error)
+		deltaPagerGetter func(
+			*testing.T,
+			context.Context,
+			graph.Servicer,
+			string, string, string,
+			bool,
+		) (itemIDPager, error)
 		added               []string
 		removed             []string
 		deltaUpdate         DeltaUpdate
@@ -135,25 +226,27 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		{
 			name: "no prev delta",
 			pagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (itemPager, error) {
+			) (itemIDPager, error) {
 				// this should not be called
 				return nil, assert.AnError
 			},
 			deltaPagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (itemPager, error) {
-				return &testPager{
-					t:       suite.T(),
+			) (itemIDPager, error) {
+				return &testIDsPager{
+					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
 				}, nil
@@ -166,25 +259,27 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		{
 			name: "with prev delta",
 			pagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (itemPager, error) {
+			) (itemIDPager, error) {
 				// this should not be called
 				return nil, assert.AnError
 			},
 			deltaPagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (itemPager, error) {
-				return &testPager{
-					t:       suite.T(),
+			) (itemIDPager, error) {
+				return &testIDsPager{
+					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
 				}, nil
@@ -198,25 +293,27 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		{
 			name: "delta expired",
 			pagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (itemPager, error) {
+			) (itemIDPager, error) {
 				// this should not be called
 				return nil, assert.AnError
 			},
 			deltaPagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (itemPager, error) {
-				return &testPager{
-					t:          suite.T(),
+			) (itemIDPager, error) {
+				return &testIDsPager{
+					t:          t,
 					added:      []string{"uno", "dos"},
 					removed:    []string{"tres", "quatro"},
 					errorCode:  "SyncStateNotFound",
@@ -232,27 +329,29 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		{
 			name: "quota exceeded",
 			pagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (itemPager, error) {
-				return &testPager{
-					t:       suite.T(),
+			) (itemIDPager, error) {
+				return &testIDsPager{
+					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
 				}, nil
 			},
 			deltaPagerGetter: func(
+				t *testing.T,
 				ctx context.Context,
 				gs graph.Servicer,
 				user string,
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (itemPager, error) {
-				return &testPager{errorCode: "ErrorQuotaExceeded"}, nil
+			) (itemIDPager, error) {
+				return &testIDsPager{errorCode: "ErrorQuotaExceeded"}, nil
 			},
 			added:               []string{"uno", "dos"},
 			removed:             []string{"tres", "quatro"},
@@ -268,8 +367,8 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			pager, _ := tt.pagerGetter(ctx, graph.Service{}, "user", "directory", false)
-			deltaPager, _ := tt.deltaPagerGetter(ctx, graph.Service{}, "user", "directory", tt.delta, false)
+			pager, _ := tt.pagerGetter(t, ctx, graph.Service{}, "user", "directory", false)
+			deltaPager, _ := tt.deltaPagerGetter(t, ctx, graph.Service{}, "user", "directory", tt.delta, false)
 
 			added, removed, deltaUpdate, err := getAddedAndRemovedItemIDs(
 				ctx,

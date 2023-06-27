@@ -14,8 +14,8 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -108,7 +108,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 	cmd := tester.StubRootCmd(
 		"backup", "create", "onedrive",
 		"--config-file", suite.cfgFP,
-		"--"+utils.UserFN, "foo@nothere.com")
+		"--"+flags.UserFN, "foo@nothere.com")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&recorder)
@@ -200,7 +200,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 	cmd.SetErr(&suite.recorder)
 
@@ -240,7 +240,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID
 	cmd := tester.StubRootCmd(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, uuid.NewString())
+		"--"+flags.BackupFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
