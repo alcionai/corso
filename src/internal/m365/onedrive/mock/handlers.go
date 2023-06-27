@@ -36,7 +36,7 @@ type BackupHandler struct {
 
 	DrivePagerV api.DrivePager
 	// driveID -> itemPager
-	ItemPagerV map[string]api.DriveItemEnumerator
+	ItemPagerV map[string]api.DriveItemDeltaEnumerator
 
 	LocationIDFn locationIDer
 
@@ -101,7 +101,7 @@ func (h BackupHandler) NewDrivePager(string, []string) api.DrivePager {
 	return h.DrivePagerV
 }
 
-func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DriveItemEnumerator {
+func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DriveItemDeltaEnumerator {
 	return h.ItemPagerV[driveID]
 }
 
