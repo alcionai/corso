@@ -52,8 +52,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ac := suite.its.ac.Drives()
-			items, err := ac.Stable.
+			items, err := suite.its.ac.Stable.
 				Client().
 				Drives().
 				ByDriveId(test.driveID).
@@ -63,14 +62,18 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 				Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
-			is := items.GetValue()
-			expect := make([]string, 0, len(is))
+			ims := items.GetValue()
+			expect := make([]string, 0, len(ims))
 
-			require.NotZero(t, len(expect), "need at least one item to compare against")
+			assert.NotEmptyf(
+				t,
+				ims,
+				"need at least one item to compare in user %s drive %s folder %s",
+				suite.its.userID, test.driveID, test.rootFolderID)
 
-			results, err := ac.GetItemsInContainerByCollisionKey(ctx, test.driveID, test.rootFolderID)
+			results, err := suite.its.ac.Drives().GetItemsInContainerByCollisionKey(ctx, test.driveID, test.rootFolderID)
 			require.NoError(t, err, clues.ToCore(err))
-			require.Less(t, 0, len(results), "requires at least one result")
+			require.NotEmpty(t, results)
 
 			for k, v := range results {
 				assert.NotEmpty(t, k, "all keys should be populated")
