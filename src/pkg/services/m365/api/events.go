@@ -302,7 +302,7 @@ func fixupExceptionOccurrences(
 		// This odd roundabout way of doing this is required as
 		// the json serialization at the end does not serialize if
 		// you just pass in a models.Attachmentable
-		convertedAttachments := []map[string]interface{}{}
+		convertedAttachments := []map[string]any{}
 
 		for _, attachment := range attachments {
 			am, err := parseableToMap(attachment)

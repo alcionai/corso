@@ -227,7 +227,7 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 		return false
 	}
 
-	var oDataError *odataerrors.ODataError
+	var oDataError odataerrors.ODataErrorable
 	if !errors.As(err, &oDataError) {
 		return false
 	}
@@ -252,12 +252,12 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(e, &oDataError) {
 		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))
@@ -273,12 +273,12 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError *odataerrors.ODataError
+	if !errors.As(e, &oDataError) {
 		return clues.Stack(e).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))
