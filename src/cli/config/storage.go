@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/spf13/viper"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -159,7 +160,7 @@ func configureStorage(
 func GetAndInsertCorso(passphase string) credentials.Corso {
 	// fetch data from flag, env var or func param giving priority to func param
 	// Func param generally will be value fetched from config file using viper.
-	corsoPassph := str.First(credentials.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
+	corsoPassph := str.First(flags.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
 
 	return credentials.Corso{
 		CorsoPassphrase: corsoPassph,

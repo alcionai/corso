@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type SharePointUnitSuite struct {
@@ -44,7 +44,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			// normally a persistent flag from the root.
 			// required to ensure a dry run.
-			utils.AddRunModeFlag(cmd, true)
+			flags.AddRunModeFlag(cmd, true)
 
 			c := addSharePointCommands(cmd)
 			require.NotNil(t, c)
@@ -59,32 +59,28 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			cmd.SetArgs([]string{
 				"sharepoint",
-				"--" + utils.RunModeFN, utils.RunModeFlagTest,
-				"--" + utils.BackupFN, testdata.BackupInput,
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, testdata.BackupInput,
+				"--" + flags.LibraryFN, testdata.LibraryInput,
+				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+				"--" + flags.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
+				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
+				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
+				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
 
-				"--" + utils.LibraryFN, testdata.LibraryInput,
-				"--" + utils.FileFN, testdata.FlgInputs(testdata.FileNameInput),
-				"--" + utils.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
-				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
-				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
-				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
-				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
 
-				"--" + utils.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
-				"--" + utils.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
-
-				"--" + utils.PageFN, testdata.FlgInputs(testdata.PageInput),
-				"--" + utils.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
-
-				"--" + utils.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-				"--" + utils.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-				"--" + utils.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-				"--" + utils.AzureClientIDFN, testdata.AzureClientID,
-				"--" + utils.AzureClientTenantFN, testdata.AzureTenantID,
-				"--" + utils.AzureClientSecretFN, testdata.AzureClientSecret,
-
-				"--" + credentials.CorsoPassphraseFN, testdata.CorsoPassphrase,
+				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -93,7 +89,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeSharePointOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
+			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
 			assert.Equal(t, testdata.LibraryInput, opts.Library)
 			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
@@ -109,15 +105,15 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
 			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
 
-			assert.Equal(t, testdata.AWSAccessKeyID, utils.AWSAccessKeyFV)
-			assert.Equal(t, testdata.AWSSecretAccessKey, utils.AWSSecretAccessKeyFV)
-			assert.Equal(t, testdata.AWSSessionToken, utils.AWSSessionTokenFV)
+			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
 
-			assert.Equal(t, testdata.AzureClientID, credentials.AzureClientIDFV)
-			assert.Equal(t, testdata.AzureTenantID, credentials.AzureClientTenantFV)
-			assert.Equal(t, testdata.AzureClientSecret, credentials.AzureClientSecretFV)
+			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
 
-			assert.Equal(t, testdata.CorsoPassphrase, credentials.CorsoPassphraseFV)
+			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 		})
 	}
 }

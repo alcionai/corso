@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/viper"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -69,7 +70,7 @@ func configureAccount(
 		M365: m365,
 		AzureTenantID: str.First(
 			overrides[account.AzureTenantID],
-			credentials.AzureClientTenantFV,
+			flags.AzureClientTenantFV,
 			os.Getenv(account.AzureTenantID),
 			m365Cfg.AzureTenantID),
 	}
@@ -95,11 +96,11 @@ func configureAccount(
 // M365 is a helper for aggregating m365 secrets and credentials.
 func GetM365(m365Cfg account.M365Config) credentials.M365 {
 	AzureClientID := str.First(
-		credentials.AzureClientIDFV,
+		flags.AzureClientIDFV,
 		os.Getenv(credentials.AzureClientID),
 		m365Cfg.AzureClientID)
 	AzureClientSecret := str.First(
-		credentials.AzureClientSecretFV,
+		flags.AzureClientSecretFV,
 		os.Getenv(credentials.AzureClientSecret),
 		m365Cfg.AzureClientSecret)
 

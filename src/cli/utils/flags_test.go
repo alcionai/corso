@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type FlagUnitSuite struct {
@@ -27,19 +26,19 @@ func (suite *FlagUnitSuite) TestAddAzureCredsFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "tenantID", credentials.AzureClientTenantFV, AzureClientTenantFN)
-			assert.Equal(t, "clientID", credentials.AzureClientIDFV, AzureClientIDFN)
-			assert.Equal(t, "secret", credentials.AzureClientSecretFV, AzureClientSecretFN)
+			assert.Equal(t, "tenantID", flags.AzureClientTenantFV, flags.AzureClientTenantFN)
+			assert.Equal(t, "clientID", flags.AzureClientIDFV, flags.AzureClientIDFN)
+			assert.Equal(t, "secret", flags.AzureClientSecretFV, flags.AzureClientSecretFN)
 		},
 	}
 
-	AddAzureCredsFlags(cmd)
+	flags.AddAzureCredsFlags(cmd)
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
-		"--" + AzureClientIDFN, "clientID",
-		"--" + AzureClientTenantFN, "tenantID",
-		"--" + AzureClientSecretFN, "secret",
+		"--" + flags.AzureClientIDFN, "clientID",
+		"--" + flags.AzureClientTenantFN, "tenantID",
+		"--" + flags.AzureClientSecretFN, "secret",
 	})
 
 	err := cmd.Execute()
@@ -52,19 +51,19 @@ func (suite *FlagUnitSuite) TestAddAWSCredsFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "accesskey", AWSAccessKeyFV, AWSAccessKeyFN)
-			assert.Equal(t, "secretkey", AWSSecretAccessKeyFV, AWSSecretAccessKeyFN)
-			assert.Equal(t, "token", AWSSessionTokenFV, AWSSessionTokenFN)
+			assert.Equal(t, "accesskey", flags.AWSAccessKeyFV, flags.AWSAccessKeyFN)
+			assert.Equal(t, "secretkey", flags.AWSSecretAccessKeyFV, flags.AWSSecretAccessKeyFN)
+			assert.Equal(t, "token", flags.AWSSessionTokenFV, flags.AWSSessionTokenFN)
 		},
 	}
 
-	AddAWSCredsFlags(cmd)
+	flags.AddAWSCredsFlags(cmd)
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
-		"--" + AWSAccessKeyFN, "accesskey",
-		"--" + AWSSecretAccessKeyFN, "secretkey",
-		"--" + AWSSessionTokenFN, "token",
+		"--" + flags.AWSAccessKeyFN, "accesskey",
+		"--" + flags.AWSSecretAccessKeyFN, "secretkey",
+		"--" + flags.AWSSessionTokenFN, "token",
 	})
 
 	err := cmd.Execute()
@@ -77,15 +76,15 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "passphrase", credentials.CorsoPassphraseFV, credentials.CorsoPassphraseFN)
+			assert.Equal(t, "passphrase", flags.CorsoPassphraseFV, flags.CorsoPassphraseFN)
 		},
 	}
 
-	AddCorsoPassphaseFlags(cmd)
+	flags.AddCorsoPassphaseFlags(cmd)
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
-		"--" + credentials.CorsoPassphraseFN, "passphrase",
+		"--" + flags.CorsoPassphraseFN, "passphrase",
 	})
 
 	err := cmd.Execute()

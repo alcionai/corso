@@ -7,11 +7,7 @@ import (
 // envvar consts
 const (
 	CorsoPassphrase = "CORSO_PASSPHRASE"
-	// Corso Flags
-	CorsoPassphraseFN = "passphrase"
 )
-
-var CorsoPassphraseFV string
 
 // Corso aggregates corso credentials from flag and env_var values.
 type Corso struct {

@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/str"
@@ -49,9 +49,9 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	utils.AddAWSCredsFlags(c)
-	utils.AddAzureCredsFlags(c)
-	utils.AddCorsoPassphaseFlags(c)
+	flags.AddAWSCredsFlags(c)
+	flags.AddAzureCredsFlags(c)
+	flags.AddCorsoPassphaseFlags(c)
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
@@ -131,7 +131,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		map[string]any{"command": "init repo"},
 		cfg.Account.ID(),
-		options.Control())
+		utils.Control())
 
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
@@ -150,7 +150,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, options.Control())
+	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, utils.Control())
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -222,7 +222,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
+	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, utils.Control())
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}
@@ -242,9 +242,9 @@ func S3Overrides() map[string]string {
 	return map[string]string{
 		config.AccountProviderTypeKey:  account.ProviderM365.String(),
 		config.StorageProviderTypeKey:  storage.ProviderS3.String(),
-		credentials.AWSAccessKeyID:     utils.AWSAccessKeyFV,
-		credentials.AWSSecretAccessKey: utils.AWSSecretAccessKeyFV,
-		credentials.AWSSessionToken:    utils.AWSSessionTokenFV,
+		credentials.AWSAccessKeyID:     flags.AWSAccessKeyFV,
+		credentials.AWSSecretAccessKey: flags.AWSSecretAccessKeyFV,
+		credentials.AWSSessionToken:    flags.AWSSessionTokenFV,
 		storage.Bucket:                 bucket,
 		storage.Endpoint:               endpoint,
 		storage.Prefix:                 prefix,

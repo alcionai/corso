@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -59,31 +60,21 @@ func AddCommands(cmd *cobra.Command) {
 // common flags and flag attachers for commands
 // ---------------------------------------------------------------------------
 
-// list output filter flags
-var (
-	failedItemsFN       = "failed-items"
-	listFailedItems     string
-	skippedItemsFN      = "skipped-items"
-	listSkippedItems    string
-	recoveredErrorsFN   = "recovered-errors"
-	listRecoveredErrors string
-)
-
 func addFailedItemsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
-		&listFailedItems, failedItemsFN, "show",
+		&flags.ListFailedItemsFV, flags.FailedItemsFN, "show",
 		"Toggles showing or hiding the list of items that failed.")
 }
 
 func addSkippedItemsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
-		&listSkippedItems, skippedItemsFN, "show",
+		&flags.ListSkippedItemsFV, flags.SkippedItemsFN, "show",
 		"Toggles showing or hiding the list of items that were skipped.")
 }
 
 func addRecoveredErrorsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
-		&listRecoveredErrors, recoveredErrorsFN, "show",
+		&flags.ListRecoveredErrorsFV, flags.RecoveredErrorsFN, "show",
 		"Toggles showing or hiding the list of errors which corso recovered from.")
 }
 
@@ -319,7 +310,11 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
-		fe.PrintItems(ctx, !ifShow(listFailedItems), !ifShow(listSkippedItems), !ifShow(listRecoveredErrors))
+		fe.PrintItems(
+			ctx,
+			!ifShow(flags.ListFailedItemsFV),
+			!ifShow(flags.ListSkippedItemsFV),
+			!ifShow(flags.ListRecoveredErrorsFV))
 
 		return nil
 	}

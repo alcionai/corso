@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -32,15 +32,13 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, true)
-		utils.AddCorsoPassphaseFlags(c)
-		utils.AddAWSCredsFlags(c)
-		utils.AddAzureCredsFlags(c)
-		utils.AddOneDriveDetailsAndRestoreFlags(c)
-
-		// restore permissions
-		options.AddRestorePermissionsFlag(c)
-		options.AddFailFastFlag(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddOneDriveDetailsAndRestoreFlags(c)
+		flags.AddRestorePermissionsFlag(c)
+		flags.AddFailFastFlag(c)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -86,11 +84,11 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	if utils.RunModeFV == utils.RunModeFlagTest {
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
-	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupIDFV, opts); err != nil {
+	if err := utils.ValidateOneDriveRestoreFlags(flags.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -107,7 +105,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, restoreCfg)
+	ro, err := r.NewRestore(ctx, flags.BackupIDFV, sel.Selector, restoreCfg)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
 	}
@@ -115,7 +113,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
 		}
 
 		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
