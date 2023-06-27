@@ -10,8 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/options"
-	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -43,14 +42,14 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			expectUse + " " + exchangeServiceCommandCreateUseSuffix,
 			exchangeCreateCmd().Short,
 			[]string{
-				utils.UserFN,
-				utils.CategoryDataFN,
-				options.DisableIncrementalsFN,
-				options.DisableDeltaFN,
-				options.FailFastFN,
-				options.FetchParallelismFN,
-				options.SkipReduceFN,
-				options.NoStatsFN,
+				flags.UserFN,
+				flags.CategoryDataFN,
+				flags.DisableIncrementalsFN,
+				flags.DisableDeltaFN,
+				flags.FailFastFN,
+				flags.FetchParallelismFN,
+				flags.SkipReduceFN,
+				flags.NoStatsFN,
 			},
 			createExchangeCmd,
 		},
@@ -60,10 +59,10 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			expectUse,
 			exchangeListCmd().Short,
 			[]string{
-				utils.BackupFN,
-				failedItemsFN,
-				skippedItemsFN,
-				recoveredErrorsFN,
+				flags.BackupFN,
+				flags.FailedItemsFN,
+				flags.SkippedItemsFN,
+				flags.RecoveredErrorsFN,
 			},
 			listExchangeCmd,
 		},
@@ -73,23 +72,23 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
 			exchangeDetailsCmd().Short,
 			[]string{
-				utils.BackupFN,
-				utils.ContactFN,
-				utils.ContactFolderFN,
-				utils.ContactNameFN,
-				utils.EmailFN,
-				utils.EmailFolderFN,
-				utils.EmailReceivedAfterFN,
-				utils.EmailReceivedBeforeFN,
-				utils.EmailSenderFN,
-				utils.EmailSubjectFN,
-				utils.EventFN,
-				utils.EventCalendarFN,
-				utils.EventOrganizerFN,
-				utils.EventRecursFN,
-				utils.EventStartsAfterFN,
-				utils.EventStartsBeforeFN,
-				utils.EventSubjectFN,
+				flags.BackupFN,
+				flags.ContactFN,
+				flags.ContactFolderFN,
+				flags.ContactNameFN,
+				flags.EmailFN,
+				flags.EmailFolderFN,
+				flags.EmailReceivedAfterFN,
+				flags.EmailReceivedBeforeFN,
+				flags.EmailSenderFN,
+				flags.EmailSubjectFN,
+				flags.EventFN,
+				flags.EventCalendarFN,
+				flags.EventOrganizerFN,
+				flags.EventRecursFN,
+				flags.EventStartsAfterFN,
+				flags.EventStartsBeforeFN,
+				flags.EventSubjectFN,
 			},
 			detailsExchangeCmd,
 		},
@@ -98,7 +97,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			deleteCommand,
 			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
 			exchangeDeleteCmd().Short,
-			[]string{utils.BackupFN},
+			[]string{flags.BackupFN},
 			deleteExchangeCmd,
 		},
 	}
@@ -171,7 +170,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, no data",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			expectIncludeLen: 3,
 		},
 		{
@@ -181,7 +180,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, contacts",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataContacts},
 			expectIncludeLen: 1,
 		},
@@ -193,7 +192,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, email",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEmail},
 			expectIncludeLen: 1,
 		},
@@ -205,7 +204,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, events",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEvents},
 			expectIncludeLen: 1,
 		},
@@ -217,7 +216,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, contacts + email",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataContacts, dataEmail},
 			expectIncludeLen: 2,
 		},
@@ -229,7 +228,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, email + events",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEmail, dataEvents},
 			expectIncludeLen: 2,
 		},
@@ -241,7 +240,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, events + contacts",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEvents, dataContacts},
 			expectIncludeLen: 2,
 		},

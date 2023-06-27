@@ -73,12 +73,12 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 // UserHasMailbox returns true if the user has an exchange mailbox enabled
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	uapi, err := makeUserAPI(acct)
+	ac, err := makeAC(acct)
 	if err != nil {
-		return false, clues.Wrap(err, "getting mailbox").WithClues(ctx)
+		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	_, err = uapi.GetMailInbox(ctx, userID)
+	_, err = ac.Users().GetMailInbox(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
 		// answers the question the caller is asking.
@@ -103,16 +103,20 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 // UserHasDrives returns true if the user has any drives
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	uapi, err := makeUserAPI(acct)
+	ac, err := makeAC(acct)
 	if err != nil {
-		return false, clues.Wrap(err, "getting drives").WithClues(ctx)
+		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	_, err = uapi.GetDefaultDrive(ctx, userID)
+	return checkUserHasDrives(ctx, ac.Users(), userID)
+}
+
+func checkUserHasDrives(ctx context.Context, dgdd discovery.GetDefaultDriver, userID string) (bool, error) {
+	_, err := dgdd.GetDefaultDrive(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
 		// answers the question the caller is asking.
-		if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+		if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			return false, nil
 		}
 
@@ -130,12 +134,12 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 // TODO: Remove this once we remove `Info` from `Users` and instead rely on the `GetUserInfo` API
 // to get user information
 func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
-	uapi, err := makeUserAPI(acct)
+	ac, err := makeAC(acct)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := discovery.Users(ctx, uapi, errs)
+	us, err := discovery.Users(ctx, ac.Users(), errs)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +166,12 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 
 // Users returns a list of users in the specified M365 tenant
 func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User, error) {
-	uapi, err := makeUserAPI(acct)
+	ac, err := makeAC(acct)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := discovery.Users(ctx, uapi, errs)
+	us, err := discovery.Users(ctx, ac.Users(), errs)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +201,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 func parseUser(item models.Userable) (*User, error) {
 	if item.GetUserPrincipalName() == nil {
 		return nil, clues.New("user missing principal name").
-			With("user_id", *item.GetId()) // TODO: pii
+			With("user_id", ptr.Val(item.GetId()))
 	}
 
 	u := &User{
@@ -215,12 +219,12 @@ func GetUserInfo(
 	acct account.Account,
 	userID string,
 ) (*api.UserInfo, error) {
-	uapi, err := makeUserAPI(acct)
+	ac, err := makeAC(acct)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting user info").WithClues(ctx)
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	ui, err := discovery.UserInfo(ctx, uapi, userID)
+	ui, err := discovery.UserInfo(ctx, ac.Users(), userID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +253,26 @@ type Site struct {
 
 // Sites returns a list of Sites in a specified M365 tenant
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
-	sites, err := discovery.Sites(ctx, acct, errs)
+	ac, err := makeAC(acct)
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing M365 api connection")
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return getAllSites(ctx, ac.Sites())
+}
+
+type getAllSiteser interface {
+	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error)
+}
+
+func getAllSites(ctx context.Context, gas getAllSiteser) ([]*Site, error) {
+	sites, err := gas.GetAll(ctx, fault.New(true))
+	if err != nil {
+		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+			return nil, clues.Stack(graph.ErrServiceNotEnabled, err)
+		}
+
+		return nil, clues.Wrap(err, "retrieving sites")
 	}
 
 	ret := make([]*Site, 0, len(sites))
@@ -304,16 +325,16 @@ func SitesMap(
 // helpers
 // ---------------------------------------------------------------------------
 
-func makeUserAPI(acct account.Account) (api.Users, error) {
+func makeAC(acct account.Account) (api.Client, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
-		return api.Users{}, clues.Wrap(err, "getting m365 account creds")
+		return api.Client{}, clues.Wrap(err, "getting m365 account creds")
 	}
 
 	cli, err := api.NewClient(creds)
 	if err != nil {
-		return api.Users{}, clues.Wrap(err, "constructing api client")
+		return api.Client{}, clues.Wrap(err, "constructing api client")
 	}
 
-	return cli.Users(), nil
+	return cli, nil
 }

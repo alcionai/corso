@@ -29,6 +29,10 @@ type getWithInfoer interface {
 	GetInfoer
 }
 
+type GetDefaultDriver interface {
+	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
+}
+
 type getAller interface {
 	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, error)
 }
