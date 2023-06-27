@@ -3,7 +3,6 @@ package extensions
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 
 	"github.com/alcionai/clues"
@@ -11,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
+// Extension client interface
 type CorsoItemExtension interface {
 	// TODO: iteminfo is duplicated across multiple calls. Add Initialize()?
 	WrapItem(
@@ -22,37 +22,42 @@ type CorsoItemExtension interface {
 
 type CorsoItemExtensionFactory func() CorsoItemExtension
 
-var _ io.ReadCloser = &extensionFramework{}
+var _ ExtensionHandler = &extensionHandler{}
 
-// TODO: need a better name
-var _ GetExtensionDataer = &extensionFramework{}
+type ExtensionHandler interface {
+	io.ReadCloser
+	GetExtensionDataer
+}
 
-// TODO: Do we need thread safety here?
-// Given that we don't process multiple chunks of the same item in
-// parallel, I think we don't need it.
-type extensionFramework struct {
+type extensionHandler struct {
 	info           details.ItemInfo
 	innerRc        io.ReadCloser
 	itemExtensions []CorsoItemExtension
 	extensionStore map[string]any
 }
 
-func newExtension(
+type ExtensionHandlerFactory func(
 	info details.ItemInfo,
 	rc io.ReadCloser,
 	factory []CorsoItemExtensionFactory,
-) (*extensionFramework, error) {
+) (ExtensionHandler, error)
+
+func newExtensionHandler(
+	info details.ItemInfo,
+	rc io.ReadCloser,
+	factory []CorsoItemExtensionFactory,
+) (ExtensionHandler, error) {
 	itemExtensions := make([]CorsoItemExtension, len(factory))
 
 	for i, f := range factory {
 		if f == nil {
-			return nil, errors.New("nil extension factory")
+			return nil, clues.New("nil extension factory")
 		}
 
 		itemExtensions[i] = f()
 	}
 
-	return &extensionFramework{
+	return &extensionHandler{
 		info:           info,
 		innerRc:        rc,
 		itemExtensions: itemExtensions,
@@ -61,7 +66,8 @@ func newExtension(
 }
 
 // TODO: more robust error handling as per io.Reader guidelines
-func (ef *extensionFramework) Read(p []byte) (int, error) {
+// and best practices followed by implementations of io.Reader
+func (ef *extensionHandler) Read(p []byte) (int, error) {
 	n, err := ef.innerRc.Read(p)
 	if err != nil {
 		return n, err
@@ -81,7 +87,7 @@ func (ef *extensionFramework) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (ef *extensionFramework) Close() error {
+func (ef *extensionHandler) Close() error {
 	err := ef.innerRc.Close()
 	if err != nil {
 		return err
@@ -106,7 +112,7 @@ type GetExtensionDataer interface {
 	) (map[string]any, error)
 }
 
-func (ef *extensionFramework) GetExtensionData(
+func (ef *extensionHandler) GetExtensionData(
 	ctx context.Context,
 ) (map[string]any, error) {
 	if ef == nil {

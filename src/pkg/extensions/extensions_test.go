@@ -94,10 +94,15 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ext, err := newExtension(
-				details.ItemInfo{},
-				test.rc,
-				test.factories)
+			ehf := ExtensionHandlerFactory(func(
+				info details.ItemInfo,
+				rc io.ReadCloser,
+				factory []CorsoItemExtensionFactory,
+			) (ExtensionHandler, error) {
+				return newExtensionHandler(info, rc, factory)
+			})
+
+			ext, err := ehf(details.ItemInfo{}, test.rc, test.factories)
 			require.NoError(suite.T(), err)
 
 			err = readFrom(ext)
