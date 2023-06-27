@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -36,7 +37,7 @@ const (
 )
 
 type restoreCaches struct {
-	collisionKeyToItemID  map[string]string
+	collisionKeyToItemID  map[string]api.DriveCollisionItem
 	DriveIDToRootFolderID map[string]string
 	Folders               *folderCache
 	OldLinkShareIDToNewID map[string]string
@@ -48,7 +49,7 @@ type restoreCaches struct {
 
 func NewRestoreCaches() *restoreCaches {
 	return &restoreCaches{
-		collisionKeyToItemID:  map[string]string{},
+		collisionKeyToItemID:  map[string]api.DriveCollisionItem{},
 		DriveIDToRootFolderID: map[string]string{},
 		Folders:               NewFolderCache(),
 		OldLinkShareIDToNewID: map[string]string{},
@@ -468,7 +469,7 @@ func restoreV0File(
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
-	collisionKeyToItemID map[string]string,
+	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
@@ -696,11 +697,11 @@ func createRestoreFolders(
 		"drive_id", drivePath.DriveID,
 		"root_folder_id", parentFolderID)
 
-	for _, folder := range folders {
-		location = location.Append(folder)
+	for _, folderName := range folders {
+		location = location.Append(folderName)
 		ictx := clues.Add(
 			ctx,
-			"creating_restore_folder", folder,
+			"creating_restore_folder", folderName,
 			"restore_folder_location", location,
 			"parent_of_restore_folder", parentFolderID)
 
@@ -710,7 +711,7 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := fr.GetFolderByName(ictx, driveID, parentFolderID, folder)
+		folderItem, err := fr.GetFolderByName(ictx, driveID, parentFolderID, folderName)
 		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
 			return "", clues.Wrap(err, "getting folder by display name")
 		}
@@ -723,17 +724,12 @@ func createRestoreFolders(
 			continue
 		}
 
-		// create the folder if not found
-		// the Replace collision policy is used since collisions on that
-		// policy will no-op and return the existing folder.  This has two
-		// benefits: first, we get to treat the post as idempotent; and
-		// second, we don't have to worry about race conditions.
-		folderItem, err = fr.PostItemInContainer(
+		folderItem, err = createFolder(
 			ictx,
+			fr,
 			driveID,
 			parentFolderID,
-			newItem(folder, true),
-			control.Replace)
+			folderName)
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -745,6 +741,50 @@ func createRestoreFolders(
 	}
 
 	return parentFolderID, nil
+}
+
+func createFolder(
+	ctx context.Context,
+	piic PostItemInContainerer,
+	driveID, parentFolderID, folderName string,
+) (models.DriveItemable, error) {
+	// create the folder if not found
+	// the Replace collision policy is used since collisions on that
+	// policy will no-op and return the existing folder.  This has two
+	// benefits: first, we get to treat the post as idempotent; and
+	// second, we don't have to worry about race conditions.
+	item, err := piic.PostItemInContainer(
+		ctx,
+		driveID,
+		parentFolderID,
+		newItem(folderName, true),
+		control.Replace)
+
+	// ErrItemAlreadyExistsConflict can only occur for folders if the
+	// item being replaced is a file, not another folder.
+	if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+		return nil, clues.Wrap(err, "creating folder")
+	}
+
+	if err == nil {
+		return item, err
+	}
+
+	// if we made it here, then we tried to replace a file with a folder and
+	// hit a conflict.  An unlikely occurrence, and we can try again with a copy
+	// conflict behavior setting and probably succeed, though that will change
+	// the location name of the restore.
+	item, err = piic.PostItemInContainer(
+		ctx,
+		driveID,
+		parentFolderID,
+		newItem(folderName, true),
+		control.Copy)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating folder")
+	}
+
+	return item, err
 }
 
 type itemRestorer interface {
@@ -763,7 +803,7 @@ func restoreData(
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
-	collisionKeyToItemID map[string]string,
+	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	copyBuffer []byte,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
@@ -779,12 +819,13 @@ func restoreData(
 
 	var (
 		item         = newItem(name, false)
+		isFolder     = item.GetFolder() != nil
 		collisionKey = api.DriveItemCollisionKey(item)
-		collisionID  string
+		collision    api.DriveCollisionItem
 		replace      bool
 	)
 
-	if id, ok := collisionKeyToItemID[collisionKey]; ok {
+	if dci, ok := collisionKeyToItemID[collisionKey]; ok {
 		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
 		log.Debug("item collision")
 
@@ -793,8 +834,8 @@ func restoreData(
 			return "", details.ItemInfo{}, graph.ErrItemAlreadyExistsConflict
 		}
 
-		collisionID = id
-		replace = restoreCfg.OnCollision == control.Replace
+		collision = dci
+		replace = restoreCfg.OnCollision == control.Replace && isFolder == dci.IsFolder
 	}
 
 	// drive items do not support PUT requests on the drive item data, so
@@ -805,7 +846,7 @@ func restoreData(
 	// risk failures in the middle, or we post w/ copy, then delete, then patch
 	// the name, which could triple our graph calls in the worst case.
 	if replace {
-		if err := ir.DeleteItem(ctx, driveID, collisionID); err != nil {
+		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil {
 			return "", details.ItemInfo{}, clues.New("deleting colliding item")
 		}
 	}
@@ -820,6 +861,12 @@ func restoreData(
 		driveID,
 		parentFolderID,
 		item,
+		// notes on forced copy:
+		// 1. happy path: any non-colliding item will restore as if no collision had occurred
+		// 2. if a file-container collision is present, we assume the item being restored
+		//    will get generated according to server-side copy rules.
+		// 3. if restoreCfg specifies replace and a file-container collision is present, we
+		//    make no changes to the original file, and do not delete it.
 		control.Copy)
 	if err != nil {
 		return "", details.ItemInfo{}, err

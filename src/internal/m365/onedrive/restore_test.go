@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type RestoreUnitSuite struct {
@@ -328,14 +330,14 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 
 	table := []struct {
 		name          string
-		collisionKeys map[string]string
+		collisionKeys map[string]api.DriveCollisionItem
 		onCollision   control.CollisionPolicy
 		expectSkipped assert.BoolAssertionFunc
 		expectMock    func(*testing.T, *mock.RestoreHandler)
 	}{
 		{
 			name:          "no collision, copy",
-			collisionKeys: map[string]string{},
+			collisionKeys: map[string]api.DriveCollisionItem{},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -345,7 +347,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name:          "no collision, replace",
-			collisionKeys: map[string]string{},
+			collisionKeys: map[string]api.DriveCollisionItem{},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -355,7 +357,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name:          "no collision, skip",
-			collisionKeys: map[string]string{},
+			collisionKeys: map[string]api.DriveCollisionItem{},
 			onCollision:   control.Skip,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -364,8 +366,10 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			},
 		},
 		{
-			name:          "collision, copy",
-			collisionKeys: map[string]string{mock.DriveItemFileName: mndiID},
+			name: "collision, copy",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: mndiID},
+			},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -374,8 +378,10 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			},
 		},
 		{
-			name:          "collision, replace",
-			collisionKeys: map[string]string{mock.DriveItemFileName: mndiID},
+			name: "collision, replace",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: mndiID},
+			},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -385,8 +391,55 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			},
 		},
 		{
-			name:          "collision, skip",
-			collisionKeys: map[string]string{mock.DriveItemFileName: mndiID},
+			name: "collision, skip",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: mndiID},
+			},
+			onCollision:   control.Skip,
+			expectSkipped: assert.True,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.False(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "file-folder collision, copy",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {
+					ItemID:   mndiID,
+					IsFolder: true,
+				},
+			},
+			onCollision:   control.Copy,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "file-folder collision, replace",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {
+					ItemID:   mndiID,
+					IsFolder: true,
+				},
+			},
+			onCollision:   control.Replace,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "file-folder collision, skip",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {
+					ItemID:   mndiID,
+					IsFolder: true,
+				},
+			},
 			onCollision:   control.Skip,
 			expectSkipped: assert.True,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -443,6 +496,82 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			require.NoError(t, err, clues.ToCore(err))
 			test.expectSkipped(t, skip)
 			test.expectMock(t, rh)
+		})
+	}
+}
+
+type mockPIIC struct {
+	i     int
+	errs  []error
+	items []models.DriveItemable
+}
+
+func (m *mockPIIC) PostItemInContainer(
+	context.Context,
+	string, string,
+	models.DriveItemable,
+	control.CollisionPolicy,
+) (models.DriveItemable, error) {
+	j := m.i
+	m.i++
+
+	return m.items[j], m.errs[j]
+}
+
+func (suite *RestoreUnitSuite) TestCreateFolder() {
+	table := []struct {
+		name       string
+		mock       *mockPIIC
+		expectErr  assert.ErrorAssertionFunc
+		expectItem assert.ValueAssertionFunc
+	}{
+		{
+			name: "good",
+			mock: &mockPIIC{
+				errs:  []error{nil},
+				items: []models.DriveItemable{models.NewDriveItem()},
+			},
+			expectErr:  assert.NoError,
+			expectItem: assert.NotNil,
+		},
+		{
+			name: "good with copy",
+			mock: &mockPIIC{
+				errs:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				items: []models.DriveItemable{nil, models.NewDriveItem()},
+			},
+			expectErr:  assert.NoError,
+			expectItem: assert.NotNil,
+		},
+		{
+			name: "bad",
+			mock: &mockPIIC{
+				errs:  []error{assert.AnError},
+				items: []models.DriveItemable{nil},
+			},
+			expectErr:  assert.Error,
+			expectItem: assert.Nil,
+		},
+		{
+			name: "bad with copy",
+			mock: &mockPIIC{
+				errs:  []error{graph.ErrItemAlreadyExistsConflict, assert.AnError},
+				items: []models.DriveItemable{nil, nil},
+			},
+			expectErr:  assert.Error,
+			expectItem: assert.Nil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result, err := createFolder(ctx, test.mock, "d", "pf", "fn")
+			test.expectErr(t, err, clues.ToCore(err))
+			test.expectItem(t, result)
 		})
 	}
 }
