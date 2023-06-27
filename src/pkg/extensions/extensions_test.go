@@ -30,17 +30,17 @@ type mockExtension struct {
 func (me *mockExtension) WrapItem(
 	_ details.ItemInfo,
 	rc io.ReadCloser,
-) io.ReadCloser {
-	p := make([]byte, 11)
+) (io.ReadCloser, error) {
+	p := make([]byte, 4)
 
 	n, err := rc.Read(p)
 	if err != nil && err != io.EOF {
-		return nil
+		return nil, err
 	}
 
 	me.numBytes += n
 
-	return rc
+	return rc, nil
 }
 
 func (me *mockExtension) OutputData() map[string]any {
@@ -51,7 +51,7 @@ func (me *mockExtension) OutputData() map[string]any {
 func readFrom(rc io.ReadCloser) error {
 	defer rc.Close()
 
-	p := make([]byte, 11)
+	p := make([]byte, 4)
 
 	for {
 		_, err := rc.Read(p)
@@ -70,18 +70,17 @@ func readFrom(rc io.ReadCloser) error {
 func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 	table := []struct {
 		name        string
-		factory     BackupItemExtensionFactory
+		factories   []CorsoItemExtensionFactory
 		payload     []byte
 		expectedErr require.ErrorAssertionFunc
 		rc          io.ReadCloser
 	}{
 		{
 			name: "basic",
-			factory: func() BackupItemExtension {
-				return &mockExtension{
-					numBytes: 0,
-					data:     map[string]any{},
-				}
+			factories: []CorsoItemExtensionFactory{
+				func() CorsoItemExtension {
+					return &mockExtension{data: map[string]any{}}
+				},
 			},
 			payload:     []byte("hello world"),
 			expectedErr: require.NoError,
@@ -90,19 +89,24 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 	}
 
 	for _, test := range table {
-		ext, err := newExtension(
-			details.ItemInfo{},
-			test.rc,
-			[]BackupItemExtensionFactory{test.factory})
-		require.NoError(suite.T(), err)
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-		err = readFrom(ext)
-		require.NoError(suite.T(), err)
+			ext, err := newExtension(
+				details.ItemInfo{},
+				test.rc,
+				test.factories)
+			require.NoError(suite.T(), err)
 
-		kv, err := ext.GetExtensionData()
-		require.NoError(suite.T(), err)
+			err = readFrom(ext)
+			require.NoError(suite.T(), err)
 
-		require.Equal(suite.T(), 1, len(kv))
-		require.Equal(suite.T(), len(test.payload), kv["numBytes"])
+			kv, err := ext.GetExtensionData(ctx)
+			require.NoError(suite.T(), err)
+
+			require.Equal(suite.T(), len(test.payload), kv["numBytes"])
+		})
 	}
 }
