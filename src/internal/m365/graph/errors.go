@@ -131,7 +131,7 @@ func IsErrQuotaExceeded(err error) bool {
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	return hasErrorCode(err, resourceNotFound, itemNotFound, mailboxNotEnabledForRESTAPI)
+	return hasErrorCode(err, resourceNotFound, mailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
