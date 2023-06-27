@@ -21,22 +21,34 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var _ mailRestorer = &mockMailRestorer{}
+var _ mailRestorer = &mailRestoreMock{}
 
-type mockMailRestorer struct {
+type mailRestoreMock struct {
 	postItemErr       error
+	calledPost        bool
+	deleteItemErr     error
+	calledDelete      bool
 	postAttachmentErr error
 }
 
-func (m mockMailRestorer) PostItem(
-	ctx context.Context,
-	userID, containerID string,
-	body models.Messageable,
+func (m *mailRestoreMock) PostItem(
+	_ context.Context,
+	_, _ string,
+	_ models.Messageable,
 ) (models.Messageable, error) {
+	m.calledPost = true
 	return models.NewMessage(), m.postItemErr
 }
 
-func (m mockMailRestorer) PostSmallAttachment(
+func (m *mailRestoreMock) DeleteItem(
+	_ context.Context,
+	_, _ string,
+) error {
+	m.calledDelete = true
+	return m.deleteItemErr
+}
+
+func (m *mailRestoreMock) PostSmallAttachment(
 	_ context.Context,
 	_, _, _ string,
 	_ models.Attachmentable,
@@ -44,7 +56,7 @@ func (m mockMailRestorer) PostSmallAttachment(
 	return m.postAttachmentErr
 }
 
-func (m mockMailRestorer) PostLargeAttachment(
+func (m *mailRestoreMock) PostLargeAttachment(
 	_ context.Context,
 	_, _, _, _ string,
 	_ []byte,
@@ -95,63 +107,88 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 
 	table := []struct {
 		name         string
-		apiMock      mailRestorer
+		apiMock      *mailRestoreMock
 		collisionMap map[string]string
 		onCollision  control.CollisionPolicy
 		expectErr    func(*testing.T, error)
+		expectMock   func(*testing.T, *mailRestoreMock)
 	}{
 		{
 			name:         "no collision: skip",
-			apiMock:      mockMailRestorer{},
+			apiMock:      &mailRestoreMock{},
 			collisionMap: map[string]string{},
 			onCollision:  control.Copy,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectMock: func(t *testing.T, m *mailRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
 			},
 		},
 		{
 			name:         "no collision: copy",
-			apiMock:      mockMailRestorer{},
+			apiMock:      &mailRestoreMock{},
 			collisionMap: map[string]string{},
 			onCollision:  control.Skip,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *mailRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "no collision: replace",
-			apiMock:      mockMailRestorer{},
+			apiMock:      &mailRestoreMock{},
 			collisionMap: map[string]string{},
 			onCollision:  control.Replace,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *mailRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "collision: skip",
-			apiMock:      mockMailRestorer{},
+			apiMock:      &mailRestoreMock{},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Skip,
 			expectErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *mailRestoreMock) {
+				assert.False(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "collision: copy",
-			apiMock:      mockMailRestorer{},
+			apiMock:      &mailRestoreMock{},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Copy,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *mailRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "collision: replace",
-			apiMock:      mockMailRestorer{},
+			apiMock:      &mailRestoreMock{},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Replace,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectMock: func(t *testing.T, m *mailRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.True(t, m.calledDelete, "old item deleted")
 			},
 		},
 	}
@@ -173,6 +210,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				fault.New(true))
 
 			test.expectErr(t, err)
+			test.expectMock(t, test.apiMock)
 		})
 	}
 }

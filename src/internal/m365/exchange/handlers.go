@@ -138,10 +138,21 @@ type getItemsByCollisionKeyser interface {
 	) (map[string]string, error)
 }
 
+// ---------------------------------------------------------------------------
+// other interfaces
+// ---------------------------------------------------------------------------
+
 type postItemer[T any] interface {
 	PostItem(
 		ctx context.Context,
 		userID, containerID string,
 		body T,
 	) (T, error)
+}
+
+type deleteItemer interface {
+	DeleteItem(
+		ctx context.Context,
+		userID, itemID string,
+	) error
 }
