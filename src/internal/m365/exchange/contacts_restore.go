@@ -79,9 +79,14 @@ func (h contactRestoreHandler) restore(
 		errs)
 }
 
+type contactRestorer interface {
+	postItemer[models.Contactable]
+	deleteItemer
+}
+
 func restoreContact(
 	ctx context.Context,
-	pi postItemer[models.Contactable],
+	cr contactRestorer,
 	body []byte,
 	userID, destinationID string,
 	collisionKeyToItemID map[string]string,
@@ -94,22 +99,40 @@ func restoreContact(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
-	collisionKey := api.ContactCollisionKey(contact)
 
-	if _, ok := collisionKeyToItemID[collisionKey]; ok {
+	var (
+		collisionKey         = api.ContactCollisionKey(contact)
+		collisionID          string
+		shouldDeleteOriginal bool
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
 		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
 		log.Debug("item collision")
 
-		// TODO(rkeepers): Replace probably shouldn't no-op.  Just a starting point.
-		if collisionPolicy == control.Skip || collisionPolicy == control.Replace {
+		if collisionPolicy == control.Skip {
 			log.Debug("skipping item with collision")
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
+
+		collisionID = id
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
-	item, err := pi.PostItem(ctx, userID, destinationID, contact)
+	item, err := cr.PostItem(ctx, userID, destinationID, contact)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring mail message")
+		return nil, graph.Wrap(ctx, err, "restoring contact")
+	}
+
+	// contacts have no PUT request, and PATCH could retain data that's not
+	// associated with the backup item state.  Instead of updating, we
+	// post first, then delete.  In case of failure between the two calls,
+	// at least we'll have accidentally over-produced data instead of deleting
+	// the user's data.
+	if shouldDeleteOriginal {
+		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil {
+			return nil, graph.Wrap(ctx, err, "deleting colliding contact")
+		}
 	}
 
 	info := api.ContactInfo(item)
