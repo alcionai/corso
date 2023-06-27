@@ -20,6 +20,8 @@ type Options struct {
 	ToggleFeatures     Toggles            `json:"toggleFeatures"`
 	Parallelism        Parallelism        `json:"parallelism"`
 	Repo               repository.Options `json:"repo"`
+	// Slice of backup extension factories
+	// BackupItemExtensions []extensions.BackupItemExtensionFactory `json:"-"`
 }
 
 type Parallelism struct {
