@@ -1,9 +1,16 @@
 package repository
 
+import (
+	"time"
+)
+
 // Repo represents options that are specific to the repo storing backed up data.
 type Options struct {
 	User string `json:"user"`
 	Host string `json:"host"`
+	// ViewTimestamp is the time at which the repo should be opened at if
+	// immutable backups are being used. If nil then the current time is used.
+	ViewTimestamp *time.Time `json:"viewTimestamp"`
 }
 
 type Maintenance struct {
