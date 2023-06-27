@@ -214,7 +214,7 @@ func (suite *DiscoveryIntgSuite) TestUserInfo() {
 				ServicesEnabled: map[path.ServiceType]struct{}{},
 				Mailbox:         api.MailboxInfo{},
 			},
-			expectErr: require.NoError,
+			expectErr: require.Error,
 		},
 	}
 	for _, test := range table {

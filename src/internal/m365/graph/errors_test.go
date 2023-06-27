@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -232,8 +233,33 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 			expect: assert.False,
 		},
 		{
+			name: "non-matching resource not found",
+			err: func() error {
+				res := odErr(string(resourceNotFound))
+				res.GetError().SetMessage(ptr.To("Calendar not found"))
+
+				return res
+			}(),
+			expect: assert.False,
+		},
+		{
 			name:   "request resource not found oDataErr",
 			err:    odErr(string(RequestResourceNotFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "invalid user oDataErr",
+			err:    odErr(string(invalidUser)),
+			expect: assert.True,
+		},
+		{
+			name: "resource not found oDataErr",
+			err: func() error {
+				res := odErr(string(resourceNotFound))
+				res.GetError().SetMessage(ptr.To("User not found"))
+
+				return res
+			}(),
 			expect: assert.True,
 		},
 	}
