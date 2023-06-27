@@ -71,7 +71,7 @@ func NewConn(s storage.Storage) *conn {
 }
 
 func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
-	bst, err := blobStoreByProvider(ctx, w.storage)
+	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
 	}
@@ -111,7 +111,7 @@ func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
 }
 
 func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
-	bst, err := blobStoreByProvider(ctx, w.storage)
+	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
 	}
@@ -174,10 +174,14 @@ func (w *conn) commonConnect(
 	return nil
 }
 
-func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
+func blobStoreByProvider(
+	ctx context.Context,
+	opts repository.Options,
+	s storage.Storage,
+) (blob.Storage, error) {
 	switch s.Provider {
 	case storage.ProviderS3:
-		return s3BlobStorage(ctx, s)
+		return s3BlobStorage(ctx, opts, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
 	}
