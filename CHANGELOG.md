@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Handle OLE conversion errors when trying to fetch attachments
 - Fix uploading large attachments for emails and calendar
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
 
 ## [v0.9.0] (beta) - 2023-06-05
 

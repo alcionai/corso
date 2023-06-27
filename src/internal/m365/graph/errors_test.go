@@ -33,6 +33,16 @@ func odErr(code string) *odataerrors.ODataError {
 	return odErr
 }
 
+func odErrMsg(code, message string) *odataerrors.ODataError {
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
+	merr.SetCode(&code)
+	merr.SetMessage(&message)
+	odErr.SetError(merr)
+
+	return odErr
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {
 	table := []struct {
 		name   string
@@ -223,7 +233,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		},
 		{
 			name:   "request resource not found oDataErr",
-			err:    odErr(string(requestResourceNotFound)),
+			err:    odErr(string(RequestResourceNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -420,6 +430,59 @@ func (suite *GraphErrorsUnitSuite) TestIsErrCannotOpenFileAttachment() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrCannotOpenFileAttachment(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
+	table := []struct {
+		name   string
+		err    error
+		expect []string
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: []string{},
+		},
+		{
+			name:   "not-odata",
+			err:    assert.AnError,
+			expect: []string{},
+		},
+		{
+			name:   "oDataErr matches no labels",
+			err:    odErr("code"),
+			expect: []string{},
+		},
+		{
+			name:   "mysite not found",
+			err:    odErrMsg("code", string(MysiteNotFound)),
+			expect: []string{},
+		},
+		{
+			name:   "mysite url not found",
+			err:    odErrMsg("code", string(MysiteURLNotFound)),
+			expect: []string{},
+		},
+		{
+			name:   "no sp license",
+			err:    odErrMsg("code", string(NoSPLicense)),
+			expect: []string{},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result := Stack(ctx, test.err)
+
+			for _, e := range test.expect {
+				assert.True(t, clues.HasLabel(result, e), clues.ToCore(result))
+			}
 		})
 	}
 }
