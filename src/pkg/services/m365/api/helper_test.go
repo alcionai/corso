@@ -18,11 +18,9 @@ type intgTesterSetup struct {
 	userID                string
 	userDriveID           string
 	userDriveRootFolderID string
-	userDriveTestFolderID string // root:/test
 	siteID                string
 	siteDriveID           string
 	siteDriveRootFolderID string
-	siteDriveTestFolderID string // root:/test
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
