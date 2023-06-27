@@ -140,8 +140,8 @@ func IsErrUserNotFound(err error) bool {
 	}
 
 	if hasErrorCode(err, resourceNotFound) {
-		odErr, ok := err.(odataerrors.ODataErrorable)
-		if !ok {
+		var odErr odataerrors.ODataErrorable
+		if !errors.As(err, &odErr) {
 			return false
 		}
 
