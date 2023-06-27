@@ -17,7 +17,7 @@ type DrivePagerIntgSuite struct {
 }
 
 func TestDrivePagerIntgSuite(t *testing.T) {
-	suite.Run(t, &MailPagerIntgSuite{
+	suite.Run(t, &DrivePagerIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
@@ -28,7 +28,7 @@ func (suite *DrivePagerIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *DrivePagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
+func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey() {
 	table := []struct {
 		name         string
 		driveID      string
@@ -52,13 +52,34 @@ func (suite *DrivePagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			results, err := suite.its.ac.Drives().GetItemsInContainerByCollisionKey(ctx, test.driveID, test.rootFolderID)
+			ac := suite.its.ac.Drives()
+			items, err := ac.Stable.
+				Client().
+				Drives().
+				ByDriveId(test.driveID).
+				Items().
+				ByDriveItemId(test.rootFolderID).
+				Children().
+				Get(ctx, nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			is := items.GetValue()
+			expect := make([]string, 0, len(is))
+
+			require.NotZero(t, len(expect), "need at least one item to compare against")
+
+			results, err := ac.GetItemsInContainerByCollisionKey(ctx, test.driveID, test.rootFolderID)
 			require.NoError(t, err, clues.ToCore(err))
 			require.Less(t, 0, len(results), "requires at least one result")
 
 			for k, v := range results {
 				assert.NotEmpty(t, k, "all keys should be populated")
 				assert.NotEmpty(t, v, "all values should be populated")
+			}
+
+			for _, e := range expect {
+				_, ok := results[e]
+				assert.Truef(t, ok, "expected results to contain collision key: %s", e)
 			}
 		})
 	}

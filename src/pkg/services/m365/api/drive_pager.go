@@ -54,6 +54,7 @@ func (c Drives) NewDriveItemPager(
 	return &driveItemPageCtrl{c.Stable, builder, options}
 }
 
+//lint:ignore U1000 False Positive
 func (p *driveItemPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.DriveItemable], error) {
 	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
@@ -63,6 +64,7 @@ func (p *driveItemPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.
 	return EmptyDeltaLinker[models.DriveItemable]{PageLinkValuer: page}, nil
 }
 
+//lint:ignore U1000 False Positive
 func (p *driveItemPageCtrl) setNext(nextLink string) {
 	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
 }
@@ -72,7 +74,7 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 	driveID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name", "file", "folder")...)
+	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name")...)
 
 	items, err := enumerateItems(ctx, pager)
 	if err != nil {
@@ -82,11 +84,6 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 	m := map[string]string{}
 
 	for _, item := range items {
-		// folders are returned in this query, we only want the files
-		if item.GetFile() == nil {
-			continue
-		}
-
 		m[DriveItemCollisionKey(item)] = ptr.Val(item.GetId())
 	}
 
