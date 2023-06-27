@@ -221,7 +221,7 @@ func (suite *MailAPIIntgSuite) SetupSuite() {
 	suite.user = tester.M365UserID(t)
 }
 
-func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interface{} {
+func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]any {
 	sw := kjson.NewJsonSerializationWriter()
 
 	err := sw.WriteObjectValue("", thing)
@@ -230,7 +230,7 @@ func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interf
 	content, err := sw.GetSerializedContent()
 	require.NoError(t, err, "serialize")
 
-	var out map[string]interface{}
+	var out map[string]any
 	err = json.Unmarshal([]byte(content), &out)
 	require.NoError(t, err, "unmarshall")
 

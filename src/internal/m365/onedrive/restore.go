@@ -51,7 +51,7 @@ func NewRestoreCaches() *restoreCaches {
 		DriveIDToRootFolderID: map[string]string{},
 		// Buffer pool for uploads
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				b := make([]byte, graph.CopyBufferSize)
 				return &b
 			},
