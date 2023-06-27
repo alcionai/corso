@@ -200,11 +200,13 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 		if graph.IsErrUserNotFound(err) {
 			logger.CtxErr(ctx, err).Error("user not found")
+			// FIXME(ashmrtn): This shouldn't need clues.Wrap.
 			return nil, clues.Wrap(clues.Stack(graph.ErrResourceOwnerNotFound, err), "")
 		}
 
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
+			// FIXME(ashmrtn): This should use clues.Stack.
 			return nil, clues.Wrap(err, "")
 		}
 
@@ -243,6 +245,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
 	if err != nil {
 		if !graph.IsErrQuotaExceeded(err) {
+			// FIXME(ashmrtn): This should use clues.Stack.
 			return nil, clues.Wrap(err, "")
 		}
 

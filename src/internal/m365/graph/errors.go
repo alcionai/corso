@@ -43,7 +43,7 @@ const (
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser        errorCode = "ErrorInvalidUser"
-	resyncRequired     errorCode = "ResyncRequired" // alt: resyncRequired
+	resyncRequired     errorCode = "ResyncRequired"
 	syncFolderNotFound errorCode = "ErrorSyncFolderNotFound"
 	syncStateInvalid   errorCode = "SyncStateInvalid"
 	syncStateNotFound  errorCode = "SyncStateNotFound"
