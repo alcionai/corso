@@ -16,10 +16,6 @@ type BackupItemExtension interface {
 
 type BackupItemExtensionFactory func() BackupItemExtension
 
-type ReadCloserWrapper interface {
-	io.ReadCloser
-}
-
 // TODO: Do we need thread safety here?
 // Given that we don't process multiple chunks of the same item in
 // parallel, I think we don't need it.

@@ -48,7 +48,7 @@ func (me *mockExtension) OutputData() map[string]any {
 	return me.data
 }
 
-func readFromRc(rc io.ReadCloser) error {
+func readFrom(rc io.ReadCloser) error {
 	defer rc.Close()
 
 	p := make([]byte, 11)
@@ -96,7 +96,7 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 			[]BackupItemExtensionFactory{test.factory})
 		require.NoError(suite.T(), err)
 
-		err = readFromRc(ext)
+		err = readFrom(ext)
 		require.NoError(suite.T(), err)
 
 		kv, err := ext.GetExtensionData()
