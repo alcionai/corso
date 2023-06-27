@@ -99,7 +99,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	ip := suite.service.ac.
 		Drives().
-		NewItemPager(suite.userDriveID, "", api.DriveItemSelectDefault())
+		NewDriveItemDeltaPager(suite.userDriveID, "", api.DriveItemSelectDefault())
 
 	_, _, _, err := collectItems(
 		ctx,

@@ -105,17 +105,24 @@ func restoreEvent(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
-	collisionKey := api.EventCollisionKey(event)
 
-	if _, ok := collisionKeyToItemID[collisionKey]; ok {
+	var (
+		collisionKey         = api.EventCollisionKey(event)
+		collisionID          string
+		shouldDeleteOriginal bool
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
 		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
 		log.Debug("item collision")
 
-		// TODO(rkeepers): Replace probably shouldn't no-op.  Just a starting point.
-		if collisionPolicy == control.Skip || collisionPolicy == control.Replace {
+		if collisionPolicy == control.Skip {
 			log.Debug("skipping item with collision")
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
+
+		collisionID = id
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
 	event = toEventSimplified(event)
@@ -131,7 +138,18 @@ func restoreEvent(
 
 	item, err := er.PostItem(ctx, userID, destinationID, event)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring calendar item")
+		return nil, graph.Wrap(ctx, err, "restoring event")
+	}
+
+	// events have no PUT request, and PATCH could retain data that's not
+	// associated with the backup item state.  Instead of updating, we
+	// post first, then delete.  In case of failure between the two calls,
+	// at least we'll have accidentally over-produced data instead of deleting
+	// the user's data.
+	if shouldDeleteOriginal {
+		if err := er.DeleteItem(ctx, userID, collisionID); err != nil {
+			return nil, graph.Wrap(ctx, err, "deleting colliding event")
+		}
 	}
 
 	err = uploadAttachments(

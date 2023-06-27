@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/control"
 )
@@ -304,4 +305,14 @@ func (c Drives) DeleteItemPermission(
 	}
 
 	return nil
+}
+
+// DriveItemCollisionKeyy constructs a key from the item name.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func DriveItemCollisionKey(item models.DriveItemable) string {
+	if item == nil {
+		return ""
+	}
+
+	return ptr.Val(item.GetName())
 }

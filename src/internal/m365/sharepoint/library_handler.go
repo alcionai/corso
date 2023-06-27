@@ -68,8 +68,8 @@ func (h libraryBackupHandler) NewDrivePager(
 func (h libraryBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
-) api.DriveItemEnumerator {
-	return h.ac.NewItemPager(driveID, link, fields)
+) api.DriveItemDeltaEnumerator {
+	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
 }
 
 func (h libraryBackupHandler) AugmentItemInfo(

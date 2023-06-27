@@ -6,17 +6,23 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type clientTesterSetup struct {
-	ac     api.Client
-	userID string
+type intgTesterSetup struct {
+	ac                    api.Client
+	userID                string
+	userDriveID           string
+	userDriveRootFolderID string
+	siteID                string
+	siteDriveID           string
+	siteDriveRootFolderID string
 }
 
-func newClientTesterSetup(t *testing.T) clientTesterSetup {
-	cts := clientTesterSetup{}
+func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
+	its := intgTesterSetup{}
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -25,10 +31,32 @@ func newClientTesterSetup(t *testing.T) clientTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	cts.ac, err = api.NewClient(creds)
+	its.ac, err = api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
-	cts.userID = tester.GetM365UserID(ctx)
+	its.userID = tester.M365UserID(t)
 
-	return cts
+	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.userDriveID = ptr.Val(userDrive.GetId())
+
+	userDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.userDriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
+
+	its.siteID = tester.M365SiteID(t)
+
+	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.siteID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.siteDriveID = ptr.Val(siteDrive.GetId())
+
+	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.siteDriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+
+	return its
 }

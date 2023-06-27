@@ -15,7 +15,7 @@ import (
 
 type ContactsPagerIntgSuite struct {
 	tester.Suite
-	cts clientTesterSetup
+	its intgTesterSetup
 }
 
 func TestContactsPagerIntgSuite(t *testing.T) {
@@ -27,23 +27,23 @@ func TestContactsPagerIntgSuite(t *testing.T) {
 }
 
 func (suite *ContactsPagerIntgSuite) SetupSuite() {
-	suite.cts = newClientTesterSetup(suite.T())
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func (suite *ContactsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
 	t := suite.T()
-	ac := suite.cts.ac.Contacts()
+	ac := suite.its.ac.Contacts()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.cts.userID, "contacts")
+	container, err := ac.GetContainerByID(ctx, suite.its.userID, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 
 	conts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.cts.userID).
+		ByUserId(suite.its.userID).
 		ContactFolders().
 		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
@@ -57,7 +57,7 @@ func (suite *ContactsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
 		expect = append(expect, api.ContactCollisionKey(c))
 	}
 
-	results, err := ac.GetItemsInContainerByCollisionKey(ctx, suite.cts.userID, "contacts")
+	results, err := suite.its.ac.Contacts().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 
