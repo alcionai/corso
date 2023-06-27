@@ -10,8 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/options"
-	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -43,9 +42,9 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
 			oneDriveCreateCmd().Short,
 			[]string{
-				utils.UserFN,
-				options.DisableIncrementalsFN,
-				options.FailFastFN,
+				flags.UserFN,
+				flags.DisableIncrementalsFN,
+				flags.FailFastFN,
 			},
 			createOneDriveCmd,
 		},
@@ -55,10 +54,10 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			expectUse,
 			oneDriveListCmd().Short,
 			[]string{
-				utils.BackupFN,
-				failedItemsFN,
-				skippedItemsFN,
-				recoveredErrorsFN,
+				flags.BackupFN,
+				flags.FailedItemsFN,
+				flags.SkippedItemsFN,
+				flags.RecoveredErrorsFN,
 			},
 			listOneDriveCmd,
 		},
@@ -68,13 +67,13 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
 			oneDriveDetailsCmd().Short,
 			[]string{
-				utils.BackupFN,
-				utils.FolderFN,
-				utils.FileFN,
-				utils.FileCreatedAfterFN,
-				utils.FileCreatedBeforeFN,
-				utils.FileModifiedAfterFN,
-				utils.FileModifiedBeforeFN,
+				flags.BackupFN,
+				flags.FolderFN,
+				flags.FileFN,
+				flags.FileCreatedAfterFN,
+				flags.FileCreatedBeforeFN,
+				flags.FileModifiedAfterFN,
+				flags.FileModifiedBeforeFN,
 			},
 			detailsOneDriveCmd,
 		},
@@ -83,7 +82,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			deleteCommand,
 			expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
 			oneDriveDeleteCmd().Short,
-			[]string{utils.BackupFN},
+			[]string{flags.BackupFN},
 			deleteOneDriveCmd,
 		},
 	}

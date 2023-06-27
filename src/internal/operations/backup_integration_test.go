@@ -964,7 +964,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateUserData       func(t *testing.T)
+		//revive:disable-next-line:context-as-argument
+		updateUserData       func(t *testing.T, ctx context.Context)
 		deltaItemsRead       int
 		deltaItemsWritten    int
 		nonDeltaItemsRead    int
@@ -973,7 +974,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	}{
 		{
 			name:                 "clean, no changes",
-			updateUserData:       func(t *testing.T) {},
+			updateUserData:       func(t *testing.T, ctx context.Context) {},
 			deltaItemsRead:       0,
 			deltaItemsWritten:    0,
 			nonDeltaItemsRead:    8,
@@ -982,7 +983,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "move an email folder to a subfolder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				cat := path.EmailCategory
 
 				// contacts and events cannot be sufoldered; this is an email-only change
@@ -1006,7 +1007,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "delete a folder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container2].containerID
 
@@ -1033,7 +1034,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "add a new folder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, gen := range dataset {
 					deets := generateContainerOfItems(
 						t,
@@ -1078,7 +1079,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "rename a folder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container3].containerID
 					newLoc := containerRename
@@ -1134,7 +1135,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "add a new item",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
 
@@ -1188,7 +1189,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "delete an existing item",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
 
@@ -1247,11 +1248,22 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
 				atid  = creds.AzureTenantID
 			)
 
-			test.updateUserData(t)
+			ctx, flush := tester.WithContext(t, ctx)
+			defer flush()
+
+			incBO := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
+
+			suite.Run("PreTestSetup", func() {
+				t := suite.T()
+
+				ctx, flush := tester.WithContext(t, ctx)
+				defer flush()
+
+				test.updateUserData(t, ctx)
+			})
 
 			err := incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
@@ -1550,20 +1562,21 @@ func runDriveIncrementalTest(
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateFiles         func(t *testing.T)
+		//revive:disable-next-line:context-as-argument
+		updateFiles         func(t *testing.T, ctx context.Context)
 		itemsRead           int
 		itemsWritten        int
 		nonMetaItemsWritten int
 	}{
 		{
 			name:         "clean incremental, no changes",
-			updateFiles:  func(t *testing.T) {},
+			updateFiles:  func(t *testing.T, ctx context.Context) {},
 			itemsRead:    0,
 			itemsWritten: 0,
 		},
 		{
 			name: "create a new file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1586,7 +1599,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to new file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err = onedrive.UpdatePermissions(
 					ctx,
 					rh,
@@ -1604,7 +1617,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from new file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err = onedrive.UpdatePermissions(
 					ctx,
 					rh,
@@ -1622,7 +1635,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to container",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerIDs[container1]
 				err = onedrive.UpdatePermissions(
 					ctx,
@@ -1641,7 +1654,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from container",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerIDs[container1]
 				err = onedrive.UpdatePermissions(
 					ctx,
@@ -1660,7 +1673,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "update contents of a file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err := suite.ac.Drives().PutItemContent(
 					ctx,
 					driveID,
@@ -1675,7 +1688,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "rename a file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				container := containerIDs[container1]
 
 				driveItem := models.NewDriveItem()
@@ -1699,7 +1712,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "move a file between folders",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				dest := containerIDs[container2]
 
 				driveItem := models.NewDriveItem()
@@ -1727,7 +1740,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "delete file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err := suite.ac.Drives().DeleteItem(
 					ctx,
 					driveID,
@@ -1742,7 +1755,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "move a folder to a subfolder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				parent := containerIDs[container1]
 				child := containerIDs[container2]
 
@@ -1770,7 +1783,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "rename a folder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				parent := containerIDs[container1]
 				child := containerIDs[container2]
 
@@ -1800,7 +1813,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "delete a folder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				container := containerIDs[containerRename]
 				err := suite.ac.Drives().DeleteItem(
 					ctx,
@@ -1816,7 +1829,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add a new folder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				generateContainerOfItems(
 					t,
 					ctx,
@@ -1858,9 +1871,17 @@ func runDriveIncrementalTest(
 				incBO = newTestBackupOp(t, ctx, kw, ms, cleanCtrl, acct, sel, incMB, ffs, closer)
 			)
 
-			tester.LogTimeOfTest(suite.T())
+			ctx, flush := tester.WithContext(t, ctx)
+			defer flush()
 
-			test.updateFiles(t)
+			suite.Run("PreTestSetup", func() {
+				t := suite.T()
+
+				ctx, flush := tester.WithContext(t, ctx)
+				defer flush()
+
+				test.updateFiles(t, ctx)
+			})
 
 			err = incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))

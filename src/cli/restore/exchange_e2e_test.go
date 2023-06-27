@@ -12,7 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -135,7 +135,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID))
+				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID))
 			cli.BuildCommandTree(cmd)
 
 			// run the command
@@ -162,15 +162,15 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 			var timeFilter string
 			switch set {
 			case email:
-				timeFilter = "--" + utils.EmailReceivedAfterFN
+				timeFilter = "--" + flags.EmailReceivedAfterFN
 			case events:
-				timeFilter = "--" + utils.EventStartsAfterFN
+				timeFilter = "--" + flags.EventStartsAfterFN
 			}
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
+				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
 			cli.BuildCommandTree(cmd)
 
@@ -198,13 +198,13 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 			var timeFilter string
 			switch set {
 			case events:
-				timeFilter = "--" + utils.EventRecursFN
+				timeFilter = "--" + flags.EventRecursFN
 			}
 
 			cmd := tester.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
+				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
 

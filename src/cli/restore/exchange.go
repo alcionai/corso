@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -32,9 +32,9 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// general flags
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, true)
-		utils.AddExchangeDetailsAndRestoreFlags(c)
-		options.AddFailFastFlag(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddExchangeDetailsAndRestoreFlags(c)
+		flags.AddFailFastFlag(c)
 	}
 
 	return c
@@ -81,11 +81,11 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.MakeExchangeOpts(cmd)
 
-	if utils.RunModeFV == utils.RunModeFlagTest {
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(utils.BackupIDFV, opts); err != nil {
+	if err := utils.ValidateExchangeRestoreFlags(flags.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -102,7 +102,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, restoreCfg)
+	ro, err := r.NewRestore(ctx, flags.BackupIDFV, sel.Selector, restoreCfg)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize Exchange restore"))
 	}
@@ -110,7 +110,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
 		}
 
 		return Only(ctx, clues.Wrap(err, "Failed to run Exchange restore"))
