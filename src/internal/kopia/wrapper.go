@@ -8,6 +8,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/format"
 	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
@@ -16,6 +18,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -709,4 +712,144 @@ func (w Wrapper) setMaintenanceParams(
 	}
 
 	return nil
+}
+
+func (w Wrapper) SetRetentionParameters(
+	ctx context.Context,
+	retention repository.Retention,
+) error {
+	// Somewhat confusing case, when we have no retention but a non-zero duration
+	// it acts like we passed in only the duration and returns an error about
+	// having to set both. Return a clearer error here instead.
+	if ptr.Val(retention.Mode) == repository.NoRetention && ptr.Val(retention.Duration) != 0 {
+		return clues.New("retention duration must be 0 or unset if disabling retention")
+	}
+
+	dr, ok := w.c.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.New("unable to get valid handle to repo").WithClues(ctx)
+	}
+
+	// Update blob config information.
+	blobCfg, err := dr.FormatManager().BlobCfgBlob()
+	if err != nil {
+		return clues.Wrap(err, "getting storage config")
+	}
+
+	blobChanged, err := w.setRetentionMode(retention.Mode, &blobCfg)
+	if err != nil {
+		return clues.Wrap(err, "setting retention mode")
+	}
+
+	if retention.Duration != nil && blobCfg.RetentionPeriod != *retention.Duration {
+		blobCfg.RetentionPeriod = *retention.Duration
+		blobChanged = true
+	}
+
+	// Update maintenance config information.
+	params, err := maintenance.GetParams(ctx, w.c)
+	if err != nil {
+		return clues.Wrap(err, "getting maintenance config").WithClues(ctx)
+	}
+
+	var maintenanceChanged bool
+
+	if retention.Extend != nil && params.ExtendObjectLocks != *retention.Extend {
+		params.ExtendObjectLocks = *retention.Extend
+		maintenanceChanged = true
+	}
+
+	// Check the new config is valid.
+	if blobCfg.IsRetentionEnabled() {
+		if err := maintenance.CheckExtendRetention(ctx, blobCfg, params); err != nil {
+			return clues.Wrap(err, "invalid retention config")
+		}
+	}
+
+	// Persist changes.
+	if !blobChanged && !maintenanceChanged {
+		return nil
+	}
+
+	mp, err := dr.FormatManager().GetMutableParameters()
+	if err != nil {
+		return clues.Wrap(err, "getting mutable parameters")
+	}
+
+	requiredFeatures, err := dr.FormatManager().RequiredFeatures()
+	if err != nil {
+		return clues.Wrap(err, "getting required features")
+	}
+
+	// Must be the case that only blob changed.
+	if !maintenanceChanged {
+		return clues.Wrap(
+			dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
+			"persisting storage config",
+		).WithClues(ctx).OrNil()
+	}
+
+	// Both blob and maintenance changed. A DirectWriteSession is required to
+	// update the maintenance config but not the blob config.
+	err = repo.DirectWriteSession(
+		ctx,
+		dr,
+		repo.WriteSessionOptions{
+			Purpose: "Corso immutable backups config",
+		},
+		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
+			// Set the maintenance config first as we can bail out of the write
+			// session later.
+			if err := maintenance.SetParams(ctx, dw, params); err != nil {
+				return clues.Wrap(err, "persisting maintenance config").
+					WithClues(ctx)
+			}
+
+			return clues.Wrap(
+				dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
+				"persisting storage config",
+			).WithClues(ctx).OrNil()
+		})
+
+	return clues.Wrap(err, "persisting config changes").OrNil()
+}
+
+func (w Wrapper) setRetentionMode(
+	mode *repository.RetentionMode,
+	blobCfg *format.BlobStorageConfiguration,
+) (bool, error) {
+	if mode == nil {
+		return false, nil
+	}
+
+	startMode := blobCfg.RetentionMode
+
+	switch *mode {
+	case repository.NoRetention:
+		if !blobCfg.IsRetentionEnabled() {
+			return false, nil
+		}
+
+		blobCfg.RetentionMode = ""
+		blobCfg.RetentionPeriod = 0
+
+	case repository.GovernanceRetention:
+		blobCfg.RetentionMode = blob.Governance
+
+	case repository.ComplianceRetention:
+		blobCfg.RetentionMode = blob.Compliance
+
+	default:
+		return false, clues.New("unknown retention mode").
+			With("provided_retention_mode", mode.String())
+	}
+
+	// Only check if the retention mode is not empty. IsValid errors out if it's
+	// empty.
+	if len(blobCfg.RetentionMode) > 0 && !blobCfg.RetentionMode.IsValid() {
+		return false, clues.New("invalid retention mode").
+			With("retention_mode", blobCfg.RetentionMode)
+	}
+
+	return startMode != blobCfg.RetentionMode, nil
 }
