@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -60,6 +61,7 @@ func BackupHandlers(ac api.Client) map[path.CategoryType]backupHandler {
 type restoreHandler interface {
 	itemRestorer
 	containerAPI
+	getItemsByCollisionKeyser
 	newContainerCache(userID string) graph.ContainerResolver
 	formatRestoreDestination(
 		destinationContainerName string,
@@ -75,17 +77,10 @@ type itemRestorer interface {
 		ctx context.Context,
 		body []byte,
 		userID, destinationID string,
+		collisionKeyToItemID map[string]string,
+		collisionPolicy control.CollisionPolicy,
 		errs *fault.Bus,
 	) (*details.ExchangeInfo, error)
-}
-
-// runs the actual graph API post request.
-type itemPoster[T any] interface {
-	PostItem(
-		ctx context.Context,
-		userID, dirID string,
-		body T,
-	) (T, error)
 }
 
 // produces structs that interface with the graph/cache_container
@@ -128,4 +123,36 @@ func restoreHandlers(
 		path.EmailCategory:    newMailRestoreHandler(ac),
 		path.EventsCategory:   newEventRestoreHandler(ac),
 	}
+}
+
+type getItemsByCollisionKeyser interface {
+	// GetItemsInContainerByCollisionKey looks up all items currently in
+	// the container, and returns them in a map[collisionKey]itemID.
+	// The collision key is uniquely defined by each category of data.
+	// Collision key checks are used during restore to handle the on-
+	// collision restore configurations that cause the item restore to get
+	// skipped, replaced, or copied.
+	getItemsInContainerByCollisionKey(
+		ctx context.Context,
+		userID, containerID string,
+	) (map[string]string, error)
+}
+
+// ---------------------------------------------------------------------------
+// other interfaces
+// ---------------------------------------------------------------------------
+
+type postItemer[T any] interface {
+	PostItem(
+		ctx context.Context,
+		userID, containerID string,
+		body T,
+	) (T, error)
+}
+
+type deleteItemer interface {
+	DeleteItem(
+		ctx context.Context,
+		userID, itemID string,
+	) error
 }

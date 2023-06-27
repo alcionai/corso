@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -297,12 +298,12 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 				FileCreatedBefore:  dttm.Now(),
 				FileModifiedAfter:  dttm.Now(),
 				FileModifiedBefore: dttm.Now(),
-				Populated: utils.PopulatedFlags{
-					utils.SiteFN:               {},
-					utils.FileCreatedAfterFN:   {},
-					utils.FileCreatedBeforeFN:  {},
-					utils.FileModifiedAfterFN:  {},
-					utils.FileModifiedBeforeFN: {},
+				Populated: flags.PopulatedFlags{
+					flags.SiteFN:               struct{}{},
+					flags.FileCreatedAfterFN:   struct{}{},
+					flags.FileCreatedBeforeFN:  struct{}{},
+					flags.FileModifiedAfterFN:  struct{}{},
+					flags.FileModifiedBeforeFN: struct{}{},
 				},
 			},
 			expect: assert.NoError,
@@ -318,8 +319,8 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				WebURL: []string{"slander://:vree.garbles/:"},
-				Populated: utils.PopulatedFlags{
-					utils.SiteFN: {},
+				Populated: flags.PopulatedFlags{
+					flags.SiteFN: struct{}{},
 				},
 			},
 			expect: assert.Error,
@@ -329,8 +330,8 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				FileCreatedAfter: "1235",
-				Populated: utils.PopulatedFlags{
-					utils.FileCreatedAfterFN: {},
+				Populated: flags.PopulatedFlags{
+					flags.FileCreatedAfterFN: struct{}{},
 				},
 			},
 			expect: assert.Error,
@@ -340,8 +341,8 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				FileCreatedBefore: "1235",
-				Populated: utils.PopulatedFlags{
-					utils.FileCreatedBeforeFN: {},
+				Populated: flags.PopulatedFlags{
+					flags.FileCreatedBeforeFN: struct{}{},
 				},
 			},
 			expect: assert.Error,
@@ -351,8 +352,8 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				FileModifiedAfter: "1235",
-				Populated: utils.PopulatedFlags{
-					utils.FileModifiedAfterFN: {},
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedAfterFN: struct{}{},
 				},
 			},
 			expect: assert.Error,
@@ -362,8 +363,8 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			backupID: "id",
 			opts: utils.SharePointOpts{
 				FileModifiedBefore: "1235",
-				Populated: utils.PopulatedFlags{
-					utils.FileModifiedBeforeFN: {},
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedBeforeFN: struct{}{},
 				},
 			},
 			expect: assert.Error,

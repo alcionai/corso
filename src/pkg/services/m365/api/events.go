@@ -380,8 +380,7 @@ func parseableToMap(att serialization.Parsable) (map[string]any, error) {
 func (c Events) GetAttachments(
 	ctx context.Context,
 	immutableIDs bool,
-	userID string,
-	itemID string,
+	userID, itemID string,
 ) ([]models.Attachmentable, error) {
 	config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
@@ -424,8 +423,7 @@ func (c Events) DeleteAttachment(
 
 func (c Events) GetItemInstances(
 	ctx context.Context,
-	userID, itemID string,
-	startDate, endDate string,
+	userID, itemID, startDate, endDate string,
 ) ([]models.Eventable, error) {
 	config := &users.ItemEventsItemInstancesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemEventsItemInstancesRequestBuilderGetQueryParameters{

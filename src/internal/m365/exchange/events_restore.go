@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -25,17 +26,13 @@ var _ itemRestorer = &eventRestoreHandler{}
 
 type eventRestoreHandler struct {
 	ac api.Events
-	ip itemPoster[models.Eventable]
 }
 
 func newEventRestoreHandler(
 	ac api.Client,
 ) eventRestoreHandler {
-	ace := ac.Events()
-
 	return eventRestoreHandler{
-		ac: ace,
-		ip: ace,
+		ac: ac.Events(),
 	}
 }
 
@@ -74,6 +71,32 @@ func (h eventRestoreHandler) restore(
 	ctx context.Context,
 	body []byte,
 	userID, destinationID string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
+	errs *fault.Bus,
+) (*details.ExchangeInfo, error) {
+	return restoreEvent(
+		ctx,
+		h.ac,
+		body,
+		userID, destinationID,
+		collisionKeyToItemID,
+		collisionPolicy,
+		errs)
+}
+
+type eventRestorer interface {
+	postItemer[models.Eventable]
+	eventInstanceAndAttachmenter
+}
+
+func restoreEvent(
+	ctx context.Context,
+	er eventRestorer,
+	body []byte,
+	userID, destinationID string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
@@ -82,6 +105,25 @@ func (h eventRestoreHandler) restore(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
+
+	var (
+		collisionKey         = api.EventCollisionKey(event)
+		collisionID          string
+		shouldDeleteOriginal bool
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		if collisionPolicy == control.Skip {
+			log.Debug("skipping item with collision")
+			return nil, graph.ErrItemAlreadyExistsConflict
+		}
+
+		collisionID = id
+		shouldDeleteOriginal = collisionPolicy == control.Replace
+	}
 
 	event = toEventSimplified(event)
 
@@ -94,14 +136,25 @@ func (h eventRestoreHandler) restore(
 		event.SetAttachments(nil)
 	}
 
-	item, err := h.ip.PostItem(ctx, userID, destinationID, event)
+	item, err := er.PostItem(ctx, userID, destinationID, event)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring calendar item")
+		return nil, graph.Wrap(ctx, err, "restoring event")
+	}
+
+	// events have no PUT request, and PATCH could retain data that's not
+	// associated with the backup item state.  Instead of updating, we
+	// post first, then delete.  In case of failure between the two calls,
+	// at least we'll have accidentally over-produced data instead of deleting
+	// the user's data.
+	if shouldDeleteOriginal {
+		if err := er.DeleteItem(ctx, userID, collisionID); err != nil {
+			return nil, graph.Wrap(ctx, err, "deleting colliding event")
+		}
 	}
 
 	err = uploadAttachments(
 		ctx,
-		h.ac,
+		er,
 		attachments,
 		userID,
 		destinationID,
@@ -121,7 +174,7 @@ func (h eventRestoreHandler) restore(
 	// Fix up event instances in case we have a recurring event
 	err = updateRecurringEvents(
 		ctx,
-		h.ac,
+		er,
 		userID,
 		destinationID,
 		ptr.Val(item.GetId()),
@@ -140,7 +193,7 @@ func (h eventRestoreHandler) restore(
 
 func updateRecurringEvents(
 	ctx context.Context,
-	ac api.Events,
+	eiaa eventInstanceAndAttachmenter,
 	userID, containerID, itemID string,
 	event models.Eventable,
 	errs *fault.Bus,
@@ -155,12 +208,12 @@ func updateRecurringEvents(
 	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
 	exceptionOccurrences := event.GetAdditionalData()["exceptionOccurrences"]
 
-	err := updateCancelledOccurrences(ctx, ac, userID, itemID, cancelledOccurrences)
+	err := updateCancelledOccurrences(ctx, eiaa, userID, itemID, cancelledOccurrences)
 	if err != nil {
 		return clues.Wrap(err, "update cancelled occurrences")
 	}
 
-	err = updateExceptionOccurrences(ctx, ac, userID, containerID, itemID, exceptionOccurrences, errs)
+	err = updateExceptionOccurrences(ctx, eiaa, userID, containerID, itemID, exceptionOccurrences, errs)
 	if err != nil {
 		return clues.Wrap(err, "update exception occurrences")
 	}
@@ -168,12 +221,30 @@ func updateRecurringEvents(
 	return nil
 }
 
+type eventInstanceAndAttachmenter interface {
+	attachmentGetDeletePoster
+	DeleteItem(
+		ctx context.Context,
+		userID, itemID string,
+	) error
+	GetItemInstances(
+		ctx context.Context,
+		userID, itemID string,
+		startDate, endDate string,
+	) ([]models.Eventable, error)
+	PatchItem(
+		ctx context.Context,
+		userID, eventID string,
+		body models.Eventable,
+	) (models.Eventable, error)
+}
+
 // updateExceptionOccurrences take events that have exceptions, uses
 // the originalStart date to find the instance and modify it to match
 // the backup by updating the instance to match the backed up one
 func updateExceptionOccurrences(
 	ctx context.Context,
-	ac api.Events,
+	eiaa eventInstanceAndAttachmenter,
 	userID string,
 	containerID string,
 	itemID string,
@@ -210,7 +281,7 @@ func updateExceptionOccurrences(
 
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		instances, err := ac.GetItemInstances(ictx, userID, itemID, startStr, endStr)
+		instances, err := eiaa.GetItemInstances(ictx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -225,7 +296,7 @@ func updateExceptionOccurrences(
 
 		evt = toEventSimplified(evt)
 
-		_, err = ac.PatchItem(ictx, userID, ptr.Val(instances[0].GetId()), evt)
+		_, err = eiaa.PatchItem(ictx, userID, ptr.Val(instances[0].GetId()), evt)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance")
 		}
@@ -238,13 +309,34 @@ func updateExceptionOccurrences(
 			return clues.Wrap(err, "parsing event instance")
 		}
 
-		err = updateAttachments(ictx, ac, userID, containerID, ptr.Val(instances[0].GetId()), evt, errs)
+		err = updateAttachments(
+			ictx,
+			eiaa,
+			userID,
+			containerID,
+			ptr.Val(instances[0].GetId()),
+			evt,
+			errs)
 		if err != nil {
 			return clues.Wrap(err, "updating event instance attachments")
 		}
 	}
 
 	return nil
+}
+
+type attachmentGetDeletePoster interface {
+	attachmentPoster
+	GetAttachments(
+		ctx context.Context,
+		immutableIDs bool,
+		userID string,
+		itemID string,
+	) ([]models.Attachmentable, error)
+	DeleteAttachment(
+		ctx context.Context,
+		userID, calendarID, eventID, attachmentID string,
+	) error
 }
 
 // updateAttachments updates the attachments of an event to match what
@@ -259,14 +351,14 @@ func updateExceptionOccurrences(
 // would be better use Post[Small|Large]Attachment.
 func updateAttachments(
 	ctx context.Context,
-	client api.Events,
+	agdp attachmentGetDeletePoster,
 	userID, containerID, eventID string,
 	event models.Eventable,
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
 
-	attachments, err := client.GetAttachments(ctx, false, userID, eventID)
+	attachments, err := agdp.GetAttachments(ctx, false, userID, eventID)
 	if err != nil {
 		return clues.Wrap(err, "getting attachments")
 	}
@@ -304,7 +396,7 @@ func updateAttachments(
 		}
 
 		if !found {
-			err = client.DeleteAttachment(ctx, userID, containerID, eventID, id)
+			err = agdp.DeleteAttachment(ctx, userID, containerID, eventID, id)
 			if err != nil {
 				logger.CtxErr(ctx, err).With("attachment_name", name).Info("attachment delete failed")
 				el.AddRecoverable(ctx, clues.Wrap(err, "deleting event attachment").
@@ -342,7 +434,7 @@ func updateAttachments(
 		}
 
 		if !found {
-			err = uploadAttachment(ctx, client, userID, containerID, eventID, att)
+			err = uploadAttachment(ctx, agdp, userID, containerID, eventID, att)
 			if err != nil {
 				return clues.Wrap(err, "uploading attachment").
 					With("attachment_id", id)
@@ -358,7 +450,7 @@ func updateAttachments(
 // that and uses the to get the event instance at that date to delete.
 func updateCancelledOccurrences(
 	ctx context.Context,
-	ac api.Events,
+	eiaa eventInstanceAndAttachmenter,
 	userID string,
 	itemID string,
 	cancelledOccurrences any,
@@ -395,7 +487,7 @@ func updateCancelledOccurrences(
 
 		// Get all instances on the day of the instance which should
 		// just the one we need to modify
-		instances, err := ac.GetItemInstances(ctx, userID, itemID, startStr, endStr)
+		instances, err := eiaa.GetItemInstances(ctx, userID, itemID, startStr, endStr)
 		if err != nil {
 			return clues.Wrap(err, "getting instances")
 		}
@@ -408,11 +500,23 @@ func updateCancelledOccurrences(
 				With("instances_count", len(instances), "search_start", startStr, "search_end", endStr)
 		}
 
-		err = ac.DeleteItem(ctx, userID, ptr.Val(instances[0].GetId()))
+		err = eiaa.DeleteItem(ctx, userID, ptr.Val(instances[0].GetId()))
 		if err != nil {
 			return clues.Wrap(err, "deleting event instance")
 		}
 	}
 
 	return nil
+}
+
+func (h eventRestoreHandler) getItemsInContainerByCollisionKey(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]string, error) {
+	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, userID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }
