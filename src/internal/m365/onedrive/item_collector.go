@@ -45,7 +45,7 @@ type itemCollector func(
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	pager api.DriveItemEnumerator,
+	pager api.DriveItemDeltaEnumerator,
 	driveID, driveName string,
 	collector itemCollector,
 	oldPaths map[string]string,

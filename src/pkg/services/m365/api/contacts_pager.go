@@ -105,7 +105,7 @@ func (c Contacts) NewContactsPager(
 	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
-			Top: ptr.To[int32](maxNonDeltaPageSize),
+			Top: ptr.To(maxNonDeltaPageSize),
 		},
 	}
 
@@ -181,7 +181,7 @@ func (c Contacts) NewContactIDsPager(
 	config := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
-			Top:    ptr.To[int32](maxNonDeltaPageSize),
+			Top:    ptr.To(maxNonDeltaPageSize),
 		},
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}

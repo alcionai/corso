@@ -50,7 +50,7 @@ type BackupHandler interface {
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
 	NewDrivePager(resourceOwner string, fields []string) api.DrivePager
-	NewItemPager(driveID, link string, fields []string) api.DriveItemEnumerator
+	NewItemPager(driveID, link string, fields []string) api.DriveItemDeltaEnumerator
 	// FormatDisplayPath creates a human-readable string to represent the
 	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string

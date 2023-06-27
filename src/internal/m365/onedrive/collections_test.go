@@ -2328,7 +2328,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				},
 			}
 
-			itemPagers := map[string]api.DriveItemEnumerator{}
+			itemPagers := map[string]api.DriveItemDeltaEnumerator{}
 
 			for driveID := range test.items {
 				itemPagers[driveID] = &mockItemPager{
@@ -2704,7 +2704,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			itemPagers := map[string]api.DriveItemEnumerator{}
+			itemPagers := map[string]api.DriveItemDeltaEnumerator{}
 			itemPagers[driveID] = &mockItemPager{}
 
 			mbh := mock.DefaultOneDriveBH()
