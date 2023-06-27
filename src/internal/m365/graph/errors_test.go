@@ -484,17 +484,17 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 		{
 			name:   "mysite not found",
 			err:    odErrMsg("code", string(MysiteNotFound)),
-			expect: []string{},
+			expect: []string{LabelsMysiteNotFound},
 		},
 		{
 			name:   "mysite url not found",
 			err:    odErrMsg("code", string(MysiteURLNotFound)),
-			expect: []string{},
+			expect: []string{LabelsMysiteNotFound},
 		},
 		{
 			name:   "no sp license",
 			err:    odErrMsg("code", string(NoSPLicense)),
-			expect: []string{},
+			expect: []string{LabelsNoSharePointLicense},
 		},
 	}
 	for _, test := range table {
