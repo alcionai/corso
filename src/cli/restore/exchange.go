@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -36,6 +35,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddExchangeDetailsAndRestoreFlags(c)
+		flags.AddRestoreConfigFlags(c)
 		flags.AddFailFastFlag(c)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
@@ -101,8 +101,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadable)
-	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
+	restoreCfg := utils.MakeRestoreConfig(ctx, opts.RestoreCfg, dttm.HumanReadable)
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)

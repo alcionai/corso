@@ -31,6 +31,8 @@ type SharePointOpts struct {
 	PageFolder []string
 	Page       []string
 
+	RestoreCfg RestoreCfgOpts
+
 	Populated flags.PopulatedFlags
 }
 
@@ -52,6 +54,8 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
+
+		RestoreCfg: makeRestoreCfgOpts(cmd),
 
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
@@ -88,7 +92,7 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
 	}
 
-	return nil
+	return validateRestoreConfigFlags(opts.RestoreCfg)
 }
 
 // AddSharePointInfo adds the scope of the provided values to the selector's

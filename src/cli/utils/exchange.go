@@ -30,6 +30,8 @@ type ExchangeOpts struct {
 	EventStartsBefore string
 	EventSubject      string
 
+	RestoreCfg RestoreCfgOpts
+
 	Populated flags.PopulatedFlags
 }
 
@@ -56,6 +58,8 @@ func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
 		EventStartsAfter:  flags.EventStartsAfterFV,
 		EventStartsBefore: flags.EventStartsBeforeFV,
 		EventSubject:      flags.EventSubjectFV,
+
+		RestoreCfg: makeRestoreCfgOpts(cmd),
 
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
@@ -132,7 +136,7 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 		return clues.New("invalid format for event-recurs")
 	}
 
-	return nil
+	return validateRestoreConfigFlags(opts.RestoreCfg)
 }
 
 // IncludeExchangeRestoreDataSelectors builds the common data-selector
