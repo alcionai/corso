@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
 
 ### Known issues
-- Partial inheritance of link shares from a parent folder can't be restored.
+* If a link share is created for an item with inheritance disabled
+  (via the Graph API), Corso does not restore any link shares on that
+  item that may be inherited after that
 - Link shares with password cannot be restored
 
 ## [v0.10.0] (beta) - 2023-06-26
