@@ -255,10 +255,24 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		{
 			name: "resource not found oDataErr",
 			err: func() error {
-				res := odErr(string(ResourceNotFound))
-				res.GetError().SetMessage(ptr.To("User not found"))
-
+				res := odErrMsg(string(ResourceNotFound), "User not found")
 				return res
+			}(),
+			expect: assert.True,
+		},
+		{
+			name: "resource not found oDataErr wrapped",
+			err: func() error {
+				res := odErrMsg(string(ResourceNotFound), "User not found")
+				return clues.Wrap(res, "getting mail folder")
+			}(),
+			expect: assert.True,
+		},
+		{
+			name: "resource not found oDataErr stacked",
+			err: func() error {
+				res := odErrMsg(string(ResourceNotFound), "User not found")
+				return clues.Stack(res, assert.AnError)
 			}(),
 			expect: assert.True,
 		},
