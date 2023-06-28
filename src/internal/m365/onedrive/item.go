@@ -108,8 +108,9 @@ func downloadItemMeta(
 			return nil, 0, err
 		}
 
+		// TODO(meain): Enable links shares once we have the edge cases sorted out
+		// meta.LinkShares = metadata.FilterLinkShares(ctx, perm.GetValue())
 		meta.Permissions = metadata.FilterPermissions(ctx, perm.GetValue())
-		meta.LinkShares = metadata.FilterLinkShares(ctx, perm.GetValue())
 	}
 
 	metaJSON, err := json.Marshal(meta)
