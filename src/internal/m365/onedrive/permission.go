@@ -350,7 +350,7 @@ func RestorePermissions(
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
-	lsAdded, lsRemoved := metadata.DiffPermissions(previous.LinkShares, current.LinkShares)
+	lsAdded, lsRemoved := metadata.DiffLinkShares(previous.LinkShares, current.LinkShares)
 
 	err = UpdatePermissions(
 		ctx,

@@ -65,6 +65,37 @@ func (p Permission) Equals(other Permission) bool {
 	return slices.Equal(p1r, p2r)
 }
 
+// DiffLinkShares is just a wrapper on top of DiffPermissions but we
+// filter out link shares which do not have any associated users. This
+// is useful for two reason:
+//   - When a user creates a link share on parent after creating a child
+//     link with `retainInheritedPermisisons`, all the previous link shares
+//     are inherited onto the child but without any users associated with
+//     the share. We have to drop the empty ones to make sure we reset.
+//   - We are restoring link shares so that we can restore permissions for
+//     user and so restoring links without users is not useful.
+func DiffLinkShares(before, after []LinkShare) ([]LinkShare, []LinkShare) {
+	filteredBefore := []LinkShare{}
+	for _, ls := range before {
+		if len(ls.Entities) == 0 {
+			continue
+		}
+
+		filteredBefore = append(filteredBefore, ls)
+	}
+
+	filteredAfter := []LinkShare{}
+	for _, ls := range after {
+		if len(ls.Entities) == 0 {
+			continue
+		}
+
+		filteredAfter = append(filteredBefore, ls)
+	}
+
+	return DiffPermissions(filteredBefore, filteredAfter)
+}
+
 // DiffPermissions compares the before and after set, returning
 // the permissions that were added and removed (in that order)
 // in the after set.
