@@ -158,13 +158,21 @@ func (ctrl *Controller) IsBackupRunnable(
 	resourceOwner string,
 ) (bool, error) {
 	if service == path.SharePointService {
-		// No "enabled" check required for sharepoint
+		_, err := ctrl.AC.Sites().GetRoot(ctx)
+		if err != nil {
+			if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+				return false, clues.Stack(graph.ErrServiceNotEnabled, err)
+			}
+
+			return false, err
+		}
+
 		return true, nil
 	}
 
 	info, err := ctrl.AC.Users().GetInfo(ctx, resourceOwner)
 	if err != nil {
-		return false, err
+		return false, clues.Stack(err)
 	}
 
 	if !info.ServiceEnabled(service) {
@@ -208,7 +216,7 @@ func checkServiceEnabled(
 
 	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
-		return false, false, err
+		return false, false, clues.Stack(err)
 	}
 
 	if !info.ServiceEnabled(service) {
