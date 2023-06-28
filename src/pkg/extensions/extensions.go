@@ -2,13 +2,51 @@ package extensions
 
 import (
 	"bytes"
-	"context"
 	"io"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
+
+// Temporary, testing purposes only
+type MockExtension struct {
+	numBytes int
+	Data     map[string]any
+}
+
+func (me *MockExtension) WrapItem(
+	_ details.ItemInfo,
+	rc io.ReadCloser,
+) (io.ReadCloser, error) {
+	p := make([]byte, 64*1024)
+
+	for {
+		n, err := rc.Read(p)
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		me.numBytes += n
+	}
+
+	return rc, nil
+}
+
+func (me *MockExtension) OutputData() map[string]any {
+	me.Data["numBytes"] = me.numBytes
+	return me.Data
+}
+
+func NewMockExtension() CorsoItemExtension {
+	return &MockExtension{
+		Data: map[string]any{},
+	}
+}
 
 // Extension client interface
 type CorsoItemExtension interface {
@@ -17,6 +55,7 @@ type CorsoItemExtension interface {
 		info details.ItemInfo,
 		rc io.ReadCloser,
 	) (io.ReadCloser, error)
+
 	OutputData() map[string]any
 }
 
@@ -26,24 +65,25 @@ var _ ExtensionHandler = &extensionHandler{}
 
 type ExtensionHandler interface {
 	io.ReadCloser
-	GetExtensionDataer
 }
 
 type extensionHandler struct {
 	info           details.ItemInfo
+	extData        *details.ExtensionInfo
 	innerRc        io.ReadCloser
 	itemExtensions []CorsoItemExtension
-	extensionStore map[string]any
 }
 
 type ExtensionHandlerFactory func(
 	info details.ItemInfo,
+	extData *details.ExtensionInfo,
 	rc io.ReadCloser,
 	factory []CorsoItemExtensionFactory,
 ) (ExtensionHandler, error)
 
 func NewExtensionHandler(
 	info details.ItemInfo,
+	extData *details.ExtensionInfo,
 	rc io.ReadCloser,
 	factory []CorsoItemExtensionFactory,
 ) (ExtensionHandler, error) {
@@ -59,9 +99,9 @@ func NewExtensionHandler(
 
 	return &extensionHandler{
 		info:           info,
+		extData:        extData,
 		innerRc:        rc,
 		itemExtensions: itemExtensions,
-		extensionStore: map[string]any{},
 	}, nil
 }
 
@@ -73,7 +113,7 @@ func (ef *extensionHandler) Read(p []byte) (int, error) {
 		return n, err
 	}
 
-	// Why not just send ioReader instead of ioReadCloser?
+	// TODO: Why not just send ioReader instead of ioReadCloser?
 	rc := io.NopCloser(bytes.NewReader(p[:n]))
 
 	// Call extensions iteratively
@@ -93,35 +133,13 @@ func (ef *extensionHandler) Close() error {
 		return err
 	}
 
-	// Call outputdata on extensions and store in map
-	// TODO: handle collisions if we decide on flat hierarchy of ext kv store.
-	// or we can do per extension kv store
-
+	// TODO: handle errors from extensions
 	for _, ext := range ef.itemExtensions {
 		for k, v := range ext.OutputData() {
-			ef.extensionStore[k] = v
+			// Last writer wins on collisions
+			ef.extData.Data[k] = v
 		}
 	}
 
 	return nil
-}
-
-type GetExtensionDataer interface {
-	GetExtensionData(
-		ctx context.Context,
-	) (map[string]any, error)
-}
-
-func (ef *extensionHandler) GetExtensionData(
-	ctx context.Context,
-) (map[string]any, error) {
-	if ef == nil {
-		return nil, clues.New("nil extension")
-	}
-
-	if len(ef.extensionStore) == 0 {
-		return nil, clues.New("no extension data")
-	}
-
-	return ef.extensionStore, nil
 }

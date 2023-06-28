@@ -22,31 +22,31 @@ func TestExtensionsUnitSuite(t *testing.T) {
 	suite.Run(t, &ExtensionsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-type mockExtension struct {
-	numBytes int
-	data     map[string]any
-}
+// type mockExtension struct {
+// 	numBytes int
+// 	data     map[string]any
+// }
 
-func (me *mockExtension) WrapItem(
-	_ details.ItemInfo,
-	rc io.ReadCloser,
-) (io.ReadCloser, error) {
-	p := make([]byte, 4)
+// func (me *mockExtension) WrapItem(
+// 	_ details.ItemInfo,
+// 	rc io.ReadCloser,
+// ) (io.ReadCloser, error) {
+// 	p := make([]byte, 4)
 
-	n, err := rc.Read(p)
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
+// 	n, err := rc.Read(p)
+// 	if err != nil && err != io.EOF {
+// 		return nil, err
+// 	}
 
-	me.numBytes += n
+// 	me.numBytes += n
 
-	return rc, nil
-}
+// 	return rc, nil
+// }
 
-func (me *mockExtension) OutputData() map[string]any {
-	me.data["numBytes"] = me.numBytes
-	return me.data
-}
+// func (me *mockExtension) OutputData() map[string]any {
+// 	me.data["numBytes"] = me.numBytes
+// 	return me.data
+// }
 
 func readFrom(rc io.ReadCloser) error {
 	defer rc.Close()
@@ -79,7 +79,7 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 			name: "basic",
 			factories: []CorsoItemExtensionFactory{
 				func() CorsoItemExtension {
-					return &mockExtension{data: map[string]any{}}
+					return &MockExtension{Data: map[string]any{}}
 				},
 			},
 			payload:     []byte("hello world"),
@@ -91,27 +91,33 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			ctx, flush := tester.NewContext(t)
+			_, flush := tester.NewContext(t)
 			defer flush()
 
 			ehFactory := ExtensionHandlerFactory(func(
 				info details.ItemInfo,
+				extData *details.ExtensionInfo,
 				rc io.ReadCloser,
 				factory []CorsoItemExtensionFactory,
 			) (ExtensionHandler, error) {
-				return NewExtensionHandler(info, rc, factory)
+				return NewExtensionHandler(info, extData, rc, factory)
 			})
 
-			ext, err := ehFactory(details.ItemInfo{}, test.rc, test.factories)
+			extData := &details.ExtensionInfo{
+				Data: map[string]any{},
+			}
+
+			ext, err := ehFactory(
+				details.ItemInfo{},
+				extData,
+				test.rc,
+				test.factories)
 			require.NoError(suite.T(), err)
 
 			err = readFrom(ext)
 			require.NoError(suite.T(), err)
 
-			kv, err := ext.GetExtensionData(ctx)
-			require.NoError(suite.T(), err)
-
-			require.Equal(suite.T(), len(test.payload), kv["numBytes"])
+			require.Equal(suite.T(), len(test.payload), extData.Data["numBytes"])
 		})
 	}
 }

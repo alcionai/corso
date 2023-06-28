@@ -708,6 +708,7 @@ type ItemInfo struct {
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	SharePoint *SharePointInfo `json:"sharePoint,omitempty"`
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
+	Extension  *ExtensionInfo  `json:"extensionData,omitempty"`
 }
 
 // typedInfo should get embedded in each sesrvice type to track
@@ -1043,4 +1044,9 @@ func updateFolderWithinDrive(
 	f.DataType = t
 
 	return nil
+}
+
+// ExtensionInfo describes extension data associated with an item
+type ExtensionInfo struct {
+	Data map[string]any `json:"data,omitempty"`
 }

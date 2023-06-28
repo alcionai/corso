@@ -247,10 +247,9 @@ func (oc Collection) DoNotMergeItems() bool {
 
 // Item represents a single item retrieved from OneDrive
 type Item struct {
-	id            string
-	data          io.ReadCloser
-	info          details.ItemInfo
-	extensionData extensions.GetExtensionDataer
+	id   string
+	data io.ReadCloser
+	info details.ItemInfo
 }
 
 // Deleted implements an interface function. However, OneDrive items are marked
@@ -261,9 +260,6 @@ func (i *Item) UUID() string            { return i.id }
 func (i *Item) ToReader() io.ReadCloser { return i.data }
 func (i *Item) Info() details.ItemInfo  { return i.info }
 func (i *Item) ModTime() time.Time      { return i.info.Modified() }
-func (i *Item) ExtensionData() extensions.GetExtensionDataer {
-	return i.extensionData
-}
 
 // getDriveItemContent fetch drive item's contents with retries
 func (oc *Collection) getDriveItemContent(
@@ -421,10 +417,11 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		el         = errs.Local()
 		ehFactory  = extensions.ExtensionHandlerFactory(func(
 			info details.ItemInfo,
+			extData *details.ExtensionInfo,
 			rc io.ReadCloser,
 			factory []extensions.CorsoItemExtensionFactory,
 		) (extensions.ExtensionHandler, error) {
-			return extensions.NewExtensionHandler(info, rc, factory)
+			return extensions.NewExtensionHandler(info, extData, rc, factory)
 		})
 	)
 
@@ -506,6 +503,9 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
+			itemInfo.Extension = &details.ExtensionInfo{
+				Data: make(map[string]any),
+			}
 
 			ctx = clues.Add(ctx, "item_info", itemInfo)
 
@@ -522,7 +522,11 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						return nil, err
 					}
 
-					eh, err := ehFactory(itemInfo, itemData, oc.ctrl.BackupItemExtensions)
+					eh, err := ehFactory(
+						itemInfo,
+						itemInfo.Extension,
+						itemData,
+						oc.ctrl.BackupItemExtensions)
 					if err != nil {
 						return nil, err
 					}
@@ -542,7 +546,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					id:   itemID + dataSuffix,
 					data: itemReader,
 					info: itemInfo,
-					// extensionData: eh,
 				}
 			}
 
