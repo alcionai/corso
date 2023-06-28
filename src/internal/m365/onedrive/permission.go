@@ -439,6 +439,7 @@ func RestorePermissions(
 
 	permRemoved := []metadata.Permission{}
 	permAdded := current.Permissions
+
 	if !didReset {
 		// In case we did a reset of permissions when restoring link
 		// shares, we have to make sure to restore all the permissions

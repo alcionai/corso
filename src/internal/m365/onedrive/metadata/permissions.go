@@ -76,6 +76,8 @@ func (p Permission) Equals(other Permission) bool {
 //     user and so restoring links without users is not useful.
 func DiffLinkShares(before, after []LinkShare) ([]LinkShare, []LinkShare) {
 	filteredBefore := []LinkShare{}
+	filteredAfter := []LinkShare{}
+
 	for _, ls := range before {
 		if len(ls.Entities) == 0 {
 			continue
@@ -84,7 +86,6 @@ func DiffLinkShares(before, after []LinkShare) ([]LinkShare, []LinkShare) {
 		filteredBefore = append(filteredBefore, ls)
 	}
 
-	filteredAfter := []LinkShare{}
 	for _, ls := range after {
 		if len(ls.Entities) == 0 {
 			continue
