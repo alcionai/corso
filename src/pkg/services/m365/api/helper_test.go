@@ -9,10 +9,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type intgTesterSetup struct {
 	ac                    api.Client
+	gockAC                api.Client
 	userID                string
 	userDriveID           string
 	userDriveRootFolderID string
@@ -34,6 +36,11 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.ac, err = api.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
+	its.gockAC, err = mock.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// user drive
+
 	its.userID = tester.M365UserID(t)
 
 	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
@@ -47,6 +54,8 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
 
 	its.siteID = tester.M365SiteID(t)
+
+	// site
 
 	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.siteID)
 	require.NoError(t, err, clues.ToCore(err))
