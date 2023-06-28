@@ -258,7 +258,9 @@ func S3UpdateFromEnvVar(s3Flag map[string]string) map[string]string {
 	s3Flag[storage.Endpoint] = str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey))
 	s3Flag[storage.Prefix] = str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey))
 	s3Flag[storage.DoNotUseTLS] = str.First(s3Flag[storage.DoNotUseTLS], os.Getenv(storage.DisableTLSKey))
-	s3Flag[storage.DoNotVerifyTLS] = str.First(s3Flag[storage.DoNotVerifyTLS], os.Getenv(storage.DisableTLSVerificationKey))
+	s3Flag[storage.DoNotVerifyTLS] = str.First(
+		s3Flag[storage.DoNotVerifyTLS],
+		os.Getenv(storage.DisableTLSVerificationKey))
 
 	return s3Flag
 }

@@ -69,7 +69,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		ac             = suite.ac.Drives()
 		driveID        = suite.driveID
 		newFolderName  = testdata.DefaultRestoreConfig("folder").Location
-		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault())
+		driveItemPager = suite.ac.Drives().NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault())
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -108,7 +108,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// Get the previous delta to feed into url cache
 	prevDelta, _, _, err := collectItems(
 		ctx,
-		suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+		suite.ac.Drives().NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault()),
 		suite.driveID,
 		"drive-name",
 		collectorFunc,
@@ -506,7 +506,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		name        string
 		driveID     string
 		refreshInt  time.Duration
-		itemPager   api.DriveItemEnumerator
+		itemPager   api.DriveItemDeltaEnumerator
 		errors      *fault.Bus
 		expectedErr require.ErrorAssertionFunc
 	}{

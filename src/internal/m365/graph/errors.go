@@ -38,11 +38,15 @@ const (
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
 	quotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
-	resourceNotFound        errorCode = "ResourceNotFound"
-	resyncRequired          errorCode = "ResyncRequired" // alt: resyncRequired
-	syncFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
-	syncStateInvalid        errorCode = "SyncStateInvalid"
-	syncStateNotFound       errorCode = "SyncStateNotFound"
+	// Returned when we try to get the inbox of a user that doesn't exist.
+	resourceNotFound errorCode = "ResourceNotFound"
+	// Some datacenters are returning this when we try to get the inbox of a user
+	// that doesn't exist.
+	invalidUser        errorCode = "ErrorInvalidUser"
+	resyncRequired     errorCode = "ResyncRequired"
+	syncFolderNotFound errorCode = "ErrorSyncFolderNotFound"
+	syncStateInvalid   errorCode = "SyncStateInvalid"
+	syncStateNotFound  errorCode = "SyncStateNotFound"
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
@@ -131,7 +135,22 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 }
 
 func IsErrUserNotFound(err error) bool {
-	return hasErrorCode(err, RequestResourceNotFound)
+	if hasErrorCode(err, RequestResourceNotFound, invalidUser) {
+		return true
+	}
+
+	if hasErrorCode(err, resourceNotFound) {
+		var odErr odataerrors.ODataErrorable
+		if !errors.As(err, &odErr) {
+			return false
+		}
+
+		mainMsg, _, _ := errData(odErr)
+
+		return strings.Contains(strings.ToLower(mainMsg), "user")
+	}
+
+	return false
 }
 
 func IsErrResourceNotFound(err error) bool {
@@ -208,7 +227,7 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 		return false
 	}
 
-	var oDataError *odataerrors.ODataError
+	var oDataError odataerrors.ODataErrorable
 	if !errors.As(err, &oDataError) {
 		return false
 	}
@@ -233,12 +252,12 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(e, &oDataError) {
 		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))
@@ -254,12 +273,12 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError *odataerrors.ODataError
+	if !errors.As(e, &oDataError) {
 		return clues.Stack(e).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))

@@ -18,29 +18,29 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// item pager
+// delta item pager
 // ---------------------------------------------------------------------------
 
-type DriveItemEnumerator interface {
+type DriveItemDeltaEnumerator interface {
 	GetPage(context.Context) (DeltaPageLinker, error)
 	SetNext(nextLink string)
 	Reset()
 	ValuesIn(DeltaPageLinker) ([]models.DriveItemable, error)
 }
 
-var _ DriveItemEnumerator = &DriveItemPager{}
+var _ DriveItemDeltaEnumerator = &DriveItemDeltaPageCtrl{}
 
-type DriveItemPager struct {
+type DriveItemDeltaPageCtrl struct {
 	gs      graph.Servicer
 	driveID string
 	builder *drives.ItemItemsItemDeltaRequestBuilder
 	options *drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (c Drives) NewItemPager(
+func (c Drives) NewDriveItemDeltaPager(
 	driveID, link string,
 	selectFields []string,
-) *DriveItemPager {
+) *DriveItemDeltaPageCtrl {
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
 		"deltatraversepermissiongaps",
@@ -56,7 +56,7 @@ func (c Drives) NewItemPager(
 		},
 	}
 
-	res := &DriveItemPager{
+	res := &DriveItemDeltaPageCtrl{
 		gs:      c.Stable,
 		driveID: driveID,
 		options: requestConfig,
@@ -64,7 +64,9 @@ func (c Drives) NewItemPager(
 			Client().
 			Drives().
 			ByDriveId(driveID).
-			Items().ByDriveItemId(onedrive.RootID).Delta(),
+			Items().
+			ByDriveItemId(onedrive.RootID).
+			Delta(),
 	}
 
 	if len(link) > 0 {
@@ -74,7 +76,7 @@ func (c Drives) NewItemPager(
 	return res
 }
 
-func (p *DriveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *DriveItemDeltaPageCtrl) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	var (
 		resp DeltaPageLinker
 		err  error
@@ -88,11 +90,11 @@ func (p *DriveItemPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	return resp, nil
 }
 
-func (p *DriveItemPager) SetNext(link string) {
+func (p *DriveItemDeltaPageCtrl) SetNext(link string) {
 	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *DriveItemPager) Reset() {
+func (p *DriveItemDeltaPageCtrl) Reset() {
 	p.builder = p.gs.Client().
 		Drives().
 		ByDriveId(p.driveID).
@@ -101,12 +103,12 @@ func (p *DriveItemPager) Reset() {
 		Delta()
 }
 
-func (p *DriveItemPager) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *DriveItemDeltaPageCtrl) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
 	return getValues[models.DriveItemable](l)
 }
 
 // ---------------------------------------------------------------------------
-// user pager
+// user's drives pager
 // ---------------------------------------------------------------------------
 
 var _ DrivePager = &userDrivePager{}
@@ -196,7 +198,7 @@ func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 }
 
 // ---------------------------------------------------------------------------
-// site pager
+// site's libraries pager
 // ---------------------------------------------------------------------------
 
 var _ DrivePager = &siteDrivePager{}
