@@ -201,7 +201,7 @@ func (op *RestoreOperation) do(
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
-		op.store,
+		op.Store,
 		detailsStore,
 		op.Errors)
 	if err != nil {
