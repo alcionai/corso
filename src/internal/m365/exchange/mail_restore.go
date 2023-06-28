@@ -159,7 +159,13 @@ func restoreMail(
 		return nil, clues.Stack(err)
 	}
 
-	return api.MailInfo(msg, int64(len(body))), nil
+	var size int64
+	if msg.GetBody() != nil {
+		bc := ptr.Val(msg.GetBody().GetContent())
+		size = int64(len(bc))
+	}
+
+	return api.MailInfo(msg, size), nil
 }
 
 func setMessageSVEPs(msg models.Messageable) models.Messageable {
