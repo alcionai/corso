@@ -165,6 +165,55 @@ func (c Mail) GetContainerByID(
 	return c.GetFolder(ctx, userID, containerID)
 }
 
+// GetContainerByName fetches a folder by name
+func (c Mail) GetContainerByName(
+	ctx context.Context,
+	userID, containerName string,
+) (graph.Container, error) {
+	filter := fmt.Sprintf("displayName eq '%s'", containerName)
+	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{
+			Filter: &filter,
+		},
+	}
+
+	ctx = clues.Add(ctx, "container_name", containerName)
+
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		Get(ctx, options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err).WithClues(ctx)
+	}
+
+	gv := resp.GetValue()
+
+	if len(gv) == 0 {
+		return nil, clues.New("container not found").WithClues(ctx)
+	}
+
+	// We only allow the api to match one container with the provided name.
+	// Return an error if multiple container exist (unlikely) or if no container
+	// is found.
+	if len(gv) != 1 {
+		return nil, clues.New("unexpected number of folders returned").
+			With("returned_container_count", len(gv)).
+			WithClues(ctx)
+	}
+
+	// Sanity check ID and name
+	container := gv[0]
+
+	if err := graph.CheckIDAndName(container); err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return container, nil
+}
+
 func (c Mail) MoveContainer(
 	ctx context.Context,
 	userID, containerID string,

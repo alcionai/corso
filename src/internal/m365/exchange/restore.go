@@ -44,6 +44,7 @@ func ConsumeRestoreCollections(
 		el             = errs.Local()
 	)
 
+	// FIXME: should be user name
 	ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
 
 	for _, dc := range dcs {
@@ -297,11 +298,12 @@ func getOrPopulateContainer(
 	// sometimes the backend will create the folder despite the 5xx response,
 	// leaving our local containerResolver with inconsistent state.
 	if graph.IsErrFolderExists(err) {
-		cs := ca.containerSearcher()
-		if cs != nil {
-			cc, e := cs.GetContainerByName(ctx, userID, containerName)
-			c = cc
+		cc, e := ca.GetContainerByName(ctx, userID, containerName)
+		if e != nil {
 			err = clues.Stack(err, e)
+		} else {
+			c = cc
+			err = nil
 		}
 	}
 

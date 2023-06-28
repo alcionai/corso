@@ -53,8 +53,11 @@ func (h eventRestoreHandler) CreateContainer(
 	return h.ac.CreateContainer(ctx, userID, containerName, "")
 }
 
-func (h eventRestoreHandler) containerSearcher() containerByNamer {
-	return h.ac
+func (h eventRestoreHandler) GetContainerByName(
+	ctx context.Context,
+	userID, containerName string,
+) (graph.Container, error) {
+	return h.ac.GetContainerByName(ctx, userID, containerName)
 }
 
 // always returns the provided value

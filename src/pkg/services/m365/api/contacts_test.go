@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"testing"
@@ -7,11 +7,15 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ContactsAPIUnitSuite struct {
@@ -64,7 +68,7 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			contact, expected := test.contactAndRP()
-			assert.Equal(suite.T(), expected, ContactInfo(contact))
+			assert.Equal(suite.T(), expected, api.ContactInfo(contact))
 		})
 	}
 }
@@ -99,9 +103,72 @@ func (suite *ContactsAPIUnitSuite) TestBytesToContactable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := BytesToContactable(test.byteArray)
+			result, err := api.BytesToContactable(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
+		})
+	}
+}
+
+type ContactsAPIIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestContactsAPIntgSuite(t *testing.T) {
+	suite.Run(t, &ContactsAPIIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs}),
+	})
+}
+
+func (suite *ContactsAPIIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// contacts cannot filter for the parent "contacts" folder, so we
+	// have to hack this by creating a folder to match beforehand.
+
+	rc := testdata.DefaultRestoreConfig("contacts_api")
+
+	cc, err := suite.its.ac.Contacts().CreateContainer(
+		ctx,
+		suite.its.userID,
+		rc.Location,
+		"")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name      string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      ptr.Val(cc.GetDisplayName()),
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "smarfs",
+			expectErr: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			_, err := suite.its.ac.
+				Contacts().
+				GetContainerByName(ctx, suite.its.userID, test.name)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

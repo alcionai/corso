@@ -235,7 +235,7 @@ func (suite *EventsAPIIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *EventsAPIIntgSuite) TestRestoreLargeAttachment() {
+func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -315,4 +315,33 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 		"the restored container was discovered when enumerating containers.  "+
 			"If this fails, the user's calendars have probably broken, "+
 			"and the user will need to be rotated")
+}
+
+func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName() {
+	table := []struct {
+		name      string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "Calendar",
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "smarfs",
+			expectErr: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			_, err := suite.its.ac.
+				Events().
+				GetContainerByName(ctx, suite.its.userID, test.name)
+			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
 }

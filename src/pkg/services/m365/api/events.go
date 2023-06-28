@@ -141,7 +141,7 @@ func (c Events) GetContainerByName(
 		},
 	}
 
-	ctx = clues.Add(ctx, "calendar_name", containerName)
+	ctx = clues.Add(ctx, "container_name", containerName)
 
 	resp, err := c.Stable.
 		Client().
@@ -153,24 +153,30 @@ func (c Events) GetContainerByName(
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
 
-	// We only allow the api to match one calendar with provided name.
+	gv := resp.GetValue()
+
+	if len(gv) == 0 {
+		return nil, clues.New("container not found").WithClues(ctx)
+	}
+
+	// We only allow the api to match one calendar with the provided name.
 	// Return an error if multiple calendars exist (unlikely) or if no calendar
 	// is found.
 	if len(resp.GetValue()) != 1 {
-		err = clues.New("unexpected number of calendars returned").
-			With("returned_calendar_count", len(resp.GetValue()))
-		return nil, err
+		return nil, clues.New("unexpected number of calendars returned").
+			With("returned_container_count", len(gv)).
+			WithClues(ctx)
 	}
 
 	// Sanity check ID and name
-	cal := resp.GetValue()[0]
-	cd := CalendarDisplayable{Calendarable: cal}
+	cal := gv[0]
+	container := graph.CalendarDisplayable{Calendarable: cal}
 
-	if err := graph.CheckIDAndName(cd); err != nil {
-		return nil, err
+	if err := graph.CheckIDAndName(container); err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	return graph.CalendarDisplayable{Calendarable: cal}, nil
+	return container, nil
 }
 
 func (c Events) PatchCalendar(

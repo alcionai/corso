@@ -52,8 +52,11 @@ func (h contactRestoreHandler) CreateContainer(
 	return h.ac.CreateContainer(ctx, userID, containerName, "")
 }
 
-func (h contactRestoreHandler) containerSearcher() containerByNamer {
-	return nil
+func (h contactRestoreHandler) GetContainerByName(
+	ctx context.Context,
+	userID, containerName string,
+) (graph.Container, error) {
+	return h.ac.GetContainerByName(ctx, userID, containerName)
 }
 
 // always returns the provided value

@@ -57,8 +57,11 @@ func (h mailRestoreHandler) CreateContainer(
 	return h.ac.CreateContainer(ctx, userID, containerName, parentContainerID)
 }
 
-func (h mailRestoreHandler) containerSearcher() containerByNamer {
-	return nil
+func (h mailRestoreHandler) GetContainerByName(
+	ctx context.Context,
+	userID, containerName string,
+) (graph.Container, error) {
+	return h.ac.GetContainerByName(ctx, userID, containerName)
 }
 
 // always returns rootFolderAlias

@@ -86,18 +86,13 @@ type itemRestorer interface {
 // produces structs that interface with the graph/cache_container
 // CachedContainer interface.
 type containerAPI interface {
+	containerByNamer
+
 	// POSTs the creation of a new container
 	CreateContainer(
 		ctx context.Context,
 		userID, containerName, parentContainerID string,
 	) (graph.Container, error)
-
-	// GETs a container by name.
-	// if containerByNamer is nil, this functionality is not supported
-	// and should be skipped by the caller.
-	// normally, we'd alias the func directly.  The indirection here
-	// is because not all types comply with GetContainerByName.
-	containerSearcher() containerByNamer
 
 	// returns either the provided value (assumed to be the root
 	// folder for that cache tree), or the default root container
