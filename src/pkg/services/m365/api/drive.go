@@ -310,16 +310,6 @@ func (c Drives) DeleteItemPermission(
 	return nil
 }
 
-// DriveItemCollisionKeyy constructs a key from the item name.
-// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
-func DriveItemCollisionKey(item models.DriveItemable) string {
-	if item == nil {
-		return ""
-	}
-
-	return ptr.Val(item.GetName())
-}
-
 func (c Drives) PostItemLinkShareUpdate(
 	ctx context.Context,
 	driveID, itemID string,
@@ -339,4 +329,14 @@ func (c Drives) PostItemLinkShareUpdate(
 	}
 
 	return itm, nil
+}
+
+// DriveItemCollisionKeyy constructs a key from the item name.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func DriveItemCollisionKey(item models.DriveItemable) string {
+	if item == nil {
+		return ""
+	}
+
+	return ptr.Val(item.GetName())
 }
