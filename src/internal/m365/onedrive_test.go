@@ -1079,10 +1079,12 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Name: "file-custom",
 			Data: fileAData,
 			Meta: stub.MetaData{
-				LinkShares: stub.LinkShareData{
-					EntityIDs: []string{secondaryUserID},
-					Scope:     "users",
-					Type:      "edit",
+				LinkShares: []stub.LinkShareData{
+					{
+						EntityIDs: []string{secondaryUserID},
+						Scope:     "users",
+						Type:      "edit",
+					},
 				},
 				SharingMode: metadata.SharingModeCustom,
 			},
@@ -1138,10 +1140,12 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				{Name: folderCName},
 			},
 			Meta: stub.MetaData{
-				LinkShares: stub.LinkShareData{
-					EntityIDs: []string{tertiaryUserID},
-					Scope:     "users",
-					Type:      "view",
+				LinkShares: []stub.LinkShareData{
+					{
+						EntityIDs: []string{tertiaryUserID},
+						Scope:     "anonymous",
+						Type:      "edit",
+					},
 				},
 			},
 		},
@@ -1149,10 +1153,12 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			PathElements: subfolderAAPath,
 			Files:        fileSet,
 			Meta: stub.MetaData{
-				LinkShares: stub.LinkShareData{
-					EntityIDs: []string{tertiaryUserID},
-					Scope:     "users",
-					Type:      "edit",
+				LinkShares: []stub.LinkShareData{
+					{
+						EntityIDs: []string{tertiaryUserID},
+						Scope:     "users",
+						Type:      "edit",
+					},
 				},
 				SharingMode: metadata.SharingModeCustom,
 			},

@@ -45,25 +45,27 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 		testMeta.Permissions = []metadata.Permission{uperm}
 	}
 
-	if len(meta.LinkShares.EntityIDs) != 0 {
-		id := strings.Join(meta.LinkShares.EntityIDs, "-") + meta.LinkShares.Scope + meta.LinkShares.Type
+	if len(meta.LinkShares) != 0 {
+		for _, ls := range meta.LinkShares {
+			id := strings.Join(ls.EntityIDs, "-") + ls.Scope + ls.Type
 
-		entities := []metadata.Entity{}
-		for _, e := range meta.LinkShares.EntityIDs {
-			entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})
+			entities := []metadata.Entity{}
+			for _, e := range ls.EntityIDs {
+				entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})
+			}
+
+			ls := metadata.LinkShare{
+				ID: id, // id is required for mapping from parent
+				Link: metadata.LinkShareLink{
+					Scope:  ls.Scope,
+					Type:   ls.Type,
+					WebURL: id,
+				},
+				Entities: entities,
+			}
+
+			testMeta.LinkShares = append(testMeta.LinkShares, ls)
 		}
-
-		ls := metadata.LinkShare{
-			ID: id, // id is required for mapping from parent
-			Link: metadata.LinkShareLink{
-				Scope:  meta.LinkShares.Scope,
-				Type:   meta.LinkShares.Type,
-				WebURL: id,
-			},
-			Entities: entities,
-		}
-
-		testMeta.LinkShares = []metadata.LinkShare{ls}
 	}
 
 	return testMeta
@@ -84,7 +86,7 @@ type LinkShareData struct {
 type MetaData struct {
 	SharingMode metadata.SharingMode
 	Perms       PermData
-	LinkShares  LinkShareData
+	LinkShares  []LinkShareData
 }
 
 type ItemData struct {

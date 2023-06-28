@@ -83,6 +83,56 @@ func getCollectionMetadata(
 	return meta, nil
 }
 
+// Unlike permissions, link shares inherit them from all the parents
+// of an item and not just the direct parent.
+func computePreviousLinkShares(
+	ctx context.Context,
+	originDir path.Path,
+	parentMetas map[string]metadata.Metadata,
+) ([]metadata.LinkShare, error) {
+	var (
+		parent     path.Path
+		linkShares []metadata.LinkShare
+	)
+
+	parent = originDir
+
+	for {
+		newParent, err := parent.Dir()
+		if err != nil {
+			return nil, clues.New("getting parent").WithClues(ctx)
+		}
+
+		if parent == newParent {
+			break
+		}
+
+		parent = newParent
+
+		ictx := clues.Add(ctx, "parent_dir", parent)
+
+		drivePath, err := path.ToDrivePath(parent)
+		if err != nil {
+			return nil, clues.New("transforming dir to drivePath").WithClues(ictx)
+		}
+
+		if len(drivePath.Folders) == 0 {
+			break
+		}
+
+		meta, ok := parentMetas[parent.String()]
+		if !ok {
+			return nil, clues.New("no metadata found for parent folder: " + parent.String()).WithClues(ictx)
+		}
+
+		if meta.SharingMode == metadata.SharingModeCustom {
+			linkShares = append(linkShares, meta.LinkShares...)
+		}
+	}
+
+	return linkShares, nil
+}
+
 // computePreviousMetadata computes the parent permissions by
 // traversing parentMetas and finding the first item with custom
 // permissions. parentMetas is expected to have all the parent
@@ -368,12 +418,12 @@ func RestorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
+	previousLinkShares, err := computePreviousLinkShares(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous metadata")
+		return clues.Wrap(err, "previous link shares")
 	}
 
-	lsAdded, lsRemoved := metadata.DiffLinkShares(previous.LinkShares, current.LinkShares)
+	lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
 
 	didReset, err := UpdateLinkShares(
 		ctx,
@@ -394,6 +444,12 @@ func RestorePermissions(
 		// shares, we have to make sure to restore all the permissions
 		// that an item has as they too will be removed.
 		logger.Ctx(ctx).Debug("link share creation reset all inheritance")
+
+		previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
+		if err != nil {
+			return clues.Wrap(err, "previous metadata")
+		}
+
 		permAdded, permRemoved = metadata.DiffPermissions(previous.Permissions, current.Permissions)
 	}
 
