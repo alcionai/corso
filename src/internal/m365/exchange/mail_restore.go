@@ -160,6 +160,7 @@ func restoreMail(
 	}
 
 	var size int64
+
 	if msg.GetBody() != nil {
 		bc := ptr.Val(msg.GetBody().GetContent())
 		size = int64(len(bc))
