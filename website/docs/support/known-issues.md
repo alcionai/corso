@@ -28,3 +28,7 @@ included in backup and restore.
 * Sharing information of items in OneDrive/SharePoint using sharing links aren't backed up and restored.
 
 * Permissions/Access given to a site group can't be restored
+
+* If a link share is created for an item with inheritance disabled
+  (via the Graph API), Corso does not restore any link shares on that
+  item that may be inherited after that
