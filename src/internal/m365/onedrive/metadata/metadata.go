@@ -21,7 +21,7 @@ type LinkShare struct {
 	ID          string        `json:"id,omitempty"`
 	Link        LinkShareLink `json:"link,omitempty"`
 	Roles       []string      `json:"roles,omitempty"`
-	Entities    []Entity      `json:"entityId,omitempty"`    // this is the resource owner's ID
+	Entities    []Entity      `json:"entities,omitempty"`    // this is the resource owner's ID
 	HasPassword bool          `json:"hasPassword,omitempty"` // We cannot restore ones with password
 	Expiration  *time.Time    `json:"expiration,omitempty"`
 }
