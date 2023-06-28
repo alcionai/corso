@@ -235,7 +235,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		{
 			name: "non-matching resource not found",
 			err: func() error {
-				res := odErr(string(resourceNotFound))
+				res := odErr(string(ResourceNotFound))
 				res.GetError().SetMessage(ptr.To("Calendar not found"))
 
 				return res
@@ -255,7 +255,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		{
 			name: "resource not found oDataErr",
 			err: func() error {
-				res := odErr(string(resourceNotFound))
+				res := odErr(string(ResourceNotFound))
 				res.GetError().SetMessage(ptr.To("User not found"))
 
 				return res
