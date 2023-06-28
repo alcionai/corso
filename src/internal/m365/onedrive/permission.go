@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -240,13 +241,13 @@ func UpdateLinkShares(
 	itemID string,
 	lsAdded, lsRemoved []metadata.LinkShare,
 	oldLinkShareIDToNewID map[string]string,
-) error {
-	// You can only delete inherited sharing links the first time you
+) (bool, error) {
+	// You can only delete inherited sharing links the didReset time you
 	// create a sharing link which is done using
 	// `retainInheritedPermissions`. We get a 204 as a response if we
 	// try to delete an inherited link share, but it does not get
 	// deleted.
-	first := true
+	didReset := false
 
 	for _, ls := range lsAdded {
 		ictx := clues.Add(ctx, "link_share_id", ls.ID)
@@ -303,7 +304,7 @@ func UpdateLinkShares(
 		}
 		lsbody.SetAdditionalData(ad)
 
-		if first {
+		if !didReset {
 			// The only way to delete any is to use this and so if
 			// we have any deleted items, we can be sure that all the
 			// inherited permissions would have been removed.
@@ -311,18 +312,18 @@ func UpdateLinkShares(
 
 			// This value only effective on the first call, but lets
 			// make sure to not send it on followups.
-			first = false
+			didReset = true
 		}
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if err != nil {
-			return clues.Stack(err)
+			return didReset, clues.Stack(err)
 		}
 
 		oldLinkShareIDToNewID[ls.ID] = ptr.Val(newLS.GetId())
 	}
 
-	return nil
+	return didReset, nil
 }
 
 // RestorePermissions takes in the permissions of an item, computes
@@ -349,8 +350,29 @@ func RestorePermissions(
 		return clues.Wrap(err, "previous metadata")
 	}
 
-	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
 	lsAdded, lsRemoved := metadata.DiffLinkShares(previous.LinkShares, current.LinkShares)
+
+	didReset, err := UpdateLinkShares(
+		ctx,
+		rh,
+		driveID,
+		itemID,
+		lsAdded,
+		lsRemoved,
+		caches.OldLinkShareIDToNewID)
+	if err != nil {
+		return clues.Wrap(err, "updating link shares")
+	}
+
+	permRemoved := []metadata.Permission{}
+	permAdded := current.Permissions
+	if !didReset {
+		// In case we did a reset of permissions when restoring link
+		// shares, we have to make sure to restore all the permissions
+		// that an item has as they too will be removed.
+		logger.Ctx(ctx).Debug("link share creation reset all inheritance")
+		permAdded, permRemoved = metadata.DiffPermissions(previous.Permissions, current.Permissions)
+	}
 
 	err = UpdatePermissions(
 		ctx,
@@ -362,18 +384,6 @@ func RestorePermissions(
 		caches.OldPermIDToNewID)
 	if err != nil {
 		return clues.Wrap(err, "updating permissions")
-	}
-
-	err = UpdateLinkShares(
-		ctx,
-		rh,
-		driveID,
-		itemID,
-		lsAdded,
-		lsRemoved,
-		caches.OldLinkShareIDToNewID)
-	if err != nil {
-		return clues.Wrap(err, "updating link shares")
 	}
 
 	return nil
