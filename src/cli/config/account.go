@@ -58,12 +58,12 @@ func configureAccount(
 		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
 			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 		}
+	}
 
-		// compose the m365 config and credentials
-		m365 = GetM365(m365Cfg)
-		if err := m365.Validate(); err != nil {
-			return acct, clues.Wrap(err, "validating m365 credentials")
-		}
+	// compose the m365 config and credentials
+	m365 = GetM365(m365Cfg)
+	if err := m365.Validate(); err != nil {
+		return acct, clues.Wrap(err, "validating m365 credentials")
 	}
 
 	m365Cfg = account.M365Config{

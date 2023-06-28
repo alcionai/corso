@@ -59,6 +59,7 @@ func s3Overrides(in map[string]string) map[string]string {
 func configureStorage(
 	vpr *viper.Viper,
 	readConfigFromViper bool,
+	matchFromConfig bool,
 	overrides map[string]string,
 ) (storage.Storage, error) {
 	var (
@@ -72,10 +73,6 @@ func configureStorage(
 			return store, clues.Wrap(err, "reading s3 configs from corso config file")
 		}
 
-		if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
-			return store, clues.Wrap(err, "reading s3 configs from corso config file")
-		}
-
 		if b, ok := overrides[storage.Bucket]; ok {
 			overrides[storage.Bucket] = common.NormalizeBucket(b)
 		}
@@ -83,12 +80,19 @@ func configureStorage(
 		if p, ok := overrides[storage.Prefix]; ok {
 			overrides[storage.Prefix] = common.NormalizePrefix(p)
 		}
+	}
 
+	if matchFromConfig {
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}
 	}
 
+	if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
+		return store, clues.Wrap(err, "reading s3 configs from corso config file")
+	}
+
+	s3Overrides(overrides)
 	aws := credentials.GetAWS(overrides)
 
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {

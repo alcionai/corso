@@ -23,7 +23,7 @@ func GetAccountAndConnect(
 	ctx context.Context,
 	overrides map[string]string,
 ) (repository.Repository, *storage.Storage, *account.Account, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
 	if err != nil {
 		return nil, nil, nil, err
 	}

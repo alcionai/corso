@@ -119,7 +119,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from envs
 	s3Override = S3UpdateFromEnvVar(s3Override)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, s3Override)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -195,7 +195,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from envs
 	s3Override = S3UpdateFromEnvVar(s3Override)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, s3Override)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -254,11 +254,11 @@ func S3Overrides() map[string]string {
 }
 
 func S3UpdateFromEnvVar(s3Flag map[string]string) map[string]string {
-	return map[string]string{
-		storage.Bucket:         str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey)),
-		storage.Endpoint:       str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey)),
-		storage.Prefix:         str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey)),
-		storage.DoNotUseTLS:    str.First(s3Flag[storage.DoNotUseTLS], os.Getenv(storage.DisableTLSKey)),
-		storage.DoNotVerifyTLS: str.First(s3Flag[storage.DoNotVerifyTLS], os.Getenv(storage.DisableTLSVerificationKey)),
-	}
+	s3Flag[storage.Bucket] = str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey))
+	s3Flag[storage.Endpoint] = str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey))
+	s3Flag[storage.Prefix] = str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey))
+	s3Flag[storage.DoNotUseTLS] = str.First(s3Flag[storage.DoNotUseTLS], os.Getenv(storage.DisableTLSKey))
+	s3Flag[storage.DoNotVerifyTLS] = str.First(s3Flag[storage.DoNotVerifyTLS], os.Getenv(storage.DisableTLSVerificationKey))
+
+	return s3Flag
 }
