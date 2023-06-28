@@ -131,7 +131,9 @@ func IsErrQuotaExceeded(err error) bool {
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	return hasErrorCode(err, ResourceNotFound, MailboxNotEnabledForRESTAPI)
+	// Not sure if we can actually see a resourceNotFound error here. I've only
+	// seen the latter two.
+	return hasErrorCode(err, ResourceNotFound, itemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
@@ -151,10 +153,6 @@ func IsErrUserNotFound(err error) bool {
 	}
 
 	return false
-}
-
-func IsErrResourceNotFound(err error) bool {
-	return hasErrorCode(err, ResourceNotFound)
 }
 
 func IsErrCannotOpenFileAttachment(err error) bool {
