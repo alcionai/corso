@@ -90,7 +90,7 @@ func DiffLinkShares(before, after []LinkShare) ([]LinkShare, []LinkShare) {
 			continue
 		}
 
-		filteredAfter = append(filteredBefore, ls)
+		filteredAfter = append(filteredAfter, ls)
 	}
 
 	return DiffPermissions(filteredBefore, filteredAfter)
