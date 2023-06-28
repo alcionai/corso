@@ -77,8 +77,8 @@ func configureAccount(
 
 	// ensure required properties are present
 	if err := requireProps(map[string]string{
-		credentials.AzureClientID:     m365Cfg.AzureClientID,
-		credentials.AzureClientSecret: m365Cfg.AzureClientSecret,
+		credentials.AzureClientID:     m365Cfg.M365.AzureClientID,
+		credentials.AzureClientSecret: m365Cfg.M365.AzureClientSecret,
 		account.AzureTenantID:         m365Cfg.AzureTenantID,
 	}); err != nil {
 		return acct, err
