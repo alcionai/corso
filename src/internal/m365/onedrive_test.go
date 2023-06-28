@@ -1039,6 +1039,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 
 	folderAName := "custom"
 	folderBName := "inherited"
+	folderCName := "empty"
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -1065,6 +1066,13 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 		folderAName,
 		folderBName,
 	}
+	subfolderACPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+		folderAName,
+		folderCName,
+	}
 
 	fileSet := []stub.ItemData{
 		{
@@ -1086,18 +1094,32 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				SharingMode: metadata.SharingModeInherited,
 			},
 		},
+		{
+			Name: "file-empty",
+			Data: fileCData,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeCustom,
+			},
+		},
 	}
 
 	// Here is what this test is testing
 	// - custom-link-share-folder
 	//   - custom-link-share-file
 	//   - inherted-link-share-file
+	//   - empty-link-share-file
 	//   - custom-link-share-folder
 	// 	   - custom-link-share-file
 	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
 	//   - inherted-link-share-folder
 	// 	   - custom-link-share-file
 	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
+	//   - empty-link-share-folder
+	// 	   - custom-link-share-file
+	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
 
 	cols := []stub.ColInfo{
 		{
@@ -1113,6 +1135,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Folders: []stub.ItemData{
 				{Name: folderAName},
 				{Name: folderBName},
+				{Name: folderCName},
 			},
 			Meta: stub.MetaData{
 				LinkShares: stub.LinkShareData{
@@ -1139,6 +1162,13 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Files:        fileSet,
 			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeInherited,
+			},
+		},
+		{
+			PathElements: subfolderACPath,
+			Files:        fileSet,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 	}

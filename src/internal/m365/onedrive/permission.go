@@ -323,6 +323,29 @@ func UpdateLinkShares(
 		oldLinkShareIDToNewID[ls.ID] = ptr.Val(newLS.GetId())
 	}
 
+	// It is possible to have empty link shares even though we should
+	// have inherited one if the user creates a link using
+	// `retainInheritedPermissions` as false, but then deleted it.  We
+	// can recreate this by creating an anonymous one and deleting it.
+	if len(lsRemoved) > 0 && len(lsAdded) == 0 {
+		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
+		lsbody.SetType(ptr.To("view"))
+		lsbody.SetScope(ptr.To("anonymous"))
+		lsbody.SetRetainInheritedPermissions(ptr.To(false))
+
+		newLS, err := upils.PostItemLinkShareUpdate(ctx, driveID, itemID, lsbody)
+		if err != nil {
+			return didReset, clues.Stack(err)
+		}
+
+		didReset = true
+
+		err = upils.DeleteItemPermission(ctx, driveID, itemID, ptr.Val(newLS.GetId()))
+		if err != nil {
+			return didReset, clues.Stack(err)
+		}
+	}
+
 	return didReset, nil
 }
 
