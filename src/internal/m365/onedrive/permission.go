@@ -281,7 +281,7 @@ func UpdateLinkShares(
 		// link without sending a notification to the user and so we
 		// use the beta API. Since we use the v1.0 API, we have to
 		// stuff some of the data into the AdditionalData fields as
-		// the actual fields don exist in the stable sdk.
+		// the actual fields don't exist in the stable sdk.
 		// Here is the data that we have to send:
 		// {
 		//   "type": "view",

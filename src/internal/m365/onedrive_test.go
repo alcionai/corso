@@ -1080,7 +1080,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 		},
 		{
 			Name: "file-inherited",
-			Data: fileAData,
+			Data: fileBData,
 			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeInherited,
 			},

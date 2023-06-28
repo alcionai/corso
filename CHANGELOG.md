@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known issues
 - Partial inheritance of link shares from a parent folder can't be restored.
+- Link shares with password cannot be restored
 
 ## [v0.10.0] (beta) - 2023-06-26
 
