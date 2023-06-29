@@ -37,14 +37,14 @@ var ErrFolderNotFound = clues.New("folder not found")
 // GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
 func (c Drives) GetFolderByName(
 	ctx context.Context,
-	driveID, parentFolderID, folderID string,
+	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
 	// will be sub-optimal.
 	// Instead, we leverage OneDrive path-based addressing -
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderID)
+	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
 	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, c.Stable.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)

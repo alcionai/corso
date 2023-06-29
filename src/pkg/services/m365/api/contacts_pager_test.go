@@ -30,7 +30,7 @@ func (suite *ContactsPagerIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *ContactsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
+func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
 	ac := suite.its.ac.Contacts()
 

@@ -90,10 +90,6 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
-		if graph.IsErrExchangeMailFolderNotFound(err) {
-			return false, nil
-		}
-
 		return false, clues.Stack(err)
 	}
 

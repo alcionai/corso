@@ -30,7 +30,7 @@ func (suite *EventsPagerIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *EventsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
+func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
 	ac := suite.its.ac.Events()
 

@@ -18,6 +18,81 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// non-delta item pager
+// ---------------------------------------------------------------------------
+
+var _ itemPager[models.DriveItemable] = &driveItemPageCtrl{}
+
+type driveItemPageCtrl struct {
+	gs      graph.Servicer
+	builder *drives.ItemItemsItemChildrenRequestBuilder
+	options *drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration
+}
+
+func (c Drives) NewDriveItemPager(
+	driveID, containerID string,
+	selectProps ...string,
+) itemPager[models.DriveItemable] {
+	options := &drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration{
+		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxNonDeltaPageSize),
+		},
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	builder := c.Stable.
+		Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(containerID).
+		Children()
+
+	return &driveItemPageCtrl{c.Stable, builder, options}
+}
+
+//lint:ignore U1000 False Positive
+func (p *driveItemPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.DriveItemable], error) {
+	page, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return EmptyDeltaLinker[models.DriveItemable]{PageLinkValuer: page}, nil
+}
+
+//lint:ignore U1000 False Positive
+func (p *driveItemPageCtrl) setNext(nextLink string) {
+	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (c Drives) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	driveID, containerID string,
+) (map[string]string, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name")...)
+
+	items, err := enumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating drive items")
+	}
+
+	m := map[string]string{}
+
+	for _, item := range items {
+		m[DriveItemCollisionKey(item)] = ptr.Val(item.GetId())
+	}
+
+	return m, nil
+}
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // delta item pager
 // ---------------------------------------------------------------------------
 

@@ -30,7 +30,7 @@ func (suite *MailPagerIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *MailPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
+func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
 	ac := suite.its.ac.Mail()
 
