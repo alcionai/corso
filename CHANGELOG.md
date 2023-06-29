@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If a link share is created for an item with inheritance disabled
   (via the Graph API), the link shares restored in that item will
   not be inheritable by children
-- Link shares with password protection cannot be restored
+- Link shares with password protection can't be restored
 
 ## [v0.10.0] (beta) - 2023-06-26
 

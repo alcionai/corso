@@ -33,4 +33,4 @@ included in backup and restore.
   (via the Graph API), the link shares restored in that item will
   not be inheritable by children
 
-* Link shares with password protection cannot be restored
+* Link shares with password protection can't be restored
