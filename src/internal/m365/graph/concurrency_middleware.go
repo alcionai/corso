@@ -47,6 +47,13 @@ func InitializeConcurrencyLimiter(capacity int) {
 	})
 }
 
+func TurnOffConcurrencyLimiter(ctx context.Context) {
+	once.Do(func() {
+		logger.Ctx(ctx).Info("turning off the concurrency limiter")
+		concurrencyLimitMiddlewareSingleton = nil
+	})
+}
+
 func (cl *concurrencyLimiterMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,

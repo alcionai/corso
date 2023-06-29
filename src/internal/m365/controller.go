@@ -59,6 +59,8 @@ func NewController(
 	switch pst {
 	case path.ExchangeService:
 		graph.InitializeConcurrencyLimiter(co.Parallelism.ItemFetch)
+	default:
+		graph.TurnOffConcurrencyLimiter(ctx)
 	}
 
 	creds, err := acct.M365Config()
