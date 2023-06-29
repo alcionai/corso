@@ -32,6 +32,16 @@ var (
 	doNotVerifyTLS  bool
 )
 
+// s3 bucket flags
+const (
+	succeedIfExistsFN = "succeedIfExists"
+	bucketFN          = "bucket"
+	endpointFN        = "endpoint"
+	prefixFN          = "prefix"
+	doNotUseTLSFN     = "disable-tls"
+	doNotVerifyTLSFN  = "disable-tls-verification"
+)
+
 // called by repo.go to map subcommands to provider-specific handling.
 func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	var (
@@ -55,11 +65,11 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
-	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
-	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
-	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
-	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
-	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
+	fs.StringVar(&bucket, bucketFN, "", "Name of S3 bucket for repo. (required)")
+	fs.StringVar(&prefix, prefixFN, "", "Repo prefix within bucket.")
+	fs.StringVar(&endpoint, endpointFN, "", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, doNotUseTLSFN, false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&doNotVerifyTLS, doNotVerifyTLSFN, false, "Disable TLS (HTTPS) certificate verification.")
 
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
@@ -117,7 +127,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides()
 	// s3 values from envs
-	s3Override = S3UpdateFromEnvVar(s3Override)
+	s3Override = S3UpdateFromEnvVar(cmd, s3Override)
 
 	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
 	if err != nil {
@@ -193,7 +203,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides()
 	// s3 values from envs
-	s3Override = S3UpdateFromEnvVar(s3Override)
+	s3Override = S3UpdateFromEnvVar(cmd, s3Override)
 
 	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
 	if err != nil {
@@ -253,7 +263,41 @@ func S3Overrides() map[string]string {
 	}
 }
 
-func S3UpdateFromEnvVar(s3Flag map[string]string) map[string]string {
+func setValueIfBoolFlagPresent(
+	cmd *cobra.Command,
+	s3OverideMap map[string]string,
+	flagName,
+	mapKey string,
+	flagValue bool,
+) {
+	if cmd.Flags().Lookup(flagName).Changed {
+		s3OverideMap[mapKey] = strconv.FormatBool(flagValue)
+		return
+	}
+
+	delete(s3OverideMap, mapKey)
+}
+
+func setValueIfStringFlagPresent(
+	cmd *cobra.Command,
+	s3OverideMap map[string]string,
+	flagName,
+	mapKey,
+	flagValue string,
+) {
+	if cmd.Flags().Lookup(flagName).Changed {
+		s3OverideMap[mapKey] = flagValue
+		return
+	}
+
+	delete(s3OverideMap, mapKey)
+}
+
+func S3UpdateFromEnvVar(cmd *cobra.Command, s3Flag map[string]string) map[string]string {
+	setValueIfBoolFlagPresent(cmd, s3Flag, doNotUseTLSFN, storage.DoNotUseTLS, doNotUseTLS)
+	setValueIfBoolFlagPresent(cmd, s3Flag, doNotVerifyTLSFN, storage.DoNotVerifyTLS, doNotVerifyTLS)
+	setValueIfStringFlagPresent(cmd, s3Flag, endpointFN, storage.Endpoint, endpoint)
+
 	s3Flag[storage.Bucket] = str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey))
 	s3Flag[storage.Endpoint] = str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey))
 	s3Flag[storage.Prefix] = str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey))
