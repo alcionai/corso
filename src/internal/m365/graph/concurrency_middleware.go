@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -53,13 +52,9 @@ func (cl *concurrencyLimiterMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	fmt.Print("CL,")
-
 	if cl == nil || cl.semaphore == nil {
 		return nil, clues.New("nil concurrency limiter")
 	}
-
-	fmt.Print(cap(cl.semaphore), ",")
 
 	cl.semaphore <- struct{}{}
 	defer func() {
