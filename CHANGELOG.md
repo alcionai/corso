@@ -8,16 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
-- Added support for backing up and restoring link shares
+- Drive items backup and restore link shares
 
 ### Fixed
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
 
 ### Known issues
-* If a link share is created for an item with inheritance disabled
-  (via the Graph API), Corso does not restore any link shares on that
-  item that may be inherited after that
-- Link shares with password cannot be restored
+- If a link share is created for an item with inheritance disabled
+  (via the Graph API), the link shares restored in that item will
+  not be inheritable by children
+- Link shares with password protection cannot be restored
 
 ## [v0.10.0] (beta) - 2023-06-26
 

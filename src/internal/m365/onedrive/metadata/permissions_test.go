@@ -158,8 +158,8 @@ func (suite *PermissionsUnitTestSuite) TestDiffLinkShares() {
 	}
 
 	lsempty := LinkShare{
-		ID:   "id1",
-		Link: LinkShareLink{WebURL: "id1"},
+		ID:   "id2",
+		Link: LinkShareLink{WebURL: "id2"},
 	}
 
 	table := []struct {

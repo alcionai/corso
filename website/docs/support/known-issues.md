@@ -30,5 +30,7 @@ included in backup and restore.
 * Permissions/Access given to a site group can't be restored
 
 * If a link share is created for an item with inheritance disabled
-  (via the Graph API), Corso does not restore any link shares on that
-  item that may be inherited after that
+  (via the Graph API), the link shares restored in that item will
+  not be inheritable by children
+
+* Link shares with password protection cannot be restored

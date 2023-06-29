@@ -73,7 +73,7 @@ func (p Permission) Equals(other Permission) bool {
 //     are inherited onto the child but without any users associated with
 //     the share. We have to drop the empty ones to make sure we reset.
 //   - We are restoring link shares so that we can restore permissions for
-//     user and so restoring links without users is not useful.
+//     the user, but restoring links without users is not useful.
 func DiffLinkShares(before, after []LinkShare) ([]LinkShare, []LinkShare) {
 	filteredBefore := []LinkShare{}
 	filteredAfter := []LinkShare{}
