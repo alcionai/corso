@@ -235,8 +235,9 @@ type RestoreHandler struct {
 
 	CollisionKeyMap map[string]string
 
-	CalledDeleteItem bool
-	DeleteItemErr    error
+	CalledDeleteItem   bool
+	CalledDeleteItemOn string
+	DeleteItemErr      error
 
 	CalledPostItem bool
 	PostItemResp   models.DriveItemable
@@ -262,10 +263,12 @@ func (h *RestoreHandler) GetItemsInContainerByCollisionKey(
 }
 
 func (h *RestoreHandler) DeleteItem(
-	context.Context,
-	string, string,
+	_ context.Context,
+	_, itemID string,
 ) error {
 	h.CalledDeleteItem = true
+	h.CalledDeleteItemOn = itemID
+
 	return h.DeleteItemErr
 }
 

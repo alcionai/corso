@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/mock"
@@ -323,6 +324,8 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 }
 
 func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
+	const mndiID = "mndi-id"
+
 	table := []struct {
 		name          string
 		collisionKeys map[string]string
@@ -362,7 +365,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name:          "collision, copy",
-			collisionKeys: map[string]string{mock.DriveItemFileName: "smarf"},
+			collisionKeys: map[string]string{mock.DriveItemFileName: mndiID},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -372,17 +375,18 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name:          "collision, replace",
-			collisionKeys: map[string]string{mock.DriveItemFileName: "smarf"},
+			collisionKeys: map[string]string{mock.DriveItemFileName: mndiID},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.True(t, rh.CalledDeleteItem, "new item deleted")
+				assert.Equal(t, mndiID, rh.CalledDeleteItemOn, "deleted the correct item")
 			},
 		},
 		{
 			name:          "collision, skip",
-			collisionKeys: map[string]string{mock.DriveItemFileName: "smarf"},
+			collisionKeys: map[string]string{mock.DriveItemFileName: mndiID},
 			onCollision:   control.Skip,
 			expectSkipped: assert.True,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -398,11 +402,12 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			mndi := models.NewDriveItem()
+			mndi.SetId(ptr.To(mndiID))
+
 			var (
-				caches = NewRestoreCaches()
-				rh     = &mock.RestoreHandler{
-					PostItemResp: models.NewDriveItem(),
-				}
+				caches     = NewRestoreCaches()
+				rh         = &mock.RestoreHandler{PostItemResp: mndi}
 				restoreCfg = control.RestoreConfig{OnCollision: test.onCollision}
 				dpb        = odConsts.DriveFolderPrefixBuilder("driveID1")
 			)
