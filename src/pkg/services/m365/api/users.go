@@ -95,7 +95,7 @@ func (c Users) GetAll(
 			return false
 		}
 
-		err := validateUser(item)
+		err := ValidateUser(item)
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating user"))
 		} else {
@@ -175,17 +175,16 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		// Assume all services are enabled
 		// then filter down to only services the user has enabled
-		userInfo = newUserInfo()
-
+		userInfo        = newUserInfo()
 		mailFolderFound = true
 	)
 
 	// check whether the user is able to access their onedrive drive.
 	// if they cannot, we can assume they are ineligible for onedrive backups.
 	if _, err := c.GetDefaultDrive(ctx, userID); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			logger.CtxErr(ctx, err).Error("getting user's drive")
-			return nil, graph.Wrap(ctx, err, "getting user's drive")
+		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+			logger.CtxErr(ctx, err).Error("getting user's default drive")
+			return nil, graph.Wrap(ctx, err, "getting user's default drive info")
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a drive")
@@ -345,9 +344,9 @@ func (c Users) getFirstInboxMessage(
 // helpers
 // ---------------------------------------------------------------------------
 
-// validateUser ensures the item is a Userable, and contains the necessary
+// ValidateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
-func validateUser(item models.Userable) error {
+func ValidateUser(item models.Userable) error {
 	if item.GetId() == nil {
 		return clues.New("missing ID")
 	}
