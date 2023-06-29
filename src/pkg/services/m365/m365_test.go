@@ -34,6 +34,8 @@ func TestM365IntegrationSuite(t *testing.T) {
 func (suite *M365IntegrationSuite) TestUsers() {
 	t := suite.T()
 
+	graph.InitializeConcurrencyLimiter(4)
+
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 

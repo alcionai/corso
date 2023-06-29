@@ -525,6 +525,8 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
+	graph.InitializeConcurrencyLimiter(4)
+
 	suite.user = tester.M365UserID(t)
 	suite.site = tester.M365SiteID(t)
 

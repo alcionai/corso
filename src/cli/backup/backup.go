@@ -268,7 +268,8 @@ func genericDeleteCommand(
 	cmd *cobra.Command,
 	pst path.ServiceType,
 	bID, designation string,
-	args []string) error {
+	args []string,
+) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}

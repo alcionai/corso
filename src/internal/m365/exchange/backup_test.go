@@ -399,6 +399,8 @@ func TestBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *BackupIntgSuite) SetupSuite() {
+	graph.InitializeConcurrencyLimiter(4)
+
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 

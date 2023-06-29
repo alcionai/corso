@@ -25,6 +25,8 @@ func TestBetaClientSuite(t *testing.T) {
 }
 
 func (suite *BetaClientSuite) SetupSuite() {
+	graph.InitializeConcurrencyLimiter(4)
+
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
