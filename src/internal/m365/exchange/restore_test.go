@@ -134,11 +134,6 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	}
 
 	for _, test := range tests {
-		// Skip till https://github.com/alcionai/corso/issues/3675 is fixed
-		if test.name == "Test exceptionOccurrences" {
-			t.Skip("Bug 3675")
-		}
-
 		suite.Run(test.name, func() {
 			t := suite.T()
 
