@@ -91,6 +91,9 @@ func preRun(cc *cobra.Command, args []string) error {
 		handleMailBoxFlag(ctx, cc, flagSl)
 	}
 
+	// Initialize the api concurrency configuration
+	utils.InitConcurrencyControls(strings.Fields(cc.CommandPath()))
+
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())
 
 	return nil
