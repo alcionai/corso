@@ -308,6 +308,8 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
+	ctx = clues.Add(ctx, "can_use_metadata", canUseMetaData)
+
 	if canUseMetaData {
 		lastBackupVersion = mans.MinBackupVersion()
 	}
@@ -325,7 +327,7 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing backup data collections")
 	}
 
-	ctx = clues.Add(ctx, "coll_count", len(cs))
+	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup, "coll_count", len(cs))
 
 	writeStats, deets, toMerge, err := consumeBackupCollections(
 		ctx,
@@ -476,6 +478,8 @@ func consumeBackupCollections(
 	isIncremental bool,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
+	ctx = clues.Add(ctx, "collection_source", "operations")
+
 	complete := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}

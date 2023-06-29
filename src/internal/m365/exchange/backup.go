@@ -208,6 +208,8 @@ func ProduceBackupCollections(
 		return nil, nil, false, err
 	}
 
+	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
+
 	for _, scope := range eb.Scopes() {
 		if el.Failure() != nil {
 			break
