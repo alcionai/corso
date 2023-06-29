@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type S3CfgSuite struct {
@@ -24,6 +26,7 @@ var (
 		Prefix:         "pre/",
 		DoNotUseTLS:    false,
 		DoNotVerifyTLS: false,
+		AWS:            credentials.AWS{AccessKey: "access", SecretKey: "secret", SessionToken: "token"},
 	}
 
 	goodS3Map = map[string]string{
@@ -32,6 +35,9 @@ var (
 		keyS3Prefix:         "pre/",
 		keyS3DoNotUseTLS:    "false",
 		keyS3DoNotVerifyTLS: "false",
+		keyS3AccessKey:      "access",
+		keyS3SecretKey:      "secret",
+		keyS3SessionToken:   "token",
 	}
 )
 
@@ -68,11 +74,12 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	assert.Equal(t, in.Prefix, out.Prefix)
 }
 
-func makeTestS3Cfg(bkt, end, pre string) S3Config {
+func makeTestS3Cfg(bkt, end, pre, access, secret, session string) S3Config {
 	return S3Config{
 		Bucket:   bkt,
 		Endpoint: end,
 		Prefix:   pre,
+		AWS:      credentials.AWS{AccessKey: access, SecretKey: secret, SessionToken: session},
 	}
 }
 
@@ -82,7 +89,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 		name string
 		cfg  S3Config
 	}{
-		{"missing bucket", makeTestS3Cfg("", "end", "pre/")},
+		{"missing bucket", makeTestS3Cfg("", "end", "pre/", "", "", "")},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -128,8 +135,14 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 			expect: goodS3Map,
 		},
 		{
-			name:   "normalized bucket name",
-			input:  makeTestS3Cfg("s3://"+goodS3Config.Bucket, goodS3Config.Endpoint, goodS3Config.Prefix),
+			name: "normalized bucket name",
+			input: makeTestS3Cfg(
+				"s3://"+goodS3Config.Bucket,
+				goodS3Config.Endpoint,
+				goodS3Config.Prefix,
+				goodS3Config.AccessKey,
+				goodS3Config.SecretKey,
+				goodS3Config.SessionToken),
 			expect: goodS3Map,
 		},
 		{
@@ -147,6 +160,9 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 				keyS3Prefix:         "pre/",
 				keyS3DoNotUseTLS:    "true",
 				keyS3DoNotVerifyTLS: "true",
+				keyS3AccessKey:      "",
+				keyS3SecretKey:      "",
+				keyS3SessionToken:   "",
 			},
 		},
 	}

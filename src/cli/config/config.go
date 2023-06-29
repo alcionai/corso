@@ -26,9 +26,18 @@ const (
 	DisableTLSVerificationKey = "disable_tls_verification"
 	RepoID                    = "repo_id"
 
+	AccessKey       = "aws_access_key_id"
+	SecretAccessKey = "aws_secret_access_key"
+	SessionToken    = "aws_session_token"
+
 	// M365 config
 	AccountProviderTypeKey = "account_provider"
 	AzureTenantIDKey       = "azure_tenantid"
+	AzureClientID          = "azure_client_id"
+	AzureSecret            = "azure_secret"
+
+	// Corso passphrase in config
+	CorsoPassphrase = "passphrase"
 )
 
 var (
@@ -232,12 +241,13 @@ func writeRepoConfigWithViper(
 func GetConfigRepoDetails(
 	ctx context.Context,
 	readFromFile bool,
+	mustMatchFromConfig bool,
 	overrides map[string]string,
 ) (
 	RepoDetails,
 	error,
 ) {
-	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, overrides)
+	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, mustMatchFromConfig, overrides)
 	return config, err
 }
 
@@ -246,6 +256,7 @@ func GetConfigRepoDetails(
 func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
 	readFromFile bool,
+	mustMatchFromConfig bool,
 	overrides map[string]string,
 ) (
 	RepoDetails,
@@ -278,7 +289,7 @@ func getStorageAndAccountWithViper(
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
-	config.Storage, err = configureStorage(vpr, readConfigFromViper, overrides)
+	config.Storage, err = configureStorage(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}

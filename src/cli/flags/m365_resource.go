@@ -7,11 +7,19 @@ import (
 )
 
 const (
-	UserFN    = "user"
-	MailBoxFN = "mailbox"
+	UserFN              = "user"
+	MailBoxFN           = "mailbox"
+	AzureClientTenantFN = "azure-tenant-id"
+	AzureClientIDFN     = "azure-client-id"
+	AzureClientSecretFN = "azure-client-secret"
 )
 
-var UserFV []string
+var (
+	UserFV              []string
+	AzureClientTenantFV string
+	AzureClientIDFV     string
+	AzureClientSecretFV string
+)
 
 // AddUserFlag adds the --user flag.
 func AddUserFlag(cmd *cobra.Command) {
@@ -37,4 +45,12 @@ func AddMailBoxFlag(cmd *cobra.Command) {
 		&UserFV,
 		MailBoxFN, nil,
 		"Backup a specific mailbox's data; accepts '"+Wildcard+"' to select all mailbox.")
+}
+
+// AddAzureCredsFlags adds M365 cred flags
+func AddAzureCredsFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(&AzureClientTenantFV, AzureClientTenantFN, "", "Azure tenant ID")
+	fs.StringVar(&AzureClientIDFV, AzureClientIDFN, "", "Azure app client ID")
+	fs.StringVar(&AzureClientSecretFV, AzureClientSecretFN, "", "Azure app client secret")
 }
