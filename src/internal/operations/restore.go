@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -266,7 +267,8 @@ func (op *RestoreOperation) do(
 		op.RestoreCfg,
 		op.Options,
 		dcs,
-		op.Errors)
+		op.Errors,
+		op.Counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}
@@ -324,6 +326,7 @@ func consumeRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
+	cb *count.Bus,
 ) (*details.Details, error) {
 	complete := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer func() {
@@ -338,7 +341,8 @@ func consumeRestoreCollections(
 		restoreCfg,
 		opts,
 		dcs,
-		errs)
+		errs,
+		cb)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}

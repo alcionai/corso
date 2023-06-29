@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -29,6 +30,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
+	cb *count.Bus,
 ) (*details.Details, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:restore")
 	defer end()
@@ -44,7 +46,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs)
+		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs, cb)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
@@ -54,7 +56,8 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			opts,
 			dcs,
 			deets,
-			errs)
+			errs,
+			cb)
 	case selectors.ServiceSharePoint:
 		status, err = sharepoint.ConsumeRestoreCollections(
 			ctx,
@@ -64,7 +67,8 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			opts,
 			dcs,
 			deets,
-			errs)
+			errs,
+			cb)
 	default:
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}

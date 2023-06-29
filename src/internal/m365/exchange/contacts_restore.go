@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -71,6 +72,7 @@ func (h contactRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	cb *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreContact(
 		ctx,
@@ -79,7 +81,8 @@ func (h contactRestoreHandler) restore(
 		userID, destinationID,
 		collisionKeyToItemID,
 		collisionPolicy,
-		errs)
+		errs,
+		cb)
 }
 
 type contactRestorer interface {
@@ -95,6 +98,7 @@ func restoreContact(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	cb *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	contact, err := api.BytesToContactable(body)
 	if err != nil {
@@ -114,7 +118,9 @@ func restoreContact(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
+			cb.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
+
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
 
