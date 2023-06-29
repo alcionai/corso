@@ -40,6 +40,9 @@ func s3BlobStorage(
 		SessionName:         s.SessionName,
 		RoleARN:             s.Role,
 		RoleDuration:        s.SessionDuration,
+		AccessKeyID:         cfg.AccessKey,
+		SecretAccessKey:     cfg.SecretKey,
+		SessionToken:        cfg.SessionToken,
 		TLSHandshakeTimeout: 60,
 		PointInTime:         repoOpts.ViewTimestamp,
 	}

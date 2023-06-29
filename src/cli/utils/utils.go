@@ -19,8 +19,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.Storage, *account.Account, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+func GetAccountAndConnect(
+	ctx context.Context,
+	overrides map[string]string,
+) (repository.Repository, *storage.Storage, *account.Account, error) {
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -38,8 +41,11 @@ func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.
 	return r, &cfg.Storage, &cfg.Account, nil
 }
 
-func AccountConnectAndWriteRepoConfig(ctx context.Context) (repository.Repository, *account.Account, error) {
-	r, stg, acc, err := GetAccountAndConnect(ctx)
+func AccountConnectAndWriteRepoConfig(
+	ctx context.Context,
+	overrides map[string]string,
+) (repository.Repository, *account.Account, error) {
+	r, stg, acc, err := GetAccountAndConnect(ctx, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err

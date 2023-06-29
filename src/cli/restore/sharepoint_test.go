@@ -72,6 +72,15 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
 				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
 				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -95,6 +104,16 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
 			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
+
+			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 		})
 	}
 }

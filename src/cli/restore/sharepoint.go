@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
@@ -35,6 +36,10 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 		flags.AddRestorePermissionsFlag(c)
 		flags.AddFailFastFlag(c)
+
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -94,7 +99,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}

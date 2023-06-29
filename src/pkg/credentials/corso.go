@@ -1,8 +1,6 @@
 package credentials
 
 import (
-	"os"
-
 	"github.com/alcionai/clues"
 )
 
@@ -14,17 +12,6 @@ const (
 // Corso aggregates corso credentials from flag and env_var values.
 type Corso struct {
 	CorsoPassphrase string // required
-}
-
-// GetCorso is a helper for aggregating Corso secrets and credentials.
-func GetCorso() Corso {
-	// todo (rkeeprs): read from either corso config file or env vars.
-	// https://github.com/alcionai/corso/issues/120
-	corsoPassph := os.Getenv(CorsoPassphrase)
-
-	return Corso{
-		CorsoPassphrase: corsoPassph,
-	}
 }
 
 func (c Corso) Validate() error {
