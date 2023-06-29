@@ -125,7 +125,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	// s3 values from flags
-	s3Override := S3Overrides()
+	s3Override := S3Overrides(cmd)
 	// s3 values from envs
 	s3Override = S3UpdateFromEnvVar(cmd, s3Override)
 
@@ -201,7 +201,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	// s3 values from flags
-	s3Override := S3Overrides()
+	s3Override := S3Overrides(cmd)
 	// s3 values from envs
 	s3Override = S3UpdateFromEnvVar(cmd, s3Override)
 
@@ -248,47 +248,52 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func S3Overrides() map[string]string {
-	return map[string]string{
-		config.AccountProviderTypeKey:  account.ProviderM365.String(),
-		config.StorageProviderTypeKey:  storage.ProviderS3.String(),
-		credentials.AWSAccessKeyID:     flags.AWSAccessKeyFV,
-		credentials.AWSSecretAccessKey: flags.AWSSecretAccessKeyFV,
-		credentials.AWSSessionToken:    flags.AWSSessionTokenFV,
-		storage.Bucket:                 bucket,
-		storage.Prefix:                 prefix,
-	}
+func S3Overrides(cmd *cobra.Command) map[string]string {
+	fs := flags.GetPopulatedFlags(cmd)
+	return PopulateS3Flags(fs)
 }
 
-func setValueIfBoolFlagPresent(
-	cmd *cobra.Command,
-	s3OverideMap map[string]string,
-	flagName,
-	mapKey string,
-	flagValue bool,
-) {
-	if cmd.Flags().Lookup(flagName).Changed {
-		s3OverideMap[mapKey] = strconv.FormatBool(flagValue)
-	}
-}
+func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
+	s3Overrides := make(map[string]string)
+	s3Overrides[config.AccountProviderTypeKey] = account.ProviderM365.String()
+	s3Overrides[config.StorageProviderTypeKey] = storage.ProviderS3.String()
 
-func setValueIfStringFlagPresent(
-	cmd *cobra.Command,
-	s3OverideMap map[string]string,
-	flagName,
-	mapKey,
-	flagValue string,
-) {
-	if cmd.Flags().Lookup(flagName).Changed {
-		s3OverideMap[mapKey] = flagValue
+	if _, ok := flagset[flags.AWSAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSAccessKeyID] = flags.AWSAccessKeyFV
 	}
+
+	if _, ok := flagset[flags.AWSSecretAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
+	}
+
+	if _, ok := flagset[flags.AWSSessionTokenFN]; ok {
+		s3Overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
+	}
+
+	if _, ok := flagset[bucketFN]; ok {
+		s3Overrides[storage.Bucket] = bucket
+	}
+
+	if _, ok := flagset[prefixFN]; ok {
+		s3Overrides[storage.Prefix] = prefix
+	}
+
+	if _, ok := flagset[doNotUseTLSFN]; ok {
+		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(doNotUseTLS)
+	}
+
+	if _, ok := flagset[doNotVerifyTLSFN]; ok {
+		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(doNotVerifyTLS)
+	}
+
+	if _, ok := flagset[endpointFN]; ok {
+		s3Overrides[storage.Endpoint] = endpoint
+	}
+
+	return s3Overrides
 }
 
 func S3UpdateFromEnvVar(cmd *cobra.Command, s3Flag map[string]string) map[string]string {
-	setValueIfBoolFlagPresent(cmd, s3Flag, doNotUseTLSFN, storage.DoNotUseTLS, doNotUseTLS)
-	setValueIfBoolFlagPresent(cmd, s3Flag, doNotVerifyTLSFN, storage.DoNotVerifyTLS, doNotVerifyTLS)
-	setValueIfStringFlagPresent(cmd, s3Flag, endpointFN, storage.Endpoint, endpoint)
-
 	s3Flag[storage.Bucket] = str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey))
 	s3Flag[storage.Endpoint] = str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey))
 	s3Flag[storage.Prefix] = str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey))
