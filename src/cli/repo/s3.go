@@ -256,10 +256,7 @@ func S3Overrides() map[string]string {
 		credentials.AWSSecretAccessKey: flags.AWSSecretAccessKeyFV,
 		credentials.AWSSessionToken:    flags.AWSSessionTokenFV,
 		storage.Bucket:                 bucket,
-		storage.Endpoint:               endpoint,
 		storage.Prefix:                 prefix,
-		storage.DoNotUseTLS:            strconv.FormatBool(doNotUseTLS),
-		storage.DoNotVerifyTLS:         strconv.FormatBool(doNotVerifyTLS),
 	}
 }
 
@@ -272,10 +269,7 @@ func setValueIfBoolFlagPresent(
 ) {
 	if cmd.Flags().Lookup(flagName).Changed {
 		s3OverideMap[mapKey] = strconv.FormatBool(flagValue)
-		return
 	}
-
-	delete(s3OverideMap, mapKey)
 }
 
 func setValueIfStringFlagPresent(
@@ -287,10 +281,7 @@ func setValueIfStringFlagPresent(
 ) {
 	if cmd.Flags().Lookup(flagName).Changed {
 		s3OverideMap[mapKey] = flagValue
-		return
 	}
-
-	delete(s3OverideMap, mapKey)
 }
 
 func S3UpdateFromEnvVar(cmd *cobra.Command, s3Flag map[string]string) map[string]string {
