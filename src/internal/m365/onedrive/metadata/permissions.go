@@ -69,47 +69,47 @@ func (p Permission) Equals(other Permission) bool {
 // filter out link shares which do not have any associated users. This
 // is useful for two reason:
 //   - When a user creates a link share on parent after creating a child
-//     link with `retainInheritedPermisisons`, all the previous link shares
+//     link with `retainInheritedPermissisons`, all the previous link shares
 //     are inherited onto the child but without any users associated with
 //     the share. We have to drop the empty ones to make sure we reset.
 //   - We are restoring link shares so that we can restore permissions for
 //     the user, but restoring links without users is not useful.
-func DiffLinkShares(before, after []LinkShare) ([]LinkShare, []LinkShare) {
-	filteredBefore := []LinkShare{}
-	filteredAfter := []LinkShare{}
+func DiffLinkShares(current, expected []LinkShare) ([]LinkShare, []LinkShare) {
+	filteredCurrent := []LinkShare{}
+	filteredExpected := []LinkShare{}
 
-	for _, ls := range before {
+	for _, ls := range current {
 		if len(ls.Entities) == 0 {
 			continue
 		}
 
-		filteredBefore = append(filteredBefore, ls)
+		filteredCurrent = append(filteredCurrent, ls)
 	}
 
-	for _, ls := range after {
+	for _, ls := range expected {
 		if len(ls.Entities) == 0 {
 			continue
 		}
 
-		filteredAfter = append(filteredAfter, ls)
+		filteredExpected = append(filteredExpected, ls)
 	}
 
-	return DiffPermissions(filteredBefore, filteredAfter)
+	return DiffPermissions(filteredCurrent, filteredExpected)
 }
 
 // DiffPermissions compares the before and after set, returning
 // the permissions that were added and removed (in that order)
 // in the after set.
-func DiffPermissions[T interface{ Equals(T) bool }](before, after []T) ([]T, []T) {
+func DiffPermissions[T interface{ Equals(T) bool }](current, expected []T) ([]T, []T) {
 	var (
 		added   = []T{}
 		removed = []T{}
 	)
 
-	for _, cp := range after {
+	for _, cp := range expected {
 		found := false
 
-		for _, pp := range before {
+		for _, pp := range current {
 			if cp.Equals(pp) {
 				found = true
 				break
@@ -121,10 +121,10 @@ func DiffPermissions[T interface{ Equals(T) bool }](before, after []T) ([]T, []T
 		}
 	}
 
-	for _, pp := range before {
+	for _, pp := range current {
 		found := false
 
-		for _, cp := range after {
+		for _, cp := range expected {
 			if cp.Equals(pp) {
 				found = true
 				break
