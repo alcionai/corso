@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"strings"
@@ -13,8 +13,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SitesUnitSuite struct {
@@ -77,7 +77,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 			args: func() *models.Site {
 				s := models.NewSite()
 				s.SetId(ptr.To("id"))
-				s.SetWebUrl(ptr.To("https://" + personalSitePath + "/someone's/onedrive"))
+				s.SetWebUrl(ptr.To("https://" + api.PersonalSitePath + "/someone's/onedrive"))
 				return s
 			}(),
 			errCheck:       assert.Error,
@@ -93,11 +93,11 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := validateSite(test.args)
+			err := api.ValidateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
-				assert.ErrorIs(t, err, errKnownSkippableCase)
+				assert.ErrorIs(t, err, api.ErrKnownSkippableCase)
 			}
 		})
 	}
@@ -105,8 +105,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 type SitesIntgSuite struct {
 	tester.Suite
-
-	creds account.M365Config
+	its intgTesterSetup
 }
 
 func TestSitesIntgSuite(t *testing.T) {
@@ -118,15 +117,7 @@ func TestSitesIntgSuite(t *testing.T) {
 }
 
 func (suite *SitesIntgSuite) SetupSuite() {
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(t)
-	)
-
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.creds = m365
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func (suite *SitesIntgSuite) TestGetAll() {
@@ -135,15 +126,12 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	cli, err := NewClient(suite.creds)
-	require.NoError(t, err, clues.ToCore(err))
-
-	sites, err := cli.Sites().GetAll(ctx, fault.New(true))
+	sites, err := suite.its.ac.Sites().GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(sites), "must have at least one site")
 
 	for _, site := range sites {
-		assert.NotContains(t, ptr.Val(site.GetWebUrl()), personalSitePath, "must not return onedrive sites")
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), api.PersonalSitePath, "must not return onedrive sites")
 	}
 }
 
@@ -154,16 +142,9 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 		host    = strings.Split(siteID, ",")[0]
 		shortID = strings.TrimPrefix(siteID, host+",")
 		siteURL = tester.M365SiteURL(t)
-		acct    = tester.NewM365Account(t)
 	)
 
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	client, err := NewClient(creds)
-	require.NoError(t, err, clues.ToCore(err))
-
-	sitesAPI := client.Sites()
+	sitesAPI := suite.its.ac.Sites()
 
 	table := []struct {
 		name      string
@@ -190,4 +171,16 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
+}
+
+func (suite *SitesIntgSuite) TestGetRoot() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	result, err := suite.its.ac.Sites().GetRoot(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, result, "must find the root site")
+	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")
 }

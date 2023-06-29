@@ -85,7 +85,12 @@ func GetUserInfo(
 		return nil, err
 	}
 
-	return client.Users().GetInfo(ctx, userID)
+	aui, err := client.Users().GetInfo(ctx, userID)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return aui, nil
 }
 
 // User fetches a single user's data.

@@ -31,7 +31,7 @@ const (
 	errorAccessDenied           errorCode = "ErrorAccessDenied"
 	itemNotFound                errorCode = "ErrorItemNotFound"
 	itemNotFoundShort           errorCode = "itemNotFound"
-	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
+	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
 	// nameAlreadyExists occurs when a request with
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
@@ -39,7 +39,7 @@ const (
 	quotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	// Returned when we try to get the inbox of a user that doesn't exist.
-	resourceNotFound errorCode = "ResourceNotFound"
+	ResourceNotFound errorCode = "ResourceNotFound"
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser        errorCode = "ErrorInvalidUser"
@@ -131,7 +131,9 @@ func IsErrQuotaExceeded(err error) bool {
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	return hasErrorCode(err, resourceNotFound, mailboxNotEnabledForRESTAPI)
+	// Not sure if we can actually see a resourceNotFound error here. I've only
+	// seen the latter two.
+	return hasErrorCode(err, ResourceNotFound, itemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
@@ -139,7 +141,7 @@ func IsErrUserNotFound(err error) bool {
 		return true
 	}
 
-	if hasErrorCode(err, resourceNotFound) {
+	if hasErrorCode(err, ResourceNotFound) {
 		var odErr odataerrors.ODataErrorable
 		if !errors.As(err, &odErr) {
 			return false
@@ -151,10 +153,6 @@ func IsErrUserNotFound(err error) bool {
 	}
 
 	return false
-}
-
-func IsErrResourceNotFound(err error) bool {
-	return hasErrorCode(err, resourceNotFound)
 }
 
 func IsErrCannotOpenFileAttachment(err error) bool {
@@ -227,7 +225,7 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 		return false
 	}
 
-	var oDataError *odataerrors.ODataError
+	var oDataError odataerrors.ODataErrorable
 	if !errors.As(err, &oDataError) {
 		return false
 	}
@@ -252,12 +250,12 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(e, &oDataError) {
 		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))
@@ -273,12 +271,12 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError *odataerrors.ODataError
+	if !errors.As(e, &oDataError) {
 		return clues.Stack(e).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))
