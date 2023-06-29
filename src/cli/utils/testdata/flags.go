@@ -45,4 +45,14 @@ var (
 	PageInput       = []string{"page1", "page2"}
 
 	RestorePermissions = true
+
+	AzureClientID     = "testAzureClientId"
+	AzureTenantID     = "testAzureTenantId"
+	AzureClientSecret = "testAzureClientSecret"
+
+	AWSAccessKeyID     = "testAWSAccessKeyID"
+	AWSSecretAccessKey = "testAWSSecretAccessKey"
+	AWSSessionToken    = "testAWSSessionToken"
+
+	CorsoPassphrase = "testCorsoPassphrase"
 )

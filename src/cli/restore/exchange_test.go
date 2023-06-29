@@ -78,6 +78,15 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				"--" + flags.EventStartsAfterFN, testdata.EventStartsAfterInput,
 				"--" + flags.EventStartsBeforeFN, testdata.EventStartsBeforeInput,
 				"--" + flags.EventSubjectFN, testdata.EventSubjectInput,
+				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -106,6 +115,16 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			assert.Equal(t, testdata.EventStartsAfterInput, opts.EventStartsAfter)
 			assert.Equal(t, testdata.EventStartsBeforeInput, opts.EventStartsBefore)
 			assert.Equal(t, testdata.EventSubjectInput, opts.EventSubject)
+
+			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/spf13/viper"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -33,6 +34,15 @@ func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 	return s3Config, nil
 }
 
+// prerequisite: readRepoConfig must have been run prior to this to populate the global viper values.
+func s3CredsFromViper(vpr *viper.Viper, s3Config storage.S3Config) (storage.S3Config, error) {
+	s3Config.AccessKey = vpr.GetString(AccessKey)
+	s3Config.SecretKey = vpr.GetString(SecretAccessKey)
+	s3Config.SessionToken = vpr.GetString(SessionToken)
+
+	return s3Config, nil
+}
+
 func s3Overrides(in map[string]string) map[string]string {
 	return map[string]string{
 		storage.Bucket:         in[storage.Bucket],
@@ -49,6 +59,7 @@ func s3Overrides(in map[string]string) map[string]string {
 func configureStorage(
 	vpr *viper.Viper,
 	readConfigFromViper bool,
+	matchFromConfig bool,
 	overrides map[string]string,
 ) (storage.Storage, error) {
 	var (
@@ -69,33 +80,54 @@ func configureStorage(
 		if p, ok := overrides[storage.Prefix]; ok {
 			overrides[storage.Prefix] = common.NormalizePrefix(p)
 		}
+	}
 
+	if matchFromConfig {
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}
 	}
 
-	_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
-	if err != nil {
-		return store, clues.Wrap(err, "validating aws credentials")
+	if s3Cfg, err = s3CredsFromViper(vpr, s3Cfg); err != nil {
+		return store, clues.Wrap(err, "reading s3 configs from corso config file")
+	}
+
+	s3Overrides(overrides)
+	aws := credentials.GetAWS(overrides)
+
+	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
+		_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
+		if err != nil && (len(s3Cfg.AccessKey) > 0 || len(s3Cfg.SecretKey) > 0) {
+			aws = credentials.AWS{
+				AccessKey:    s3Cfg.AccessKey,
+				SecretKey:    s3Cfg.SecretKey,
+				SessionToken: s3Cfg.SessionToken,
+			}
+			err = nil
+		}
+
+		if err != nil {
+			return store, clues.Wrap(err, "validating aws credentials")
+		}
 	}
 
 	s3Cfg = storage.S3Config{
-		Bucket:   str.First(overrides[storage.Bucket], s3Cfg.Bucket, os.Getenv(storage.BucketKey)),
-		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint, os.Getenv(storage.EndpointKey)),
-		Prefix:   str.First(overrides[storage.Prefix], s3Cfg.Prefix, os.Getenv(storage.PrefixKey)),
+		AWS:      aws,
+		Bucket:   str.First(overrides[storage.Bucket], s3Cfg.Bucket),
+		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint),
+		Prefix:   str.First(overrides[storage.Prefix], s3Cfg.Prefix),
 		DoNotUseTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotUseTLS],
 			strconv.FormatBool(s3Cfg.DoNotUseTLS),
-			os.Getenv(storage.PrefixKey))),
+		)),
 		DoNotVerifyTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotVerifyTLS],
 			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
-			os.Getenv(storage.PrefixKey))),
+		)),
 	}
 
 	// compose the common config and credentials
-	corso := credentials.GetCorso()
+	corso := GetAndInsertCorso(vpr.GetString(CorsoPassphrase))
 	if err := corso.Validate(); err != nil {
 		return store, clues.Wrap(err, "validating corso credentials")
 	}
@@ -126,4 +158,15 @@ func configureStorage(
 	}
 
 	return store, nil
+}
+
+// GetCorso is a helper for aggregating Corso secrets and credentials.
+func GetAndInsertCorso(passphase string) credentials.Corso {
+	// fetch data from flag, env var or func param giving priority to func param
+	// Func param generally will be value fetched from config file using viper.
+	corsoPassph := str.First(flags.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
+
+	return credentials.Corso{
+		CorsoPassphrase: corsoPassph,
+	}
 }
