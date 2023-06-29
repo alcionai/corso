@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"os"
 	"strconv"
 	"strings"
 
@@ -10,22 +11,25 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // s3 bucket info from flags
 var (
+	succeedIfExists bool
 	bucket          string
 	endpoint        string
 	prefix          string
 	doNotUseTLS     bool
 	doNotVerifyTLS  bool
-	succeedIfExists bool
 )
 
 // called by repo.go to map subcommands to provider-specific handling.
@@ -45,10 +49,13 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
+	flags.AddAWSCredsFlags(c)
+	flags.AddAzureCredsFlags(c)
+	flags.AddCorsoPassphaseFlags(c)
+
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
 	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
-	cobra.CheckErr(c.MarkFlagRequired("bucket"))
 	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
 	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
 	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
@@ -107,11 +114,12 @@ func s3InitCmd() *cobra.Command {
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
+	// s3 values from flags
+	s3Override := S3Overrides()
+	// s3 values from envs
+	s3Override = S3UpdateFromEnvVar(s3Override)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, false, S3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -182,11 +190,12 @@ func s3ConnectCmd() *cobra.Command {
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
+	// s3 values from flags
+	s3Override := S3Overrides()
+	// s3 values from envs
+	s3Override = S3UpdateFromEnvVar(s3Override)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, S3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -231,12 +240,27 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 func S3Overrides() map[string]string {
 	return map[string]string{
-		config.AccountProviderTypeKey: account.ProviderM365.String(),
-		config.StorageProviderTypeKey: storage.ProviderS3.String(),
-		storage.Bucket:                bucket,
-		storage.Endpoint:              endpoint,
-		storage.Prefix:                prefix,
-		storage.DoNotUseTLS:           strconv.FormatBool(doNotUseTLS),
-		storage.DoNotVerifyTLS:        strconv.FormatBool(doNotVerifyTLS),
+		config.AccountProviderTypeKey:  account.ProviderM365.String(),
+		config.StorageProviderTypeKey:  storage.ProviderS3.String(),
+		credentials.AWSAccessKeyID:     flags.AWSAccessKeyFV,
+		credentials.AWSSecretAccessKey: flags.AWSSecretAccessKeyFV,
+		credentials.AWSSessionToken:    flags.AWSSessionTokenFV,
+		storage.Bucket:                 bucket,
+		storage.Endpoint:               endpoint,
+		storage.Prefix:                 prefix,
+		storage.DoNotUseTLS:            strconv.FormatBool(doNotUseTLS),
+		storage.DoNotVerifyTLS:         strconv.FormatBool(doNotVerifyTLS),
 	}
+}
+
+func S3UpdateFromEnvVar(s3Flag map[string]string) map[string]string {
+	s3Flag[storage.Bucket] = str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey))
+	s3Flag[storage.Endpoint] = str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey))
+	s3Flag[storage.Prefix] = str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey))
+	s3Flag[storage.DoNotUseTLS] = str.First(s3Flag[storage.DoNotUseTLS], os.Getenv(storage.DisableTLSKey))
+	s3Flag[storage.DoNotVerifyTLS] = str.First(
+		s3Flag[storage.DoNotVerifyTLS],
+		os.Getenv(storage.DisableTLSVerificationKey))
+
+	return s3Flag
 }
