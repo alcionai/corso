@@ -415,14 +415,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		dirsFound  int64
 		wg         sync.WaitGroup
 		el         = errs.Local()
-		ehFactory  = extensions.ExtensionHandlerFactory(func(
-			info details.ItemInfo,
-			extData *details.ExtensionInfo,
-			rc io.ReadCloser,
-			factory []extensions.CorsoItemExtensionFactory,
-		) (extensions.ExtensionHandler, error) {
-			return extensions.NewExtensionHandler(info, extData, rc, factory)
-		})
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -503,9 +495,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
-			itemInfo.Extension = &details.ExtensionInfo{
-				Data: make(map[string]any),
-			}
 
 			ctx = clues.Add(ctx, "item_info", itemInfo)
 
@@ -522,19 +511,26 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						return nil, err
 					}
 
-					eh, err := ehFactory(
-						itemInfo,
-						itemInfo.Extension,
+					extRc, extInfo, err := extensions.AddItemExtensions(
+						ctx,
 						itemData,
+						itemInfo,
 						oc.ctrl.BackupItemExtensions)
 					if err != nil {
-						return nil, err
+						return nil, clues.Wrap(err, "adding item extensions")
 					}
+
+					if extInfo == nil {
+						return nil, clues.New("nil extension info")
+					}
+
+					// TODO: Move caller and below logic into a helper
+					itemInfo.OneDrive.Extension = extInfo
 
 					// display/log the item download
 					progReader, _ := observe.ItemProgress(
 						ctx,
-						eh,
+						extRc,
 						observe.ItemBackupMsg,
 						clues.Hide(itemName+dataSuffix),
 						itemSize)

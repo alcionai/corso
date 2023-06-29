@@ -708,7 +708,6 @@ type ItemInfo struct {
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	SharePoint *SharePointInfo `json:"sharePoint,omitempty"`
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
-	Extension  *ExtensionInfo  `json:"extensionData,omitempty"`
 }
 
 // typedInfo should get embedded in each sesrvice type to track
@@ -931,6 +930,7 @@ type SharePointInfo struct {
 	Size       int64     `json:"size,omitempty"`
 	WebURL     string    `json:"webUrl,omitempty"`
 	SiteID     string    `json:"siteID,omitempty"`
+	// TODO: Does this need extension info too?
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -989,17 +989,34 @@ type OneDriveInfo struct {
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath"`
 	Size       int64     `json:"size,omitempty"`
+	// TODO: Expose this as a map of [UUID]ExtensionInfo?
+	// This way each extension can have its own scratch space
+	Extension *ExtensionInfo `json:"extensionData,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo
 // for printing out to a terminal in a columnar display.
 func (i OneDriveInfo) Headers() []string {
-	return []string{"ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"}
+	return []string{"ItemName", "ParentPath", "Size", "Owner", "Created", "Modified", "Extension"}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i OneDriveInfo) Values() []string {
+	if i.Extension == nil {
+		return []string{
+			i.ItemName,
+			i.ParentPath,
+			humanize.Bytes(uint64(i.Size)),
+			i.Owner,
+			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Modified),
+			"",
+		}
+	}
+
+	jsonString, _ := json.Marshal(i.Extension.Data)
+
 	return []string{
 		i.ItemName,
 		i.ParentPath,
@@ -1007,6 +1024,7 @@ func (i OneDriveInfo) Values() []string {
 		i.Owner,
 		dttm.FormatToTabularDisplay(i.Created),
 		dttm.FormatToTabularDisplay(i.Modified),
+		string(jsonString),
 	}
 }
 
@@ -1047,6 +1065,8 @@ func updateFolderWithinDrive(
 }
 
 // ExtensionInfo describes extension data associated with an item
+// TODO: Expose this store behind an interface which can synchrnoize access to the
+// underlying map.
 type ExtensionInfo struct {
 	Data map[string]any `json:"data,omitempty"`
 }

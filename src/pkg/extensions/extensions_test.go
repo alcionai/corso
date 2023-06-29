@@ -4,6 +4,8 @@ package extensions
 
 import (
 	"bytes"
+	"context"
+	"hash/crc32"
 	"io"
 	"testing"
 
@@ -21,32 +23,6 @@ type ExtensionsUnitSuite struct {
 func TestExtensionsUnitSuite(t *testing.T) {
 	suite.Run(t, &ExtensionsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
-
-// type mockExtension struct {
-// 	numBytes int
-// 	data     map[string]any
-// }
-
-// func (me *mockExtension) WrapItem(
-// 	_ details.ItemInfo,
-// 	rc io.ReadCloser,
-// ) (io.ReadCloser, error) {
-// 	p := make([]byte, 4)
-
-// 	n, err := rc.Read(p)
-// 	if err != nil && err != io.EOF {
-// 		return nil, err
-// 	}
-
-// 	me.numBytes += n
-
-// 	return rc, nil
-// }
-
-// func (me *mockExtension) OutputData() map[string]any {
-// 	me.data["numBytes"] = me.numBytes
-// 	return me.data
-// }
 
 func readFrom(rc io.ReadCloser) error {
 	defer rc.Close()
@@ -78,8 +54,13 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 		{
 			name: "basic",
 			factories: []CorsoItemExtensionFactory{
-				func() CorsoItemExtension {
-					return &MockExtension{Data: map[string]any{}}
+				func(
+					ctx context.Context,
+					rc io.ReadCloser,
+					info details.ItemInfo,
+					extInfo *details.ExtensionInfo,
+				) (CorsoItemExtension, error) {
+					return NewMockExtension(ctx, rc, info, extInfo)
 				},
 			},
 			payload:     []byte("hello world"),
@@ -91,33 +72,24 @@ func (suite *ExtensionsUnitSuite) TestExtensionsBasic() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			_, flush := tester.NewContext(t)
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ehFactory := ExtensionHandlerFactory(func(
-				info details.ItemInfo,
-				extData *details.ExtensionInfo,
-				rc io.ReadCloser,
-				factory []CorsoItemExtensionFactory,
-			) (ExtensionHandler, error) {
-				return NewExtensionHandler(info, extData, rc, factory)
-			})
-
-			extData := &details.ExtensionInfo{
-				Data: map[string]any{},
-			}
-
-			ext, err := ehFactory(
-				details.ItemInfo{},
-				extData,
+			extRc, extInfo, err := AddItemExtensions(
+				ctx,
 				test.rc,
+				details.ItemInfo{},
 				test.factories)
 			require.NoError(suite.T(), err)
 
-			err = readFrom(ext)
+			err = readFrom(extRc)
 			require.NoError(suite.T(), err)
 
-			require.Equal(suite.T(), len(test.payload), extData.Data["numBytes"])
+			require.Equal(suite.T(), len(test.payload), extInfo.Data["numBytes"])
+
+			// verify crc32
+			c := extInfo.Data["crc32"].(uint32)
+			require.Equal(suite.T(), c, crc32.ChecksumIEEE(test.payload))
 		})
 	}
 }

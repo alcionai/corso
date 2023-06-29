@@ -2,11 +2,13 @@ package control
 
 import (
 	"context"
+	"io"
 	"strings"
 
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -52,8 +54,13 @@ func Defaults() Options {
 			ItemFetch:        4,
 		},
 		BackupItemExtensions: []extensions.CorsoItemExtensionFactory{
-			func() extensions.CorsoItemExtension {
-				return extensions.NewMockExtension()
+			func(
+				ctx context.Context,
+				rc io.ReadCloser,
+				info details.ItemInfo,
+				extInfo *details.ExtensionInfo,
+			) (extensions.CorsoItemExtension, error) {
+				return extensions.NewMockExtension(ctx, rc, info, extInfo)
 			},
 		},
 	}

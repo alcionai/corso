@@ -233,6 +233,7 @@ func augmentItemInfo(
 		Owner:      email,
 		ParentPath: pps,
 		Size:       size,
+		Extension:  nil,
 	}
 
 	return dii
