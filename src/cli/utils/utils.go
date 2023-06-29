@@ -71,8 +71,8 @@ func AccountConnectAndWriteRepoConfig(
 		return nil, nil, err
 	}
 
-	// repo config is already set while repo connect and init. This is just to confirm correct values.
-	// So won't fail is the write fails
+	// repo config gets set during repo connect and init.
+	// This call confirms we have the correct values.
 	err = config.WriteRepoConfig(ctx, s3Config, m365Config, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")

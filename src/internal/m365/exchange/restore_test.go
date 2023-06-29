@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -78,7 +79,8 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 		userID, folderID,
 		nil,
 		control.Copy,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "contact item info")
 }
@@ -152,7 +154,8 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 				userID, calendarID,
 				nil,
 				control.Copy,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "event item info")
 		})
@@ -380,7 +383,8 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				userID, destination,
 				nil,
 				control.Copy,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "item info was not populated")
 		})
@@ -413,7 +417,8 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithA
 		userID, calendarID,
 		nil,
 		control.Copy,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
 

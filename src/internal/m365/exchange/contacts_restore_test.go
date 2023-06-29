@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -191,7 +192,8 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				"destination",
 				test.collisionMap,
 				test.onCollision,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 
 			test.expectErr(t, err)
 			test.expectMock(t, test.apiMock)

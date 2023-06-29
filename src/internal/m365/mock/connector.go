@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -64,6 +65,7 @@ func (ctrl Controller) ConsumeRestoreCollections(
 	_ control.Options,
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
+	_ *count.Bus,
 ) (*details.Details, error) {
 	return ctrl.Deets, ctrl.Err
 }
