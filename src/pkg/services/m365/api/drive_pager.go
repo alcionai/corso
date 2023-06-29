@@ -51,7 +51,6 @@ func (c Drives) NewItemPager(
 	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferHeaderItems...),
 		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
-			Top:    ptr.To(maxDeltaPageSize),
 			Select: selectFields,
 		},
 	}

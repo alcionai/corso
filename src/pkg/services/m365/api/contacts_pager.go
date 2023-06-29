@@ -103,10 +103,8 @@ func (c Contacts) NewContactsPager(
 	selectProps ...string,
 ) itemPager[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
-		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
-			Top: ptr.To[int32](maxNonDeltaPageSize),
-		},
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{},
 	}
 
 	if len(selectProps) > 0 {
@@ -181,7 +179,6 @@ func (c Contacts) NewContactIDsPager(
 	config := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
-			Top:    ptr.To[int32](maxNonDeltaPageSize),
 		},
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
