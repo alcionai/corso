@@ -21,6 +21,7 @@ import (
 
 func GetAccountAndConnect(
 	ctx context.Context,
+	pst path.ServiceType,
 	overrides map[string]string,
 ) (repository.Repository, *storage.Storage, *account.Account, error) {
 	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
@@ -38,14 +39,19 @@ func GetAccountAndConnect(
 		return nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
+	if _, err := r.ConnectToM365(ctx, pst); err != nil {
+		return nil, nil, nil, clues.Wrap(err, "connecting to m365")
+	}
+
 	return r, &cfg.Storage, &cfg.Account, nil
 }
 
 func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
+	pst path.ServiceType,
 	overrides map[string]string,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, err := GetAccountAndConnect(ctx, overrides)
+	r, stg, acc, err := GetAccountAndConnect(ctx, pst, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err

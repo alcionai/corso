@@ -163,7 +163,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.SharePointService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -298,7 +298,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, flags.BackupIDFV, "SharePoint", args)
+	return genericDeleteCommand(cmd, path.SharePointService, flags.BackupIDFV, "SharePoint", args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -325,7 +325,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides(cmd))
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}

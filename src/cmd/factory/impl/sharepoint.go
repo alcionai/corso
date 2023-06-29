@@ -36,7 +36,7 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Sites, Site)
+	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Sites, Site, path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}

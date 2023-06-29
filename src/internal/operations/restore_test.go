@@ -465,7 +465,9 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	ctrl, err := m365.NewController(
 		ctx,
 		suite.acct,
-		resource.Users)
+		resource.Users,
+		rsel.PathService(),
+		control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

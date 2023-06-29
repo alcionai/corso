@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -1190,10 +1191,15 @@ func getSelectorWith(
 	}
 }
 
-func newController(ctx context.Context, t *testing.T, r resource.Category) *Controller {
+func newController(
+	ctx context.Context,
+	t *testing.T,
+	r resource.Category,
+	pst path.ServiceType,
+) *Controller {
 	a := tester.NewM365Account(t)
 
-	controller, err := NewController(ctx, a, r)
+	controller, err := NewController(ctx, a, r, pst, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return controller

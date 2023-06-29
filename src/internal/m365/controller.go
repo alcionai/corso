@@ -14,6 +14,8 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -51,7 +53,14 @@ func NewController(
 	ctx context.Context,
 	acct account.Account,
 	rc resource.Category,
+	pst path.ServiceType,
+	co control.Options,
 ) (*Controller, error) {
+	switch pst {
+	case path.ExchangeService:
+		graph.InitializeConcurrencyLimiter(co.Parallelism.ItemFetch)
+	}
+
 	creds, err := acct.M365Config()
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
