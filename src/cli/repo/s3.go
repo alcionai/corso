@@ -57,8 +57,8 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	// More generic and more frequently used flags take precedence.
 	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
 	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
-	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
-	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
+	fs.StringVar(&endpoint, "endpoint", "127.0.0.1:9000", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, "disable-tls", true, "Disable TLS (HTTPS)")
 	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
 
 	// In general, we don't want to expose this flag to users and have them mistake it
