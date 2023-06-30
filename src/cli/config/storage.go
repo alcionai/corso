@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -93,9 +92,6 @@ func configureStorage(
 		return store, clues.Wrap(err, "reading s3 configs from corso config file")
 	}
 
-	// TODO: remove after done debugging test
-	fmt.Println("Access key from viper: ", s3Cfg.AccessKey)
-
 	s3Overrides(overrides)
 	aws := credentials.GetAWS(overrides)
 
@@ -109,10 +105,6 @@ func configureStorage(
 			}
 			err = nil
 		}
-
-		// TODO: remove after done debugging test
-		fmt.Println("Access key: ", s3Cfg.AccessKey)
-		fmt.Println("Access key from AWS creds: ", aws.AccessKey)
 
 		if err != nil {
 			return store, clues.Wrap(err, "validating aws credentials")
@@ -133,10 +125,6 @@ func configureStorage(
 			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
 		)),
 	}
-
-	// TODO: remove after done debugging test
-	fmt.Println("Access key from AWS: ", s3Cfg.AWS.AccessKey)
-	fmt.Println("Access key: ", s3Cfg.AccessKey)
 
 	// compose the common config and credentials
 	corso := GetAndInsertCorso(vpr.GetString(CorsoPassphrase))

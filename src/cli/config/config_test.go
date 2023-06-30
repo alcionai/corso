@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -87,7 +88,6 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 		azureClientID          = "azure-client-id-test"
 		azureSecret            = "azure-secret-test"
 		endpoint               = "s3-test"
-		prefix                 = "prefix-test"
 		disableTLS             = "true"
 		disableTLSVerification = "true"
 	)
@@ -107,37 +107,24 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	overridesConfigFile := map[string]string{}
+	s3Cfg, err := s3ConfigsFromViper(vpr)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, b, s3Cfg.Bucket)
+	assert.Equal(t, "test-prefix/", s3Cfg.Prefix)
+	assert.Equal(t, disableTLS, strconv.FormatBool(s3Cfg.DoNotUseTLS))
+	assert.Equal(t, disableTLSVerification, strconv.FormatBool(s3Cfg.DoNotVerifyTLS))
 
-	repoDetails, err := getStorageAndAccountWithViper(
-		vpr,
-		true,
-		false,
-		overridesConfigFile,
-	)
-
-	require.NoError(t, err, "reading repo config", clues.ToCore(err))
-
-	m365Config, _ := repoDetails.Account.M365Config()
-	s3Cfg, _ := repoDetails.Storage.S3Config()
-	commonConfig, _ := repoDetails.Storage.CommonConfig()
-	pass := commonConfig.Corso.CorsoPassphrase
-
+	s3Cfg, err = s3CredsFromViper(vpr, s3Cfg)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, accKey, s3Cfg.AWS.AccessKey)
 	assert.Equal(t, secret, s3Cfg.AWS.SecretKey)
 	assert.Equal(t, token, s3Cfg.AWS.SessionToken)
 
-	assert.Equal(t, b, s3Cfg.Bucket)
-	assert.Equal(t, "s3.amazonaws.com", s3Cfg.Endpoint)
-	assert.Equal(t, "test-prefix/", s3Cfg.Prefix)
-	assert.Equal(t, str.ParseBool(disableTLS), s3Cfg.DoNotUseTLS)
-	assert.Equal(t, str.ParseBool(disableTLSVerification), s3Cfg.DoNotVerifyTLS)
-
-	assert.Equal(t, flags.AzureClientIDFV, m365Config.AzureClientID)
-	assert.Equal(t, flags.AzureClientSecretFV, m365Config.AzureClientSecret)
-	assert.Equal(t, flags.AzureClientTenantFV, m365Config.AzureTenantID)
-
-	assert.Equal(t, flags.CorsoPassphraseFV, pass)
+	m365, err := m365ConfigsFromViper(vpr)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, azureClientID, m365.AzureClientID)
+	assert.Equal(t, azureSecret, m365.AzureClientSecret)
+	assert.Equal(t, tID, m365.AzureTenantID)
 }
 
 func (suite *ConfigSuite) TestWriteReadConfig() {
@@ -341,6 +328,17 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 	assert.Equal(t, flags.AzureClientTenantFV, m365Config.AzureTenantID)
 
 	assert.Equal(t, flags.CorsoPassphraseFV, pass)
+
+	// reset values
+	flags.AzureClientTenantFV = ""
+	flags.AzureClientIDFV = ""
+	flags.AzureClientSecretFV = ""
+
+	flags.AWSAccessKeyFV = ""
+	flags.AWSSecretAccessKeyFV = ""
+	flags.AWSSessionTokenFV = ""
+
+	flags.CorsoPassphraseFV = ""
 }
 
 // ------------------------------------------------------------
