@@ -78,24 +78,24 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	)
 
 	const (
-		b                        = "read-repo-config-basic-bucket"
-		tID                      = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
-		accKey                   = "aws-test-access-key"
-		secret                   = "aws-test-secret-key"
-		token                    = "aws-test-session-token"
-		passphrase               = "passphrase-test"
-		azureClientID            = "azure-client-id-test"
-		azureSecret              = "azure-secret-test"
-		endpoint                 = "s3-test"
-		prefix                   = "prefix-test"
-		disable_tls              = "true"
-		disable_tls_verification = "true"
+		b                      = "read-repo-config-basic-bucket"
+		tID                    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+		accKey                 = "aws-test-access-key"
+		secret                 = "aws-test-secret-key"
+		token                  = "aws-test-session-token"
+		passphrase             = "passphrase-test"
+		azureClientID          = "azure-client-id-test"
+		azureSecret            = "azure-secret-test"
+		endpoint               = "s3-test"
+		prefix                 = "prefix-test"
+		disableTLS             = "true"
+		disableTLSVerification = "true"
 	)
 
 	// Generate test config file
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID, accKey, secret,
 		token, passphrase, azureClientID, azureSecret,
-		disable_tls, disable_tls_verification)
+		disableTLS, disableTLSVerification)
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
 	require.NoError(t, err, clues.ToCore(err))
@@ -130,8 +130,8 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	assert.Equal(t, b, s3Cfg.Bucket)
 	assert.Equal(t, "s3.amazonaws.com", s3Cfg.Endpoint)
 	assert.Equal(t, "test-prefix/", s3Cfg.Prefix)
-	assert.Equal(t, str.ParseBool(disable_tls), s3Cfg.DoNotUseTLS)
-	assert.Equal(t, str.ParseBool(disable_tls_verification), s3Cfg.DoNotVerifyTLS)
+	assert.Equal(t, str.ParseBool(disableTLS), s3Cfg.DoNotUseTLS)
+	assert.Equal(t, str.ParseBool(disableTLSVerification), s3Cfg.DoNotVerifyTLS)
 
 	assert.Equal(t, flags.AzureClientIDFV, m365Config.AzureClientID)
 	assert.Equal(t, flags.AzureClientSecretFV, m365Config.AzureClientSecret)
@@ -263,23 +263,23 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 	)
 
 	const (
-		b                        = "read-repo-config-basic-bucket"
-		tID                      = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
-		accKey                   = "aws-test-access-key"
-		secret                   = "aws-test-secret-key"
-		token                    = "aws-test-session-token"
-		passphrase               = "passphrase-test"
-		azureClientID            = "azure-client-id-test"
-		azureSecret              = "azure-secret-test"
-		prefix                   = "prefix-test"
-		disable_tls              = "true"
-		disable_tls_verification = "true"
+		b                      = "read-repo-config-basic-bucket"
+		tID                    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+		accKey                 = "aws-test-access-key"
+		secret                 = "aws-test-secret-key"
+		token                  = "aws-test-session-token"
+		passphrase             = "passphrase-test"
+		azureClientID          = "azure-client-id-test"
+		azureSecret            = "azure-secret-test"
+		prefix                 = "prefix-test"
+		disableTLS             = "true"
+		disableTLSVerification = "true"
 	)
 
 	// Generate test config file
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID, accKey, secret, token,
 		passphrase, azureClientID, azureSecret,
-		disable_tls, disable_tls_verification)
+		disableTLS, disableTLSVerification)
 
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
