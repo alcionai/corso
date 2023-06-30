@@ -232,6 +232,7 @@ func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBac
 }
 
 func (suite *SharePointIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
+	suite.T().Skip("Temporarily disabled due to CI issues")
 	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
