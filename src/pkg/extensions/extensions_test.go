@@ -5,7 +5,6 @@ package extensions
 import (
 	"bytes"
 	"context"
-	"hash/crc32"
 	"io"
 	"testing"
 
@@ -15,77 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
-
-var _ CorsoItemExtension = &MockExtension{}
-
-type MockExtension struct {
-	numBytes    int
-	crc32       uint32
-	info        details.ItemInfo
-	extInfo     *details.ExtensionInfo
-	innerRc     io.ReadCloser
-	ctx         context.Context
-	failOnRead  bool
-	failOnClose bool
-}
-
-func (me *MockExtension) Read(p []byte) (int, error) {
-	if me.failOnRead {
-		return 0, clues.New("mock read error")
-	}
-
-	n, err := me.innerRc.Read(p)
-	if err != nil && err != io.EOF {
-		logger.CtxErr(me.ctx, err).Error("inner read error")
-		return n, err
-	}
-
-	me.numBytes += n
-	me.crc32 = crc32.Update(me.crc32, crc32.IEEETable, p[:n])
-
-	if err == io.EOF {
-		logger.Ctx(me.ctx).Debug("mock extension reached EOF")
-		me.extInfo.Data["numBytes"] = me.numBytes
-		me.extInfo.Data["crc32"] = me.crc32
-	}
-
-	return n, err
-}
-
-func (me *MockExtension) Close() error {
-	if me.failOnClose {
-		return clues.New("mock close error")
-	}
-
-	err := me.innerRc.Close()
-	if err != nil {
-		return err
-	}
-
-	me.extInfo.Data["numBytes"] = me.numBytes
-	me.extInfo.Data["crc32"] = me.crc32
-	logger.Ctx(me.ctx).Infow(
-		"mock extension closed",
-		"numBytes", me.numBytes, "crc32", me.crc32)
-
-	return nil
-}
-
-func NewMockExtension(
-	ctx context.Context,
-	rc io.ReadCloser,
-	info details.ItemInfo,
-	extInfo *details.ExtensionInfo,
-) (CorsoItemExtension, error) {
-	return &MockExtension{
-		ctx:     ctx,
-		innerRc: rc,
-		info:    info,
-		extInfo: extInfo,
-	}, nil
-}
 
 type ExtensionsUnitSuite struct {
 	tester.Suite
@@ -120,14 +49,7 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 		{
 			name: "happy path",
 			factories: []CorsoItemExtensionFactory{
-				func(
-					ctx context.Context,
-					rc io.ReadCloser,
-					info details.ItemInfo,
-					extInfo *details.ExtensionInfo,
-				) (CorsoItemExtension, error) {
-					return NewMockExtension(ctx, rc, info, extInfo)
-				},
+				NewMockExtension,
 			},
 			rc: testRc,
 			validateOutputs: func(
