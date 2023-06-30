@@ -420,13 +420,17 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		folderBName,
 	}
 
+	defaultMetadata := stub.MetaData{SharingMode: metadata.SharingModeInherited}
+
 	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileAData,
+					Meta: defaultMetadata,
 				},
 			},
 			Folders: []stub.ItemData{
@@ -440,10 +444,12 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: folderAPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileBData,
+					Meta: defaultMetadata,
 				},
 			},
 			Folders: []stub.ItemData{
@@ -454,10 +460,12 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: subfolderBPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileCData,
+					Meta: defaultMetadata,
 				},
 			},
 			Folders: []stub.ItemData{
@@ -468,19 +476,23 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: subfolderAPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileDData,
+					Meta: defaultMetadata,
 				},
 			},
 		},
 		{
 			PathElements: folderBPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileEData,
+					Meta: defaultMetadata,
 				},
 			},
 		},
