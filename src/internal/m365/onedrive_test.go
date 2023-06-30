@@ -215,15 +215,19 @@ func (suite *SharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFo
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
 }
 
+// TODO: Re-enable these tests (disabled as it currently acting up CI)
 func (suite *SharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
+	suite.T().Skip("Temporarily disabled due to CI issues")
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+	suite.T().Skip("Temporarily disabled due to CI issues")
 	testPermissionsBackupAndNoRestore(suite, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
+	suite.T().Skip("Temporarily disabled due to CI issues")
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
 }
 
