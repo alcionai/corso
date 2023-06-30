@@ -684,6 +684,33 @@ func permissionEqual(expected metadata.Permission, got metadata.Permission) bool
 	return true
 }
 
+func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
+	if !strings.EqualFold(expected.Link.Scope, got.Link.Scope) {
+		return false
+	}
+
+	if !strings.EqualFold(expected.Link.Type, got.Link.Type) {
+		return false
+	}
+
+	if !slices.Equal(expected.Entities, got.Entities) {
+		return false
+	}
+
+	if (expected.Expiration == nil && got.Expiration != nil) ||
+		(expected.Expiration != nil && got.Expiration == nil) {
+		return false
+	}
+
+	if expected.Expiration != nil &&
+		got.Expiration != nil &&
+		!expected.Expiration.Equal(ptr.Val(got.Expiration)) {
+		return false
+	}
+
+	return true
+}
+
 func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
@@ -773,6 +800,8 @@ func compareDriveItem(
 			return true
 		}
 
+		assert.Equal(t, expectedMeta.SharingMode, itemMeta.SharingMode, "sharing mode")
+
 		// We cannot restore owner permissions, so skip checking them
 		itemPerms := []metadata.Permission{}
 
@@ -791,6 +820,13 @@ func compareDriveItem(
 			// relative to the permissions changed by the test.
 			config.Service == path.SharePointService,
 			permissionEqual)
+
+		testElementsMatch(
+			t,
+			expectedMeta.LinkShares,
+			itemMeta.LinkShares,
+			false,
+			linkSharesEqual)
 
 		return true
 	}

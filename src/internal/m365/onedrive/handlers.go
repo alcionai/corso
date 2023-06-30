@@ -80,13 +80,14 @@ type GetItemer interface {
 // ---------------------------------------------------------------------------
 
 type RestoreHandler interface {
-	DeleteItemPermissioner
 	GetFolderByNamer
 	GetRootFolderer
 	ItemInfoAugmenter
 	NewItemContentUploader
 	PostItemInContainerer
+	DeleteItemPermissioner
 	UpdateItemPermissioner
+	UpdateItemLinkSharer
 }
 
 type NewItemContentUploader interface {
@@ -111,6 +112,14 @@ type UpdateItemPermissioner interface {
 		driveID, itemID string,
 		body *drives.ItemItemsItemInvitePostRequestBody,
 	) (drives.ItemItemsItemInviteResponseable, error)
+}
+
+type UpdateItemLinkSharer interface {
+	PostItemLinkShareUpdate(
+		ctx context.Context,
+		driveID, itemID string,
+		body *drives.ItemItemsItemCreateLinkPostRequestBody,
+	) (models.Permissionable, error)
 }
 
 type PostItemInContainerer interface {
