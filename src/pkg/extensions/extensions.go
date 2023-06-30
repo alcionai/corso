@@ -22,14 +22,27 @@ type CorsoItemExtensionFactory func(
 	*details.ExtensionInfo,
 ) (CorsoItemExtension, error)
 
+type AddItemExtensioner interface {
+	AddItemExtensions(
+		context.Context,
+		io.ReadCloser,
+		details.ItemInfo,
+		[]CorsoItemExtensionFactory,
+	) (io.ReadCloser, *details.ExtensionInfo, error)
+}
+
+var _ AddItemExtensioner = &ItemExtensionHandler{}
+
+type ItemExtensionHandler struct{}
+
 // AddItemExtensions wraps provided readcloser with extensions
 // supplied via factory
-func AddItemExtensions(
+func (eh *ItemExtensionHandler) AddItemExtensions(
 	ctx context.Context,
 	rc io.ReadCloser,
 	info details.ItemInfo,
 	factories []CorsoItemExtensionFactory,
-) (CorsoItemExtension, *details.ExtensionInfo, error) {
+) (io.ReadCloser, *details.ExtensionInfo, error) {
 	// TODO: move to validate
 	if rc == nil {
 		return nil, nil, clues.New("nil inner readcloser")

@@ -18,6 +18,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var _ CorsoItemExtension = &MockExtension{}
+
 // Temporary, testing purposes only
 type MockExtension struct {
 	// TODO: Add cumlulative crc32 checksum
@@ -265,8 +267,9 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			t := suite.T()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
+			ith := &ItemExtensionHandler{}
 
-			extRc, extInfo, err := AddItemExtensions(
+			extRc, extInfo, err := ith.AddItemExtensions(
 				ctx,
 				test.rc,
 				testItemInfo,
