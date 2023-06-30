@@ -1,18 +1,12 @@
 package restore
 
 import (
-	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -90,6 +84,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.MakeSharePointOpts(cmd)
+	opts.RestoreCfg.DTTMFormat = dttm.HumanReadableDriveItem
 
 	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
@@ -99,33 +94,14 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	restoreCfg := utils.MakeRestoreConfig(ctx, opts.RestoreCfg, dttm.HumanReadableDriveItem)
-
-	ro, err := r.NewRestore(ctx, flags.BackupIDFV, sel.Selector, restoreCfg)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to initialize SharePoint restore"))
-	}
-
-	ds, err := ro.Run(ctx)
-	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
-		}
-
-		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint restore"))
-	}
-
-	ds.Items().MaybePrintEntries(ctx)
-
-	return nil
+	return runRestore(
+		ctx,
+		cmd,
+		opts.RestoreCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"SharePoint")
 }

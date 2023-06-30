@@ -179,6 +179,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	finalizeErrorHandling(ctx, op.Options, op.Errors, "running restore")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
+	logger.Ctx(ctx).With("total_counts", op.Counter.Values()).Info("restore stats")
 
 	// -----
 	// Persistence
