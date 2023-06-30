@@ -284,7 +284,7 @@ func getStorageAndAccountWithViper(
 		config.RepoID = vpr.GetString(RepoID)
 	}
 
-	config.Account, err = configureAccount(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Account, err = configureAccount(vpr, readConfigFromViper, overrides)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
