@@ -69,10 +69,6 @@ func configureStorage(
 	)
 
 	if readConfigFromViper {
-		if s3Cfg, err = s3ConfigsFromViper(vpr); err != nil {
-			return store, clues.Wrap(err, "reading s3 configs from corso config file")
-		}
-
 		if b, ok := overrides[storage.Bucket]; ok {
 			overrides[storage.Bucket] = common.NormalizeBucket(b)
 		}
@@ -83,6 +79,10 @@ func configureStorage(
 	}
 
 	if matchFromConfig {
+		if s3Cfg, err = s3ConfigsFromViper(vpr); err != nil {
+			return store, clues.Wrap(err, "reading s3 configs from corso config file")
+		}
+
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}
