@@ -111,9 +111,9 @@ func (c Events) NewEventsPager(
 	selectProps ...string,
 ) itemPager[models.Eventable] {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxNonDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 	}
 
@@ -187,9 +187,9 @@ func (c Events) NewEventIDsPager(
 	immutableIDs bool,
 ) (itemIDPager, error) {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxNonDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 	}
 
@@ -244,9 +244,9 @@ func (c Events) NewEventDeltaIDsPager(
 	immutableIDs bool,
 ) (itemIDPager, error) {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers:         newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 	}
 
