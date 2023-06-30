@@ -582,6 +582,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
 			Files: []stub.ItemData{
 				{
 					// Test restoring a file that doesn't inherit permissions.
@@ -600,11 +603,17 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					// no permissions.
 					Name: fileName2,
 					Data: fileBData,
+					Meta: stub.MetaData{
+						SharingMode: metadata.SharingModeInherited,
+					},
 				},
 			},
 			Folders: []stub.ItemData{
 				{
 					Name: folderBName,
+					Meta: stub.MetaData{
+						SharingMode: metadata.SharingModeInherited,
+					},
 				},
 				{
 					Name: folderAName,
@@ -630,6 +639,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 		{
 			PathElements: folderBPath,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
 			Files: []stub.ItemData{
 				{
 					// Test restoring a file in a non-root folder that doesn't inherit
@@ -714,6 +726,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				{
 					Name: fileName,
 					Data: fileAData,
+					Meta: stub.MetaData{
+						SharingMode: metadata.SharingModeInherited,
+					},
 				},
 			},
 			Meta: stub.MetaData{
@@ -793,6 +808,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 							EntityID: secondaryUserID,
 							Roles:    writePerm,
 						},
+						SharingMode: metadata.SharingModeCustom,
 					},
 				},
 			},
@@ -903,34 +919,44 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		folderCName,
 	}
 
-	fileSet := []stub.ItemData{
-		{
-			Name: "file-custom",
-			Data: fileAData,
-			Meta: stub.MetaData{
-				Perms: stub.PermData{
-					User:     secondaryUserName,
-					EntityID: secondaryUserID,
-					Roles:    writePerm,
-				},
-				SharingMode: metadata.SharingModeCustom,
+	fileCustom := stub.ItemData{
+		Name: "file-custom",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			Perms: stub.PermData{
+				User:     secondaryUserName,
+				EntityID: secondaryUserID,
+				Roles:    writePerm,
 			},
-		},
-		{
-			Name: "file-inherited",
-			Data: fileAData,
-			Meta: stub.MetaData{
-				SharingMode: metadata.SharingModeInherited,
-			},
-		},
-		{
-			Name: "file-empty",
-			Data: fileAData,
-			Meta: stub.MetaData{
-				SharingMode: metadata.SharingModeCustom,
-			},
+			SharingMode: metadata.SharingModeCustom,
 		},
 	}
+	fileInherited := stub.ItemData{
+		Name: "file-inherited",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			SharingMode: metadata.SharingModeInherited,
+		},
+	}
+	fileEmpty := stub.ItemData{
+		Name: "file-empty",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			SharingMode: metadata.SharingModeCustom,
+		},
+	}
+
+	// If parent is empty, then empty permissions would be inherited
+	fileEmptyInherited := stub.ItemData{
+		Name: "file-empty",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			SharingMode: metadata.SharingModeInherited,
+		},
+	}
+
+	fileSet := []stub.ItemData{fileCustom, fileInherited, fileEmpty}
+	fileSetEmpty := []stub.ItemData{fileCustom, fileInherited, fileEmptyInherited}
 
 	// Here is what this test is testing
 	// - custom-permission-folder
@@ -957,6 +983,9 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			Folders: []stub.ItemData{
 				{Name: folderAName},
 			},
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
 		},
 		{
 			PathElements: folderAPath,
@@ -972,6 +1001,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 					EntityID: tertiaryUserID,
 					Roles:    readPerm,
 				},
+				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 		{
@@ -995,7 +1025,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 		{
 			PathElements: subfolderACPath,
-			Files:        fileSet,
+			Files:        fileSetEmpty,
 			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeCustom,
 			},
