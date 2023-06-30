@@ -114,15 +114,17 @@ func configureStorage(
 	s3Cfg = storage.S3Config{
 		AWS:      aws,
 		Bucket:   str.First(overrides[storage.Bucket], s3Cfg.Bucket),
-		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint),
+		Endpoint: str.First(overrides[storage.Endpoint], s3Cfg.Endpoint, "s3.amazonaws.com"),
 		Prefix:   str.First(overrides[storage.Prefix], s3Cfg.Prefix),
 		DoNotUseTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotUseTLS],
 			strconv.FormatBool(s3Cfg.DoNotUseTLS),
+			"false",
 		)),
 		DoNotVerifyTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotVerifyTLS],
 			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
+			"false",
 		)),
 	}
 
