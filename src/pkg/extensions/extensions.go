@@ -22,7 +22,7 @@ type CorsoItemExtensionFactory func(
 	*details.ExtensionInfo,
 ) (CorsoItemExtension, error)
 
-// Thin wrapper for runtime logging & metrics
+// Thin wrapper for runtime logging & metrics around extensions
 type loggerExtension struct {
 	info    details.ItemInfo
 	innerRc io.ReadCloser
@@ -84,7 +84,8 @@ var _ AddItemExtensioner = &ItemExtensionHandler{}
 type ItemExtensionHandler struct{}
 
 // AddItemExtensions wraps provided readcloser with extensions
-// supplied via factory
+// supplied via factory, with the first extension in slice being
+// the innermost one.
 func (eh *ItemExtensionHandler) AddItemExtensions(
 	ctx context.Context,
 	rc io.ReadCloser,
