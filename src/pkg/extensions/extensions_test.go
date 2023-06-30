@@ -20,9 +20,7 @@ import (
 
 var _ CorsoItemExtension = &MockExtension{}
 
-// Temporary, testing purposes only
 type MockExtension struct {
-	// TODO: Add cumlulative crc32 checksum
 	numBytes    int
 	crc32       uint32
 	info        details.ItemInfo
@@ -48,7 +46,7 @@ func (me *MockExtension) Read(p []byte) (int, error) {
 	me.crc32 = crc32.Update(me.crc32, crc32.IEEETable, p[:n])
 
 	if err == io.EOF {
-		logger.Ctx(me.ctx).Info("mock extension reached EOF")
+		logger.Ctx(me.ctx).Debug("mock extension reached EOF")
 		me.extInfo.Data["numBytes"] = me.numBytes
 		me.extInfo.Data["crc32"] = me.crc32
 	}
@@ -96,25 +94,6 @@ type ExtensionsUnitSuite struct {
 func TestExtensionsUnitSuite(t *testing.T) {
 	suite.Run(t, &ExtensionsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
-
-// func readFrom(rc io.ReadCloser) error {
-// 	defer rc.Close()
-
-// 	p := make([]byte, 4)
-
-// 	for {
-// 		_, err := rc.Read(p)
-// 		if err == io.EOF {
-// 			break
-// 		}
-
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
-// }
 
 func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 	type outputValidationFunc func(
