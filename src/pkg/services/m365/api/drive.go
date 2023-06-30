@@ -30,7 +30,10 @@ type Drives struct {
 // Folders
 // ---------------------------------------------------------------------------
 
-const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+const (
+	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	createLinkShareURLFmt = "https://graph.microsoft.com/beta/drives/%s/items/%s/createLink"
+)
 
 var ErrFolderNotFound = clues.New("folder not found")
 
@@ -305,6 +308,27 @@ func (c Drives) DeleteItemPermission(
 	}
 
 	return nil
+}
+
+func (c Drives) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
+
+	// We are using the beta version of the endpoint. This allows us
+	// to add recipients in the same request as well as to make it not
+	// send out and email for every link share the user gets added to.
+	rawURL := fmt.Sprintf(createLinkShareURLFmt, driveID, itemID)
+	builder := drives.NewItemItemsItemCreateLinkRequestBuilder(rawURL, c.Stable.Adapter())
+
+	itm, err := builder.Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating link share")
+	}
+
+	return itm, nil
 }
 
 // DriveItemCollisionKeyy constructs a key from the item name.
