@@ -18,16 +18,8 @@ import (
 // interfaces & structs
 // ---------------------------------------------------------------------------
 
-type getter interface {
-	GetByID(context.Context, string) (models.Userable, error)
-}
-
 type getDefaultDriver interface {
 	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
-}
-
-type getAller interface {
-	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, error)
 }
 
 // ---------------------------------------------------------------------------

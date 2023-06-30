@@ -26,7 +26,6 @@ import (
 type errorCode string
 
 const (
-	activityLimitReached errorCode = "activityLimitReached"
 	// cannotOpenFileAttachment happen when an attachment is
 	// inaccessible. The error message is usually "OLE conversion
 	// failed for an attachment."
