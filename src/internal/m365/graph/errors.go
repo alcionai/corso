@@ -29,8 +29,8 @@ const (
 	activityLimitReached        errorCode = "activityLimitReached"
 	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
 	errorAccessDenied           errorCode = "ErrorAccessDenied"
-	itemNotFound                errorCode = "ErrorItemNotFound"
-	itemNotFoundShort           errorCode = "itemNotFound"
+	errorItemNotFound           errorCode = "ErrorItemNotFound"
+	itemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
 	// nameAlreadyExists occurs when a request with
@@ -111,14 +111,18 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if hasErrorCode(
 		err,
+		errorItemNotFound,
 		itemNotFound,
-		itemNotFoundShort,
 		syncFolderNotFound,
 	) {
 		return true
 	}
 
 	return false
+}
+
+func IsErrItemNotFound(err error) bool {
+	return hasErrorCode(err, itemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -133,7 +137,7 @@ func IsErrQuotaExceeded(err error) bool {
 func IsErrExchangeMailFolderNotFound(err error) bool {
 	// Not sure if we can actually see a resourceNotFound error here. I've only
 	// seen the latter two.
-	return hasErrorCode(err, ResourceNotFound, itemNotFound, MailboxNotEnabledForRESTAPI)
+	return hasErrorCode(err, ResourceNotFound, errorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
