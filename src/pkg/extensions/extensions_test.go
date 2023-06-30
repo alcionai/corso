@@ -258,35 +258,6 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 				return err != nil && extRc == nil && extInfo == nil
 			},
 		},
-		{
-			name: "nil inner rc",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
-			},
-			rc: nil,
-			validateOutputs: func(
-				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
-				err error,
-			) bool {
-				return err != nil && extRc == nil && extInfo == nil
-			},
-		},
-		{
-			name: "nil info",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
-			},
-			rc: nil,
-			validateOutputs: func(
-				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
-				err error,
-			) bool {
-				return err != nil && extRc == nil && extInfo == nil
-			},
-		},
-		// verify wrap ordering
 	}
 
 	for _, test := range table {
