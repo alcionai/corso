@@ -32,6 +32,7 @@ const (
 	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
 	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
 	errorAccessDenied        errorCode = "ErrorAccessDenied"
+	errorItemNotFound        errorCode = "ErrorItemNotFound"
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
@@ -39,7 +40,6 @@ const (
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser                 errorCode = "ErrorInvalidUser"
-	errorItemNotFound           errorCode = "ErrorItemNotFound"
 	itemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
