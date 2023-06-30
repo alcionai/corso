@@ -58,10 +58,10 @@ func TestSharePointPageSuite(t *testing.T) {
 func (suite *SharePointPageSuite) TestFetchPages() {
 	t := suite.T()
 
-	graph.InitializeConcurrencyLimiter(4)
-
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 
 	pgs, err := api.FetchPages(ctx, suite.service, suite.siteID)
 	assert.NoError(t, err, clues.ToCore(err))

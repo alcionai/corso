@@ -76,8 +76,11 @@ func (suite *ConcurrencyMWUnitTestSuite) TestConcurrencyLimiter() {
 func (suite *ConcurrencyMWUnitTestSuite) TestInitializeConcurrencyLimiter() {
 	t := suite.T()
 
-	InitializeConcurrencyLimiter(2)
-	InitializeConcurrencyLimiter(4)
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	InitializeConcurrencyLimiter(ctx, true, 2)
+	InitializeConcurrencyLimiter(ctx, false, 4)
 
 	assert.Equal(t, cap(concurrencyLimitMiddlewareSingleton.semaphore), 2, "singleton semaphore capacity changed")
 }

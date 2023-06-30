@@ -41,16 +41,16 @@ func generateConcurrencyLimiter(capacity int) *concurrencyLimiterMiddleware {
 	}
 }
 
-func InitializeConcurrencyLimiter(capacity int) {
+func InitializeConcurrencyLimiter(ctx context.Context, enable bool, capacity int) {
 	once.Do(func() {
-		concurrencyLimitMiddlewareSingleton.semaphore = generateConcurrencyLimiter(capacity).semaphore
-	})
-}
-
-func TurnOffConcurrencyLimiter(ctx context.Context) {
-	once.Do(func() {
-		logger.Ctx(ctx).Info("turning off the concurrency limiter")
-		concurrencyLimitMiddlewareSingleton = nil
+		switch enable {
+		case true:
+			logger.Ctx(ctx).Infow("turning on the concurrency limiter", "concurrency_limit", capacity)
+			concurrencyLimitMiddlewareSingleton.semaphore = generateConcurrencyLimiter(capacity).semaphore
+		case false:
+			logger.Ctx(ctx).Info("turning off the concurrency limiter")
+			concurrencyLimitMiddlewareSingleton = nil
+		}
 	})
 }
 

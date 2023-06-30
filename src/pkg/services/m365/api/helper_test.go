@@ -86,10 +86,10 @@ type intgTesterSetup struct {
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its := intgTesterSetup{}
 
-	graph.InitializeConcurrencyLimiter(4)
-
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	a := tester.NewM365Account(t)
 	creds, err := a.M365Config()

@@ -32,7 +32,10 @@ func TestDiscoveryIntgSuite(t *testing.T) {
 }
 
 func (suite *DiscoveryIntgSuite) SetupSuite() {
-	graph.InitializeConcurrencyLimiter(4)
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 }
 
 func (suite *DiscoveryIntgSuite) TestUsers() {

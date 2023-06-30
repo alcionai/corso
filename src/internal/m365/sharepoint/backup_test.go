@@ -180,7 +180,10 @@ func TestSharePointPagesSuite(t *testing.T) {
 }
 
 func (suite *SharePointPagesSuite) SetupSuite() {
-	graph.InitializeConcurrencyLimiter(4)
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 }
 
 func (suite *SharePointPagesSuite) TestCollectPages() {

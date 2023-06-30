@@ -39,6 +39,8 @@ func GetAccountAndConnect(
 		return nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
+	// this initializes our graph api client configurations,
+	// including control options such as concurency limitations.
 	if _, err := r.ConnectToM365(ctx, pst); err != nil {
 		return nil, nil, nil, clues.Wrap(err, "connecting to m365")
 	}

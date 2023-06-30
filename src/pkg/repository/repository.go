@@ -79,6 +79,8 @@ type Repository interface {
 	) (operations.MaintenanceOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
+	// ConnectToM365 establishes graph api connections
+	// and initializes api client configurations.
 	ConnectToM365(
 		ctx context.Context,
 		pst path.ServiceType,
@@ -590,7 +592,6 @@ func deleteBackup(
 	return sw.DeleteBackup(ctx, model.StableID(id))
 }
 
-// BackupDetails returns the specified backup.Details
 func (r repository) ConnectToM365(
 	ctx context.Context,
 	pst path.ServiceType,

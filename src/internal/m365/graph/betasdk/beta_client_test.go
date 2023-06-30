@@ -25,9 +25,13 @@ func TestBetaClientSuite(t *testing.T) {
 }
 
 func (suite *BetaClientSuite) SetupSuite() {
-	graph.InitializeConcurrencyLimiter(4)
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, false, 4)
+
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
