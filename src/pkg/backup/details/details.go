@@ -1046,8 +1046,6 @@ func updateFolderWithinDrive(
 }
 
 // ExtensionInfo describes extension data associated with an item
-// TODO: Expose this store behind an interface which can synchrnoize access to the
-// underlying map.
 type ExtensionInfo struct {
 	Data map[string]any `json:"data,omitempty"`
 }
