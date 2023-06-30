@@ -134,9 +134,9 @@ func (c Mail) NewMailPager(
 	selectProps ...string,
 ) itemPager[models.Messageable] {
 	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxNonDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 	}
 
@@ -190,7 +190,7 @@ func (c Mail) NewMailIDsPager(
 	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
-			Top:    ptr.To(maxNonDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
@@ -287,7 +287,7 @@ func (c Mail) NewMailDeltaIDsPager(
 	config := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd("isRead"),
-			Top:    ptr.To(maxDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
