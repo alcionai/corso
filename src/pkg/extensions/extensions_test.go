@@ -279,6 +279,8 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 	}
 }
 
+// TODO: tests for loggerExtension
+
 // {
 // 	name: "read_failure",
 // 	factories: []CorsoItemExtensionFactory{
