@@ -30,7 +30,7 @@ type loggerExtension struct {
 	extInfo *details.ExtensionInfo
 }
 
-func NewMonitoringExtension(
+func NewLoggerExtension(
 	ctx context.Context,
 	rc io.ReadCloser,
 	info details.ItemInfo,
@@ -99,7 +99,7 @@ func (eh *ItemExtensionHandler) AddItemExtensions(
 		return nil, nil, clues.New("no extensions supplied")
 	}
 
-	factories = append(factories, NewMonitoringExtension)
+	factories = append(factories, NewLoggerExtension)
 	ctx = clues.Add(ctx, "num_extensions", len(factories))
 
 	extInfo := &details.ExtensionInfo{
