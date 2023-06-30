@@ -117,9 +117,21 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	ctx = clues.Add(ctx, "given_site_id", identifier)
 
 	if siteIDRE.MatchString(identifier) {
-		resp, err = c.Stable.Client().Sites().BySiteId(identifier).Get(ctx, nil)
+		resp, err = c.Stable.
+			Client().
+			Sites().
+			BySiteId(identifier).
+			Get(ctx, nil)
 		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting site by id")
+			err := graph.Wrap(ctx, err, "getting site by id")
+
+			// a 404 when getting sites by ID returns an itemNotFound
+			// error code, instead of something more sensible.
+			if graph.IsErrItemNotFound(err) {
+				err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
+			}
+
+			return nil, err
 		}
 
 		return resp, err
@@ -147,7 +159,15 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting site by weburl")
+		err := graph.Wrap(ctx, err, "getting site by weburl")
+
+		// a 404 when getting sites by ID returns an itemNotFound
+		// error code, instead of something more sensible.
+		if graph.IsErrItemNotFound(err) {
+			err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
+		return nil, err
 	}
 
 	return resp, err
