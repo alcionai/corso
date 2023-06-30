@@ -40,6 +40,11 @@ type SharePointPageSuite struct {
 func (suite *SharePointPageSuite) SetupSuite() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	suite.siteID = tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -60,8 +65,6 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 
 	pgs, err := api.FetchPages(ctx, suite.service, suite.siteID)
 	assert.NoError(t, err, clues.ToCore(err))

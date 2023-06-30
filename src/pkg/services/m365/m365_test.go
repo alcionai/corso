@@ -86,6 +86,8 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	var (
 		acct = tester.NewM365Account(t)
 		uid  = tester.M365UserID(t)
