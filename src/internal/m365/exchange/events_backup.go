@@ -32,7 +32,7 @@ func (h eventBackupHandler) itemHandler() itemGetterSerializer {
 func (h eventBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {
-	return DefaultCalendar, &eventContainerCache{
+	return api.DefaultCalendar, &eventContainerCache{
 		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,

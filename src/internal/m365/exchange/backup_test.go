@@ -438,22 +438,22 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 		{
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{DefaultMailFolder},
+				[]string{api.MailInbox},
 				selectors.PrefixMatch(),
 			)[0],
 			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
+				api.MailInbox: {},
 			},
 			canMakeDeltaQueries: true,
 		},
 		{
 			name: "Folder Iterative Check Mail Non-Delta",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{DefaultMailFolder},
+				[]string{api.MailInbox},
 				selectors.PrefixMatch(),
 			)[0],
 			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
+				api.MailInbox: {},
 			},
 			canMakeDeltaQueries: false,
 		},
@@ -520,21 +520,21 @@ func (suite *BackupIntgSuite) TestDelta() {
 		{
 			name: "Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{DefaultMailFolder},
+				[]string{api.MailInbox},
 				selectors.PrefixMatch(),
 			)[0],
 		},
 		{
 			name: "Contacts",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{DefaultContactFolder},
+				[]string{api.DefaultContacts},
 				selectors.PrefixMatch(),
 			)[0],
 		},
 		{
 			name: "Events",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				[]string{DefaultCalendar},
+				[]string{api.DefaultCalendar},
 				selectors.PrefixMatch(),
 			)[0],
 		},
@@ -624,7 +624,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 	)
 
 	sel := selectors.NewExchangeBackup(users)
-	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
+	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
 	collections, err := createCollections(
 		ctx,
@@ -688,7 +688,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 		{
 			name: "Default Contact Folder",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{DefaultContactFolder},
+				[]string{api.DefaultContacts},
 				selectors.PrefixMatch())[0],
 		},
 	}
@@ -752,7 +752,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 				assert.Equal(
 					t,
 					edc.(data.LocationPather).LocationPath().String(),
-					DefaultContactFolder)
+					api.DefaultContacts)
 				assert.NotZero(t, count)
 			}
 
@@ -777,7 +777,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 	)
 
 	fn := func(gcc graph.CachedContainer) error {
-		if ptr.Val(gcc.GetDisplayName()) == DefaultCalendar {
+		if ptr.Val(gcc.GetDisplayName()) == api.DefaultCalendar {
 			calID = ptr.Val(gcc.GetId())
 		}
 
@@ -788,7 +788,12 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 		return nil
 	}
 
-	err := suite.ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true))
+	err := suite.ac.Events().EnumerateContainers(
+		ctx,
+		suite.user,
+		api.DefaultCalendar,
+		fn,
+		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	tests := []struct {
@@ -799,7 +804,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			name:     "Default Event Calendar",
 			expected: calID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				[]string{DefaultCalendar},
+				[]string{api.DefaultCalendar},
 				selectors.PrefixMatch(),
 			)[0],
 		},

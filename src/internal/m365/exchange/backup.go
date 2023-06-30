@@ -566,8 +566,8 @@ func includeContainer(
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
-	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == DefaultContactFolder {
-		loc = loc.Append(DefaultContactFolder)
+	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == api.DefaultContacts {
+		loc = loc.Append(api.DefaultContacts)
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(

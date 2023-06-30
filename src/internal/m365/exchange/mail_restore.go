@@ -52,7 +52,7 @@ func (h mailRestoreHandler) CreateContainer(
 	userID, parentContainerID, containerName string,
 ) (graph.Container, error) {
 	if len(parentContainerID) == 0 {
-		parentContainerID = rootFolderAlias
+		parentContainerID = api.MsgFolderRoot
 	}
 
 	return h.ac.CreateContainer(ctx, userID, parentContainerID, containerName)
@@ -67,7 +67,7 @@ func (h mailRestoreHandler) GetContainerByName(
 
 // always returns rootFolderAlias
 func (h mailRestoreHandler) orRootContainer(string) string {
-	return rootFolderAlias
+	return api.MsgFolderRoot
 }
 
 func (h mailRestoreHandler) restore(

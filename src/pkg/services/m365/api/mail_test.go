@@ -423,7 +423,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 		expectErr         assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "Inbox",
+			name:      api.MailInbox,
 			expectErr: assert.NoError,
 		},
 		{

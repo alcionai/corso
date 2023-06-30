@@ -64,7 +64,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.its.userID
 
 				return sel
@@ -76,7 +76,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				return sel
 			},
 			category:      path.ContactsCategory,
@@ -86,7 +86,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
 			category:      path.EventsCategory,
