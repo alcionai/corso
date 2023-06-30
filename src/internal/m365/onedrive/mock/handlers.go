@@ -268,6 +268,14 @@ func (h RestoreHandler) PostItemPermissionUpdate(
 	return nil, clues.New("not implemented")
 }
 
+func (h RestoreHandler) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	return nil, clues.New("not implemented")
+}
+
 func (h RestoreHandler) PostItemInContainer(
 	context.Context,
 	string, string,

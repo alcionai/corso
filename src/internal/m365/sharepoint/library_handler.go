@@ -195,6 +195,14 @@ func (h libraryRestoreHandler) PostItemPermissionUpdate(
 	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
 }
 
+func (h libraryRestoreHandler) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	return h.ac.PostItemLinkShareUpdate(ctx, driveID, itemID, body)
+}
+
 func (h libraryRestoreHandler) PostItemInContainer(
 	ctx context.Context,
 	driveID, parentFolderID string,
