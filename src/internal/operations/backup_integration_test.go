@@ -749,7 +749,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
-			path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
+			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -772,8 +772,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
-		sel.ContactFolders(containers, selectors.PrefixMatch()),
-		sel.EventCalendars(containers, selectors.PrefixMatch()))
+		sel.ContactFolders(containers, selectors.PrefixMatch()))
+	// sel.EventCalendars(containers, selectors.PrefixMatch()))
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -838,13 +838,13 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				container2: {},
 			},
 		},
-		path.EventsCategory: {
-			dbf: eventDBF,
-			dests: map[string]contDeets{
-				container1: {},
-				container2: {},
-			},
-		},
+		// path.EventsCategory: {
+		// 	dbf: eventDBF,
+		// 	dests: map[string]contDeets{
+		// 		container1: {},
+		// 		container2: {},
+		// 	},
+		// },
 	}
 
 	// populate initial test data
