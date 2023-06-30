@@ -20,34 +20,41 @@ import (
 // "how many calls at one time"
 // ---------------------------------------------------------------------------
 
-// concurrencyLimiter middleware limits the number of concurrent requests to graph API
-type concurrencyLimiter struct {
+// concurrencyLimiterMiddleware middleware limits the number of concurrent requests to graph API
+type concurrencyLimiterMiddleware struct {
 	semaphore chan struct{}
 }
 
 var (
-	once                  sync.Once
-	concurrencyLim        *concurrencyLimiter
-	maxConcurrentRequests = 4
+	once                                sync.Once
+	concurrencyLimitMiddlewareSingleton = &concurrencyLimiterMiddleware{}
+	maxConcurrentRequests               = 4
 )
 
-func generateConcurrencyLimiter(capacity int) *concurrencyLimiter {
+func generateConcurrencyLimiter(capacity int) *concurrencyLimiterMiddleware {
 	if capacity < 1 || capacity > maxConcurrentRequests {
 		capacity = maxConcurrentRequests
 	}
 
-	return &concurrencyLimiter{
+	return &concurrencyLimiterMiddleware{
 		semaphore: make(chan struct{}, capacity),
 	}
 }
 
-func InitializeConcurrencyLimiter(capacity int) {
+func InitializeConcurrencyLimiter(ctx context.Context, enable bool, capacity int) {
 	once.Do(func() {
-		concurrencyLim = generateConcurrencyLimiter(capacity)
+		switch enable {
+		case true:
+			logger.Ctx(ctx).Infow("turning on the concurrency limiter", "concurrency_limit", capacity)
+			concurrencyLimitMiddlewareSingleton.semaphore = generateConcurrencyLimiter(capacity).semaphore
+		case false:
+			logger.Ctx(ctx).Info("turning off the concurrency limiter")
+			concurrencyLimitMiddlewareSingleton = nil
+		}
 	})
 }
 
-func (cl *concurrencyLimiter) Intercept(
+func (cl *concurrencyLimiterMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,

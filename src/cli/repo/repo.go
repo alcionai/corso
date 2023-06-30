@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -122,7 +123,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, S3Overrides(cmd))
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.UnknownService, S3Overrides(cmd))
 	if err != nil {
 		return print.Only(ctx, err)
 	}

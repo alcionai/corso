@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -87,6 +88,8 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	a := tester.NewM365Account(t)
 	creds, err := a.M365Config()

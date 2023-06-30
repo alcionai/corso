@@ -37,6 +37,8 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	acct := tester.NewM365Account(suite.T())
 
 	users, err := Users(ctx, acct, fault.New(true))
@@ -83,6 +85,8 @@ func (suite *M365IntegrationSuite) TestGetUserInfo() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	var (
 		acct = tester.NewM365Account(t)

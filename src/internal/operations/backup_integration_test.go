@@ -525,6 +525,11 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	suite.user = tester.M365UserID(t)
 	suite.site = tester.M365SiteID(t)
 
@@ -1867,7 +1872,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, rc)
+			cleanCtrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.Options{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			var (
@@ -1951,7 +1956,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
-		resource.Users)
+		resource.Users,
+		path.OneDriveService,
+		control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.user)

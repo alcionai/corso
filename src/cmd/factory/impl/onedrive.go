@@ -36,7 +36,7 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.OneDriveService)
 	if err != nil {
 		return Only(ctx, err)
 	}

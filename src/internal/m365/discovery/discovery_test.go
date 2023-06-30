@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/m365/discovery"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -28,6 +29,13 @@ func TestDiscoveryIntgSuite(t *testing.T) {
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
+}
+
+func (suite *DiscoveryIntgSuite) SetupSuite() {
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 }
 
 func (suite *DiscoveryIntgSuite) TestUsers() {

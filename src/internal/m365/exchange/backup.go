@@ -199,9 +199,10 @@ func ProduceBackupCollections(
 
 	// Turn on concurrency limiter middleware for exchange backups
 	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
-	if !ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter {
-		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
-	}
+	graph.InitializeConcurrencyLimiter(
+		ctx,
+		ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter,
+		ctrlOpts.Parallelism.ItemFetch)
 
 	cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, metadata)
 	if err != nil {
