@@ -361,6 +361,10 @@ func (suite *OneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() 
 	testPermissionsInheritanceRestoreAndBackup(suite, version.OneDrive4DirIncludesPermissions)
 }
 
+func (suite *OneDriveNightlySuite) TestLinkSharesInheritanceRestoreAndBackup() {
+	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
+}
+
 func (suite *OneDriveNightlySuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
 	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
@@ -416,13 +420,17 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		folderBName,
 	}
 
+	defaultMetadata := stub.MetaData{SharingMode: metadata.SharingModeInherited}
+
 	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileAData,
+					Meta: defaultMetadata,
 				},
 			},
 			Folders: []stub.ItemData{
@@ -436,10 +444,12 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: folderAPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileBData,
+					Meta: defaultMetadata,
 				},
 			},
 			Folders: []stub.ItemData{
@@ -450,10 +460,12 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: subfolderBPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileCData,
+					Meta: defaultMetadata,
 				},
 			},
 			Folders: []stub.ItemData{
@@ -464,19 +476,23 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 		{
 			PathElements: subfolderAPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileDData,
+					Meta: defaultMetadata,
 				},
 			},
 		},
 		{
 			PathElements: folderBPath,
+			Meta:         defaultMetadata,
 			Files: []stub.ItemData{
 				{
 					Name: fileName,
 					Data: fileEData,
+					Meta: defaultMetadata,
 				},
 			},
 		},
@@ -566,6 +582,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	cols := []stub.ColInfo{
 		{
 			PathElements: rootPath,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
 			Files: []stub.ItemData{
 				{
 					// Test restoring a file that doesn't inherit permissions.
@@ -584,11 +603,17 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					// no permissions.
 					Name: fileName2,
 					Data: fileBData,
+					Meta: stub.MetaData{
+						SharingMode: metadata.SharingModeInherited,
+					},
 				},
 			},
 			Folders: []stub.ItemData{
 				{
 					Name: folderBName,
+					Meta: stub.MetaData{
+						SharingMode: metadata.SharingModeInherited,
+					},
 				},
 				{
 					Name: folderAName,
@@ -614,6 +639,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 		{
 			PathElements: folderBPath,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
 			Files: []stub.ItemData{
 				{
 					// Test restoring a file in a non-root folder that doesn't inherit
@@ -698,6 +726,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				{
 					Name: fileName,
 					Data: fileAData,
+					Meta: stub.MetaData{
+						SharingMode: metadata.SharingModeInherited,
+					},
 				},
 			},
 			Meta: stub.MetaData{
@@ -777,6 +808,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 							EntityID: secondaryUserID,
 							Roles:    writePerm,
 						},
+						SharingMode: metadata.SharingModeCustom,
 					},
 				},
 			},
@@ -887,34 +919,44 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		folderCName,
 	}
 
-	fileSet := []stub.ItemData{
-		{
-			Name: "file-custom",
-			Data: fileAData,
-			Meta: stub.MetaData{
-				Perms: stub.PermData{
-					User:     secondaryUserName,
-					EntityID: secondaryUserID,
-					Roles:    writePerm,
-				},
-				SharingMode: metadata.SharingModeCustom,
+	fileCustom := stub.ItemData{
+		Name: "file-custom",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			Perms: stub.PermData{
+				User:     secondaryUserName,
+				EntityID: secondaryUserID,
+				Roles:    writePerm,
 			},
-		},
-		{
-			Name: "file-inherited",
-			Data: fileAData,
-			Meta: stub.MetaData{
-				SharingMode: metadata.SharingModeInherited,
-			},
-		},
-		{
-			Name: "file-empty",
-			Data: fileAData,
-			Meta: stub.MetaData{
-				SharingMode: metadata.SharingModeCustom,
-			},
+			SharingMode: metadata.SharingModeCustom,
 		},
 	}
+	fileInherited := stub.ItemData{
+		Name: "file-inherited",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			SharingMode: metadata.SharingModeInherited,
+		},
+	}
+	fileEmpty := stub.ItemData{
+		Name: "file-empty",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			SharingMode: metadata.SharingModeCustom,
+		},
+	}
+
+	// If parent is empty, then empty permissions would be inherited
+	fileEmptyInherited := stub.ItemData{
+		Name: "file-empty",
+		Data: fileAData,
+		Meta: stub.MetaData{
+			SharingMode: metadata.SharingModeInherited,
+		},
+	}
+
+	fileSet := []stub.ItemData{fileCustom, fileInherited, fileEmpty}
+	fileSetEmpty := []stub.ItemData{fileCustom, fileInherited, fileEmptyInherited}
 
 	// Here is what this test is testing
 	// - custom-permission-folder
@@ -941,6 +983,9 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			Folders: []stub.ItemData{
 				{Name: folderAName},
 			},
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeInherited,
+			},
 		},
 		{
 			PathElements: folderAPath,
@@ -956,6 +1001,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 					EntityID: tertiaryUserID,
 					Roles:    readPerm,
 				},
+				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 		{
@@ -979,7 +1025,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 		{
 			PathElements: subfolderACPath,
-			Files:        fileSet,
+			Files:        fileSetEmpty,
 			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeCustom,
 			},
@@ -1039,6 +1085,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 
 	folderAName := "custom"
 	folderBName := "inherited"
+	folderCName := "empty"
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -1065,16 +1112,25 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 		folderAName,
 		folderBName,
 	}
+	subfolderACPath := []string{
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir,
+		folderAName,
+		folderCName,
+	}
 
 	fileSet := []stub.ItemData{
 		{
 			Name: "file-custom",
 			Data: fileAData,
 			Meta: stub.MetaData{
-				LinkShares: stub.LinkShareData{
-					EntityIDs: []string{secondaryUserID},
-					Scope:     "users",
-					Type:      "edit",
+				LinkShares: []stub.LinkShareData{
+					{
+						EntityIDs: []string{secondaryUserID},
+						Scope:     "users",
+						Type:      "edit",
+					},
 				},
 				SharingMode: metadata.SharingModeCustom,
 			},
@@ -1086,18 +1142,32 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				SharingMode: metadata.SharingModeInherited,
 			},
 		},
+		{
+			Name: "file-empty",
+			Data: fileCData,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeCustom,
+			},
+		},
 	}
 
 	// Here is what this test is testing
 	// - custom-link-share-folder
 	//   - custom-link-share-file
 	//   - inherted-link-share-file
+	//   - empty-link-share-file
 	//   - custom-link-share-folder
 	// 	   - custom-link-share-file
 	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
 	//   - inherted-link-share-folder
 	// 	   - custom-link-share-file
 	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
+	//   - empty-link-share-folder
+	// 	   - custom-link-share-file
+	// 	   - inherted-link-share-file
+	//     - empty-link-share-file
 
 	cols := []stub.ColInfo{
 		{
@@ -1113,12 +1183,15 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Folders: []stub.ItemData{
 				{Name: folderAName},
 				{Name: folderBName},
+				{Name: folderCName},
 			},
 			Meta: stub.MetaData{
-				LinkShares: stub.LinkShareData{
-					EntityIDs: []string{tertiaryUserID},
-					Scope:     "users",
-					Type:      "view",
+				LinkShares: []stub.LinkShareData{
+					{
+						EntityIDs: []string{tertiaryUserID},
+						Scope:     "anonymous",
+						Type:      "edit",
+					},
 				},
 			},
 		},
@@ -1126,10 +1199,12 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			PathElements: subfolderAAPath,
 			Files:        fileSet,
 			Meta: stub.MetaData{
-				LinkShares: stub.LinkShareData{
-					EntityIDs: []string{tertiaryUserID},
-					Scope:     "users",
-					Type:      "edit",
+				LinkShares: []stub.LinkShareData{
+					{
+						EntityIDs: []string{tertiaryUserID},
+						Scope:     "users",
+						Type:      "edit",
+					},
 				},
 				SharingMode: metadata.SharingModeCustom,
 			},
@@ -1139,6 +1214,13 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Files:        fileSet,
 			Meta: stub.MetaData{
 				SharingMode: metadata.SharingModeInherited,
+			},
+		},
+		{
+			PathElements: subfolderACPath,
+			Files:        fileSet,
+			Meta: stub.MetaData{
+				SharingMode: metadata.SharingModeCustom,
 			},
 		},
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -80,6 +81,53 @@ func getCollectionMetadata(
 	}
 
 	return meta, nil
+}
+
+// Unlike permissions, link shares are inherited from all the parents
+// of an item and not just the direct parent.
+func computePreviousLinkShares(
+	ctx context.Context,
+	originDir path.Path,
+	parentMetas map[string]metadata.Metadata,
+) ([]metadata.LinkShare, error) {
+	linkShares := []metadata.LinkShare{}
+	ctx = clues.Add(ctx, "origin_dir", originDir)
+
+	parent, err := originDir.Dir()
+	if err != nil {
+		return nil, clues.New("getting parent").WithClues(ctx)
+	}
+
+	for len(parent.Elements()) > 0 {
+		ictx := clues.Add(ctx, "current_ancestor_dir", parent)
+
+		drivePath, err := path.ToDrivePath(parent)
+		if err != nil {
+			return nil, clues.New("transforming dir to drivePath").WithClues(ictx)
+		}
+
+		if len(drivePath.Folders) == 0 {
+			break
+		}
+
+		meta, ok := parentMetas[parent.String()]
+		if !ok {
+			return nil, clues.New("no metadata found in parent").WithClues(ictx)
+		}
+
+		// Any change in permissions would change it to custom
+		// permission set and so we can filter on that.
+		if meta.SharingMode == metadata.SharingModeCustom {
+			linkShares = append(linkShares, meta.LinkShares...)
+		}
+
+		parent, err = parent.Dir()
+		if err != nil {
+			return nil, clues.New("getting parent").WithClues(ctx)
+		}
+	}
+
+	return linkShares, nil
 }
 
 // computePreviousMetadata computes the parent permissions by
@@ -240,13 +288,12 @@ func UpdateLinkShares(
 	itemID string,
 	lsAdded, lsRemoved []metadata.LinkShare,
 	oldLinkShareIDToNewID map[string]string,
-) error {
+) (bool, error) {
 	// You can only delete inherited sharing links the first time you
 	// create a sharing link which is done using
-	// `retainInheritedPermissions`. We get a 204 as a response if we
-	// try to delete an inherited link share, but it does not get
-	// deleted.
-	first := true
+	// `retainInheritedPermissions`.  We cannot separately delete any
+	// inherited link shares via DELETE API call like for permissions.
+	alreadyDeleted := false
 
 	for _, ls := range lsAdded {
 		ictx := clues.Add(ctx, "link_share_id", ls.ID)
@@ -303,7 +350,7 @@ func UpdateLinkShares(
 		}
 		lsbody.SetAdditionalData(ad)
 
-		if first {
+		if !alreadyDeleted {
 			// The only way to delete any is to use this and so if
 			// we have any deleted items, we can be sure that all the
 			// inherited permissions would have been removed.
@@ -311,18 +358,44 @@ func UpdateLinkShares(
 
 			// This value only effective on the first call, but lets
 			// make sure to not send it on followups.
-			first = false
+			alreadyDeleted = true
 		}
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if err != nil {
-			return clues.Stack(err)
+			return alreadyDeleted, clues.Stack(err)
 		}
 
 		oldLinkShareIDToNewID[ls.ID] = ptr.Val(newLS.GetId())
 	}
 
-	return nil
+	// It is possible to have empty link shares even though we should
+	// have inherited one if the user creates a link using
+	// `retainInheritedPermissions` as false, but then deleted it.  We
+	// can recreate this by creating a link with no users and deleting it.
+	if len(lsRemoved) > 0 && len(lsAdded) == 0 {
+		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
+		lsbody.SetType(ptr.To("view"))
+		// creating a `users` link without any users ensure that even
+		// if we fail to delete the link there are no links lying
+		// around that could be used to access this
+		lsbody.SetScope(ptr.To("users"))
+		lsbody.SetRetainInheritedPermissions(ptr.To(false))
+
+		newLS, err := upils.PostItemLinkShareUpdate(ctx, driveID, itemID, lsbody)
+		if err != nil {
+			return alreadyDeleted, clues.Stack(err)
+		}
+
+		alreadyDeleted = true
+
+		err = upils.DeleteItemPermission(ctx, driveID, itemID, ptr.Val(newLS.GetId()))
+		if err != nil {
+			return alreadyDeleted, clues.Stack(err)
+		}
+	}
+
+	return alreadyDeleted, nil
 }
 
 // RestorePermissions takes in the permissions of an item, computes
@@ -344,13 +417,44 @@ func RestorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
+	previousLinkShares, err := computePreviousLinkShares(ctx, itemPath, caches.ParentDirToMeta)
+	if err != nil {
+		return clues.Wrap(err, "previous link shares")
+	}
+
+	lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+
+	// Link shares have to be updated before permissions as we have to
+	// use the information about if we had to reset the inheritance to
+	// decide if we have to restore all the permissions.
+	didReset, err := UpdateLinkShares(
+		ctx,
+		rh,
+		driveID,
+		itemID,
+		lsAdded,
+		lsRemoved,
+		caches.OldLinkShareIDToNewID)
+	if err != nil {
+		return clues.Wrap(err, "updating link shares")
+	}
+
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
 		return clues.Wrap(err, "previous metadata")
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
-	lsAdded, lsRemoved := metadata.DiffPermissions(previous.LinkShares, current.LinkShares)
+
+	if didReset {
+		// In case we did a reset of permissions when restoring link
+		// shares, we have to make sure to restore all the permissions
+		// that an item has as they too will be removed.
+		logger.Ctx(ctx).Debug("link share creation reset all inherited permissions")
+
+		permRemoved = []metadata.Permission{}
+		permAdded = current.Permissions
+	}
 
 	err = UpdatePermissions(
 		ctx,
@@ -362,18 +466,6 @@ func RestorePermissions(
 		caches.OldPermIDToNewID)
 	if err != nil {
 		return clues.Wrap(err, "updating permissions")
-	}
-
-	err = UpdateLinkShares(
-		ctx,
-		rh,
-		driveID,
-		itemID,
-		lsAdded,
-		lsRemoved,
-		caches.OldLinkShareIDToNewID)
-	if err != nil {
-		return clues.Wrap(err, "updating link shares")
 	}
 
 	return nil
