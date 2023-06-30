@@ -36,21 +36,24 @@ const (
 )
 
 type restoreCaches struct {
-	Folders               *folderCache
-	ParentDirToMeta       map[string]metadata.Metadata
-	OldPermIDToNewID      map[string]string
-	OldLinkShareIDToNewID map[string]string
+	collisionKeyToItemID  map[string]string
 	DriveIDToRootFolderID map[string]string
-	pool                  sync.Pool
+	Folders               *folderCache
+	OldLinkShareIDToNewID map[string]string
+	OldPermIDToNewID      map[string]string
+	ParentDirToMeta       map[string]metadata.Metadata
+
+	pool sync.Pool
 }
 
 func NewRestoreCaches() *restoreCaches {
 	return &restoreCaches{
-		Folders:               NewFolderCache(),
-		ParentDirToMeta:       map[string]metadata.Metadata{},
-		OldPermIDToNewID:      map[string]string{},
-		OldLinkShareIDToNewID: map[string]string{},
+		collisionKeyToItemID:  map[string]string{},
 		DriveIDToRootFolderID: map[string]string{},
+		Folders:               NewFolderCache(),
+		OldLinkShareIDToNewID: map[string]string{},
+		OldPermIDToNewID:      map[string]string{},
+		ParentDirToMeta:       map[string]metadata.Metadata{},
 		// Buffer pool for uploads
 		pool: sync.Pool{
 			New: func() any {
@@ -221,6 +224,12 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
 
+	collisionKeyToItemID, err := rh.GetItemsInContainerByCollisionKey(ctx, drivePath.DriveID, restoreFolderID)
+	if err != nil {
+		return metrics, clues.Wrap(err, "generating map of item collision keys")
+	}
+
+	caches.collisionKeyToItemID = collisionKeyToItemID
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
@@ -356,6 +365,7 @@ func restoreItem(
 			fibn,
 			restoreFolderID,
 			copyBuffer,
+			caches.collisionKeyToItemID,
 			itemData)
 		if err != nil {
 			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
@@ -458,6 +468,7 @@ func restoreV0File(
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
+	collisionKeyToItemID map[string]string,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreData(
@@ -469,6 +480,7 @@ func restoreV0File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		collisionKeyToItemID,
 		copyBuffer)
 	if err != nil {
 		return itemInfo, clues.Wrap(err, "restoring file")
@@ -501,6 +513,7 @@ func restoreV1File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		caches.collisionKeyToItemID,
 		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
@@ -583,6 +596,7 @@ func restoreV6File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		caches.collisionKeyToItemID,
 		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
@@ -734,6 +748,7 @@ func createRestoreFolders(
 }
 
 type itemRestorer interface {
+	DeleteItemer
 	ItemInfoAugmenter
 	NewItemContentUploader
 	PostItemInContainerer
@@ -748,6 +763,7 @@ func restoreData(
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
+	collisionKeyToItemID map[string]string,
 	copyBuffer []byte,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
@@ -761,18 +777,54 @@ func restoreData(
 		return "", details.ItemInfo{}, clues.New("item does not implement DataStreamInfo").WithClues(ctx)
 	}
 
+	var (
+		item         = newItem(name, false)
+		collisionKey = api.DriveItemCollisionKey(item)
+		collisionID  string
+		replace      bool
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		if restoreCfg.OnCollision == control.Skip {
+			log.Debug("skipping item with collision")
+			return "", details.ItemInfo{}, graph.ErrItemAlreadyExistsConflict
+		}
+
+		collisionID = id
+		replace = restoreCfg.OnCollision == control.Replace
+	}
+
+	// drive items do not support PUT requests on the drive item data, so
+	// when replacing a collision, first delete the existing item.  It would
+	// be nice to be able to do a post-then-delete like we do with exchange,
+	// but onedrive will conflict on the filename.  So until the api's built-in
+	// conflict replace handling bug gets fixed, we either delete-post, and
+	// risk failures in the middle, or we post w/ copy, then delete, then patch
+	// the name, which could triple our graph calls in the worst case.
+	if replace {
+		if err := ir.DeleteItem(ctx, driveID, collisionID); err != nil {
+			return "", details.ItemInfo{}, clues.New("deleting colliding item")
+		}
+	}
+
 	// Create Item
+	// the Copy collision policy is used since we've technically already handled
+	// the collision behavior above.  At this point, copy is most likely to succeed.
+	// We could go with control.Skip if we wanted to ensure no duplicate, but those
+	// duplicates will only happen under very unlikely race conditions.
 	newItem, err := ir.PostItemInContainer(
 		ctx,
 		driveID,
 		parentFolderID,
-		newItem(name, false),
-		restoreCfg.OnCollision)
+		item,
+		control.Copy)
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}
 
-	// Get a drive item writer
 	w, uploadURL, err := driveItemWriter(ctx, ir, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
