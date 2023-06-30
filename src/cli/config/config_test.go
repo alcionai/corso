@@ -270,7 +270,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	config, err := getStorageAndAccountWithViper(vpr, true, true, nil)
+	config, err := getStorageAndAccountWithViper(vpr, true, false, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := config.Storage.S3Config()
