@@ -51,7 +51,6 @@ func Defaults() Options {
 			CollectionBuffer: 4,
 			ItemFetch:        4,
 		},
-		BackupItemExtensions: []extensions.CorsoItemExtensionFactory{},
 	}
 }
 

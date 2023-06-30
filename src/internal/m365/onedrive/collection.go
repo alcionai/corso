@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -460,13 +459,11 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				parentPath,
 				item,
 				&stats,
-				&extensions.ItemExtensionHandler{},
-				oc.ctrl.BackupItemExtensions,
 				errs,
 			)
 
 			folderProgress <- struct{}{}
-		}(item) // TODO: is copy okay here?
+		}(item)
 	}
 
 	wg.Wait()
@@ -479,8 +476,6 @@ func (oc *Collection) populateDriveItem(
 	parentPath *path.Builder,
 	item models.DriveItemable,
 	stats *driveStats,
-	aie extensions.AddItemExtensioner,
-	factories []extensions.CorsoItemExtensionFactory,
 	errs *fault.Bus,
 ) {
 	var (
@@ -540,32 +535,6 @@ func (oc *Collection) populateDriveItem(
 			itemData, err := oc.getDriveItemContent(ctx, oc.driveID, item, errs)
 			if err != nil {
 				return nil, err
-			}
-
-			if aie != nil && len(factories) != 0 {
-				logger.Ctx(ctx).Info("enabling drive item extensions")
-
-				extRc, extInfo, err := aie.AddItemExtensions(
-					ctx,
-					itemData,
-					itemInfo,
-					oc.ctrl.BackupItemExtensions)
-				if err != nil {
-					return nil, clues.Wrap(err, "adding item extensions")
-				}
-
-				if extInfo == nil {
-					return nil, clues.New("nil extension info")
-				}
-
-				if extRc == nil {
-					return nil, clues.New("nil extension reader")
-				}
-
-				itemInfo.OneDrive.Extension = extInfo
-				itemData = extRc
-			} else {
-				logger.Ctx(ctx).Info("drive item extensions disabled")
 			}
 
 			// display/log the item download
