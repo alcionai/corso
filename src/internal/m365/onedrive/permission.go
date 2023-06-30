@@ -372,7 +372,7 @@ func UpdateLinkShares(
 	// It is possible to have empty link shares even though we should
 	// have inherited one if the user creates a link using
 	// `retainInheritedPermissions` as false, but then deleted it.  We
-	// can recreate this by creating an anonymous one and deleting it.
+	// can recreate this by creating a link with no users and deleting it.
 	if len(lsRemoved) > 0 && len(lsAdded) == 0 {
 		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
 		lsbody.SetType(ptr.To("view"))
@@ -424,6 +424,9 @@ func RestorePermissions(
 
 	lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
 
+	// Link shares have to be updated before permissions as we have to
+	// use the information about if we had to reset the inheritance to
+	// decide if we have to restore all the permissions.
 	didReset, err := UpdateLinkShares(
 		ctx,
 		rh,
