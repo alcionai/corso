@@ -80,13 +80,44 @@ type GetItemer interface {
 // ---------------------------------------------------------------------------
 
 type RestoreHandler interface {
+	DeleteItemer
 	DeleteItemPermissioner
 	GetFolderByNamer
+	GetItemsByCollisionKeyser
 	GetRootFolderer
 	ItemInfoAugmenter
 	NewItemContentUploader
 	PostItemInContainerer
+	DeleteItemPermissioner
 	UpdateItemPermissioner
+	UpdateItemLinkSharer
+}
+
+type DeleteItemer interface {
+	DeleteItem(
+		ctx context.Context,
+		driveID, itemID string,
+	) error
+}
+
+type DeleteItemPermissioner interface {
+	DeleteItemPermission(
+		ctx context.Context,
+		driveID, itemID, permissionID string,
+	) error
+}
+
+type GetItemsByCollisionKeyser interface {
+	// GetItemsInContainerByCollisionKey looks up all items currently in
+	// the container, and returns them in a map[collisionKey]itemID.
+	// The collision key is uniquely defined by each category of data.
+	// Collision key checks are used during restore to handle the on-
+	// collision restore configurations that cause the item restore to get
+	// skipped, replaced, or copied.
+	GetItemsInContainerByCollisionKey(
+		ctx context.Context,
+		driveID, containerID string,
+	) (map[string]string, error)
 }
 
 type NewItemContentUploader interface {
@@ -98,19 +129,20 @@ type NewItemContentUploader interface {
 	) (models.UploadSessionable, error)
 }
 
-type DeleteItemPermissioner interface {
-	DeleteItemPermission(
-		ctx context.Context,
-		driveID, itemID, permissionID string,
-	) error
-}
-
 type UpdateItemPermissioner interface {
 	PostItemPermissionUpdate(
 		ctx context.Context,
 		driveID, itemID string,
 		body *drives.ItemItemsItemInvitePostRequestBody,
 	) (drives.ItemItemsItemInviteResponseable, error)
+}
+
+type UpdateItemLinkSharer interface {
+	PostItemLinkShareUpdate(
+		ctx context.Context,
+		driveID, itemID string,
+		body *drives.ItemItemsItemCreateLinkPostRequestBody,
+	) (models.Permissionable, error)
 }
 
 type PostItemInContainerer interface {

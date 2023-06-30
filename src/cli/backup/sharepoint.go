@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -86,6 +87,9 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSiteFlag(c)
 		flags.AddSiteIDFlag(c)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		flags.AddDataFlag(c, []string{dataLibraries}, true)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
@@ -95,6 +99,9 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -108,6 +115,9 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSkipReduceFlag(c)
 		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -118,6 +128,9 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = sharePointServiceCommandDeleteExamples
 
 		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -150,7 +163,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx)
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -312,7 +325,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
