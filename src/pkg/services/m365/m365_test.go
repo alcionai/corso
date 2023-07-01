@@ -34,6 +34,13 @@ func TestM365IntegrationSuite(t *testing.T) {
 	})
 }
 
+func (suite *M365IntegrationSuite) SetupSuite() {
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+}
+
 func (suite *M365IntegrationSuite) TestUsers() {
 	t := suite.T()
 
@@ -352,7 +359,14 @@ func TestDiscoveryIntgSuite(t *testing.T) {
 }
 
 func (suite *DiscoveryIntgSuite) SetupSuite() {
-	suite.acct = tester.NewM365Account(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	suite.acct = tester.NewM365Account(t)
 }
 
 func (suite *DiscoveryIntgSuite) TestUsers() {
