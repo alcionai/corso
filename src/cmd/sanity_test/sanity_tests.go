@@ -53,6 +53,8 @@ func main() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	adapter, err := graph.CreateAdapter(
 		tester.GetM365TenantID(ctx),
 		os.Getenv("AZURE_CLIENT_ID"),
