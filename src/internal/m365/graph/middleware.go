@@ -148,7 +148,8 @@ func (mw *LoggingMiddleware) Intercept(
 		logBody = logger.DebugAPIFV ||
 			os.Getenv(logGraphRequestsEnvKey) != "" ||
 			resp.StatusCode == http.StatusBadRequest ||
-			resp.StatusCode == http.StatusForbidden
+			resp.StatusCode == http.StatusForbidden ||
+			resp.StatusCode == http.StatusConflict
 	)
 
 	// special case: always info-level status 429 logs

@@ -821,7 +821,6 @@ func runCreateDestinationTest(
 		handler.formatRestoreDestination(destinationName, path1),
 		userID,
 		gcc,
-		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -843,7 +842,6 @@ func runCreateDestinationTest(
 		handler.formatRestoreDestination(destinationName, path2),
 		userID,
 		gcc,
-		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 

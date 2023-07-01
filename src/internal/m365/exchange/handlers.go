@@ -95,12 +95,7 @@ type containerAPI interface {
 		ctx context.Context,
 		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
-
-	// returns either the provided value (assumed to be the root
-	// folder for that cache tree), or the default root container
-	// (if the category uses a root folder that exists above the
-	// restore location path).
-	orRootContainer(string) string
+	defaultRootContainer() string
 }
 
 type containerByNamer interface {

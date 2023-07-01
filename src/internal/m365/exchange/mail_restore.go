@@ -65,8 +65,7 @@ func (h mailRestoreHandler) GetContainerByName(
 	return h.ac.GetContainerByName(ctx, userID, parentContainerID, containerName)
 }
 
-// always returns rootFolderAlias
-func (h mailRestoreHandler) orRootContainer(string) string {
+func (h mailRestoreHandler) defaultRootContainer() string {
 	return api.MsgFolderRoot
 }
 
