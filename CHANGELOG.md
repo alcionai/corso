@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle OLE conversion errors when trying to fetch attachments
 - Fix uploading large attachments for emails and calendar
 - Fixed high memory use in OneDrive backup related to logging
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
 
 ### Changed
 - Switched to Go 1.20

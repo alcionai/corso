@@ -8,18 +8,18 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/discovery"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// ServiceAccess is true if a resource owner is capable of
-// accessing or utilizing the specified service.
-type ServiceAccess struct {
-	Exchange bool
-	// TODO: onedrive, sharepoint
+// ---------------------------------------------------------------------------
+// interfaces & structs
+// ---------------------------------------------------------------------------
+
+type getDefaultDriver interface {
+	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 	return checkUserHasDrives(ctx, ac.Users(), userID)
 }
 
-func checkUserHasDrives(ctx context.Context, dgdd discovery.GetDefaultDriver, userID string) (bool, error) {
+func checkUserHasDrives(ctx context.Context, dgdd getDefaultDriver, userID string) (bool, error) {
 	_, err := dgdd.GetDefaultDrive(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
@@ -135,7 +135,7 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := discovery.Users(ctx, ac.Users(), errs)
+	us, err := ac.Users().GetAll(ctx, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := discovery.Users(ctx, ac.Users(), errs)
+	us, err := ac.Users().GetAll(ctx, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		userInfo, err := discovery.GetUserInfo(ctx, acct, pu.ID, errs)
+		userInfo, err := ac.Users().GetInfo(ctx, pu.ID)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user details")
 		}
@@ -220,7 +220,7 @@ func GetUserInfo(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	ui, err := discovery.UserInfo(ctx, ac.Users(), userID)
+	ui, err := ac.Users().GetInfo(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
