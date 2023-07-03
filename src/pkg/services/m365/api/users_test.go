@@ -66,6 +66,48 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 	}
 }
 
+func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
+	table := []struct {
+		name   string
+		err    error
+		expect func(t *testing.T, err error)
+	}{
+		{
+			name: "mail inbox err - user not found",
+			err:  odErr(string(graph.RequestResourceNotFound)),
+			expect: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - user not found",
+			err:  odErr(string(graph.MailboxNotEnabledForRESTAPI)),
+			expect: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - authenticationError",
+			err:  odErr(string(graph.AuthenticationError)),
+			expect: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - other error",
+			err:  odErrMsg("somecode", "somemessage"),
+			expect: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), api.EvaluateMailboxError(test.err))
+		})
+	}
+}
+
 type UsersIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
@@ -151,6 +193,20 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "mailFolders", "inbox").
 					Reply(400).
 					JSON(parseableToMap(t, odErr(string(graph.MailboxNotEnabledForRESTAPI))))
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - authenticationError",
+			setGocks: func(t *testing.T) {
+				interceptV1Path("users", "user", "drive").
+					Reply(200).
+					JSON(parseableToMap(t, models.NewDrive()))
+				interceptV1Path("users", "user", "mailFolders", "inbox").
+					Reply(400).
+					JSON(parseableToMap(t, odErr(string(graph.AuthenticationError))))
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
