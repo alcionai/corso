@@ -2,6 +2,7 @@ package m365
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -506,6 +507,8 @@ func (suite *DiscoveryIntgSuite) TestGetUserInfo() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			fmt.Printf("\n-----\n%+v\n-----\n", test.name)
+
 			t := suite.T()
 
 			ctx, flush := tester.NewContext(t)
