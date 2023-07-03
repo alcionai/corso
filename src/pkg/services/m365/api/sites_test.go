@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -112,7 +113,7 @@ func TestSitesIntgSuite(t *testing.T) {
 	suite.Run(t, &SitesIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -126,7 +127,9 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	sites, err := suite.its.ac.Sites().GetAll(ctx, fault.New(true))
+	sites, err := suite.its.ac.
+		Sites().
+		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(sites), "must have at least one site")
 
@@ -137,11 +140,12 @@ func (suite *SitesIntgSuite) TestGetAll() {
 
 func (suite *SitesIntgSuite) TestSites_GetByID() {
 	var (
-		t       = suite.T()
-		siteID  = tester.M365SiteID(t)
-		host    = strings.Split(siteID, ",")[0]
-		shortID = strings.TrimPrefix(siteID, host+",")
-		siteURL = tester.M365SiteURL(t)
+		t               = suite.T()
+		siteID          = tester.M365SiteID(t)
+		host            = strings.Split(siteID, ",")[0]
+		shortID         = strings.TrimPrefix(siteID, host+",")
+		siteURL         = tester.M365SiteURL(t)
+		modifiedSiteURL = siteURL + "foo"
 	)
 
 	sitesAPI := suite.its.ac.Sites()
@@ -149,26 +153,81 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 	table := []struct {
 		name      string
 		id        string
-		expectErr assert.ErrorAssertionFunc
+		expectErr func(*testing.T, error)
 	}{
-		{"3 part id", siteID, assert.NoError},
-		{"2 part id", shortID, assert.NoError},
-		{"malformed id", uuid.NewString(), assert.Error},
-		{"random id", uuid.NewString() + "," + uuid.NewString(), assert.Error},
-		{"url", siteURL, assert.NoError},
-		{"host only", host, assert.NoError},
-		{"malformed url", "barunihlda", assert.Error},
-		{"non-matching url", "https://test/sites/testing", assert.Error},
+		{
+			name: "3 part id",
+			id:   siteID,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "2 part id",
+			id:   shortID,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "malformed id",
+			id:   uuid.NewString(),
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "random id",
+			id:   uuid.NewString() + "," + uuid.NewString(),
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
+		},
+		{
+			name: "url",
+			id:   siteURL,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "host only",
+			id:   host,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "malformed url",
+			id:   "barunihlda",
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "well formed url, invalid hostname",
+			id:   "https://test/sites/testing",
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "well formed url, no sites match",
+			id:   modifiedSiteURL,
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
-
 			_, err := sitesAPI.GetByID(ctx, test.id)
-			test.expectErr(t, err, clues.ToCore(err))
+			test.expectErr(t, err)
 		})
 	}
 }

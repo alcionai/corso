@@ -101,7 +101,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(string(itemNotFound)),
+			err:    odErr(string(errorItemNotFound)),
 			expect: assert.True,
 		},
 		{
@@ -528,6 +528,45 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 			assert.Equal(t,
 				len(test.expect), len(labels),
 				"result should have as many labels as expected")
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "as",
+			err:    ErrInvalidDelta,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "item nott found oDataErr",
+			err:    odErr(string(itemNotFound)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrItemNotFound(test.err))
 		})
 	}
 }

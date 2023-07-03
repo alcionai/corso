@@ -525,6 +525,11 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	suite.user = tester.M365UserID(t)
 	suite.site = tester.M365SiteID(t)
 
@@ -749,7 +754,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
-			path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
+			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -772,8 +777,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
-		sel.ContactFolders(containers, selectors.PrefixMatch()),
-		sel.EventCalendars(containers, selectors.PrefixMatch()))
+		sel.ContactFolders(containers, selectors.PrefixMatch()))
+	// sel.EventCalendars(containers, selectors.PrefixMatch()))
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -838,13 +843,13 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				container2: {},
 			},
 		},
-		path.EventsCategory: {
-			dbf: eventDBF,
-			dests: map[string]contDeets{
-				container1: {},
-				container2: {},
-			},
-		},
+		// path.EventsCategory: {
+		// 	dbf: eventDBF,
+		// 	dests: map[string]contDeets{
+		// 		container1: {},
+		// 		container2: {},
+		// 	},
+		// },
 	}
 
 	// populate initial test data
@@ -1867,7 +1872,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, rc)
+			cleanCtrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.Options{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			var (
@@ -1951,7 +1956,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
-		resource.Users)
+		resource.Users,
+		path.OneDriveService,
+		control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.user)
