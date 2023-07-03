@@ -422,7 +422,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	// if we fail here, the expectedDeets were populated incorrectly.
 	deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, whatSet, ms, ss, expectDeets, true)
 
-	// Although established as a table, these tests are no isolated from each other.
+	// Although established as a table, these tests are not isolated from each other.
 	// Assume that every test's side effects cascade to all following test cases.
 	// The changes are split across the table so that we can monitor the deltas
 	// in isolation, rather than debugging one change from the rest of a series.
@@ -593,7 +593,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			deltaItemsRead: 0, // containers are not counted as reads
 			// Renaming a folder doesn't cause kopia changes as the folder ID doesn't
 			// change.
-			deltaItemsWritten:    0, // two items per category
+			deltaItemsWritten:    0,
 			nonDeltaItemsRead:    8,
 			nonDeltaItemsWritten: 0,
 			nonMetaItemsWritten:  4,
