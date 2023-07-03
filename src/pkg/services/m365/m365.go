@@ -80,17 +80,11 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 
 	_, err = ac.Users().GetMailInbox(ctx, userID)
 	if err != nil {
-		// we consider this a non-error case, since it
-		// answers the question the caller is asking.
-		if graph.IsErrExchangeMailFolderNotFound(err) {
-			return false, nil
+		if err := api.EvaluateMailboxError(err); err != nil {
+			return false, clues.Stack(err)
 		}
 
-		if graph.IsErrUserNotFound(err) {
-			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
-
-		return false, clues.Stack(err)
+		return false, nil
 	}
 
 	return true, nil
