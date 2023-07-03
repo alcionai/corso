@@ -78,6 +78,7 @@ runs:
         path: src/dist/corso_windows_amd64_v1/corso.exe
 
     - name: SHA info
+      shell: bash
       id: sha-info
       if: failure()
       run: |
