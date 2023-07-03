@@ -4,11 +4,9 @@ package extensions
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
-	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -42,14 +40,14 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 
 	table := []struct {
 		name            string
-		factories       []CorsoItemExtensionFactory
+		factories       []CreateItemExtensioner
 		rc              io.ReadCloser
 		validateOutputs outputValidationFunc
 	}{
 		{
 			name: "happy path",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{},
 			},
 			rc: testRc,
 			validateOutputs: func(
@@ -62,10 +60,9 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 		},
 		{
 			name: "multiple valid factories",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
-				NewMockExtension,
-				NewMockExtension,
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{},
+				&MockItemExtensionFactory{},
 			},
 			rc: testRc,
 			validateOutputs: func(
@@ -90,10 +87,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 		},
 		{
 			name: "factory slice contains nil",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{},
 				nil,
-				NewMockExtension,
+				&MockItemExtensionFactory{},
 			},
 			rc: testRc,
 			validateOutputs: func(
@@ -106,14 +103,9 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 		},
 		{
 			name: "factory call returns error",
-			factories: []CorsoItemExtensionFactory{
-				func(
-					ctx context.Context,
-					rc io.ReadCloser,
-					info details.ItemInfo,
-					extInfo *details.ExtensionInfo,
-				) (CorsoItemExtension, error) {
-					return nil, clues.New("creating extension")
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{
+					shouldReturnError: true,
 				},
 			},
 			rc: testRc,
@@ -127,15 +119,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 		},
 		{
 			name: "one or more factory calls return error",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
-				func(
-					ctx context.Context,
-					rc io.ReadCloser,
-					info details.ItemInfo,
-					extInfo *details.ExtensionInfo,
-				) (CorsoItemExtension, error) {
-					return nil, clues.New("creating extension")
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{},
+				&MockItemExtensionFactory{
+					shouldReturnError: true,
 				},
 			},
 			rc: testRc,
@@ -149,8 +136,8 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 		},
 		{
 			name: "nil inner rc",
-			factories: []CorsoItemExtensionFactory{
-				NewMockExtension,
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{},
 			},
 			rc: nil,
 			validateOutputs: func(
@@ -168,9 +155,8 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			t := suite.T()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
-			ith := &ItemExtensionHandler{}
 
-			extRc, extInfo, err := ith.AddItemExtensions(
+			extRc, extInfo, err := AddItemExtensions(
 				ctx,
 				test.rc,
 				testItemInfo,
@@ -180,5 +166,4 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 	}
 }
 
-// TODO: tests for loggerExtension
-// TODO: Tests to verify RC wrapper ordering by AddItemExtensioner
+// TODO(pandeyabs): Tests to verify RC wrapper ordering by AddItemExtensioner

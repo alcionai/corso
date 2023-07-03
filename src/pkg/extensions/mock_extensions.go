@@ -11,7 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var _ CorsoItemExtension = &MockExtension{}
+var _ io.ReadCloser = &MockExtension{}
 
 type MockExtension struct {
 	numBytes    int
@@ -66,12 +66,20 @@ func (me *MockExtension) Close() error {
 	return nil
 }
 
-func NewMockExtension(
+type MockItemExtensionFactory struct {
+	shouldReturnError bool
+}
+
+func (m *MockItemExtensionFactory) CreateItemExtension(
 	ctx context.Context,
 	rc io.ReadCloser,
 	info details.ItemInfo,
 	extInfo *details.ExtensionInfo,
-) (CorsoItemExtension, error) {
+) (io.ReadCloser, error) {
+	if m.shouldReturnError {
+		return nil, clues.New("factory error")
+	}
+
 	return &MockExtension{
 		ctx:     ctx,
 		innerRc: rc,
