@@ -66,7 +66,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 	selUsers := []string{suite.user}
 
-	ctrl := newController(ctx, suite.T(), resource.Users)
+	ctrl := newController(ctx, suite.T(), resource.Users, path.ExchangeService)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -167,7 +167,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 	defer flush()
 
 	owners := []string{"snuffleupagus"}
-	ctrl := newController(ctx, suite.T(), resource.Users)
+	ctrl := newController(ctx, suite.T(), resource.Users, path.ExchangeService)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -253,7 +253,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	defer flush()
 
 	selSites := []string{suite.site}
-	ctrl := newController(ctx, suite.T(), resource.Sites)
+	ctrl := newController(ctx, suite.T(), resource.Sites, path.SharePointService)
 	tests := []struct {
 		name        string
 		expected    int
@@ -348,7 +348,7 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	suite.connector = newController(ctx, suite.T(), resource.Sites)
+	suite.connector = newController(ctx, suite.T(), resource.Sites, path.SharePointService)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -362,7 +362,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		ctrl    = newController(ctx, t, resource.Sites)
+		ctrl    = newController(ctx, t, resource.Sites, path.SharePointService)
 		siteIDs = []string{siteID}
 	)
 
@@ -409,7 +409,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	var (
 		siteID  = tester.M365SiteID(t)
-		ctrl    = newController(ctx, t, resource.Sites)
+		ctrl    = newController(ctx, t, resource.Sites, path.SharePointService)
 		siteIDs = []string{siteID}
 	)
 

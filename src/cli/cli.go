@@ -69,7 +69,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := repo.S3Overrides()
+		overrides := repo.S3Overrides(cc)
 
 		cfg, err := config.GetConfigRepoDetails(ctx, true, false, overrides)
 		if err != nil {

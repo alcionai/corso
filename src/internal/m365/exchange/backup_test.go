@@ -399,19 +399,26 @@ func TestBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *BackupIntgSuite) SetupSuite() {
-	suite.user = tester.M365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
+	t := suite.T()
 
-	acct := tester.NewM365Account(suite.T())
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	suite.user = tester.M365UserID(t)
+	suite.site = tester.M365SiteID(t)
+
+	acct := tester.NewM365Account(t)
 	creds, err := acct.M365Config()
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ac, err = api.NewClient(creds)
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID
 
-	tester.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(t)
 }
 
 func (suite *BackupIntgSuite) TestMailFetch() {
