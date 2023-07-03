@@ -459,8 +459,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				parentPath,
 				item,
 				&stats,
-				errs,
-			)
+				errs)
 
 			folderProgress <- struct{}{}
 		}(item)
