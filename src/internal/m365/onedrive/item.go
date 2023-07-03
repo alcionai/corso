@@ -109,6 +109,7 @@ func downloadItemMeta(
 		}
 
 		meta.Permissions = metadata.FilterPermissions(ctx, perm.GetValue())
+		meta.LinkShares = metadata.FilterLinkShares(ctx, perm.GetValue())
 	}
 
 	metaJSON, err := json.Marshal(meta)
