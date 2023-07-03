@@ -824,7 +824,7 @@ func restoreFile(
 		}
 
 		collision = dci
-		replace = restoreCfg.OnCollision == control.Replace && dci.IsFolder
+		replace = restoreCfg.OnCollision == control.Replace && !dci.IsFolder
 	}
 
 	// drive items do not support PUT requests on the drive item data, so
