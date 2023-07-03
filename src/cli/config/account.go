@@ -50,12 +50,14 @@ func configureAccount(
 		err     error
 	)
 
-	if matchFromConfig {
+	if readConfigFromViper {
 		m365Cfg, err = m365ConfigsFromViper(vpr)
 		if err != nil {
 			return acct, clues.Wrap(err, "reading m365 configs from corso config file")
 		}
+	}
 
+	if matchFromConfig {
 		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
 			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 		}
