@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/idname/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -174,9 +175,15 @@ func TestSharePointPagesSuite(t *testing.T) {
 	suite.Run(t, &SharePointPagesSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
+}
+
+func (suite *SharePointPagesSuite) SetupSuite() {
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 }
 
 func (suite *SharePointPagesSuite) TestCollectPages() {

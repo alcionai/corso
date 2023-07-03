@@ -156,7 +156,7 @@ func runComputeParentPermissionsTest(
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			m, err := computeParentPermissions(ctx, test.item, test.parentPerms)
+			m, err := computePreviousMetadata(ctx, test.item, test.parentPerms)
 			require.NoError(t, err, "compute permissions")
 
 			assert.Equal(t, m, test.meta)

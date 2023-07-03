@@ -261,8 +261,8 @@ func kiotaMiddlewares(
 	}...)
 
 	// Optionally add concurrency limiter middleware if it has been initialized.
-	if concurrencyLim != nil {
-		mw = append(mw, concurrencyLim)
+	if concurrencyLimitMiddlewareSingleton != nil {
+		mw = append(mw, concurrencyLimitMiddlewareSingleton)
 	}
 
 	mw = append(

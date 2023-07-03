@@ -28,6 +28,7 @@ import (
 	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -78,6 +79,12 @@ type Repository interface {
 	) (operations.MaintenanceOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
+	// ConnectToM365 establishes graph api connections
+	// and initializes api client configurations.
+	ConnectToM365(
+		ctx context.Context,
+		pst path.ServiceType,
+	) (*m365.Controller, error)
 }
 
 // Repository contains storage provider information.
@@ -316,14 +323,14 @@ func (r repository) NewBackupWithLookup(
 	sel selectors.Selector,
 	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
-	ctrl, err := connectToM365(ctx, sel, r.Account)
+	ctrl, err := connectToM365(ctx, sel.PathService(), r.Account, r.Opts)
 	if err != nil {
-		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
+		return operations.BackupOperation{}, clues.Wrap(err, "connecting to m365")
 	}
 
 	ownerID, ownerName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
-		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
+		return operations.BackupOperation{}, clues.Wrap(err, "resolving resource owner details")
 	}
 
 	// TODO: retrieve display name from gc
@@ -348,9 +355,9 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 ) (operations.RestoreOperation, error) {
-	ctrl, err := connectToM365(ctx, sel, r.Account)
+	ctrl, err := connectToM365(ctx, sel.PathService(), r.Account, r.Opts)
 	if err != nil {
-		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
+		return operations.RestoreOperation{}, clues.Wrap(err, "connecting to m365")
 	}
 
 	return operations.NewRestoreOperation(
@@ -585,6 +592,18 @@ func deleteBackup(
 	return sw.DeleteBackup(ctx, model.StableID(id))
 }
 
+func (r repository) ConnectToM365(
+	ctx context.Context,
+	pst path.ServiceType,
+) (*m365.Controller, error) {
+	ctrl, err := connectToM365(ctx, pst, r.Account, r.Opts)
+	if err != nil {
+		return nil, clues.Wrap(err, "connecting to m365")
+	}
+
+	return ctrl, nil
+}
+
 // ---------------------------------------------------------------------------
 // Repository ID Model
 // ---------------------------------------------------------------------------
@@ -633,11 +652,11 @@ func newRepoID(s storage.Storage) string {
 // helpers
 // ---------------------------------------------------------------------------
 
-// produces a graph m365.
 func connectToM365(
 	ctx context.Context,
-	sel selectors.Selector,
+	pst path.ServiceType,
 	acct account.Account,
+	co control.Options,
 ) (*m365.Controller, error) {
 	complete := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
@@ -647,11 +666,11 @@ func connectToM365(
 
 	// retrieve data from the producer
 	rc := resource.Users
-	if sel.Service == selectors.ServiceSharePoint {
+	if pst == path.SharePointService {
 		rc = resource.Sites
 	}
 
-	ctrl, err := m365.NewController(ctx, acct, rc)
+	ctrl, err := m365.NewController(ctx, acct, rc, pst, co)
 	if err != nil {
 		return nil, err
 	}
