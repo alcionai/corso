@@ -13,6 +13,9 @@ inputs:
   rudderstack_data_plane_url:
     description: Data plane URL for RudderStack
     required: true
+  slack_webhook_url:
+    description: Slack webhook url
+    required: true
 
 runs:
   using: composite
@@ -73,3 +76,34 @@ runs:
       with:
         name: corso_Windows_amd64
         path: src/dist/corso_windows_amd64_v1/corso.exe
+
+    - name: SHA info
+      id: sha-info
+      if: failure()
+      run: |
+        echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+        echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+        echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+        echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+
+    - name: Send Github Action failure to Slack
+      id: slack-notification
+      if: failure()
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        payload: |
+          {
+            "text": "Publish failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "[FAILED] Publishing Binary :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
