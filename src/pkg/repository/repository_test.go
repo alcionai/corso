@@ -301,15 +301,15 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 	table := []struct {
 		name       string
 		opts       func() control.Options
-		assertFunc func(t *testing.T, factories []extensions.CreateItemExtensioner)
+		assertFunc func(t *testing.T, opts control.Options)
 	}{
 		{
 			name: "default options",
 			opts: func() control.Options {
 				return control.Defaults()
 			},
-			assertFunc: func(t *testing.T, factories []extensions.CreateItemExtensioner) {
-				assert.Len(t, factories, 0)
+			assertFunc: func(t *testing.T, opts control.Options) {
+				assert.Len(t, opts.ItemExtensionFactory, 0)
 			},
 		},
 		{
@@ -323,8 +323,8 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 
 				return o
 			},
-			assertFunc: func(t *testing.T, factories []extensions.CreateItemExtensioner) {
-				assert.Len(t, factories, 1)
+			assertFunc: func(t *testing.T, opts control.Options) {
+				assert.Len(t, opts.ItemExtensionFactory, 1)
 			},
 		},
 		{
@@ -340,8 +340,8 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 
 				return o
 			},
-			assertFunc: func(t *testing.T, factories []extensions.CreateItemExtensioner) {
-				assert.Len(t, factories, 2)
+			assertFunc: func(t *testing.T, opts control.Options) {
+				assert.Len(t, opts.ItemExtensionFactory, 2)
 			},
 		},
 	}
@@ -359,13 +359,13 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 			require.NoError(t, err)
 
 			r := repo.(*repository)
-			test.assertFunc(t, r.Opts.ItemExtensionFactory)
+			test.assertFunc(t, r.Opts)
 
 			repo, err = Connect(ctx, acct, st, repo.GetID(), test.opts())
 			assert.NoError(t, err)
 
 			r = repo.(*repository)
-			test.assertFunc(t, r.Opts.ItemExtensionFactory)
+			test.assertFunc(t, r.Opts)
 		})
 	}
 }
