@@ -82,7 +82,7 @@ func (c Mail) DeleteMailFolder(
 
 func (c Mail) CreateContainer(
 	ctx context.Context,
-	userID, containerName, parentContainerID string,
+	userID, parentContainerID, containerName string,
 ) (graph.Container, error) {
 	isHidden := false
 	body := models.NewMailFolder()
@@ -168,23 +168,43 @@ func (c Mail) GetContainerByID(
 // GetContainerByName fetches a folder by name
 func (c Mail) GetContainerByName(
 	ctx context.Context,
-	userID, containerName string,
+	userID, parentContainerID, containerName string,
 ) (graph.Container, error) {
 	filter := fmt.Sprintf("displayName eq '%s'", containerName)
-	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{
-			Filter: &filter,
-		},
-	}
 
 	ctx = clues.Add(ctx, "container_name", containerName)
 
-	resp, err := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		MailFolders().
-		Get(ctx, options)
+	var (
+		builder = c.Stable.
+			Client().
+			Users().
+			ByUserId(userID).
+			MailFolders()
+		resp models.MailFolderCollectionResponseable
+		err  error
+	)
+
+	if len(parentContainerID) > 0 {
+		options := &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Filter: &filter,
+			},
+		}
+
+		resp, err = builder.
+			ByMailFolderId(parentContainerID).
+			ChildFolders().
+			Get(ctx, options)
+	} else {
+		options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{
+				Filter: &filter,
+			},
+		}
+
+		resp, err = builder.Get(ctx, options)
+	}
+
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}

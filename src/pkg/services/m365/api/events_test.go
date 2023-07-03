@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -245,7 +246,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 
 	folderName := testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
 	evts := suite.its.ac.Events()
-	calendar, err := evts.CreateContainer(ctx, userID, folderName, "")
+	calendar, err := evts.CreateContainer(ctx, userID, "", folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
 	tomorrow := time.Now().Add(24 * time.Hour)
@@ -287,7 +288,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	ac := suite.its.ac.Events()
 	rc := testdata.DefaultRestoreConfig("api_calendar_discovery")
 
-	cal, err := ac.CreateContainer(ctx, suite.its.userID, rc.Location, "")
+	cal, err := ac.CreateContainer(ctx, suite.its.userID, "", rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
@@ -340,8 +341,67 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName() {
 
 			_, err := suite.its.ac.
 				Events().
-				GetContainerByName(ctx, suite.its.userID, test.name)
+				GetContainerByName(ctx, suite.its.userID, "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
+	c := models.NewCalendar()
+	c.SetId(ptr.To("id"))
+	c.SetName(ptr.To("display name"))
+
+	table := []struct {
+		name      string
+		results   func(*testing.T) map[string]any
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "zero",
+			results: func(t *testing.T) map[string]any {
+				return parseableToMap(t, models.NewCalendarCollectionResponse())
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "one",
+			results: func(t *testing.T) map[string]any {
+				mfcr := models.NewCalendarCollectionResponse()
+				mfcr.SetValue([]models.Calendarable{c})
+
+				return parseableToMap(t, mfcr)
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "two",
+			results: func(t *testing.T) map[string]any {
+				mfcr := models.NewCalendarCollectionResponse()
+				mfcr.SetValue([]models.Calendarable{c, c})
+
+				return parseableToMap(t, mfcr)
+			},
+			expectErr: assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+
+			defer flush()
+			defer gock.Off()
+
+			interceptV1Path("users", "u", "calendars").
+				Reply(200).
+				JSON(test.results(t))
+
+			_, err := suite.its.gockAC.
+				Events().
+				GetContainerByName(ctx, "u", "", test.name)
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.True(t, gock.IsDone())
 		})
 	}
 }

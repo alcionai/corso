@@ -48,16 +48,16 @@ func (h eventRestoreHandler) formatRestoreDestination(
 
 func (h eventRestoreHandler) CreateContainer(
 	ctx context.Context,
-	userID, containerName, _ string, // parent container not used
+	userID, _, containerName string, // parent container not used
 ) (graph.Container, error) {
-	return h.ac.CreateContainer(ctx, userID, containerName, "")
+	return h.ac.CreateContainer(ctx, userID, "", containerName)
 }
 
 func (h eventRestoreHandler) GetContainerByName(
 	ctx context.Context,
-	userID, containerName string,
+	userID, _, containerName string, // parent container not used
 ) (graph.Container, error) {
-	return h.ac.GetContainerByName(ctx, userID, containerName)
+	return h.ac.GetContainerByName(ctx, userID, "", containerName)
 }
 
 // always returns the provided value

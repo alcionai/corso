@@ -91,7 +91,7 @@ type containerAPI interface {
 	// POSTs the creation of a new container
 	CreateContainer(
 		ctx context.Context,
-		userID, containerName, parentContainerID string,
+		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
 
 	// returns either the provided value (assumed to be the root
@@ -105,7 +105,7 @@ type containerByNamer interface {
 	// searches for a container by name.
 	GetContainerByName(
 		ctx context.Context,
-		userID, containerName string,
+		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
 }
 

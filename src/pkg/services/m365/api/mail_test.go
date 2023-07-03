@@ -399,9 +399,22 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 }
 
 func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
+	var (
+		t   = suite.T()
+		acm = suite.its.ac.Mail()
+		rc  = testdata.DefaultRestoreConfig("mail_get_container_by_name")
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	parent, err := acm.CreateContainer(ctx, suite.its.userID, "Inbox", rc.Location)
+	require.NoError(t, err, clues.ToCore(err))
+
 	table := []struct {
-		name      string
-		expectErr assert.ErrorAssertionFunc
+		name              string
+		parentContainerID string
+		expectErr         assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "Inbox",
@@ -411,6 +424,16 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 			name:      "smarfs",
 			expectErr: assert.Error,
 		},
+		{
+			name:              rc.Location,
+			parentContainerID: ptr.Val(parent.GetId()),
+			expectErr:         assert.Error,
+		},
+		{
+			name:              "Inbox",
+			parentContainerID: ptr.Val(parent.GetId()),
+			expectErr:         assert.Error,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -419,10 +442,67 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := suite.its.ac.
-				Mail().
-				GetContainerByName(ctx, suite.its.userID, test.name)
+			_, err := acm.GetContainerByName(ctx, suite.its.userID, test.parentContainerID, test.name)
 			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
+	mf := models.NewMailFolder()
+	mf.SetId(ptr.To("id"))
+	mf.SetDisplayName(ptr.To("display name"))
+
+	table := []struct {
+		name      string
+		results   func(*testing.T) map[string]any
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "zero",
+			results: func(t *testing.T) map[string]any {
+				return parseableToMap(t, models.NewMailFolderCollectionResponse())
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "one",
+			results: func(t *testing.T) map[string]any {
+				mfcr := models.NewMailFolderCollectionResponse()
+				mfcr.SetValue([]models.MailFolderable{mf})
+
+				return parseableToMap(t, mfcr)
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "two",
+			results: func(t *testing.T) map[string]any {
+				mfcr := models.NewMailFolderCollectionResponse()
+				mfcr.SetValue([]models.MailFolderable{mf, mf})
+
+				return parseableToMap(t, mfcr)
+			},
+			expectErr: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+
+			defer flush()
+			defer gock.Off()
+
+			interceptV1Path("users", "u", "mailFolders").
+				Reply(200).
+				JSON(test.results(t))
+
+			_, err := suite.its.gockAC.
+				Mail().
+				GetContainerByName(ctx, "u", "", test.name)
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.True(t, gock.IsDone())
 		})
 	}
 }

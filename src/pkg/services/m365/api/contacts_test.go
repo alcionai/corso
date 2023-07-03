@@ -141,8 +141,8 @@ func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
 	cc, err := suite.its.ac.Contacts().CreateContainer(
 		ctx,
 		suite.its.userID,
-		rc.Location,
-		"")
+		"",
+		rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
@@ -167,7 +167,7 @@ func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
 
 			_, err := suite.its.ac.
 				Contacts().
-				GetContainerByName(ctx, suite.its.userID, test.name)
+				GetContainerByName(ctx, suite.its.userID, "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}

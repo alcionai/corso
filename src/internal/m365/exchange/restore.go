@@ -290,7 +290,7 @@ func getOrPopulateContainer(
 		return cached, nil
 	}
 
-	c, err := ca.CreateContainer(ctx, userID, containerName, containerParentID)
+	c, err := ca.CreateContainer(ctx, userID, containerParentID, containerName)
 
 	// 409 handling case:
 	// attempt to fetch the container by name and add that result to the cache.
@@ -298,7 +298,7 @@ func getOrPopulateContainer(
 	// sometimes the backend will create the folder despite the 5xx response,
 	// leaving our local containerResolver with inconsistent state.
 	if graph.IsErrFolderExists(err) {
-		cc, e := ca.GetContainerByName(ctx, userID, containerName)
+		cc, e := ca.GetContainerByName(ctx, userID, containerParentID, containerName)
 		if e != nil {
 			err = clues.Stack(err, e)
 		} else {

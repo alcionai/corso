@@ -37,8 +37,8 @@ type Contacts struct {
 // If successful, returns the created folder object.
 func (c Contacts) CreateContainer(
 	ctx context.Context,
-	userID, containerName string,
-	_ string, // parentContainerID needed for iface, doesn't apply to contacts
+	// parentContainerID needed for iface, doesn't apply to contacts
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	body := models.NewContactFolder()
 	body.SetDisplayName(ptr.To(containerName))
@@ -120,7 +120,8 @@ func (c Contacts) GetContainerByID(
 // GetContainerByName fetches a folder by name
 func (c Contacts) GetContainerByName(
 	ctx context.Context,
-	userID, containerName string,
+	// parentContainerID needed for iface, doesn't apply to contacts
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	filter := fmt.Sprintf("displayName eq '%s'", containerName)
 	options := &users.ItemContactFoldersRequestBuilderGetRequestConfiguration{

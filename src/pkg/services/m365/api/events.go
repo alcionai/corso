@@ -44,8 +44,8 @@ type Events struct {
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
 func (c Events) CreateContainer(
 	ctx context.Context,
-	userID, containerName string,
-	_ string, // parentContainerID needed for iface, doesn't apply to contacts
+	// parentContainerID needed for iface, doesn't apply to events
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	body := models.NewCalendar()
 	body.SetName(&containerName)
@@ -132,7 +132,8 @@ func (c Events) GetContainerByID(
 // GetContainerByName fetches a calendar by name
 func (c Events) GetContainerByName(
 	ctx context.Context,
-	userID, containerName string,
+	// parentContainerID needed for iface, doesn't apply to events
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	filter := fmt.Sprintf("name eq '%s'", containerName)
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
@@ -159,14 +160,15 @@ func (c Events) GetContainerByName(
 		return nil, clues.New("container not found").WithClues(ctx)
 	}
 
-	// We only allow the api to match one calendar with the provided name.
-	// Return an error if multiple calendars exist (unlikely) or if no calendar
-	// is found.
-	if len(resp.GetValue()) != 1 {
+	// Return an error if no calendar is found.
+	if len(resp.GetValue()) == 0 {
 		return nil, clues.New("unexpected number of calendars returned").
 			With("returned_container_count", len(gv)).
 			WithClues(ctx)
 	}
+
+	// We only allow the api to match one calendar with the provided name.
+	// If we match multiples, we'll eagerly return the first one.
 
 	// Sanity check ID and name
 	cal := gv[0]
