@@ -472,7 +472,7 @@ func restoreV0File(
 	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
-	_, itemInfo, err := restoreData(
+	_, itemInfo, err := restoreFile(
 		ctx,
 		restoreCfg,
 		rh,
@@ -505,7 +505,7 @@ func restoreV1File(
 ) (details.ItemInfo, error) {
 	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
 
-	itemID, itemInfo, err := restoreData(
+	itemID, itemInfo, err := restoreFile(
 		ctx,
 		restoreCfg,
 		rh,
@@ -588,7 +588,7 @@ func restoreV6File(
 		return details.ItemInfo{}, clues.New("item with empty name")
 	}
 
-	itemID, itemInfo, err := restoreData(
+	itemID, itemInfo, err := restoreFile(
 		ctx,
 		restoreCfg,
 		rh,
@@ -711,20 +711,10 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := fr.GetFolderByName(ictx, driveID, parentFolderID, folderName)
-		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
-			return "", clues.Wrap(err, "getting folder by display name")
-		}
-
-		// folder found, moving to next child
-		if err == nil {
-			parentFolderID = ptr.Val(folderItem.GetId())
-			caches.Folders.set(location, folderItem)
-
-			continue
-		}
-
-		folderItem, err = createFolder(
+		// we assume this folder creation always uses the Replace
+		// conflict policy, which means it will act as a GET if the
+		// folder already exists.
+		folderItem, err := createFolder(
 			ictx,
 			fr,
 			driveID,
@@ -794,8 +784,8 @@ type itemRestorer interface {
 	PostItemInContainerer
 }
 
-// restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
-func restoreData(
+// restoreFile will create a new item in the specified `parentFolderID` and upload the data.Stream
+func restoreFile(
 	ctx context.Context,
 	restoreCfg control.RestoreConfig,
 	ir itemRestorer,
@@ -819,7 +809,6 @@ func restoreData(
 
 	var (
 		item         = newItem(name, false)
-		isFolder     = item.GetFolder() != nil
 		collisionKey = api.DriveItemCollisionKey(item)
 		collision    api.DriveCollisionItem
 		replace      bool
@@ -835,7 +824,7 @@ func restoreData(
 		}
 
 		collision = dci
-		replace = restoreCfg.OnCollision == control.Replace && isFolder == dci.IsFolder
+		replace = restoreCfg.OnCollision == control.Replace && dci.IsFolder
 	}
 
 	// drive items do not support PUT requests on the drive item data, so
