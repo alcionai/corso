@@ -250,12 +250,17 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 // as "user does not have a mailbox", or whether it is some other error.  If
 // the former (no mailbox), returns nil, otherwise returns an error.
 func EvaluateMailboxError(err error) error {
-	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
+	if err == nil {
 		return nil
 	}
 
+	// must occur before MailFolderNotFound, due to overlapping cases.
 	if graph.IsErrUserNotFound(err) {
 		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
+	}
+
+	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
+		return nil
 	}
 
 	return err

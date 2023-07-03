@@ -73,6 +73,13 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 		expect func(t *testing.T, err error)
 	}{
 		{
+			name: "nil",
+			err:  nil,
+			expect: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
 			name: "mail inbox err - user not found",
 			err:  odErr(string(graph.RequestResourceNotFound)),
 			expect: func(t *testing.T, err error) {
