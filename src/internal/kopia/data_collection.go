@@ -85,7 +85,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 	}
 
 	if len(name) == 0 {
-		return nil, clues.Wrap(errNoRestorePath, "unknown item").WithClues(ctx)
+		return nil, clues.Wrap(ErrNoRestorePath, "unknown item").WithClues(ctx)
 	}
 
 	e, err := kdc.dir.Child(ctx, encodeAsPath(name))
