@@ -39,6 +39,7 @@ type restoreCaches struct {
 	Folders               *folderCache
 	ParentDirToMeta       map[string]metadata.Metadata
 	OldPermIDToNewID      map[string]string
+	OldLinkShareIDToNewID map[string]string
 	DriveIDToRootFolderID map[string]string
 	pool                  sync.Pool
 }
@@ -48,6 +49,7 @@ func NewRestoreCaches() *restoreCaches {
 		Folders:               NewFolderCache(),
 		ParentDirToMeta:       map[string]metadata.Metadata{},
 		OldPermIDToNewID:      map[string]string{},
+		OldLinkShareIDToNewID: map[string]string{},
 		DriveIDToRootFolderID: map[string]string{},
 		// Buffer pool for uploads
 		pool: sync.Pool{

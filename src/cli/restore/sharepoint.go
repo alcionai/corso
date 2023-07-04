@@ -99,7 +99,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides())
+	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
