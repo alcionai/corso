@@ -40,9 +40,6 @@ const (
 `
 )
 
-// b, tID, accKey, secret,
-// 		token, passphrase, azureClientID, azureSecret,
-
 type ConfigSuite struct {
 	tester.Suite
 }
@@ -263,6 +260,19 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 		disableTLSVerification = "true"
 	)
 
+	t.Cleanup(func() {
+		// reset values
+		flags.AzureClientTenantFV = ""
+		flags.AzureClientIDFV = ""
+		flags.AzureClientSecretFV = ""
+
+		flags.AWSAccessKeyFV = ""
+		flags.AWSSecretAccessKeyFV = ""
+		flags.AWSSessionTokenFV = ""
+
+		flags.CorsoPassphraseFV = ""
+	})
+
 	// Generate test config file
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID, accKey, secret, token,
 		passphrase, azureClientID, azureSecret,
@@ -328,17 +338,6 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 	assert.Equal(t, flags.AzureClientTenantFV, m365Config.AzureTenantID)
 
 	assert.Equal(t, flags.CorsoPassphraseFV, pass)
-
-	// reset values
-	flags.AzureClientTenantFV = ""
-	flags.AzureClientIDFV = ""
-	flags.AzureClientSecretFV = ""
-
-	flags.AWSAccessKeyFV = ""
-	flags.AWSSecretAccessKeyFV = ""
-	flags.AWSSessionTokenFV = ""
-
-	flags.CorsoPassphraseFV = ""
 }
 
 // ------------------------------------------------------------
