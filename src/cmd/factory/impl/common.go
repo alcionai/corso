@@ -113,6 +113,7 @@ func getControllerAndVerifyResourceOwner(
 	ctx context.Context,
 	resourceCat resource.Category,
 	resourceOwner string,
+	pst path.ServiceType,
 ) (
 	*m365.Controller,
 	account.Account,
@@ -136,7 +137,7 @@ func getControllerAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "finding m365 account details")
 	}
 
-	ctrl, err := m365.NewController(ctx, acct, resourceCat)
+	ctrl, err := m365.NewController(ctx, acct, resourceCat, pst, control.Options{})
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}

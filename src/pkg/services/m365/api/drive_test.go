@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -16,24 +18,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
 
-type DriveAPISuite struct {
+type DriveAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
-func (suite *DriveAPISuite) SetupSuite() {
+func (suite *DriveAPIIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func TestDriveAPIs(t *testing.T) {
-	suite.Run(t, &DriveAPISuite{
+	suite.Run(t, &DriveAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *DriveAPISuite) TestDrives_CreatePagerAndGetPage() {
+func (suite *DriveAPIIntgSuite) TestDrives_CreatePagerAndGetPage() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -61,7 +63,7 @@ func newItem(name string, folder bool) *models.DriveItem {
 	return itemToCreate
 }
 
-func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
+func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -216,5 +218,90 @@ func (suite *DriveAPISuite) TestDrives_PostItemInContainer() {
 			test.expectErr(t, err)
 			test.expectItem(t, i)
 		})
+	}
+}
+
+// purpose: ensure that creating a new folder with "replace" conflict behavior
+// makes no changes to the items which exist in that folder.
+func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegression() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		rc    = testdata.DefaultRestoreConfig("drive_folder_replace_regression")
+		acd   = suite.its.ac.Drives()
+		files = make([]models.DriveItemable, 0, 5)
+	)
+
+	// generate a folder for the test data
+	folder, err := acd.PostItemInContainer(
+		ctx,
+		suite.its.userDriveID,
+		suite.its.userDriveRootFolderID,
+		newItem(rc.Location, true),
+		// skip instead of replace here to get
+		// an ErrItemAlreadyExistsConflict, just in case.
+		control.Skip)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// generate items within that folder
+	for i := 0; i < 5; i++ {
+		file := newItem(fmt.Sprintf("collision_%d.txt", i), false)
+		f, err := acd.PostItemInContainer(
+			ctx,
+			suite.its.userDriveID,
+			ptr.Val(folder.GetId()),
+			file,
+			control.Copy)
+		require.NoError(t, err, clues.ToCore(err))
+
+		files = append(files, f)
+	}
+
+	resultFolder, err := acd.PostItemInContainer(
+		ctx,
+		suite.its.userDriveID,
+		ptr.Val(folder.GetParentReference().GetId()),
+		newItem(rc.Location, true),
+		control.Replace)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotEmpty(t, ptr.Val(resultFolder.GetId()))
+	require.Equal(t, ptr.Val(folder.GetId()), ptr.Val(resultFolder.GetId()))
+
+	resultFileColl, err := acd.Stable.
+		Client().
+		Drives().
+		ByDriveId(suite.its.userDriveID).
+		Items().
+		ByDriveItemId(ptr.Val(resultFolder.GetId())).
+		Children().
+		Get(ctx, nil)
+	err = graph.Stack(ctx, err).OrNil()
+	require.NoError(t, err, clues.ToCore(err))
+
+	resultFiles := resultFileColl.GetValue()
+
+	// asserting that no file changes have occurred as a result of the
+	// "replacement" of the owning folder.
+	for _, rf := range resultFiles {
+		var (
+			rID   = ptr.Val(rf.GetId())
+			rName = ptr.Val(rf.GetName())
+			rMod  = ptr.Val(rf.GetLastModifiedDateTime())
+		)
+
+		check := func(expect models.DriveItemable) bool {
+			var (
+				eID   = ptr.Val(expect.GetId())
+				eName = ptr.Val(expect.GetName())
+				eMod  = ptr.Val(expect.GetLastModifiedDateTime())
+			)
+
+			return eID == rID && eName == rName && eMod.Equal(rMod)
+		}
+
+		assert.True(t, slices.ContainsFunc(files, check))
 	}
 }

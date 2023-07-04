@@ -223,7 +223,7 @@ type EventsAPIIntgSuite struct {
 	its intgTesterSetup
 }
 
-func TestEventsAPIntgSuite(t *testing.T) {
+func TestEventsAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &EventsAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,

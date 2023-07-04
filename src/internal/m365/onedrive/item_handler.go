@@ -147,11 +147,11 @@ func (h itemRestoreHandler) AugmentItemInfo(
 	return augmentItemInfo(dii, item, size, parentPath)
 }
 
-func (h itemRestoreHandler) NewItemContentUpload(
+func (h itemRestoreHandler) DeleteItem(
 	ctx context.Context,
 	driveID, itemID string,
-) (models.UploadSessionable, error) {
-	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+) error {
+	return h.ac.DeleteItem(ctx, driveID, itemID)
 }
 
 func (h itemRestoreHandler) DeleteItemPermission(
@@ -159,6 +159,25 @@ func (h itemRestoreHandler) DeleteItemPermission(
 	driveID, itemID, permissionID string,
 ) error {
 	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
+}
+
+func (h itemRestoreHandler) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	driveID, containerID string,
+) (map[string]api.DriveCollisionItem, error) {
+	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, driveID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func (h itemRestoreHandler) NewItemContentUpload(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.UploadSessionable, error) {
+	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
 }
 
 func (h itemRestoreHandler) PostItemPermissionUpdate(

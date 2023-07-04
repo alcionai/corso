@@ -1,14 +1,17 @@
 package onedrive
 
 import (
+	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/mock"
@@ -16,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type RestoreUnitSuite struct {
@@ -321,28 +325,127 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 	}
 }
 
-func (suite *RestoreUnitSuite) TestRestoreItem_errItemAlreadyExists() {
+func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
+	const mndiID = "mndi-id"
+
 	table := []struct {
 		name          string
+		collisionKeys map[string]api.DriveCollisionItem
 		onCollision   control.CollisionPolicy
-		expectErr     func(*testing.T, error)
 		expectSkipped assert.BoolAssertionFunc
+		expectMock    func(*testing.T, *mock.RestoreHandler)
 	}{
 		{
-			name:        "skip",
-			onCollision: control.Skip,
-			expectErr: func(t *testing.T, err error) {
-				require.NoError(t, err, clues.ToCore(err))
+			name:          "no collision, copy",
+			collisionKeys: map[string]api.DriveCollisionItem{},
+			onCollision:   control.Copy,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
-			expectSkipped: assert.True,
 		},
 		{
-			name:        "replace",
-			onCollision: control.Replace,
-			expectErr: func(t *testing.T, err error) {
-				require.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
-			},
+			name:          "no collision, replace",
+			collisionKeys: map[string]api.DriveCollisionItem{},
+			onCollision:   control.Replace,
 			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name:          "no collision, skip",
+			collisionKeys: map[string]api.DriveCollisionItem{},
+			onCollision:   control.Skip,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "collision, copy",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: mndiID},
+			},
+			onCollision:   control.Copy,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "collision, replace",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: mndiID},
+			},
+			onCollision:   control.Replace,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.True(t, rh.CalledDeleteItem, "new item deleted")
+				assert.Equal(t, mndiID, rh.CalledDeleteItemOn, "deleted the correct item")
+			},
+		},
+		{
+			name: "collision, skip",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: mndiID},
+			},
+			onCollision:   control.Skip,
+			expectSkipped: assert.True,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.False(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "file-folder collision, copy",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {
+					ItemID:   mndiID,
+					IsFolder: true,
+				},
+			},
+			onCollision:   control.Copy,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "file-folder collision, replace",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {
+					ItemID:   mndiID,
+					IsFolder: true,
+				},
+			},
+			onCollision:   control.Replace,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
+		},
+		{
+			name: "file-folder collision, skip",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {
+					ItemID:   mndiID,
+					IsFolder: true,
+				},
+			},
+			onCollision:   control.Skip,
+			expectSkipped: assert.True,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.False(t, rh.CalledPostItem, "new item posted")
+				assert.False(t, rh.CalledDeleteItem, "new item deleted")
+			},
 		},
 	}
 	for _, test := range table {
@@ -352,15 +455,17 @@ func (suite *RestoreUnitSuite) TestRestoreItem_errItemAlreadyExists() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			mndi := models.NewDriveItem()
+			mndi.SetId(ptr.To(mndiID))
+
 			var (
-				rh = mock.RestoreHandler{
-					PostItemErr: graph.ErrItemAlreadyExistsConflict,
-				}
-				restoreCfg = control.RestoreConfig{
-					OnCollision: test.onCollision,
-				}
-				dpb = odConsts.DriveFolderPrefixBuilder("driveID1")
+				caches     = NewRestoreCaches()
+				rh         = &mock.RestoreHandler{PostItemResp: mndi}
+				restoreCfg = control.RestoreConfig{OnCollision: test.onCollision}
+				dpb        = odConsts.DriveFolderPrefixBuilder("driveID1")
 			)
+
+			caches.collisionKeyToItemID = test.collisionKeys
 
 			dpp, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
 			require.NoError(t, err)
@@ -380,14 +485,93 @@ func (suite *RestoreUnitSuite) TestRestoreItem_errItemAlreadyExists() {
 				version.Backup,
 				dp,
 				"",
-				[]byte{},
-				NewRestoreCaches(),
+				make([]byte, graph.CopyBufferSize),
+				caches,
 				false,
-				&mock.Data{ID: uuid.NewString()},
+				&mock.Data{
+					ID:     uuid.NewString(),
+					Reader: mock.FileRespReadCloser(mock.DriveFilePayloadData),
+				},
 				nil)
-
-			test.expectErr(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			test.expectSkipped(t, skip)
+			test.expectMock(t, rh)
+		})
+	}
+}
+
+type mockPIIC struct {
+	i     int
+	errs  []error
+	items []models.DriveItemable
+}
+
+func (m *mockPIIC) PostItemInContainer(
+	context.Context,
+	string, string,
+	models.DriveItemable,
+	control.CollisionPolicy,
+) (models.DriveItemable, error) {
+	j := m.i
+	m.i++
+
+	return m.items[j], m.errs[j]
+}
+
+func (suite *RestoreUnitSuite) TestCreateFolder() {
+	table := []struct {
+		name       string
+		mock       *mockPIIC
+		expectErr  assert.ErrorAssertionFunc
+		expectItem assert.ValueAssertionFunc
+	}{
+		{
+			name: "good",
+			mock: &mockPIIC{
+				errs:  []error{nil},
+				items: []models.DriveItemable{models.NewDriveItem()},
+			},
+			expectErr:  assert.NoError,
+			expectItem: assert.NotNil,
+		},
+		{
+			name: "good with copy",
+			mock: &mockPIIC{
+				errs:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				items: []models.DriveItemable{nil, models.NewDriveItem()},
+			},
+			expectErr:  assert.NoError,
+			expectItem: assert.NotNil,
+		},
+		{
+			name: "bad",
+			mock: &mockPIIC{
+				errs:  []error{assert.AnError},
+				items: []models.DriveItemable{nil},
+			},
+			expectErr:  assert.Error,
+			expectItem: assert.Nil,
+		},
+		{
+			name: "bad with copy",
+			mock: &mockPIIC{
+				errs:  []error{graph.ErrItemAlreadyExistsConflict, assert.AnError},
+				items: []models.DriveItemable{nil, nil},
+			},
+			expectErr:  assert.Error,
+			expectItem: assert.Nil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result, err := createFolder(ctx, test.mock, "d", "pf", "fn")
+			test.expectErr(t, err, clues.ToCore(err))
+			test.expectItem(t, result)
 		})
 	}
 }

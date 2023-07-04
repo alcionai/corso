@@ -234,6 +234,8 @@ func (c *Collections) Get(
 		return nil, false, err
 	}
 
+	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
+
 	driveTombstones := map[string]struct{}{}
 
 	for driveID := range oldPathsByDriveID {

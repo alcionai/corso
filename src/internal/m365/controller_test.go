@@ -283,7 +283,7 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.ctrl = newController(ctx, t, resource.Users)
+	suite.ctrl = newController(ctx, t, resource.Users, path.ExchangeService)
 	suite.user = tester.M365UserID(t)
 	suite.secondaryUser = tester.SecondaryM365UserID(t)
 
@@ -422,7 +422,7 @@ func runRestore(
 
 	start := time.Now()
 
-	restoreCtrl := newController(ctx, t, config.Resource)
+	restoreCtrl := newController(ctx, t, config.Resource, path.ExchangeService)
 	restoreSel := getSelectorWith(t, config.Service, config.ResourceOwners, true)
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
@@ -484,7 +484,7 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupCtrl := newController(ctx, t, config.Resource)
+	backupCtrl := newController(ctx, t, config.Resource, path.ExchangeService)
 	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
 	backupSel := backupSelectorForExpected(t, config.Service, expectedDests)
@@ -1030,7 +1030,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					restoreCfg.Location,
 				)
 
-				restoreCtrl := newController(ctx, t, test.resourceCat)
+				restoreCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
 				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
@@ -1060,7 +1060,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Run a backup and compare its output with what we put in.
 
-			backupCtrl := newController(ctx, t, test.resourceCat)
+			backupCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1209,7 +1209,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = newController(ctx, t, test.resourceCat)
+				backupCtrl = newController(ctx, t, test.resourceCat, path.ExchangeService)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()

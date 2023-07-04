@@ -264,14 +264,19 @@ func runBackups(
 
 // genericDeleteCommand is a helper function that all services can use
 // for the removal of an entry from the repository
-func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []string) error {
+func genericDeleteCommand(
+	cmd *cobra.Command,
+	pst path.ServiceType,
+	bID, designation string,
+	args []string,
+) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides(cmd))
+	r, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -289,10 +294,15 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 // genericListCommand is a helper function that all services can use
 // to display the backup IDs saved within the repository
-func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType, args []string) error {
+func genericListCommand(
+	cmd *cobra.Command,
+	bID string,
+	service path.ServiceType,
+	args []string,
+) error {
 	ctx := cmd.Context()
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, repo.S3Overrides(cmd))
+	r, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}

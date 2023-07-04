@@ -8,18 +8,19 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/discovery"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// ServiceAccess is true if a resource owner is capable of
-// accessing or utilizing the specified service.
-type ServiceAccess struct {
-	Exchange bool
-	// TODO: onedrive, sharepoint
+// ---------------------------------------------------------------------------
+// interfaces & structs
+// ---------------------------------------------------------------------------
+
+type getDefaultDriver interface {
+	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -73,24 +74,18 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 // UserHasMailbox returns true if the user has an exchange mailbox enabled
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
 	_, err = ac.Users().GetMailInbox(ctx, userID)
 	if err != nil {
-		// we consider this a non-error case, since it
-		// answers the question the caller is asking.
-		if graph.IsErrExchangeMailFolderNotFound(err) {
-			return false, nil
+		if err := api.EvaluateMailboxError(err); err != nil {
+			return false, clues.Stack(err)
 		}
 
-		if graph.IsErrUserNotFound(err) {
-			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
-
-		return false, clues.Stack(err)
+		return false, nil
 	}
 
 	return true, nil
@@ -99,7 +94,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 // UserHasDrives returns true if the user has any drives
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.OneDriveService)
 	if err != nil {
 		return false, clues.Stack(err).WithClues(ctx)
 	}
@@ -107,7 +102,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 	return checkUserHasDrives(ctx, ac.Users(), userID)
 }
 
-func checkUserHasDrives(ctx context.Context, dgdd discovery.GetDefaultDriver, userID string) (bool, error) {
+func checkUserHasDrives(ctx context.Context, dgdd getDefaultDriver, userID string) (bool, error) {
 	_, err := dgdd.GetDefaultDrive(ctx, userID)
 	if err != nil {
 		// we consider this a non-error case, since it
@@ -130,12 +125,12 @@ func checkUserHasDrives(ctx context.Context, dgdd discovery.GetDefaultDriver, us
 // TODO: Remove this once we remove `Info` from `Users` and instead rely on the `GetUserInfo` API
 // to get user information
 func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.UnknownService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := discovery.Users(ctx, ac.Users(), errs)
+	us, err := ac.Users().GetAll(ctx, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +157,12 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 
 // Users returns a list of users in the specified M365 tenant
 func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := discovery.Users(ctx, ac.Users(), errs)
+	us, err := ac.Users().GetAll(ctx, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +175,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		userInfo, err := discovery.GetUserInfo(ctx, acct, pu.ID, errs)
+		userInfo, err := ac.Users().GetInfo(ctx, pu.ID)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user details")
 		}
@@ -215,12 +210,12 @@ func GetUserInfo(
 	acct account.Account,
 	userID string,
 ) (*api.UserInfo, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	ui, err := discovery.UserInfo(ctx, ac.Users(), userID)
+	ui, err := ac.Users().GetInfo(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +244,7 @@ type Site struct {
 
 // Sites returns a list of Sites in a specified M365 tenant
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.SharePointService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -321,7 +316,13 @@ func SitesMap(
 // helpers
 // ---------------------------------------------------------------------------
 
-func makeAC(acct account.Account) (api.Client, error) {
+func makeAC(
+	ctx context.Context,
+	acct account.Account,
+	pst path.ServiceType,
+) (api.Client, error) {
+	api.InitConcurrencyLimit(ctx, pst)
+
 	creds, err := acct.M365Config()
 	if err != nil {
 		return api.Client{}, clues.Wrap(err, "getting m365 account creds")

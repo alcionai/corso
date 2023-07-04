@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -36,21 +37,24 @@ const (
 )
 
 type restoreCaches struct {
-	Folders               *folderCache
-	ParentDirToMeta       map[string]metadata.Metadata
-	OldPermIDToNewID      map[string]string
-	OldLinkShareIDToNewID map[string]string
+	collisionKeyToItemID  map[string]api.DriveCollisionItem
 	DriveIDToRootFolderID map[string]string
-	pool                  sync.Pool
+	Folders               *folderCache
+	OldLinkShareIDToNewID map[string]string
+	OldPermIDToNewID      map[string]string
+	ParentDirToMeta       map[string]metadata.Metadata
+
+	pool sync.Pool
 }
 
 func NewRestoreCaches() *restoreCaches {
 	return &restoreCaches{
-		Folders:               NewFolderCache(),
-		ParentDirToMeta:       map[string]metadata.Metadata{},
-		OldPermIDToNewID:      map[string]string{},
-		OldLinkShareIDToNewID: map[string]string{},
+		collisionKeyToItemID:  map[string]api.DriveCollisionItem{},
 		DriveIDToRootFolderID: map[string]string{},
+		Folders:               NewFolderCache(),
+		OldLinkShareIDToNewID: map[string]string{},
+		OldPermIDToNewID:      map[string]string{},
+		ParentDirToMeta:       map[string]metadata.Metadata{},
 		// Buffer pool for uploads
 		pool: sync.Pool{
 			New: func() any {
@@ -221,6 +225,12 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
 
+	collisionKeyToItemID, err := rh.GetItemsInContainerByCollisionKey(ctx, drivePath.DriveID, restoreFolderID)
+	if err != nil {
+		return metrics, clues.Wrap(err, "generating map of item collision keys")
+	}
+
+	caches.collisionKeyToItemID = collisionKeyToItemID
 	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
 	items := dc.Items(ctx, errs)
 
@@ -356,6 +366,7 @@ func restoreItem(
 			fibn,
 			restoreFolderID,
 			copyBuffer,
+			caches.collisionKeyToItemID,
 			itemData)
 		if err != nil {
 			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
@@ -458,9 +469,10 @@ func restoreV0File(
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
+	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
-	_, itemInfo, err := restoreData(
+	_, itemInfo, err := restoreFile(
 		ctx,
 		restoreCfg,
 		rh,
@@ -469,6 +481,7 @@ func restoreV0File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		collisionKeyToItemID,
 		copyBuffer)
 	if err != nil {
 		return itemInfo, clues.Wrap(err, "restoring file")
@@ -492,7 +505,7 @@ func restoreV1File(
 ) (details.ItemInfo, error) {
 	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
 
-	itemID, itemInfo, err := restoreData(
+	itemID, itemInfo, err := restoreFile(
 		ctx,
 		restoreCfg,
 		rh,
@@ -501,6 +514,7 @@ func restoreV1File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		caches.collisionKeyToItemID,
 		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
@@ -574,7 +588,7 @@ func restoreV6File(
 		return details.ItemInfo{}, clues.New("item with empty name")
 	}
 
-	itemID, itemInfo, err := restoreData(
+	itemID, itemInfo, err := restoreFile(
 		ctx,
 		restoreCfg,
 		rh,
@@ -583,6 +597,7 @@ func restoreV6File(
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
+		caches.collisionKeyToItemID,
 		copyBuffer)
 	if err != nil {
 		return details.ItemInfo{}, err
@@ -682,11 +697,11 @@ func createRestoreFolders(
 		"drive_id", drivePath.DriveID,
 		"root_folder_id", parentFolderID)
 
-	for _, folder := range folders {
-		location = location.Append(folder)
+	for _, folderName := range folders {
+		location = location.Append(folderName)
 		ictx := clues.Add(
 			ctx,
-			"creating_restore_folder", folder,
+			"creating_restore_folder", folderName,
 			"restore_folder_location", location,
 			"parent_of_restore_folder", parentFolderID)
 
@@ -696,30 +711,15 @@ func createRestoreFolders(
 			continue
 		}
 
-		folderItem, err := fr.GetFolderByName(ictx, driveID, parentFolderID, folder)
-		if err != nil && !errors.Is(err, api.ErrFolderNotFound) {
-			return "", clues.Wrap(err, "getting folder by display name")
-		}
-
-		// folder found, moving to next child
-		if err == nil {
-			parentFolderID = ptr.Val(folderItem.GetId())
-			caches.Folders.set(location, folderItem)
-
-			continue
-		}
-
-		// create the folder if not found
-		// the Replace collision policy is used since collisions on that
-		// policy will no-op and return the existing folder.  This has two
-		// benefits: first, we get to treat the post as idempotent; and
-		// second, we don't have to worry about race conditions.
-		folderItem, err = fr.PostItemInContainer(
+		// we assume this folder creation always uses the Replace
+		// conflict policy, which means it will act as a GET if the
+		// folder already exists.
+		folderItem, err := createFolder(
 			ictx,
+			fr,
 			driveID,
 			parentFolderID,
-			newItem(folder, true),
-			control.Replace)
+			folderName)
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -733,14 +733,59 @@ func createRestoreFolders(
 	return parentFolderID, nil
 }
 
+func createFolder(
+	ctx context.Context,
+	piic PostItemInContainerer,
+	driveID, parentFolderID, folderName string,
+) (models.DriveItemable, error) {
+	// create the folder if not found
+	// the Replace collision policy is used since collisions on that
+	// policy will no-op and return the existing folder.  This has two
+	// benefits: first, we get to treat the post as idempotent; and
+	// second, we don't have to worry about race conditions.
+	item, err := piic.PostItemInContainer(
+		ctx,
+		driveID,
+		parentFolderID,
+		newItem(folderName, true),
+		control.Replace)
+
+	// ErrItemAlreadyExistsConflict can only occur for folders if the
+	// item being replaced is a file, not another folder.
+	if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+		return nil, clues.Wrap(err, "creating folder")
+	}
+
+	if err == nil {
+		return item, err
+	}
+
+	// if we made it here, then we tried to replace a file with a folder and
+	// hit a conflict.  An unlikely occurrence, and we can try again with a copy
+	// conflict behavior setting and probably succeed, though that will change
+	// the location name of the restore.
+	item, err = piic.PostItemInContainer(
+		ctx,
+		driveID,
+		parentFolderID,
+		newItem(folderName, true),
+		control.Copy)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating folder")
+	}
+
+	return item, err
+}
+
 type itemRestorer interface {
+	DeleteItemer
 	ItemInfoAugmenter
 	NewItemContentUploader
 	PostItemInContainerer
 }
 
-// restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
-func restoreData(
+// restoreFile will create a new item in the specified `parentFolderID` and upload the data.Stream
+func restoreFile(
 	ctx context.Context,
 	restoreCfg control.RestoreConfig,
 	ir itemRestorer,
@@ -748,6 +793,7 @@ func restoreData(
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
+	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	copyBuffer []byte,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
@@ -761,18 +807,60 @@ func restoreData(
 		return "", details.ItemInfo{}, clues.New("item does not implement DataStreamInfo").WithClues(ctx)
 	}
 
+	var (
+		item         = newItem(name, false)
+		collisionKey = api.DriveItemCollisionKey(item)
+		collision    api.DriveCollisionItem
+		replace      bool
+	)
+
+	if dci, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		if restoreCfg.OnCollision == control.Skip {
+			log.Debug("skipping item with collision")
+			return "", details.ItemInfo{}, graph.ErrItemAlreadyExistsConflict
+		}
+
+		collision = dci
+		replace = restoreCfg.OnCollision == control.Replace && !dci.IsFolder
+	}
+
+	// drive items do not support PUT requests on the drive item data, so
+	// when replacing a collision, first delete the existing item.  It would
+	// be nice to be able to do a post-then-delete like we do with exchange,
+	// but onedrive will conflict on the filename.  So until the api's built-in
+	// conflict replace handling bug gets fixed, we either delete-post, and
+	// risk failures in the middle, or we post w/ copy, then delete, then patch
+	// the name, which could triple our graph calls in the worst case.
+	if replace {
+		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil {
+			return "", details.ItemInfo{}, clues.New("deleting colliding item")
+		}
+	}
+
 	// Create Item
+	// the Copy collision policy is used since we've technically already handled
+	// the collision behavior above.  At this point, copy is most likely to succeed.
+	// We could go with control.Skip if we wanted to ensure no duplicate, but those
+	// duplicates will only happen under very unlikely race conditions.
 	newItem, err := ir.PostItemInContainer(
 		ctx,
 		driveID,
 		parentFolderID,
-		newItem(name, false),
-		restoreCfg.OnCollision)
+		item,
+		// notes on forced copy:
+		// 1. happy path: any non-colliding item will restore as if no collision had occurred
+		// 2. if a file-container collision is present, we assume the item being restored
+		//    will get generated according to server-side copy rules.
+		// 3. if restoreCfg specifies replace and a file-container collision is present, we
+		//    make no changes to the original file, and do not delete it.
+		control.Copy)
 	if err != nil {
 		return "", details.ItemInfo{}, err
 	}
 
-	// Get a drive item writer
 	w, uploadURL, err := driveItemWriter(ctx, ir, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")

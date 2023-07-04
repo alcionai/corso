@@ -121,7 +121,7 @@ func NewSuiteInfoImpl(
 		rsc = resource.Sites
 	}
 
-	ctrl := newController(ctx, t, rsc)
+	ctrl := newController(ctx, t, rsc, path.OneDriveService)
 
 	return suiteInfoImpl{
 		ac:               ctrl.AC,
