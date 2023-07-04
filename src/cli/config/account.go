@@ -40,6 +40,7 @@ func m365Overrides(in map[string]string) map[string]string {
 func configureAccount(
 	vpr *viper.Viper,
 	readConfigFromViper bool,
+	matchFromConfig bool,
 	overrides map[string]string,
 ) (account.Account, error) {
 	var (
@@ -54,7 +55,9 @@ func configureAccount(
 		if err != nil {
 			return acct, clues.Wrap(err, "reading m365 configs from corso config file")
 		}
+	}
 
+	if matchFromConfig {
 		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
 			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 		}
