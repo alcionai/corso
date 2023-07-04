@@ -548,7 +548,6 @@ func (oc *Collection) populateDriveItem(
 					rc,
 					itemInfo,
 					itemExtensionFactory)
-
 				if err != nil {
 					return nil, clues.Stack(err).WithClues(ctx)
 				}
