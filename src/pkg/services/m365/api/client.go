@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,15 @@ func NewClient(creds account.M365Config) (Client, error) {
 	rqr := graph.NewNoTimeoutHTTPWrapper()
 
 	return Client{creds, s, li, rqr}, nil
+}
+
+// initConcurrencyLimit ensures that the graph concurrency limiter is
+// initialized, so that calls do not step over graph api's service limits.
+// Limits are derived from the provided servie type.
+// Callers will need to call this func before making api calls using either
+// an api client or calling the m365 package.
+func InitConcurrencyLimit(ctx context.Context, pst path.ServiceType) {
+	graph.InitializeConcurrencyLimiter(ctx, pst == path.ExchangeService, 4)
 }
 
 // Service generates a new graph servicer.  New servicers are used for paged
