@@ -26,6 +26,9 @@ import (
 type errorCode string
 
 const (
+	// this auth error is a catch-all used by graph in a variety of cases:
+	// users without licenses, bad jwts, missing account permissions, etc.
+	AuthenticationError errorCode = "AuthenticationError"
 	// cannotOpenFileAttachment happen when an attachment is
 	// inaccessible. The error message is usually "OLE conversion
 	// failed for an attachment."
@@ -102,6 +105,10 @@ var (
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
+
+func IsErrAuthenticationError(err error) bool {
+	return hasErrorCode(err, AuthenticationError)
+}
 
 func IsErrDeletedInFlight(err error) bool {
 	if errors.Is(err, ErrDeletedInFlight) {

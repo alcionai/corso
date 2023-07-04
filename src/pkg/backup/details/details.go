@@ -1044,3 +1044,8 @@ func updateFolderWithinDrive(
 
 	return nil
 }
+
+// ExtensionInfo describes extension data associated with an item
+type ExtensionInfo struct {
+	Data map[string]any `json:"data,omitempty"`
+}

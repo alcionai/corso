@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DrivePagerIntgSuite struct {
@@ -63,7 +64,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 			require.NoError(t, err, clues.ToCore(err))
 
 			ims := items.GetValue()
-			expect := make([]string, 0, len(ims))
+			expect := make([]api.DriveCollisionItem, 0, len(ims))
 
 			assert.NotEmptyf(
 				t,
@@ -81,8 +82,9 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 			}
 
 			for _, e := range expect {
-				_, ok := results[e]
+				r, ok := results[e.ItemID]
 				assert.Truef(t, ok, "expected results to contain collision key: %s", e)
+				assert.Equal(t, e, r)
 			}
 		})
 	}

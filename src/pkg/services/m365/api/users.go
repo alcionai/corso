@@ -195,16 +195,9 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// if they cannot, we can assume they are ineligible for exchange backups.
 	inbx, err := c.GetMailInbox(ctx, userID)
 	if err != nil {
-		err = graph.Stack(ctx, err)
-
-		if graph.IsErrUserNotFound(err) {
-			logger.CtxErr(ctx, err).Error("user not found")
-			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
-
-		if !graph.IsErrExchangeMailFolderNotFound(err) {
+		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-			return nil, clues.Stack(err)
+			return nil, err
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
@@ -251,6 +244,26 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	userInfo.Mailbox = mi
 
 	return userInfo, nil
+}
+
+// EvaluateMailboxError checks whether the provided error can be interpreted
+// as "user does not have a mailbox", or whether it is some other error.  If
+// the former (no mailbox), returns nil, otherwise returns an error.
+func EvaluateMailboxError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// must occur before MailFolderNotFound, due to overlapping cases.
+	if graph.IsErrUserNotFound(err) {
+		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
+	}
+
+	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
+		return nil
+	}
+
+	return err
 }
 
 func (c Users) getMailboxSettings(
