@@ -525,6 +525,11 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	suite.user = tester.M365UserID(t)
 	suite.site = tester.M365SiteID(t)
 
@@ -749,7 +754,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
-			// TODO: not currently functioning; cannot retrieve generated calendars
 			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
@@ -774,6 +778,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
 		sel.ContactFolders(containers, selectors.PrefixMatch()))
+	// sel.EventCalendars(containers, selectors.PrefixMatch()))
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -838,7 +843,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				container2: {},
 			},
 		},
-		// TODO: not currently functioning; cannot retrieve generated calendars
 		// path.EventsCategory: {
 		// 	dbf: eventDBF,
 		// 	dests: map[string]contDeets{
@@ -851,9 +855,6 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	// populate initial test data
 	for category, gen := range dataset {
 		for destName := range gen.dests {
-			// TODO: the details.Builder returned by restore can contain entries with
-			// incorrect information.  non-representative repo-refs and the like.  Until
-			// that gets fixed, we can't consume that info for testing.
 			deets := generateContainerOfItems(
 				t,
 				ctx,
@@ -861,7 +862,10 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				service,
 				category,
 				selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-				creds.AzureTenantID, uidn.ID(), "", destName,
+				creds.AzureTenantID,
+				uidn.ID(),
+				"",
+				destName,
 				2,
 				version.Backup,
 				gen.dbf)
@@ -926,7 +930,12 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 				}
 			}
 
-			require.NotEmptyf(t, longestLR, "must find an expected details entry matching the generated folder: %s", destName)
+			require.NotEmptyf(
+				t,
+				longestLR,
+				"must find a details entry matching the generated %s container: %s",
+				category,
+				destName)
 
 			cd.locRef = longestLR
 
@@ -964,7 +973,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateUserData       func(t *testing.T)
+		//revive:disable-next-line:context-as-argument
+		updateUserData       func(t *testing.T, ctx context.Context)
 		deltaItemsRead       int
 		deltaItemsWritten    int
 		nonDeltaItemsRead    int
@@ -973,7 +983,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 	}{
 		{
 			name:                 "clean, no changes",
-			updateUserData:       func(t *testing.T) {},
+			updateUserData:       func(t *testing.T, ctx context.Context) {},
 			deltaItemsRead:       0,
 			deltaItemsWritten:    0,
 			nonDeltaItemsRead:    8,
@@ -982,7 +992,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "move an email folder to a subfolder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				cat := path.EmailCategory
 
 				// contacts and events cannot be sufoldered; this is an email-only change
@@ -1006,7 +1016,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "delete a folder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container2].containerID
 
@@ -1033,7 +1043,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "add a new folder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, gen := range dataset {
 					deets := generateContainerOfItems(
 						t,
@@ -1078,7 +1088,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "rename a folder",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container3].containerID
 					newLoc := containerRename
@@ -1134,7 +1144,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "add a new item",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
 
@@ -1188,7 +1198,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		},
 		{
 			name: "delete an existing item",
-			updateUserData: func(t *testing.T) {
+			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
 					containerID := d.dests[container1].containerID
 
@@ -1247,11 +1257,22 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
 				atid  = creds.AzureTenantID
 			)
 
-			test.updateUserData(t)
+			ctx, flush := tester.WithContext(t, ctx)
+			defer flush()
+
+			incBO := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
+
+			suite.Run("PreTestSetup", func() {
+				t := suite.T()
+
+				ctx, flush := tester.WithContext(t, ctx)
+				defer flush()
+
+				test.updateUserData(t, ctx)
+			})
 
 			err := incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
@@ -1262,8 +1283,9 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			checkMetadataFilesExist(t, ctx, bupID, kw, ms, atid, uidn.ID(), service, categories)
 			deeTD.CheckBackupDetails(t, ctx, bupID, whatSet, ms, ss, expectDeets, true)
 
-			// FIXME: commented tests are flaky due to interference with other tests
-			// we need to find a better way to make good assertions here.
+			// FIXME: commented tests are flaky due to delta calls retaining data that is
+			// out of scope of the test data.
+			// we need to find a better way to make isolated assertions here.
 			// The addition of the deeTD package gives us enough coverage to comment
 			// out the tests for now and look to their improvemeng later.
 
@@ -1550,20 +1572,21 @@ func runDriveIncrementalTest(
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
-		updateFiles         func(t *testing.T)
+		//revive:disable-next-line:context-as-argument
+		updateFiles         func(t *testing.T, ctx context.Context)
 		itemsRead           int
 		itemsWritten        int
 		nonMetaItemsWritten int
 	}{
 		{
 			name:         "clean incremental, no changes",
-			updateFiles:  func(t *testing.T) {},
+			updateFiles:  func(t *testing.T, ctx context.Context) {},
 			itemsRead:    0,
 			itemsWritten: 0,
 		},
 		{
 			name: "create a new file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerIDs[container1]
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
@@ -1586,7 +1609,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to new file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err = onedrive.UpdatePermissions(
 					ctx,
 					rh,
@@ -1604,7 +1627,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from new file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err = onedrive.UpdatePermissions(
 					ctx,
 					rh,
@@ -1622,7 +1645,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add permission to container",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerIDs[container1]
 				err = onedrive.UpdatePermissions(
 					ctx,
@@ -1641,7 +1664,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "remove permission from container",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerIDs[container1]
 				err = onedrive.UpdatePermissions(
 					ctx,
@@ -1660,7 +1683,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "update contents of a file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err := suite.ac.Drives().PutItemContent(
 					ctx,
 					driveID,
@@ -1675,7 +1698,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "rename a file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				container := containerIDs[container1]
 
 				driveItem := models.NewDriveItem()
@@ -1699,7 +1722,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "move a file between folders",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				dest := containerIDs[container2]
 
 				driveItem := models.NewDriveItem()
@@ -1727,7 +1750,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "delete file",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				err := suite.ac.Drives().DeleteItem(
 					ctx,
 					driveID,
@@ -1742,7 +1765,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "move a folder to a subfolder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				parent := containerIDs[container1]
 				child := containerIDs[container2]
 
@@ -1770,7 +1793,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "rename a folder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				parent := containerIDs[container1]
 				child := containerIDs[container2]
 
@@ -1800,7 +1823,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "delete a folder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				container := containerIDs[containerRename]
 				err := suite.ac.Drives().DeleteItem(
 					ctx,
@@ -1816,7 +1839,7 @@ func runDriveIncrementalTest(
 		},
 		{
 			name: "add a new folder",
-			updateFiles: func(t *testing.T) {
+			updateFiles: func(t *testing.T, ctx context.Context) {
 				generateContainerOfItems(
 					t,
 					ctx,
@@ -1849,7 +1872,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, rc)
+			cleanCtrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.Options{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			var (
@@ -1858,9 +1881,17 @@ func runDriveIncrementalTest(
 				incBO = newTestBackupOp(t, ctx, kw, ms, cleanCtrl, acct, sel, incMB, ffs, closer)
 			)
 
-			tester.LogTimeOfTest(suite.T())
+			ctx, flush := tester.WithContext(t, ctx)
+			defer flush()
 
-			test.updateFiles(t)
+			suite.Run("PreTestSetup", func() {
+				t := suite.T()
+
+				ctx, flush := tester.WithContext(t, ctx)
+				defer flush()
+
+				test.updateFiles(t, ctx)
+			})
 
 			err = incBO.Run(ctx)
 			require.NoError(t, err, clues.ToCore(err))
@@ -1925,7 +1956,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
-		resource.Users)
+		resource.Users,
+		path.OneDriveService,
+		control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.user)

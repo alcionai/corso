@@ -86,6 +86,7 @@ func (h mailRestoreHandler) restore(
 
 type mailRestorer interface {
 	postItemer[models.Messageable]
+	deleteItemer
 	attachmentPoster
 }
 
@@ -104,17 +105,24 @@ func restoreMail(
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
-	collisionKey := api.MailCollisionKey(msg)
 
-	if _, ok := collisionKeyToItemID[collisionKey]; ok {
+	var (
+		collisionKey         = api.MailCollisionKey(msg)
+		collisionID          string
+		shouldDeleteOriginal bool
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
 		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
 		log.Debug("item collision")
 
-		// TODO(rkeepers): Replace probably shouldn't no-op.  Just a starting point.
-		if collisionPolicy == control.Skip || collisionPolicy == control.Replace {
+		if collisionPolicy == control.Skip {
 			log.Debug("skipping item with collision")
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
+
+		collisionID = id
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
 	msg = setMessageSVEPs(toMessage(msg))
@@ -126,6 +134,17 @@ func restoreMail(
 	item, err := mr.PostItem(ctx, userID, destinationID, msg)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "restoring mail message")
+	}
+
+	// mails have no PUT request, and PATCH could retain data that's not
+	// associated with the backup item state.  Instead of updating, we
+	// post first, then delete.  In case of failure between the two calls,
+	// at least we'll have accidentally over-produced data instead of deleting
+	// the user's data.
+	if shouldDeleteOriginal {
+		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil {
+			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
+		}
 	}
 
 	err = uploadAttachments(
@@ -140,7 +159,14 @@ func restoreMail(
 		return nil, clues.Stack(err)
 	}
 
-	return api.MailInfo(msg, int64(len(body))), nil
+	var size int64
+
+	if msg.GetBody() != nil {
+		bc := ptr.Val(msg.GetBody().GetContent())
+		size = int64(len(bc))
+	}
+
+	return api.MailInfo(msg, size), nil
 }
 
 func setMessageSVEPs(msg models.Messageable) models.Messageable {

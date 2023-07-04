@@ -229,6 +229,8 @@ func write(
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
+	ctx = clues.Add(ctx, "collection_source", "streamstore")
+
 	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,

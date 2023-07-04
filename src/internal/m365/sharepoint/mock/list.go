@@ -116,7 +116,7 @@ func List(title, columnName string, items map[string]string) models.Listable {
 	itms := make([]models.ListItemable, 0)
 
 	for k, v := range items {
-		entry := map[string]interface{}{
+		entry := map[string]any{
 			"Title":    k,
 			columnName: v,
 		}

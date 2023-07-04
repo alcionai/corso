@@ -95,7 +95,7 @@ func (c Users) GetAll(
 			return false
 		}
 
-		err := validateUser(item)
+		err := ValidateUser(item)
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating user"))
 		} else {
@@ -175,17 +175,16 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		// Assume all services are enabled
 		// then filter down to only services the user has enabled
-		userInfo = newUserInfo()
-
+		userInfo        = newUserInfo()
 		mailFolderFound = true
 	)
 
 	// check whether the user is able to access their onedrive drive.
 	// if they cannot, we can assume they are ineligible for onedrive backups.
 	if _, err := c.GetDefaultDrive(ctx, userID); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
-			logger.CtxErr(ctx, err).Error("getting user's drive")
-			return nil, graph.Wrap(ctx, err, "getting user's drive")
+		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+			logger.CtxErr(ctx, err).Error("getting user's default drive")
+			return nil, graph.Wrap(ctx, err, "getting user's default drive info")
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a drive")
@@ -196,14 +195,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// if they cannot, we can assume they are ineligible for exchange backups.
 	inbx, err := c.GetMailInbox(ctx, userID)
 	if err != nil {
-		err = graph.Stack(ctx, err)
-
-		if graph.IsErrUserNotFound(err) {
-			logger.CtxErr(ctx, err).Error("user not found")
-			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
-
-		if !graph.IsErrExchangeMailFolderNotFound(err) {
+		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
 			return nil, err
 		}
@@ -243,7 +235,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
 	if err != nil {
 		if !graph.IsErrQuotaExceeded(err) {
-			return nil, err
+			return nil, clues.Stack(err)
 		}
 
 		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
@@ -252,6 +244,26 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	userInfo.Mailbox = mi
 
 	return userInfo, nil
+}
+
+// EvaluateMailboxError checks whether the provided error can be interpreted
+// as "user does not have a mailbox", or whether it is some other error.  If
+// the former (no mailbox), returns nil, otherwise returns an error.
+func EvaluateMailboxError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// must occur before MailFolderNotFound, due to overlapping cases.
+	if graph.IsErrUserNotFound(err) {
+		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
+	}
+
+	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
+		return nil
+	}
+
+	return err
 }
 
 func (c Users) getMailboxSettings(
@@ -342,9 +354,9 @@ func (c Users) getFirstInboxMessage(
 // helpers
 // ---------------------------------------------------------------------------
 
-// validateUser ensures the item is a Userable, and contains the necessary
+// ValidateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
-func validateUser(item models.Userable) error {
+func ValidateUser(item models.Userable) error {
 	if item.GetId() == nil {
 		return clues.New("missing ID")
 	}

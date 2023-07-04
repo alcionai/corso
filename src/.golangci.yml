@@ -81,6 +81,7 @@ linters-settings:
       - name: time-equal
       - name: time-naming
       - name: unreachable-code
+      - name: use-any
       - name: useless-break
       - name: var-declaration
       - name: var-naming

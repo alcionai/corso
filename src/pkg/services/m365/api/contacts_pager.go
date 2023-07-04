@@ -103,10 +103,9 @@ func (c Contacts) NewContactsPager(
 	selectProps ...string,
 ) itemPager[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
-		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
-			Top: ptr.To[int32](maxNonDeltaPageSize),
-		},
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{},
+		// do NOT set Top.  It limits the total items received.
 	}
 
 	if len(selectProps) > 0 {
@@ -181,7 +180,7 @@ func (c Contacts) NewContactIDsPager(
 	config := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
-			Top:    ptr.To[int32](maxNonDeltaPageSize),
+			// do NOT set Top.  It limits the total items received.
 		},
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
@@ -249,7 +248,7 @@ func (c Contacts) NewContactDeltaIDsPager(
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
-			// TOP is not allowed
+			// do NOT set Top.  It limits the total items received.
 		},
 		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}

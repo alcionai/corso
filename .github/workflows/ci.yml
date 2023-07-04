@@ -179,7 +179,7 @@ jobs:
           -v            \
           -failfast     \
           -p 1          \
-          -timeout 15m  \
+          -timeout 20m  \
           ./... \
           2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
 
@@ -233,7 +233,7 @@ jobs:
           -v            \
           -failfast     \
           -p 1          \
-          -timeout 15m  \
+          -timeout 20m  \
           ./... \
           2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
 
@@ -454,6 +454,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           rudderstack_write_key: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
           rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   Publish-Image:
     needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]

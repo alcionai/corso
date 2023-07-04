@@ -9,7 +9,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -58,31 +60,21 @@ func AddCommands(cmd *cobra.Command) {
 // common flags and flag attachers for commands
 // ---------------------------------------------------------------------------
 
-// list output filter flags
-var (
-	failedItemsFN       = "failed-items"
-	listFailedItems     string
-	skippedItemsFN      = "skipped-items"
-	listSkippedItems    string
-	recoveredErrorsFN   = "recovered-errors"
-	listRecoveredErrors string
-)
-
 func addFailedItemsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
-		&listFailedItems, failedItemsFN, "show",
+		&flags.ListFailedItemsFV, flags.FailedItemsFN, "show",
 		"Toggles showing or hiding the list of items that failed.")
 }
 
 func addSkippedItemsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
-		&listSkippedItems, skippedItemsFN, "show",
+		&flags.ListSkippedItemsFV, flags.SkippedItemsFN, "show",
 		"Toggles showing or hiding the list of items that were skipped.")
 }
 
 func addRecoveredErrorsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
-		&listRecoveredErrors, recoveredErrorsFN, "show",
+		&flags.ListRecoveredErrorsFV, flags.RecoveredErrorsFN, "show",
 		"Toggles showing or hiding the list of errors which corso recovered from.")
 }
 
@@ -272,14 +264,19 @@ func runBackups(
 
 // genericDeleteCommand is a helper function that all services can use
 // for the removal of an entry from the repository
-func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []string) error {
+func genericDeleteCommand(
+	cmd *cobra.Command,
+	pst path.ServiceType,
+	bID, designation string,
+	args []string,
+) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -297,10 +294,15 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 // genericListCommand is a helper function that all services can use
 // to display the backup IDs saved within the repository
-func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType, args []string) error {
+func genericListCommand(
+	cmd *cobra.Command,
+	bID string,
+	service path.ServiceType,
+	args []string,
+) error {
 	ctx := cmd.Context()
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -318,7 +320,11 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
-		fe.PrintItems(ctx, !ifShow(listFailedItems), !ifShow(listSkippedItems), !ifShow(listRecoveredErrors))
+		fe.PrintItems(
+			ctx,
+			!ifShow(flags.ListFailedItemsFV),
+			!ifShow(flags.ListSkippedItemsFV),
+			!ifShow(flags.ListRecoveredErrorsFV))
 
 		return nil
 	}

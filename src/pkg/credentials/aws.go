@@ -1,8 +1,6 @@
 package credentials
 
 import (
-	"os"
-
 	"github.com/alcionai/clues"
 )
 
@@ -22,20 +20,10 @@ type AWS struct {
 
 // GetAWS is a helper for aggregating aws secrets and credentials.
 func GetAWS(override map[string]string) AWS {
-	accessKey := os.Getenv(AWSAccessKeyID)
-	if ovr, ok := override[AWSAccessKeyID]; ok && ovr != "" {
-		accessKey = ovr
-	}
-
-	secretKey := os.Getenv(AWSSecretAccessKey)
-	sessToken := os.Getenv(AWSSessionToken)
-
-	// todo (rkeeprs): read from either corso config file or env vars.
-	// https://github.com/alcionai/corso/issues/120
 	return AWS{
-		AccessKey:    accessKey,
-		SecretKey:    secretKey,
-		SessionToken: sessToken,
+		AccessKey:    override[AWSAccessKeyID],
+		SecretKey:    override[AWSSecretAccessKey],
+		SessionToken: override[AWSSessionToken],
 	}
 }
 

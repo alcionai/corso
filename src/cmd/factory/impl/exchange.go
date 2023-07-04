@@ -52,7 +52,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -98,7 +98,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -146,7 +146,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}

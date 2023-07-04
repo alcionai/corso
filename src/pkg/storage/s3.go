@@ -7,9 +7,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type S3Config struct {
+	credentials.AWS
 	Bucket         string // required
 	Endpoint       string
 	Prefix         string
@@ -19,9 +21,12 @@ type S3Config struct {
 
 // config key consts
 const (
+	keyS3AccessKey      = "s3_access_key"
 	keyS3Bucket         = "s3_bucket"
 	keyS3Endpoint       = "s3_endpoint"
 	keyS3Prefix         = "s3_prefix"
+	keyS3SecretKey      = "s3_secret_key"
+	keyS3SessionToken   = "s3_session_token"
 	keyS3DoNotUseTLS    = "s3_donotusetls"
 	keyS3DoNotVerifyTLS = "s3_donotverifytls"
 )
@@ -51,9 +56,12 @@ func (c S3Config) Normalize() S3Config {
 func (c S3Config) StringConfig() (map[string]string, error) {
 	cn := c.Normalize()
 	cfg := map[string]string{
+		keyS3AccessKey:      c.AccessKey,
 		keyS3Bucket:         cn.Bucket,
 		keyS3Endpoint:       cn.Endpoint,
 		keyS3Prefix:         cn.Prefix,
+		keyS3SecretKey:      c.SecretKey,
+		keyS3SessionToken:   c.SessionToken,
 		keyS3DoNotUseTLS:    strconv.FormatBool(cn.DoNotUseTLS),
 		keyS3DoNotVerifyTLS: strconv.FormatBool(cn.DoNotVerifyTLS),
 	}
@@ -66,6 +74,10 @@ func (s Storage) S3Config() (S3Config, error) {
 	c := S3Config{}
 
 	if len(s.Config) > 0 {
+		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
+		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
+		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
+
 		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
 		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
 		c.Prefix = orEmptyString(s.Config[keyS3Prefix])

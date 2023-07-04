@@ -15,7 +15,7 @@ import (
 
 type MailPagerIntgSuite struct {
 	tester.Suite
-	cts clientTesterSetup
+	its intgTesterSetup
 }
 
 func TestMailPagerIntgSuite(t *testing.T) {
@@ -27,23 +27,23 @@ func TestMailPagerIntgSuite(t *testing.T) {
 }
 
 func (suite *MailPagerIntgSuite) SetupSuite() {
-	suite.cts = newClientTesterSetup(suite.T())
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *MailPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
+func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
-	ac := suite.cts.ac.Mail()
+	ac := suite.its.ac.Mail()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.cts.userID, "inbox")
+	container, err := ac.GetContainerByID(ctx, suite.its.userID, "inbox")
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.cts.userID).
+		ByUserId(suite.its.userID).
 		MailFolders().
 		ByMailFolderId(ptr.Val(container.GetId())).
 		Messages().
@@ -57,7 +57,7 @@ func (suite *MailPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
 		expect = append(expect, api.MailCollisionKey(m))
 	}
 
-	results, err := ac.GetItemsInContainerByCollisionKey(ctx, suite.cts.userID, "inbox")
+	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "inbox")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 

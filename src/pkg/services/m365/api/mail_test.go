@@ -1,14 +1,11 @@
 package api_test
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -203,8 +200,7 @@ func TestMailAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &MailAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -219,23 +215,7 @@ func (suite *MailAPIIntgSuite) SetupSuite() {
 	suite.ac, err = mock.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.user = tester.M365UserID(suite.T())
-}
-
-func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interface{} {
-	sw := kjson.NewJsonSerializationWriter()
-
-	err := sw.WriteObjectValue("", thing)
-	require.NoError(t, err, "serialize")
-
-	content, err := sw.GetSerializedContent()
-	require.NoError(t, err, "serialize")
-
-	var out map[string]interface{}
-	err = json.Unmarshal([]byte(content), &out)
-	require.NoError(t, err, "unmarshall")
-
-	return out
+	suite.user = tester.M365UserID(t)
 }
 
 func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
@@ -255,10 +235,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem := models.NewMessage()
 				mitem.SetId(&mid)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 			},
 			expect: assert.NoError,
 		},
@@ -269,10 +248,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem.SetId(&mid)
 				mitem.SetHasAttachments(ptr.To(true))
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
@@ -281,10 +259,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				aitem.SetSize(&asize)
 				atts.SetValue([]models.Attachmentable{aitem})
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(getJSONObject(suite.T(), atts))
+					JSON(parseableToMap(suite.T(), atts))
 			},
 			attachmentCount: 1,
 			size:            50,
@@ -298,10 +275,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem.SetId(&mid)
 				mitem.SetHasAttachments(&truthy)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
@@ -312,19 +288,16 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				atts.SetValue([]models.Attachmentable{aitem})
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(503)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(getJSONObject(suite.T(), atts))
+					JSON(parseableToMap(suite.T(), atts))
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments/" + aid).
+				interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), aitem))
+					JSON(parseableToMap(suite.T(), aitem))
 			},
 			attachmentCount: 1,
 			size:            200,
@@ -338,10 +311,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem.SetId(&mid)
 				mitem.SetHasAttachments(&truthy)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
@@ -352,20 +324,17 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				atts.SetValue([]models.Attachmentable{aitem, aitem, aitem, aitem, aitem})
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(503)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(getJSONObject(suite.T(), atts))
+					JSON(parseableToMap(suite.T(), atts))
 
 				for i := 0; i < 5; i++ {
-					gock.New("https://graph.microsoft.com").
-						Get("/v1.0/users/user/messages/" + mid + "/attachments/" + aid).
+					interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 						Reply(200).
-						JSON(getJSONObject(suite.T(), aitem))
+						JSON(parseableToMap(suite.T(), aitem))
 				}
 			},
 			attachmentCount: 5,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -37,8 +38,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EmailReceivedAfter: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.EmailReceivedAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EmailReceivedAfterFN: struct{}{},
 					},
 				}
 			},
@@ -48,8 +49,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EmailReceivedAfter: "",
-					Populated: utils.PopulatedFlags{
-						utils.EmailReceivedAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EmailReceivedAfterFN: struct{}{},
 					},
 				}
 			},
@@ -59,8 +60,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EmailReceivedBefore: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.EmailReceivedBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EmailReceivedBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -70,8 +71,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EmailReceivedBefore: "",
-					Populated: utils.PopulatedFlags{
-						utils.EmailReceivedBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EmailReceivedBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -81,8 +82,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EventRecurs: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.EventRecursFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EventRecursFN: struct{}{},
 					},
 				}
 			},
@@ -92,8 +93,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EventRecurs: "",
-					Populated: utils.PopulatedFlags{
-						utils.EventRecursFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EventRecursFN: struct{}{},
 					},
 				}
 			},
@@ -103,8 +104,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EventStartsAfter: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.EventStartsAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EventStartsAfterFN: struct{}{},
 					},
 				}
 			},
@@ -114,8 +115,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EventStartsAfter: "",
-					Populated: utils.PopulatedFlags{
-						utils.EventStartsAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EventStartsAfterFN: struct{}{},
 					},
 				}
 			},
@@ -125,8 +126,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EventStartsBefore: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.EventStartsBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EventStartsBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -136,8 +137,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.ExchangeOpts {
 				return utils.ExchangeOpts{
 					EventStartsBefore: "",
-					Populated: utils.PopulatedFlags{
-						utils.EventStartsBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.EventStartsBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -441,8 +442,8 @@ var (
 				return utils.OneDriveOpts{
 					Users:            selectors.Any(),
 					FileCreatedAfter: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.FileCreatedAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileCreatedAfterFN: struct{}{},
 					},
 				}
 			},
@@ -452,8 +453,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileCreatedAfter: "",
-					Populated: utils.PopulatedFlags{
-						utils.FileCreatedAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileCreatedAfterFN: struct{}{},
 					},
 				}
 			},
@@ -463,8 +464,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileCreatedBefore: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.FileCreatedBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileCreatedBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -474,8 +475,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileCreatedBefore: "",
-					Populated: utils.PopulatedFlags{
-						utils.FileCreatedBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileCreatedBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -485,8 +486,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileModifiedAfter: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.FileModifiedAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileModifiedAfterFN: struct{}{},
 					},
 				}
 			},
@@ -496,8 +497,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileModifiedAfter: "",
-					Populated: utils.PopulatedFlags{
-						utils.FileModifiedAfterFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileModifiedAfterFN: struct{}{},
 					},
 				}
 			},
@@ -507,8 +508,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileModifiedBefore: "foo",
-					Populated: utils.PopulatedFlags{
-						utils.FileModifiedBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileModifiedBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -518,8 +519,8 @@ var (
 			Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 				return utils.OneDriveOpts{
 					FileModifiedBefore: "",
-					Populated: utils.PopulatedFlags{
-						utils.FileModifiedBeforeFN: struct{}{},
+					Populated: flags.PopulatedFlags{
+						flags.FileModifiedBeforeFN: struct{}{},
 					},
 				}
 			},
@@ -751,8 +752,8 @@ var (
 		//	Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 		//		return utils.SharePointOpts{
 		//			FileCreatedBefore: "foo",
-		//			Populated: utils.PopulatedFlags{
-		//				utils.FileCreatedBeforeFN: struct{}{},
+		//			Populated: flags.PopulatedFlags{
+		//				flags.FileCreatedBeforeFN: struct{}{},
 		//			},
 		//		}
 		//	},
@@ -762,8 +763,8 @@ var (
 		//	Opts: func(t *testing.T, wantedVersion int) utils.OneDriveOpts {
 		//		return utils.SharePointOpts{
 		//			FileCreatedBefore: "",
-		//			Populated: utils.PopulatedFlags{
-		//				utils.FileCreatedBeforeFN: struct{}{},
+		//			Populated: flags.PopulatedFlags{
+		//				flags.FileCreatedBeforeFN: struct{}{},
 		//			},
 		//		}
 		//	},

@@ -20,11 +20,14 @@ type M365 struct {
 
 // M365 is a helper for aggregating m365 secrets and credentials.
 func GetM365() M365 {
-	// todo (rkeeprs): read from either corso config file or env vars.
-	// https://github.com/alcionai/corso/issues/120
+	// check env and overide is flags found
+	// var AzureClientID, AzureClientSecret string
+	AzureClientID := os.Getenv(AzureClientID)
+	AzureClientSecret := os.Getenv(AzureClientSecret)
+
 	return M365{
-		AzureClientID:     os.Getenv(AzureClientID),
-		AzureClientSecret: os.Getenv(AzureClientSecret),
+		AzureClientID:     AzureClientID,
+		AzureClientSecret: AzureClientSecret,
 	}
 }
 

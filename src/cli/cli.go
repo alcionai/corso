@@ -11,8 +11,8 @@ import (
 
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/help"
-	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
@@ -44,11 +44,11 @@ func preRun(cc *cobra.Command, args []string) error {
 	ctx := cc.Context()
 	log := logger.Ctx(ctx)
 
-	flags := utils.GetPopulatedFlags(cc)
-	flagSl := make([]string, 0, len(flags))
+	fs := flags.GetPopulatedFlags(cc)
+	flagSl := make([]string, 0, len(fs))
 
 	// currently only tracking flag names to avoid pii leakage.
-	for f := range flags {
+	for f := range fs {
 		flagSl = append(flagSl, f)
 	}
 
@@ -65,17 +65,13 @@ func preRun(cc *cobra.Command, args []string) error {
 		"Initialize a S3 repository",
 		"Help about any command",
 		"Free, Secure, Open-Source Backup for M365.",
+		"env var guide",
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := map[string]string{}
-		if cc.Short == "Connect to a S3 repository" {
-			// Get s3 overrides for connect. Ideally we also need this
-			// for init, but we don't reach this block for init.
-			overrides = repo.S3Overrides()
-		}
+		overrides := repo.S3Overrides(cc)
 
-		cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
+		cfg, err := config.GetConfigRepoDetails(ctx, true, false, overrides)
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)
 			return err
@@ -87,7 +83,7 @@ func preRun(cc *cobra.Command, args []string) error {
 			cfg.Account.ID(),
 			map[string]any{"command": cc.CommandPath()},
 			cfg.RepoID,
-			options.Control())
+			utils.Control())
 	}
 
 	// handle deprecated user flag in Backup exchange command
@@ -138,7 +134,7 @@ func CorsoCommand() *cobra.Command {
 func BuildCommandTree(cmd *cobra.Command) {
 	// want to order flags explicitly
 	cmd.PersistentFlags().SortFlags = false
-	utils.AddRunModeFlag(cmd, true)
+	flags.AddRunModeFlag(cmd, true)
 
 	cmd.Flags().BoolP("version", "v", false, "current version info")
 	cmd.PersistentPreRunE = preRun
@@ -146,7 +142,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	logger.AddLoggingFlags(cmd)
 	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
-	options.AddGlobalOperationFlags(cmd)
+	flags.AddGlobalOperationFlags(cmd)
 	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
 
 	cmd.CompletionOptions.DisableDefaultCmd = true

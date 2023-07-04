@@ -9,8 +9,9 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -34,7 +35,7 @@ const (
 
 const (
 	sharePointServiceCommand                 = "sharepoint"
-	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + utils.Wildcard + "'"
+	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + flags.Wildcard + "'"
 	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -84,17 +85,23 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
-		utils.AddSiteFlag(c)
-		utils.AddSiteIDFlag(c)
-		utils.AddDataFlag(c, []string{dataLibraries}, true)
-		options.AddFailFastFlag(c)
-		options.AddDisableIncrementalsFlag(c)
+		flags.AddSiteFlag(c)
+		flags.AddSiteIDFlag(c)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
+		flags.AddDataFlag(c, []string{dataLibraries}, true)
+		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -106,9 +113,12 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
 
-		options.AddSkipReduceFlag(c)
-		utils.AddBackupIDFlag(c, true)
-		utils.AddSharePointDetailsAndRestoreFlags(c)
+		flags.AddSkipReduceFlag(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
@@ -117,7 +127,10 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		utils.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -146,11 +159,11 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV); err != nil {
+	if err := validateSharePointBackupCreateFlags(flags.SiteIDFV, flags.WebURLFV, flags.CategoryDataFV); err != nil {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx)
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.SharePointService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -165,7 +178,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 sites"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, ins, utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV)
+	sel, err := sharePointBackupCreateSelectors(ctx, ins, flags.SiteIDFV, flags.WebURLFV, flags.CategoryDataFV)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
@@ -188,8 +201,8 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	if len(sites) == 0 && len(weburls) == 0 {
 		return clues.New(
 			"requires one or more --" +
-				utils.SiteFN + " urls, or the wildcard --" +
-				utils.SiteFN + " *",
+				flags.SiteFN + " urls, or the wildcard --" +
+				flags.SiteFN + " *",
 		)
 	}
 
@@ -214,11 +227,11 @@ func sharePointBackupCreateSelectors(
 		return selectors.NewSharePointBackup(selectors.None()), nil
 	}
 
-	if filters.PathContains(sites).Compare(utils.Wildcard) {
+	if filters.PathContains(sites).Compare(flags.Wildcard) {
 		return includeAllSitesWithCategories(ins, cats), nil
 	}
 
-	if filters.PathContains(weburls).Compare(utils.Wildcard) {
+	if filters.PathContains(weburls).Compare(flags.Wildcard) {
 		return includeAllSitesWithCategories(ins, cats), nil
 	}
 
@@ -265,7 +278,7 @@ func sharePointListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupIDFV, path.SharePointService, args)
+	return genericListCommand(cmd, flags.BackupIDFV, path.SharePointService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -285,7 +298,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupIDFV, "SharePoint", args)
+	return genericDeleteCommand(cmd, path.SharePointService, flags.BackupIDFV, "SharePoint", args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -312,16 +325,16 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	ctrlOpts := options.Control()
+	ctrlOpts := utils.Control()
 
-	ds, err := runDetailsSharePointCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsSharePointCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

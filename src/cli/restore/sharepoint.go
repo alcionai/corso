@@ -6,12 +6,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -31,11 +33,14 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --site) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		utils.AddBackupIDFlag(c, true)
-		utils.AddSharePointDetailsAndRestoreFlags(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
+		flags.AddRestorePermissionsFlag(c)
+		flags.AddFailFastFlag(c)
 
-		options.AddRestorePermissionsFlag(c)
-		options.AddFailFastFlag(c)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -87,15 +92,15 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.MakeSharePointOpts(cmd)
 
-	if utils.RunModeFV == utils.RunModeFlagTest {
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
-	if err := utils.ValidateSharePointRestoreFlags(utils.BackupIDFV, opts); err != nil {
+	if err := utils.ValidateSharePointRestoreFlags(flags.BackupIDFV, opts); err != nil {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -108,7 +113,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, restoreCfg)
+	ro, err := r.NewRestore(ctx, flags.BackupIDFV, sel.Selector, restoreCfg)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize SharePoint restore"))
 	}
@@ -116,7 +121,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
 		}
 
 		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint restore"))

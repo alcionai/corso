@@ -70,8 +70,8 @@ func (h itemBackupHandler) NewDrivePager(
 func (h itemBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
-) api.DriveItemEnumerator {
-	return h.ac.NewItemPager(driveID, link, fields)
+) api.DriveItemDeltaEnumerator {
+	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
 }
 
 func (h itemBackupHandler) AugmentItemInfo(
@@ -147,11 +147,11 @@ func (h itemRestoreHandler) AugmentItemInfo(
 	return augmentItemInfo(dii, item, size, parentPath)
 }
 
-func (h itemRestoreHandler) NewItemContentUpload(
+func (h itemRestoreHandler) DeleteItem(
 	ctx context.Context,
 	driveID, itemID string,
-) (models.UploadSessionable, error) {
-	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+) error {
+	return h.ac.DeleteItem(ctx, driveID, itemID)
 }
 
 func (h itemRestoreHandler) DeleteItemPermission(
@@ -161,12 +161,39 @@ func (h itemRestoreHandler) DeleteItemPermission(
 	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
 }
 
+func (h itemRestoreHandler) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	driveID, containerID string,
+) (map[string]api.DriveCollisionItem, error) {
+	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, driveID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func (h itemRestoreHandler) NewItemContentUpload(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.UploadSessionable, error) {
+	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+}
+
 func (h itemRestoreHandler) PostItemPermissionUpdate(
 	ctx context.Context,
 	driveID, itemID string,
 	body *drives.ItemItemsItemInvitePostRequestBody,
 ) (drives.ItemItemsItemInviteResponseable, error) {
 	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
+}
+
+func (h itemRestoreHandler) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	return h.ac.PostItemLinkShareUpdate(ctx, driveID, itemID, body)
 }
 
 func (h itemRestoreHandler) PostItemInContainer(

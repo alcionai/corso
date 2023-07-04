@@ -15,7 +15,7 @@ import (
 
 type EventsPagerIntgSuite struct {
 	tester.Suite
-	cts clientTesterSetup
+	its intgTesterSetup
 }
 
 func TestEventsPagerIntgSuite(t *testing.T) {
@@ -27,23 +27,23 @@ func TestEventsPagerIntgSuite(t *testing.T) {
 }
 
 func (suite *EventsPagerIntgSuite) SetupSuite() {
-	suite.cts = newClientTesterSetup(suite.T())
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *EventsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
+func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
-	ac := suite.cts.ac.Events()
+	ac := suite.its.ac.Events()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.cts.userID, "calendar")
+	container, err := ac.GetContainerByID(ctx, suite.its.userID, "calendar")
 	require.NoError(t, err, clues.ToCore(err))
 
 	evts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.cts.userID).
+		ByUserId(suite.its.userID).
 		Calendars().
 		ByCalendarId(ptr.Val(container.GetId())).
 		Events().
@@ -57,7 +57,7 @@ func (suite *EventsPagerIntgSuite) TestGetItemsInContainerByCollisionKey() {
 		expect = append(expect, api.EventCollisionKey(e))
 	}
 
-	results, err := ac.GetItemsInContainerByCollisionKey(ctx, suite.cts.userID, "calendar")
+	results, err := suite.its.ac.Events().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "calendar")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 
