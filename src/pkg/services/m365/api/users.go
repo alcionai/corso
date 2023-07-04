@@ -195,18 +195,9 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// if they cannot, we can assume they are ineligible for exchange backups.
 	inbx, err := c.GetMailInbox(ctx, userID)
 	if err != nil {
-		err = graph.Stack(ctx, err)
-
-		if graph.IsErrUserNotFound(err) {
-			logger.CtxErr(ctx, err).Error("user not found")
-			// FIXME(ashmrtn): This shouldn't need clues.Wrap.
-			return nil, clues.Wrap(clues.Stack(graph.ErrResourceOwnerNotFound, err), "")
-		}
-
-		if !graph.IsErrExchangeMailFolderNotFound(err) {
+		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-			// FIXME(ashmrtn): This should use clues.Stack.
-			return nil, clues.Wrap(err, "")
+			return nil, err
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
@@ -244,8 +235,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
 	if err != nil {
 		if !graph.IsErrQuotaExceeded(err) {
-			// FIXME(ashmrtn): This should use clues.Stack.
-			return nil, clues.Wrap(err, "")
+			return nil, clues.Stack(err)
 		}
 
 		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
@@ -254,6 +244,26 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	userInfo.Mailbox = mi
 
 	return userInfo, nil
+}
+
+// EvaluateMailboxError checks whether the provided error can be interpreted
+// as "user does not have a mailbox", or whether it is some other error.  If
+// the former (no mailbox), returns nil, otherwise returns an error.
+func EvaluateMailboxError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// must occur before MailFolderNotFound, due to overlapping cases.
+	if graph.IsErrUserNotFound(err) {
+		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
+	}
+
+	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
+		return nil
+	}
+
+	return err
 }
 
 func (c Users) getMailboxSettings(
