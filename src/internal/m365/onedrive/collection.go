@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -405,10 +406,10 @@ func readItemContents(
 
 type driveStats struct {
 	dirsRead   int64
-	itemsRead  int64
-	byteCount  int64
-	itemsFound int64
 	dirsFound  int64
+	byteCount  int64
+	itemsRead  int64
+	itemsFound int64
 }
 
 // populateItems iterates through items added to the collection
@@ -459,6 +460,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				parentPath,
 				item,
 				&stats,
+				oc.ctrl.ItemExtensionFactory,
 				errs)
 
 			folderProgress <- struct{}{}
@@ -475,6 +477,7 @@ func (oc *Collection) populateDriveItem(
 	parentPath *path.Builder,
 	item models.DriveItemable,
 	stats *driveStats,
+	itemExtensionFactory []extensions.CreateItemExtensioner,
 	errs *fault.Bus,
 ) {
 	var (
@@ -531,9 +534,27 @@ func (oc *Collection) populateDriveItem(
 		// attempts to read bytes.  Assumption is that kopia will check things
 		// like file modtimes before attempting to read.
 		itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-			itemData, err := oc.getDriveItemContent(ctx, oc.driveID, item, errs)
+			rc, err := oc.getDriveItemContent(ctx, oc.driveID, item, errs)
 			if err != nil {
 				return nil, err
+			}
+
+			itemData := rc
+
+			// Add per item extensions if available
+			if len(itemExtensionFactory) > 0 {
+				extRc, extInfo, err := extensions.AddItemExtensions(
+					ctx,
+					rc,
+					itemInfo,
+					itemExtensionFactory)
+
+				if err != nil {
+					return nil, clues.Stack(err).WithClues(ctx)
+				}
+
+				itemData = extRc
+				itemInfo.OneDrive.Extension = extInfo
 			}
 
 			// display/log the item download
