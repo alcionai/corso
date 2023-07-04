@@ -117,7 +117,7 @@ type GetItemsByCollisionKeyser interface {
 	GetItemsInContainerByCollisionKey(
 		ctx context.Context,
 		driveID, containerID string,
-	) (map[string]string, error)
+	) (map[string]api.DriveCollisionItem, error)
 }
 
 type NewItemContentUploader interface {
