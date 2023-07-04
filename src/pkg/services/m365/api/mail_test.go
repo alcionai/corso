@@ -408,7 +408,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	parent, err := acm.CreateContainer(ctx, suite.its.userID, "Inbox", rc.Location)
+	parent, err := acm.CreateContainer(ctx, suite.its.userID, "msgfolderroot", rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
