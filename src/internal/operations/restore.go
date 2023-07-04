@@ -170,7 +170,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		logger.CtxErr(ctx, err).Error("running restore")
 
 		if errors.Is(err, kopia.ErrNoRestorePath) {
-			op.Errors.Fail(clues.New("running restore: empty backup or unknown path provided"))
+			op.Errors.Fail(clues.New("empty backup or unknown path provided"))
 		}
 
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
