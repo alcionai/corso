@@ -6,15 +6,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-
-	"github.com/alcionai/corso/src/internal/common/dttm"
 )
 
 // StubRootCmd builds a stub cobra command to be used as
 // the root command for integration testing on the CLI
 func StubRootCmd(args ...string) *cobra.Command {
 	id := uuid.NewString()
-	now := dttm.Format(time.Now())
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 	cmdArg := "testing-corso"
 	c := &cobra.Command{
 		Use:   cmdArg,

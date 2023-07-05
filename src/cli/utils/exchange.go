@@ -61,6 +61,9 @@ func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
 
 		RestoreCfg: makeRestoreCfgOpts(cmd),
 
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
 }
@@ -136,7 +139,7 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 		return clues.New("invalid format for event-recurs")
 	}
 
-	return validateRestoreConfigFlags(opts.RestoreCfg)
+	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
 }
 
 // IncludeExchangeRestoreDataSelectors builds the common data-selector

@@ -36,6 +36,9 @@ func MakeOneDriveOpts(cmd *cobra.Command) OneDriveOpts {
 
 		RestoreCfg: makeRestoreCfgOpts(cmd),
 
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
 }
@@ -62,7 +65,7 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return clues.New("invalid time format for modified-before")
 	}
 
-	return validateRestoreConfigFlags(opts.RestoreCfg)
+	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
 }
 
 // AddOneDriveFilter adds the scope of the provided values to the selector's

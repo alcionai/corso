@@ -3,6 +3,7 @@ package utils
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -18,6 +19,53 @@ type RestoreCfgUnitSuite struct {
 
 func TestRestoreCfgUnitSuite(t *testing.T) {
 	suite.Run(t, &RestoreCfgUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
+	table := []struct {
+		name   string
+		fv     string
+		opts   RestoreCfgOpts
+		expect assert.ErrorAssertionFunc
+	}{
+		{
+			name: "no error",
+			fv:   string(control.Skip),
+			opts: RestoreCfgOpts{
+				Collisions: string(control.Skip),
+				Populated: flags.PopulatedFlags{
+					flags.CollisionsFN: {},
+				},
+			},
+			expect: assert.NoError,
+		},
+		{
+			name: "bad but not populated",
+			fv:   "foo",
+			opts: RestoreCfgOpts{
+				Collisions: "foo",
+				Populated:  flags.PopulatedFlags{},
+			},
+			expect: assert.Error,
+		},
+		{
+			name: "error",
+			fv:   "foo",
+			opts: RestoreCfgOpts{
+				Collisions: "foo",
+				Populated: flags.PopulatedFlags{
+					flags.CollisionsFN: {},
+				},
+			},
+			expect: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			err := validateRestoreConfigFlags(test.fv, test.opts)
+			test.expect(suite.T(), err, clues.ToCore(err))
+		})
+	}
 }
 
 func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {

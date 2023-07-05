@@ -24,16 +24,20 @@ func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 		Collisions:  flags.CollisionsFV,
 		Destination: flags.DestinationFV,
 
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
 }
 
-// validateRestoreConfigFlags checks common flags for correctness and interdependencies
-func validateRestoreConfigFlags(opts RestoreCfgOpts) error {
+// validateRestoreConfigFlags checks common restore flags for
+// correctness and interdependencies.
+func validateRestoreConfigFlags(fv string, opts RestoreCfgOpts) error {
 	_, populated := opts.Populated[flags.CollisionsFN]
-	_, valid := control.ValidCollisionPolicies()[control.CollisionPolicy(flags.CollisionsFV)]
+	_, foundInValidSet := control.ValidCollisionPolicies()[control.CollisionPolicy(fv)]
 
-	if populated && valid {
+	if populated && !foundInValidSet {
 		return clues.New("invalid entry for " + flags.CollisionsFN)
 	}
 

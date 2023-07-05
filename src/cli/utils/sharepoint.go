@@ -57,6 +57,9 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 
 		RestoreCfg: makeRestoreCfgOpts(cmd),
 
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
 }
@@ -92,7 +95,7 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
 	}
 
-	return validateRestoreConfigFlags(opts.RestoreCfg)
+	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
 }
 
 // AddSharePointInfo adds the scope of the provided values to the selector's
