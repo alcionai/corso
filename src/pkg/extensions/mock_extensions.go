@@ -14,54 +14,53 @@ import (
 var _ io.ReadCloser = &MockExtension{}
 
 type MockExtension struct {
-	numBytes    int
-	crc32       uint32
-	info        details.ItemInfo
-	extInfo     *details.ExtensionInfo
-	innerRc     io.ReadCloser
-	ctx         context.Context
-	failOnRead  bool
-	failOnClose bool
+	NumBytes    int64
+	Crc32       uint32
+	Info        details.ItemInfo
+	ExtInfo     *details.ExtensionInfo
+	InnerRc     io.ReadCloser
+	Ctx         context.Context
+	FailOnRead  bool
+	FailOnClose bool
 }
 
 func (me *MockExtension) Read(p []byte) (int, error) {
-	if me.failOnRead {
+	if me.FailOnRead {
 		return 0, clues.New("mock read error")
 	}
 
-	n, err := me.innerRc.Read(p)
+	n, err := me.InnerRc.Read(p)
 	if err != nil && err != io.EOF {
-		logger.CtxErr(me.ctx, err).Error("inner read error")
+		logger.CtxErr(me.Ctx, err).Error("inner read error")
 		return n, err
 	}
 
-	me.numBytes += n
-	me.crc32 = crc32.Update(me.crc32, crc32.IEEETable, p[:n])
+	me.NumBytes += int64(n)
+	me.Crc32 = crc32.Update(me.Crc32, crc32.IEEETable, p[:n])
 
 	if err == io.EOF {
-		logger.Ctx(me.ctx).Debug("mock extension reached EOF")
-		me.extInfo.Data["numBytes"] = me.numBytes
-		me.extInfo.Data["crc32"] = me.crc32
+		me.ExtInfo.Data["NumBytes"] = me.NumBytes
+		me.ExtInfo.Data["Crc32"] = me.Crc32
 	}
 
 	return n, err
 }
 
 func (me *MockExtension) Close() error {
-	if me.failOnClose {
+	if me.FailOnClose {
 		return clues.New("mock close error")
 	}
 
-	err := me.innerRc.Close()
+	err := me.InnerRc.Close()
 	if err != nil {
 		return err
 	}
 
-	me.extInfo.Data["numBytes"] = me.numBytes
-	me.extInfo.Data["crc32"] = me.crc32
-	logger.Ctx(me.ctx).Infow(
+	me.ExtInfo.Data["NumBytes"] = me.NumBytes
+	me.ExtInfo.Data["Crc32"] = me.Crc32
+	logger.Ctx(me.Ctx).Infow(
 		"mock extension closed",
-		"numBytes", me.numBytes, "crc32", me.crc32)
+		"NumBytes", me.NumBytes, "Crc32", me.Crc32)
 
 	return nil
 }
@@ -81,9 +80,9 @@ func (m *MockItemExtensionFactory) CreateItemExtension(
 	}
 
 	return &MockExtension{
-		ctx:     ctx,
-		innerRc: rc,
-		info:    info,
-		extInfo: extInfo,
+		Ctx:     ctx,
+		InnerRc: rc,
+		Info:    info,
+		ExtInfo: extInfo,
 	}, nil
 }
