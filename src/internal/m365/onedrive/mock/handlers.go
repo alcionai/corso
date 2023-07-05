@@ -233,7 +233,7 @@ func (m GetsItemPermission) GetItemPermission(
 type RestoreHandler struct {
 	ItemInfo details.ItemInfo
 
-	CollisionKeyMap map[string]string
+	CollisionKeyMap map[string]api.DriveCollisionItem
 
 	CalledDeleteItem   bool
 	CalledDeleteItemOn string
@@ -258,7 +258,7 @@ func (h *RestoreHandler) AugmentItemInfo(
 func (h *RestoreHandler) GetItemsInContainerByCollisionKey(
 	context.Context,
 	string, string,
-) (map[string]string, error) {
+) (map[string]api.DriveCollisionItem, error) {
 	return h.CollisionKeyMap, nil
 }
 

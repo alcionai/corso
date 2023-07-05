@@ -37,8 +37,8 @@ type Contacts struct {
 // If successful, returns the created folder object.
 func (c Contacts) CreateContainer(
 	ctx context.Context,
-	userID, containerName string,
-	_ string, // parentContainerID needed for iface, doesn't apply to contacts
+	// parentContainerID needed for iface, doesn't apply to contacts
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	body := models.NewContactFolder()
 	body.SetDisplayName(ptr.To(containerName))
@@ -115,6 +115,56 @@ func (c Contacts) GetContainerByID(
 	userID, containerID string,
 ) (graph.Container, error) {
 	return c.GetFolder(ctx, userID, containerID)
+}
+
+// GetContainerByName fetches a folder by name
+func (c Contacts) GetContainerByName(
+	ctx context.Context,
+	// parentContainerID needed for iface, doesn't apply to contacts
+	userID, _, containerName string,
+) (graph.Container, error) {
+	filter := fmt.Sprintf("displayName eq '%s'", containerName)
+	options := &users.ItemContactFoldersRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemContactFoldersRequestBuilderGetQueryParameters{
+			Filter: &filter,
+		},
+	}
+
+	ctx = clues.Add(ctx, "container_name", containerName)
+
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		Get(ctx, options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err).WithClues(ctx)
+	}
+
+	gv := resp.GetValue()
+
+	if len(gv) == 0 {
+		return nil, clues.New("container not found").WithClues(ctx)
+	}
+
+	// We only allow the api to match one container with the provided name.
+	// Return an error if multiple container exist (unlikely) or if no container
+	// is found.
+	if len(gv) != 1 {
+		return nil, clues.New("unexpected number of folders returned").
+			With("returned_container_count", len(gv)).
+			WithClues(ctx)
+	}
+
+	// Sanity check ID and name
+	container := gv[0]
+
+	if err := graph.CheckIDAndName(container); err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return container, nil
 }
 
 func (c Contacts) PatchFolder(
