@@ -23,4 +23,4 @@ jobs:
 
       - name: Delete all files in the test bucket
         run: |
-          aws s3 rm s3://${{ secrets.CI_TESTS_S3_BUCKET }} --recursive
+          aws s3 rm s3://${{ secrets.CI_TESTS_S3_BUCKET }} --recursive  --include "*" --exclude "longevity/*" --exclude "longevity/*/*" 
