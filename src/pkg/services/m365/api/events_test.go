@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"testing"
@@ -13,10 +13,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type EventsAPIUnitSuite struct {
@@ -129,7 +131,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 					future       = time.Now().UTC().AddDate(0, 0, 1)
 					eventTime    = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
 					eventEndTime = eventTime.Add(30 * time.Minute)
-					event, err   = BytesToEventable(bytes)
+					event, err   = api.BytesToEventable(bytes)
 				)
 
 				require.NoError(suite.T(), err, clues.ToCore(err))
@@ -149,7 +151,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 			t := suite.T()
 
 			event, expected := test.evtAndRP()
-			result := EventInfo(event)
+			result := api.EventInfo(event)
 
 			assert.Equal(t, expected.Subject, result.Subject, "subject")
 			assert.Equal(t, expected.Sender, result.Sender, "sender")
@@ -209,7 +211,7 @@ func (suite *EventsAPIUnitSuite) TestBytesToEventable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := BytesToEventable(test.byteArray)
+			result, err := api.BytesToEventable(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})
@@ -218,11 +220,10 @@ func (suite *EventsAPIUnitSuite) TestBytesToEventable() {
 
 type EventsAPIIntgSuite struct {
 	tester.Suite
-	credentials account.M365Config
-	ac          Client
+	its intgTesterSetup
 }
 
-func TestEventsAPIntgSuite(t *testing.T) {
+func TestEventsAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &EventsAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
@@ -231,15 +232,7 @@ func TestEventsAPIntgSuite(t *testing.T) {
 }
 
 func (suite *EventsAPIIntgSuite) SetupSuite() {
-	t := suite.T()
-
-	a := tester.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.credentials = m365
-	suite.ac, err = NewClient(m365)
-	require.NoError(t, err, clues.ToCore(err))
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func (suite *EventsAPIIntgSuite) TestRestoreLargeAttachment() {
@@ -251,7 +244,7 @@ func (suite *EventsAPIIntgSuite) TestRestoreLargeAttachment() {
 	userID := tester.M365UserID(suite.T())
 
 	folderName := testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
-	evts := suite.ac.Events()
+	evts := suite.its.ac.Events()
 	calendar, err := evts.CreateContainer(ctx, userID, folderName, "")
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -281,4 +274,45 @@ func (suite *EventsAPIIntgSuite) TestRestoreLargeAttachment() {
 	)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id, "empty id for large attachment")
+}
+
+func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
+	t := suite.T()
+
+	t.Skip("currently broken: the test user needs to get rotated")
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	ac := suite.its.ac.Events()
+	rc := testdata.DefaultRestoreConfig("api_calendar_discovery")
+
+	cal, err := ac.CreateContainer(ctx, suite.its.userID, rc.Location, "")
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		found         bool
+		calID         = ptr.Val(cal.GetId())
+		findContainer = func(gcc graph.CachedContainer) error {
+			if ptr.Val(gcc.GetId()) == calID {
+				found = true
+			}
+
+			return nil
+		}
+	)
+
+	err = ac.EnumerateContainers(
+		ctx,
+		suite.its.userID,
+		"Calendar",
+		findContainer,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	require.True(
+		t,
+		found,
+		"the restored container was discovered when enumerating containers.  "+
+			"If this fails, the user's calendars have probably broken, "+
+			"and the user will need to be rotated")
 }

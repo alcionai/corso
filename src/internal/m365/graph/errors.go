@@ -26,11 +26,24 @@ import (
 type errorCode string
 
 const (
-	activityLimitReached        errorCode = "activityLimitReached"
-	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
-	errorAccessDenied           errorCode = "ErrorAccessDenied"
-	itemNotFound                errorCode = "ErrorItemNotFound"
-	itemNotFoundShort           errorCode = "itemNotFound"
+	// this auth error is a catch-all used by graph in a variety of cases:
+	// users without licenses, bad jwts, missing account permissions, etc.
+	AuthenticationError errorCode = "AuthenticationError"
+	// cannotOpenFileAttachment happen when an attachment is
+	// inaccessible. The error message is usually "OLE conversion
+	// failed for an attachment."
+	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
+	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
+	errorAccessDenied        errorCode = "ErrorAccessDenied"
+	errorItemNotFound        errorCode = "ErrorItemNotFound"
+	// This error occurs when an attempt is made to create a folder that has
+	// the same name as another folder in the same parent. Such duplicate folder
+	// names are not allowed by graph.
+	folderExists errorCode = "ErrorFolderExists"
+	// Some datacenters are returning this when we try to get the inbox of a user
+	// that doesn't exist.
+	invalidUser                 errorCode = "ErrorInvalidUser"
+	itemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
 	// nameAlreadyExists occurs when a request with
@@ -39,22 +52,11 @@ const (
 	quotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	// Returned when we try to get the inbox of a user that doesn't exist.
-	ResourceNotFound errorCode = "ResourceNotFound"
-	// Some datacenters are returning this when we try to get the inbox of a user
-	// that doesn't exist.
-	invalidUser        errorCode = "ErrorInvalidUser"
+	ResourceNotFound   errorCode = "ResourceNotFound"
 	resyncRequired     errorCode = "ResyncRequired"
 	syncFolderNotFound errorCode = "ErrorSyncFolderNotFound"
 	syncStateInvalid   errorCode = "SyncStateInvalid"
 	syncStateNotFound  errorCode = "SyncStateNotFound"
-	// This error occurs when an attempt is made to create a folder that has
-	// the same name as another folder in the same parent. Such duplicate folder
-	// names are not allowed by graph.
-	folderExists errorCode = "ErrorFolderExists"
-	// cannotOpenFileAttachment happen when an attachment is
-	// inaccessible. The error message is usually "OLE conversion
-	// failed for an attachment."
-	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
 )
 
 type errorMessage string
@@ -104,6 +106,10 @@ var (
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
 
+func IsErrAuthenticationError(err error) bool {
+	return hasErrorCode(err, AuthenticationError)
+}
+
 func IsErrDeletedInFlight(err error) bool {
 	if errors.Is(err, ErrDeletedInFlight) {
 		return true
@@ -111,14 +117,18 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if hasErrorCode(
 		err,
+		errorItemNotFound,
 		itemNotFound,
-		itemNotFoundShort,
 		syncFolderNotFound,
 	) {
 		return true
 	}
 
 	return false
+}
+
+func IsErrItemNotFound(err error) bool {
+	return hasErrorCode(err, itemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -133,7 +143,7 @@ func IsErrQuotaExceeded(err error) bool {
 func IsErrExchangeMailFolderNotFound(err error) bool {
 	// Not sure if we can actually see a resourceNotFound error here. I've only
 	// seen the latter two.
-	return hasErrorCode(err, ResourceNotFound, itemNotFound, MailboxNotEnabledForRESTAPI)
+	return hasErrorCode(err, ResourceNotFound, errorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {

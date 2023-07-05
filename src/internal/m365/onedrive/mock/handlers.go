@@ -233,11 +233,20 @@ func (m GetsItemPermission) GetItemPermission(
 type RestoreHandler struct {
 	ItemInfo details.ItemInfo
 
-	PostItemResp models.DriveItemable
-	PostItemErr  error
+	CollisionKeyMap map[string]api.DriveCollisionItem
+
+	CalledDeleteItem   bool
+	CalledDeleteItemOn string
+	DeleteItemErr      error
+
+	CalledPostItem bool
+	PostItemResp   models.DriveItemable
+	PostItemErr    error
+
+	UploadSessionErr error
 }
 
-func (h RestoreHandler) AugmentItemInfo(
+func (h *RestoreHandler) AugmentItemInfo(
 	details.ItemInfo,
 	models.DriveItemable,
 	int64,
@@ -246,47 +255,73 @@ func (h RestoreHandler) AugmentItemInfo(
 	return h.ItemInfo
 }
 
-func (h RestoreHandler) NewItemContentUpload(
+func (h *RestoreHandler) GetItemsInContainerByCollisionKey(
 	context.Context,
 	string, string,
-) (models.UploadSessionable, error) {
-	return nil, clues.New("not implemented")
+) (map[string]api.DriveCollisionItem, error) {
+	return h.CollisionKeyMap, nil
 }
 
-func (h RestoreHandler) DeleteItemPermission(
+func (h *RestoreHandler) DeleteItem(
+	_ context.Context,
+	_, itemID string,
+) error {
+	h.CalledDeleteItem = true
+	h.CalledDeleteItemOn = itemID
+
+	return h.DeleteItemErr
+}
+
+func (h *RestoreHandler) DeleteItemPermission(
 	context.Context,
 	string, string, string,
 ) error {
-	return clues.New("not implemented")
+	return nil
 }
 
-func (h RestoreHandler) PostItemPermissionUpdate(
+func (h *RestoreHandler) NewItemContentUpload(
+	context.Context,
+	string, string,
+) (models.UploadSessionable, error) {
+	return models.NewUploadSession(), h.UploadSessionErr
+}
+
+func (h *RestoreHandler) PostItemPermissionUpdate(
 	context.Context,
 	string, string,
 	*drives.ItemItemsItemInvitePostRequestBody,
 ) (drives.ItemItemsItemInviteResponseable, error) {
+	return drives.NewItemItemsItemInviteResponse(), nil
+}
+
+func (h *RestoreHandler) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
 	return nil, clues.New("not implemented")
 }
 
-func (h RestoreHandler) PostItemInContainer(
+func (h *RestoreHandler) PostItemInContainer(
 	context.Context,
 	string, string,
 	models.DriveItemable,
 	control.CollisionPolicy,
 ) (models.DriveItemable, error) {
+	h.CalledPostItem = true
 	return h.PostItemResp, h.PostItemErr
 }
 
-func (h RestoreHandler) GetFolderByName(
+func (h *RestoreHandler) GetFolderByName(
 	context.Context,
 	string, string, string,
 ) (models.DriveItemable, error) {
-	return nil, clues.New("not implemented")
+	return models.NewDriveItem(), nil
 }
 
-func (h RestoreHandler) GetRootFolder(
+func (h *RestoreHandler) GetRootFolder(
 	context.Context,
 	string,
 ) (models.DriveItemable, error) {
-	return nil, clues.New("not implemented")
+	return models.NewDriveItem(), nil
 }

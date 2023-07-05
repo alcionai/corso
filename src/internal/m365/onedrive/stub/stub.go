@@ -3,6 +3,7 @@ package stub
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -18,53 +19,87 @@ import (
 // permission instead of email
 const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
-func getMetadata(fileName string, perm PermData, permUseID bool) metadata.Metadata {
-	if len(perm.User) == 0 || len(perm.Roles) == 0 ||
-		perm.SharingMode != metadata.SharingModeCustom {
+func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metadata {
+	if meta.SharingMode != metadata.SharingModeCustom {
 		return metadata.Metadata{
 			FileName:    fileName,
-			SharingMode: perm.SharingMode,
+			SharingMode: meta.SharingMode,
 		}
 	}
 
-	// In case of permissions, the id will usually be same for same
-	// user/role combo unless deleted and readded, but we have to do
-	// this as we only have two users of which one is already taken.
-	id := uuid.NewString()
-	uperm := metadata.Permission{ID: id, Roles: perm.Roles}
+	testMeta := metadata.Metadata{FileName: fileName}
 
-	if permUseID {
-		uperm.EntityID = perm.EntityID
-	} else {
-		uperm.Email = perm.User
+	if len(meta.Perms.User) != 0 {
+		// In case of permissions, the id will usually be same for same
+		// user/role combo unless deleted and readded, but we have to do
+		// this as we only have two users of which one is already taken.
+		id := uuid.NewString()
+		uperm := metadata.Permission{ID: id, Roles: meta.Perms.Roles}
+
+		if permUseID {
+			uperm.EntityID = meta.Perms.EntityID
+		} else {
+			uperm.Email = meta.Perms.User
+		}
+
+		testMeta.Permissions = []metadata.Permission{uperm}
 	}
 
-	testMeta := metadata.Metadata{
-		FileName:    fileName,
-		Permissions: []metadata.Permission{uperm},
+	if len(meta.LinkShares) != 0 {
+		for _, ls := range meta.LinkShares {
+			id := strings.Join(ls.EntityIDs, "-") + ls.Scope + ls.Type
+
+			entities := []metadata.Entity{}
+			for _, e := range ls.EntityIDs {
+				entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})
+			}
+
+			ls := metadata.LinkShare{
+				ID: id, // id is required for mapping from parent
+				Link: metadata.LinkShareLink{
+					Scope:  ls.Scope,
+					Type:   ls.Type,
+					WebURL: id,
+				},
+				Entities: entities,
+			}
+
+			testMeta.LinkShares = append(testMeta.LinkShares, ls)
+		}
 	}
 
 	return testMeta
 }
 
 type PermData struct {
-	User        string // user is only for older versions
-	EntityID    string
-	Roles       []string
+	User     string // user is only for older versions
+	EntityID string
+	Roles    []string
+}
+
+type LinkShareData struct {
+	EntityIDs []string
+	Scope     string
+	Type      string
+}
+
+type MetaData struct {
 	SharingMode metadata.SharingMode
+	Perms       PermData
+	LinkShares  []LinkShareData
 }
 
 type ItemData struct {
-	Name  string
-	Data  []byte
-	Perms PermData
+	Name string
+	Data []byte
+	Meta MetaData
 }
 
 type ColInfo struct {
 	PathElements []string
-	Perms        PermData
 	Files        []ItemData
 	Folders      []ItemData
+	Meta         MetaData
 }
 
 type collection struct {
@@ -115,20 +150,20 @@ func DataForInfo(
 		onedriveCol := NewCollection(service, c.PathElements, backupVersion)
 
 		for _, f := range c.Files {
-			_, err = onedriveCol.withFile(f.Name, f.Data, f.Perms)
+			_, err = onedriveCol.withFile(f.Name, f.Data, f.Meta)
 			if err != nil {
 				return res, err
 			}
 		}
 
 		for _, d := range c.Folders {
-			_, err = onedriveCol.withFolder(d.Name, d.Perms)
+			_, err = onedriveCol.withFolder(d.Name, d.Meta)
 			if err != nil {
 				return res, err
 			}
 		}
 
-		_, err = onedriveCol.withPermissions(c.Perms)
+		_, err = onedriveCol.withPermissions(c.Meta)
 		if err != nil {
 			return res, err
 		}
@@ -139,7 +174,7 @@ func DataForInfo(
 	return res, nil
 }
 
-func (c *collection) withFile(name string, fileData []byte, perm PermData) (*collection, error) {
+func (c *collection) withFile(name string, fileData []byte, meta MetaData) (*collection, error) {
 	switch c.BackupVersion {
 	case 0:
 		// Lookups will occur using the most recent version of things so we need
@@ -171,7 +206,7 @@ func (c *collection) withFile(name string, fileData []byte, perm PermData) (*col
 			"",
 			name+metadata.MetaFileSuffix,
 			name+metadata.MetaFileSuffix,
-			perm,
+			meta,
 			c.BackupVersion >= versionPermissionSwitchedToID)
 		if err != nil {
 			return c, err
@@ -196,7 +231,7 @@ func (c *collection) withFile(name string, fileData []byte, perm PermData) (*col
 			name,
 			name+metadata.MetaFileSuffix,
 			name,
-			perm,
+			meta,
 			c.BackupVersion >= versionPermissionSwitchedToID)
 		if err != nil {
 			return c, err
@@ -212,7 +247,7 @@ func (c *collection) withFile(name string, fileData []byte, perm PermData) (*col
 	return c, nil
 }
 
-func (c *collection) withFolder(name string, perm PermData) (*collection, error) {
+func (c *collection) withFolder(name string, meta MetaData) (*collection, error) {
 	switch c.BackupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
 		version.OneDrive6NameInMeta, version.OneDrive7LocationRef, version.All8MigrateUserPNToID:
@@ -223,7 +258,7 @@ func (c *collection) withFolder(name string, perm PermData) (*collection, error)
 			"",
 			name+metadata.DirMetaFileSuffix,
 			name+metadata.DirMetaFileSuffix,
-			perm,
+			meta,
 			c.BackupVersion >= versionPermissionSwitchedToID)
 
 		c.Items = append(c.Items, item)
@@ -241,7 +276,7 @@ func (c *collection) withFolder(name string, perm PermData) (*collection, error)
 
 // withPermissions adds permissions to the folder represented by this
 // onedriveCollection.
-func (c *collection) withPermissions(perm PermData) (*collection, error) {
+func (c *collection) withPermissions(meta MetaData) (*collection, error) {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
 	if c.BackupVersion < version.OneDrive4DirIncludesPermissions {
@@ -264,7 +299,7 @@ func (c *collection) withPermissions(perm PermData) (*collection, error) {
 		name,
 		metaName+metadata.DirMetaFileSuffix,
 		metaName+metadata.DirMetaFileSuffix,
-		perm,
+		meta,
 		c.BackupVersion >= versionPermissionSwitchedToID)
 	if err != nil {
 		return c, err
@@ -304,10 +339,10 @@ func FileWithData(
 
 func ItemWithMetadata(
 	fileName, itemID, lookupKey string,
-	perm PermData,
+	meta MetaData,
 	permUseID bool,
 ) (m365Stub.ItemInfo, error) {
-	testMeta := getMetadata(fileName, perm, permUseID)
+	testMeta := getMetadata(fileName, meta, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
 	if err != nil {

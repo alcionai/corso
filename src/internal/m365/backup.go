@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/discovery"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
@@ -21,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -203,9 +203,13 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	return nil
 }
 
+type getInfoer interface {
+	GetInfo(context.Context, string) (*api.UserInfo, error)
+}
+
 func checkServiceEnabled(
 	ctx context.Context,
-	gi discovery.GetInfoer,
+	gi getInfoer,
 	service path.ServiceType,
 	resource string,
 ) (bool, bool, error) {

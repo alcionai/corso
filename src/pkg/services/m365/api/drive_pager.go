@@ -34,9 +34,7 @@ func (c Drives) NewDriveItemPager(
 	selectProps ...string,
 ) itemPager[models.DriveItemable] {
 	options := &drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration{
-		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxNonDeltaPageSize),
-		},
+		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{},
 	}
 
 	if len(selectProps) > 0 {
@@ -69,10 +67,15 @@ func (p *driveItemPageCtrl) setNext(nextLink string) {
 	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+type DriveCollisionItem struct {
+	ItemID   string
+	IsFolder bool
+}
+
 func (c Drives) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	driveID, containerID string,
-) (map[string]string, error) {
+) (map[string]DriveCollisionItem, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name")...)
 
@@ -81,10 +84,13 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 		return nil, graph.Wrap(ctx, err, "enumerating drive items")
 	}
 
-	m := map[string]string{}
+	m := map[string]DriveCollisionItem{}
 
 	for _, item := range items {
-		m[DriveItemCollisionKey(item)] = ptr.Val(item.GetId())
+		m[DriveItemCollisionKey(item)] = DriveCollisionItem{
+			ItemID:   ptr.Val(item.GetId()),
+			IsFolder: item.GetFolder() != nil,
+		}
 	}
 
 	return m, nil
@@ -126,7 +132,6 @@ func (c Drives) NewDriveItemDeltaPager(
 	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferHeaderItems...),
 		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
-			Top:    ptr.To(maxDeltaPageSize),
 			Select: selectFields,
 		},
 	}

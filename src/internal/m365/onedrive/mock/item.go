@@ -81,9 +81,10 @@ func FileRespReadCloser(pl string) io.ReadCloser {
 	return io.NopCloser(bytes.NewReader([]byte(pl)))
 }
 
-const DriveFileMetaData = `{
-    "fileName": "fnords.txt"
-}`
+const (
+	DriveItemFileName = "fnords.txt"
+	DriveFileMetaData = `{"fileName": "` + DriveItemFileName + `"}`
+)
 
 //nolint:lll
 const DriveFilePayloadData = `{
