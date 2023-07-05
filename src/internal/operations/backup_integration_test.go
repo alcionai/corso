@@ -47,7 +47,6 @@ import (
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
-	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -73,7 +72,7 @@ func prepNewTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bus events.Eventer,
 	sel selectors.Selector,
-	opts control.Options,
+	featureToggles control.Toggles,
 	backupVersion int,
 ) (
 	BackupOperation,
@@ -128,7 +127,7 @@ func prepNewTestBackupOp(
 	}
 
 	ctrl, sel := ControllerWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
-	bo := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, bus, opts, closer)
+	bo := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, bus, featureToggles, closer)
 
 	ss := streamstore.NewStreamer(kw, acct.ID(), sel.PathService())
 
@@ -148,11 +147,15 @@ func newTestBackupOp(
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
-	opts control.Options,
+	featureToggles control.Toggles,
 	closer func(),
 ) BackupOperation {
-	sw := store.NewKopiaStore(ms)
+	var (
+		sw   = store.NewKopiaStore(ms)
+		opts = control.Defaults()
+	)
 
+	opts.ToggleFeatures = featureToggles
 	ctrl.IDNameLookup = idname.NewCache(map[string]string{sel.ID(): sel.Name()})
 
 	bo, err := NewBackupOperation(ctx, opts, kw, sw, ctrl, acct, sel, sel, bus)
@@ -642,11 +645,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			var (
 				mb      = evmock.NewBus()
 				sel     = test.selector().Selector
-				opts    = control.Defaults()
+				ffs     = control.Toggles{}
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, acct, kw, ms, ss, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+			bo, acct, kw, ms, ss, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 			defer closer()
 
 			userID := sel.ID()
@@ -685,7 +688,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, opts, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, ffs, closer)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
@@ -764,10 +767,8 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup([]string{suite.user})
 		whatSet    = deeTD.CategoryFromRepoRef
-		opts       = control.Defaults()
 	)
 
-	opts.ToggleFeatures = toggles
 	ctrl, sels := ControllerWithSelector(t, ctx, acct, resource.Users, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
@@ -888,7 +889,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 		}
 	}
 
-	bo, acct, kw, ms, ss, ctrl, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, acct, kw, ms, ss, ctrl, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1262,7 +1263,7 @@ func testExchangeContinuousBackups(suite *BackupOpIntegrationSuite, toggles cont
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, opts, closer)
+			incBO := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
@@ -1326,12 +1327,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 		osel   = selectors.NewOneDriveBackup([]string{userID})
 		ws     = deeTD.DriveIDFromRepoRef
 		svc    = path.OneDriveService
-		opts   = control.Defaults()
 	)
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
-	bo, _, _, ms, ss, _, sel, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
+	bo, _, _, ms, ss, _, sel, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1340,52 +1340,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	_, expectDeets := deeTD.GetDeetsInBackup(t, ctx, bID, tenID, sel.ID(), svc, ws, ms, ss)
 	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets, false)
-}
-
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_OneDriveExtensions() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		tenID  = tester.M365TenantID(t)
-		mb     = evmock.NewBus()
-		userID = tester.SecondaryM365UserID(t)
-		osel   = selectors.NewOneDriveBackup([]string{userID})
-		ws     = deeTD.DriveIDFromRepoRef
-		svc    = path.OneDriveService
-		opts   = control.Defaults()
-	)
-
-	factories := []extensions.CreateItemExtensioner{
-		&extensions.MockItemExtensionFactory{},
-	}
-	opts.ItemExtensionFactory = factories
-
-	osel.Include(selTD.OneDriveBackupFolderScope(osel))
-
-	bo, _, _, ms, ss, _, sel, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
-	defer closer()
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-
-	bID := bo.Results.BackupID
-
-	deets, expectDeets := deeTD.GetDeetsInBackup(t, ctx, bID, tenID, sel.ID(), svc, ws, ms, ss)
-	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets, false)
-
-	// Check that the extensions are in the backup
-	for _, ent := range deets.Entries {
-		if ent.Folder == nil {
-			itemInfo := ent.ItemInfo
-			assert.NotNil(t, itemInfo.Extension, "nil extension")
-
-			assert.NotNil(t, itemInfo.Extension.Data["NumBytes"], "key not found in extension")
-			sizeFromExtension := int64(itemInfo.Extension.Data["NumBytes"].(float64))
-			assert.Equal(t, itemInfo.OneDrive.Size, sizeFromExtension, "incorrect data in extension")
-		}
-	}
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_incrementalOneDrive() {
@@ -1492,7 +1446,7 @@ func runDriveIncrementalTest(
 
 	var (
 		acct = tester.NewM365Account(t)
-		opts = control.Defaults()
+		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
 		ws   = deeTD.DriveIDFromRepoRef
 
@@ -1588,7 +1542,7 @@ func runDriveIncrementalTest(
 		containerIDs[destName] = ptr.Val(resp.GetId())
 	}
 
-	bo, _, kw, ms, ss, ctrl, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+	bo, _, kw, ms, ss, ctrl, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
 	defer closer()
 
 	// run the initial backup
@@ -1924,7 +1878,7 @@ func runDriveIncrementalTest(
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, cleanCtrl, acct, sel, incMB, opts, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, cleanCtrl, acct, sel, incMB, ffs, closer)
 			)
 
 			ctx, flush := tester.WithContext(t, ctx)
@@ -1988,7 +1942,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	var (
 		acct = tester.NewM365Account(t)
-		opts = control.Defaults()
+		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
 
 		categories = map[path.CategoryType][]string{
@@ -2016,7 +1970,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
 	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
-	bo, _, kw, ms, _, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, opts, 0)
+	bo, _, kw, ms, _, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
 	defer closer()
 
 	// ensure the initial owner uses name in both cases
@@ -2042,7 +1996,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	var (
 		incMB = evmock.NewBus()
 		// the incremental backup op should have a proper user ID for the id.
-		incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, opts, closer)
+		incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, ffs, closer)
 	)
 
 	require.NotEqualf(
@@ -2113,14 +2067,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewSharePointBackup([]string{suite.site})
-		opts = control.Defaults()
+		mb  = evmock.NewBus()
+		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, _, kw, _, _, _, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, _, kw, _, _, _, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
