@@ -8,18 +8,20 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // Options holds the optional configurations for a process
 type Options struct {
-	DisableMetrics     bool               `json:"disableMetrics"`
-	FailureHandling    FailurePolicy      `json:"failureHandling"`
-	RestorePermissions bool               `json:"restorePermissions"`
-	SkipReduce         bool               `json:"skipReduce"`
-	ToggleFeatures     Toggles            `json:"toggleFeatures"`
-	Parallelism        Parallelism        `json:"parallelism"`
-	Repo               repository.Options `json:"repo"`
+	DisableMetrics       bool                               `json:"disableMetrics"`
+	FailureHandling      FailurePolicy                      `json:"failureHandling"`
+	RestorePermissions   bool                               `json:"restorePermissions"`
+	SkipReduce           bool                               `json:"skipReduce"`
+	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
+	Parallelism          Parallelism                        `json:"parallelism"`
+	Repo                 repository.Options                 `json:"repo"`
+	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
 }
 
 type Parallelism struct {
