@@ -299,32 +299,28 @@ func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
 // correctly
 func (suite *RepositoryIntegrationSuite) Test_Options() {
 	table := []struct {
-		name       string
-		opts       func() control.Options
-		assertFunc func(t *testing.T, opts control.Options)
+		name        string
+		opts        func() control.Options
+		expectedLen int
 	}{
 		{
 			name: "default options",
 			opts: func() control.Options {
 				return control.Defaults()
 			},
-			assertFunc: func(t *testing.T, opts control.Options) {
-				assert.Len(t, opts.ItemExtensionFactory, 0)
-			},
+			expectedLen: 0,
 		},
 		{
 			name: "options with an extension factory",
 			opts: func() control.Options {
 				o := control.Defaults()
 				o.ItemExtensionFactory = append(
-				    o.ItemExtensionFactory,
-				    &extensions.MockItemExtensionFactory{})
+					o.ItemExtensionFactory,
+					&extensions.MockItemExtensionFactory{})
 
 				return o
 			},
-			assertFunc: func(t *testing.T, opts control.Options) {
-				assert.Len(t, opts.ItemExtensionFactory, 1)
-			},
+			expectedLen: 1,
 		},
 		{
 			name: "options with multiple extension factories",
@@ -339,9 +335,7 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 
 				return o
 			},
-			assertFunc: func(t *testing.T, opts control.Options) {
-				assert.Len(t, opts.ItemExtensionFactory, 2)
-			},
+			expectedLen: 2,
 		},
 	}
 
@@ -358,13 +352,13 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 			require.NoError(t, err)
 
 			r := repo.(*repository)
-			test.assertFunc(t, r.Opts)
+			assert.Equal(t, test.expectedLen, len(r.Opts.ItemExtensionFactory))
 
 			repo, err = Connect(ctx, acct, st, repo.GetID(), test.opts())
 			assert.NoError(t, err)
 
 			r = repo.(*repository)
-			test.assertFunc(t, r.Opts)
+			assert.Equal(t, test.expectedLen, len(r.Opts.ItemExtensionFactory))
 		})
 	}
 }
