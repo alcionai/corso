@@ -103,11 +103,11 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			var (
 				mb      = evmock.NewBus()
 				sel     = test.selector().Selector
-				ffs     = control.Toggles{}
+				opts    = control.Defaults()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
 			defer bod.close(t, ctx)
 
 			sel = bod.sel
@@ -169,7 +169,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 					ctx,
 					bod,
 					incMB,
-					ffs)
+					opts)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
@@ -256,8 +256,10 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup([]string{suite.its.userID})
 		whatSet    = deeTD.CategoryFromRepoRef
+		opts       = control.Defaults()
 	)
 
+	opts.ToggleFeatures = toggles
 	ctrl, sels := ControllerWithSelector(t, ctx, acct, resource.Users, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
@@ -378,7 +380,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
 
 	// run the initial backup
@@ -769,7 +771,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, bod, incMB, toggles)
+			incBO := newTestBackupOp(t, ctx, bod, incMB, opts)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
