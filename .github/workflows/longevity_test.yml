@@ -198,6 +198,36 @@ jobs:
 
 ##########################################################################################################################################
 
+# Maintenance test
+      - name: Maintenance test Daily
+        id: maintenance-test-daily
+        run: |
+          set -euo pipefail
+          echo -e "\n Maintenance test Daily\n" >> ${CORSO_LOG_FILE}
+
+          ./corso repo  maintenance --mode metadata \
+          --no-stats \
+          --hide-progress \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_metadata.txt 
+
+      - name: Maintenance test Weekly
+        id: maintenance-test-weekly
+        run: |
+
+          if [[ $(date +%A) == "Saturday" ]]; then
+            set -euo pipefail
+            echo -e "\n Maintenance test Weekly\n" >> ${CORSO_LOG_FILE}
+
+            ./corso repo  maintenance --mode complete \
+            --no-stats \
+            --hide-progress \
+            --json \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_complete.txt 
+          fi
+
+##########################################################################################################################################
+
 # Logging & Notifications
 
       # Upload the original go test output as an artifact for later review.
