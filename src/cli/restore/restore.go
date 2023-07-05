@@ -91,7 +91,10 @@ func runRestore(
 		Infof(ctx, "Skipped %d items due to collision", skipped)
 	}
 
-	ds.Items().MaybePrintEntries(ctx, true)
+	dis := ds.Items()
+
+	Outf(ctx, "Restored %d items", len(dis))
+	dis.MaybePrintEntries(ctx)
 
 	return nil
 }

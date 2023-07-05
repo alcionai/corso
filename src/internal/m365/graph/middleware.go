@@ -143,8 +143,6 @@ func (mw *LoggingMiddleware) Intercept(
 
 		// special cases where we always dump the response body, since the response
 		// details might be critical to understanding the response when debugging.
-		// * 400-bad-request
-		// * 403-forbidden
 		logBody = logger.DebugAPIFV ||
 			os.Getenv(logGraphRequestsEnvKey) != "" ||
 			resp.StatusCode == http.StatusBadRequest ||
