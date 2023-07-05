@@ -316,10 +316,9 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 			name: "options with an extension factory",
 			opts: func() control.Options {
 				o := control.Defaults()
-				f := []extensions.CreateItemExtensioner{
-					&extensions.MockItemExtensionFactory{},
-				}
-				o.ItemExtensionFactory = f
+				o.ItemExtensionFactory = append(
+				    o.ItemExtensionFactory,
+				    &extensions.MockItemExtensionFactory{})
 
 				return o
 			},
