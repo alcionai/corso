@@ -166,10 +166,7 @@ func newTestBackupOp(
 	bus events.Eventer,
 	featureToggles control.Toggles,
 ) operations.BackupOperation {
-	var (
-		sw   = store.NewKopiaStore(bod.kms)
-		opts = control.Defaults()
-	)
+	opts := control.Defaults()
 
 	opts.ToggleFeatures = featureToggles
 	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
@@ -178,7 +175,7 @@ func newTestBackupOp(
 		ctx,
 		opts,
 		bod.kw,
-		sw,
+		bod.sw,
 		bod.ctrl,
 		bod.acct,
 		bod.sel,
@@ -572,7 +569,6 @@ func ControllerWithSelector(
 type intgTesterSetup struct {
 	ac                    api.Client
 	gockAC                api.Client
-	sw                    *store.Wrapper
 	userID                string
 	userDriveID           string
 	userDriveRootFolderID string
