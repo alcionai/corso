@@ -47,13 +47,16 @@ func (h contactRestoreHandler) formatRestoreDestination(
 
 func (h contactRestoreHandler) CreateContainer(
 	ctx context.Context,
-	userID, containerName, _ string, // parent container not used
+	userID, _, containerName string, // parent container not used
 ) (graph.Container, error) {
-	return h.ac.CreateContainer(ctx, userID, containerName, "")
+	return h.ac.CreateContainer(ctx, userID, "", containerName)
 }
 
-func (h contactRestoreHandler) containerSearcher() containerByNamer {
-	return nil
+func (h contactRestoreHandler) GetContainerByName(
+	ctx context.Context,
+	userID, _, containerName string, // parent container not used
+) (graph.Container, error) {
+	return h.ac.GetContainerByName(ctx, userID, "", containerName)
 }
 
 // always returns the provided value

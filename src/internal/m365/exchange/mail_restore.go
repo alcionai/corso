@@ -48,17 +48,20 @@ func (h mailRestoreHandler) formatRestoreDestination(
 
 func (h mailRestoreHandler) CreateContainer(
 	ctx context.Context,
-	userID, containerName, parentContainerID string,
+	userID, parentContainerID, containerName string,
 ) (graph.Container, error) {
 	if len(parentContainerID) == 0 {
 		parentContainerID = rootFolderAlias
 	}
 
-	return h.ac.CreateContainer(ctx, userID, containerName, parentContainerID)
+	return h.ac.CreateContainer(ctx, userID, parentContainerID, containerName)
 }
 
-func (h mailRestoreHandler) containerSearcher() containerByNamer {
-	return nil
+func (h mailRestoreHandler) GetContainerByName(
+	ctx context.Context,
+	userID, parentContainerID, containerName string,
+) (graph.Container, error) {
+	return h.ac.GetContainerByName(ctx, userID, parentContainerID, containerName)
 }
 
 // always returns rootFolderAlias

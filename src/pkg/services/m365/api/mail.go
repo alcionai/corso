@@ -82,7 +82,7 @@ func (c Mail) DeleteMailFolder(
 
 func (c Mail) CreateContainer(
 	ctx context.Context,
-	userID, containerName, parentContainerID string,
+	userID, parentContainerID, containerName string,
 ) (graph.Container, error) {
 	isHidden := false
 	body := models.NewMailFolder()
@@ -163,6 +163,75 @@ func (c Mail) GetContainerByID(
 	userID, containerID string,
 ) (graph.Container, error) {
 	return c.GetFolder(ctx, userID, containerID)
+}
+
+// GetContainerByName fetches a folder by name
+func (c Mail) GetContainerByName(
+	ctx context.Context,
+	userID, parentContainerID, containerName string,
+) (graph.Container, error) {
+	filter := fmt.Sprintf("displayName eq '%s'", containerName)
+
+	ctx = clues.Add(ctx, "container_name", containerName)
+
+	var (
+		builder = c.Stable.
+			Client().
+			Users().
+			ByUserId(userID).
+			MailFolders()
+		resp models.MailFolderCollectionResponseable
+		err  error
+	)
+
+	if len(parentContainerID) > 0 {
+		options := &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Filter: &filter,
+			},
+		}
+
+		resp, err = builder.
+			ByMailFolderId(parentContainerID).
+			ChildFolders().
+			Get(ctx, options)
+	} else {
+		options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{
+				Filter: &filter,
+			},
+		}
+
+		resp, err = builder.Get(ctx, options)
+	}
+
+	if err != nil {
+		return nil, graph.Stack(ctx, err).WithClues(ctx)
+	}
+
+	gv := resp.GetValue()
+
+	if len(gv) == 0 {
+		return nil, clues.New("container not found").WithClues(ctx)
+	}
+
+	// We only allow the api to match one container with the provided name.
+	// Return an error if multiple container exist (unlikely) or if no container
+	// is found.
+	if len(gv) != 1 {
+		return nil, clues.New("unexpected number of folders returned").
+			With("returned_container_count", len(gv)).
+			WithClues(ctx)
+	}
+
+	// Sanity check ID and name
+	container := gv[0]
+
+	if err := graph.CheckIDAndName(container); err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return container, nil
 }
 
 func (c Mail) MoveContainer(
