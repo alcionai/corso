@@ -153,11 +153,6 @@ func newTestBackupOp(
 ) BackupOperation {
 	sw := store.NewKopiaStore(ms)
 
-	factories := []extensions.CreateItemExtensioner{
-		&extensions.MockItemExtensionFactory{},
-	}
-
-	opts.ItemExtensionFactory = factories
 	ctrl.IDNameLookup = idname.NewCache(map[string]string{sel.ID(): sel.Name()})
 
 	bo, err := NewBackupOperation(ctx, opts, kw, sw, ctrl, acct, sel, sel, bus)
@@ -1363,6 +1358,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_OneDriveExtensions() {
 		opts   = control.Defaults()
 	)
 
+	factories := []extensions.CreateItemExtensioner{
+		&extensions.MockItemExtensionFactory{},
+	}
+	opts.ItemExtensionFactory = factories
+
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
 	bo, _, _, ms, ss, _, sel, closer := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
@@ -1376,15 +1376,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_OneDriveExtensions() {
 	deeTD.CheckBackupDetails(t, ctx, bID, ws, ms, ss, expectDeets, false)
 
 	// Check that the extensions are in the backup
-	// TODO(pandeyabs): Move this to in-deets CheckBackupDetails
 	for _, ent := range deets.Entries {
 		if ent.Folder == nil {
-			// Check that the extensions are in the backup
 			itemInfo := ent.ItemInfo
-			assert.NotNil(t, itemInfo.OneDrive, "nil onedrive info")
-			assert.NotNil(t, itemInfo.Extension, "nil onedrive extension")
+			assert.NotNil(t, itemInfo.Extension, "nil extension")
 
-			// Hacky way to get the size from the extension
+			assert.NotNil(t, itemInfo.Extension.Data["NumBytes"], "key not found in extension")
 			sizeFromExtension := int64(itemInfo.Extension.Data["NumBytes"].(float64))
 			assert.Equal(t, itemInfo.OneDrive.Size, sizeFromExtension, "incorrect data in extension")
 		}
