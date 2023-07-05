@@ -146,7 +146,7 @@ func restoreContact(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil {
+		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding contact")
 		}
 	}

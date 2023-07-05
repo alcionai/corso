@@ -824,10 +824,10 @@ func restoreFile(
 	}
 
 	var (
-		item         = newItem(name, false)
-		collisionKey = api.DriveItemCollisionKey(item)
-		collision    api.DriveCollisionItem
-		replace      bool
+		item                 = newItem(name, false)
+		collisionKey         = api.DriveItemCollisionKey(item)
+		collision            api.DriveCollisionItem
+		shouldDeleteOriginal bool
 	)
 
 	if dci, ok := collisionKeyToItemID[collisionKey]; ok {
@@ -842,7 +842,7 @@ func restoreFile(
 		}
 
 		collision = dci
-		replace = restoreCfg.OnCollision == control.Replace && !dci.IsFolder
+		shouldDeleteOriginal = restoreCfg.OnCollision == control.Replace && !dci.IsFolder
 	}
 
 	// drive items do not support PUT requests on the drive item data, so
@@ -852,8 +852,8 @@ func restoreFile(
 	// conflict replace handling bug gets fixed, we either delete-post, and
 	// risk failures in the middle, or we post w/ copy, then delete, then patch
 	// the name, which could triple our graph calls in the worst case.
-	if replace {
-		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil {
+	if shouldDeleteOriginal {
+		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return "", details.ItemInfo{}, clues.New("deleting colliding item")
 		}
 	}

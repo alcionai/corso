@@ -333,6 +333,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		name          string
 		collisionKeys map[string]api.DriveCollisionItem
 		onCollision   control.CollisionPolicy
+		deleteErr     error
 		expectSkipped assert.BoolAssertionFunc
 		expectMock    func(*testing.T, *mock.RestoreHandler)
 	}{
@@ -389,6 +390,19 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.True(t, rh.CalledDeleteItem, "new item deleted")
 				assert.Equal(t, mndiID, rh.CalledDeleteItemOn, "deleted the correct item")
+			},
+		},
+		{
+			name: "collision, replace - err already deleted",
+			collisionKeys: map[string]api.DriveCollisionItem{
+				mock.DriveItemFileName: {ItemID: "smarf"},
+			},
+			onCollision:   control.Replace,
+			deleteErr:     graph.ErrDeletedInFlight,
+			expectSkipped: assert.False,
+			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
+				assert.True(t, rh.CalledPostItem, "new item posted")
+				assert.True(t, rh.CalledDeleteItem, "new item deleted")
 			},
 		},
 		{
@@ -460,8 +474,11 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			mndi.SetId(ptr.To(mndiID))
 
 			var (
-				caches     = NewRestoreCaches()
-				rh         = &mock.RestoreHandler{PostItemResp: mndi}
+				caches = NewRestoreCaches()
+				rh     = &mock.RestoreHandler{
+					PostItemResp:  models.NewDriveItem(),
+					DeleteItemErr: test.deleteErr,
+				}
 				restoreCfg = control.RestoreConfig{OnCollision: test.onCollision}
 				dpb        = odConsts.DriveFolderPrefixBuilder("driveID1")
 			)
