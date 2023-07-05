@@ -1,0 +1,118 @@
+name: Longetivity Testing
+on:
+  schedule:
+    # Run every day at 04:00 GMT (roughly 8pm PST)
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      user:
+        description: 'User to run longetivity test on'
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: longevity_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
+  Longevity-Tests:
+    needs: [ SetM365App ]
+    environment: Testing
+    runs-on: ubuntu-latest
+    env:
+      # Need these in the local env so that corso can read them
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      # re-used values
+      CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
+      RESTORE_DEST_PFX: Corso_Test_Longevity_
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+
+    defaults:
+      run:
+        working-directory: src
+        
+##########################################################################################################################################
+# setup
+    steps:
+
+      - name: Get version string
+        id: version
+        run: |
+          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
+          git describe --tags --abbrev=0
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.version.outputs.version }}
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: go build -o corso
+      - run: go build -o longevity-test ./cmd/longevity_test
+
+      - run: mkdir ${CORSO_LOG_DIR}
+
+##########################################################################################################################################
+
+# Repository commands
+
+      - name: Version Test
+        run: |
+          ./corso --version | grep -c 'Corso version:'
+
+      - name: Repo init test
+        id: repo-init
+        run: |
+          set -euo pipefail
+          prefix='longevity'
+          echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo init s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix $prefix \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            --succeed-if-exists \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+
+          if ! grep -q 'Initialized a S3 repository within bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+          then
+            echo "Repo could not be initialized"
+            exit 1
+          fi
+
+          echo result="$prefix" >> $GITHUB_OUTPUT
+
+      - name: Repo connect test
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo connect s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ steps.repo-init.outputs.result }} \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+          then
+            echo "Repo could not be connected"
+            exit 1
+          fi
+
+##########################################################################################################################################

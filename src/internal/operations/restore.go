@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -167,6 +168,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.CtxErr(ctx, err).Error("running restore")
+
+		if errors.Is(err, kopia.ErrNoRestorePath) {
+			op.Errors.Fail(clues.New("empty backup or unknown path provided"))
+		}
+
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 

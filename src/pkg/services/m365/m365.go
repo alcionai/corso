@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -73,7 +74,7 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 // UserHasMailbox returns true if the user has an exchange mailbox enabled
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return false, clues.Stack(err).WithClues(ctx)
 	}
@@ -93,7 +94,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 // UserHasDrives returns true if the user has any drives
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.OneDriveService)
 	if err != nil {
 		return false, clues.Stack(err).WithClues(ctx)
 	}
@@ -124,7 +125,7 @@ func checkUserHasDrives(ctx context.Context, dgdd getDefaultDriver, userID strin
 // TODO: Remove this once we remove `Info` from `Users` and instead rely on the `GetUserInfo` API
 // to get user information
 func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.UnknownService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -156,7 +157,7 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 
 // Users returns a list of users in the specified M365 tenant
 func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -209,7 +210,7 @@ func GetUserInfo(
 	acct account.Account,
 	userID string,
 ) (*api.UserInfo, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -243,7 +244,7 @@ type Site struct {
 
 // Sites returns a list of Sites in a specified M365 tenant
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
-	ac, err := makeAC(acct)
+	ac, err := makeAC(ctx, acct, path.SharePointService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -315,7 +316,13 @@ func SitesMap(
 // helpers
 // ---------------------------------------------------------------------------
 
-func makeAC(acct account.Account) (api.Client, error) {
+func makeAC(
+	ctx context.Context,
+	acct account.Account,
+	pst path.ServiceType,
+) (api.Client, error) {
+	api.InitConcurrencyLimit(ctx, pst)
+
 	creds, err := acct.M365Config()
 	if err != nil {
 		return api.Client{}, clues.Wrap(err, "getting m365 account creds")
