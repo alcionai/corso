@@ -446,6 +446,21 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
+
+	suite.Run("child folder with same name", func() {
+		pid := ptr.Val(parent.GetId())
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		child, err := acm.CreateContainer(ctx, suite.its.userID, pid, rc.Location)
+		require.NoError(t, err, clues.ToCore(err))
+
+		result, err := acm.GetContainerByName(ctx, suite.its.userID, pid, rc.Location)
+		assert.NoError(t, err, clues.ToCore(err))
+		assert.Equal(t, ptr.Val(child.GetId()), ptr.Val(result.GetId()))
+	})
 }
 
 func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {

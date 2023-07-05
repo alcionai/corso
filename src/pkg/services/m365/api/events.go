@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -160,15 +161,9 @@ func (c Events) GetContainerByName(
 		return nil, clues.New("container not found").WithClues(ctx)
 	}
 
-	// Return an error if no calendar is found.
-	if len(resp.GetValue()) == 0 {
-		return nil, clues.New("unexpected number of calendars returned").
-			With("returned_container_count", len(gv)).
-			WithClues(ctx)
-	}
-
 	// We only allow the api to match one calendar with the provided name.
 	// If we match multiples, we'll eagerly return the first one.
+	logger.Ctx(ctx).Debugw("calendars matched the name search", "calendar_count", len(gv))
 
 	// Sanity check ID and name
 	cal := gv[0]
