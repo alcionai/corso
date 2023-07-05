@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-// opStatus describes the current status of an operation.
+// OpStatus describes the current status of an operation.
 // InProgress - the standard value for any process that has not
 // arrived at an end state.  The end states are Failed, Completed,
 // or NoData.
@@ -28,11 +28,11 @@ import (
 // For example, if a backup is requested for a specific user's
 // mail, but that account contains zero mail messages, the backup
 // contains No Data.
-type opStatus int
+type OpStatus int
 
-//go:generate stringer -type=opStatus -linecomment
+//go:generate stringer -type=OpStatus -linecomment
 const (
-	Unknown    opStatus = iota // Status Unknown
+	Unknown    OpStatus = iota // Status Unknown
 	InProgress                 // In Progress
 	Completed                  // Completed
 	Failed                     // Failed
@@ -51,7 +51,7 @@ type operation struct {
 
 	Errors  *fault.Bus      `json:"errors"`
 	Options control.Options `json:"options"`
-	Status  opStatus        `json:"status"`
+	Status  OpStatus        `json:"status"`
 
 	bus   events.Eventer
 	kopia *kopia.Wrapper

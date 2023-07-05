@@ -16,9 +16,11 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -28,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -307,7 +310,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	)
 
 	table := []struct {
-		expectStatus opStatus
+		expectStatus OpStatus
 		expectErr    assert.ErrorAssertionFunc
 		stats        backupStats
 		fail         error
@@ -1190,4 +1193,89 @@ func withoutModified(de details.Entry) details.Entry {
 	}
 
 	return de
+}
+
+// ---------------------------------------------------------------------------
+// integration tests
+// ---------------------------------------------------------------------------
+
+type BackupOpIntegrationSuite struct {
+	tester.Suite
+	user, site string
+	ac         api.Client
+}
+
+func TestBackupOpIntegrationSuite(t *testing.T) {
+	suite.Run(t, &BackupOpIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+	})
+}
+
+func (suite *BackupOpIntegrationSuite) SetupSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	suite.user = tester.M365UserID(t)
+	suite.site = tester.M365SiteID(t)
+
+	a := tester.NewM365Account(t)
+
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = &store.Wrapper{}
+		ctrl = &mock.Controller{}
+		acct = tester.NewM365Account(suite.T())
+		opts = control.Defaults()
+	)
+
+	table := []struct {
+		name     string
+		kw       *kopia.Wrapper
+		sw       *store.Wrapper
+		bp       inject.BackupProducer
+		acct     account.Account
+		targets  []string
+		errCheck assert.ErrorAssertionFunc
+	}{
+		{"good", kw, sw, ctrl, acct, nil, assert.NoError},
+		{"missing kopia", nil, sw, ctrl, acct, nil, assert.Error},
+		{"missing modelstore", kw, nil, ctrl, acct, nil, assert.Error},
+		{"missing backup producer", kw, sw, nil, acct, nil, assert.Error},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			sel := selectors.Selector{DiscreteOwner: "test"}
+
+			_, err := NewBackupOperation(
+				ctx,
+				opts,
+				test.kw,
+				test.sw,
+				test.bp,
+				test.acct,
+				sel,
+				sel,
+				evmock.NewBus())
+			test.errCheck(t, err, clues.ToCore(err))
+		})
+	}
 }

@@ -1,0 +1,627 @@
+package test_test
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/alcionai/clues"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/events"
+	evmock "github.com/alcionai/corso/src/internal/events/mock"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365"
+	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/streamstore"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/store"
+)
+
+// Does not use the tester.DefaultTestRestoreDestination syntax as some of these
+// items are created directly, not as a result of restoration, and we want to ensure
+// they get clearly selected without accidental overlap.
+const incrementalsDestContainerPrefix = "incrementals_ci_"
+
+type backupOpDependencies struct {
+	acct account.Account
+	ctrl *m365.Controller
+	kms  *kopia.ModelStore
+	kw   *kopia.Wrapper
+	sel  selectors.Selector
+	sss  streamstore.Streamer
+	st   storage.Storage
+	sw   *store.Wrapper
+
+	closer func()
+}
+
+func (bod *backupOpDependencies) close(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) {
+	bod.closer()
+
+	if bod.kw != nil {
+		err := bod.kw.Close(ctx)
+		assert.NoErrorf(t, err, "kw close: %+v", clues.ToCore(err))
+	}
+
+	if bod.kms != nil {
+		err := bod.kw.Close(ctx)
+		assert.NoErrorf(t, err, "kms close: %+v", clues.ToCore(err))
+	}
+}
+
+// prepNewTestBackupOp generates all clients required to run a backup operation,
+// returning both a backup operation created with those clients, as well as
+// the clients themselves.
+func prepNewTestBackupOp(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	bus events.Eventer,
+	sel selectors.Selector,
+	featureToggles control.Toggles,
+	backupVersion int,
+) (
+	operations.BackupOperation,
+	*backupOpDependencies,
+) {
+	bod := &backupOpDependencies{
+		acct: tester.NewM365Account(t),
+		st:   tester.NewPrefixedS3Storage(t),
+	}
+
+	k := kopia.NewConn(bod.st)
+
+	err := k.Initialize(ctx, repository.Options{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer func() {
+		if err != nil {
+			bod.close(t, ctx)
+			t.FailNow()
+		}
+	}()
+
+	// kopiaRef comes with a count of 1 and Wrapper bumps it again
+	// we're so safe to close here.
+	bod.closer = func() {
+		err := k.Close(ctx)
+		assert.NoErrorf(t, err, "k close: %+v", clues.ToCore(err))
+	}
+
+	bod.kw, err = kopia.NewWrapper(k)
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		return operations.BackupOperation{}, nil
+	}
+
+	bod.kms, err = kopia.NewModelStore(k)
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		return operations.BackupOperation{}, nil
+	}
+
+	bod.sw = store.NewKopiaStore(bod.kms)
+
+	connectorResource := resource.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		connectorResource = resource.Sites
+	}
+
+	bod.ctrl, bod.sel = ControllerWithSelector(
+		t,
+		ctx,
+		bod.acct,
+		connectorResource,
+		sel,
+		nil,
+		bod.close)
+
+	bo := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		bus,
+		featureToggles)
+
+	bod.sss = streamstore.NewStreamer(
+		bod.kw,
+		bod.acct.ID(),
+		bod.sel.PathService())
+
+	return bo, bod
+}
+
+// newTestBackupOp accepts the clients required to compose a backup operation, plus
+// any other metadata, and uses them to generate a new backup operation.  This
+// allows backup chains to utilize the same temp directory and configuration
+// details.
+func newTestBackupOp(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	bod *backupOpDependencies,
+	bus events.Eventer,
+	featureToggles control.Toggles,
+) operations.BackupOperation {
+	opts := control.Defaults()
+
+	opts.ToggleFeatures = featureToggles
+	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
+
+	bo, err := operations.NewBackupOperation(
+		ctx,
+		opts,
+		bod.kw,
+		bod.sw,
+		bod.ctrl,
+		bod.acct,
+		bod.sel,
+		bod.sel,
+		bus)
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		bod.close(t, ctx)
+		t.FailNow()
+	}
+
+	return bo
+}
+
+func runAndCheckBackup(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	bo *operations.BackupOperation,
+	mb *evmock.Bus,
+	acceptNoData bool,
+) {
+	err := bo.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
+	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
+
+	expectStatus := []operations.OpStatus{operations.Completed}
+	if acceptNoData {
+		expectStatus = append(expectStatus, operations.NoData)
+	}
+
+	require.Contains(
+		t,
+		expectStatus,
+		bo.Status,
+		"backup doesn't match expectation, wanted any of %v, got %s",
+		expectStatus,
+		bo.Status)
+
+	require.Less(t, 0, bo.Results.ItemsWritten)
+	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
+	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
+	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
+	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
+	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
+	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		mb.CalledWith[events.BackupStart][0][events.BackupID],
+		bo.Results.BackupID, "backupID pre-declaration")
+}
+
+func checkBackupIsInManifests(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	bo *operations.BackupOperation,
+	sel selectors.Selector,
+	resourceOwner string,
+	categories ...path.CategoryType,
+) {
+	for _, category := range categories {
+		t.Run(category.String(), func(t *testing.T) {
+			var (
+				reasons = []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       sel.PathService(),
+						Category:      category,
+					},
+				}
+				tags  = map[string]string{kopia.TagBackupCategory: ""}
+				found bool
+			)
+
+			bf, err := kw.NewBaseFinder(sw)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mans := bf.FindBases(ctx, reasons, tags)
+			for _, man := range mans.MergeBases() {
+				bID, ok := man.GetTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+					continue
+				}
+
+				if bID == string(bo.Results.BackupID) {
+					found = true
+					break
+				}
+			}
+
+			assert.True(t, found, "backup retrieved by previous snapshot manifest")
+		})
+	}
+}
+
+func checkMetadataFilesExist(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	backupID model.StableID,
+	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
+	tenant, resourceOwner string,
+	service path.ServiceType,
+	filesByCat map[path.CategoryType][]string,
+) {
+	for category, files := range filesByCat {
+		t.Run(category.String(), func(t *testing.T) {
+			bup := &backup.Backup{}
+
+			err := ms.Get(ctx, model.BackupSchema, backupID, bup)
+			if !assert.NoError(t, err, clues.ToCore(err)) {
+				return
+			}
+
+			paths := []path.RestorePaths{}
+			pathsByRef := map[string][]string{}
+
+			for _, fName := range files {
+				p, err := path.Builder{}.
+					Append(fName).
+					ToServiceCategoryMetadataPath(tenant, resourceOwner, service, category, true)
+				if !assert.NoError(t, err, "bad metadata path", clues.ToCore(err)) {
+					continue
+				}
+
+				dir, err := p.Dir()
+				if !assert.NoError(t, err, "parent path", clues.ToCore(err)) {
+					continue
+				}
+
+				paths = append(
+					paths,
+					path.RestorePaths{StoragePath: p, RestorePath: dir})
+				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
+			}
+
+			cols, err := kw.ProduceRestoreCollections(
+				ctx,
+				bup.SnapshotID,
+				paths,
+				nil,
+				fault.New(true))
+			assert.NoError(t, err, clues.ToCore(err))
+
+			for _, col := range cols {
+				itemNames := []string{}
+
+				for item := range col.Items(ctx, fault.New(true)) {
+					assert.Implements(t, (*data.StreamSize)(nil), item)
+
+					s := item.(data.StreamSize)
+					assert.Greaterf(
+						t,
+						s.Size(),
+						int64(0),
+						"empty metadata file: %s/%s",
+						col.FullPath(),
+						item.UUID(),
+					)
+
+					itemNames = append(itemNames, item.UUID())
+				}
+
+				assert.ElementsMatchf(
+					t,
+					pathsByRef[col.FullPath().ShortRef()],
+					itemNames,
+					"collection %s missing expected files",
+					col.FullPath(),
+				)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Incremental Item Generators
+// TODO: this is ripped from factory.go, which is ripped from other tests.
+// At this point, three variation of the sameish code in three locations
+// feels like something we can clean up.  But, it's not a strong need, so
+// this gets to stay for now.
+// ---------------------------------------------------------------------------
+
+// the params here are what generateContainerOfItems passes into the func.
+// the callback provider can use them, or not, as wanted.
+type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
+
+func generateContainerOfItems(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	ctrl *m365.Controller,
+	service path.ServiceType,
+	cat path.CategoryType,
+	sel selectors.Selector,
+	tenantID, resourceOwner, driveID, destFldr string,
+	howManyItems int,
+	backupVersion int,
+	dbf dataBuilderFunc,
+) *details.Details {
+	t.Helper()
+
+	items := make([]incrementalItem, 0, howManyItems)
+
+	for i := 0; i < howManyItems; i++ {
+		id, d := generateItemData(t, cat, resourceOwner, dbf)
+
+		items = append(items, incrementalItem{
+			name: id,
+			data: d,
+		})
+	}
+
+	pathFolders := []string{destFldr}
+
+	switch service {
+	case path.OneDriveService, path.SharePointService:
+		pathFolders = []string{odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
+	}
+
+	collections := []incrementalCollection{{
+		pathFolders: pathFolders,
+		category:    cat,
+		items:       items,
+	}}
+
+	restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
+	restoreCfg.Location = destFldr
+
+	dataColls := buildCollections(
+		t,
+		service,
+		tenantID, resourceOwner,
+		restoreCfg,
+		collections)
+
+	opts := control.Defaults()
+	opts.RestorePermissions = true
+
+	deets, err := ctrl.ConsumeRestoreCollections(
+		ctx,
+		backupVersion,
+		sel,
+		restoreCfg,
+		opts,
+		dataColls,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	// have to wait here, both to ensure the process
+	// finishes, and also to clean up the status
+	ctrl.Wait()
+
+	return deets
+}
+
+func generateItemData(
+	t *testing.T,
+	category path.CategoryType,
+	resourceOwner string,
+	dbf dataBuilderFunc,
+) (string, []byte) {
+	var (
+		now       = dttm.Now()
+		nowLegacy = dttm.FormatToLegacy(time.Now())
+		id        = uuid.NewString()
+		subject   = "incr_test " + now[:16] + " - " + id[:8]
+		body      = "incr_test " + category.String() + " generation for " + resourceOwner + " at " + now + " - " + id
+	)
+
+	return id, dbf(id, nowLegacy, subject, body)
+}
+
+type incrementalItem struct {
+	name string
+	data []byte
+}
+
+type incrementalCollection struct {
+	pathFolders []string
+	category    path.CategoryType
+	items       []incrementalItem
+}
+
+func buildCollections(
+	t *testing.T,
+	service path.ServiceType,
+	tenant, user string,
+	restoreCfg control.RestoreConfig,
+	colls []incrementalCollection,
+) []data.RestoreCollection {
+	t.Helper()
+
+	collections := make([]data.RestoreCollection, 0, len(colls))
+
+	for _, c := range colls {
+		pth := toDataLayerPath(
+			t,
+			service,
+			tenant,
+			user,
+			c.category,
+			c.pathFolders,
+			false)
+
+		mc := exchMock.NewCollection(pth, pth, len(c.items))
+
+		for i := 0; i < len(c.items); i++ {
+			mc.Names[i] = c.items[i].name
+			mc.Data[i] = c.items[i].data
+		}
+
+		collections = append(collections, data.NoFetchRestoreCollection{Collection: mc})
+	}
+
+	return collections
+}
+
+func toDataLayerPath(
+	t *testing.T,
+	service path.ServiceType,
+	tenant, resourceOwner string,
+	category path.CategoryType,
+	elements []string,
+	isItem bool,
+) path.Path {
+	t.Helper()
+
+	var (
+		pb  = path.Builder{}.Append(elements...)
+		p   path.Path
+		err error
+	)
+
+	switch service {
+	case path.ExchangeService:
+		p, err = pb.ToDataLayerExchangePathForCategory(tenant, resourceOwner, category, isItem)
+	case path.OneDriveService:
+		p, err = pb.ToDataLayerOneDrivePath(tenant, resourceOwner, isItem)
+	case path.SharePointService:
+		p, err = pb.ToDataLayerSharePointPath(tenant, resourceOwner, category, isItem)
+	default:
+		err = clues.New(fmt.Sprintf("unknown service: %s", service))
+	}
+
+	require.NoError(t, err, clues.ToCore(err))
+
+	return p
+}
+
+// A QoL builder for live instances that updates
+// the selector's owner id and name in the process
+// to help avoid gotchas.
+func ControllerWithSelector(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	acct account.Account,
+	cr resource.Category,
+	sel selectors.Selector,
+	ins idname.Cacher,
+	onFail func(*testing.T, context.Context),
+) (*m365.Controller, selectors.Selector) {
+	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		if onFail != nil {
+			onFail(t, ctx)
+		}
+
+		t.FailNow()
+	}
+
+	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		if onFail != nil {
+			onFail(t, ctx)
+		}
+
+		t.FailNow()
+	}
+
+	sel = sel.SetDiscreteOwnerIDName(id, name)
+
+	return ctrl, sel
+}
+
+// ---------------------------------------------------------------------------
+// Suite Setup
+// ---------------------------------------------------------------------------
+
+type intgTesterSetup struct {
+	ac                    api.Client
+	gockAC                api.Client
+	userID                string
+	userDriveID           string
+	userDriveRootFolderID string
+	siteID                string
+	siteDriveID           string
+	siteDriveRootFolderID string
+}
+
+func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
+	its := intgTesterSetup{}
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	a := tester.NewM365Account(t)
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.ac, err = api.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.gockAC, err = mock.NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// user drive
+
+	its.userID = tester.M365UserID(t)
+
+	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.userDriveID = ptr.Val(userDrive.GetId())
+
+	userDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.userDriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
+
+	its.siteID = tester.M365SiteID(t)
+
+	// site
+
+	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.siteID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.siteDriveID = ptr.Val(siteDrive.GetId())
+
+	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.siteDriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+
+	return its
+}

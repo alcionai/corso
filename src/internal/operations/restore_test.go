@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
@@ -56,7 +57,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	)
 
 	table := []struct {
-		expectStatus opStatus
+		expectStatus OpStatus
 		expectErr    assert.ErrorAssertionFunc
 		stats        restoreStats
 		fail         error
@@ -169,6 +170,8 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	var (
 		st = tester.NewPrefixedS3Storage(t)
@@ -467,7 +470,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		suite.acct,
 		resource.Users,
 		rsel.PathService(),
-		control.Options{})
+		control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

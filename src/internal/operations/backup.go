@@ -45,12 +45,12 @@ type BackupOperation struct {
 	Selectors selectors.Selector `json:"selectors"`
 	Version   string             `json:"version"`
 
-	// backupVersion ONLY controls the value that gets persisted to the
+	// BackupVersion ONLY controls the value that gets persisted to the
 	// backup model after operation.  It does NOT modify the operation behavior
 	// to match the version.  Its inclusion here is, unfortunately, purely to
 	// facilitate integration testing that requires a certain backup version, and
 	// should be removed when we have a more controlled workaround.
-	backupVersion int
+	BackupVersion int
 
 	account account.Account
 	bp      inject.BackupProducer
@@ -83,7 +83,7 @@ func NewBackupOperation(
 		ResourceOwner: owner,
 		Selectors:     selector,
 		Version:       "v0",
-		backupVersion: version.Backup,
+		BackupVersion: version.Backup,
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
 		bp:            bp,
@@ -258,7 +258,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
-		op.backupVersion,
+		op.BackupVersion,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
