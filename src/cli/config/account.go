@@ -16,11 +16,6 @@ import (
 func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 	var m365 account.M365Config
 
-	providerType := vpr.GetString(AccountProviderTypeKey)
-	if providerType != account.ProviderM365.String() {
-		return m365, clues.New("unsupported account provider: " + providerType)
-	}
-
 	m365.AzureClientID = vpr.GetString(AzureClientID)
 	m365.AzureClientSecret = vpr.GetString(AzureSecret)
 	m365.AzureTenantID = vpr.GetString(AzureTenantIDKey)
@@ -58,6 +53,11 @@ func configureAccount(
 	}
 
 	if matchFromConfig {
+		providerType := vpr.GetString(AccountProviderTypeKey)
+		if providerType != account.ProviderM365.String() {
+			return acct, clues.New("unsupported account provider: " + providerType)
+		}
+
 		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
 			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 		}
