@@ -1382,10 +1382,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_OneDriveExtensions() {
 			// Check that the extensions are in the backup
 			itemInfo := ent.ItemInfo
 			assert.NotNil(t, itemInfo.OneDrive, "nil onedrive info")
-			assert.NotNil(t, itemInfo.OneDrive.Extension, "nil onedrive extension")
+			assert.NotNil(t, itemInfo.Extension, "nil onedrive extension")
 
 			// Hacky way to get the size from the extension
-			sizeFromExtension := int64(itemInfo.OneDrive.Extension.Data["NumBytes"].(float64))
+			sizeFromExtension := int64(itemInfo.Extension.Data["NumBytes"].(float64))
 			assert.Equal(t, itemInfo.OneDrive.Size, sizeFromExtension, "incorrect data in extension")
 		}
 	}

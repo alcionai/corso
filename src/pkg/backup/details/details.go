@@ -704,6 +704,7 @@ type ItemInfo struct {
 	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
 	SharePoint *SharePointInfo `json:"sharePoint,omitempty"`
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
+	Extension  *ExtensionInfo  `json:"extension,omitempty"`
 }
 
 // typedInfo should get embedded in each sesrvice type to track
@@ -974,17 +975,16 @@ func (i *SharePointInfo) updateFolder(f *FolderInfo) error {
 
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
-	Created    time.Time      `json:"created,omitempty"`
-	DriveID    string         `json:"driveID,omitempty"`
-	DriveName  string         `json:"driveName,omitempty"`
-	IsMeta     bool           `json:"isMeta,omitempty"`
-	ItemName   string         `json:"itemName,omitempty"`
-	ItemType   ItemType       `json:"itemType,omitempty"`
-	Modified   time.Time      `json:"modified,omitempty"`
-	Owner      string         `json:"owner,omitempty"`
-	ParentPath string         `json:"parentPath"`
-	Size       int64          `json:"size,omitempty"`
-	Extension  *ExtensionInfo `json:"extension,omitempty"`
+	Created    time.Time `json:"created,omitempty"`
+	DriveID    string    `json:"driveID,omitempty"`
+	DriveName  string    `json:"driveName,omitempty"`
+	IsMeta     bool      `json:"isMeta,omitempty"`
+	ItemName   string    `json:"itemName,omitempty"`
+	ItemType   ItemType  `json:"itemType,omitempty"`
+	Modified   time.Time `json:"modified,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
+	ParentPath string    `json:"parentPath"`
+	Size       int64     `json:"size,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a OneDriveInfo

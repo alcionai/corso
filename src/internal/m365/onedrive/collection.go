@@ -549,11 +549,12 @@ func (oc *Collection) populateDriveItem(
 					itemInfo,
 					itemExtensionFactory)
 				if err != nil {
+					el.AddRecoverable(ctx, clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation))
 					return nil, clues.Stack(err).WithClues(ctx)
 				}
 
 				itemData = extRc
-				itemInfo.OneDrive.Extension = extInfo
+				itemInfo.Extension = extInfo
 			}
 
 			// display/log the item download
