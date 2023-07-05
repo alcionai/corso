@@ -339,7 +339,12 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 			defer gock.Off()
 			tt.setupf()
 
-			item, _, err := suite.its.ac.Mail().GetItem(ctx, "user", mid, false, fault.New(true))
+			item, _, err := suite.its.gockAC.Mail().GetItem(
+				ctx,
+				"user",
+				mid,
+				false,
+				fault.New(true))
 			tt.expect(t, err)
 
 			it, ok := item.(models.Messageable)
