@@ -292,7 +292,7 @@ func (op *BackupOperation) do(
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
 
-	kbf, err := op.kopia.NewBaseFinder(op.Store)
+	kbf, err := op.kopia.NewBaseFinder(op.store)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -894,7 +894,7 @@ func (op *BackupOperation) createBackupModels(
 
 	logger.Ctx(ctx).Info("creating new backup")
 
-	if err = op.Store.Put(ctx, model.BackupSchema, b); err != nil {
+	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
 

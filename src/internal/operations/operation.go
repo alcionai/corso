@@ -55,7 +55,7 @@ type operation struct {
 
 	bus   events.Eventer
 	kopia *kopia.Wrapper
-	Store *store.Wrapper
+	store *store.Wrapper
 }
 
 func newOperation(
@@ -71,7 +71,7 @@ func newOperation(
 
 		bus:   bus,
 		kopia: kw,
-		Store: sw,
+		store: sw,
 
 		Status: InProgress,
 	}
@@ -82,7 +82,7 @@ func (op operation) validate() error {
 		return clues.New("missing kopia connection")
 	}
 
-	if op.Store == nil {
+	if op.store == nil {
 		return clues.New("missing modelstore")
 	}
 

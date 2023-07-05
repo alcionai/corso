@@ -96,9 +96,17 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, _, kw, _, _, _, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
-	defer closer()
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
+	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(t, ctx, kw, &bo, sels, suite.its.siteID, path.LibrariesCategory)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		suite.its.siteID,
+		path.LibrariesCategory)
 }
