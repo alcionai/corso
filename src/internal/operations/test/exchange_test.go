@@ -105,23 +105,33 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, acct, kw, ms, ss, ctrl, sel, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
-			defer closer()
+			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+			defer bod.close(t, ctx)
+
+			sel = bod.sel
 
 			userID := sel.ID()
 
-			m365, err := acct.M365Config()
+			m365, err := bod.acct.M365Config()
 			require.NoError(t, err, clues.ToCore(err))
 
 			// run the tests
 			runAndCheckBackup(t, ctx, &bo, mb, false)
-			checkBackupIsInManifests(t, ctx, kw, &bo, sel, userID, test.category)
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&bo,
+				sel,
+				userID,
+				test.category)
 			checkMetadataFilesExist(
 				t,
 				ctx,
 				bo.Results.BackupID,
-				kw,
-				ms,
+				bod.kw,
+				bod.kms,
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
@@ -131,30 +141,51 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				t,
 				ctx,
 				bo.Results.BackupID,
-				acct.ID(),
+				bod.acct.ID(),
 				userID,
 				path.ExchangeService,
 				whatSet,
-				ms,
-				ss)
-			deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, whatSet, ms, ss, expectDeets, false)
+				bod.kms,
+				bod.sss)
+			deeTD.CheckBackupDetails(
+				t,
+				ctx,
+				bo.Results.BackupID,
+				whatSet,
+				bod.kms,
+				bod.sss,
+				expectDeets,
+				false)
 
 			// Basic, happy path incremental test.  No changes are dictated or expected.
 			// This only tests that an incremental backup is runnable at all, and that it
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(
+					t,
+					ctx,
+					bod,
+					incMB,
+					ffs)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, userID, test.category)
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&incBO,
+				sel,
+				userID,
+				test.category)
 			checkMetadataFilesExist(
 				t,
 				ctx,
 				incBO.Results.BackupID,
-				kw,
-				ms,
+				bod.kw,
+				bod.kms,
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
@@ -164,8 +195,8 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				ctx,
 				incBO.Results.BackupID,
 				whatSet,
-				ms,
-				ss,
+				bod.kms,
+				bod.sss,
 				expectDeets,
 				false)
 
@@ -345,8 +376,8 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, acct, kw, ms, ss, ctrl, sels, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
-	defer closer()
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
+	defer bod.close(t, ctx)
 
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -356,7 +387,16 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	// strip the category from the prefix; we primarily want the tenant and resource owner.
 	expectDeets := deeTD.NewInDeets(rrPfx.ToBuilder().Dir().String())
-	bupDeets, _ := deeTD.GetDeetsInBackup(t, ctx, bo.Results.BackupID, acct.ID(), uidn.ID(), service, whatSet, ms, ss)
+	bupDeets, _ := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		acct.ID(),
+		uidn.ID(),
+		service,
+		whatSet,
+		bod.kms,
+		bod.sss)
 
 	// update the datasets with their location refs
 	for category, gen := range dataset {
@@ -420,7 +460,15 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	// precheck to ensure the expectedDeets are correct.
 	// if we fail here, the expectedDeets were populated incorrectly.
-	deeTD.CheckBackupDetails(t, ctx, bo.Results.BackupID, whatSet, ms, ss, expectDeets, true)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		whatSet,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		true)
 
 	// Although established as a table, these tests are not isolated from each other.
 	// Assume that every test's side effects cascade to all following test cases.
@@ -719,7 +767,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sels, incMB, toggles, closer)
+			incBO := newTestBackupOp(t, ctx, bod, incMB, toggles)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
@@ -735,9 +783,34 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 			bupID := incBO.Results.BackupID
 
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sels, uidn.ID(), maps.Keys(categories)...)
-			checkMetadataFilesExist(t, ctx, bupID, kw, ms, atid, uidn.ID(), service, categories)
-			deeTD.CheckBackupDetails(t, ctx, bupID, whatSet, ms, ss, expectDeets, true)
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&incBO,
+				sels,
+				uidn.ID(),
+				maps.Keys(categories)...)
+			checkMetadataFilesExist(
+				t,
+				ctx,
+				bupID,
+				bod.kw,
+				bod.kms,
+				atid,
+				uidn.ID(),
+				service,
+				categories)
+			deeTD.CheckBackupDetails(
+				t,
+				ctx,
+				bupID,
+				whatSet,
+				bod.kms,
+				bod.sss,
+				expectDeets,
+				true)
 
 			// FIXME: commented tests are flaky due to delta calls retaining data that is
 			// out of scope of the test data.

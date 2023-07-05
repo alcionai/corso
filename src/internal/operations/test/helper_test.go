@@ -37,6 +37,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -44,6 +45,36 @@ import (
 // items are created directly, not as a result of restoration, and we want to ensure
 // they get clearly selected without accidental overlap.
 const incrementalsDestContainerPrefix = "incrementals_ci_"
+
+type backupOpDependencies struct {
+	acct account.Account
+	ctrl *m365.Controller
+	kms  *kopia.ModelStore
+	kw   *kopia.Wrapper
+	sel  selectors.Selector
+	sss  streamstore.Streamer
+	st   storage.Storage
+	sw   *store.Wrapper
+
+	closer func()
+}
+
+func (bod *backupOpDependencies) close(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) {
+	bod.closer()
+
+	if bod.kw != nil {
+		err := bod.kw.Close(ctx)
+		assert.NoErrorf(t, err, "kw close: %+v", clues.ToCore(err))
+	}
+
+	if bod.kms != nil {
+		err := bod.kw.Close(ctx)
+		assert.NoErrorf(t, err, "kms close: %+v", clues.ToCore(err))
+	}
+}
 
 // prepNewTestBackupOp generates all clients required to run a backup operation,
 // returning both a backup operation created with those clients, as well as
@@ -57,62 +88,71 @@ func prepNewTestBackupOp(
 	backupVersion int,
 ) (
 	operations.BackupOperation,
-	account.Account,
-	*kopia.Wrapper,
-	*kopia.ModelStore,
-	streamstore.Streamer,
-	*m365.Controller,
-	selectors.Selector,
-	func(),
+	*backupOpDependencies,
 ) {
-	var (
-		acct = tester.NewM365Account(t)
-		// need to initialize the repository before we can test connecting to it.
-		st = tester.NewPrefixedS3Storage(t)
-		k  = kopia.NewConn(st)
-	)
+	bod := &backupOpDependencies{
+		acct: tester.NewM365Account(t),
+		st:   tester.NewPrefixedS3Storage(t),
+	}
+
+	k := kopia.NewConn(bod.st)
 
 	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
-	// to close here.
-	closer := func() { k.Close(ctx) }
+	defer func() {
+		if err != nil {
+			bod.close(t, ctx)
+			t.FailNow()
+		}
+	}()
 
-	kw, err := kopia.NewWrapper(k)
+	// kopiaRef comes with a count of 1 and Wrapper bumps it again
+	// we're so safe to close here.
+	bod.closer = func() {
+		err := k.Close(ctx)
+		assert.NoErrorf(t, err, "k close: %+v", clues.ToCore(err))
+	}
+
+	bod.kw, err = kopia.NewWrapper(k)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
-		closer()
-		t.FailNow()
+		return operations.BackupOperation{}, nil
 	}
 
-	closer = func() {
-		k.Close(ctx)
-		kw.Close(ctx)
-	}
-
-	ms, err := kopia.NewModelStore(k)
+	bod.kms, err = kopia.NewModelStore(k)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
-		closer()
-		t.FailNow()
+		return operations.BackupOperation{}, nil
 	}
 
-	closer = func() {
-		k.Close(ctx)
-		kw.Close(ctx)
-		ms.Close(ctx)
-	}
+	bod.sw = store.NewKopiaStore(bod.kms)
 
 	connectorResource := resource.Users
 	if sel.Service == selectors.ServiceSharePoint {
 		connectorResource = resource.Sites
 	}
 
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, connectorResource, sel, nil, closer)
-	bo := newTestBackupOp(t, ctx, kw, ms, ctrl, acct, sel, bus, featureToggles, closer)
+	bod.ctrl, bod.sel = ControllerWithSelector(
+		t,
+		ctx,
+		bod.acct,
+		connectorResource,
+		sel,
+		nil,
+		bod.close)
 
-	ss := streamstore.NewStreamer(kw, acct.ID(), sel.PathService())
+	bo := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		bus,
+		featureToggles)
 
-	return bo, acct, kw, ms, ss, ctrl, sel, closer
+	bod.sss = streamstore.NewStreamer(
+		bod.kw,
+		bod.acct.ID(),
+		bod.sel.PathService())
+
+	return bo, bod
 }
 
 // newTestBackupOp accepts the clients required to compose a backup operation, plus
@@ -122,26 +162,27 @@ func prepNewTestBackupOp(
 func newTestBackupOp(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	kw *kopia.Wrapper,
-	ms *kopia.ModelStore,
-	ctrl *m365.Controller,
-	acct account.Account,
-	sel selectors.Selector,
+	bod *backupOpDependencies,
 	bus events.Eventer,
 	featureToggles control.Toggles,
-	closer func(),
 ) operations.BackupOperation {
-	var (
-		sw   = store.NewKopiaStore(ms)
-		opts = control.Defaults()
-	)
+	opts := control.Defaults()
 
 	opts.ToggleFeatures = featureToggles
-	ctrl.IDNameLookup = idname.NewCache(map[string]string{sel.ID(): sel.Name()})
+	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
 
-	bo, err := operations.NewBackupOperation(ctx, opts, kw, sw, ctrl, acct, sel, sel, bus)
+	bo, err := operations.NewBackupOperation(
+		ctx,
+		opts,
+		bod.kw,
+		bod.sw,
+		bod.ctrl,
+		bod.acct,
+		bod.sel,
+		bod.sel,
+		bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
-		closer()
+		bod.close(t, ctx)
 		t.FailNow()
 	}
 
@@ -191,6 +232,7 @@ func checkBackupIsInManifests(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
+	sw *store.Wrapper,
 	bo *operations.BackupOperation,
 	sel selectors.Selector,
 	resourceOwner string,
@@ -210,7 +252,7 @@ func checkBackupIsInManifests(
 				found bool
 			)
 
-			bf, err := kw.NewBaseFinder(bo.Store)
+			bf, err := kw.NewBaseFinder(sw)
 			require.NoError(t, err, clues.ToCore(err))
 
 			mans := bf.FindBases(ctx, reasons, tags)
@@ -495,12 +537,12 @@ func ControllerWithSelector(
 	cr resource.Category,
 	sel selectors.Selector,
 	ins idname.Cacher,
-	onFail func(),
+	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
 	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
-			onFail()
+			onFail(t, ctx)
 		}
 
 		t.FailNow()
@@ -509,7 +551,7 @@ func ControllerWithSelector(
 	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
-			onFail()
+			onFail(t, ctx)
 		}
 
 		t.FailNow()
