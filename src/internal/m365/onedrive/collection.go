@@ -554,7 +554,7 @@ func (oc *Collection) populateDriveItem(
 				}
 
 				itemData = extRc
-				itemInfo.Extension = extInfo
+				itemInfo.Extension.Data = extInfo.Data
 			}
 
 			// display/log the item download
