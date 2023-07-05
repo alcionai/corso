@@ -66,7 +66,9 @@ func (me *MockExtension) Close() error {
 }
 
 type MockItemExtensionFactory struct {
-	shouldReturnError bool
+	FailOnFactoryCreation bool
+	FailOnRead            bool
+	FailOnClose           bool
 }
 
 func (m *MockItemExtensionFactory) CreateItemExtension(
@@ -75,14 +77,16 @@ func (m *MockItemExtensionFactory) CreateItemExtension(
 	info details.ItemInfo,
 	extInfo *details.ExtensionInfo,
 ) (io.ReadCloser, error) {
-	if m.shouldReturnError {
+	if m.FailOnFactoryCreation {
 		return nil, clues.New("factory error")
 	}
 
 	return &MockExtension{
-		Ctx:     ctx,
-		InnerRc: rc,
-		Info:    info,
-		ExtInfo: extInfo,
+		Ctx:         ctx,
+		InnerRc:     rc,
+		Info:        info,
+		ExtInfo:     extInfo,
+		FailOnRead:  m.FailOnRead,
+		FailOnClose: m.FailOnClose,
 	}, nil
 }
