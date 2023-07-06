@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -36,8 +35,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddBackupIDFlag(c, true)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 		flags.AddRestorePermissionsFlag(c)
+		flags.AddRestoreConfigFlags(c)
 		flags.AddFailFastFlag(c)
-
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -107,11 +106,10 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
-	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
-
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+
+	restoreCfg := utils.MakeRestoreConfig(ctx, opts.RestoreCfg, dttm.HumanReadableDriveItem)
 
 	ro, err := r.NewRestore(ctx, flags.BackupIDFV, sel.Selector, restoreCfg)
 	if err != nil {
