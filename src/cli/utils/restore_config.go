@@ -15,6 +15,10 @@ import (
 type RestoreCfgOpts struct {
 	Collisions  string
 	Destination string
+	// DTTMFormat is the timestamp format appended
+	// to the default folder name.  Defaults to
+	// dttm.HumanReadable.
+	DTTMFormat dttm.TimeFormat
 
 	Populated flags.PopulatedFlags
 }
@@ -23,6 +27,7 @@ func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 	return RestoreCfgOpts{
 		Collisions:  flags.CollisionsFV,
 		Destination: flags.DestinationFV,
+		DTTMFormat:  dttm.HumanReadable,
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate
@@ -47,9 +52,12 @@ func validateRestoreConfigFlags(fv string, opts RestoreCfgOpts) error {
 func MakeRestoreConfig(
 	ctx context.Context,
 	opts RestoreCfgOpts,
-	locationTimeFormat dttm.TimeFormat,
 ) control.RestoreConfig {
-	restoreCfg := control.DefaultRestoreConfig(locationTimeFormat)
+	if len(opts.DTTMFormat) == 0 {
+		opts.DTTMFormat = dttm.HumanReadable
+	}
+
+	restoreCfg := control.DefaultRestoreConfig(opts.DTTMFormat)
 
 	if _, ok := opts.Populated[flags.CollisionsFN]; ok {
 		restoreCfg.OnCollision = control.CollisionPolicy(opts.Collisions)

@@ -1,7 +1,19 @@
 package restore
 
 import (
+	"context"
+
+	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/src/cli/flags"
+	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
@@ -38,4 +50,48 @@ func restoreCmd() *cobra.Command {
 // Produces the same output as `corso restore --help`.
 func handleRestoreCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
+}
+
+// ---------------------------------------------------------------------------
+// common handlers
+// ---------------------------------------------------------------------------
+
+func runRestore(
+	ctx context.Context,
+	cmd *cobra.Command,
+	urco utils.RestoreCfgOpts,
+	sel selectors.Selector,
+	backupID, serviceName string,
+) error {
+	r, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	ro, err := r.NewRestore(ctx, backupID, sel, utils.MakeRestoreConfig(ctx, urco))
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to initialize "+serviceName+" restore"))
+	}
+
+	ds, err := ro.Run(ctx)
+	if err != nil {
+		if errors.Is(err, data.ErrNotFound) {
+			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
+		}
+
+		return Only(ctx, clues.Wrap(err, "Failed to run "+serviceName+" restore"))
+	}
+
+	Info(ctx, "Completed Restore:")
+
+	skipped := ro.Counter.Get(count.CollisionSkip)
+	if skipped > 0 {
+		Infof(ctx, "Skipped %d items due to collision", skipped)
+	}
+
+	ds.Items().MaybePrintEntries(ctx)
+
+	return nil
 }

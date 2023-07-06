@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 )
@@ -129,7 +128,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			opts := *rco
 			opts.Populated = test.populated
 
-			result := MakeRestoreConfig(ctx, opts, dttm.HumanReadable)
+			result := MakeRestoreConfig(ctx, opts)
 			assert.Equal(t, test.expect.OnCollision, result.OnCollision)
 			assert.Contains(t, result.Location, test.expect.Location)
 		})
