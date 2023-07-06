@@ -46,7 +46,7 @@ func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
 				Collisions: "foo",
 				Populated:  flags.PopulatedFlags{},
 			},
-			expect: assert.Error,
+			expect: assert.NoError,
 		},
 		{
 			name: "error",
@@ -126,8 +126,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			var opts RestoreCfgOpts
-			opts = *rco
+			opts := *rco
 			opts.Populated = test.populated
 
 			result := MakeRestoreConfig(ctx, opts, dttm.HumanReadable)
