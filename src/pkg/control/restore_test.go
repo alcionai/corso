@@ -1,4 +1,4 @@
-package test
+package control_test
 
 import (
 	"testing"
@@ -10,15 +10,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 )
 
-type OptionsUnitSuite struct {
+type RestoreUnitSuite struct {
 	tester.Suite
 }
 
-func TestOptionsUnitSuite(t *testing.T) {
-	suite.Run(t, &OptionsUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestRestoreUnitSuite(t *testing.T) {
+	suite.Run(t, &RestoreUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OptionsUnitSuite) TestEnsureRestoreConfigDefaults() {
+func (suite *RestoreUnitSuite) TestEnsureRestoreConfigDefaults() {
 	table := []struct {
 		name   string
 		input  control.RestoreConfig
@@ -66,6 +66,21 @@ func (suite *OptionsUnitSuite) TestEnsureRestoreConfigDefaults() {
 				OnCollision:       control.Skip,
 				ProtectedResource: "",
 				Location:          "",
+				Drive:             "",
+			},
+		},
+		{
+			name: "populated with slash prefix, then modified",
+			input: control.RestoreConfig{
+				OnCollision:       control.CollisionPolicy("batman"),
+				ProtectedResource: "",
+				Location:          "/smarfs",
+				Drive:             "",
+			},
+			expect: control.RestoreConfig{
+				OnCollision:       control.Skip,
+				ProtectedResource: "",
+				Location:          "smarfs",
 				Drive:             "",
 			},
 		},
