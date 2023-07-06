@@ -4,6 +4,7 @@ package extensions
 
 import (
 	"bytes"
+	"errors"
 	"hash/crc32"
 	"io"
 	"testing"
@@ -27,7 +28,7 @@ func TestExtensionsUnitSuite(t *testing.T) {
 func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 	type outputValidationFunc func(
 		extRc io.ReadCloser,
-		extInfo *details.ExtensionInfo,
+		extData *details.ExtensionData,
 		err error,
 	) bool
 
@@ -54,10 +55,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err == nil && extRc != nil && extInfo != nil
+				return err == nil && extRc != nil && extData != nil
 			},
 		},
 		{
@@ -69,10 +70,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err == nil && extRc != nil && extInfo != nil
+				return err == nil && extRc != nil && extData != nil
 			},
 		},
 		{
@@ -81,10 +82,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc:        testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -97,10 +98,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -113,10 +114,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -130,10 +131,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -144,10 +145,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: nil,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 	}
@@ -158,12 +159,12 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			extRc, extInfo, err := AddItemExtensions(
+			extRc, extData, err := AddItemExtensions(
 				ctx,
 				test.rc,
 				testItemInfo,
 				test.factories)
-			require.True(t, test.validateOutputs(extRc, extInfo, err))
+			require.True(t, test.validateOutputs(extRc, extData, err))
 		})
 	}
 }
@@ -171,11 +172,13 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 func readFrom(rc io.ReadCloser) error {
 	defer rc.Close()
 
+	var err error
+
 	p := make([]byte, 4)
 
-	for {
+	for err == nil {
 		_, err := rc.Read(p)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 
@@ -214,7 +217,7 @@ func (suite *ExtensionsUnitSuite) TestReadCloserWrappers() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			extRc, extInfo, err := AddItemExtensions(
+			extRc, extData, err := AddItemExtensions(
 				ctx,
 				test.rc,
 				details.ItemInfo{},
@@ -225,8 +228,8 @@ func (suite *ExtensionsUnitSuite) TestReadCloserWrappers() {
 			test.check(t, err, clues.ToCore(err))
 
 			if err == nil {
-				require.Equal(suite.T(), len(test.payload), int(extInfo.Data["NumBytes"].(int64)))
-				c := extInfo.Data["Crc32"].(uint32)
+				require.Equal(suite.T(), len(test.payload), int(extData.Data[KNumBytes].(int64)))
+				c := extData.Data[KCrc32].(uint32)
 				require.Equal(suite.T(), c, crc32.ChecksumIEEE(test.payload))
 			}
 		})

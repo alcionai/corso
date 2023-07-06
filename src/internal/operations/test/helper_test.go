@@ -639,13 +639,13 @@ func verifyExtensionData(
 	itemInfo details.ItemInfo,
 	p path.ServiceType,
 ) {
-	assert.NotNil(t, itemInfo.Extension, "nil extension")
-	assert.NotNil(t, itemInfo.Extension.Data["NumBytes"], "key not found in extension")
-	eSize := int64(itemInfo.Extension.Data["NumBytes"].(float64))
+	require.NotNil(t, itemInfo.Extension, "nil extension")
+	assert.NotNil(t, itemInfo.Extension.Data[extensions.KNumBytes], "key not found in extension")
+	actualSize := int64(itemInfo.Extension.Data[extensions.KNumBytes].(float64))
 
 	if p == path.SharePointService {
-		assert.Equal(t, itemInfo.SharePoint.Size, eSize, "incorrect data in extension")
+		assert.Equal(t, itemInfo.SharePoint.Size, actualSize, "incorrect data in extension")
 	} else {
-		assert.Equal(t, itemInfo.OneDrive.Size, eSize, "incorrect data in extension")
+		assert.Equal(t, itemInfo.OneDrive.Size, actualSize, "incorrect data in extension")
 	}
 }

@@ -310,7 +310,7 @@ func augmentItemInfo(
 		WebURL:     weburl,
 	}
 
-	dii.Extension = &details.ExtensionInfo{}
+	dii.Extension = &details.ExtensionData{}
 
 	return dii
 }

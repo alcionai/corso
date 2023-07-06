@@ -543,18 +543,19 @@ func (oc *Collection) populateDriveItem(
 
 			// Add per item extensions if available
 			if len(itemExtensionFactory) > 0 {
-				extRc, extInfo, err := extensions.AddItemExtensions(
+				extRc, extData, err := extensions.AddItemExtensions(
 					ctx,
 					rc,
 					itemInfo,
 					itemExtensionFactory)
 				if err != nil {
-					el.AddRecoverable(ctx, clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation))
-					return nil, clues.Stack(err).WithClues(ctx)
+					err := clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation)
+					el.AddRecoverable(ctx, err)
+					return nil, err
 				}
 
 				itemData = extRc
-				itemInfo.Extension.Data = extInfo.Data
+				itemInfo.Extension.Data = extData.Data
 			}
 
 			// display/log the item download

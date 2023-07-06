@@ -47,7 +47,10 @@ type BackupHandler struct {
 
 func DefaultOneDriveBH() *BackupHandler {
 	return &BackupHandler{
-		ItemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{}, Extension: &details.ExtensionInfo{}},
+		ItemInfo: details.ItemInfo{
+			OneDrive:  &details.OneDriveInfo{},
+			Extension: &details.ExtensionData{},
+		},
 		GI:           GetsItem{Err: clues.New("not defined")},
 		GIP:          GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn: defaultOneDrivePathPrefixer,
@@ -62,7 +65,10 @@ func DefaultOneDriveBH() *BackupHandler {
 
 func DefaultSharePointBH() *BackupHandler {
 	return &BackupHandler{
-		ItemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{}, Extension: &details.ExtensionInfo{}},
+		ItemInfo: details.ItemInfo{
+			SharePoint: &details.SharePointInfo{},
+			Extension:  &details.ExtensionData{},
+		},
 		GI:           GetsItem{Err: clues.New("not defined")},
 		GIP:          GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn: defaultSharePointPathPrefixer,

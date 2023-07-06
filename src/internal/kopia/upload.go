@@ -72,14 +72,16 @@ func (rw *backupStreamReader) Close() error {
 
 	rw.combined = nil
 
+	var outerErr error
+
 	for _, r := range rw.readers {
 		err := r.Close()
 		if err != nil {
-			return clues.Wrap(err, "closing reader")
+			outerErr = clues.Stack(err, clues.New("closing reader"))
 		}
 	}
 
-	return nil
+	return outerErr
 }
 
 // restoreStreamReader is a wrapper around the io.Reader that kopia returns when
