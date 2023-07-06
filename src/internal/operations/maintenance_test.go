@@ -11,8 +11,10 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type MaintenanceOpIntegrationSuite struct {
@@ -23,7 +25,7 @@ func TestMaintenanceOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &MaintenanceOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -31,7 +33,7 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 	var (
 		t = suite.T()
 		// need to initialize the repository before we can test connecting to it.
-		st = tester.NewPrefixedS3Storage(t)
+		st = storeTD.NewPrefixedS3Storage(t)
 		k  = kopia.NewConn(st)
 	)
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -20,7 +21,7 @@ type BetaClientSuite struct {
 
 func TestBetaClientSuite(t *testing.T) {
 	suite.Run(t, &BetaClientSuite{
-		Suite: tester.NewIntegrationSuite(t, [][]string{tester.M365AcctCredEnvs}),
+		Suite: tester.NewIntegrationSuite(t, [][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -32,7 +33,7 @@ func (suite *BetaClientSuite) SetupSuite() {
 
 	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 
-	a := tester.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -71,7 +72,7 @@ func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 	client := NewBetaClient(adpt)
 	require.NotNil(t, client)
 
-	siteID := tester.M365SiteID(t)
+	siteID := tconfig.M365SiteID(t)
 
 	// TODO(dadams39) document allowable calls in main
 	collection, err := client.SitesById(siteID).Pages().Get(ctx, nil)

@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
+	"github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 func prepM365Test(
@@ -29,8 +30,8 @@ func prepM365Test(
 	string,
 ) {
 	var (
-		acct     = tester.NewM365Account(t)
-		st       = tester.NewPrefixedS3Storage(t)
+		acct     = tconfig.NewM365Account(t)
+		st       = testdata.NewPrefixedS3Storage(t)
 		recorder = strings.Builder{}
 	)
 
@@ -38,12 +39,12 @@ func prepM365Test(
 	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
+		tconfig.TestCfgAccountProvider: "M365",
+		tconfig.TestCfgStorageProvider: "S3",
+		tconfig.TestCfgPrefix:          cfg.Prefix,
 	}
 
-	vpr, cfgFP := tester.MakeTempTestConfigClone(t, force)
+	vpr, cfgFP := tconfig.MakeTempTestConfigClone(t, force)
 	ctx = config.SetViper(ctx, vpr)
 
 	repo, err := repository.Initialize(ctx, acct, st, control.Defaults())

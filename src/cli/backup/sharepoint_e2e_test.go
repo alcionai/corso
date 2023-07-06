@@ -16,14 +16,17 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -44,7 +47,7 @@ type NoBackupSharePointE2ESuite struct {
 func TestNoBackupSharePointE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupSharePointE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 	)})
 }
 
@@ -62,7 +65,7 @@ func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 	suite.vpr = vpr
 	suite.recorder = recorder
 	suite.cfgFP = cfgFilePath
-	suite.m365SiteID = tester.M365SiteID(t)
+	suite.m365SiteID = tconfig.M365SiteID(t)
 }
 
 func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
@@ -75,7 +78,7 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 
 	suite.recorder.Reset()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "list", "sharepoint",
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
@@ -113,7 +116,7 @@ func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteSharePointE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -133,7 +136,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	suite.cfgFP = cfgFilePath
 
 	var (
-		m365SiteID = tester.M365SiteID(t)
+		m365SiteID = tconfig.M365SiteID(t)
 		sites      = []string{m365SiteID}
 		ins        = idname.NewCache(map[string]string{m365SiteID: m365SiteID})
 	)
@@ -161,7 +164,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 
 	suite.recorder.Reset()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
 		"--config-file", suite.cfgFP,
 		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
@@ -185,7 +188,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 
 // moved out of the func above to make the linter happy
 // // a follow-up details call should fail, due to the backup ID being deleted
-// cmd = tester.StubRootCmd(
+// cmd = cliTD.StubRootCmd(
 // 	"backup", "details", "sharepoint",
 // 	"--config-file", suite.cfgFP,
 // 	"--backup", string(suite.backupOp.Results.BackupID))
@@ -202,7 +205,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unkno
 
 	defer flush()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
 		"--config-file", suite.cfgFP,
 		"--"+flags.BackupFN, uuid.NewString())

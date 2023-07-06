@@ -16,6 +16,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -228,7 +229,7 @@ func TestEventsAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &EventsAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -242,7 +243,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	userID := tester.M365UserID(suite.T())
+	userID := tconfig.M365UserID(suite.T())
 
 	folderName := testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
 	evts := suite.its.ac.Events()

@@ -1,4 +1,4 @@
-package tester
+package tconfig
 
 import (
 	"os"
@@ -87,7 +87,7 @@ func NewTestViper() (*viper.Viper, error) {
 // reads a corso configuration file with values specific to
 // local integration test controls.  Populates values with
 // defaults where standard.
-func readTestConfig() (map[string]string, error) {
+func ReadTestConfig() (map[string]string, error) {
 	if testConfig != nil {
 		return cloneTestConfig(), nil
 	}
@@ -177,7 +177,7 @@ func readTestConfig() (map[string]string, error) {
 //
 // Returns a filepath string pointing to the location of the temp file.
 func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.Viper, string) {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "reading tester config", clues.ToCore(err))
 
 	fName := filepath.Base(os.Getenv(EnvCorsoTestConfigFilePath))

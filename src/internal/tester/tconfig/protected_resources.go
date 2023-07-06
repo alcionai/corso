@@ -1,4 +1,4 @@
-package tester
+package tconfig
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func M365TenantID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving m365 tenant ID from test configuration", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgAzureTenantID])
@@ -28,7 +28,7 @@ func M365TenantID(t *testing.T) string {
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func GetM365TenantID(ctx context.Context) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	if err != nil {
 		logger.Ctx(ctx).Error(err, "retrieving m365 tenant ID from test configuration")
 	}
@@ -41,7 +41,7 @@ func GetM365TenantID(ctx context.Context) string {
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func M365UserID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving m365 user id from test configuration", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgUserID])
@@ -52,7 +52,7 @@ func M365UserID(t *testing.T) string {
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func GetM365UserID(ctx context.Context) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	if err != nil {
 		logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
 	}
@@ -66,7 +66,7 @@ func GetM365UserID(ctx context.Context) string {
 // The default is a last-attempt fallback that will only work on alcion's
 // testing org.
 func SecondaryM365UserID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving secondary m365 user id from test configuration", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgSecondaryUserID])
@@ -78,7 +78,7 @@ func SecondaryM365UserID(t *testing.T) string {
 // The default is a last-attempt fallback that will only work on alcion's
 // testing org.
 func TertiaryM365UserID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving tertiary m365 user id from test configuration", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgTertiaryUserID])
@@ -90,7 +90,7 @@ func TertiaryM365UserID(t *testing.T) string {
 // The default is a last-attempt fallback that will only work on alcion's
 // testing org.
 func LoadTestM365SiteID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving load test m365 site id from test configuration", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgSiteID])
@@ -102,7 +102,7 @@ func LoadTestM365SiteID(t *testing.T) string {
 // The default is a last-attempt fallback that will only work on alcion's
 // testing org.
 func LoadTestM365UserID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving load test m365 user id from test configuration", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgLoadTestUserID])
@@ -112,7 +112,7 @@ func LoadTestM365UserID(t *testing.T) string {
 // ["site1\,uuid","site2\,uuid"]
 // the delimiter must be a |.
 func LoadTestM365OrgSites(t *testing.T) []string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving load test m365 org sites from test configuration %+v", clues.ToCore(err))
 
 	// TODO: proper handling of site slice input.
@@ -132,7 +132,7 @@ func LoadTestM365OrgSites(t *testing.T) []string {
 // ["foo@example.com","bar@example.com"]
 // the delimiter may be either a , or |.
 func LoadTestM365OrgUsers(t *testing.T) []string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving load test m365 org users from test configuration %+v", clues.ToCore(err))
 
 	users := cfg[TestCfgLoadTestOrgUsers]
@@ -168,7 +168,7 @@ func LoadTestM365OrgUsers(t *testing.T) []string {
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func M365SiteID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving m365 site id from test configuration: %+v", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgSiteID])
@@ -179,7 +179,7 @@ func M365SiteID(t *testing.T) string {
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func M365SiteURL(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving m365 site url from test configuration: %+v", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgSiteURL])
@@ -190,7 +190,7 @@ func M365SiteURL(t *testing.T) string {
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func GetM365SiteID(ctx context.Context) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	if err != nil {
 		logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
 	}
@@ -204,7 +204,7 @@ func GetM365SiteID(ctx context.Context) string {
 // The default is a last-attempt fallback that will only work on alcion's
 // testing org.
 func UnlicensedM365UserID(t *testing.T) string {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving unlicensed m365 user id from test configuration: %+v", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgSecondaryUserID])
