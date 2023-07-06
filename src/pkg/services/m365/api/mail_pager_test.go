@@ -39,7 +39,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.userID, "inbox")
+	container, err := ac.GetContainerByID(ctx, suite.its.userID, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
@@ -61,7 +61,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 
 	expect := maps.Keys(expectM)
 
-	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "inbox")
+	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 

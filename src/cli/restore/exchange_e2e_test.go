@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -24,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -96,13 +96,13 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
+			scopes = sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch())
+			scopes = sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch())
+			scopes = sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)

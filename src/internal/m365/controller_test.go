@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -672,7 +673,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			resourceCat: resource.Users,
 			collections: []stub.ColInfo{
 				{
-					PathElements: []string{"Inbox"},
+					PathElements: []string{api.MailInbox},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -699,7 +700,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			resourceCat: resource.Users,
 			collections: []stub.ColInfo{
 				{
-					PathElements: []string{"Inbox"},
+					PathElements: []string{api.MailInbox},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -738,7 +739,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					PathElements: []string{"Work", "Inbox"},
+					PathElements: []string{"Work", api.MailInbox},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -753,7 +754,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					PathElements: []string{"Work", "Inbox", "Work"},
+					PathElements: []string{"Work", api.MailInbox, "Work"},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -1116,7 +1117,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 		resourceCat: resource.Users,
 		collections: []stub.ColInfo{
 			{
-				PathElements: []string{"Inbox"},
+				PathElements: []string{api.MailInbox},
 				Category:     path.EmailCategory,
 				Items: []stub.ItemInfo{
 					{
