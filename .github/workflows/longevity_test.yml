@@ -131,7 +131,6 @@ jobs:
           --no-stats \
           --mailbox "${TEST_USER}" \
           --hide-progress \
-          --data 'email' \
           --json \
           2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_exchange.txt 
 
