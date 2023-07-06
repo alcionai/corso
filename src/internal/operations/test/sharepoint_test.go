@@ -125,7 +125,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 		mb    = evmock.NewBus()
 		sel   = selectors.NewSharePointBackup([]string{suite.its.siteID})
 		opts  = control.Defaults()
-		tenID = tester.M365TenantID(t)
+		tenID = tconfig.M365TenantID(t)
 		svc   = path.SharePointService
 		ws    = deeTD.DriveIDFromRepoRef
 	)

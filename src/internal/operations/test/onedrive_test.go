@@ -833,9 +833,9 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 	defer flush()
 
 	var (
-		tenID  = tester.M365TenantID(t)
+		tenID  = tconfig.M365TenantID(t)
 		mb     = evmock.NewBus()
-		userID = tester.SecondaryM365UserID(t)
+		userID = tconfig.SecondaryM365UserID(t)
 		osel   = selectors.NewOneDriveBackup([]string{userID})
 		ws     = deeTD.DriveIDFromRepoRef
 		svc    = path.OneDriveService
