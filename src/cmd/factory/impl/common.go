@@ -64,7 +64,7 @@ func generateAndRestoreItems(
 	dbf dataBuilderFunc,
 	opts control.Options,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.Details, error) {
 	items := make([]item, 0, howMany)
 
@@ -104,7 +104,7 @@ func generateAndRestoreItems(
 
 	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, dataColls, errs, cb)
+	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, dataColls, errs, ctr)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -224,7 +224,7 @@ func generateAndRestoreDriveItems(
 	tenantID, destFldr string,
 	intCount int,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (
 	*details.Details,
 	error,
@@ -429,5 +429,5 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, collections, errs, cb)
+	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, collections, errs, ctr)
 }

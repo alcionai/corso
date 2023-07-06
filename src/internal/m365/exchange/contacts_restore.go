@@ -72,7 +72,7 @@ func (h contactRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreContact(
 		ctx,
@@ -82,7 +82,7 @@ func (h contactRestoreHandler) restore(
 		collisionKeyToItemID,
 		collisionPolicy,
 		errs,
-		cb)
+		ctr)
 }
 
 type contactRestorer interface {
@@ -98,7 +98,7 @@ func restoreContact(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	contact, err := api.BytesToContactable(body)
 	if err != nil {
@@ -118,7 +118,7 @@ func restoreContact(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
-			cb.Inc(count.CollisionSkip)
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
 			return nil, graph.ErrItemAlreadyExistsConflict

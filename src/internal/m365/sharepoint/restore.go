@@ -36,7 +36,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -77,7 +77,7 @@ func ConsumeRestoreCollections(
 				deets,
 				opts.RestorePermissions,
 				errs,
-				cb)
+				ctr)
 
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(

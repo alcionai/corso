@@ -73,7 +73,7 @@ func (h eventRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreEvent(
 		ctx,
@@ -83,7 +83,7 @@ func (h eventRestoreHandler) restore(
 		collisionKeyToItemID,
 		collisionPolicy,
 		errs,
-		cb)
+		ctr)
 }
 
 type eventRestorer interface {
@@ -99,7 +99,7 @@ func restoreEvent(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
 	if err != nil {
@@ -119,7 +119,7 @@ func restoreEvent(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
-			cb.Inc(count.CollisionSkip)
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
 			return nil, graph.ErrItemAlreadyExistsConflict

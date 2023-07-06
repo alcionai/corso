@@ -32,7 +32,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	if len(dcs) == 0 {
 		return support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
@@ -106,7 +106,7 @@ func ConsumeRestoreCollections(
 			restoreCfg.OnCollision,
 			deets,
 			errs,
-			cb.Local())
+			ctr.Local())
 
 		metrics = support.CombineMetrics(metrics, temp)
 
@@ -139,7 +139,7 @@ func restoreCollection(
 	collisionPolicy control.CollisionPolicy,
 	deets *details.Builder,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (support.CollectionMetrics, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:exchange:restoreCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
@@ -190,7 +190,7 @@ func restoreCollection(
 				collisionKeyToItemID,
 				collisionPolicy,
 				errs,
-				cb)
+				ctr)
 			if err != nil {
 				if !graph.IsErrItemAlreadyExistsConflict(err) {
 					el.AddRecoverable(ictx, err)

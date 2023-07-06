@@ -30,7 +30,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.Details, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:restore")
 	defer end()
@@ -46,7 +46,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs, cb)
+		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs, ctr)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
@@ -57,7 +57,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			dcs,
 			deets,
 			errs,
-			cb)
+			ctr)
 	case selectors.ServiceSharePoint:
 		status, err = sharepoint.ConsumeRestoreCollections(
 			ctx,
@@ -68,7 +68,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			dcs,
 			deets,
 			errs,
-			cb)
+			ctr)
 	default:
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}
