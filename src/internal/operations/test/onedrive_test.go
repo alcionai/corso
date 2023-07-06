@@ -876,7 +876,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 	// Check that the extensions are in the backup
 	for _, ent := range deets.Entries {
 		if ent.Folder == nil {
-			verifyExtensionData(t, ent.ItemInfo, path.SharePointService)
+			verifyExtensionData(t, ent.ItemInfo, path.OneDriveService)
 		}
 	}
 }
