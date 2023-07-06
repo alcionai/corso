@@ -271,7 +271,7 @@ func (op *RestoreOperation) do(
 		op.Errors,
 		op.Counter)
 	if err != nil {
-		return nil, clues.Wrap(err, "restoring collections")
+		return nil, clues.Stack(err)
 	}
 
 	opStats.ctrl = op.rc.Wait()

@@ -65,8 +65,7 @@ func (h mailRestoreHandler) GetContainerByName(
 	return h.ac.GetContainerByName(ctx, userID, parentContainerID, containerName)
 }
 
-// always returns rootFolderAlias
-func (h mailRestoreHandler) orRootContainer(string) string {
+func (h mailRestoreHandler) defaultRootContainer() string {
 	return api.MsgFolderRoot
 }
 
@@ -151,7 +150,7 @@ func restoreMail(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil {
+		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
 		}
 	}

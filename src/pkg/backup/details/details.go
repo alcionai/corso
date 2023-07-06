@@ -22,7 +22,7 @@ import (
 
 // Max number of items for which we will print details. If there are
 // more than this, then we just show a summary.
-const maxPrintLimit = 15
+const maxPrintLimit = 50
 
 // LocationIDer provides access to location information but guarantees that it
 // can also generate a unique location (among items in the same service but
@@ -504,13 +504,9 @@ func (ents entrySet) PrintEntries(ctx context.Context) {
 // MaybePrintEntries is same as PrintEntries, but only prints if we
 // have less than 15 items or is not json output.
 func (ents entrySet) MaybePrintEntries(ctx context.Context) {
-	if len(ents) > maxPrintLimit &&
-		!print.DisplayJSONFormat() &&
-		!print.DisplayVerbose() {
-		// TODO: Should we detect if the user is piping the output and
-		// print if that is the case?
-		print.Outf(ctx, "Restored %d items.", len(ents))
-	} else {
+	if len(ents) <= maxPrintLimit ||
+		print.DisplayJSONFormat() ||
+		print.DisplayVerbose() {
 		printEntries(ctx, ents)
 	}
 }

@@ -84,14 +84,17 @@ func runRestore(
 		return Only(ctx, clues.Wrap(err, "Failed to run "+serviceName+" restore"))
 	}
 
-	Info(ctx, "Completed Restore:")
+	Info(ctx, "Restore Complete")
 
 	skipped := ro.Counter.Get(count.CollisionSkip)
 	if skipped > 0 {
 		Infof(ctx, "Skipped %d items due to collision", skipped)
 	}
 
-	ds.Items().MaybePrintEntries(ctx)
+	dis := ds.Items()
+
+	Outf(ctx, "Restored %d items", len(dis))
+	dis.MaybePrintEntries(ctx)
 
 	return nil
 }

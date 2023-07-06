@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -701,7 +702,17 @@ func EventFromMap(ev map[string]any) (models.Eventable, error) {
 }
 
 func eventCollisionKeyProps() []string {
-	return idAnd("subject", "type", "start", "end", "attendees", "recurrence")
+	// Do not use attendees here.  We slice out attendees from the
+	// restored event so that they do not receive an email for every
+	// restoration item.  Attendees will guarantee non-overlapping keys.
+	return idAnd(
+		"subject",
+		"type",
+		"start",
+		"end",
+		recurrence,
+		isCancelled,
+		isDraft)
 }
 
 // EventCollisionKey constructs a key from the eventable's creation time, subject, and organizer.
@@ -713,37 +724,34 @@ func EventCollisionKey(item models.Eventable) string {
 
 	var (
 		subject   = ptr.Val(item.GetSubject())
-		attendees = item.GetAttendees()
-		a         string
-		oftype    = ptr.Val(item.GetType())
-		t         = oftype.String()
-		start     = item.GetStart()
-		s         string
-		end       = item.GetEnd()
-		e         string
+		oftype    = ptr.Val(item.GetType()).String()
+		startTime = item.GetStart()
+		start     string
+		endTime   = item.GetEnd()
+		end       string
 		recurs    = item.GetRecurrence()
-		r         string
+		recur     string
+		cancelled = ptr.Val(item.GetIsCancelled())
+		draft     = ptr.Val(item.GetIsDraft())
 	)
 
-	for _, att := range attendees {
-		if att.GetEmailAddress() != nil {
-			a += ptr.Val(att.GetEmailAddress().GetAddress())
-		}
+	if startTime != nil {
+		start = ptr.Val(startTime.GetDateTime())
 	}
 
-	if start != nil {
-		s = ptr.Val(start.GetDateTime())
-	}
-
-	if end != nil {
-		e = ptr.Val(end.GetDateTime())
+	if endTime != nil {
+		end = ptr.Val(endTime.GetDateTime())
 	}
 
 	if recurs != nil && recurs.GetPattern() != nil {
-		r = ptr.Val(recurs.GetPattern().GetOdataType())
+		recur = ptr.Val(recurs.GetPattern().GetOdataType())
 	}
 
 	// this result gets hashed to ensure that an enormous list of attendees
 	// doesn't generate a multi-kb collision key.
-	return clues.ConcealWith(clues.SHA256, subject+a+t+s+e+r)
+	return subject +
+		oftype +
+		start + end + recur +
+		strconv.FormatBool(draft) +
+		strconv.FormatBool(cancelled)
 }

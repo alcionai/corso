@@ -44,6 +44,10 @@ func (h eventRestoreHandler) formatRestoreDestination(
 	destinationContainerName string,
 	_ path.Path, // ignored because calendars cannot be nested
 ) *path.Builder {
+	if len(destinationContainerName) == 0 {
+		destinationContainerName = api.DefaultCalendar
+	}
+
 	return path.Builder{}.Append(destinationContainerName)
 }
 
@@ -62,8 +66,8 @@ func (h eventRestoreHandler) GetContainerByName(
 }
 
 // always returns the provided value
-func (h eventRestoreHandler) orRootContainer(c string) string {
-	return c
+func (h eventRestoreHandler) defaultRootContainer() string {
+	return api.DefaultCalendar
 }
 
 func (h eventRestoreHandler) restore(
@@ -151,7 +155,7 @@ func restoreEvent(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := er.DeleteItem(ctx, userID, collisionID); err != nil {
+		if err := er.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding event")
 		}
 	}

@@ -806,6 +806,9 @@ func runCreateDestinationTest(
 		gcc = handler.newContainerCache(userID)
 	)
 
+	err := gcc.Populate(ctx, fault.New(true), handler.defaultRootContainer())
+	require.NoError(t, err, clues.ToCore(err))
+
 	path1, err := path.Build(
 		tenantID,
 		userID,
@@ -821,7 +824,6 @@ func runCreateDestinationTest(
 		handler.formatRestoreDestination(destinationName, path1),
 		userID,
 		gcc,
-		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -843,7 +845,6 @@ func runCreateDestinationTest(
 		handler.formatRestoreDestination(destinationName, path2),
 		userID,
 		gcc,
-		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
