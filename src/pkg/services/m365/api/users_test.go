@@ -145,7 +145,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "drive").
 					Reply(400).
 					JSON(parseableToMap(t, odErrMsg("anycode", string(graph.MysiteNotFound))))
-				interceptV1Path("users", "user", "mailFolders", "inbox").
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
 					Reply(400).
 					JSON(parseableToMap(t, odErr(string(graph.ResourceNotFound))))
 			},
@@ -159,7 +159,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "drive").
 					Reply(400).
 					JSON(parseableToMap(t, odErrMsg("anycode", string(graph.NoSPLicense))))
-				interceptV1Path("users", "user", "mailFolders", "inbox").
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
 					Reply(400).
 					JSON(parseableToMap(t, odErr(string(graph.ResourceNotFound))))
 			},
@@ -184,7 +184,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "drive").
 					Reply(200).
 					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", "inbox").
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
 					Reply(400).
 					JSON(parseableToMap(t, odErr(string(graph.RequestResourceNotFound))))
 			},
@@ -198,7 +198,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "drive").
 					Reply(200).
 					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", "inbox").
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
 					Reply(400).
 					JSON(parseableToMap(t, odErr(string(graph.MailboxNotEnabledForRESTAPI))))
 			},
@@ -212,7 +212,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "drive").
 					Reply(200).
 					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", "inbox").
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
 					Reply(400).
 					JSON(parseableToMap(t, odErr(string(graph.AuthenticationError))))
 			},
@@ -226,7 +226,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 				interceptV1Path("users", "user", "drive").
 					Reply(200).
 					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", "inbox").
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
 					Reply(400).
 					JSON(parseableToMap(t, odErrMsg("somecode", "somemessage")))
 			},

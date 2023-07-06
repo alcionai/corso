@@ -17,7 +17,6 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
@@ -282,9 +281,9 @@ func setupExchangeBackup(
 
 	esel.DiscreteOwner = owner
 	esel.Include(
-		esel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		esel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		esel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		esel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()),
+		esel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		esel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 
 	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Users, esel.Selector, nil, nil)
 

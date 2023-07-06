@@ -292,7 +292,7 @@ func (c Users) GetMailInbox(
 		Users().
 		ByUserId(userID).
 		MailFolders().
-		ByMailFolderId("inbox").
+		ByMailFolderId(MailInbox).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")

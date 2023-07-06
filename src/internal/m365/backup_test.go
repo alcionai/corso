@@ -76,7 +76,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			name: "Email",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
@@ -85,7 +85,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			name: "Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
