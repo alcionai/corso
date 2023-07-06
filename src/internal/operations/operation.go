@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -49,7 +50,8 @@ const (
 type operation struct {
 	CreatedAt time.Time `json:"createdAt"`
 
-	Errors  *fault.Bus      `json:"errors"`
+	Errors  *fault.Bus `json:"errors"`
+	Counter *count.Bus
 	Options control.Options `json:"options"`
 	Status  OpStatus        `json:"status"`
 
@@ -67,6 +69,7 @@ func newOperation(
 	return operation{
 		CreatedAt: time.Now(),
 		Errors:    fault.New(opts.FailureHandling == control.FailFast),
+		Counter:   count.New(),
 		Options:   opts,
 
 		bus:   bus,

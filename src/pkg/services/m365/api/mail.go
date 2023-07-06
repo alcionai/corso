@@ -12,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -611,7 +612,7 @@ func UnwrapEmailAddress(contact models.Recipientable) string {
 }
 
 func mailCollisionKeyProps() []string {
-	return idAnd("subject")
+	return idAnd("subject", sentDateTime, receivedDateTime)
 }
 
 // MailCollisionKey constructs a key from the messageable's subject, sender, and recipients (to, cc, bcc).
@@ -621,5 +622,11 @@ func MailCollisionKey(item models.Messageable) string {
 		return ""
 	}
 
-	return ptr.Val(item.GetSubject())
+	var (
+		subject  = ptr.Val(item.GetSubject())
+		sent     = ptr.Val(item.GetSentDateTime())
+		received = ptr.Val(item.GetReceivedDateTime())
+	)
+
+	return subject + dttm.Format(sent) + dttm.Format(received)
 }

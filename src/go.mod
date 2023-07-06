@@ -22,6 +22,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go v1.4.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
+	github.com/puzpuzpuz/xsync/v2 v2.4.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
 	github.com/spatialcurrent/go-lazy v0.0.0-20211115014721-47315cc003d1
 	github.com/spf13/cobra v1.7.0

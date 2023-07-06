@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -72,6 +73,7 @@ func (h eventRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreEvent(
 		ctx,
@@ -80,7 +82,8 @@ func (h eventRestoreHandler) restore(
 		userID, destinationID,
 		collisionKeyToItemID,
 		collisionPolicy,
-		errs)
+		errs,
+		ctr)
 }
 
 type eventRestorer interface {
@@ -96,6 +99,7 @@ func restoreEvent(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
 	if err != nil {
@@ -115,7 +119,9 @@ func restoreEvent(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
+
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
 

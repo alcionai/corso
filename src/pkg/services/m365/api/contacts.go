@@ -317,7 +317,7 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 }
 
 func contactCollisionKeyProps() []string {
-	return idAnd(givenName)
+	return idAnd(givenName, surname, emailAddresses, mobilePhone)
 }
 
 // ContactCollisionKey constructs a key from the contactable's creation time and either displayName or given+surname.
@@ -327,5 +327,17 @@ func ContactCollisionKey(item models.Contactable) string {
 		return ""
 	}
 
-	return ptr.Val(item.GetId())
+	var (
+		given  = ptr.Val(item.GetGivenName())
+		sur    = ptr.Val(item.GetSurname())
+		emails = item.GetEmailAddresses()
+		email  string
+		phone  = ptr.Val(item.GetMobilePhone())
+	)
+
+	for _, em := range emails {
+		email += ptr.Val(em.GetAddress())
+	}
+
+	return given + sur + email + phone
 }

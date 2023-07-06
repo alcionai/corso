@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -492,7 +493,8 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 					ID:     uuid.NewString(),
 					Reader: mock.FileRespReadCloser(mock.DriveFilePayloadData),
 				},
-				nil)
+				nil,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 			test.expectSkipped(t, skip)
 			test.expectMock(t, rh)

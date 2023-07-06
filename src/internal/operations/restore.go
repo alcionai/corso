@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -178,6 +179,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	finalizeErrorHandling(ctx, op.Options, op.Errors, "running restore")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
+	logger.Ctx(ctx).With("total_counts", op.Counter.Values()).Info("restore stats")
 
 	// -----
 	// Persistence
@@ -266,7 +268,8 @@ func (op *RestoreOperation) do(
 		op.RestoreCfg,
 		op.Options,
 		dcs,
-		op.Errors)
+		op.Errors,
+		op.Counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}
@@ -324,6 +327,7 @@ func consumeRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.Details, error) {
 	complete := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer func() {
@@ -338,7 +342,8 @@ func consumeRestoreCollections(
 		restoreCfg,
 		opts,
 		dcs,
-		errs)
+		errs,
+		ctr)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}

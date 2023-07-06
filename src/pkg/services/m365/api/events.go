@@ -701,7 +701,7 @@ func EventFromMap(ev map[string]any) (models.Eventable, error) {
 }
 
 func eventCollisionKeyProps() []string {
-	return idAnd("subject")
+	return idAnd("subject", "type", "start", "end", "attendees", "recurrence")
 }
 
 // EventCollisionKey constructs a key from the eventable's creation time, subject, and organizer.
@@ -711,5 +711,39 @@ func EventCollisionKey(item models.Eventable) string {
 		return ""
 	}
 
-	return ptr.Val(item.GetSubject())
+	var (
+		subject   = ptr.Val(item.GetSubject())
+		attendees = item.GetAttendees()
+		a         string
+		oftype    = ptr.Val(item.GetType())
+		t         = oftype.String()
+		start     = item.GetStart()
+		s         string
+		end       = item.GetEnd()
+		e         string
+		recurs    = item.GetRecurrence()
+		r         string
+	)
+
+	for _, att := range attendees {
+		if att.GetEmailAddress() != nil {
+			a += ptr.Val(att.GetEmailAddress().GetAddress())
+		}
+	}
+
+	if start != nil {
+		s = ptr.Val(start.GetDateTime())
+	}
+
+	if end != nil {
+		e = ptr.Val(end.GetDateTime())
+	}
+
+	if recurs != nil && recurs.GetPattern() != nil {
+		r = ptr.Val(recurs.GetPattern().GetOdataType())
+	}
+
+	// this result gets hashed to ensure that an enormous list of attendees
+	// doesn't generate a multi-kb collision key.
+	return clues.ConcealWith(clues.SHA256, subject+a+t+s+e+r)
 }

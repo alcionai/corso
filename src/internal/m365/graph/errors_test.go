@@ -384,22 +384,22 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 
 func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 	var (
-		i        = models.NewDriveItem()
-		cb       = models.NewUser()
-		cbID     = "created-by"
-		lm       = models.NewUser()
-		lmID     = "last-mod-by"
-		ref      = models.NewItemReference()
-		refCID   = "container-id"
-		refCN    = "container-name"
-		refCP    = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
-		refCPexp = "/Folder/container-name"
-		mal      = models.NewMalware()
-		malDesc  = "malware-description"
+		i         = models.NewDriveItem()
+		createdBy = models.NewUser()
+		cbID      = "created-by"
+		lm        = models.NewUser()
+		lmID      = "last-mod-by"
+		ref       = models.NewItemReference()
+		refCID    = "container-id"
+		refCN     = "container-name"
+		refCP     = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
+		refCPexp  = "/Folder/container-name"
+		mal       = models.NewMalware()
+		malDesc   = "malware-description"
 	)
 
-	cb.SetId(&cbID)
-	i.SetCreatedByUser(cb)
+	createdBy.SetId(&cbID)
+	i.SetCreatedByUser(createdBy)
 
 	lm.SetId(&lmID)
 	i.SetLastModifiedByUser(lm)

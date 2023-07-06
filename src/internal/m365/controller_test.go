@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -314,7 +315,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 			ToggleFeatures:     control.Toggles{},
 		},
 		nil,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
@@ -392,7 +394,8 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 					ToggleFeatures:     control.Toggles{},
 				},
 				test.col,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
@@ -432,7 +435,8 @@ func runRestore(
 		sci.RestoreCfg,
 		sci.Opts,
 		collections,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
@@ -1042,7 +1046,8 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 						ToggleFeatures:     control.Toggles{},
 					},
 					collections,
-					fault.New(true))
+					fault.New(true),
+					count.New())
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 

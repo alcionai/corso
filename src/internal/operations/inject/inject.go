@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -41,6 +42,7 @@ type (
 			opts control.Options,
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
+			ctr *count.Bus,
 		) (*details.Details, error)
 
 		Wait() *data.CollectionStats
