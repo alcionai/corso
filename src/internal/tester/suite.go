@@ -13,10 +13,11 @@ import (
 
 // Flags for declaring which scope of tests to run.
 const (
-	CorsoCITests      = "CORSO_CI_TESTS"
-	CorsoE2ETests     = "CORSO_E2E_TESTS"
-	CorsoLoadTests    = "CORSO_LOAD_TESTS"
-	CorsoNightlyTests = "CORSO_NIGHTLY_TESTS"
+	CorsoCITests        = "CORSO_CI_TESTS"
+	CorsoE2ETests       = "CORSO_E2E_TESTS"
+	CorsoLoadTests      = "CORSO_LOAD_TESTS"
+	CorsoNightlyTests   = "CORSO_NIGHTLY_TESTS"
+	CorsoRetentionTests = "CORSO_RETENTION_TESTS"
 )
 
 type Suite interface {
@@ -149,6 +150,35 @@ func NewNightlySuite(
 }
 
 type nightlySuite struct {
+	suite.Suite
+}
+
+// ---------------------------------------------------------------------------
+// Retention; requires object locking enabled on the S3 bucket.
+// ---------------------------------------------------------------------------
+
+func NewRetentionSuite(
+	t *testing.T,
+	envSets [][]string,
+	runOnAnyEnv ...string,
+) *retentionSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
+	RunOnAny(
+		t,
+		append(
+			[]string{CorsoRetentionTests},
+			runOnAnyEnv...,
+		)...,
+	)
+
+	MustGetEnvSets(t, envSets...)
+
+	return new(retentionSuite)
+}
+
+type retentionSuite struct {
 	suite.Suite
 }
 
