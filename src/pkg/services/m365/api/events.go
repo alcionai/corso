@@ -724,31 +724,34 @@ func EventCollisionKey(item models.Eventable) string {
 
 	var (
 		subject   = ptr.Val(item.GetSubject())
-		oftype    = ptr.Val(item.GetType())
-		t         = oftype.String()
-		start     = item.GetStart()
-		s         string
-		end       = item.GetEnd()
-		e         string
+		oftype    = ptr.Val(item.GetType()).String()
+		startTime = item.GetStart()
+		start     string
+		endTime   = item.GetEnd()
+		end       string
 		recurs    = item.GetRecurrence()
-		r         string
+		recur     string
 		cancelled = ptr.Val(item.GetIsCancelled())
 		draft     = ptr.Val(item.GetIsDraft())
 	)
 
-	if start != nil {
-		s = ptr.Val(start.GetDateTime())
+	if startTime != nil {
+		start = ptr.Val(startTime.GetDateTime())
 	}
 
-	if end != nil {
-		e = ptr.Val(end.GetDateTime())
+	if endTime != nil {
+		end = ptr.Val(endTime.GetDateTime())
 	}
 
 	if recurs != nil && recurs.GetPattern() != nil {
-		r = ptr.Val(recurs.GetPattern().GetOdataType())
+		recur = ptr.Val(recurs.GetPattern().GetOdataType())
 	}
 
 	// this result gets hashed to ensure that an enormous list of attendees
 	// doesn't generate a multi-kb collision key.
-	return subject + t + s + e + r + strconv.FormatBool(draft) + strconv.FormatBool(cancelled)
+	return subject +
+		oftype +
+		start + end + recur +
+		strconv.FormatBool(draft) +
+		strconv.FormatBool(cancelled)
 }
