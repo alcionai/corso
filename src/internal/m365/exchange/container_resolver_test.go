@@ -806,6 +806,9 @@ func runCreateDestinationTest(
 		gcc = handler.newContainerCache(userID)
 	)
 
+	err := gcc.Populate(ctx, fault.New(true), handler.defaultRootContainer())
+	require.NoError(t, err, clues.ToCore(err))
+
 	path1, err := path.Build(
 		tenantID,
 		userID,
