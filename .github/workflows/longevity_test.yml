@@ -204,9 +204,13 @@ jobs:
           set -euo pipefail
           echo -e "\n Maintenance test Daily\n" >> ${CORSO_LOG_FILE}
 
+          # Run with the force flag so it doesn't fail if the github runner
+          # hostname isn't what's expected. This is only safe because we can
+          # guarantee only one runner will be executing maintenance at a time.
           ./corso repo  maintenance --mode metadata \
           --no-stats \
           --hide-progress \
+          --force \
           --json \
           2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_metadata.txt 
 
@@ -221,6 +225,7 @@ jobs:
             ./corso repo  maintenance --mode complete \
             --no-stats \
             --hide-progress \
+            --force \
             --json \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_complete.txt 
           fi
