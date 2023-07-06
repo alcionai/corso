@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
@@ -112,7 +112,7 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RepositoryIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -223,7 +223,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := config.NewM365Account(t)
+	acct := tconfig.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
@@ -231,7 +231,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
-	userID := config.M365UserID(t)
+	userID := tconfig.M365UserID(t)
 
 	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: userID})
 	require.NoError(t, err, clues.ToCore(err))
@@ -244,7 +244,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := config.NewM365Account(t)
+	acct := tconfig.NewM365Account(t)
 	restoreCfg := testdata.DefaultRestoreConfig("")
 
 	// need to initialize the repository before we can test connecting to it.
@@ -264,7 +264,7 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := config.NewM365Account(t)
+	acct := tconfig.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
@@ -344,7 +344,7 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			acct := config.NewM365Account(t)
+			acct := tconfig.NewM365Account(t)
 			st := storeTD.NewPrefixedS3Storage(t)
 
 			ctx, flush := tester.NewContext(t)

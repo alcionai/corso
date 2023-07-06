@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -34,7 +34,7 @@ func TestSharePointBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &SharePointBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 

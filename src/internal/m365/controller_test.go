@@ -20,7 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -273,7 +273,7 @@ func TestControllerIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs},
+			[][]string{tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -285,8 +285,8 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	suite.ctrl = newController(ctx, t, resource.Users, path.ExchangeService)
-	suite.user = config.M365UserID(t)
-	suite.secondaryUser = config.SecondaryM365UserID(t)
+	suite.user = tconfig.M365UserID(t)
+	suite.secondaryUser = tconfig.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
 }
@@ -1182,7 +1182,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			name:        "SharePoint",
 			resourceCat: resource.Sites,
 			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewSharePointBackup([]string{config.M365SiteID(t)})
+				sel := selectors.NewSharePointBackup([]string{tconfig.M365SiteID(t)})
 				sel.Include(
 					sel.LibraryFolders([]string{selectors.NoneTgt}),
 					// not yet in use

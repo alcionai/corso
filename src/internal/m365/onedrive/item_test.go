@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -34,7 +34,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ItemIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -45,7 +45,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	suite.service = loadTestService(t)
-	suite.user = config.SecondaryM365UserID(t)
+	suite.user = tconfig.SecondaryM365UserID(t)
 
 	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 

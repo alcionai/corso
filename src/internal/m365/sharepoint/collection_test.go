@@ -17,7 +17,7 @@ import (
 	betaAPI "github.com/alcionai/corso/src/internal/m365/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -36,8 +36,8 @@ type SharePointCollectionSuite struct {
 func (suite *SharePointCollectionSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.siteID = config.M365SiteID(t)
-	a := config.NewM365Account(t)
+	suite.siteID = tconfig.M365SiteID(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -53,7 +53,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	suite.Run(t, &SharePointCollectionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs},
+			[][]string{tconfig.M365AcctCredEnvs},
 		),
 	})
 }

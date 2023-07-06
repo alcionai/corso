@@ -23,7 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -1211,7 +1211,7 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &BackupOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -1223,10 +1223,10 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	suite.user = config.M365UserID(t)
-	suite.site = config.M365SiteID(t)
+	suite.user = tconfig.M365UserID(t)
+	suite.site = tconfig.M365SiteID(t)
 
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -1240,7 +1240,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
 		ctrl = &mock.Controller{}
-		acct = config.NewM365Account(suite.T())
+		acct = tconfig.NewM365Account(suite.T())
 		opts = control.Defaults()
 	)
 

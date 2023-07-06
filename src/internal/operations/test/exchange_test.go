@@ -23,7 +23,7 @@ import (
 	exchTD "github.com/alcionai/corso/src/internal/m365/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -43,7 +43,7 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &ExchangeBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -236,7 +236,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	tester.LogTimeOfTest(t)
 
 	var (
-		acct       = config.NewM365Account(t)
+		acct       = tconfig.NewM365Account(t)
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
 		service    = path.ExchangeService

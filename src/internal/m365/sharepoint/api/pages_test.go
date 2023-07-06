@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -46,8 +46,8 @@ func (suite *SharePointPageSuite) SetupSuite() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	suite.siteID = config.M365SiteID(t)
-	a := config.NewM365Account(t)
+	suite.siteID = tconfig.M365SiteID(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -57,7 +57,7 @@ func (suite *SharePointPageSuite) SetupSuite() {
 
 func TestSharePointPageSuite(t *testing.T) {
 	suite.Run(t, &SharePointPageSuite{
-		Suite: tester.NewIntegrationSuite(t, [][]string{config.M365AcctCredEnvs}),
+		Suite: tester.NewIntegrationSuite(t, [][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 

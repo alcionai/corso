@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -31,14 +31,14 @@ func TestRestoreIntgSuite(t *testing.T) {
 	suite.Run(t, &RestoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *RestoreIntgSuite) SetupSuite() {
 	t := suite.T()
 
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -56,7 +56,7 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 	defer flush()
 
 	var (
-		userID     = config.M365UserID(t)
+		userID     = tconfig.M365UserID(t)
 		folderName = testdata.DefaultRestoreConfig("contact").Location
 		handler    = newContactRestoreHandler(suite.ac)
 	)
@@ -92,7 +92,7 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	defer flush()
 
 	var (
-		userID  = config.M365UserID(t)
+		userID  = tconfig.M365UserID(t)
 		subject = testdata.DefaultRestoreConfig("event").Location
 		handler = newEventRestoreHandler(suite.ac)
 	)
@@ -165,7 +165,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 
 	handlers := restoreHandlers(suite.ac)
 
-	userID := config.M365UserID(suite.T())
+	userID := tconfig.M365UserID(suite.T())
 
 	tests := []struct {
 		name        string
@@ -396,7 +396,7 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithA
 	defer flush()
 
 	var (
-		userID  = config.M365UserID(t)
+		userID  = tconfig.M365UserID(t)
 		subject = testdata.DefaultRestoreConfig("event").Location
 		handler = newEventRestoreHandler(suite.ac)
 	)

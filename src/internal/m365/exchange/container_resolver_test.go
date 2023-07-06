@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -683,14 +683,14 @@ func TestContainerResolverIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ContainerResolverSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *ContainerResolverSuite) SetupSuite() {
 	t := suite.T()
 
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -703,7 +703,7 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventContainerCache{
-			userID: config.M365UserID(t),
+			userID: tconfig.M365UserID(t),
 			enumer: ac.Events(),
 			getter: ac.Events(),
 		}
@@ -711,7 +711,7 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 
 	contactFunc := func(t *testing.T) graph.ContainerResolver {
 		return &contactContainerCache{
-			userID: config.M365UserID(t),
+			userID: tconfig.M365UserID(t),
 			enumer: ac.Contacts(),
 			getter: ac.Contacts(),
 		}

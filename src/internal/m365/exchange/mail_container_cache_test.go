@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -37,7 +37,7 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 	suite.Run(t, &MailFolderCacheIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs},
+			[][]string{tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -45,7 +45,7 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -74,7 +74,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			path: []string{"some", "leading", "path"},
 		},
 	}
-	userID := config.M365UserID(suite.T())
+	userID := tconfig.M365UserID(suite.T())
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {

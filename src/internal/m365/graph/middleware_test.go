@@ -22,7 +22,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -126,13 +126,13 @@ func TestRetryMWIntgSuite(t *testing.T) {
 	suite.Run(t, &RetryMWIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *RetryMWIntgSuite) SetupSuite() {
 	var (
-		a   = config.NewM365Account(suite.T())
+		a   = tconfig.NewM365Account(suite.T())
 		err error
 	)
 

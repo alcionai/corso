@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -353,7 +353,7 @@ type ConfigIntegrationSuite struct {
 func TestConfigIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ConfigIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 	)})
 }
 

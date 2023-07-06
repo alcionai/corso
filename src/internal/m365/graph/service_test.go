@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -27,7 +27,7 @@ func TestGraphUnitSuite(t *testing.T) {
 
 func (suite *GraphUnitSuite) SetupSuite() {
 	t := suite.T()
-	a := config.NewFakeM365Account(t)
+	a := tconfig.NewFakeM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 

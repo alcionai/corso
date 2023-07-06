@@ -16,7 +16,7 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -33,22 +33,22 @@ import (
 
 //lint:ignore U1000 future test use
 func orgSiteSet(t *testing.T) []string {
-	return config.LoadTestM365OrgSites(t)
+	return tconfig.LoadTestM365OrgSites(t)
 }
 
 //lint:ignore U1000 future test use
 func orgUserSet(t *testing.T) []string {
-	return config.LoadTestM365OrgUsers(t)
+	return tconfig.LoadTestM365OrgUsers(t)
 }
 
 //lint:ignore U1000 future test use
 func singleSiteSet(t *testing.T) []string {
-	return []string{config.LoadTestM365SiteID(t)}
+	return []string{tconfig.LoadTestM365SiteID(t)}
 }
 
 //lint:ignore U1000 future test use
 func singleUserSet(t *testing.T) []string {
-	return []string{config.LoadTestM365UserID(t)}
+	return []string{tconfig.LoadTestM365UserID(t)}
 }
 
 var loadCtx context.Context
@@ -90,13 +90,13 @@ func initM365Repo(t *testing.T) (
 	account.Account,
 	storage.Storage,
 ) {
-	tester.MustGetEnvSets(t, storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs)
+	tester.MustGetEnvSets(t, storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs)
 
 	ctx, flush := tester.WithContext(t, loadCtx)
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	ac := config.NewM365Account(t)
+	ac := tconfig.NewM365Account(t)
 	opts := control.Options{
 		DisableMetrics:  true,
 		FailureHandling: control.FailFast,
@@ -418,7 +418,7 @@ func TestLoadExchangeSuite(t *testing.T) {
 	suite.Run(t, &LoadExchangeSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -469,7 +469,7 @@ func TestIndividualLoadExchangeSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadExchangeSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -523,7 +523,7 @@ func TestLoadOneDriveSuite(t *testing.T) {
 	suite.Run(t, &LoadOneDriveSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -571,7 +571,7 @@ func TestIndividualLoadOneDriveSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadOneDriveSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -622,7 +622,7 @@ func TestLoadSharePointSuite(t *testing.T) {
 	suite.Run(t, &LoadSharePointSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -670,7 +670,7 @@ func TestIndividualLoadSharePointSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadSharePointSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 		),
 	})
 }

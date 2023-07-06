@@ -11,7 +11,7 @@ import (
 
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -24,7 +24,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 	suite.Run(t, &ExchangeServiceSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs},
+			[][]string{tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -32,7 +32,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 func (suite *ExchangeServiceSuite) SetupSuite() {
 	t := suite.T()
 
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 

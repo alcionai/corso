@@ -10,7 +10,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -32,16 +32,16 @@ var AWSStorageCredEnvs = []string{
 func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	now := tester.LogTimeOfTest(t)
 
-	cfg, err := config.ReadTestConfig()
+	cfg, err := tconfig.ReadTestConfig()
 	require.NoError(t, err, "configuring storage from test file", clues.ToCore(err))
 
 	prefix := testRepoRootPrefix + t.Name() + "-" + now
-	t.Logf("testing at s3 bucket [%s] prefix [%s]", cfg[config.TestCfgBucket], prefix)
+	t.Logf("testing at s3 bucket [%s] prefix [%s]", cfg[tconfig.TestCfgBucket], prefix)
 
 	st, err := storage.NewStorage(
 		storage.ProviderS3,
 		storage.S3Config{
-			Bucket: cfg[config.TestCfgBucket],
+			Bucket: cfg[tconfig.TestCfgBucket],
 			Prefix: prefix,
 		},
 		storage.CommonConfig{

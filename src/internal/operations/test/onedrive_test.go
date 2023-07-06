@@ -26,7 +26,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -49,7 +49,7 @@ func TestOneDriveBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &OneDriveBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{config.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -64,9 +64,9 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 	defer flush()
 
 	var (
-		tenID  = config.M365TenantID(t)
+		tenID  = tconfig.M365TenantID(t)
 		mb     = evmock.NewBus()
-		userID = config.SecondaryM365UserID(t)
+		userID = tconfig.SecondaryM365UserID(t)
 		osel   = selectors.NewOneDriveBackup([]string{userID})
 		ws     = deeTD.DriveIDFromRepoRef
 		svc    = path.OneDriveService
@@ -162,7 +162,7 @@ func runDriveIncrementalTest(
 	defer flush()
 
 	var (
-		acct = config.NewM365Account(t)
+		acct = tconfig.NewM365Account(t)
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
 		ws   = deeTD.DriveIDFromRepoRef
@@ -700,7 +700,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	defer flush()
 
 	var (
-		acct = config.NewM365Account(t)
+		acct = tconfig.NewM365Account(t)
 		ffs  = control.Toggles{}
 		mb   = evmock.NewBus()
 

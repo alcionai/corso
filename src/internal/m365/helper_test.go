@@ -22,7 +22,7 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -1197,7 +1197,7 @@ func newController(
 	r resource.Category,
 	pst path.ServiceType,
 ) *Controller {
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 
 	controller, err := NewController(ctx, a, r, pst, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))

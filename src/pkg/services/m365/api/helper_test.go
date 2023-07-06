@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/config"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
@@ -92,7 +92,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	a := config.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -104,7 +104,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	// user drive
 
-	its.userID = config.M365UserID(t)
+	its.userID = tconfig.M365UserID(t)
 
 	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
 	require.NoError(t, err, clues.ToCore(err))
@@ -116,7 +116,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
 
-	its.siteID = config.M365SiteID(t)
+	its.siteID = tconfig.M365SiteID(t)
 
 	// site
 
