@@ -34,6 +34,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -87,7 +88,7 @@ func prepNewTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bus events.Eventer,
 	sel selectors.Selector,
-	featureToggles control.Toggles,
+	opts control.Options,
 	backupVersion int,
 ) (
 	operations.BackupOperation,
@@ -148,7 +149,7 @@ func prepNewTestBackupOp(
 		ctx,
 		bod,
 		bus,
-		featureToggles)
+		opts)
 
 	bod.sss = streamstore.NewStreamer(
 		bod.kw,
@@ -167,11 +168,8 @@ func newTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bod *backupOpDependencies,
 	bus events.Eventer,
-	featureToggles control.Toggles,
+	opts control.Options,
 ) operations.BackupOperation {
-	opts := control.Defaults()
-
-	opts.ToggleFeatures = featureToggles
 	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
 
 	bo, err := operations.NewBackupOperation(
@@ -628,4 +626,26 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
 
 	return its
+}
+
+func getTestExtensionFactories() []extensions.CreateItemExtensioner {
+	return []extensions.CreateItemExtensioner{
+		&extensions.MockItemExtensionFactory{},
+	}
+}
+
+func verifyExtensionData(
+	t *testing.T,
+	itemInfo details.ItemInfo,
+	p path.ServiceType,
+) {
+	require.NotNil(t, itemInfo.Extension, "nil extension")
+	assert.NotNil(t, itemInfo.Extension.Data[extensions.KNumBytes], "key not found in extension")
+	actualSize := int64(itemInfo.Extension.Data[extensions.KNumBytes].(float64))
+
+	if p == path.SharePointService {
+		assert.Equal(t, itemInfo.SharePoint.Size, actualSize, "incorrect data in extension")
+	} else {
+		assert.Equal(t, itemInfo.OneDrive.Size, actualSize, "incorrect data in extension")
+	}
 }

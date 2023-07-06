@@ -15,7 +15,7 @@ type CreateItemExtensioner interface {
 		context.Context,
 		io.ReadCloser,
 		details.ItemInfo,
-		*details.ExtensionInfo,
+		*details.ExtensionData,
 	) (io.ReadCloser, error)
 }
 
@@ -27,7 +27,7 @@ func AddItemExtensions(
 	rc io.ReadCloser,
 	info details.ItemInfo,
 	factories []CreateItemExtensioner,
-) (io.ReadCloser, *details.ExtensionInfo, error) {
+) (io.ReadCloser, *details.ExtensionData, error) {
 	if rc == nil {
 		return nil, nil, clues.New("nil readcloser")
 	}
@@ -38,7 +38,7 @@ func AddItemExtensions(
 
 	ctx = clues.Add(ctx, "num_extensions", len(factories))
 
-	extInfo := &details.ExtensionInfo{
+	extData := &details.ExtensionData{
 		Data: make(map[string]any),
 	}
 
@@ -47,7 +47,7 @@ func AddItemExtensions(
 			return nil, nil, clues.New("nil extension factory")
 		}
 
-		extRc, err := factory.CreateItemExtension(ctx, rc, info, extInfo)
+		extRc, err := factory.CreateItemExtension(ctx, rc, info, extData)
 		if err != nil {
 			return nil, nil, clues.Wrap(err, "create item extension")
 		}
@@ -57,5 +57,5 @@ func AddItemExtensions(
 
 	logger.Ctx(ctx).Debug("added item extensions")
 
-	return rc, extInfo, nil
+	return rc, extData, nil
 }
