@@ -77,6 +77,7 @@ func (b *Bus) Total(k key) int64 {
 }
 
 // Values returns a map of all local values.
+// Not a snapshot, and therefore not threadsafe.
 func (b *Bus) Values() map[string]int64 {
 	if b == nil {
 		return map[string]int64{}
@@ -93,6 +94,7 @@ func (b *Bus) Values() map[string]int64 {
 }
 
 // TotalValues returns a map of all global values.
+// Not a snapshot, and therefore not threadsafe.
 func (b *Bus) TotalValues() map[string]int64 {
 	if b == nil {
 		return map[string]int64{}
