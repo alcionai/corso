@@ -77,7 +77,7 @@ func (h mailRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreMail(
 		ctx,
@@ -87,7 +87,7 @@ func (h mailRestoreHandler) restore(
 		collisionKeyToItemID,
 		collisionPolicy,
 		errs,
-		cb)
+		ctr)
 }
 
 type mailRestorer interface {
@@ -104,7 +104,7 @@ func restoreMail(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	msg, err := api.BytesToMessageable(body)
 	if err != nil {
@@ -124,7 +124,7 @@ func restoreMail(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
-			cb.Inc(count.CollisionSkip)
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
 			return nil, graph.ErrItemAlreadyExistsConflict

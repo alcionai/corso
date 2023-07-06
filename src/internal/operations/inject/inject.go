@@ -42,7 +42,7 @@ type (
 			opts control.Options,
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
-			cb *count.Bus,
+			ctr *count.Bus,
 		) (*details.Details, error)
 
 		Wait() *data.CollectionStats

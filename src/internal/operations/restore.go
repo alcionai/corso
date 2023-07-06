@@ -326,7 +326,7 @@ func consumeRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*details.Details, error) {
 	complete := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer func() {
@@ -342,7 +342,7 @@ func consumeRestoreCollections(
 		opts,
 		dcs,
 		errs,
-		cb)
+		ctr)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}

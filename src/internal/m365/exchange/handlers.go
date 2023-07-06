@@ -81,7 +81,7 @@ type itemRestorer interface {
 		collisionKeyToItemID map[string]string,
 		collisionPolicy control.CollisionPolicy,
 		errs *fault.Bus,
-		cb *count.Bus,
+		ctr *count.Bus,
 	) (*details.ExchangeInfo, error)
 }
 

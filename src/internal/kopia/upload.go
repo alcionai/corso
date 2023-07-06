@@ -302,7 +302,7 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 
 func collectionEntries(
 	ctx context.Context,
-	cb func(context.Context, fs.Entry) error,
+	ctr func(context.Context, fs.Entry) error,
 	streamedEnts data.BackupCollection,
 	progress *corsoProgress,
 ) (map[string]struct{}, error) {
@@ -399,7 +399,7 @@ func collectionEntries(
 				modTime,
 				newBackupStreamReader(serializationVersion, e.ToReader()))
 
-			err = cb(ctx, entry)
+			err = ctr(ctx, entry)
 			if err != nil {
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
@@ -411,7 +411,7 @@ func collectionEntries(
 
 func streamBaseEntries(
 	ctx context.Context,
-	cb func(context.Context, fs.Entry) error,
+	ctr func(context.Context, fs.Entry) error,
 	curPath path.Path,
 	prevPath path.Path,
 	locationPath *path.Builder,
@@ -501,7 +501,7 @@ func streamBaseEntries(
 			progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 		}
 
-		if err := cb(ctx, entry); err != nil {
+		if err := ctr(ctx, entry); err != nil {
 			return clues.Wrap(err, "executing callback on item").With("item_path", itemPath)
 		}
 
@@ -527,13 +527,13 @@ func getStreamItemFunc(
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
-	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
+	return func(ctx context.Context, ctr func(context.Context, fs.Entry) error) error {
 		ctx, end := diagnostics.Span(ctx, "kopia:getStreamItemFunc")
 		defer end()
 
 		// Return static entries in this directory first.
 		for _, d := range staticEnts {
-			if err := cb(ctx, d); err != nil {
+			if err := ctr(ctx, d); err != nil {
 				return clues.Wrap(err, "executing callback on static directory").WithClues(ctx)
 			}
 		}
@@ -544,14 +544,14 @@ func getStreamItemFunc(
 			locationPath = lp.LocationPath()
 		}
 
-		seen, err := collectionEntries(ctx, cb, streamedEnts, progress)
+		seen, err := collectionEntries(ctx, ctr, streamedEnts, progress)
 		if err != nil {
 			return clues.Wrap(err, "streaming collection entries")
 		}
 
 		if err := streamBaseEntries(
 			ctx,
-			cb,
+			ctr,
 			curPath,
 			prevPath,
 			locationPath,

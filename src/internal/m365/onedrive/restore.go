@@ -76,7 +76,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -116,7 +116,7 @@ func ConsumeRestoreCollections(
 			deets,
 			opts.RestorePermissions,
 			errs,
-			cb.Local())
+			ctr.Local())
 		if err != nil {
 			el.AddRecoverable(ctx, err)
 		}
@@ -153,7 +153,7 @@ func RestoreCollection(
 	deets *details.Builder,
 	restorePerms bool, // TODD: move into restoreConfig
 	errs *fault.Bus,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
 		metrics        = support.CollectionMetrics{}
@@ -308,7 +308,7 @@ func RestoreCollection(
 					restorePerms,
 					itemData,
 					itemPath,
-					cb)
+					ctr)
 
 				// skipped items don't get counted, but they can error
 				if !skipped {
@@ -358,7 +358,7 @@ func restoreItem(
 	restorePerms bool,
 	itemData data.Stream,
 	itemPath path.Path,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (details.ItemInfo, bool, error) {
 	itemUUID := itemData.UUID()
 	ctx = clues.Add(ctx, "item_id", itemUUID)
@@ -374,7 +374,7 @@ func restoreItem(
 			copyBuffer,
 			caches.collisionKeyToItemID,
 			itemData,
-			cb)
+			ctr)
 		if err != nil {
 			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
@@ -432,7 +432,7 @@ func restoreItem(
 			caches,
 			itemPath,
 			itemData,
-			cb)
+			ctr)
 		if err != nil {
 			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
@@ -458,7 +458,7 @@ func restoreItem(
 		caches,
 		itemPath,
 		itemData,
-		cb)
+		ctr)
 	if err != nil {
 		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
 			return details.ItemInfo{}, true, nil
@@ -480,7 +480,7 @@ func restoreV0File(
 	copyBuffer []byte,
 	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	itemData data.Stream,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreFile(
 		ctx,
@@ -493,7 +493,7 @@ func restoreV0File(
 		restoreFolderID,
 		collisionKeyToItemID,
 		copyBuffer,
-		cb)
+		ctr)
 	if err != nil {
 		return itemInfo, clues.Wrap(err, "restoring file")
 	}
@@ -513,7 +513,7 @@ func restoreV1File(
 	caches *restoreCaches,
 	itemPath path.Path,
 	itemData data.Stream,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (details.ItemInfo, error) {
 	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
 
@@ -528,7 +528,7 @@ func restoreV1File(
 		restoreFolderID,
 		caches.collisionKeyToItemID,
 		copyBuffer,
-		cb)
+		ctr)
 	if err != nil {
 		return details.ItemInfo{}, err
 	}
@@ -574,7 +574,7 @@ func restoreV6File(
 	caches *restoreCaches,
 	itemPath path.Path,
 	itemData data.Stream,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (details.ItemInfo, error) {
 	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
 
@@ -613,7 +613,7 @@ func restoreV6File(
 		restoreFolderID,
 		caches.collisionKeyToItemID,
 		copyBuffer,
-		cb)
+		ctr)
 	if err != nil {
 		return details.ItemInfo{}, err
 	}
@@ -810,7 +810,7 @@ func restoreFile(
 	driveID, parentFolderID string,
 	collisionKeyToItemID map[string]api.DriveCollisionItem,
 	copyBuffer []byte,
-	cb *count.Bus,
+	ctr *count.Bus,
 ) (string, details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
@@ -835,7 +835,7 @@ func restoreFile(
 		log.Debug("item collision")
 
 		if restoreCfg.OnCollision == control.Skip {
-			cb.Inc(count.CollisionSkip)
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
 			return "", details.ItemInfo{}, graph.ErrItemAlreadyExistsConflict

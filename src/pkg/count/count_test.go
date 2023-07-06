@@ -1,4 +1,4 @@
-package count_test
+package count
 
 import (
 	"testing"
@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type CountUnitSuite struct {
@@ -18,10 +17,12 @@ func TestCountUnitSuite(t *testing.T) {
 	suite.Run(t, &CountUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+const testKey = key("just-for-testing")
+
 func (suite *CountUnitSuite) TestBus_Inc() {
-	newParent := func() *count.Bus {
-		parent := count.New()
-		parent.Inc(count.Test)
+	newParent := func() *Bus {
+		parent := New()
+		parent.Inc(testKey)
 
 		return parent
 	}
@@ -29,7 +30,7 @@ func (suite *CountUnitSuite) TestBus_Inc() {
 	table := []struct {
 		name        string
 		skip        bool
-		bus         *count.Bus
+		bus         *Bus
 		expect      int64
 		expectTotal int64
 	}{
@@ -58,22 +59,22 @@ func (suite *CountUnitSuite) TestBus_Inc() {
 			t := suite.T()
 
 			if !test.skip {
-				test.bus.Inc(count.Test)
+				test.bus.Inc(testKey)
 			}
 
-			result := test.bus.Get(count.Test)
+			result := test.bus.Get(testKey)
 			assert.Equal(t, test.expect, result)
 
-			resultTotal := test.bus.Total(count.Test)
+			resultTotal := test.bus.Total(testKey)
 			assert.Equal(t, test.expectTotal, resultTotal)
 		})
 	}
 }
 
 func (suite *CountUnitSuite) TestBus_Add() {
-	newParent := func() *count.Bus {
-		parent := count.New()
-		parent.Add(count.Test, 2)
+	newParent := func() *Bus {
+		parent := New()
+		parent.Add(testKey, 2)
 
 		return parent
 	}
@@ -81,7 +82,7 @@ func (suite *CountUnitSuite) TestBus_Add() {
 	table := []struct {
 		name        string
 		skip        bool
-		bus         *count.Bus
+		bus         *Bus
 		expect      int64
 		expectTotal int64
 	}{
@@ -110,13 +111,13 @@ func (suite *CountUnitSuite) TestBus_Add() {
 			t := suite.T()
 
 			if !test.skip {
-				test.bus.Add(count.Test, 4)
+				test.bus.Add(testKey, 4)
 			}
 
-			result := test.bus.Get(count.Test)
+			result := test.bus.Get(testKey)
 			assert.Equal(t, test.expect, result)
 
-			resultTotal := test.bus.Total(count.Test)
+			resultTotal := test.bus.Total(testKey)
 			assert.Equal(t, test.expectTotal, resultTotal)
 		})
 	}
@@ -125,42 +126,42 @@ func (suite *CountUnitSuite) TestBus_Add() {
 func (suite *CountUnitSuite) TestBus_Values() {
 	table := []struct {
 		name        string
-		bus         func() *count.Bus
+		bus         func() *Bus
 		expect      map[string]int64
 		expectTotal map[string]int64
 	}{
 		{
 			name:        "nil",
-			bus:         func() *count.Bus { return nil },
+			bus:         func() *Bus { return nil },
 			expect:      map[string]int64{},
 			expectTotal: map[string]int64{},
 		},
 		{
 			name: "none",
-			bus: func() *count.Bus {
-				parent := count.New()
-				parent.Add(count.Test, 2)
+			bus: func() *Bus {
+				parent := New()
+				parent.Add(testKey, 2)
 
 				l := parent.Local()
 
 				return l
 			},
 			expect:      map[string]int64{},
-			expectTotal: map[string]int64{string(count.Test): 2},
+			expectTotal: map[string]int64{string(testKey): 2},
 		},
 		{
 			name: "some",
-			bus: func() *count.Bus {
-				parent := count.New()
-				parent.Add(count.Test, 2)
+			bus: func() *Bus {
+				parent := New()
+				parent.Add(testKey, 2)
 
 				l := parent.Local()
-				l.Inc(count.Test)
+				l.Inc(testKey)
 
 				return l
 			},
-			expect:      map[string]int64{string(count.Test): 1},
-			expectTotal: map[string]int64{string(count.Test): 3},
+			expect:      map[string]int64{string(testKey): 1},
+			expectTotal: map[string]int64{string(testKey): 3},
 		},
 	}
 	for _, test := range table {
