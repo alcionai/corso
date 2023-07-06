@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -124,7 +125,7 @@ func TestUsersIntgSuite(t *testing.T) {
 	suite.Run(t, &UsersIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 

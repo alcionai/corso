@@ -13,16 +13,19 @@ import (
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 var (
@@ -48,7 +51,7 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &RestoreExchangeE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -59,20 +62,20 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	defer flush()
 
 	// aggregate required details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.acct = tconfig.NewM365Account(t)
+	suite.st = storeTD.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
+		tconfig.TestCfgAccountProvider: "M365",
+		tconfig.TestCfgStorageProvider: "S3",
+		tconfig.TestCfgPrefix:          cfg.Prefix,
 	}
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
+	suite.vpr, suite.cfgFP = tconfig.MakeTempTestConfigClone(t, force)
 
-	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
+	suite.m365UserID = strings.ToLower(tconfig.M365UserID(t))
 
 	var (
 		users = []string{suite.m365UserID}
@@ -132,7 +135,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 
 			defer flush()
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID))
@@ -167,7 +170,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 				timeFilter = "--" + flags.EventStartsAfterFN
 			}
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
@@ -201,7 +204,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 				timeFilter = "--" + flags.EventRecursFN
 			}
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
