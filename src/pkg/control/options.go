@@ -72,6 +72,14 @@ const (
 	Replace CollisionPolicy = "replace"
 )
 
+func ValidCollisionPolicies() map[CollisionPolicy]struct{} {
+	return map[CollisionPolicy]struct{}{
+		Skip:    {},
+		Copy:    {},
+		Replace: {},
+	}
+}
+
 const RootLocation = "/"
 
 // RestoreConfig contains

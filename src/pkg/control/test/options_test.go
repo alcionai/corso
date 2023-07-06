@@ -1,4 +1,4 @@
-package control
+package test
 
 import (
 	"testing"
@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type OptionsUnitSuite struct {
@@ -20,19 +21,19 @@ func TestOptionsUnitSuite(t *testing.T) {
 func (suite *OptionsUnitSuite) TestEnsureRestoreConfigDefaults() {
 	table := []struct {
 		name   string
-		input  RestoreConfig
-		expect RestoreConfig
+		input  control.RestoreConfig
+		expect control.RestoreConfig
 	}{
 		{
 			name: "populated",
-			input: RestoreConfig{
-				OnCollision:       Copy,
+			input: control.RestoreConfig{
+				OnCollision:       control.Copy,
 				ProtectedResource: "batman",
 				Location:          "badman",
 				Drive:             "hatman",
 			},
-			expect: RestoreConfig{
-				OnCollision:       Copy,
+			expect: control.RestoreConfig{
+				OnCollision:       control.Copy,
 				ProtectedResource: "batman",
 				Location:          "badman",
 				Drive:             "hatman",
@@ -40,14 +41,14 @@ func (suite *OptionsUnitSuite) TestEnsureRestoreConfigDefaults() {
 		},
 		{
 			name: "unpopulated",
-			input: RestoreConfig{
-				OnCollision:       Unknown,
+			input: control.RestoreConfig{
+				OnCollision:       control.Unknown,
 				ProtectedResource: "",
 				Location:          "",
 				Drive:             "",
 			},
-			expect: RestoreConfig{
-				OnCollision:       Skip,
+			expect: control.RestoreConfig{
+				OnCollision:       control.Skip,
 				ProtectedResource: "",
 				Location:          "",
 				Drive:             "",
@@ -55,14 +56,14 @@ func (suite *OptionsUnitSuite) TestEnsureRestoreConfigDefaults() {
 		},
 		{
 			name: "populated, but modified",
-			input: RestoreConfig{
-				OnCollision:       CollisionPolicy("batman"),
+			input: control.RestoreConfig{
+				OnCollision:       control.CollisionPolicy("batman"),
 				ProtectedResource: "",
 				Location:          "/",
 				Drive:             "",
 			},
-			expect: RestoreConfig{
-				OnCollision:       Skip,
+			expect: control.RestoreConfig{
+				OnCollision:       control.Skip,
 				ProtectedResource: "",
 				Location:          "",
 				Drive:             "",
@@ -76,7 +77,7 @@ func (suite *OptionsUnitSuite) TestEnsureRestoreConfigDefaults() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			result := EnsureRestoreConfigDefaults(ctx, test.input)
+			result := control.EnsureRestoreConfigDefaults(ctx, test.input)
 			assert.Equal(t, test.expect, result)
 		})
 	}
