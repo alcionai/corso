@@ -224,6 +224,19 @@ func (suite *EventsRestoreIntgSuite) TestRestoreEvent() {
 				assert.True(t, m.calledDelete, "old item deleted")
 			},
 		},
+		{
+			name:         "collision: replace - err already deleted",
+			apiMock:      &eventRestoreMock{deleteItemErr: graph.ErrDeletedInFlight},
+			collisionMap: map[string]string{collisionKey: "smarf"},
+			onCollision:  control.Replace,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectMock: func(t *testing.T, m *eventRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.True(t, m.calledDelete, "old item deleted")
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
