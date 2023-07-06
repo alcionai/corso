@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -22,7 +23,7 @@ func TestContactsPagerIntgSuite(t *testing.T) {
 	suite.Run(t, &ContactsPagerIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 

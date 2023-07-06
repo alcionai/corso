@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 )
 
 type BetaUnitSuite struct {
@@ -23,7 +24,7 @@ func TestBetaUnitSuite(t *testing.T) {
 
 func (suite *BetaUnitSuite) TestBetaService_Adapter() {
 	t := suite.T()
-	a := tester.NewMockM365Account(t)
+	a := config.NewFakeM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 

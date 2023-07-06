@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -119,7 +120,7 @@ func TestContactsAPIntgSuite(t *testing.T) {
 	suite.Run(t, &ContactsAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 

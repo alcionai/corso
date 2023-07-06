@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -31,7 +32,7 @@ func TestM365IntegrationSuite(t *testing.T) {
 	suite.Run(t, &M365IntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -50,7 +51,7 @@ func (suite *M365IntegrationSuite) TestUsers() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	acct := tester.NewM365Account(suite.T())
+	acct := config.NewM365Account(suite.T())
 
 	users, err := Users(ctx, acct, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
@@ -74,7 +75,7 @@ func (suite *M365IntegrationSuite) TestUsersCompat_HasNoInfo() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tester.NewM365Account(suite.T())
+	acct := config.NewM365Account(suite.T())
 
 	users, err := UsersCompatNoInfo(ctx, acct)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -98,8 +99,8 @@ func (suite *M365IntegrationSuite) TestUserHasMailbox() {
 	defer flush()
 
 	var (
-		acct = tester.NewM365Account(t)
-		uid  = tester.M365UserID(t)
+		acct = config.NewM365Account(t)
+		uid  = config.M365UserID(t)
 	)
 
 	enabled, err := UserHasMailbox(ctx, acct, uid)
@@ -114,8 +115,8 @@ func (suite *M365IntegrationSuite) TestUserHasDrive() {
 	defer flush()
 
 	var (
-		acct = tester.NewM365Account(t)
-		uid  = tester.M365UserID(t)
+		acct = config.NewM365Account(t)
+		uid  = config.M365UserID(t)
 	)
 
 	enabled, err := UserHasDrives(ctx, acct, uid)
@@ -129,7 +130,7 @@ func (suite *M365IntegrationSuite) TestSites() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tester.NewM365Account(t)
+	acct := config.NewM365Account(t)
 
 	sites, err := Sites(ctx, acct, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
@@ -355,7 +356,7 @@ func TestDiscoveryIntgSuite(t *testing.T) {
 	suite.Run(t, &DiscoveryIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -367,7 +368,7 @@ func (suite *DiscoveryIntgSuite) SetupSuite() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	suite.acct = tester.NewM365Account(t)
+	suite.acct = config.NewM365Account(t)
 }
 
 func (suite *DiscoveryIntgSuite) TestUsers() {
@@ -482,7 +483,7 @@ func (suite *DiscoveryIntgSuite) TestGetUserInfo() {
 	}{
 		{
 			name: "standard test user",
-			user: tester.M365UserID(suite.T()),
+			user: config.M365UserID(suite.T()),
 			expect: &api.UserInfo{
 				ServicesEnabled: map[path.ServiceType]struct{}{
 					path.ExchangeService: {},
@@ -527,7 +528,7 @@ func (suite *DiscoveryIntgSuite) TestGetUserInfo() {
 }
 
 func (suite *DiscoveryIntgSuite) TestGetUserInfo_userWithoutDrive() {
-	userID := tester.M365UserID(suite.T())
+	userID := config.M365UserID(suite.T())
 
 	table := []struct {
 		name   string

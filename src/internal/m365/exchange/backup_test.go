@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -394,7 +395,7 @@ func TestBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &BackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -406,10 +407,10 @@ func (suite *BackupIntgSuite) SetupSuite() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	suite.user = tester.M365UserID(t)
-	suite.site = tester.M365SiteID(t)
+	suite.user = config.M365UserID(t)
+	suite.site = config.M365SiteID(t)
 
-	acct := tester.NewM365Account(t)
+	acct := config.NewM365Account(t)
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -423,7 +424,7 @@ func (suite *BackupIntgSuite) SetupSuite() {
 
 func (suite *BackupIntgSuite) TestMailFetch() {
 	var (
-		userID   = tester.M365UserID(suite.T())
+		userID   = config.M365UserID(suite.T())
 		users    = []string{userID}
 		handlers = BackupHandlers(suite.ac)
 	)
@@ -507,7 +508,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 
 func (suite *BackupIntgSuite) TestDelta() {
 	var (
-		userID   = tester.M365UserID(suite.T())
+		userID   = config.M365UserID(suite.T())
 		users    = []string{userID}
 		handlers = BackupHandlers(suite.ac)
 	)
@@ -878,7 +879,7 @@ func TestServiceIteratorsUnitSuite(t *testing.T) {
 }
 
 func (suite *CollectionPopulationSuite) SetupSuite() {
-	a := tester.NewMockM365Account(suite.T())
+	a := config.NewFakeM365Account(suite.T())
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	suite.creds = m365

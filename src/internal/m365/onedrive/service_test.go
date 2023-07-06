@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -42,7 +42,7 @@ func (ods *oneDriveService) updateStatus(status *support.ControllerOperationStat
 }
 
 func loadTestService(t *testing.T) *oneDriveService {
-	a := tester.NewM365Account(t)
+	a := config.NewM365Account(t)
 
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))

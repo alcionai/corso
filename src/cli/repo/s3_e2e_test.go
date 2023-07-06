@@ -11,10 +11,13 @@ import (
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	tconfig "github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type S3E2ESuite struct {
@@ -24,7 +27,7 @@ type S3E2ESuite struct {
 func TestS3E2ESuite(t *testing.T) {
 	suite.Run(t, &S3E2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 	)})
 }
 
@@ -58,11 +61,11 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			st := tester.NewPrefixedS3Storage(t)
+			st := storeTD.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
 			require.NoError(t, err, clues.ToCore(err))
 
-			vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
+			vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 			if !test.hasConfigFile {
 				// Ideally we could use `/dev/null`, but you need a
 				// toml file plus this works cross platform
@@ -71,7 +74,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 
 			ctx = config.SetViper(ctx, vpr)
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"repo", "init", "s3",
 				"--config-file", configFP,
 				"--bucket", test.bucketPrefix+cfg.Bucket,
@@ -95,16 +98,16 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
 	for i := 0; i < 2; i++ {
-		cmd := tester.StubRootCmd(
+		cmd := cliTD.StubRootCmd(
 			"repo", "init", "s3",
 			"--config-file", configFP,
 			"--bucket", cfg.Bucket,
@@ -125,15 +128,15 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"repo", "init", "s3",
 		"--config-file", configFP,
 		"--prefix", cfg.Prefix)
@@ -174,16 +177,16 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			st := tester.NewPrefixedS3Storage(t)
+			st := storeTD.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
 			require.NoError(t, err, clues.ToCore(err))
 
 			force := map[string]string{
-				tester.TestCfgAccountProvider: "M365",
-				tester.TestCfgStorageProvider: "S3",
-				tester.TestCfgPrefix:          cfg.Prefix,
+				tconfig.TestCfgAccountProvider: "M365",
+				tconfig.TestCfgStorageProvider: "S3",
+				tconfig.TestCfgPrefix:          cfg.Prefix,
 			}
-			vpr, configFP := tester.MakeTempTestConfigClone(t, force)
+			vpr, configFP := tconfig.MakeTempTestConfigClone(t, force)
 			if !test.hasConfigFile {
 				// Ideally we could use `/dev/null`, but you need a
 				// toml file plus this works cross platform
@@ -197,7 +200,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"repo", "connect", "s3",
 				"--config-file", configFP,
 				"--bucket", test.bucketPrefix+cfg.Bucket,
@@ -218,15 +221,15 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"repo", "connect", "s3",
 		"--config-file", configFP,
 		"--bucket", "wrong",
@@ -244,15 +247,15 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"repo", "connect", "s3",
 		"--config-file", configFP,
 		"--bucket", cfg.Bucket,

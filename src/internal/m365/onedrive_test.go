@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -128,10 +129,10 @@ func NewSuiteInfoImpl(
 		controller:       ctrl,
 		resourceOwner:    resourceOwner,
 		resourceCategory: rsc,
-		secondaryUser:    tester.SecondaryM365UserID(t),
+		secondaryUser:    config.SecondaryM365UserID(t),
 		service:          service,
-		tertiaryUser:     tester.TertiaryM365UserID(t),
-		user:             tester.M365UserID(t),
+		tertiaryUser:     config.TertiaryM365UserID(t),
+		user:             config.M365UserID(t),
 	}
 }
 
@@ -183,7 +184,7 @@ func TestSharePointIntegrationSuite(t *testing.T) {
 	suite.Run(t, &SharePointIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -193,7 +194,7 @@ func (suite *SharePointIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	si := NewSuiteInfoImpl(suite.T(), ctx, tester.M365SiteID(suite.T()), path.SharePointService)
+	si := NewSuiteInfoImpl(suite.T(), ctx, config.M365SiteID(suite.T()), path.SharePointService)
 
 	// users needed for permissions
 	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
@@ -253,7 +254,7 @@ func TestOneDriveIntegrationSuite(t *testing.T) {
 	suite.Run(t, &OneDriveIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -263,7 +264,7 @@ func (suite *OneDriveIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	si := NewSuiteInfoImpl(t, ctx, tester.M365UserID(t), path.OneDriveService)
+	si := NewSuiteInfoImpl(t, ctx, config.M365UserID(t), path.OneDriveService)
 
 	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
@@ -317,7 +318,7 @@ func TestOneDriveNightlySuite(t *testing.T) {
 	suite.Run(t, &OneDriveNightlySuite{
 		Suite: tester.NewNightlySuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -327,7 +328,7 @@ func (suite *OneDriveNightlySuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	si := NewSuiteInfoImpl(t, ctx, tester.M365UserID(t), path.OneDriveService)
+	si := NewSuiteInfoImpl(t, ctx, config.M365UserID(t), path.OneDriveService)
 
 	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))

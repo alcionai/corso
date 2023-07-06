@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -40,17 +41,17 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 	suite.Run(t, &DataCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *DataCollectionIntgSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.user = tester.M365UserID(t)
-	suite.site = tester.M365SiteID(t)
+	suite.user = config.M365UserID(t)
+	suite.site = config.M365SiteID(t)
 
-	acct := tester.NewM365Account(t)
+	acct := config.NewM365Account(t)
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -339,7 +340,7 @@ func TestSPCollectionIntgSuite(t *testing.T) {
 	suite.Run(t, &SPCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
+			[][]string{config.M365AcctCredEnvs},
 		),
 	})
 }
@@ -349,7 +350,7 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	defer flush()
 
 	suite.connector = newController(ctx, suite.T(), resource.Sites, path.SharePointService)
-	suite.user = tester.M365UserID(suite.T())
+	suite.user = config.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -361,7 +362,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	defer flush()
 
 	var (
-		siteID  = tester.M365SiteID(t)
+		siteID  = config.M365SiteID(t)
 		ctrl    = newController(ctx, t, resource.Sites, path.SharePointService)
 		siteIDs = []string{siteID}
 	)
@@ -408,7 +409,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	defer flush()
 
 	var (
-		siteID  = tester.M365SiteID(t)
+		siteID  = config.M365SiteID(t)
 		ctrl    = newController(ctx, t, resource.Sites, path.SharePointService)
 		siteIDs = []string{siteID}
 	)

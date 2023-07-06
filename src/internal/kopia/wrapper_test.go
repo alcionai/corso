@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 const (
@@ -167,7 +168,7 @@ func TestBasicKopiaIntegrationSuite(t *testing.T) {
 	suite.Run(t, &BasicKopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs},
 		),
 	})
 }
@@ -295,7 +296,7 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 	suite.Run(t, &KopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs},
 		),
 	})
 }
@@ -930,7 +931,7 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 	suite.Run(t, &KopiaSimpleRepoIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs},
 		),
 	})
 }

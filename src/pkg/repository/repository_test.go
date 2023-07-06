@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 // ---------------
@@ -110,7 +112,7 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RepositoryIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs}),
 	})
 }
 
@@ -123,7 +125,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	}{
 		{
 			name:     "success",
-			storage:  tester.NewPrefixedS3Storage,
+			storage:  storeTD.NewPrefixedS3Storage,
 			errCheck: assert.NoError,
 		},
 	}
@@ -161,7 +163,7 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(suite.T())
+	st := storeTD.NewPrefixedS3Storage(suite.T())
 
 	st.Role = os.Getenv(roleARNEnvKey)
 	st.SessionName = "corso-repository-test"
@@ -182,7 +184,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	repo, err := Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
@@ -199,7 +201,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	r, err := Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
@@ -221,15 +223,15 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tester.NewM365Account(t)
+	acct := config.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	r, err := Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
-	userID := tester.M365UserID(t)
+	userID := config.M365UserID(t)
 
 	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: userID})
 	require.NoError(t, err, clues.ToCore(err))
@@ -242,11 +244,11 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tester.NewM365Account(t)
+	acct := config.NewM365Account(t)
 	restoreCfg := testdata.DefaultRestoreConfig("")
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	r, err := Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
@@ -262,10 +264,10 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tester.NewM365Account(t)
+	acct := config.NewM365Account(t)
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	r, err := Initialize(ctx, acct, st, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
@@ -282,7 +284,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
 	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	repo, err := Initialize(ctx, account.Account{}, st, control.Defaults())
 	require.NoError(t, err)
@@ -342,8 +344,8 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			acct := tester.NewM365Account(t)
-			st := tester.NewPrefixedS3Storage(t)
+			acct := config.NewM365Account(t)
+			st := storeTD.NewPrefixedS3Storage(t)
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()

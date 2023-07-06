@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -113,7 +114,7 @@ func TestSitesIntgSuite(t *testing.T) {
 	suite.Run(t, &SitesIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -141,10 +142,10 @@ func (suite *SitesIntgSuite) TestGetAll() {
 func (suite *SitesIntgSuite) TestSites_GetByID() {
 	var (
 		t               = suite.T()
-		siteID          = tester.M365SiteID(t)
+		siteID          = config.M365SiteID(t)
 		host            = strings.Split(siteID, ",")[0]
 		shortID         = strings.TrimPrefix(siteID, host+",")
-		siteURL         = tester.M365SiteURL(t)
+		siteURL         = config.M365SiteURL(t)
 		modifiedSiteURL = siteURL + "foo"
 	)
 

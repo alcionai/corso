@@ -15,12 +15,14 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type SharePointBackupIntgSuite struct {
@@ -32,7 +34,7 @@ func TestSharePointBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &SharePointBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+			[][]string{config.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 

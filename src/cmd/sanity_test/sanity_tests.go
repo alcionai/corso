@@ -18,7 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -56,7 +56,7 @@ func main() {
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	adapter, err := graph.CreateAdapter(
-		tester.GetM365TenantID(ctx),
+		config.GetM365TenantID(ctx),
 		os.Getenv("AZURE_CLIENT_ID"),
 		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
@@ -65,8 +65,8 @@ func main() {
 
 	var (
 		client           = msgraphsdk.NewGraphServiceClient(adapter)
-		testUser         = tester.GetM365UserID(ctx)
-		testSite         = tester.GetM365SiteID(ctx)
+		testUser         = config.GetM365UserID(ctx)
+		testSite         = config.GetM365SiteID(ctx)
 		testService      = os.Getenv("SANITY_RESTORE_SERVICE")
 		folder           = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
 		startTime, _     = mustGetTimeFromName(ctx, folder)

@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -272,7 +273,7 @@ func TestControllerIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
+			[][]string{config.M365AcctCredEnvs},
 		),
 	})
 }
@@ -284,8 +285,8 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	suite.ctrl = newController(ctx, t, resource.Users, path.ExchangeService)
-	suite.user = tester.M365UserID(t)
-	suite.secondaryUser = tester.SecondaryM365UserID(t)
+	suite.user = config.M365UserID(t)
+	suite.secondaryUser = config.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
 }
@@ -410,26 +411,26 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 func runRestore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config stub.ConfigInfo,
+	sci stub.ConfigInfo,
 	backupVersion int,
 	collections []data.RestoreCollection,
 	numRestoreItems int,
 ) {
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
-		config.RestoreCfg.Location,
-		config.ResourceOwners)
+		sci.RestoreCfg.Location,
+		sci.ResourceOwners)
 
 	start := time.Now()
 
-	restoreCtrl := newController(ctx, t, config.Resource, path.ExchangeService)
-	restoreSel := getSelectorWith(t, config.Service, config.ResourceOwners, true)
+	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
+	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		restoreSel,
-		config.RestoreCfg,
-		config.Opts,
+		sci.RestoreCfg,
+		sci.Opts,
 		collections,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -453,7 +454,7 @@ func runRestore(
 func runBackupAndCompare(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config stub.ConfigInfo,
+	sci stub.ConfigInfo,
 	expectedData map[string]map[string][]byte,
 	totalItems int,
 	totalKopiaItems int,
@@ -468,15 +469,15 @@ func runBackupAndCompare(
 	}
 
 	var (
-		expectedDests = make([]destAndCats, 0, len(config.ResourceOwners))
+		expectedDests = make([]destAndCats, 0, len(sci.ResourceOwners))
 		idToName      = map[string]string{}
 		nameToID      = map[string]string{}
 	)
 
-	for _, ro := range config.ResourceOwners {
+	for _, ro := range sci.ResourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
-			dest:          config.RestoreCfg.Location,
+			dest:          sci.RestoreCfg.Location,
 			cats:          cats,
 		})
 
@@ -484,10 +485,10 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupCtrl := newController(ctx, t, config.Resource, path.ExchangeService)
+	backupCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
 	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
-	backupSel := backupSelectorForExpected(t, config.Service, expectedDests)
+	backupSel := backupSelectorForExpected(t, sci.Service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
@@ -497,7 +498,7 @@ func runBackupAndCompare(
 		backupSel,
 		nil,
 		version.NoBackup,
-		config.Opts,
+		sci.Opts,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -514,7 +515,7 @@ func runBackupAndCompare(
 		totalKopiaItems,
 		expectedData,
 		dcs,
-		config)
+		sci)
 
 	status := backupCtrl.Wait()
 
@@ -534,7 +535,7 @@ func runRestoreBackupTest(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := stub.ConfigInfo{
+	cfg := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -544,7 +545,7 @@ func runRestoreBackupTest(
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collections,
 		version.Backup)
 
@@ -553,7 +554,7 @@ func runRestoreBackupTest(
 	runRestore(
 		t,
 		ctx,
-		config,
+		cfg,
 		version.Backup,
 		collections,
 		totalItems)
@@ -561,7 +562,7 @@ func runRestoreBackupTest(
 	runBackupAndCompare(
 		t,
 		ctx,
-		config,
+		cfg,
 		expectedData,
 		totalItems,
 		totalKopiaItems,
@@ -579,7 +580,7 @@ func runRestoreTestWithVersion(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := stub.ConfigInfo{
+	cfg := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -589,7 +590,7 @@ func runRestoreTestWithVersion(
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collectionsPrevious,
 		test.backupVersion)
 	require.NoError(t, err)
@@ -597,7 +598,7 @@ func runRestoreTestWithVersion(
 	runRestore(
 		t,
 		ctx,
-		config,
+		cfg,
 		test.backupVersion,
 		collections,
 		totalItems)
@@ -616,7 +617,7 @@ func runRestoreBackupTestVersions(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := stub.ConfigInfo{
+	cfg := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -626,7 +627,7 @@ func runRestoreBackupTestVersions(
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collectionsPrevious,
 		test.backupVersion)
 	require.NoError(t, err)
@@ -634,14 +635,14 @@ func runRestoreBackupTestVersions(
 	runRestore(
 		t,
 		ctx,
-		config,
+		cfg,
 		test.backupVersion,
 		collections,
 		totalItems)
 
 	// Get expected output for new version.
 	totalItems, totalKopiaItems, _, expectedData, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collectionsLatest,
 		version.Backup)
 	require.NoError(t, err)
@@ -649,7 +650,7 @@ func runRestoreBackupTestVersions(
 	runBackupAndCompare(
 		t,
 		ctx,
-		config,
+		cfg,
 		expectedData,
 		totalItems,
 		totalKopiaItems,
@@ -1181,7 +1182,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			name:        "SharePoint",
 			resourceCat: resource.Sites,
 			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
+				sel := selectors.NewSharePointBackup([]string{config.M365SiteID(t)})
 				sel.Include(
 					sel.LibraryFolders([]string{selectors.NoneTgt}),
 					// not yet in use

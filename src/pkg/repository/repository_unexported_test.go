@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -24,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 	"github.com/alcionai/corso/src/pkg/store/mock"
 )
@@ -220,7 +222,7 @@ func TestRepositoryModelIntgSuite(t *testing.T) {
 	suite.Run(t, &RepositoryModelIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, config.M365AcctCredEnvs}),
 	})
 }
 
@@ -231,7 +233,7 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 	defer flush()
 
 	var (
-		s   = tester.NewPrefixedS3Storage(t)
+		s   = storeTD.NewPrefixedS3Storage(t)
 		k   = kopia.NewConn(s)
 		err error
 	)
@@ -285,7 +287,7 @@ func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 	defer flush()
 
 	var (
-		s = tester.NewPrefixedS3Storage(t)
+		s = storeTD.NewPrefixedS3Storage(t)
 		k = kopia.NewConn(s)
 	)
 

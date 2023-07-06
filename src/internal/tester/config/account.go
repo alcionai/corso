@@ -1,4 +1,4 @@
-package tester
+package config
 
 import (
 	"testing"
@@ -18,7 +18,7 @@ var M365AcctCredEnvs = []string{
 // NewM365Account returns an account.Account object initialized with environment
 // variables used for integration tests that use the m365 Controller.
 func NewM365Account(t *testing.T) account.Account {
-	cfg, err := readTestConfig()
+	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "configuring m365 account from test configuration", clues.ToCore(err))
 
 	acc, err := account.NewAccount(
@@ -33,7 +33,7 @@ func NewM365Account(t *testing.T) account.Account {
 	return acc
 }
 
-func NewMockM365Account(t *testing.T) account.Account {
+func NewFakeM365Account(t *testing.T) account.Account {
 	acc, err := account.NewAccount(
 		account.ProviderM365,
 		account.M365Config{

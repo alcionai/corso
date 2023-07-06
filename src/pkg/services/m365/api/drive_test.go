@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/config"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
@@ -31,7 +32,7 @@ func TestDriveAPIs(t *testing.T) {
 	suite.Run(t, &DriveAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{config.M365AcctCredEnvs}),
 	})
 }
 
@@ -41,7 +42,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_CreatePagerAndGetPage() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	siteID := tester.M365SiteID(t)
+	siteID := config.M365SiteID(t)
 	pager := suite.its.ac.Drives().NewSiteDrivePager(siteID, []string{"name"})
 
 	a, err := pager.GetPage(ctx)
