@@ -48,6 +48,20 @@ type (
 		Wait() *data.CollectionStats
 	}
 
+	ExportConsumer interface {
+		ExportRestoreCollections(
+			ctx context.Context,
+			backupVersion int,
+			selector selectors.Selector,
+			exportCfg control.ExportConfig,
+			opts control.Options,
+			dcs []data.RestoreCollection,
+			errs *fault.Bus,
+		) ([]data.ExportCollection, error)
+
+		Wait() *data.CollectionStats
+	}
+
 	RepoMaintenancer interface {
 		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
 	}

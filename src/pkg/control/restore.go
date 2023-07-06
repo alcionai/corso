@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultRestoreLocation = "Corso_Restore_"
+	DefaultRestoreLocation = "Corso_Restore_"
 )
 
 // CollisionPolicy describes how the datalayer behaves in case of a collision.
@@ -61,7 +61,7 @@ type RestoreConfig struct {
 func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
 	return RestoreConfig{
 		OnCollision: Skip,
-		Location:    defaultRestoreLocation + dttm.FormatNow(timeFormat),
+		Location:    DefaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
 }
 

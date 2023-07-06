@@ -29,3 +29,6 @@ testlog/
 /bin
 /docker/bin
 /website/dist
+
+# Export dirs
+Corso_Restore_*
