@@ -628,7 +628,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	return its
 }
 
-func GetTestExtensionFactories() []extensions.CreateItemExtensioner {
+func getTestExtensionFactories() []extensions.CreateItemExtensioner {
 	return []extensions.CreateItemExtensioner{
 		&extensions.MockItemExtensionFactory{},
 	}
@@ -641,11 +641,11 @@ func verifyExtensionData(
 ) {
 	assert.NotNil(t, itemInfo.Extension, "nil extension")
 	assert.NotNil(t, itemInfo.Extension.Data["NumBytes"], "key not found in extension")
-	sizeFromExtension := int64(itemInfo.Extension.Data["NumBytes"].(float64))
+	eSize := int64(itemInfo.Extension.Data["NumBytes"].(float64))
 
 	if p == path.SharePointService {
-		assert.Equal(t, itemInfo.SharePoint.Size, sizeFromExtension, "incorrect data in extension")
-	} else if p == path.OneDriveService {
-		assert.Equal(t, itemInfo.OneDrive.Size, sizeFromExtension, "incorrect data in extension")
+		assert.Equal(t, itemInfo.SharePoint.Size, eSize, "incorrect data in extension")
+	} else {
+		assert.Equal(t, itemInfo.OneDrive.Size, eSize, "incorrect data in extension")
 	}
 }

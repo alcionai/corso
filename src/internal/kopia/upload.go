@@ -73,7 +73,10 @@ func (rw *backupStreamReader) Close() error {
 	rw.combined = nil
 
 	for _, r := range rw.readers {
-		r.Close()
+		err := r.Close()
+		if err != nil {
+			return clues.Wrap(err, "closing reader")
+		}
 	}
 
 	return nil

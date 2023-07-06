@@ -226,7 +226,6 @@ func (suite *ExtensionsUnitSuite) TestReadCloserWrappers() {
 
 			if err == nil {
 				require.Equal(suite.T(), len(test.payload), int(extInfo.Data["NumBytes"].(int64)))
-
 				c := extInfo.Data["Crc32"].(uint32)
 				require.Equal(suite.T(), c, crc32.ChecksumIEEE(test.payload))
 			}

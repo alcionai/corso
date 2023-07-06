@@ -130,7 +130,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 		ws    = deeTD.DriveIDFromRepoRef
 	)
 
-	opts.ItemExtensionFactory = GetTestExtensionFactories()
+	opts.ItemExtensionFactory = getTestExtensionFactories()
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 

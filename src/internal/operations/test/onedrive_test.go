@@ -842,7 +842,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 		opts   = control.Defaults()
 	)
 
-	opts.ItemExtensionFactory = GetTestExtensionFactories()
+	opts.ItemExtensionFactory = getTestExtensionFactories()
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
