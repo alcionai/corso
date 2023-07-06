@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -70,7 +71,7 @@ func EnsureRestoreConfigDefaults(
 	ctx context.Context,
 	rc RestoreConfig,
 ) RestoreConfig {
-	if !slices.Contains([]CollisionPolicy{Skip, Copy, Replace}, rc.OnCollision) {
+	if !slices.Contains(maps.Keys(ValidCollisionPolicies()), rc.OnCollision) {
 		logger.Ctx(ctx).
 			With(
 				"bad_collision_policy", rc.OnCollision,
