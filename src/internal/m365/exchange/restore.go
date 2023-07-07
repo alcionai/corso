@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,6 +32,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	if len(dcs) == 0 {
 		return support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
@@ -53,9 +55,8 @@ func ConsumeRestoreCollections(
 		}
 
 		var (
-			isNewCache bool
-			category   = dc.FullPath().Category()
-			ictx       = clues.Add(
+			category = dc.FullPath().Category()
+			ictx     = clues.Add(
 				ctx,
 				"restore_category", category,
 				"restore_full_path", dc.FullPath())
@@ -68,8 +69,12 @@ func ConsumeRestoreCollections(
 		}
 
 		if directoryCache[category] == nil {
-			directoryCache[category] = handler.newContainerCache(userID)
-			isNewCache = true
+			gcr := handler.newContainerCache(userID)
+			if err := gcr.Populate(ctx, errs, handler.defaultRootContainer()); err != nil {
+				return nil, clues.Wrap(err, "populating container cache")
+			}
+
+			directoryCache[category] = gcr
 		}
 
 		containerID, gcc, err := createDestination(
@@ -78,7 +83,6 @@ func ConsumeRestoreCollections(
 			handler.formatRestoreDestination(restoreCfg.Location, dc.FullPath()),
 			userID,
 			directoryCache[category],
-			isNewCache,
 			errs)
 		if err != nil {
 			el.AddRecoverable(ctx, err)
@@ -103,7 +107,8 @@ func ConsumeRestoreCollections(
 			collisionKeyToItemID,
 			restoreCfg.OnCollision,
 			deets,
-			errs)
+			errs,
+			ctr.Local())
 
 		metrics = support.CombineMetrics(metrics, temp)
 
@@ -136,6 +141,7 @@ func restoreCollection(
 	collisionPolicy control.CollisionPolicy,
 	deets *details.Builder,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (support.CollectionMetrics, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:exchange:restoreCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
@@ -185,7 +191,8 @@ func restoreCollection(
 				destinationID,
 				collisionKeyToItemID,
 				collisionPolicy,
-				errs)
+				errs,
+				ctr)
 			if err != nil {
 				if !graph.IsErrItemAlreadyExistsConflict(err) {
 					el.AddRecoverable(ictx, err)
@@ -235,7 +242,6 @@ func createDestination(
 	destination *path.Builder,
 	userID string,
 	gcr graph.ContainerResolver,
-	isNewCache bool,
 	errs *fault.Bus,
 ) (string, graph.ContainerResolver, error) {
 	var (
@@ -249,12 +255,11 @@ func createDestination(
 
 		ictx := clues.Add(
 			ctx,
-			"is_new_cache", isNewCache,
 			"container_parent_id", containerParentID,
 			"container_name", container,
 			"restore_location", restoreLoc)
 
-		fid, err := getOrPopulateContainer(
+		containerID, err := getOrPopulateContainer(
 			ictx,
 			ca,
 			cache,
@@ -262,13 +267,12 @@ func createDestination(
 			userID,
 			containerParentID,
 			container,
-			isNewCache,
 			errs)
 		if err != nil {
 			return "", cache, clues.Stack(err)
 		}
 
-		containerParentID = fid
+		containerParentID = containerID
 	}
 
 	// containerParentID now identifies the last created container,
@@ -282,7 +286,6 @@ func getOrPopulateContainer(
 	gcr graph.ContainerResolver,
 	restoreLoc *path.Builder,
 	userID, containerParentID, containerName string,
-	isNewCache bool,
 	errs *fault.Bus,
 ) (string, error) {
 	cached, ok := gcr.LocationInCache(restoreLoc.String())
@@ -312,12 +315,6 @@ func getOrPopulateContainer(
 	}
 
 	folderID := ptr.Val(c.GetId())
-
-	if isNewCache {
-		if err := gcr.Populate(ctx, errs, folderID, ca.orRootContainer(restoreLoc.HeadElem())); err != nil {
-			return "", clues.Wrap(err, "populating container cache")
-		}
-	}
 
 	if err = gcr.AddToCache(ctx, c); err != nil {
 		return "", clues.Wrap(err, "adding container to cache")

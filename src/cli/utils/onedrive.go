@@ -18,6 +18,8 @@ type OneDriveOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
+	RestoreCfg RestoreCfgOpts
+
 	Populated flags.PopulatedFlags
 }
 
@@ -32,6 +34,11 @@ func MakeOneDriveOpts(cmd *cobra.Command) OneDriveOpts {
 		FileModifiedAfter:  flags.FileModifiedAfterFV,
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
+		RestoreCfg: makeRestoreCfgOpts(cmd),
+
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
 		Populated: flags.GetPopulatedFlags(cmd),
 	}
 }
@@ -58,7 +65,7 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return clues.New("invalid time format for modified-before")
 	}
 
-	return nil
+	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
 }
 
 // AddOneDriveFilter adds the scope of the provided values to the selector's

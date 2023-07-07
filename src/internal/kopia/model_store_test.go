@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type fooModel struct {
@@ -70,7 +71,7 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ModelStoreIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs},
 		),
 	})
 }
@@ -731,7 +732,7 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 	suite.Run(t, &ModelStoreRegressionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs},
 		),
 	})
 }
@@ -804,7 +805,7 @@ func openConnAndModelStore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, *ModelStore) {
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	c := NewConn(st)
 
 	err := c.Initialize(ctx, repository.Options{})

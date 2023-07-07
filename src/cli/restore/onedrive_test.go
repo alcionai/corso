@@ -67,6 +67,10 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
 				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
 				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+
+				"--" + flags.CollisionsFN, testdata.Collisions,
+				"--" + flags.DestinationFN, testdata.Destination,
+
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
 				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
@@ -92,6 +96,9 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
 			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
+
+			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
+			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)

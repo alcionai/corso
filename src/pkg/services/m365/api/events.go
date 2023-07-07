@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -701,7 +702,17 @@ func EventFromMap(ev map[string]any) (models.Eventable, error) {
 }
 
 func eventCollisionKeyProps() []string {
-	return idAnd("subject")
+	// Do not use attendees here.  We slice out attendees from the
+	// restored event so that they do not receive an email for every
+	// restoration item.  Attendees will guarantee non-overlapping keys.
+	return idAnd(
+		"subject",
+		"type",
+		"start",
+		"end",
+		recurrence,
+		isCancelled,
+		isDraft)
 }
 
 // EventCollisionKey constructs a key from the eventable's creation time, subject, and organizer.
@@ -711,5 +722,36 @@ func EventCollisionKey(item models.Eventable) string {
 		return ""
 	}
 
-	return ptr.Val(item.GetSubject())
+	var (
+		subject   = ptr.Val(item.GetSubject())
+		oftype    = ptr.Val(item.GetType()).String()
+		startTime = item.GetStart()
+		start     string
+		endTime   = item.GetEnd()
+		end       string
+		recurs    = item.GetRecurrence()
+		recur     string
+		cancelled = ptr.Val(item.GetIsCancelled())
+		draft     = ptr.Val(item.GetIsDraft())
+	)
+
+	if startTime != nil {
+		start = ptr.Val(startTime.GetDateTime())
+	}
+
+	if endTime != nil {
+		end = ptr.Val(endTime.GetDateTime())
+	}
+
+	if recurs != nil && recurs.GetPattern() != nil {
+		recur = ptr.Val(recurs.GetPattern().GetOdataType())
+	}
+
+	// this result gets hashed to ensure that an enormous list of attendees
+	// doesn't generate a multi-kb collision key.
+	return subject +
+		oftype +
+		start + end + recur +
+		strconv.FormatBool(draft) +
+		strconv.FormatBool(cancelled)
 }

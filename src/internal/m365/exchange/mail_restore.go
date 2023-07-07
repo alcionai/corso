@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -51,7 +52,7 @@ func (h mailRestoreHandler) CreateContainer(
 	userID, parentContainerID, containerName string,
 ) (graph.Container, error) {
 	if len(parentContainerID) == 0 {
-		parentContainerID = rootFolderAlias
+		parentContainerID = api.MsgFolderRoot
 	}
 
 	return h.ac.CreateContainer(ctx, userID, parentContainerID, containerName)
@@ -64,9 +65,8 @@ func (h mailRestoreHandler) GetContainerByName(
 	return h.ac.GetContainerByName(ctx, userID, parentContainerID, containerName)
 }
 
-// always returns rootFolderAlias
-func (h mailRestoreHandler) orRootContainer(string) string {
-	return rootFolderAlias
+func (h mailRestoreHandler) defaultRootContainer() string {
+	return api.MsgFolderRoot
 }
 
 func (h mailRestoreHandler) restore(
@@ -76,6 +76,7 @@ func (h mailRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreMail(
 		ctx,
@@ -84,7 +85,8 @@ func (h mailRestoreHandler) restore(
 		userID, destinationID,
 		collisionKeyToItemID,
 		collisionPolicy,
-		errs)
+		errs,
+		ctr)
 }
 
 type mailRestorer interface {
@@ -101,6 +103,7 @@ func restoreMail(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	msg, err := api.BytesToMessageable(body)
 	if err != nil {
@@ -120,7 +123,9 @@ func restoreMail(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
+
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
 
@@ -145,7 +150,7 @@ func restoreMail(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil {
+		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
 		}
 	}

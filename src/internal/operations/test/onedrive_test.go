@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -36,6 +37,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type OneDriveBackupIntgSuite struct {
@@ -47,7 +49,7 @@ func TestOneDriveBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &OneDriveBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -62,17 +64,18 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 	defer flush()
 
 	var (
-		tenID  = tester.M365TenantID(t)
+		tenID  = tconfig.M365TenantID(t)
 		mb     = evmock.NewBus()
-		userID = tester.SecondaryM365UserID(t)
+		userID = tconfig.SecondaryM365UserID(t)
 		osel   = selectors.NewOneDriveBackup([]string{userID})
 		ws     = deeTD.DriveIDFromRepoRef
 		svc    = path.OneDriveService
+		opts   = control.Defaults()
 	)
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, control.Toggles{}, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -160,8 +163,8 @@ func runDriveIncrementalTest(
 	defer flush()
 
 	var (
-		acct = tester.NewM365Account(t)
-		ffs  = control.Toggles{}
+		acct = tconfig.NewM365Account(t)
+		opts = control.Defaults()
 		mb   = evmock.NewBus()
 		ws   = deeTD.DriveIDFromRepoRef
 
@@ -257,7 +260,7 @@ func runDriveIncrementalTest(
 		containerIDs[destName] = ptr.Val(resp.GetId())
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
 	defer bod.close(t, ctx)
 
 	sel = bod.sel
@@ -610,7 +613,7 @@ func runDriveIncrementalTest(
 					ctx,
 					bod,
 					incMB,
-					ffs)
+					opts)
 			)
 
 			ctx, flush := tester.WithContext(t, ctx)
@@ -698,8 +701,8 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	defer flush()
 
 	var (
-		acct = tester.NewM365Account(t)
-		ffs  = control.Toggles{}
+		acct = tconfig.NewM365Account(t)
+		opts = control.Defaults()
 		mb   = evmock.NewBus()
 
 		categories = map[path.CategoryType][]string{
@@ -727,7 +730,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
 	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, ffs, 0)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, opts, 0)
 	defer bod.close(t, ctx)
 
 	sel := bod.sel
@@ -755,7 +758,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	var (
 		incMB = evmock.NewBus()
 		// the incremental backup op should have a proper user ID for the id.
-		incBO = newTestBackupOp(t, ctx, bod, incMB, ffs)
+		incBO = newTestBackupOp(t, ctx, bod, incMB, opts)
 	)
 
 	require.NotEqualf(
@@ -819,6 +822,61 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		// 46 is the tenant uuid + "onedrive" + two slashes
 		if len(ent.RepoRef) > 46 {
 			assert.Contains(t, ent.RepoRef, uid)
+		}
+	}
+}
+
+func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		tenID  = tconfig.M365TenantID(t)
+		mb     = evmock.NewBus()
+		userID = tconfig.SecondaryM365UserID(t)
+		osel   = selectors.NewOneDriveBackup([]string{userID})
+		ws     = deeTD.DriveIDFromRepoRef
+		svc    = path.OneDriveService
+		opts   = control.Defaults()
+	)
+
+	opts.ItemExtensionFactory = getTestExtensionFactories()
+
+	osel.Include(selTD.OneDriveBackupFolderScope(osel))
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	bID := bo.Results.BackupID
+
+	deets, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bID,
+		tenID,
+		bod.sel.ID(),
+		svc,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// Check that the extensions are in the backup
+	for _, ent := range deets.Entries {
+		if ent.Folder == nil {
+			verifyExtensionData(t, ent.ItemInfo, path.OneDriveService)
 		}
 	}
 }

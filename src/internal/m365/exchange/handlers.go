@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -80,6 +81,7 @@ type itemRestorer interface {
 		collisionKeyToItemID map[string]string,
 		collisionPolicy control.CollisionPolicy,
 		errs *fault.Bus,
+		ctr *count.Bus,
 	) (*details.ExchangeInfo, error)
 }
 
@@ -93,12 +95,7 @@ type containerAPI interface {
 		ctx context.Context,
 		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
-
-	// returns either the provided value (assumed to be the root
-	// folder for that cache tree), or the default root container
-	// (if the category uses a root folder that exists above the
-	// restore location path).
-	orRootContainer(string) string
+	defaultRootContainer() string
 }
 
 type containerByNamer interface {

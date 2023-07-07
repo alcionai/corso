@@ -15,12 +15,15 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
+	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type SharePointBackupIntgSuite struct {
@@ -32,7 +35,7 @@ func TestSharePointBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &SharePointBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -90,13 +93,14 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 	defer flush()
 
 	var (
-		mb  = evmock.NewBus()
-		sel = selectors.NewSharePointBackup([]string{suite.its.siteID})
+		mb   = evmock.NewBus()
+		sel  = selectors.NewSharePointBackup([]string{suite.its.siteID})
+		opts = control.Defaults()
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{}, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -109,4 +113,67 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 		bod.sel,
 		suite.its.siteID,
 		path.LibrariesCategory)
+}
+
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb    = evmock.NewBus()
+		sel   = selectors.NewSharePointBackup([]string{suite.its.siteID})
+		opts  = control.Defaults()
+		tenID = tconfig.M365TenantID(t)
+		svc   = path.SharePointService
+		ws    = deeTD.DriveIDFromRepoRef
+	)
+
+	opts.ItemExtensionFactory = getTestExtensionFactories()
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		suite.its.siteID,
+		path.LibrariesCategory)
+
+	bID := bo.Results.BackupID
+
+	deets, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bID,
+		tenID,
+		bod.sel.ID(),
+		svc,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// Check that the extensions are in the backup
+	for _, ent := range deets.Entries {
+		if ent.Folder == nil {
+			verifyExtensionData(t, ent.ItemInfo, path.SharePointService)
+		}
+	}
 }

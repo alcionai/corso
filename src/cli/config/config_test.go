@@ -16,9 +16,11 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 const (
@@ -351,7 +353,7 @@ type ConfigIntegrationSuite struct {
 func TestConfigIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ConfigIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
 	)})
 }
 
@@ -387,23 +389,23 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	config, err := getStorageAndAccountWithViper(vpr, true, true, nil)
+	cfg, err := getStorageAndAccountWithViper(vpr, true, true, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	readS3Cfg, err := config.Storage.S3Config()
+	readS3Cfg, err := cfg.Storage.S3Config()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
 	assert.Equal(t, readS3Cfg.DoNotUseTLS, s3Cfg.DoNotUseTLS)
 	assert.Equal(t, readS3Cfg.DoNotVerifyTLS, s3Cfg.DoNotVerifyTLS)
-	assert.Equal(t, config.RepoID, "repoid")
+	assert.Equal(t, cfg.RepoID, "repoid")
 
-	common, err := config.Storage.CommonConfig()
+	common, err := cfg.Storage.CommonConfig()
 	require.NoError(t, err, "reading common config from storage", clues.ToCore(err))
 	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
-	readM365, err := config.Account.M365Config()
+	readM365, err := cfg.Account.M365Config()
 	require.NoError(t, err, "reading m365 config from account", clues.ToCore(err))
 	// Env var gets preference here. Where to get env tenantID from
 	// assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
@@ -435,23 +437,23 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	config, err := getStorageAndAccountWithViper(vpr, false, false, overrides)
+	cfg, err := getStorageAndAccountWithViper(vpr, false, false, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	readS3Cfg, err := config.Storage.S3Config()
+	readS3Cfg, err := cfg.Storage.S3Config()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
 	assert.Equal(t, readS3Cfg.Bucket, bkt)
-	assert.Equal(t, config.RepoID, "")
+	assert.Equal(t, cfg.RepoID, "")
 	assert.Equal(t, readS3Cfg.Endpoint, end)
 	assert.Equal(t, readS3Cfg.Prefix, pfx)
 	assert.True(t, readS3Cfg.DoNotUseTLS)
 	assert.True(t, readS3Cfg.DoNotVerifyTLS)
 
-	common, err := config.Storage.CommonConfig()
+	common, err := cfg.Storage.CommonConfig()
 	require.NoError(t, err, "reading common config from storage", clues.ToCore(err))
 	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
-	readM365, err := config.Account.M365Config()
+	readM365, err := cfg.Account.M365Config()
 	require.NoError(t, err, "reading m365 config from account", clues.ToCore(err))
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))

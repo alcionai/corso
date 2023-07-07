@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -22,7 +24,7 @@ func TestContactsPagerIntgSuite(t *testing.T) {
 	suite.Run(t, &ContactsPagerIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -51,15 +53,25 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 	require.NoError(t, err, clues.ToCore(err))
 
 	cs := conts.GetValue()
-	expect := make([]string, 0, len(cs))
+	expectM := map[string]struct{}{}
 
 	for _, c := range cs {
-		expect = append(expect, api.ContactCollisionKey(c))
+		expectM[api.ContactCollisionKey(c)] = struct{}{}
 	}
+
+	expect := maps.Keys(expectM)
 
 	results, err := suite.its.ac.Contacts().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
+
+	for _, k := range expect {
+		t.Log("expects key", k)
+	}
+
+	for k := range results {
+		t.Log("results key", k)
+	}
 
 	for k, v := range results {
 		assert.NotEmpty(t, k, "all keys should be populated")

@@ -23,6 +23,7 @@ import (
 	exchTD "github.com/alcionai/corso/src/internal/m365/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -30,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type ExchangeBackupIntgSuite struct {
@@ -41,7 +43,7 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &ExchangeBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -62,7 +64,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.its.userID
 
 				return sel
@@ -74,7 +76,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				return sel
 			},
 			category:      path.ContactsCategory,
@@ -84,7 +86,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
 			category:      path.EventsCategory,
@@ -101,11 +103,11 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			var (
 				mb      = evmock.NewBus()
 				sel     = test.selector().Selector
-				ffs     = control.Toggles{}
+				opts    = control.Defaults()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, ffs, version.Backup)
+			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
 			defer bod.close(t, ctx)
 
 			sel = bod.sel
@@ -167,7 +169,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 					ctx,
 					bod,
 					incMB,
-					ffs)
+					opts)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
@@ -234,7 +236,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	tester.LogTimeOfTest(t)
 
 	var (
-		acct       = tester.NewM365Account(t)
+		acct       = tconfig.NewM365Account(t)
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
 		service    = path.ExchangeService
@@ -254,8 +256,10 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup([]string{suite.its.userID})
 		whatSet    = deeTD.CategoryFromRepoRef
+		opts       = control.Defaults()
 	)
 
+	opts.ToggleFeatures = toggles
 	ctrl, sels := ControllerWithSelector(t, ctx, acct, resource.Users, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
@@ -376,7 +380,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, toggles, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
 
 	// run the initial backup
@@ -767,7 +771,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, bod, incMB, toggles)
+			incBO := newTestBackupOp(t, ctx, bod, incMB, opts)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()

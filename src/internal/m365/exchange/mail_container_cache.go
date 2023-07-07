@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var (
@@ -65,7 +66,7 @@ func (mc *mailContainerCache) init(
 // Action ensures that cache will stop at appropriate level.
 // @error iff the struct is not properly instantiated
 func (mc *mailContainerCache) populateMailRoot(ctx context.Context) error {
-	f, err := mc.getter.GetContainerByID(ctx, mc.userID, rootFolderAlias)
+	f, err := mc.getter.GetContainerByID(ctx, mc.userID, api.MsgFolderRoot)
 	if err != nil {
 		return clues.Wrap(err, "fetching root folder")
 	}

@@ -27,17 +27,21 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -84,15 +88,15 @@ func prepNewTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bus events.Eventer,
 	sel selectors.Selector,
-	featureToggles control.Toggles,
+	opts control.Options,
 	backupVersion int,
 ) (
 	operations.BackupOperation,
 	*backupOpDependencies,
 ) {
 	bod := &backupOpDependencies{
-		acct: tester.NewM365Account(t),
-		st:   tester.NewPrefixedS3Storage(t),
+		acct: tconfig.NewM365Account(t),
+		st:   storeTD.NewPrefixedS3Storage(t),
 	}
 
 	k := kopia.NewConn(bod.st)
@@ -145,7 +149,7 @@ func prepNewTestBackupOp(
 		ctx,
 		bod,
 		bus,
-		featureToggles)
+		opts)
 
 	bod.sss = streamstore.NewStreamer(
 		bod.kw,
@@ -164,11 +168,8 @@ func newTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bod *backupOpDependencies,
 	bus events.Eventer,
-	featureToggles control.Toggles,
+	opts control.Options,
 ) operations.BackupOperation {
-	opts := control.Defaults()
-
-	opts.ToggleFeatures = featureToggles
 	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
 
 	bo, err := operations.NewBackupOperation(
@@ -423,7 +424,8 @@ func generateContainerOfItems(
 		restoreCfg,
 		opts,
 		dataColls,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// have to wait here, both to ensure the process
@@ -585,7 +587,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	a := tester.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -597,7 +599,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	// user drive
 
-	its.userID = tester.M365UserID(t)
+	its.userID = tconfig.M365UserID(t)
 
 	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
 	require.NoError(t, err, clues.ToCore(err))
@@ -609,7 +611,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
 
-	its.siteID = tester.M365SiteID(t)
+	its.siteID = tconfig.M365SiteID(t)
 
 	// site
 
@@ -624,4 +626,26 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
 
 	return its
+}
+
+func getTestExtensionFactories() []extensions.CreateItemExtensioner {
+	return []extensions.CreateItemExtensioner{
+		&extensions.MockItemExtensionFactory{},
+	}
+}
+
+func verifyExtensionData(
+	t *testing.T,
+	itemInfo details.ItemInfo,
+	p path.ServiceType,
+) {
+	require.NotNil(t, itemInfo.Extension, "nil extension")
+	assert.NotNil(t, itemInfo.Extension.Data[extensions.KNumBytes], "key not found in extension")
+	actualSize := int64(itemInfo.Extension.Data[extensions.KNumBytes].(float64))
+
+	if p == path.SharePointService {
+		assert.Equal(t, itemInfo.SharePoint.Size, actualSize, "incorrect data in extension")
+	} else {
+		assert.Equal(t, itemInfo.OneDrive.Size, actualSize, "incorrect data in extension")
+	}
 }

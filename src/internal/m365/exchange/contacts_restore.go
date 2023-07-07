@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -59,9 +60,8 @@ func (h contactRestoreHandler) GetContainerByName(
 	return h.ac.GetContainerByName(ctx, userID, "", containerName)
 }
 
-// always returns the provided value
-func (h contactRestoreHandler) orRootContainer(c string) string {
-	return c
+func (h contactRestoreHandler) defaultRootContainer() string {
+	return api.DefaultContacts
 }
 
 func (h contactRestoreHandler) restore(
@@ -71,6 +71,7 @@ func (h contactRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreContact(
 		ctx,
@@ -79,7 +80,8 @@ func (h contactRestoreHandler) restore(
 		userID, destinationID,
 		collisionKeyToItemID,
 		collisionPolicy,
-		errs)
+		errs,
+		ctr)
 }
 
 type contactRestorer interface {
@@ -95,7 +97,16 @@ func restoreContact(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
+	// contacts has a weird relationship with its default
+	// folder, which is that the folder is treated as invisible
+	// in many cases.  If we're restoring to a blank location,
+	// we can interpret that as the root.
+	if len(destinationID) == 0 {
+		destinationID = api.DefaultContacts
+	}
+
 	contact, err := api.BytesToContactable(body)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
@@ -114,7 +125,9 @@ func restoreContact(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
+
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
 
@@ -133,7 +146,7 @@ func restoreContact(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil {
+		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding contact")
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -43,6 +44,10 @@ func (h eventRestoreHandler) formatRestoreDestination(
 	destinationContainerName string,
 	_ path.Path, // ignored because calendars cannot be nested
 ) *path.Builder {
+	if len(destinationContainerName) == 0 {
+		destinationContainerName = api.DefaultCalendar
+	}
+
 	return path.Builder{}.Append(destinationContainerName)
 }
 
@@ -61,8 +66,8 @@ func (h eventRestoreHandler) GetContainerByName(
 }
 
 // always returns the provided value
-func (h eventRestoreHandler) orRootContainer(c string) string {
-	return c
+func (h eventRestoreHandler) defaultRootContainer() string {
+	return api.DefaultCalendar
 }
 
 func (h eventRestoreHandler) restore(
@@ -72,6 +77,7 @@ func (h eventRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreEvent(
 		ctx,
@@ -80,7 +86,8 @@ func (h eventRestoreHandler) restore(
 		userID, destinationID,
 		collisionKeyToItemID,
 		collisionPolicy,
-		errs)
+		errs,
+		ctr)
 }
 
 type eventRestorer interface {
@@ -96,6 +103,7 @@ func restoreEvent(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
 	if err != nil {
@@ -115,7 +123,9 @@ func restoreEvent(
 		log.Debug("item collision")
 
 		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
+
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
 
@@ -145,7 +155,7 @@ func restoreEvent(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := er.DeleteItem(ctx, userID, collisionID); err != nil {
+		if err := er.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding event")
 		}
 	}
