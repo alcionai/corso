@@ -35,21 +35,23 @@ func AddCommands(cmd *cobra.Command) {
 const restoreCommand = "restore"
 
 //nolint:lll
-const restoreCommandExamples = `# Restore emails to their original location
+const restoreCommandExamples = `# Restore email inbox messages to their original location
 corso restore exchange \
 	--backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--email-folder '/inbox' \
 	--destination '/'
 
-# Restore OneDrive to a folder named "my_latest_restore"
+# Restore a specific OneDrive folder to the root-level destination named "recovered_june_releases"
 corso restore onedrive \
 	--backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--mail-folder '*' \
-	--destination my_latest_restore
+	--folder '/work/corso_june_releases' \
+	--destination recovered_june_releases
 
-# Restore calendar events, restoring a copy if the event already exists.
+# Restore a calendar event, making a copy if the event already exists.
 corso restore exchange \
 	--backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--event-calendar '*' \
+	--event-calendar 'Company Events' \
+	--event abdef0101 \
 	--collisions copy
 
 # Restore a SharePoint library in-place, replacing any conflicting files.
