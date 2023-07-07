@@ -132,7 +132,11 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
+	force := map[string]string{
+		tconfig.TestCfgBucket: "",
+	}
+
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, force)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -144,8 +148,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 	// run the command
 	err = cmd.ExecuteContext(ctx)
-	// init command can now pull data from config file too
-	require.NoError(t, err, clues.ToCore(err))
+	require.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *S3E2ESuite) TestConnectS3Cmd() {
