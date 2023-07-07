@@ -144,7 +144,8 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 	// run the command
 	err = cmd.ExecuteContext(ctx)
-	require.Error(t, err, clues.ToCore(err))
+	// init command can now pull data from config file too
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *S3E2ESuite) TestConnectS3Cmd() {
