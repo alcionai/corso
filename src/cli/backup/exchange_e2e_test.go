@@ -143,7 +143,8 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupValueFromEnvCmd_emp
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--user", suite.m365UserID)
+		"--user", suite.m365UserID,
+		"--json")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetErr(&suite.recorder)

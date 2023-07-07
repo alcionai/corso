@@ -236,7 +236,7 @@ func runBackups(
 			Infof(ctx, "Done\n")
 			printBackupStats(ctx, r, string(bo.Results.BackupID))
 		} else {
-			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+			Infof(ctx, "Done - ID: %v for resource owner: %s \n", bo.Results.BackupID, bo.ResourceOwner.Name())
 		}
 	}
 
