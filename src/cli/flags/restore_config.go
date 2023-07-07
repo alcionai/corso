@@ -21,10 +21,9 @@ func AddRestoreConfigFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.StringVar(
 		&CollisionsFV, CollisionsFN, string(control.Skip),
-		"How to handle item collisions: "+string(control.Skip)+", "+string(control.Copy)+", or "+string(control.Replace))
-	cobra.CheckErr(fs.MarkHidden(CollisionsFN))
+		//nolint:lll
+		"Sets the behavior for existing item collisions: "+string(control.Skip)+", "+string(control.Copy)+", or "+string(control.Replace))
 	fs.StringVar(
 		&DestinationFV, DestinationFN, "",
-		"Overrides the destination where items get restored.  '/' places items back in their original location.")
-	cobra.CheckErr(fs.MarkHidden(DestinationFN))
+		"Overrides the destination where items get restored; '/' places items into their original location")
 }

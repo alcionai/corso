@@ -34,15 +34,41 @@ func AddCommands(cmd *cobra.Command) {
 
 const restoreCommand = "restore"
 
+//nolint:lll
+const restoreCommandExamples = `# Restore emails to their original location
+corso restore exchange \
+	--backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--destination '/'
+
+# Restore OneDrive to a folder named "my_latest_restore"
+corso restore onedrive \
+	--backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--mail-folder '*' \
+	--destination my_latest_restore
+
+# Restore calendar events, restoring a copy if the event already exists.
+corso restore exchange \
+	--backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--event-calendar '*' \
+	--collisions copy
+
+# Restore a SharePoint library in-place, replacing any conflicting files.
+corso restore sharepoint \
+	--backup 1234abcd-12ab-cd34-56de-1234abcd \
+	--library documents \
+	--destination '/' \
+	--collisions replace`
+
 // The restore category of commands.
 // `corso restore [<subcommand>] [<flag>...]`
 func restoreCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   restoreCommand,
-		Short: "Restore your service data",
-		Long:  `Restore the data stored in one of your M365 services.`,
-		RunE:  handleRestoreCmd,
-		Args:  cobra.NoArgs,
+		Use:     restoreCommand,
+		Short:   "Restore your service data",
+		Long:    `Restore the data stored in one of your M365 services.`,
+		RunE:    handleRestoreCmd,
+		Args:    cobra.NoArgs,
+		Example: restoreCommandExamples,
 	}
 }
 
