@@ -379,7 +379,7 @@ func runDriveIncrementalTest(
 				expectDeets.AddItem(driveID, targetContainer.locRef.String(), newFileID)
 			},
 			itemsRead:           1, // .data file for newitem
-			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten:        4, // .data and .meta for newitem, .dirmeta for parent and ancestor
 			nonMetaItemsWritten: 1, // .data file for newitem
 		},
 		{
@@ -397,7 +397,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:           1, // .data file for newitem
-			itemsWritten:        2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			itemsWritten:        3, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
 			nonMetaItemsWritten: 1, // the file for which permission was updated
 		},
 		{
@@ -415,7 +415,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:           1, // .data file for newitem
-			itemsWritten:        2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+			itemsWritten:        3, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
 			nonMetaItemsWritten: 1, //.data file for newitem
 		},
 		{
@@ -434,7 +434,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:           0,
-			itemsWritten:        1, // .dirmeta for collection
+			itemsWritten:        2, // .dirmeta for collection
 			nonMetaItemsWritten: 0, // no files updated as update on container
 		},
 		{
@@ -453,7 +453,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: metadata isn't tracked
 			},
 			itemsRead:           0,
-			itemsWritten:        1, // .dirmeta for collection
+			itemsWritten:        2, // .dirmeta for collection
 			nonMetaItemsWritten: 0, // no files updated
 		},
 		{
@@ -468,7 +468,7 @@ func runDriveIncrementalTest(
 				// no expectedDeets: neither file id nor location changed
 			},
 			itemsRead:           1, // .data file for newitem
-			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten:        4, // .data and .meta for newitem, .dirmeta for parent
 			nonMetaItemsWritten: 1, // .data  file for newitem
 		},
 		{
@@ -486,7 +486,7 @@ func runDriveIncrementalTest(
 				require.NoError(t, err, "renaming file %v", clues.ToCore(err))
 			},
 			itemsRead:           1, // .data file for newitem
-			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten:        4, // .data and .meta for newitem, .dirmeta for parent
 			nonMetaItemsWritten: 1, // .data file for newitem
 			// no expectedDeets: neither file id nor location changed
 		},
@@ -514,7 +514,7 @@ func runDriveIncrementalTest(
 					ptr.Val(newFile.GetId()))
 			},
 			itemsRead:           1, // .data file for newitem
-			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			itemsWritten:        4, // .data and .meta for newitem, .dirmeta for parent
 			nonMetaItemsWritten: 1, // .data file for new item
 		},
 		{
