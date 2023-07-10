@@ -520,7 +520,6 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				pb, err := path.Builder{}.SplitUnescapeAppend(from.locRef)
 				require.NoError(t, err, "getting Builder for location: %s", clues.ToCore(err))
 
-				// Remove moved dir so we don't accidentally remove it.
 				pb = pb.Dir()
 
 				for len(pb.Elements()) > 0 {

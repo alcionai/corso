@@ -318,7 +318,7 @@ func CheckBackupDetails(
 
 	// Basic check to try to ensure we're checking things when we should be.
 	if len(deets.Entries) > 0 {
-		require.NotEmpty(t, expect.Sets, "expected sets to compare against")
+		require.NotEmpty(t, expect.Sets, "expected non-empty sets to compare")
 	}
 
 	for set := range expect.Sets {
