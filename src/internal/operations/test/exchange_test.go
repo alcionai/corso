@@ -698,6 +698,58 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			nonMetaItemsWritten:  6,
 		},
 		{
+			// Events and contacts have no Graph API call to move something between
+			// containers. The calendars web UI does support moving events between
+			// calendars though.
+			name: "boomerang an email",
+			updateUserData: func(t *testing.T, ctx context.Context) {
+				containerInfo := dataset[path.EmailCategory].dests[container1]
+				tempContainerID := dataset[path.EmailCategory].dests[container3].containerID
+
+				ids := dataset[path.EmailCategory].dests[container1].itemRefs
+				require.NotEmpty(t, ids, "message ids in folder")
+
+				oldID := ids[0]
+
+				newID, err := ac.Mail().MoveItem(
+					ctx,
+					uidn.ID(),
+					containerInfo.containerID,
+					oldID,
+					tempContainerID)
+				require.NoError(t, err, "moving to temp folder: %s", clues.ToCore(err))
+
+				newID, err = ac.Mail().MoveItem(
+					ctx,
+					uidn.ID(),
+					tempContainerID,
+					newID,
+					containerInfo.containerID)
+				require.NoError(t, err, "moving back to original folder: %s", clues.ToCore(err))
+
+				expectDeets.RemoveItem(
+					path.EmailCategory.String(),
+					containerInfo.locRef,
+					oldID)
+				expectDeets.AddItem(
+					path.EmailCategory.String(),
+					containerInfo.locRef,
+					newID)
+
+				// Will cause a different item to be deleted next.
+				containerInfo.itemRefs = append(containerInfo.itemRefs[1:], newID)
+				dataset[path.EmailCategory].dests[container1] = containerInfo
+			},
+			// TODO(ashmrtn): Below values need updated when we start checking them
+			// again. Unclear what items would be considered the same as I'm not sure
+			// about all the properties that change with a move.
+			deltaItemsRead:       2,
+			deltaItemsWritten:    2,
+			nonDeltaItemsRead:    10,
+			nonDeltaItemsWritten: 2,
+			nonMetaItemsWritten:  6,
+		},
+		{
 			name: "delete an existing item",
 			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {

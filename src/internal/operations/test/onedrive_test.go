@@ -518,6 +518,38 @@ func runDriveIncrementalTest(
 			nonMetaItemsWritten: 1, // .data file for new item
 		},
 		{
+			name: "boomerang a file",
+			updateFiles: func(t *testing.T, ctx context.Context) {
+				dest := containerInfos[container2]
+				temp := containerInfos[container1]
+
+				driveItem := models.NewDriveItem()
+				parentRef := models.NewItemReference()
+				parentRef.SetId(&temp.id)
+				driveItem.SetParentReference(parentRef)
+
+				err := ac.PatchItem(
+					ctx,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					driveItem)
+				require.NoErrorf(t, err, "moving file to temporary folder %v", clues.ToCore(err))
+
+				parentRef.SetId(&dest.id)
+				driveItem.SetParentReference(parentRef)
+
+				err = ac.PatchItem(
+					ctx,
+					driveID,
+					ptr.Val(newFile.GetId()),
+					driveItem)
+				require.NoErrorf(t, err, "moving file back to folder %v", clues.ToCore(err))
+			},
+			itemsRead:           1, // .data file for newitem
+			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
+			nonMetaItemsWritten: 1, // .data file for new item
+		},
+		{
 			name: "delete file",
 			updateFiles: func(t *testing.T, ctx context.Context) {
 				err := ac.DeleteItem(
