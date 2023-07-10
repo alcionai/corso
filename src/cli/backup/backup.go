@@ -233,10 +233,10 @@ func runBackups(
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
-			Infof(ctx, "Done - ID: %v for resource owner: %s \n", bo.Results.BackupID, bo.ResourceOwner.Name())
+			Infof(ctx, "Done\n")
 			printBackupStats(ctx, r, string(bo.Results.BackupID))
 		} else {
-			Infof(ctx, "Done - ID: %v for resource owner: %s \n", bo.Results.BackupID, bo.ResourceOwner.Name())
+			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
 		}
 	}
 
