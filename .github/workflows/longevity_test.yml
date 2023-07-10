@@ -42,7 +42,7 @@ jobs:
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
       RESTORE_DEST_PFX: Corso_Test_Longevity_
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
-
+      PREFIX: 'longevity'
     defaults:
       run:
         working-directory: src
@@ -84,12 +84,11 @@ jobs:
         id: repo-init
         run: |
           set -euo pipefail
-          prefix='longevity'
           echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
           ./corso repo init s3 \
             --no-stats \
             --hide-progress \
-            --prefix $prefix \
+            --prefix ${{ env.PREFIX }} \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
             --succeed-if-exists \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
@@ -100,8 +99,6 @@ jobs:
             exit 1
           fi
 
-          echo result="$prefix" >> $GITHUB_OUTPUT
-
       - name: Repo connect test
         run: |
           set -euo pipefail
@@ -109,7 +106,7 @@ jobs:
           ./corso repo connect s3 \
             --no-stats \
             --hide-progress \
-            --prefix ${{ steps.repo-init.outputs.result }} \
+            --prefix ${{ env.PREFIX }} \
             --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
 
