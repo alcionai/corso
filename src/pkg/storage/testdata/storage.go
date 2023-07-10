@@ -60,7 +60,7 @@ func GetAndInsertCorso(passphase string) credentials.Corso {
 	fmt.Println("flags.CorsoPassphraseFV: ", flags.CorsoPassphraseFV)
 	// fetch data from flag, env var or func param giving priority to func param
 	// Func param generally will be value fetched from config file using viper.
-	corsoPassph := str.First(os.Getenv(credentials.CorsoPassphrase), passphase)
+	corsoPassph := str.First(flags.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
 
 	return credentials.Corso{
 		CorsoPassphrase: corsoPassph,
