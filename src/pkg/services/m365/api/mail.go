@@ -446,7 +446,7 @@ func (c Mail) PostItem(
 
 func (c Mail) MoveItem(
 	ctx context.Context,
-	userID, oldContainerID, itemID, newContainerID string,
+	userID, oldContainerID, newContainerID, itemID string,
 ) (string, error) {
 	body := users.NewItemMailFoldersItemMessagesItemMovePostRequestBody()
 	body.SetDestinationId(ptr.To(newContainerID))

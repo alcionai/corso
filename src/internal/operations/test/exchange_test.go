@@ -715,16 +715,16 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 					ctx,
 					uidn.ID(),
 					containerInfo.containerID,
-					oldID,
-					tempContainerID)
+					tempContainerID,
+					oldID)
 				require.NoError(t, err, "moving to temp folder: %s", clues.ToCore(err))
 
 				newID, err = ac.Mail().MoveItem(
 					ctx,
 					uidn.ID(),
 					tempContainerID,
-					newID,
-					containerInfo.containerID)
+					containerInfo.containerID,
+					newID)
 				require.NoError(t, err, "moving back to original folder: %s", clues.ToCore(err))
 
 				expectDeets.RemoveItem(
