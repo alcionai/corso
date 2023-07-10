@@ -204,9 +204,9 @@ func runDriveIncrementalTest(
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)
 		}
-		makeLocRef = func(flds ...string) string {
-			elems := append([]string{driveID, "root:"}, flds...)
-			return path.Builder{}.Append(elems...).String()
+		makeLocRef = func(flds ...string) *path.Builder {
+			elems := append([]string{"root:"}, flds...)
+			return path.Builder{}.Append(elems...)
 		}
 	)
 
@@ -216,6 +216,68 @@ func runDriveIncrementalTest(
 	// strip the category from the prefix; we primarily want the tenant and resource owner.
 	expectDeets := deeTD.NewInDeets(rrPfx.ToBuilder().Dir().String())
 
+	type containerInfo struct {
+		id     string
+		locRef *path.Builder
+	}
+
+	containerInfos := map[string]containerInfo{}
+
+	mustGetExpectedContainerItems := func(
+		t *testing.T,
+		driveID, destName string,
+		locRef *path.Builder,
+	) {
+		// Use path-based indexing to get the folder's ID.
+		itemURL := fmt.Sprintf(
+			"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
+			driveID,
+			locRef.String())
+		resp, err := drives.
+			NewItemItemsDriveItemItemRequestBuilder(itemURL, ctrl.AC.Stable.Adapter()).
+			Get(ctx, nil)
+		require.NoError(
+			t,
+			err,
+			"getting drive folder ID for %s: %v",
+			locRef.String(),
+			clues.ToCore(err))
+
+		containerInfos[destName] = containerInfo{
+			id:     ptr.Val(resp.GetId()),
+			locRef: makeLocRef(locRef.Elements()...),
+		}
+		dest := containerInfos[destName]
+
+		items, err := ac.GetItemsInContainerByCollisionKey(
+			ctx,
+			driveID,
+			ptr.Val(resp.GetId()))
+		require.NoError(
+			t,
+			err,
+			"getting container %s items: %v",
+			locRef.String(),
+			clues.ToCore(err))
+
+		// Add the directory and all its ancestors to the cache so we can compare
+		// folders.
+		for pb := dest.locRef; len(pb.Elements()) > 0; pb = pb.Dir() {
+			expectDeets.AddLocation(driveID, pb.String())
+		}
+
+		for _, item := range items {
+			if item.IsFolder {
+				continue
+			}
+
+			expectDeets.AddItem(
+				driveID,
+				dest.locRef.String(),
+				item.ItemID)
+		}
+	}
+
 	// Populate initial test data.
 	// Generate 2 new folders with two items each. Only the first two
 	// folders will be part of the initial backup and
@@ -223,7 +285,7 @@ func runDriveIncrementalTest(
 	// through the changes. This should be enough to cover most delta
 	// actions.
 	for _, destName := range genDests {
-		deets := generateContainerOfItems(
+		generateContainerOfItems(
 			t,
 			ctx,
 			ctrl,
@@ -236,28 +298,13 @@ func runDriveIncrementalTest(
 			0,
 			fileDBF)
 
-		for _, ent := range deets.Entries {
-			if ent.Folder != nil {
-				continue
-			}
-
-			expectDeets.AddItem(driveID, makeLocRef(destName), ent.ItemRef)
-		}
-	}
-
-	containerIDs := map[string]string{}
-
-	// verify test data was populated, and track it for comparisons
-	for _, destName := range genDests {
-		// Use path-based indexing to get the folder's ID. This is sourced from the
-		// onedrive package `getFolder` function.
-		itemURL := fmt.Sprintf("https://graph.microsoft.com/v1.0/drives/%s/root:/%s", driveID, destName)
-		resp, err := drives.
-			NewItemItemsDriveItemItemRequestBuilder(itemURL, ctrl.AC.Stable.Adapter()).
-			Get(ctx, nil)
-		require.NoError(t, err, "getting drive folder ID", "folder name", destName, clues.ToCore(err))
-
-		containerIDs[destName] = ptr.Val(resp.GetId())
+		// The way we generate containers causes it to duplicate the destName.
+		locRef := path.Builder{}.Append(destName, destName)
+		mustGetExpectedContainerItems(
+			t,
+			driveID,
+			destName,
+			locRef)
 	}
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
@@ -315,21 +362,21 @@ func runDriveIncrementalTest(
 		{
 			name: "create a new file",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				targetContainer := containerIDs[container1]
+				targetContainer := containerInfos[container1]
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
 				newFile, err = ac.PostItemInContainer(
 					ctx,
 					driveID,
-					targetContainer,
+					targetContainer.id,
 					driveItem,
 					control.Copy)
 				require.NoErrorf(t, err, "creating new file %v", clues.ToCore(err))
 
 				newFileID = ptr.Val(newFile.GetId())
 
-				expectDeets.AddItem(driveID, makeLocRef(container1), newFileID)
+				expectDeets.AddItem(driveID, targetContainer.locRef.String(), newFileID)
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
@@ -374,7 +421,7 @@ func runDriveIncrementalTest(
 		{
 			name: "add permission to container",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				targetContainer := containerIDs[container1]
+				targetContainer := containerInfos[container1].id
 				err = onedrive.UpdatePermissions(
 					ctx,
 					rh,
@@ -393,7 +440,7 @@ func runDriveIncrementalTest(
 		{
 			name: "remove permission from container",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				targetContainer := containerIDs[container1]
+				targetContainer := containerInfos[container1].id
 				err = onedrive.UpdatePermissions(
 					ctx,
 					rh,
@@ -427,14 +474,9 @@ func runDriveIncrementalTest(
 		{
 			name: "rename a file",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				container := containerIDs[container1]
-
 				driveItem := models.NewDriveItem()
 				name := "renamed_new_file.txt"
 				driveItem.SetName(&name)
-				parentRef := models.NewItemReference()
-				parentRef.SetId(&container)
-				driveItem.SetParentReference(parentRef)
 
 				err := ac.PatchItem(
 					ctx,
@@ -451,12 +493,11 @@ func runDriveIncrementalTest(
 		{
 			name: "move a file between folders",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				dest := containerIDs[container2]
+				dest := containerInfos[container2]
 
 				driveItem := models.NewDriveItem()
-				driveItem.SetName(&newFileName)
 				parentRef := models.NewItemReference()
-				parentRef.SetId(&dest)
+				parentRef.SetId(&dest.id)
 				driveItem.SetParentReference(parentRef)
 
 				err := ac.PatchItem(
@@ -468,8 +509,8 @@ func runDriveIncrementalTest(
 
 				expectDeets.MoveItem(
 					driveID,
-					makeLocRef(container1),
-					makeLocRef(container2),
+					containerInfos[container1].locRef.String(),
+					dest.locRef.String(),
 					ptr.Val(newFile.GetId()))
 			},
 			itemsRead:           1, // .data file for newitem
@@ -485,7 +526,10 @@ func runDriveIncrementalTest(
 					ptr.Val(newFile.GetId()))
 				require.NoErrorf(t, err, "deleting file %v", clues.ToCore(err))
 
-				expectDeets.RemoveItem(driveID, makeLocRef(container2), ptr.Val(newFile.GetId()))
+				expectDeets.RemoveItem(
+					driveID,
+					containerInfos[container2].locRef.String(),
+					ptr.Val(newFile.GetId()))
 			},
 			itemsRead:           0,
 			itemsWritten:        0,
@@ -494,26 +538,34 @@ func runDriveIncrementalTest(
 		{
 			name: "move a folder to a subfolder",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				parent := containerIDs[container1]
-				child := containerIDs[container2]
+				parent := containerInfos[container1]
+				child := containerInfos[container2]
 
 				driveItem := models.NewDriveItem()
-				driveItem.SetName(&container2)
 				parentRef := models.NewItemReference()
-				parentRef.SetId(&parent)
+				parentRef.SetId(&parent.id)
 				driveItem.SetParentReference(parentRef)
 
 				err := ac.PatchItem(
 					ctx,
 					driveID,
-					child,
+					child.id,
 					driveItem)
 				require.NoError(t, err, "moving folder", clues.ToCore(err))
 
 				expectDeets.MoveLocation(
 					driveID,
-					makeLocRef(container2),
-					makeLocRef(container1))
+					child.locRef.String(),
+					parent.locRef.String())
+
+				// Remove parent of moved folder since it's now empty.
+				expectDeets.RemoveLocation(driveID, child.locRef.Dir().String())
+
+				// Update in-memory cache with new location.
+				child.locRef = path.Builder{}.Append(append(
+					parent.locRef.Elements(),
+					child.locRef.LastElem())...)
+				containerInfos[container2] = child
 			},
 			itemsRead:           0,
 			itemsWritten:        7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
@@ -522,28 +574,29 @@ func runDriveIncrementalTest(
 		{
 			name: "rename a folder",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				parent := containerIDs[container1]
-				child := containerIDs[container2]
+				child := containerInfos[container2]
 
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&containerRename)
-				parentRef := models.NewItemReference()
-				parentRef.SetId(&parent)
-				driveItem.SetParentReference(parentRef)
 
 				err := ac.PatchItem(
 					ctx,
 					driveID,
-					child,
+					child.id,
 					driveItem)
 				require.NoError(t, err, "renaming folder", clues.ToCore(err))
 
-				containerIDs[containerRename] = containerIDs[container2]
+				containerInfos[containerRename] = containerInfo{
+					id:     child.id,
+					locRef: child.locRef.Dir().Append(containerRename),
+				}
 
 				expectDeets.RenameLocation(
 					driveID,
-					makeLocRef(container1, container2),
-					makeLocRef(container1, containerRename))
+					child.locRef.String(),
+					containerInfos[containerRename].locRef.String())
+
+				delete(containerInfos, container2)
 			},
 			itemsRead:           0,
 			itemsWritten:        7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
@@ -552,14 +605,16 @@ func runDriveIncrementalTest(
 		{
 			name: "delete a folder",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				container := containerIDs[containerRename]
+				container := containerInfos[containerRename]
 				err := ac.DeleteItem(
 					ctx,
 					driveID,
-					container)
+					container.id)
 				require.NoError(t, err, "deleting folder", clues.ToCore(err))
 
-				expectDeets.RemoveLocation(driveID, makeLocRef(container1, containerRename))
+				expectDeets.RemoveLocation(driveID, container.locRef.String())
+
+				delete(containerInfos, containerRename)
 			},
 			itemsRead:           0,
 			itemsWritten:        0,
@@ -580,18 +635,12 @@ func runDriveIncrementalTest(
 					0,
 					fileDBF)
 
-				// Validate creation
-				itemURL := fmt.Sprintf(
-					"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
+				locRef := path.Builder{}.Append(container3, container3)
+				mustGetExpectedContainerItems(
+					t,
 					driveID,
-					container3)
-				resp, err := drives.NewItemItemsDriveItemItemRequestBuilder(itemURL, ctrl.AC.Stable.Adapter()).
-					Get(ctx, nil)
-				require.NoError(t, err, "getting drive folder ID", "folder name", container3, clues.ToCore(err))
-
-				containerIDs[container3] = ptr.Val(resp.GetId())
-
-				expectDeets.AddLocation(driveID, container3)
+					container3,
+					locRef)
 			},
 			itemsRead:           2, // 2 .data for 2 files
 			itemsWritten:        6, // read items + 2 directory meta
