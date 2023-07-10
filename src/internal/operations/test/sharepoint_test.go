@@ -26,24 +26,99 @@ import (
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
-type SharePointBackupIntgSuite struct {
+type SharePointIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
+	// the goal of backupInstances is to run a single backup at the start of
+	// the suite, and re-use that backup throughout the rest of the suite.
+	bi *backupInstance
 }
 
-func TestSharePointBackupIntgSuite(t *testing.T) {
-	suite.Run(t, &SharePointBackupIntgSuite{
+func TestSharePointIntgSuite(t *testing.T) {
+	suite.Run(t, &SharePointIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *SharePointBackupIntgSuite) SetupSuite() {
+func (suite *SharePointIntgSuite) SetupSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	suite.its = newIntegrationTesterSetup(suite.T())
+
+	sel := selectors.NewSharePointBackup([]string{suite.its.siteID})
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+	sel.DiscreteOwner = suite.its.siteID
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.Defaults()
+	)
+
+	suite.bi = prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	suite.bi.runAndCheckBackup(t, ctx, mb, false)
 }
 
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
+func (suite *SharePointIntgSuite) TeardownSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	if suite.bi != nil {
+		suite.bi.close(t, ctx)
+	}
+}
+
+func (suite *SharePointIntgSuite) TestBackup_Run_sharePoint() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		bod     = suite.bi.bod
+		sel     = suite.bi.bod.sel
+		obo     = suite.bi.obo
+		siteID  = suite.its.siteID
+		whatSet = deeTD.DriveIDFromRepoRef
+	)
+
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod,
+		obo,
+		sel,
+		siteID,
+		path.LibrariesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		obo.Results.BackupID,
+		bod.acct.ID(),
+		sel,
+		path.SharePointService,
+		whatSet,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		obo.Results.BackupID,
+		whatSet,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+}
+
+func (suite *SharePointIntgSuite) TestBackup_Run_incrementalSharePoint() {
 	sel := selectors.NewSharePointRestore([]string{suite.its.siteID})
 
 	ic := func(cs []string) selectors.Selector {
@@ -75,6 +150,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 
 	runDriveIncrementalTest(
 		suite,
+		suite.bi,
 		suite.its.siteID,
 		suite.its.userID,
 		resource.Sites,
@@ -86,36 +162,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		true)
 }
 
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewSharePointBackup([]string{suite.its.siteID})
-		opts = control.Defaults()
-	)
-
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		suite.its.siteID,
-		path.LibrariesCategory)
-}
-
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
+func (suite *SharePointIntgSuite) TestBackup_Run_sharePointExtensions() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -134,39 +181,42 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
-	defer bod.close(t, ctx)
+	// TODO: use the existing backupInstance for this test
+	bi := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	defer bi.bod.close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	bi.runAndCheckBackup(t, ctx, mb, false)
+
+	bod := bi.bod
+	obo := bi.obo
+	bID := obo.Results.BackupID
+
 	checkBackupIsInManifests(
 		t,
 		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
+		bod,
+		obo,
 		bod.sel,
 		suite.its.siteID,
 		path.LibrariesCategory)
-
-	bID := bo.Results.BackupID
 
 	deets, expectDeets := deeTD.GetDeetsInBackup(
 		t,
 		ctx,
 		bID,
 		tenID,
-		bod.sel.ID(),
+		bod.sel,
 		svc,
 		ws,
-		bod.kms,
-		bod.sss)
+		bi.bod.kms,
+		bi.bod.sss)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		bID,
 		ws,
-		bod.kms,
-		bod.sss,
+		bi.bod.kms,
+		bi.bod.sss,
 		expectDeets,
 		false)
 

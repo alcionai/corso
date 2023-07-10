@@ -1157,40 +1157,6 @@ func backupSelectorForExpected(
 	return selectors.Selector{}
 }
 
-func getSelectorWith(
-	t *testing.T,
-	service path.ServiceType,
-	resourceOwners []string,
-	forRestore bool,
-) selectors.Selector {
-	switch service {
-	case path.ExchangeService:
-		if forRestore {
-			return selectors.NewExchangeRestore(resourceOwners).Selector
-		}
-
-		return selectors.NewExchangeBackup(resourceOwners).Selector
-
-	case path.OneDriveService:
-		if forRestore {
-			return selectors.NewOneDriveRestore(resourceOwners).Selector
-		}
-
-		return selectors.NewOneDriveBackup(resourceOwners).Selector
-
-	case path.SharePointService:
-		if forRestore {
-			return selectors.NewSharePointRestore(resourceOwners).Selector
-		}
-
-		return selectors.NewSharePointBackup(resourceOwners).Selector
-
-	default:
-		require.FailNow(t, "unknown path service")
-		return selectors.Selector{}
-	}
-}
-
 func newController(
 	ctx context.Context,
 	t *testing.T,

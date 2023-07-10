@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
+	idnMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -293,7 +295,16 @@ func CheckBackupDetails(
 	// of data.
 	mustEqualFolders bool,
 ) {
-	deets, result := GetDeetsInBackup(t, ctx, backupID, "", "", path.UnknownService, ws, ms, ssr)
+	deets, result := GetDeetsInBackup(
+		t,
+		ctx,
+		backupID,
+		"",
+		idnMock.NewProvider("", ""),
+		path.UnknownService,
+		ws,
+		ms,
+		ssr)
 
 	t.Log("details entries in result")
 
@@ -339,7 +350,8 @@ func GetDeetsInBackup(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	backupID model.StableID,
-	tid, resourceOwner string,
+	tid string,
+	protectedResource idname.Provider,
 	service path.ServiceType,
 	ws whatSet,
 	ms *kopia.ModelStore,
@@ -361,7 +373,9 @@ func GetDeetsInBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	id := NewInDeets(path.Builder{}.Append(tid, service.String(), resourceOwner).String())
+	pb := path.Builder{}.Append(tid, service.String(), protectedResource.ID())
+
+	id := NewInDeets(pb.String())
 	id.AddAll(deets, ws)
 
 	return deets, id

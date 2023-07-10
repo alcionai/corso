@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
@@ -16,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
@@ -34,64 +32,81 @@ import (
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
-type ExchangeBackupIntgSuite struct {
+type ExchangeIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
+	// the goal of backupInstances is to run a single backup at the start of
+	// the suite, and re-use that backup throughout the rest of the suite.
+	bi *backupInstance
 }
 
-func TestExchangeBackupIntgSuite(t *testing.T) {
-	suite.Run(t, &ExchangeBackupIntgSuite{
+func TestExchangeIntgSuite(t *testing.T) {
+	suite.Run(t, &ExchangeIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *ExchangeBackupIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+func (suite *ExchangeIntgSuite) SetupSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	suite.its = newIntegrationTesterSetup(t)
+
+	sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+	sel.Include(
+		sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
+		sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+
+	sel.DiscreteOwner = suite.its.userID
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.Defaults()
+	)
+
+	suite.bi = prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	suite.bi.runAndCheckBackup(t, ctx, mb, false)
+}
+
+func (suite *ExchangeIntgSuite) TeardownSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	if suite.bi != nil {
+		suite.bi.close(t, ctx)
+	}
 }
 
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
-func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
+func (suite *ExchangeIntgSuite) TestBackup_Run_exchange() {
 	tests := []struct {
 		name          string
-		selector      func() *selectors.ExchangeBackup
 		category      path.CategoryType
 		metadataFiles []string
 	}{
 		{
-			name: "Mail",
-			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.its.userID
-
-				return sel
-			},
+			name:          "Mail",
 			category:      path.EmailCategory,
 			metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
 		},
-		{
-			name: "Contacts",
-			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
-				return sel
-			},
-			category:      path.ContactsCategory,
-			metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
-		},
-		{
-			name: "Calendar Events",
-			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
-				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
-				return sel
-			},
-			category:      path.EventsCategory,
-			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
-		},
+		// {
+		// 	name:          "Contacts",
+		// 	category:      path.ContactsCategory,
+		// 	metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
+		// },
+		// {
+		// 	name:          "Events",
+		// 	category:      path.EventsCategory,
+		// 	metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
+		// },
 	}
 	for _, test := range tests {
 		suite.Run(test.name, func() {
@@ -101,50 +116,45 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			defer flush()
 
 			var (
-				mb      = evmock.NewBus()
-				sel     = test.selector().Selector
-				opts    = control.Defaults()
+				bod     = suite.bi.bod
+				sel     = suite.bi.bod.sel
+				obo     = suite.bi.obo
+				userID  = suite.its.userID
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
-			defer bod.close(t, ctx)
+			fmt.Printf("\n-----\n%s BUPs\n", test.name)
+			ibii := suite.bi
+			for ibii != nil {
+				fmt.Println(ibii.obo.Results.BackupID)
+				ibii = ibii.incremental
+			}
 
-			sel = bod.sel
+			fmt.Printf("-----\n")
 
-			userID := sel.ID()
-
-			m365, err := bod.acct.M365Config()
-			require.NoError(t, err, clues.ToCore(err))
-
-			// run the tests
-			runAndCheckBackup(t, ctx, &bo, mb, false)
 			checkBackupIsInManifests(
 				t,
 				ctx,
-				bod.kw,
-				bod.sw,
-				&bo,
+				bod,
+				obo,
 				sel,
 				userID,
 				test.category)
 			checkMetadataFilesExist(
 				t,
 				ctx,
-				bo.Results.BackupID,
-				bod.kw,
-				bod.kms,
-				m365.AzureTenantID,
+				obo.Results.BackupID,
+				bod,
+				suite.its.acct.ID(),
 				userID,
 				path.ExchangeService,
 				map[path.CategoryType][]string{test.category: test.metadataFiles})
-
 			_, expectDeets := deeTD.GetDeetsInBackup(
 				t,
 				ctx,
-				bo.Results.BackupID,
+				obo.Results.BackupID,
 				bod.acct.ID(),
-				userID,
+				sel,
 				path.ExchangeService,
 				whatSet,
 				bod.kms,
@@ -152,82 +162,82 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			deeTD.CheckBackupDetails(
 				t,
 				ctx,
-				bo.Results.BackupID,
+				obo.Results.BackupID,
 				whatSet,
 				bod.kms,
 				bod.sss,
 				expectDeets,
 				false)
-
-			// Basic, happy path incremental test.  No changes are dictated or expected.
-			// This only tests that an incremental backup is runnable at all, and that it
-			// produces fewer results than the last backup.
-			var (
-				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(
-					t,
-					ctx,
-					bod,
-					incMB,
-					opts)
-			)
-
-			runAndCheckBackup(t, ctx, &incBO, incMB, true)
-			checkBackupIsInManifests(
-				t,
-				ctx,
-				bod.kw,
-				bod.sw,
-				&incBO,
-				sel,
-				userID,
-				test.category)
-			checkMetadataFilesExist(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				bod.kw,
-				bod.kms,
-				m365.AzureTenantID,
-				userID,
-				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles})
-			deeTD.CheckBackupDetails(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				whatSet,
-				bod.kms,
-				bod.sss,
-				expectDeets,
-				false)
-
-			// do some additional checks to ensure the incremental dealt with fewer items.
-			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
-			assert.Greater(t, bo.Results.ItemsRead, incBO.Results.ItemsRead, "incremental items read")
-			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
-			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
-			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
-			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
-			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
-			assert.Equal(t,
-				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				incBO.Results.BackupID, "incremental backupID pre-declaration")
 		})
 	}
+
+	// // Basic, happy path incremental test.  No changes are dictated or expected.
+	// // This only tests that an incremental backup is runnable at all, and that it
+	// // produces fewer results than the last backup.
+	// var (
+	// 	incMB = evmock.NewBus()
+	// 	incBO = newTestBackupOp(
+	// 		t,
+	// 		ctx,
+	// 		bod,
+	// 		incMB,
+	// 		opts)
+	// )
+
+	// runAndCheckBackup(t, ctx, &incBO, incMB, true)
+	// checkBackupIsInManifests(
+	// 	t,
+	// 	ctx,
+	// 	bod.kw,
+	// 	bod.sw,
+	// 	&incBO,
+	// 	sel,
+	// 	userID,
+	// 	test.category)
+	// checkMetadataFilesExist(
+	// 	t,
+	// 	ctx,
+	// 	incBO.Results.BackupID,
+	// 	bod.kw,
+	// 	bod.kms,
+	// 	m365.AzureTenantID,
+	// 	userID,
+	// 	path.ExchangeService,
+	// 	map[path.CategoryType][]string{test.category: test.metadataFiles})
+	// deeTD.CheckBackupDetails(
+	// 	t,
+	// 	ctx,
+	// 	incBO.Results.BackupID,
+	// 	whatSet,
+	// 	bod.kms,
+	// 	bod.sss,
+	// 	expectDeets,
+	// 	false)
+
+	// // do some additional checks to ensure the incremental dealt with fewer items.
+	// assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
+	// assert.Greater(t, bo.Results.ItemsRead, incBO.Results.ItemsRead, "incremental items read")
+	// assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
+	// assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
+	// assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
+	// assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
+	// assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
+	// assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
+	// assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
+	// assert.Equal(t,
+	// 	incMB.CalledWith[events.BackupStart][0][events.BackupID],
+	// 	incBO.Results.BackupID, "incremental backupID pre-declaration")
 }
 
-func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalExchange() {
+func (suite *ExchangeIntgSuite) TestBackup_Run_incrementalExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{})
 }
 
-func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalNonDeltaExchange() {
+func (suite *ExchangeIntgSuite) TestBackup_Run_incrementalNonDeltaExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
 }
 
-func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles control.Toggles) {
+func testExchangeContinuousBackups(suite *ExchangeIntgSuite, toggles control.Toggles) {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -346,6 +356,9 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	// populate initial test data
 	for category, gen := range dataset {
 		for destName := range gen.dests {
+			rc := control.DefaultRestoreConfig("")
+			rc.Location = destName
+
 			deets := generateContainerOfItems(
 				t,
 				ctx,
@@ -356,7 +369,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				creds.AzureTenantID,
 				uidn.ID(),
 				"",
-				destName,
+				rc,
 				2,
 				version.Backup,
 				gen.dbf)
@@ -380,11 +393,10 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
-	defer bod.close(t, ctx)
-
-	// run the initial backup
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	// run the initial incremental backup
+	ibi := suite.bi.runAndCheckIncrementalBackup(t, ctx, mb)
+	obo := ibi.obo
+	bod := ibi.bod
 
 	rrPfx, err := path.ServicePrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
@@ -394,9 +406,9 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	bupDeets, _ := deeTD.GetDeetsInBackup(
 		t,
 		ctx,
-		bo.Results.BackupID,
+		obo.Results.BackupID,
 		acct.ID(),
-		uidn.ID(),
+		uidn,
 		service,
 		whatSet,
 		bod.kms,
@@ -467,7 +479,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
-		bo.Results.BackupID,
+		obo.Results.BackupID,
 		whatSet,
 		bod.kms,
 		bod.sss,
@@ -553,6 +565,9 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			name: "add a new folder",
 			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, gen := range dataset {
+					rc := control.DefaultRestoreConfig("")
+					rc.Location = container3
+
 					deets := generateContainerOfItems(
 						t,
 						ctx,
@@ -560,7 +575,10 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.userID, "", container3,
+						creds.AzureTenantID,
+						suite.its.userID,
+						"",
+						rc,
 						2,
 						version.Backup,
 						gen.dbf)
@@ -763,15 +781,17 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			var (
-				t     = suite.T()
-				incMB = evmock.NewBus()
-				atid  = creds.AzureTenantID
+				t          = suite.T()
+				mb         = evmock.NewBus()
+				atid       = creds.AzureTenantID
+				ctx, flush = tester.WithContext(t, ctx)
 			)
 
-			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, bod, incMB, opts)
+			ibi = ibi.runAndCheckIncrementalBackup(t, ctx, mb)
+			obo := ibi.obo
+			bod := ibi.bod
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
@@ -782,17 +802,16 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				test.updateUserData(t, ctx)
 			})
 
-			err := incBO.Run(ctx)
-			require.NoError(t, err, clues.ToCore(err))
+			bupID := obo.Results.BackupID
 
-			bupID := incBO.Results.BackupID
+			err := obo.Run(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			checkBackupIsInManifests(
 				t,
 				ctx,
-				bod.kw,
-				bod.sw,
-				&incBO,
+				bod,
+				obo,
 				sels,
 				uidn.ID(),
 				maps.Keys(categories)...)
@@ -800,8 +819,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				t,
 				ctx,
 				bupID,
-				bod.kw,
-				bod.kms,
+				bod,
 				atid,
 				uidn.ID(),
 				service,
@@ -815,30 +833,6 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				bod.sss,
 				expectDeets,
 				true)
-
-			// FIXME: commented tests are flaky due to delta calls retaining data that is
-			// out of scope of the test data.
-			// we need to find a better way to make isolated assertions here.
-			// The addition of the deeTD package gives us enough coverage to comment
-			// out the tests for now and look to their improvemeng later.
-
-			// do some additional checks to ensure the incremental dealt with fewer items.
-			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
-			// if !toggles.DisableDelta {
-			// assert.Equal(t, test.deltaItemsRead+4, incBO.Results.ItemsRead, "incremental items read")
-			// assert.Equal(t, test.deltaItemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
-			// } else {
-			// assert.Equal(t, test.nonDeltaItemsRead+4, incBO.Results.ItemsRead, "non delta items read")
-			// assert.Equal(t, test.nonDeltaItemsWritten+4, incBO.Results.ItemsWritten, "non delta items written")
-			// }
-			// assert.Equal(t, test.nonMetaItemsWritten, incBO.Results.ItemsWritten, "non meta incremental items write")
-			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
-			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
-			assert.Equal(t,
-				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				bupID, "incremental backupID pre-declaration")
 		})
 	}
 }

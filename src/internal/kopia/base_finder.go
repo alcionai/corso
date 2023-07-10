@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/alcionai/clues"
@@ -285,6 +286,11 @@ func (b *baseFinder) getBase(
 	metas, err := b.sm.FindManifests(ctx, allTags)
 	if err != nil {
 		return nil, nil, nil, clues.Wrap(err, "getting snapshots")
+	}
+
+	fmt.Printf("\n-----\nmetas %+v\n-----\n", len(metas))
+	for _, m := range metas {
+		fmt.Println(m.ID, m.Labels)
 	}
 
 	// No snapshots means no backups so we can just exit here.

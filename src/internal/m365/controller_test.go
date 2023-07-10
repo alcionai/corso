@@ -428,7 +428,7 @@ func runRestore(
 	start := time.Now()
 
 	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
-	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
+	restoreSel := selTD.MakeSelector(t, sci.Service, sci.ResourceOwners, true)
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
@@ -997,7 +997,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			restoreSel := getSelectorWith(t, test.service, []string{suite.user}, true)
+			restoreSel := selTD.MakeSelector(t, test.service, []string{suite.user}, true)
 			expectedDests := make([]destAndCats, 0, len(test.collections))
 			allItems := 0
 			allExpectedData := map[string]map[string][]byte{}
