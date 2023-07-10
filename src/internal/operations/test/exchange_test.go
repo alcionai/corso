@@ -3,10 +3,10 @@ package test_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/exchange/testdata"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -343,10 +344,90 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		// },
 	}
 
+	rrPfx, err := path.ServicePrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// strip the category from the prefix; we primarily want the tenant and resource owner.
+	expectDeets := deeTD.NewInDeets(rrPfx.ToBuilder().Dir().String())
+
+	mustGetExpectedContainerItems := func(
+		t *testing.T,
+		category path.CategoryType,
+		cr graph.ContainerResolver,
+		destName string,
+	) {
+		locRef := path.Builder{}.Append(destName)
+
+		if category == path.EmailCategory {
+			locRef = locRef.Append(destName)
+		}
+
+		containerID, ok := cr.LocationInCache(locRef.String())
+		require.True(t, ok, "dir %s found in %s cache", locRef.String(), category)
+
+		var (
+			err   error
+			items []string
+		)
+
+		switch category {
+		case path.EmailCategory:
+			items, _, _, err = ac.Mail().GetAddedAndRemovedItemIDs(
+				ctx,
+				uidn.ID(),
+				containerID,
+				"",
+				toggles.ExchangeImmutableIDs,
+				true)
+
+		case path.EventsCategory:
+			items, _, _, err = ac.Events().GetAddedAndRemovedItemIDs(
+				ctx,
+				uidn.ID(),
+				containerID,
+				"",
+				toggles.ExchangeImmutableIDs,
+				true)
+
+		case path.ContactsCategory:
+			items, _, _, err = ac.Contacts().GetAddedAndRemovedItemIDs(
+				ctx,
+				uidn.ID(),
+				containerID,
+				"",
+				toggles.ExchangeImmutableIDs,
+				true)
+		}
+
+		require.NoError(
+			t,
+			err,
+			"getting items for category %s, container %s",
+			category,
+			locRef.String())
+
+		dest := dataset[category].dests[destName]
+		dest.locRef = locRef.String()
+		dest.containerID = containerID
+		dest.itemRefs = items
+		dataset[category].dests[destName] = dest
+
+		// Add the directory and all its ancestors to the cache so we can compare
+		// folders.
+		for len(locRef.Elements()) > 0 {
+			expectDeets.AddLocation(category.String(), locRef.String())
+			locRef = locRef.Dir()
+		}
+
+		for _, i := range dataset[category].dests[destName].itemRefs {
+			expectDeets.AddItem(category.String(), dest.locRef, i)
+		}
+	}
+
 	// populate initial test data
 	for category, gen := range dataset {
 		for destName := range gen.dests {
-			deets := generateContainerOfItems(
+			generateContainerOfItems(
 				t,
 				ctx,
 				ctrl,
@@ -360,23 +441,18 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				2,
 				version.Backup,
 				gen.dbf)
+		}
 
-			itemRefs := []string{}
+		cr := exchTD.PopulateContainerCache(
+			t,
+			ctx,
+			ac,
+			category,
+			uidn.ID(),
+			fault.New(true))
 
-			for _, ent := range deets.Entries {
-				if ent.Exchange == nil || ent.Folder != nil {
-					continue
-				}
-
-				if len(ent.ItemRef) > 0 {
-					itemRefs = append(itemRefs, ent.ItemRef)
-				}
-			}
-
-			// save the item ids for building expectedDeets later on
-			cd := dataset[category].dests[destName]
-			cd.itemRefs = itemRefs
-			dataset[category].dests[destName] = cd
+		for destName := range gen.dests {
+			mustGetExpectedContainerItems(t, category, cr, destName)
 		}
 	}
 
@@ -385,82 +461,6 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb, false)
-
-	rrPfx, err := path.ServicePrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
-	require.NoError(t, err, clues.ToCore(err))
-
-	// strip the category from the prefix; we primarily want the tenant and resource owner.
-	expectDeets := deeTD.NewInDeets(rrPfx.ToBuilder().Dir().String())
-	bupDeets, _ := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		acct.ID(),
-		uidn.ID(),
-		service,
-		whatSet,
-		bod.kms,
-		bod.sss)
-
-	// update the datasets with their location refs
-	for category, gen := range dataset {
-		for destName, cd := range gen.dests {
-			var longestLR string
-
-			for _, ent := range bupDeets.Entries {
-				// generated destinations should always contain items
-				if ent.Folder != nil {
-					continue
-				}
-
-				p, err := path.FromDataLayerPath(ent.RepoRef, false)
-				require.NoError(t, err, clues.ToCore(err))
-
-				// category must match, and the owning folder must be this destination
-				if p.Category() != category || strings.HasSuffix(ent.LocationRef, destName) {
-					continue
-				}
-
-				// emails, due to folder nesting and our design for populating data via restore,
-				// will duplicate the dest folder as both the restore destination, and the "old parent
-				// folder".  we'll get both a prefix/destName and a prefix/destName/destName folder.
-				// since we want future comparison to only use the leaf dir, we select for the longest match.
-				if len(ent.LocationRef) > len(longestLR) {
-					longestLR = ent.LocationRef
-				}
-			}
-
-			require.NotEmptyf(
-				t,
-				longestLR,
-				"must find a details entry matching the generated %s container: %s",
-				category,
-				destName)
-
-			cd.locRef = longestLR
-
-			dataset[category].dests[destName] = cd
-			expectDeets.AddLocation(category.String(), cd.locRef)
-
-			for _, i := range dataset[category].dests[destName].itemRefs {
-				expectDeets.AddItem(category.String(), cd.locRef, i)
-			}
-		}
-	}
-
-	// verify test data was populated, and track it for comparisons
-	// TODO: this can be swapped out for InDeets checks if we add itemRefs to folder ents.
-	for category, gen := range dataset {
-		cr := exchTD.PopulateContainerCache(t, ctx, ac, category, uidn.ID(), fault.New(true))
-
-		for destName, dest := range gen.dests {
-			id, ok := cr.LocationInCache(dest.locRef)
-			require.True(t, ok, "dir %s found in %s cache", dest.locRef, category)
-
-			dest.containerID = id
-			dataset[category].dests[destName] = dest
-		}
-	}
 
 	// precheck to ensure the expectedDeets are correct.
 	// if we fail here, the expectedDeets were populated incorrectly.
@@ -514,7 +514,22 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				require.NoError(t, err, clues.ToCore(err))
 
 				newLoc := expectDeets.MoveLocation(cat.String(), from.locRef, to.locRef)
+
+				// Remove ancestor folders of moved directory since they'll no longer
+				// appear in details since we're not backing up items in them.
+				pb, err := path.Builder{}.SplitUnescapeAppend(from.locRef)
+				require.NoError(t, err, "getting Builder for location: %s", clues.ToCore(err))
+
+				pb = pb.Dir()
+
+				for len(pb.Elements()) > 0 {
+					expectDeets.RemoveLocation(cat.String(), pb.String())
+					pb = pb.Dir()
+				}
+
+				// Update cache with new location of container.
 				from.locRef = newLoc
+				dataset[cat].dests[container2] = from
 			},
 			deltaItemsRead:       0, // zero because we don't count container reads
 			deltaItemsWritten:    2,
@@ -553,7 +568,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			name: "add a new folder",
 			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, gen := range dataset {
-					deets := generateContainerOfItems(
+					generateContainerOfItems(
 						t,
 						ctx,
 						ctrl,
@@ -565,27 +580,8 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						version.Backup,
 						gen.dbf)
 
-					expectedLocRef := container3
-					if category == path.EmailCategory {
-						expectedLocRef = path.Builder{}.Append(container3, container3).String()
-					}
-
 					cr := exchTD.PopulateContainerCache(t, ctx, ac, category, uidn.ID(), fault.New(true))
-
-					id, ok := cr.LocationInCache(expectedLocRef)
-					require.Truef(t, ok, "dir %s found in %s cache", expectedLocRef, category)
-
-					dataset[category].dests[container3] = contDeets{
-						containerID: id,
-						locRef:      expectedLocRef,
-						itemRefs:    nil, // not needed at this point
-					}
-
-					for _, ent := range deets.Entries {
-						if ent.Folder == nil {
-							expectDeets.AddItem(category.String(), expectedLocRef, ent.ItemRef)
-						}
-					}
+					mustGetExpectedContainerItems(t, category, cr, container3)
 				}
 			},
 			deltaItemsRead:       4,
@@ -612,31 +608,28 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 					expectDeets.RenameLocation(
 						category.String(),
-						d.dests[container3].containerID,
+						d.dests[container3].locRef,
 						newLoc)
 
 					switch category {
 					case path.EmailCategory:
-						body, err := ac.Mail().GetFolder(ctx, uidn.ID(), containerID)
-						require.NoError(t, err, clues.ToCore(err))
+						body := models.NewMailFolder()
+						body.SetDisplayName(ptr.To(containerRename))
 
-						body.SetDisplayName(&containerRename)
-						err = ac.Mail().PatchFolder(ctx, uidn.ID(), containerID, body)
+						err := ac.Mail().PatchFolder(ctx, uidn.ID(), containerID, body)
 						require.NoError(t, err, clues.ToCore(err))
 
 					case path.ContactsCategory:
-						body, err := ac.Contacts().GetFolder(ctx, uidn.ID(), containerID)
-						require.NoError(t, err, clues.ToCore(err))
+						body := models.NewContactFolder()
+						body.SetDisplayName(ptr.To(containerRename))
 
-						body.SetDisplayName(&containerRename)
 						err = ac.Contacts().PatchFolder(ctx, uidn.ID(), containerID, body)
 						require.NoError(t, err, clues.ToCore(err))
 
 					case path.EventsCategory:
-						body, err := ac.Events().GetCalendar(ctx, uidn.ID(), containerID)
-						require.NoError(t, err, clues.ToCore(err))
+						body := models.NewCalendar()
+						body.SetName(ptr.To(containerRename))
 
-						body.SetName(&containerRename)
 						err = ac.Events().PatchCalendar(ctx, uidn.ID(), containerID, body)
 						require.NoError(t, err, clues.ToCore(err))
 					}
@@ -667,7 +660,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 						expectDeets.AddItem(
 							category.String(),
-							d.dests[category.String()].locRef,
+							d.dests[container1].locRef,
 							ptr.Val(itm.GetId()))
 
 					case path.ContactsCategory:
@@ -680,7 +673,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 						expectDeets.AddItem(
 							category.String(),
-							d.dests[category.String()].locRef,
+							d.dests[container1].locRef,
 							ptr.Val(itm.GetId()))
 
 					case path.EventsCategory:
@@ -693,7 +686,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 						expectDeets.AddItem(
 							category.String(),
-							d.dests[category.String()].locRef,
+							d.dests[container1].locRef,
 							ptr.Val(itm.GetId()))
 					}
 				}
@@ -708,48 +701,29 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			name: "delete an existing item",
 			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, d := range dataset {
-					containerID := d.dests[container1].containerID
+					containerInfo := d.dests[container1]
+					require.NotEmpty(t, containerInfo.itemRefs)
+
+					id := containerInfo.itemRefs[0]
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false, true)
-						require.NoError(t, err, "getting message ids", clues.ToCore(err))
-						require.NotEmpty(t, ids, "message ids in folder")
-
-						err = ac.Mail().DeleteItem(ctx, uidn.ID(), ids[0])
-						require.NoError(t, err, "deleting email item", clues.ToCore(err))
-
-						expectDeets.RemoveItem(
-							category.String(),
-							d.dests[category.String()].locRef,
-							ids[0])
+						err = ac.Mail().DeleteItem(ctx, uidn.ID(), id)
 
 					case path.ContactsCategory:
-						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false, true)
-						require.NoError(t, err, "getting contact ids", clues.ToCore(err))
-						require.NotEmpty(t, ids, "contact ids in folder")
-
-						err = ac.Contacts().DeleteItem(ctx, uidn.ID(), ids[0])
-						require.NoError(t, err, "deleting contact item", clues.ToCore(err))
-
-						expectDeets.RemoveItem(
-							category.String(),
-							d.dests[category.String()].locRef,
-							ids[0])
+						err = ac.Contacts().DeleteItem(ctx, uidn.ID(), id)
 
 					case path.EventsCategory:
-						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, uidn.ID(), containerID, "", false, true)
-						require.NoError(t, err, "getting event ids", clues.ToCore(err))
-						require.NotEmpty(t, ids, "event ids in folder")
-
-						err = ac.Events().DeleteItem(ctx, uidn.ID(), ids[0])
-						require.NoError(t, err, "deleting calendar", clues.ToCore(err))
-
-						expectDeets.RemoveItem(
-							category.String(),
-							d.dests[category.String()].locRef,
-							ids[0])
+						err = ac.Events().DeleteItem(ctx, uidn.ID(), id)
 					}
+
+					require.NoError(
+						t,
+						err,
+						"deleting %s item: %s",
+						category.String(),
+						clues.ToCore(err))
+					expectDeets.RemoveItem(category.String(), containerInfo.locRef, id)
 				}
 			},
 			deltaItemsRead:       2,
