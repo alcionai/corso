@@ -262,5 +262,7 @@ func augmentItemInfo(
 		Size:       size,
 	}
 
+	dii.Extension = &details.ExtensionData{}
+
 	return dii
 }

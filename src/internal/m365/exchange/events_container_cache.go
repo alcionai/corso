@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var _ graph.ContainerResolver = &eventContainerCache{}
@@ -38,7 +39,7 @@ func (ecc *eventContainerCache) init(
 // Action ensures that cache will stop at appropriate level.
 // @error iff the struct is not properly instantiated
 func (ecc *eventContainerCache) populateEventRoot(ctx context.Context) error {
-	container := DefaultCalendar
+	container := api.DefaultCalendar
 
 	f, err := ecc.getter.GetContainerByID(ctx, ecc.userID, container)
 	if err != nil {

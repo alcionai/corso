@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -44,8 +46,8 @@ type Events struct {
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
 func (c Events) CreateContainer(
 	ctx context.Context,
-	userID, containerName string,
-	_ string, // parentContainerID needed for iface, doesn't apply to contacts
+	// parentContainerID needed for iface, doesn't apply to events
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	body := models.NewCalendar()
 	body.SetName(&containerName)
@@ -132,7 +134,8 @@ func (c Events) GetContainerByID(
 // GetContainerByName fetches a calendar by name
 func (c Events) GetContainerByName(
 	ctx context.Context,
-	userID, containerName string,
+	// parentContainerID needed for iface, doesn't apply to events
+	userID, _, containerName string,
 ) (graph.Container, error) {
 	filter := fmt.Sprintf("name eq '%s'", containerName)
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
@@ -141,7 +144,7 @@ func (c Events) GetContainerByName(
 		},
 	}
 
-	ctx = clues.Add(ctx, "calendar_name", containerName)
+	ctx = clues.Add(ctx, "container_name", containerName)
 
 	resp, err := c.Stable.
 		Client().
@@ -153,24 +156,25 @@ func (c Events) GetContainerByName(
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
 
-	// We only allow the api to match one calendar with provided name.
-	// Return an error if multiple calendars exist (unlikely) or if no calendar
-	// is found.
-	if len(resp.GetValue()) != 1 {
-		err = clues.New("unexpected number of calendars returned").
-			With("returned_calendar_count", len(resp.GetValue()))
-		return nil, err
+	gv := resp.GetValue()
+
+	if len(gv) == 0 {
+		return nil, clues.New("container not found").WithClues(ctx)
 	}
+
+	// We only allow the api to match one calendar with the provided name.
+	// If we match multiples, we'll eagerly return the first one.
+	logger.Ctx(ctx).Debugw("calendars matched the name search", "calendar_count", len(gv))
 
 	// Sanity check ID and name
-	cal := resp.GetValue()[0]
-	cd := CalendarDisplayable{Calendarable: cal}
+	cal := gv[0]
+	container := graph.CalendarDisplayable{Calendarable: cal}
 
-	if err := graph.CheckIDAndName(cd); err != nil {
-		return nil, err
+	if err := graph.CheckIDAndName(container); err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	return graph.CalendarDisplayable{Calendarable: cal}, nil
+	return container, nil
 }
 
 func (c Events) PatchCalendar(
@@ -698,7 +702,17 @@ func EventFromMap(ev map[string]any) (models.Eventable, error) {
 }
 
 func eventCollisionKeyProps() []string {
-	return idAnd("subject")
+	// Do not use attendees here.  We slice out attendees from the
+	// restored event so that they do not receive an email for every
+	// restoration item.  Attendees will guarantee non-overlapping keys.
+	return idAnd(
+		"subject",
+		"type",
+		"start",
+		"end",
+		recurrence,
+		isCancelled,
+		isDraft)
 }
 
 // EventCollisionKey constructs a key from the eventable's creation time, subject, and organizer.
@@ -708,5 +722,36 @@ func EventCollisionKey(item models.Eventable) string {
 		return ""
 	}
 
-	return ptr.Val(item.GetSubject())
+	var (
+		subject   = ptr.Val(item.GetSubject())
+		oftype    = ptr.Val(item.GetType()).String()
+		startTime = item.GetStart()
+		start     string
+		endTime   = item.GetEnd()
+		end       string
+		recurs    = item.GetRecurrence()
+		recur     string
+		cancelled = ptr.Val(item.GetIsCancelled())
+		draft     = ptr.Val(item.GetIsDraft())
+	)
+
+	if startTime != nil {
+		start = ptr.Val(startTime.GetDateTime())
+	}
+
+	if endTime != nil {
+		end = ptr.Val(endTime.GetDateTime())
+	}
+
+	if recurs != nil && recurs.GetPattern() != nil {
+		recur = ptr.Val(recurs.GetPattern().GetOdataType())
+	}
+
+	// this result gets hashed to ensure that an enormous list of attendees
+	// doesn't generate a multi-kb collision key.
+	return subject +
+		oftype +
+		start + end + recur +
+		strconv.FormatBool(draft) +
+		strconv.FormatBool(cancelled)
 }

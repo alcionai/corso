@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -80,37 +81,28 @@ type itemRestorer interface {
 		collisionKeyToItemID map[string]string,
 		collisionPolicy control.CollisionPolicy,
 		errs *fault.Bus,
+		ctr *count.Bus,
 	) (*details.ExchangeInfo, error)
 }
 
 // produces structs that interface with the graph/cache_container
 // CachedContainer interface.
 type containerAPI interface {
+	containerByNamer
+
 	// POSTs the creation of a new container
 	CreateContainer(
 		ctx context.Context,
-		userID, containerName, parentContainerID string,
+		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
-
-	// GETs a container by name.
-	// if containerByNamer is nil, this functionality is not supported
-	// and should be skipped by the caller.
-	// normally, we'd alias the func directly.  The indirection here
-	// is because not all types comply with GetContainerByName.
-	containerSearcher() containerByNamer
-
-	// returns either the provided value (assumed to be the root
-	// folder for that cache tree), or the default root container
-	// (if the category uses a root folder that exists above the
-	// restore location path).
-	orRootContainer(string) string
+	defaultRootContainer() string
 }
 
 type containerByNamer interface {
 	// searches for a container by name.
 	GetContainerByName(
 		ctx context.Context,
-		userID, containerName string,
+		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
 }
 

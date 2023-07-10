@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,6 +36,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -74,7 +76,8 @@ func ConsumeRestoreCollections(
 				caches,
 				deets,
 				opts.RestorePermissions,
-				errs)
+				errs,
+				ctr)
 
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(

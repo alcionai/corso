@@ -22,7 +22,7 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -716,7 +716,7 @@ func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
-	config m365Stub.ConfigInfo,
+	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
@@ -796,7 +796,7 @@ func compareDriveItem(
 			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
 		}
 
-		if !config.Opts.RestorePermissions {
+		if !mci.Opts.RestorePermissions {
 			assert.Equal(t, 0, len(itemMeta.Permissions))
 			return true
 		}
@@ -819,7 +819,7 @@ func compareDriveItem(
 			// sharepoint retrieves a superset of permissions
 			// (all site admins, site groups, built in by default)
 			// relative to the permissions changed by the test.
-			config.Service == path.SharePointService,
+			mci.Service == path.SharePointService,
 			permissionEqual)
 
 		testElementsMatch(
@@ -868,7 +868,7 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
-	config m365Stub.ConfigInfo,
+	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
@@ -889,7 +889,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		return compareDriveItem(t, expected, item, config, rootDir)
+		return compareDriveItem(t, expected, item, mci, rootDir)
 
 	case path.SharePointService:
 		if category != path.LibrariesCategory {
@@ -897,7 +897,7 @@ func compareItem(
 		}
 
 		// SharePoint libraries reuses OneDrive code.
-		return compareDriveItem(t, expected, item, config, rootDir)
+		return compareDriveItem(t, expected, item, mci, rootDir)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
@@ -962,7 +962,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
-	config m365Stub.ConfigInfo,
+	mci m365Stub.ConfigInfo,
 ) int {
 	collectionsWithItems := []data.BackupCollection{}
 
@@ -976,7 +976,7 @@ func checkCollections(
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == config.RestoreCfg.Location
+			rootDir         = folders[len(folders)-1] == mci.RestoreCfg.Location
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -1009,7 +1009,7 @@ func checkCollections(
 				service,
 				category,
 				item,
-				config,
+				mci,
 				rootDir) {
 				gotItems--
 			}
@@ -1197,7 +1197,7 @@ func newController(
 	r resource.Category,
 	pst path.ServiceType,
 ) *Controller {
-	a := tester.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 
 	controller, err := NewController(ctx, a, r, pst, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))

@@ -4,9 +4,12 @@ package extensions
 
 import (
 	"bytes"
+	"errors"
+	"hash/crc32"
 	"io"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -25,7 +28,7 @@ func TestExtensionsUnitSuite(t *testing.T) {
 func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 	type outputValidationFunc func(
 		extRc io.ReadCloser,
-		extInfo *details.ExtensionInfo,
+		extData *details.ExtensionData,
 		err error,
 	) bool
 
@@ -52,10 +55,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err == nil && extRc != nil && extInfo != nil
+				return err == nil && extRc != nil && extData != nil
 			},
 		},
 		{
@@ -67,10 +70,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err == nil && extRc != nil && extInfo != nil
+				return err == nil && extRc != nil && extData != nil
 			},
 		},
 		{
@@ -79,10 +82,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc:        testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -95,26 +98,26 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
 			name: "factory call returns error",
 			factories: []CreateItemExtensioner{
 				&MockItemExtensionFactory{
-					shouldReturnError: true,
+					FailOnFactoryCreation: true,
 				},
 			},
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -122,16 +125,16 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			factories: []CreateItemExtensioner{
 				&MockItemExtensionFactory{},
 				&MockItemExtensionFactory{
-					shouldReturnError: true,
+					FailOnFactoryCreation: true,
 				},
 			},
 			rc: testRc,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 		{
@@ -142,10 +145,10 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			rc: nil,
 			validateOutputs: func(
 				extRc io.ReadCloser,
-				extInfo *details.ExtensionInfo,
+				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extInfo == nil
+				return err != nil && extRc == nil && extData == nil
 			},
 		},
 	}
@@ -156,12 +159,79 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			extRc, extInfo, err := AddItemExtensions(
+			extRc, extData, err := AddItemExtensions(
 				ctx,
 				test.rc,
 				testItemInfo,
 				test.factories)
-			require.True(t, test.validateOutputs(extRc, extInfo, err))
+			require.True(t, test.validateOutputs(extRc, extData, err))
+		})
+	}
+}
+
+func readFrom(rc io.ReadCloser) error {
+	defer rc.Close()
+
+	var err error
+
+	p := make([]byte, 4)
+
+	for err == nil {
+		_, err := rc.Read(p)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (suite *ExtensionsUnitSuite) TestReadCloserWrappers() {
+	data := []byte("hello world!")
+
+	table := []struct {
+		name      string
+		factories []CreateItemExtensioner
+		payload   []byte
+		check     require.ErrorAssertionFunc
+		rc        io.ReadCloser
+	}{
+		{
+			name: "happy path",
+			factories: []CreateItemExtensioner{
+				&MockItemExtensionFactory{},
+			},
+			payload: data,
+			check:   require.NoError,
+			rc:      io.NopCloser(bytes.NewReader(data)),
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			extRc, extData, err := AddItemExtensions(
+				ctx,
+				test.rc,
+				details.ItemInfo{},
+				test.factories)
+			require.NoError(suite.T(), err)
+
+			err = readFrom(extRc)
+			test.check(t, err, clues.ToCore(err))
+
+			if err == nil {
+				require.Equal(suite.T(), len(test.payload), int(extData.Data[KNumBytes].(int64)))
+				c := extData.Data[KCrc32].(uint32)
+				require.Equal(suite.T(), c, crc32.ChecksumIEEE(test.payload))
+			}
 		})
 	}
 }

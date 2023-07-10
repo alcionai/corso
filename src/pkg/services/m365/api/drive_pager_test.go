@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -21,7 +22,7 @@ func TestDrivePagerIntgSuite(t *testing.T) {
 	suite.Run(t, &DrivePagerIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -53,6 +54,9 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			t.Log("drive", test.driveID)
+			t.Log("rootFolder", test.rootFolderID)
+
 			items, err := suite.its.ac.Stable.
 				Client().
 				Drives().
@@ -72,9 +76,19 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 				"need at least one item to compare in user %s drive %s folder %s",
 				suite.its.userID, test.driveID, test.rootFolderID)
 
-			results, err := suite.its.ac.Drives().GetItemsInContainerByCollisionKey(ctx, test.driveID, test.rootFolderID)
+			results, err := suite.its.ac.
+				Drives().
+				GetItemsInContainerByCollisionKey(ctx, test.driveID, test.rootFolderID)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotEmpty(t, results)
+
+			for _, k := range expect {
+				t.Log("expects key", k)
+			}
+
+			for k := range results {
+				t.Log("results key", k)
+			}
 
 			for k, v := range results {
 				assert.NotEmpty(t, k, "all keys should be populated")

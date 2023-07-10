@@ -2,8 +2,10 @@ package extensions
 
 import (
 	"context"
+	"errors"
 	"hash/crc32"
 	"io"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 
@@ -11,79 +13,88 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+const (
+	KNumBytes = "NumBytes"
+	KCrc32    = "Crc32"
+)
+
 var _ io.ReadCloser = &MockExtension{}
 
 type MockExtension struct {
-	numBytes    int
-	crc32       uint32
-	info        details.ItemInfo
-	extInfo     *details.ExtensionInfo
-	innerRc     io.ReadCloser
-	ctx         context.Context
-	failOnRead  bool
-	failOnClose bool
+	NumBytes    int64
+	Crc32       uint32
+	Info        details.ItemInfo
+	ExtData     *details.ExtensionData
+	InnerRc     io.ReadCloser
+	Ctx         context.Context
+	FailOnRead  bool
+	FailOnClose bool
 }
 
 func (me *MockExtension) Read(p []byte) (int, error) {
-	if me.failOnRead {
+	if me.FailOnRead {
 		return 0, clues.New("mock read error")
 	}
 
-	n, err := me.innerRc.Read(p)
-	if err != nil && err != io.EOF {
-		logger.CtxErr(me.ctx, err).Error("inner read error")
-		return n, err
+	n, err := me.InnerRc.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		logger.CtxErr(me.Ctx, err).Error("inner read error")
+		return n, clues.Stack(err)
 	}
 
-	me.numBytes += n
-	me.crc32 = crc32.Update(me.crc32, crc32.IEEETable, p[:n])
+	atomic.AddInt64(&me.NumBytes, int64(n))
 
-	if err == io.EOF {
-		logger.Ctx(me.ctx).Debug("mock extension reached EOF")
-		me.extInfo.Data["numBytes"] = me.numBytes
-		me.extInfo.Data["crc32"] = me.crc32
+	me.Crc32 = crc32.Update(me.Crc32, crc32.IEEETable, p[:n])
+
+	if errors.Is(err, io.EOF) {
+		me.ExtData.Data[KNumBytes] = me.NumBytes
+		me.ExtData.Data[KCrc32] = me.Crc32
 	}
 
 	return n, err
 }
 
 func (me *MockExtension) Close() error {
-	if me.failOnClose {
+	if me.FailOnClose {
 		return clues.New("mock close error")
 	}
 
-	err := me.innerRc.Close()
+	err := me.InnerRc.Close()
 	if err != nil {
-		return err
+		return clues.Stack(err)
 	}
 
-	me.extInfo.Data["numBytes"] = me.numBytes
-	me.extInfo.Data["crc32"] = me.crc32
-	logger.Ctx(me.ctx).Infow(
+	me.ExtData.Data[KNumBytes] = me.NumBytes
+	me.ExtData.Data[KCrc32] = me.Crc32
+	logger.Ctx(me.Ctx).Infow(
 		"mock extension closed",
-		"numBytes", me.numBytes, "crc32", me.crc32)
+		KNumBytes, me.NumBytes, KCrc32, me.Crc32)
 
 	return nil
 }
 
 type MockItemExtensionFactory struct {
-	shouldReturnError bool
+	FailOnFactoryCreation bool
+	FailOnRead            bool
+	FailOnClose           bool
 }
 
 func (m *MockItemExtensionFactory) CreateItemExtension(
 	ctx context.Context,
 	rc io.ReadCloser,
 	info details.ItemInfo,
-	extInfo *details.ExtensionInfo,
+	extData *details.ExtensionData,
 ) (io.ReadCloser, error) {
-	if m.shouldReturnError {
+	if m.FailOnFactoryCreation {
 		return nil, clues.New("factory error")
 	}
 
 	return &MockExtension{
-		ctx:     ctx,
-		innerRc: rc,
-		info:    info,
-		extInfo: extInfo,
+		Ctx:         ctx,
+		InnerRc:     rc,
+		Info:        info,
+		ExtData:     extData,
+		FailOnRead:  m.FailOnRead,
+		FailOnClose: m.FailOnClose,
 	}, nil
 }

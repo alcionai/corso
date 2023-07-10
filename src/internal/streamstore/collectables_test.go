@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type StreamStoreIntgSuite struct {
@@ -29,7 +30,7 @@ func TestStreamStoreIntgSuite(t *testing.T) {
 	suite.Run(t, &StreamStoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -40,7 +41,7 @@ func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	defer flush()
 
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
 	require.NoError(t, k.Initialize(ctx, repository.Options{}))

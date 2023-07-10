@@ -16,13 +16,14 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 func openKopiaRepo(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, error) {
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
 	if err := k.Initialize(ctx, repository.Options{}); err != nil {
@@ -67,7 +68,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 	suite.Run(t, &WrapperIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
+			[][]string{storeTD.AWSStorageCredEnvs},
 		),
 	})
 }
@@ -78,7 +79,7 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
 	err := k.Initialize(ctx, repository.Options{})
@@ -98,7 +99,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
@@ -112,7 +113,7 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
 	err := k.Connect(ctx, repository.Options{})
@@ -409,7 +410,7 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 		Host: "bar",
 	}
 
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
 	err := k.Initialize(ctx, opts)

@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -63,6 +64,7 @@ func generateAndRestoreItems(
 	dbf dataBuilderFunc,
 	opts control.Options,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.Details, error) {
 	items := make([]item, 0, howMany)
 
@@ -102,7 +104,7 @@ func generateAndRestoreItems(
 
 	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, dataColls, errs)
+	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, dataColls, errs, ctr)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -220,8 +222,9 @@ func generateAndRestoreDriveItems(
 	cat path.CategoryType,
 	sel selectors.Selector,
 	tenantID, destFldr string,
-	count int,
+	intCount int,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (
 	*details.Details,
 	error,
@@ -266,7 +269,7 @@ func generateAndRestoreDriveItems(
 		currentTime      = fmt.Sprintf("%d-%v-%d-%d-%d-%d", year, mnth, date, hour, min, sec)
 	)
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < intCount; i++ {
 		col := []odStub.ColInfo{
 			// basic folder and file creation
 			{
@@ -426,5 +429,5 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, collections, errs)
+	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, collections, errs, ctr)
 }

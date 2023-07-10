@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -175,7 +176,7 @@ func TestSharePointPagesSuite(t *testing.T) {
 	suite.Run(t, &SharePointPagesSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -193,8 +194,8 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	defer flush()
 
 	var (
-		siteID = tester.M365SiteID(t)
-		a      = tester.NewM365Account(t)
+		siteID = tconfig.M365SiteID(t)
+		a      = tconfig.NewM365Account(t)
 	)
 
 	creds, err := a.M365Config()

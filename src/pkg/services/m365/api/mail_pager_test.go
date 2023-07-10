@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -22,7 +24,7 @@ func TestMailPagerIntgSuite(t *testing.T) {
 	suite.Run(t, &MailPagerIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -37,7 +39,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.userID, "inbox")
+	container, err := ac.GetContainerByID(ctx, suite.its.userID, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
@@ -51,15 +53,25 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	ms := msgs.GetValue()
-	expect := make([]string, 0, len(ms))
+	expectM := map[string]struct{}{}
 
 	for _, m := range ms {
-		expect = append(expect, api.MailCollisionKey(m))
+		expectM[api.MailCollisionKey(m)] = struct{}{}
 	}
 
-	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "inbox")
+	expect := maps.Keys(expectM)
+
+	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
+
+	for _, k := range expect {
+		t.Log("expects key", k)
+	}
+
+	for k := range results {
+		t.Log("results key", k)
+	}
 
 	for k, v := range results {
 		assert.NotEmpty(t, k, "all keys should be populated")
