@@ -90,7 +90,7 @@ func Err(ctx context.Context, s ...any) {
 // if s is nil, prints nothing.
 // Prepends the message with "Error: "
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	outf(getRootCmd(ctx).ErrOrStderr(), "Error: "+tmpl, s...)
+	outf(getRootCmd(ctx).ErrOrStderr(), "\nError: \n\t"+tmpl+"\n", s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)

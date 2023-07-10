@@ -72,6 +72,10 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
 				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
 				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+
+				"--" + flags.CollisionsFN, testdata.Collisions,
+				"--" + flags.DestinationFN, testdata.Destination,
+
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
 				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
@@ -104,6 +108,9 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
 			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
+
+			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
+			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)

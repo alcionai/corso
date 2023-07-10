@@ -27,7 +27,7 @@ func ControllerWithSelector(
 	ins idname.Cacher,
 	onFail func(),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Options{})
+	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()

@@ -45,7 +45,7 @@ const (
 
 var (
 	errNotConnected  = clues.New("not connected to repo")
-	errNoRestorePath = clues.New("no restore path given")
+	ErrNoRestorePath = clues.New("no restore path given")
 )
 
 type BackupStats struct {
@@ -341,7 +341,7 @@ func getDir(
 	snapshotRoot fs.Entry,
 ) (fs.Directory, error) {
 	if dirPath == nil {
-		return nil, clues.Wrap(errNoRestorePath, "getting directory").WithClues(ctx)
+		return nil, clues.Wrap(ErrNoRestorePath, "getting directory").WithClues(ctx)
 	}
 
 	// GetNestedEntry handles nil properly.
@@ -462,7 +462,7 @@ func (w Wrapper) ProduceRestoreCollections(
 	defer end()
 
 	if len(paths) == 0 {
-		return nil, clues.Stack(errNoRestorePath).WithClues(ctx)
+		return nil, clues.Stack(ErrNoRestorePath).WithClues(ctx)
 	}
 
 	// Used later on, but less confusing to follow error propagation if we just

@@ -17,20 +17,22 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -56,7 +58,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	)
 
 	table := []struct {
-		expectStatus opStatus
+		expectStatus OpStatus
 		expectErr    assert.ErrorAssertionFunc
 		stats        restoreStats
 		fail         error
@@ -160,7 +162,7 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RestoreOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -170,12 +172,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	var (
-		st = tester.NewPrefixedS3Storage(t)
+		st = storeTD.NewPrefixedS3Storage(t)
 		k  = kopia.NewConn(st)
 	)
 
-	suite.acct = tester.NewM365Account(t)
+	suite.acct = tconfig.NewM365Account(t)
 
 	err := k.Initialize(ctx, repository.Options{})
 	require.NoError(t, err, clues.ToCore(err))
@@ -250,7 +254,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.kw,
 				test.sw,
 				test.rc,
-				tester.NewM365Account(t),
+				tconfig.NewM365Account(t),
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
 				restoreCfg,
@@ -277,9 +281,9 @@ func setupExchangeBackup(
 
 	esel.DiscreteOwner = owner
 	esel.Include(
-		esel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		esel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		esel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		esel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()),
+		esel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		esel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 
 	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Users, esel.Selector, nil, nil)
 
@@ -378,7 +382,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	}{
 		{
 			name:       "Exchange_Restore",
-			owner:      tester.M365UserID(suite.T()),
+			owner:      tconfig.M365UserID(suite.T()),
 			restoreCfg: testdata.DefaultRestoreConfig(""),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewExchangeRestore(owners)
@@ -390,7 +394,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		},
 		{
 			name:       "SharePoint_Restore",
-			owner:      tester.M365SiteID(suite.T()),
+			owner:      tconfig.M365SiteID(suite.T()),
 			restoreCfg: control.DefaultRestoreConfig(dttm.SafeForTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
@@ -422,7 +426,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				suite.kw,
 				suite.sw,
 				bup.ctrl,
-				tester.NewM365Account(t),
+				tconfig.NewM365Account(t),
 				bup.backupID,
 				test.getSelector(t, bup.selectorResourceOwners),
 				test.restoreCfg,
@@ -467,7 +471,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		suite.acct,
 		resource.Users,
 		rsel.PathService(),
-		control.Options{})
+		control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(
@@ -476,7 +480,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		suite.kw,
 		suite.sw,
 		ctrl,
-		tester.NewM365Account(t),
+		tconfig.NewM365Account(t),
 		"backupID",
 		rsel.Selector,
 		restoreCfg,

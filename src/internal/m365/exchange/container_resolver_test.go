@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -682,14 +683,14 @@ func TestContainerResolverIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ContainerResolverSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *ContainerResolverSuite) SetupSuite() {
 	t := suite.T()
 
-	a := tester.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -702,7 +703,7 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventContainerCache{
-			userID: tester.M365UserID(t),
+			userID: tconfig.M365UserID(t),
 			enumer: ac.Events(),
 			getter: ac.Events(),
 		}
@@ -710,7 +711,7 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 
 	contactFunc := func(t *testing.T) graph.ContainerResolver {
 		return &contactContainerCache{
-			userID: tester.M365UserID(t),
+			userID: tconfig.M365UserID(t),
 			enumer: ac.Contacts(),
 			getter: ac.Contacts(),
 		}
@@ -724,45 +725,45 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 		{
 			name: "Default Event Cache",
 			// Fine as long as this isn't running against a migrated Exchange server.
-			folderInCache: DefaultCalendar,
-			root:          DefaultCalendar,
-			basePath:      DefaultCalendar,
+			folderInCache: api.DefaultCalendar,
+			root:          api.DefaultCalendar,
+			basePath:      api.DefaultCalendar,
 			resolverFunc:  eventFunc,
 			canFind:       assert.True,
 		},
 		{
 			name:          "Default Event Folder Hidden",
-			folderInCache: DefaultContactFolder,
-			root:          DefaultCalendar,
+			folderInCache: api.DefaultContacts,
+			root:          api.DefaultCalendar,
 			canFind:       assert.False,
 			resolverFunc:  eventFunc,
 		},
 		{
 			name:          "Name Not in Cache",
 			folderInCache: "testFooBarWhoBar",
-			root:          DefaultCalendar,
+			root:          api.DefaultCalendar,
 			canFind:       assert.False,
 			resolverFunc:  eventFunc,
 		},
 		{
 			name:          "Default Contact Cache",
-			folderInCache: DefaultContactFolder,
-			root:          DefaultContactFolder,
-			basePath:      DefaultContactFolder,
+			folderInCache: api.DefaultContacts,
+			root:          api.DefaultContacts,
+			basePath:      api.DefaultContacts,
 			canFind:       assert.True,
 			resolverFunc:  contactFunc,
 		},
 		{
 			name:          "Default Contact Hidden",
-			folderInCache: DefaultContactFolder,
-			root:          DefaultContactFolder,
+			folderInCache: api.DefaultContacts,
+			root:          api.DefaultContacts,
 			canFind:       assert.False,
 			resolverFunc:  contactFunc,
 		},
 		{
 			name:          "Name Not in Cache",
 			folderInCache: "testFooBarWhoBar",
-			root:          DefaultContactFolder,
+			root:          api.DefaultContacts,
 			canFind:       assert.False,
 			resolverFunc:  contactFunc,
 		},
@@ -805,6 +806,9 @@ func runCreateDestinationTest(
 		gcc = handler.newContainerCache(userID)
 	)
 
+	err := gcc.Populate(ctx, fault.New(true), handler.defaultRootContainer())
+	require.NoError(t, err, clues.ToCore(err))
+
 	path1, err := path.Build(
 		tenantID,
 		userID,
@@ -820,7 +824,6 @@ func runCreateDestinationTest(
 		handler.formatRestoreDestination(destinationName, path1),
 		userID,
 		gcc,
-		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -842,7 +845,6 @@ func runCreateDestinationTest(
 		handler.formatRestoreDestination(destinationName, path2),
 		userID,
 		gcc,
-		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 

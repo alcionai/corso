@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -190,7 +192,12 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				mbh.ItemInfo.OneDrive.ItemName = stubItemName
 			}
 
-			mbh.GetResps = []*http.Response{{StatusCode: http.StatusOK, Body: test.getBody}}
+			mbh.GetResps = []*http.Response{
+				{
+					StatusCode: http.StatusOK,
+					Body:       test.getBody,
+				},
+			}
 			mbh.GetErrs = []error{test.getErr}
 			mbh.GI = mock.GetsItem{Err: assert.AnError}
 
@@ -770,4 +777,233 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
+}
+
+func (suite *CollectionUnitTestSuite) TestItemExtensions() {
+	type verifyExtensionOutput func(
+		t *testing.T,
+		info details.ItemInfo,
+		payload []byte,
+	)
+
+	var (
+		t            = suite.T()
+		stubItemID   = "itemID"
+		stubItemName = "name"
+		driveID      = "driveID"
+		collStatus   = support.ControllerOperationStatus{}
+		wg           = sync.WaitGroup{}
+		now          = time.Now()
+		readData     = []byte("hello world!")
+		pb           = path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
+	)
+
+	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name           string
+		factories      []extensions.CreateItemExtensioner
+		payload        []byte
+		expectReadErr  require.ErrorAssertionFunc
+		expectCloseErr require.ErrorAssertionFunc
+		rc             io.ReadCloser
+		expect         verifyExtensionOutput
+	}{
+		{
+			name:           "nil extensions",
+			factories:      nil,
+			payload:        readData,
+			expectReadErr:  require.NoError,
+			expectCloseErr: require.NoError,
+			rc:             io.NopCloser(bytes.NewReader(readData)),
+			expect: func(
+				t *testing.T,
+				info details.ItemInfo,
+				payload []byte,
+			) {
+				require.Nil(t, info.Extension.Data)
+			},
+		},
+		{
+			name:           "no extensions",
+			factories:      []extensions.CreateItemExtensioner{},
+			payload:        readData,
+			expectReadErr:  require.NoError,
+			expectCloseErr: require.NoError,
+			rc:             io.NopCloser(bytes.NewReader(readData)),
+			expect: func(
+				t *testing.T,
+				info details.ItemInfo,
+				payload []byte,
+			) {
+				require.Nil(t, info.Extension.Data)
+			},
+		},
+		{
+			name: "with extension",
+			factories: []extensions.CreateItemExtensioner{
+				&extensions.MockItemExtensionFactory{},
+			},
+			payload:        readData,
+			expectReadErr:  require.NoError,
+			expectCloseErr: require.NoError,
+			rc:             io.NopCloser(bytes.NewReader(readData)),
+			expect: func(
+				t *testing.T,
+				info details.ItemInfo,
+				payload []byte,
+			) {
+				verifyExtensionData(
+					t,
+					info.Extension,
+					int64(len(payload)),
+					crc32.ChecksumIEEE(payload))
+			},
+		},
+		{
+			name: "zero length payload",
+			factories: []extensions.CreateItemExtensioner{
+				&extensions.MockItemExtensionFactory{},
+			},
+			payload:        []byte{},
+			expectReadErr:  require.NoError,
+			expectCloseErr: require.NoError,
+			rc:             io.NopCloser(bytes.NewReader([]byte{})),
+			expect: func(
+				t *testing.T,
+				info details.ItemInfo,
+				payload []byte,
+			) {
+				verifyExtensionData(
+					t,
+					info.Extension,
+					int64(len(payload)),
+					crc32.ChecksumIEEE(payload))
+			},
+		},
+		{
+			name: "extension fails on read",
+			factories: []extensions.CreateItemExtensioner{
+				&extensions.MockItemExtensionFactory{
+					FailOnRead: true,
+				},
+			},
+			payload:        readData,
+			expectReadErr:  require.Error,
+			expectCloseErr: require.NoError,
+			rc:             io.NopCloser(bytes.NewReader(readData)),
+			expect: func(
+				t *testing.T,
+				info details.ItemInfo,
+				payload []byte,
+			) {
+				// The extension may have dirty data in this case, hence skipping
+				// verification of extension info
+			},
+		},
+		{
+			name: "extension fails on close",
+			factories: []extensions.CreateItemExtensioner{
+				&extensions.MockItemExtensionFactory{
+					FailOnClose: true,
+				},
+			},
+			payload:        readData,
+			expectReadErr:  require.NoError,
+			expectCloseErr: require.Error,
+			rc:             io.NopCloser(bytes.NewReader(readData)),
+			expect: func(
+				t *testing.T,
+				info details.ItemInfo,
+				payload []byte,
+			) {
+				// The extension may have dirty data in this case, hence skipping
+				// verification of extension info
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			wg.Add(1)
+
+			mbh := mock.DefaultOneDriveBH()
+			mbh.GI = mock.GetsItem{Err: assert.AnError}
+			mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
+			mbh.GetResps = []*http.Response{
+				{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(test.payload)))},
+			}
+			mbh.GetErrs = []error{
+				nil,
+			}
+
+			opts := control.Defaults()
+			opts.ItemExtensionFactory = append(
+				opts.ItemExtensionFactory,
+				test.factories...)
+
+			coll, err := NewCollection(
+				mbh,
+				folderPath,
+				nil,
+				driveID,
+				suite.testStatusUpdater(&wg, &collStatus),
+				opts,
+				CollectionScopeFolder,
+				true,
+				nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			stubItem := odTD.NewStubDriveItem(
+				stubItemID,
+				stubItemName,
+				int64(len(test.payload)),
+				now,
+				now,
+				true,
+				false)
+
+			coll.Add(stubItem)
+
+			collItem, ok := <-coll.Items(ctx, fault.New(true))
+			assert.True(t, ok)
+
+			wg.Wait()
+
+			ei, ok := collItem.(data.StreamInfo)
+			assert.True(t, ok)
+			itemInfo := ei.Info()
+
+			_, err = io.ReadAll(collItem.ToReader())
+			test.expectReadErr(t, err, clues.ToCore(err))
+
+			err = collItem.ToReader().Close()
+			test.expectCloseErr(t, err, clues.ToCore(err))
+
+			// Verify extension data
+			test.expect(t, itemInfo, test.payload)
+		})
+	}
+}
+
+func verifyExtensionData(
+	t *testing.T,
+	extensionData *details.ExtensionData,
+	expectedBytes int64,
+	expectedCrc uint32,
+) {
+	require.NotNil(t, extensionData, "nil extension")
+	assert.NotNil(t, extensionData.Data[extensions.KNumBytes], "key not found")
+	assert.NotNil(t, extensionData.Data[extensions.KCrc32], "key not found")
+
+	eSize := extensionData.Data[extensions.KNumBytes].(int64)
+	assert.Equal(t, expectedBytes, eSize, "incorrect num bytes")
+
+	c := extensionData.Data[extensions.KCrc32].(uint32)
+	require.Equal(t, expectedCrc, c, "incorrect crc")
 }

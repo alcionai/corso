@@ -16,14 +16,17 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -45,7 +48,7 @@ func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -63,7 +66,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 	suite.recorder = recorder
 	suite.vpr = vpr
 	suite.cfgFP = cfgFilePath
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = tconfig.M365UserID(t)
 }
 
 func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
@@ -76,7 +79,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 
 	suite.recorder.Reset()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "list", "onedrive",
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
@@ -105,7 +108,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 
 	ctx = config.SetViper(ctx, suite.vpr)
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "create", "onedrive",
 		"--config-file", suite.cfgFP,
 		"--"+flags.UserFN, "foo@nothere.com")
@@ -149,7 +152,7 @@ func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -169,7 +172,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	suite.cfgFP = cfgFilePath
 
 	var (
-		m365UserID = tester.M365UserID(t)
+		m365UserID = tconfig.M365UserID(t)
 		users      = []string{m365UserID}
 		ins        = idname.NewCache(map[string]string{m365UserID: m365UserID})
 	)
@@ -197,7 +200,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 
 	suite.recorder.Reset()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.cfgFP,
 		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
@@ -219,7 +222,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	)
 
 	// a follow-up details call should fail, due to the backup ID being deleted
-	cmd = tester.StubRootCmd(
+	cmd = cliTD.StubRootCmd(
 		"backup", "details", "onedrive",
 		"--config-file", suite.cfgFP,
 		"--backup", string(suite.backupOp.Results.BackupID))
@@ -237,7 +240,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID
 
 	defer flush()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.cfgFP,
 		"--"+flags.BackupFN, uuid.NewString())
