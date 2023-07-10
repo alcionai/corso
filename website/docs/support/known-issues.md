@@ -20,9 +20,6 @@ Below is a list of known Corso issues and limitations:
   while a backup is being created will be included in the running backup.
   Future backups run when the data isn't modified will include the data.
 
-* Exchange Calender Event instance exceptions (changes to a single event within a recurring series) aren't
-included in backup and restore.
-
 * SharePoint document library data can't be restored after the library has been deleted.
 
 * Sharing information of items in OneDrive/SharePoint using sharing links aren't backed up and restored.
