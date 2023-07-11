@@ -903,9 +903,10 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			path.EmailCategory:    "",
 			path.EventsCategory:   "",
 		}
-		collKeys = map[path.CategoryType]map[string]string{}
-		acCont   = suite.its.ac.Contacts()
-		acMail   = suite.its.ac.Mail()
+		countItemsInRestore int
+		collKeys            = map[path.CategoryType]map[string]string{}
+		acCont              = suite.its.ac.Contacts()
+		acMail              = suite.its.ac.Mail()
 		// acEvts   = suite.its.ac.Events()
 	)
 
@@ -918,6 +919,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		defer flush()
 
 		mb := evmock.NewBus()
+		ctr := count.New()
 
 		restoreCfg.OnCollision = control.Copy
 
@@ -927,7 +929,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			count.New(),
+			ctr,
 			sel,
 			opts,
 			restoreCfg)
@@ -946,6 +948,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			userID,
 			cIDs[path.ContactsCategory])
 		require.NoError(t, err, clues.ToCore(err))
+		countItemsInRestore += len(collKeys[path.ContactsCategory])
 
 		// gc, err = acEvts.GetContainerByName(ctx, userID, "", restoreCfg.Location)
 		// require.NoError(t, err, clues.ToCore(err))
@@ -957,6 +960,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		// 	userID,
 		// 	cIDs[path.EventsCategory])
 		// require.NoError(t, err, clues.ToCore(err))
+		// countItemsInRestore += len(collKeys[path.EventsCategory])
 
 		mailGC, err := acMail.GetContainerByName(ctx, userID, api.MsgFolderRoot, restoreCfg.Location)
 		require.NoError(t, err, clues.ToCore(err))
@@ -971,6 +975,9 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			userID,
 			cIDs[path.EmailCategory])
 		require.NoError(t, err, clues.ToCore(err))
+		countItemsInRestore += len(collKeys[path.EmailCategory])
+
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 	})
 
 	// skip restore
@@ -999,15 +1006,12 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
 
-		assert.Equal(
-			t,
-			int64(len(collKeys)),
-			ctr.Total(count.CollisionSkip),
-			"all attempted item restores should have been skipped")
 		assert.Zero(
 			t,
 			len(deets.Entries),
 			"no items should have been restored")
+
+		checkRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -1067,15 +1071,13 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			}
 		}
 
-		assert.Zero(
-			t,
-			ctr.Total(count.CollisionSkip),
-			"no attempted item restores should have been skipped")
 		assert.Equal(
 			t,
 			len(filtEnts),
 			len(collKeys),
 			"every item should have been replaced: %+v", filtEnts)
+
+		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
 
 		result := filterCollisionKeyResults(
 			t,
@@ -1133,15 +1135,13 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			}
 		}
 
-		assert.Zero(
-			t,
-			ctr.Total(count.CollisionSkip),
-			"no attempted item restores should have been skipped")
 		assert.Equal(
 			t,
 			len(filtEnts),
-			len(collKeys),
+			countItemsInRestore,
 			"every item should have been copied: %+v", filtEnts)
+
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 
 		result := filterCollisionKeyResults(
 			t,

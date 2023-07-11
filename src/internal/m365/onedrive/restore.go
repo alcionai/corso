@@ -853,9 +853,13 @@ func restoreFile(
 	// risk failures in the middle, or we post w/ copy, then delete, then patch
 	// the name, which could triple our graph calls in the worst case.
 	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+
 		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return "", details.ItemInfo{}, clues.New("deleting colliding item")
 		}
+	} else {
+		ctr.Inc(count.NewItemCreated)
 	}
 
 	// Create Item

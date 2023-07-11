@@ -242,3 +242,33 @@ func filterCollisionKeyResults[T any](
 
 	return m
 }
+
+func checkRestoreCounts(
+	t *testing.T,
+	ctr *count.Bus,
+	expectSkips, expectReplaces, expectNew int,
+) {
+	if expectSkips >= 0 {
+		assert.Equal(
+			t,
+			int64(expectSkips),
+			ctr.Total(count.CollisionSkip),
+			"count of collisions resolved by skip")
+	}
+
+	if expectReplaces >= 0 {
+		assert.Equal(
+			t,
+			int64(expectReplaces),
+			ctr.Total(count.CollisionReplace),
+			"count of collisions resolved by replace")
+	}
+
+	if expectNew >= 0 {
+		assert.Equal(
+			t,
+			int64(expectNew),
+			ctr.Total(count.NewItemCreated),
+			"count of new items or collisions resolved by copy")
+	}
+}

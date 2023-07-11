@@ -927,12 +927,13 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		restoreCfg  = ctrlTD.DefaultRestoreConfig("onedrive_adv_restore")
-		sel         = rsel.Selector
-		userDriveID = suite.its.userDriveID
-		containerID string
-		collKeys    = map[string]api.DriveCollisionItem{}
-		acd         = suite.its.ac.Drives()
+		restoreCfg          = ctrlTD.DefaultRestoreConfig("onedrive_adv_restore")
+		sel                 = rsel.Selector
+		userDriveID         = suite.its.userDriveID
+		containerID         string
+		countItemsInRestore int
+		collKeys            = map[string]api.DriveCollisionItem{}
+		acd                 = suite.its.ac.Drives()
 	)
 
 	// initial restore
@@ -944,6 +945,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		defer flush()
 
 		mb := evmock.NewBus()
+		ctr := count.New()
 
 		restoreCfg.OnCollision = control.Copy
 
@@ -965,6 +967,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		contGC, err := acd.GetFolderByName(ctx, userDriveID, suite.its.userDriveRootFolderID, restoreCfg.Location)
 		require.NoError(t, err, clues.ToCore(err))
 
+		// the folder containing the files is a child of the folder created by the restore.
 		contGC, err = acd.GetFolderByName(ctx, userDriveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -975,6 +978,10 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			userDriveID,
 			containerID)
 		require.NoError(t, err, clues.ToCore(err))
+
+		countItemsInRestore = len(collKeys)
+
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 	})
 
 	// skip restore
@@ -1003,11 +1010,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
 
-		assert.Equal(
-			t,
-			int64(len(collKeys)),
-			ctr.Total(count.CollisionSkip),
-			"all attempted item restores should have been skipped")
+		checkRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
 		assert.Zero(
 			t,
 			len(deets.Entries),
@@ -1060,14 +1063,11 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			}
 		}
 
-		assert.Zero(
-			t,
-			ctr.Total(count.CollisionSkip),
-			"no attempted item restores should have been skipped")
+		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
 		assert.Equal(
 			t,
 			len(filtEnts),
-			len(collKeys),
+			countItemsInRestore,
 			"every item should have been replaced: %+v", filtEnts)
 
 		result := filterCollisionKeyResults(
@@ -1118,10 +1118,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			}
 		}
 
-		assert.Zero(
-			t,
-			ctr.Total(count.CollisionSkip),
-			"no attempted item restores should have been skipped")
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 		assert.Equal(
 			t,
 			len(filtEnts),
