@@ -873,7 +873,8 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 	baseSel := selectors.NewExchangeBackup([]string{suite.its.userID})
 	baseSel.Include(
-		// cannot be run, for the same reason as incremental backups
+		// events cannot be run, for the same reason as incremental backups: the user needs
+		// to have their account recycled.
 		// base_sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
@@ -902,7 +903,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			path.EmailCategory:    "",
 			path.EventsCategory:   "",
 		}
-		collKeys = map[string]string{}
+		collKeys = map[path.CategoryType]map[string]string{}
 		acCont   = suite.its.ac.Contacts()
 		acMail   = suite.its.ac.Mail()
 		// acEvts   = suite.its.ac.Events()
@@ -940,24 +941,22 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 		cIDs[path.ContactsCategory] = ptr.Val(contGC.GetId())
 
-		contM, err := acCont.GetItemsInContainerByCollisionKey(
+		collKeys[path.ContactsCategory], err = acCont.GetItemsInContainerByCollisionKey(
 			ctx,
 			userID,
 			cIDs[path.ContactsCategory])
 		require.NoError(t, err, clues.ToCore(err))
-		maps.Copy(collKeys, contM)
 
 		// gc, err = acEvts.GetContainerByName(ctx, userID, "", restoreCfg.Location)
 		// require.NoError(t, err, clues.ToCore(err))
 
 		// restoredContainerID[path.EventsCategory] = ptr.Val(gc.GetId())
 
-		// m, err = acEvts.GetItemsInContainerByCollisionKey(
+		// collKeys[path.EventsCategory], err = acEvts.GetItemsInContainerByCollisionKey(
 		// 	ctx,
 		// 	userID,
 		// 	cIDs[path.EventsCategory])
 		// require.NoError(t, err, clues.ToCore(err))
-		// maps.Copy(collKeys, m)
 
 		mailGC, err := acMail.GetContainerByName(ctx, userID, api.MsgFolderRoot, restoreCfg.Location)
 		require.NoError(t, err, clues.ToCore(err))
@@ -967,12 +966,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 		cIDs[path.EmailCategory] = ptr.Val(mailGC.GetId())
 
-		mailM, err := acMail.GetItemsInContainerByCollisionKey(
+		collKeys[path.EmailCategory], err = acMail.GetItemsInContainerByCollisionKey(
 			ctx,
 			userID,
 			cIDs[path.EmailCategory])
 		require.NoError(t, err, clues.ToCore(err))
-		maps.Copy(collKeys, mailM)
 	})
 
 	// skip restore
@@ -1018,10 +1016,10 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			ctx,
 			userID,
 			cIDs[path.ContactsCategory],
-			giicbcker[string](acCont),
-			collKeys)
+			GetItemsInContainerByCollisionKeyer[string](acCont),
+			collKeys[path.ContactsCategory])
 
-		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys)
+		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
 		// maps.Copy(result, m)
 
 		m := filterCollisionKeyResults(
@@ -1029,8 +1027,8 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			ctx,
 			userID,
 			cIDs[path.EmailCategory],
-			giicbcker[string](acMail),
-			collKeys)
+			GetItemsInContainerByCollisionKeyer[string](acMail),
+			collKeys[path.EmailCategory])
 		maps.Copy(result, m)
 
 		assert.Len(t, result, 0, "no new items should get added")
@@ -1084,10 +1082,10 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			ctx,
 			userID,
 			cIDs[path.ContactsCategory],
-			giicbcker[string](acCont),
-			collKeys)
+			GetItemsInContainerByCollisionKeyer[string](acCont),
+			collKeys[path.ContactsCategory])
 
-		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys)
+		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
 		// maps.Copy(result, m)
 
 		m := filterCollisionKeyResults(
@@ -1095,15 +1093,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			ctx,
 			userID,
 			cIDs[path.EmailCategory],
-			giicbcker[string](acMail),
-			collKeys)
+			GetItemsInContainerByCollisionKeyer[string](acMail),
+			collKeys[path.EmailCategory])
 		maps.Copy(result, m)
 
 		assert.Len(t, result, 0, "all items should have been replaced")
-
-		for k, v := range result {
-			assert.NotEqual(t, v, collKeys[k], "replaced items should have new IDs")
-		}
 	})
 
 	// copy restore
@@ -1154,10 +1148,10 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			ctx,
 			userID,
 			cIDs[path.ContactsCategory],
-			giicbcker[string](acCont),
-			collKeys)
+			GetItemsInContainerByCollisionKeyer[string](acCont),
+			collKeys[path.ContactsCategory])
 
-		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys)
+		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
 		// maps.Copy(result, m)
 
 		m := filterCollisionKeyResults(
@@ -1165,12 +1159,12 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			ctx,
 			userID,
 			cIDs[path.EmailCategory],
-			giicbcker[string](acMail),
-			collKeys)
+			GetItemsInContainerByCollisionKeyer[string](acMail),
+			collKeys[path.EmailCategory])
 		maps.Copy(result, m)
 
 		// TODO: we have the option of modifying copy creations in exchange
-		// so that the results don't collid.  But we haven't made that
+		// so that the results don't collide.  But we haven't made that
 		// decision yet.
 		assert.Len(t, result, 0, "no items should have been added as copies")
 	})
