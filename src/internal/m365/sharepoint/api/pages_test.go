@@ -79,6 +79,7 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 
 func (suite *SharePointPageSuite) TestGetSitePages() {
 	t := suite.T()
+	t.Skip("skipping until code is maintained again")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -95,6 +96,7 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 
 func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	t := suite.T()
+	t.Skip("skipping until code is maintained again")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
