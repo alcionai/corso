@@ -32,8 +32,9 @@ func AddItemExtensions(
 		return nil, nil, clues.New("nil readcloser")
 	}
 
+	// If no extensions were supplied, return the original readcloser
 	if len(factories) == 0 {
-		return nil, nil, clues.New("no extensions supplied")
+		return rc, &details.ExtensionData{}, nil
 	}
 
 	ctx = clues.Add(ctx, "num_extensions", len(factories))

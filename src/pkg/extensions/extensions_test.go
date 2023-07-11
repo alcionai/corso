@@ -85,7 +85,7 @@ func (suite *ExtensionsUnitSuite) TestAddItemExtensions() {
 				extData *details.ExtensionData,
 				err error,
 			) bool {
-				return err != nil && extRc == nil && extData == nil
+				return err == nil && extRc == testRc && extData == nil
 			},
 		},
 		{
