@@ -444,6 +444,30 @@ func (c Mail) PostItem(
 	return itm, nil
 }
 
+func (c Mail) MoveItem(
+	ctx context.Context,
+	userID, oldContainerID, newContainerID, itemID string,
+) (string, error) {
+	body := users.NewItemMailFoldersItemMessagesItemMovePostRequestBody()
+	body.SetDestinationId(ptr.To(newContainerID))
+
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(oldContainerID).
+		Messages().
+		ByMessageId(itemID).
+		Move().
+		Post(ctx, body, nil)
+	if err != nil {
+		return "", graph.Wrap(ctx, err, "moving message")
+	}
+
+	return ptr.Val(resp.GetId()), nil
+}
+
 func (c Mail) DeleteItem(
 	ctx context.Context,
 	userID, itemID string,
