@@ -2,7 +2,6 @@ package test_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -46,9 +45,9 @@ func (rod *restoreOpDependencies) close(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) {
-	fmt.Printf("\n-----\nREST CLOSING\n-----\n")
-
-	rod.closer()
+	if rod.closer != nil {
+		rod.closer()
+	}
 
 	if rod.kw != nil {
 		err := rod.kw.Close(ctx)
@@ -62,7 +61,7 @@ func (rod *restoreOpDependencies) close(
 }
 
 // prepNewTestRestoreOp generates all clients required to run a restore operation,
-// returning both a resttore operation created with those clients, as well as
+// returning both a restore operation created with those clients, as well as
 // the clients themselves.
 func prepNewTestRestoreOp(
 	t *testing.T,
@@ -91,19 +90,19 @@ func prepNewTestRestoreOp(
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again
 	// we're so safe to close here.
-	rod.closer = func() {
+	defer func() {
 		err := k.Close(ctx)
 		assert.NoErrorf(t, err, "k close: %+v", clues.ToCore(err))
-	}
+	}()
 
 	rod.kw, err = kopia.NewWrapper(k)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
-		return operations.RestoreOperation{}, nil
+		return operations.RestoreOperation{}, rod
 	}
 
 	rod.kms, err = kopia.NewModelStore(k)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
-		return operations.RestoreOperation{}, nil
+		return operations.RestoreOperation{}, rod
 	}
 
 	rod.sw = store.NewKopiaStore(rod.kms)
@@ -209,15 +208,15 @@ func runAndCheckRestore(
 	assert.NotZero(t, ro.Results.ItemsRead, "count of items read")
 	assert.NotZero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "count of resource owners")
-	assert.NoError(t, ro.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(ro.Errors.Failure()))
-	assert.Empty(t, ro.Errors.Recovered(), "incremental recoverable/iteration errors")
+	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error", clues.ToCore(ro.Errors.Failure()))
+	assert.Empty(t, ro.Errors.Recovered(), "recoverable/iteration errors")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 
 	return deets
 }
 
-type giicbcker[T any] interface {
+type GetItemsInContainerByCollisionKeyer[T any] interface {
 	GetItemsInContainerByCollisionKey(
 		ctx context.Context,
 		userID, containerID string,
@@ -228,7 +227,7 @@ func filterCollisionKeyResults[T any](
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	protectedResourceID, containerID string,
-	giicbck giicbcker[T],
+	giicbck GetItemsInContainerByCollisionKeyer[T],
 	filterOut map[string]T,
 ) map[string]T {
 	m, err := giicbck.GetItemsInContainerByCollisionKey(

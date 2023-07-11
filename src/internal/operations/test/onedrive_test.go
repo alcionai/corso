@@ -1102,7 +1102,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			ctx,
 			userDriveID,
 			containerID,
-			giicbcker[api.DriveCollisionItem](acd),
+			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
 			collKeys)
 
 		assert.Len(t, result, 0, "no new items should get added")
@@ -1156,7 +1156,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			ctx,
 			userDriveID,
 			containerID,
-			giicbcker[api.DriveCollisionItem](acd),
+			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
 			collKeys)
 
 		assert.Len(t, result, 0, "all items should have been replaced")
@@ -1214,7 +1214,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			ctx,
 			userDriveID,
 			containerID,
-			giicbcker[api.DriveCollisionItem](acd),
+			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
 			collKeys)
 
 		assert.Len(t, result, len(collKeys), "all items should have been added as copies")
