@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -17,8 +18,11 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -176,4 +180,261 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 			verifyExtensionData(t, ent.ItemInfo, path.SharePointService)
 		}
 	}
+}
+
+type SharePointRestoreIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestSharePointRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &SharePointRestoreIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *SharePointRestoreIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedOptions() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	baseSel := selectors.NewSharePointBackup([]string{suite.its.siteID})
+	baseSel.Include(selTD.SharePointBackupFolderScope(baseSel))
+	baseSel.Filter(baseSel.Library("documents"))
+
+	baseSel.DiscreteOwner = suite.its.siteID
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.Defaults()
+	)
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	rsel, err := bod.sel.ToSharePointRestore()
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		restoreCfg  = ctrlTD.DefaultRestoreConfig("sharepoint_adv_restore")
+		sel         = rsel.Selector
+		siteDriveID = suite.its.siteDriveID
+		containerID string
+		collKeys    = map[string]api.DriveCollisionItem{}
+		acd         = suite.its.ac.Drives()
+	)
+
+	// initial restore
+
+	suite.Run("baseline", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			count.New(),
+			sel,
+			opts,
+			restoreCfg)
+
+		runAndCheckRestore(t, ctx, &ro, mb, -1, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		contGC, err := acd.GetFolderByName(ctx, siteDriveID, suite.its.siteDriveRootFolderID, restoreCfg.Location)
+		require.NoError(t, err, clues.ToCore(err))
+
+		// the restored items are in the child of the newly created folder
+		contGC, err = acd.GetFolderByName(ctx, siteDriveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
+		require.NoError(t, err, clues.ToCore(err))
+
+		containerID = ptr.Val(contGC.GetId())
+
+		collKeys, err = acd.GetItemsInContainerByCollisionKey(
+			ctx,
+			siteDriveID,
+			containerID)
+		require.NoError(t, err, clues.ToCore(err))
+	})
+
+	// skip restore
+
+	suite.Run("skip collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Skip
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
+
+		assert.Equal(
+			t,
+			int64(len(collKeys)),
+			ctr.Total(count.CollisionSkip),
+			"all attempted item restores should have been skipped")
+		assert.Zero(
+			t,
+			len(deets.Entries),
+			"no items should have been restored")
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+
+		result := filterCollisionKeyResults(t, ctx,
+			siteDriveID,
+			containerID,
+			giicbcker[api.DriveCollisionItem](acd),
+			collKeys)
+
+		assert.Len(t, result, 0, "no new items should get added")
+	})
+
+	// replace restore
+
+	suite.Run("replace collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Replace
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		filtEnts := []details.Entry{}
+
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
+
+		assert.Zero(
+			t,
+			ctr.Total(count.CollisionSkip),
+			"no attempted item restores should have been skipped")
+		assert.Equal(
+			t,
+			len(filtEnts),
+			len(collKeys),
+			"every item should have been replaced: %+v", filtEnts)
+
+		result := filterCollisionKeyResults(
+			t,
+			ctx,
+			siteDriveID,
+			containerID,
+			giicbcker[api.DriveCollisionItem](acd),
+			collKeys)
+
+		assert.Len(t, result, 0, "all items should have been replaced")
+
+		for k, v := range result {
+			assert.NotEqual(t, v, collKeys[k], "replaced items should have new IDs")
+		}
+	})
+
+	// copy restore
+
+	suite.Run("copy collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		filtEnts := []details.Entry{}
+
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
+
+		assert.Zero(
+			t,
+			ctr.Total(count.CollisionSkip),
+			"no attempted item restores should have been skipped")
+		assert.Equal(
+			t,
+			len(filtEnts),
+			len(collKeys),
+			"every item should have been copied: %+v", filtEnts)
+
+		result := filterCollisionKeyResults(
+			t,
+			ctx,
+			siteDriveID,
+			containerID,
+			giicbcker[api.DriveCollisionItem](acd),
+			collKeys)
+
+		assert.Len(t, result, len(collKeys), "all items should have been added as copies")
+	})
 }

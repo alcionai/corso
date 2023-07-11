@@ -239,7 +239,7 @@ func (w *conn) wrap() error {
 	defer w.mu.Unlock()
 
 	if w.refCount == 0 {
-		return clues.New("conn already closed")
+		return clues.New("conn not established or already closed")
 	}
 
 	w.refCount++
