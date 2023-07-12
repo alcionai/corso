@@ -6,10 +6,13 @@ import (
 	"io"
 	stdpath "path"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/format"
 	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
@@ -19,6 +22,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/data/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
@@ -275,6 +279,309 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	// Running without force should succeed now.
 	err = w.RepoMaintenance(ctx, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
+}
+
+// Test that failing to put the storage blob will skip updating the maintenance
+// manifest too. It's still possible to end up halfway updating the repo config
+// blobs as there's several of them, but at least this gives us something.
+func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnFailure() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	// Enable retention.
+	err = w.SetRetentionParameters(ctx, repository.Retention{
+		Mode:     ptr.To(repository.GovernanceRetention),
+		Duration: ptr.To(time.Hour * 48),
+		Extend:   ptr.To(true),
+	})
+	require.Error(t, err)
+
+	checkRetentionParams(
+		t,
+		ctx,
+		k,
+		blob.RetentionMode(""),
+		0,
+		assert.False)
+
+	// Close and reopen the repo to make sure it's the same.
+	err = w.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Connect(ctx, repository.Options{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer k.Close(ctx)
+
+	checkRetentionParams(
+		t,
+		ctx,
+		k,
+		blob.RetentionMode(""),
+		0,
+		assert.False)
+}
+
+// ---------------
+// integration tests that require object locking to be enabled on the bucket.
+// ---------------
+func mustGetBlobConfig(t *testing.T, c *conn) format.BlobStorageConfiguration {
+	require.Implements(t, (*repo.DirectRepository)(nil), c.Repository)
+	dr := c.Repository.(repo.DirectRepository)
+
+	blobCfg, err := dr.FormatManager().BlobCfgBlob()
+	require.NoError(t, err, "getting repo config blob")
+
+	return blobCfg
+}
+
+func checkRetentionParams(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	c *conn,
+	expectMode blob.RetentionMode,
+	expectDuration time.Duration,
+	expectExtend assert.BoolAssertionFunc,
+) {
+	blobCfg := mustGetBlobConfig(t, c)
+
+	assert.Equal(t, expectMode, blobCfg.RetentionMode, "retention mode")
+	// Empty mode isn't considered valid so only check if it's non-empty.
+	if len(blobCfg.RetentionMode) > 0 {
+		assert.True(t, blobCfg.RetentionMode.IsValid(), "valid retention mode")
+	}
+
+	assert.Equal(t, expectDuration, blobCfg.RetentionPeriod, "retention duration")
+
+	params, err := maintenance.GetParams(ctx, c)
+	require.NoError(t, err, "getting maintenance config")
+
+	expectExtend(t, params.ExtendObjectLocks, "extend object locks")
+}
+
+type RetentionIntegrationSuite struct {
+	tester.Suite
+}
+
+func TestRetentionIntegrationSuite(t *testing.T) {
+	suite.Run(t, &RetentionIntegrationSuite{
+		Suite: tester.NewRetentionSuite(
+			t,
+			[][]string{storeTD.AWSStorageCredEnvs},
+		),
+	})
+}
+
+func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
+	table := []struct {
+		name           string
+		opts           repository.Retention
+		expectErr      assert.ErrorAssertionFunc
+		expectMode     blob.RetentionMode
+		expectDuration time.Duration
+		expectExtend   assert.BoolAssertionFunc
+	}{
+		{
+			name:         "NoChanges",
+			opts:         repository.Retention{},
+			expectErr:    assert.NoError,
+			expectExtend: assert.False,
+		},
+		{
+			name: "UpdateMode",
+			opts: repository.Retention{
+				Mode: ptr.To(repository.GovernanceRetention),
+			},
+			expectErr:    assert.Error,
+			expectExtend: assert.False,
+		},
+		{
+			name: "UpdateDuration",
+			opts: repository.Retention{
+				Duration: ptr.To(time.Hour * 48),
+			},
+			expectErr:    assert.Error,
+			expectExtend: assert.False,
+		},
+		{
+			name: "UpdateExtend",
+			opts: repository.Retention{
+				Extend: ptr.To(true),
+			},
+			expectErr:    assert.NoError,
+			expectExtend: assert.True,
+		},
+		{
+			name: "UpdateModeAndDuration_Governance",
+			opts: repository.Retention{
+				Mode:     ptr.To(repository.GovernanceRetention),
+				Duration: ptr.To(time.Hour * 48),
+			},
+			expectErr:      assert.NoError,
+			expectMode:     blob.Governance,
+			expectDuration: time.Hour * 48,
+			expectExtend:   assert.False,
+		},
+		//{
+		//  name: "UpdateModeAndDuration_Compliance",
+		//  opts: repository.Retention{
+		//    Mode: ptr.To(repository.ComplianceRetention),
+		//    Duration: ptr.To(time.Hour * 48),
+		//  },
+		//  expectErr: assert.NoError,
+		//  expectMode: blob.Compliance,
+		//  expectDuration: time.Hour * 48,
+		//  expectExtend: assert.False,
+		//},
+		{
+			name: "UpdateModeAndDuration_Invalid",
+			opts: repository.Retention{
+				Mode:     ptr.To(repository.RetentionMode(-1)),
+				Duration: ptr.To(time.Hour * 48),
+			},
+			expectErr:      assert.Error,
+			expectMode:     blob.Governance,
+			expectDuration: time.Hour * 48,
+			expectExtend:   assert.False,
+		},
+		{
+			name: "UpdateMode_NoRetention",
+			opts: repository.Retention{
+				Mode: ptr.To(repository.NoRetention),
+			},
+			expectErr:    assert.NoError,
+			expectExtend: assert.False,
+		},
+		{
+			name: "UpdateModeAndDuration_NoRetention",
+			opts: repository.Retention{
+				Mode:     ptr.To(repository.NoRetention),
+				Duration: ptr.To(time.Hour * 48),
+			},
+			expectErr:    assert.Error,
+			expectExtend: assert.False,
+		},
+		{
+			name: "UpdateModeAndDurationAndExtend",
+			opts: repository.Retention{
+				Mode:     ptr.To(repository.GovernanceRetention),
+				Duration: ptr.To(time.Hour * 48),
+				Extend:   ptr.To(true),
+			},
+			expectErr:      assert.NoError,
+			expectMode:     blob.Governance,
+			expectDuration: time.Hour * 48,
+			expectExtend:   assert.True,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			k, err := openKopiaRepo(t, ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			w := &Wrapper{k}
+
+			err = w.SetRetentionParameters(ctx, test.opts)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			// TODO(ashmrtn): May actually want to continue the test to see how
+			// failures behave.
+			if err != nil {
+				return
+			}
+
+			checkRetentionParams(
+				t,
+				ctx,
+				k,
+				test.expectMode,
+				test.expectDuration,
+				test.expectExtend)
+		})
+	}
+}
+
+func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenance() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	w := &Wrapper{k}
+
+	mOpts := repository.Maintenance{
+		Safety: repository.FullMaintenanceSafety,
+		Type:   repository.MetadataMaintenance,
+	}
+
+	// This will set common maintenance config parameters. There's some interplay
+	// between the maintenance schedule and retention period that we want to check
+	// below.
+	err = w.RepoMaintenance(ctx, mOpts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Enable retention.
+	err = w.SetRetentionParameters(ctx, repository.Retention{
+		Mode:     ptr.To(repository.GovernanceRetention),
+		Duration: ptr.To(time.Hour * 48),
+		Extend:   ptr.To(true),
+	})
+	require.NoError(t, err, clues.ToCore(err))
+
+	checkRetentionParams(
+		t,
+		ctx,
+		k,
+		blob.Governance,
+		time.Hour*48,
+		assert.True)
+
+	// Disable retention.
+	err = w.SetRetentionParameters(ctx, repository.Retention{
+		Mode: ptr.To(repository.NoRetention),
+	})
+	require.NoError(t, err, clues.ToCore(err))
+
+	checkRetentionParams(
+		t,
+		ctx,
+		k,
+		blob.RetentionMode(""),
+		0,
+		assert.True)
+
+	// Disable object lock extension.
+	err = w.SetRetentionParameters(ctx, repository.Retention{
+		Extend: ptr.To(false),
+	})
+	require.NoError(t, err, clues.ToCore(err))
+
+	checkRetentionParams(
+		t,
+		ctx,
+		k,
+		blob.RetentionMode(""),
+		0,
+		assert.False)
 }
 
 // ---------------
