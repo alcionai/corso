@@ -450,8 +450,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 				Duration: ptr.To(time.Hour * 48),
 			},
 			expectErr:      assert.Error,
-			expectMode:     blob.Governance,
-			expectDuration: time.Hour * 48,
 			expectExtend:   assert.False,
 		},
 		{
@@ -499,12 +497,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 
 			err = w.SetRetentionParameters(ctx, test.opts)
 			test.expectErr(t, err, clues.ToCore(err))
-
-			// TODO(ashmrtn): May actually want to continue the test to see how
-			// failures behave.
-			if err != nil {
-				return
-			}
 
 			checkRetentionParams(
 				t,
