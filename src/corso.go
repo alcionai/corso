@@ -60,6 +60,7 @@ func PrintMemUsage() {
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
 	logger.Ctx(ctx).Info("Alloc = ", bToMb(m.Alloc), " MB")
+	logger.Ctx(ctx).Info("Heap = ", bToMb(m.HeapAlloc), " MB")
 	logger.Ctx(ctx).Info("TotalAlloc = ", bToMb(m.TotalAlloc), " MB")
 	logger.Ctx(ctx).Info("Sys = ", bToMb(m.Sys), " MB")
 	logger.Ctx(ctx).Info("NumGC = ", m.NumGC)
