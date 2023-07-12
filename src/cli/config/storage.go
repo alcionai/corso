@@ -20,11 +20,6 @@ import (
 func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 	var s3Config storage.S3Config
 
-	providerType := vpr.GetString(StorageProviderTypeKey)
-	if providerType != storage.ProviderS3.String() {
-		return s3Config, clues.New("unsupported storage provider: " + providerType)
-	}
-
 	s3Config.Bucket = vpr.GetString(BucketNameKey)
 	s3Config.Endpoint = vpr.GetString(EndpointKey)
 	s3Config.Prefix = vpr.GetString(PrefixKey)
@@ -83,6 +78,11 @@ func configureStorage(
 	}
 
 	if matchFromConfig {
+		providerType := vpr.GetString(StorageProviderTypeKey)
+		if providerType != storage.ProviderS3.String() {
+			return store, clues.New("unsupported storage provider: " + providerType)
+		}
+
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
 			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}

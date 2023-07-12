@@ -132,7 +132,11 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
+	force := map[string]string{
+		tconfig.TestCfgBucket: "",
+	}
+
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, force)
 
 	ctx = config.SetViper(ctx, vpr)
 
