@@ -51,3 +51,25 @@ const (
 	// https://github.com/kopia/kopia/blob/f9de453efc198b6e993af8922f953a7e5322dc5f/repo/maintenance/maintenance_safety.go#L42
 	NoMaintenanceSafety
 )
+
+type RetentionMode int
+
+// Can't be reordered as we rely on iota for numbering.
+//
+//go:generate stringer -type=RetentionMode -linecomment
+const (
+	UnknownRetention RetentionMode = iota
+	NoRetention
+	GovernanceRetention
+	ComplianceRetention
+)
+
+// Retention contains various options for configuring the retention mode. Takes
+// pointers instead of values so that we can tell the difference between an
+// unset value and a set but invalid value. This allows for partial
+// (re)configuration of things.
+type Retention struct {
+	Mode     *RetentionMode
+	Duration *time.Duration
+	Extend   *bool
+}
