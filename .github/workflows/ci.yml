@@ -409,6 +409,11 @@ jobs:
           install-go: false
           working-directory: src
 
+      - name: Run allowtags
+        run: |
+          go install github.com/ashmrtn/allowtags@latest
+          allowtags --allow-key json --allow-key uriparametername ./...
+
 
   # ----------------------------------------------------------------------------------------------------
   # --- GitHub Actions Linting -------------------------------------------------------------------------
