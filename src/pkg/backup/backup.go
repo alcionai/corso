@@ -21,7 +21,7 @@ import (
 // Backup represents the result of a backup operation
 type Backup struct {
 	model.BaseModel
-	CreationTime time.Time `json:"creationTime"`
+	CreationTime time.Time `josn:"creationTime"`
 
 	// SnapshotID is the kopia snapshot ID
 	SnapshotID string `json:"snapshotID"`
