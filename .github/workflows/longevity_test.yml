@@ -5,7 +5,7 @@ on:
     - cron: "0 4 * * *"
   push:
     branches:
-      - longetivityTest
+      - longevityDeleteTest
   workflow_dispatch:
     inputs:
       user:
@@ -68,8 +68,11 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+      - run: pwd
       - run: go build -o corso
-
+      # - run: cd src
+      - run: go build -o longevity-test ./cmd/longevity_test
+      
       - run: mkdir ${CORSO_LOG_DIR}
 
 ##########################################################################################################################################
@@ -194,6 +197,21 @@ jobs:
 
 ##########################################################################################################################################
 
+# Backup Deletion test
+      - name: Backup Delete exchange test
+        id: delete-exchange-test
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup Exchange test\n" >> ${CORSO_LOG_FILE}
+          env:
+            SERVICE: "exchange"
+            DELETION_DAYS: 5
+          run: |
+            CORSO_LOG_FILE=${{ env.CORSO_LOG_DIR }}/backup_exchange.log
+            ./longevity-test
+
+##########################################################################################################################################
+
 # Maintenance test
       - name: Maintenance test Daily
         id: maintenance-test-daily
@@ -241,33 +259,33 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: SHA info
-        id: sha-info
-        if: failure()
-        run: |
-          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
-          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
-          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+      # - name: SHA info
+      #   id: sha-info
+      #   if: failure()
+      #   run: |
+      #     echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+      #     echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+      #     echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+      #     echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
 
-      - name: Send Github Action failure to Slack
-        id: slack-notification
-        if: failure()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": "Longevity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "[FAILED] Longevity Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      # - name: Send Github Action failure to Slack
+      #   id: slack-notification
+      #   if: failure()
+      #   uses: slackapi/slack-github-action@v1.24.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "Longevity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "[FAILED] Longevity Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+      #             }
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
