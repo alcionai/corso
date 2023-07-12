@@ -78,6 +78,10 @@ type Repository interface {
 		ctx context.Context,
 		mOpts rep.Maintenance,
 	) (operations.MaintenanceOperation, error)
+	NewRetentionConfig(
+		ctx context.Context,
+		rcOpts rep.Retention,
+	) (operations.RetentionConfigOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
 	// ConnectToM365 establishes graph api connections
@@ -384,6 +388,18 @@ func (r repository) NewMaintenance(
 		r.Opts,
 		r.dataLayer,
 		mOpts,
+		r.Bus)
+}
+
+func (r repository) NewRetentionConfig(
+	ctx context.Context,
+	rcOpts rep.Retention,
+) (operations.RetentionConfigOperation, error) {
+	return operations.NewRetentionConfigOperation(
+		ctx,
+		r.Opts,
+		r.dataLayer,
+		rcOpts,
 		r.Bus)
 }
 
