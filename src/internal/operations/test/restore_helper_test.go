@@ -180,7 +180,6 @@ func runAndCheckRestore(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	ro *operations.RestoreOperation,
 	mb *evmock.Bus,
-	expectItemsWritten int, // can be -1 to skip the check
 	acceptNoData bool,
 ) *details.Details {
 	deets, err := ro.Run(ctx)
@@ -201,15 +200,18 @@ func runAndCheckRestore(
 		expectStatus,
 		ro.Status)
 
-	if expectItemsWritten >= 0 {
-		require.Equal(t, ro.Results.ItemsWritten, expectItemsWritten, "count of items written")
+	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error", clues.ToCore(ro.Errors.Failure()))
+
+	if assert.Empty(t, ro.Errors.Recovered(), "recoverable/iteration errors") {
+		allErrs := ro.Errors.Errors()
+		for i, err := range allErrs.Recovered {
+			t.Log("recovered from test err", i, err)
+		}
 	}
 
 	assert.NotZero(t, ro.Results.ItemsRead, "count of items read")
 	assert.NotZero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "count of resource owners")
-	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error", clues.ToCore(ro.Errors.Failure()))
-	assert.Empty(t, ro.Errors.Recovered(), "recoverable/iteration errors")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 
@@ -248,6 +250,9 @@ func checkRestoreCounts(
 	ctr *count.Bus,
 	expectSkips, expectReplaces, expectNew int,
 ) {
+	t.Log("counted values", ctr.Values())
+	t.Log("counted totals", ctr.TotalValues())
+
 	if expectSkips >= 0 {
 		assert.Equal(
 			t,

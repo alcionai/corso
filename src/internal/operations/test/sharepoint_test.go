@@ -260,7 +260,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		runAndCheckRestore(t, ctx, &ro, mb, -1, false)
+		runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -308,7 +308,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		assert.Zero(
 			t,
@@ -352,7 +352,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -361,11 +361,11 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			}
 		}
 
-		assert.Equal(
+		assert.Len(
 			t,
-			len(filtEnts),
-			len(collKeys),
-			"every item should have been replaced: %+v", filtEnts)
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been replaced")
 		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
 
 		result := filterCollisionKeyResults(
@@ -407,7 +407,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -416,11 +416,11 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			}
 		}
 
-		assert.Equal(
+		assert.Len(
 			t,
-			len(filtEnts),
-			len(collKeys),
-			"every item should have been copied: %+v", filtEnts)
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been copied")
 		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 
 		result := filterCollisionKeyResults(

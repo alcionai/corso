@@ -903,6 +903,9 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			path.EmailCategory:    "",
 			path.EventsCategory:   "",
 		}
+		countContactsInRestore int
+		countEmailsInRestore   int
+		// countEventsInRestore int
 		countItemsInRestore int
 		collKeys            = map[path.CategoryType]map[string]string{}
 		acCont              = suite.its.ac.Contacts()
@@ -919,7 +922,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		defer flush()
 
 		mb := evmock.NewBus()
-		ctr := count.New()
+		ctr1 := count.New()
 
 		restoreCfg.OnCollision = control.Copy
 
@@ -929,12 +932,12 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			ctr,
+			ctr1,
 			sel,
 			opts,
 			restoreCfg)
 
-		runAndCheckRestore(t, ctx, &ro, mb, -1, false)
+		runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -948,7 +951,8 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			userID,
 			cIDs[path.ContactsCategory])
 		require.NoError(t, err, clues.ToCore(err))
-		countItemsInRestore += len(collKeys[path.ContactsCategory])
+		countContactsInRestore = len(collKeys[path.ContactsCategory])
+		t.Log(countContactsInRestore, "contacts restored")
 
 		// gc, err = acEvts.GetContainerByName(ctx, userID, "", restoreCfg.Location)
 		// require.NoError(t, err, clues.ToCore(err))
@@ -960,7 +964,8 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		// 	userID,
 		// 	cIDs[path.EventsCategory])
 		// require.NoError(t, err, clues.ToCore(err))
-		// countItemsInRestore += len(collKeys[path.EventsCategory])
+		// countEventsInRestore = len(collKeys[path.EventsCategory])
+		// t.Log(countContactsInRestore, "events restored")
 
 		mailGC, err := acMail.GetContainerByName(ctx, userID, api.MsgFolderRoot, restoreCfg.Location)
 		require.NoError(t, err, clues.ToCore(err))
@@ -975,9 +980,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			userID,
 			cIDs[path.EmailCategory])
 		require.NoError(t, err, clues.ToCore(err))
-		countItemsInRestore += len(collKeys[path.EmailCategory])
+		countEmailsInRestore = len(collKeys[path.EmailCategory])
+		t.Log(countContactsInRestore, "emails restored")
 
-		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+		countItemsInRestore = countContactsInRestore + countEmailsInRestore // + countEventsInRestore
+		checkRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
 	})
 
 	// skip restore
@@ -1004,7 +1011,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		assert.Zero(
 			t,
@@ -1047,7 +1054,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		defer flush()
 
 		mb := evmock.NewBus()
-		ctr := count.New()
+		ctr3 := count.New()
 
 		restoreCfg.OnCollision = control.Replace
 
@@ -1057,12 +1064,12 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			ctr,
+			ctr3,
 			sel,
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -1071,13 +1078,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			}
 		}
 
-		assert.Equal(
+		assert.Len(
 			t,
-			len(filtEnts),
-			len(collKeys),
-			"every item should have been replaced: %+v", filtEnts)
-
-		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been replaced")
 
 		result := filterCollisionKeyResults(
 			t,
@@ -1099,6 +1104,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			collKeys[path.EmailCategory])
 		maps.Copy(result, m)
 
+		checkRestoreCounts(t, ctr3, 0, countItemsInRestore, 0)
 		assert.Len(t, result, 0, "all items should have been replaced")
 	})
 
@@ -1126,7 +1132,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -1135,11 +1141,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			}
 		}
 
-		assert.Equal(
+		assert.Len(
 			t,
-			len(filtEnts),
+			filtEnts,
 			countItemsInRestore,
-			"every item should have been copied: %+v", filtEnts)
+			"every item should have been copied")
 
 		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 

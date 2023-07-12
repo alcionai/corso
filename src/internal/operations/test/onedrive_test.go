@@ -960,7 +960,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			opts,
 			restoreCfg)
 
-		runAndCheckRestore(t, ctx, &ro, mb, -1, false)
+		runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -1008,7 +1008,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		checkRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
 		assert.Zero(
@@ -1054,7 +1054,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -1064,11 +1064,11 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		}
 
 		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
-		assert.Equal(
+		assert.Len(
 			t,
-			len(filtEnts),
+			filtEnts,
 			countItemsInRestore,
-			"every item should have been replaced: %+v", filtEnts)
+			"every item should have been replaced")
 
 		result := filterCollisionKeyResults(
 			t,
@@ -1109,7 +1109,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -1119,11 +1119,11 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		}
 
 		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
-		assert.Equal(
+		assert.Len(
 			t,
-			len(filtEnts),
-			len(collKeys),
-			"every item should have been copied: %+v", filtEnts)
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been copied")
 
 		result := filterCollisionKeyResults(
 			t,
