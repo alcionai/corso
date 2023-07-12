@@ -14,8 +14,8 @@ import (
 	"github.com/pkg/profile"
 )
 
-var profileTicker = time.NewTicker(60 * time.Second)
-var printTicker = time.NewTicker(10 * time.Second)
+var profileTicker = time.NewTicker(600 * time.Second)
+var printTicker = time.NewTicker(60 * time.Second)
 var profileCounter = 0
 
 func main() {
@@ -73,7 +73,6 @@ func PrintMemUsage() {
 
 	logger.Ctx(ctx).Info("StackInuse = ", bToMb(m.StackInuse), " MB")
 	logger.Ctx(ctx).Info("StackSys = ", bToMb(m.StackSys), " MB")
-	logger.Ctx(ctx).Info("HeapSys = ", bToMb(m.HeapSys), " MB")
 
 	logger.Ctx(ctx).Info("Sys = ", bToMb(m.Sys), " MB")
 	logger.Ctx(ctx).Info("NumGC = ", m.NumGC)
