@@ -155,13 +155,9 @@ func restoreEvent(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		ctr.Inc(count.CollisionReplace)
-
 		if err := er.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding event")
 		}
-	} else {
-		ctr.Inc(count.NewItemCreated)
 	}
 
 	err = uploadAttachments(
@@ -199,6 +195,12 @@ func restoreEvent(
 
 	info := api.EventInfo(event)
 	info.Size = int64(len(body))
+
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
+	}
 
 	return info, nil
 }

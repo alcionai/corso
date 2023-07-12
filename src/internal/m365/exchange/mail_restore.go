@@ -150,13 +150,9 @@ func restoreMail(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		ctr.Inc(count.CollisionReplace)
-
 		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
 		}
-	} else {
-		ctr.Inc(count.NewItemCreated)
 	}
 
 	err = uploadAttachments(
@@ -176,6 +172,12 @@ func restoreMail(
 	if msg.GetBody() != nil {
 		bc := ptr.Val(msg.GetBody().GetContent())
 		size = int64(len(bc))
+	}
+
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
 	}
 
 	return api.MailInfo(msg, size), nil
