@@ -1,0 +1,273 @@
+name: Longevity Testing
+on:
+  schedule:
+    # Run every day at 04:00 GMT (roughly 8pm PST)
+    - cron: "0 4 * * *"
+  push:
+    branches:
+      - longetivityTest
+  workflow_dispatch:
+    inputs:
+      user:
+        description: 'User to run longevity test on'
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: longevity_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
+  Longevity-Tests:
+    needs: [ SetM365App ]
+    environment: Testing
+    runs-on: ubuntu-latest
+    env:
+      # Need these in the local env so that corso can read them
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      # re-used values
+      CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
+      RESTORE_DEST_PFX: Corso_Test_Longevity_
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      PREFIX: 'longevity'
+    defaults:
+      run:
+        working-directory: src
+        
+##########################################################################################################################################
+# setup
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # needed to get latest tag
+
+      - name: Get version string
+        id: version
+        run: |
+          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.version.outputs.version }}
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: go build -o corso
+
+      - run: mkdir ${CORSO_LOG_DIR}
+
+##########################################################################################################################################
+
+# Repository commands
+
+      - name: Version Test
+        run: |
+          ./corso --version | grep -c 'Corso version:'
+
+      - name: Repo init test
+        id: repo-init
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo init s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ env.PREFIX }} \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            --succeed-if-exists \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+
+          if  grep -q 'Failed to' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+          then
+            echo "Repo could not be initialized"
+            exit 1
+          fi
+
+      - name: Repo connect test
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo connect s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ env.PREFIX }} \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+          then
+            echo "Repo could not be connected"
+            exit 1
+          fi
+
+##########################################################################################################################################
+
+# Exchange
+
+      - name: Backup exchange test
+        id: exchange-test
+        run: |
+          echo -e "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
+          ./corso backup create exchange \
+          --no-stats \
+          --mailbox "${TEST_USER}" \
+          --hide-progress \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_exchange.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' ${{ env.CORSO_LOG_DIR }}/backup_exchange.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+ 
+##########################################################################################################################################
+# Onedrive
+
+      - name: Backup onedrive test
+        id: onedrive-test
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
+          ./corso backup create onedrive \
+          --no-stats \
+          --hide-progress \
+          --user "${TEST_USER}" \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_onedrive.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' ${{ env.CORSO_LOG_DIR }}/backup_onedrive.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+
+##########################################################################################################################################
+
+# Sharepoint test
+      - name: Backup sharepoint test
+        id: sharepoint-test
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
+
+          ./corso backup create sharepoint \
+          --no-stats \
+          --hide-progress \
+          --site "${{ secrets.CORSO_M365_TEST_SITE_URL }}" \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_sharepoint.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' ${{ env.CORSO_LOG_DIR }}/backup_sharepoint.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+
+##########################################################################################################################################
+
+# Maintenance test
+      - name: Maintenance test Daily
+        id: maintenance-test-daily
+        run: |
+          set -euo pipefail
+          echo -e "\n Maintenance test Daily\n" >> ${CORSO_LOG_FILE}
+
+          # Run with the force flag so it doesn't fail if the github runner
+          # hostname isn't what's expected. This is only safe because we can
+          # guarantee only one runner will be executing maintenance at a time.
+          ./corso repo  maintenance --mode metadata \
+          --no-stats \
+          --hide-progress \
+          --force \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_metadata.txt 
+
+      - name: Maintenance test Weekly
+        id: maintenance-test-weekly
+        run: |
+
+          if [[ $(date +%A) == "Saturday" ]]; then
+            set -euo pipefail
+            echo -e "\n Maintenance test Weekly\n" >> ${CORSO_LOG_FILE}
+
+            ./corso repo  maintenance --mode complete \
+            --no-stats \
+            --hide-progress \
+            --force \
+            --json \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_complete.txt 
+          fi
+
+##########################################################################################################################################
+
+# Logging & Notifications
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: longevity-test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: SHA info
+        id: sha-info
+        if: failure()
+        run: |
+          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+
+      - name: Send Github Action failure to Slack
+        id: slack-notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Longevity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "[FAILED] Longevity Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

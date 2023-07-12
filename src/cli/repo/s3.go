@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"os"
 	"strconv"
 	"strings"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -126,8 +124,6 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
-	// s3 values from envs
-	s3Override = S3UpdateFromEnvVar(cmd, s3Override)
 
 	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
 	if err != nil {
@@ -202,8 +198,6 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
-	// s3 values from envs
-	s3Override = S3UpdateFromEnvVar(cmd, s3Override)
 
 	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
 	if err != nil {
@@ -291,16 +285,4 @@ func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
 	}
 
 	return s3Overrides
-}
-
-func S3UpdateFromEnvVar(cmd *cobra.Command, s3Flag map[string]string) map[string]string {
-	s3Flag[storage.Bucket] = str.First(s3Flag[storage.Bucket], os.Getenv(storage.BucketKey))
-	s3Flag[storage.Endpoint] = str.First(s3Flag[storage.Endpoint], os.Getenv(storage.EndpointKey))
-	s3Flag[storage.Prefix] = str.First(s3Flag[storage.Prefix], os.Getenv(storage.PrefixKey))
-	s3Flag[storage.DoNotUseTLS] = str.First(s3Flag[storage.DoNotUseTLS], os.Getenv(storage.DisableTLSKey))
-	s3Flag[storage.DoNotVerifyTLS] = str.First(
-		s3Flag[storage.DoNotVerifyTLS],
-		os.Getenv(storage.DisableTLSVerificationKey))
-
-	return s3Flag
 }

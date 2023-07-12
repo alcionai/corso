@@ -21,16 +21,6 @@ var (
 	errMissingRequired = clues.New("missing required storage configuration")
 )
 
-// envvar consts
-// TODO: Remove these and leverage Viper AutomaticEnv() instead
-const (
-	BucketKey                 = "BUCKET"
-	EndpointKey               = "ENDPOINT"
-	PrefixKey                 = "PREFIX"
-	DisableTLSKey             = "DISABLE_TLS"
-	DisableTLSVerificationKey = "DISABLE_TLS_VERIFICATION"
-)
-
 // Storage defines a storage provider, along with any configuration
 // required to set up or communicate with that provider.
 type Storage struct {
