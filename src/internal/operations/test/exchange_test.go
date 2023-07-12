@@ -996,7 +996,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		defer flush()
 
 		mb := evmock.NewBus()
-		ctr := count.New()
+		ctr2 := count.New()
 
 		restoreCfg.OnCollision = control.Skip
 
@@ -1006,7 +1006,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			ctr,
+			ctr2,
 			sel,
 			opts,
 			restoreCfg)
@@ -1018,7 +1018,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			len(deets.Entries),
 			"no items should have been restored")
 
-		checkRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
+		checkRestoreCounts(t, ctr2, countItemsInRestore, 0, 0)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -1117,7 +1117,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		defer flush()
 
 		mb := evmock.NewBus()
-		ctr := count.New()
+		ctr4 := count.New()
 
 		restoreCfg.OnCollision = control.Copy
 
@@ -1127,7 +1127,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			ctr,
+			ctr4,
 			sel,
 			opts,
 			restoreCfg)
@@ -1147,7 +1147,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			countItemsInRestore,
 			"every item should have been copied")
 
-		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+		checkRestoreCounts(t, ctr4, 0, 0, countItemsInRestore)
 
 		result := filterCollisionKeyResults(
 			t,
