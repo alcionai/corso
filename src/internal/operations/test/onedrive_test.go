@@ -901,39 +901,47 @@ func (suite *OneDriveRestoreIntgSuite) SetupSuite() {
 }
 
 func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
-	t := suite.T()
+	sel := selectors.NewOneDriveBackup([]string{suite.its.userID})
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
+	sel.DiscreteOwner = suite.its.userID
 
+	runDriveRestoreWithAdvancedOptions(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.userDriveID,
+		suite.its.userDriveRootFolderID)
+}
+
+func runDriveRestoreWithAdvancedOptions(
+	t *testing.T,
+	suite tester.Suite,
+	ac api.Client,
+	sel selectors.Selector, // both Restore and Backup types work.
+	driveID, rootFolderID string,
+) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// a backup is required to run restores
-
-	baseSel := selectors.NewOneDriveBackup([]string{suite.its.userID})
-	baseSel.Include(selTD.OneDriveBackupFolderScope(baseSel))
-
-	baseSel.DiscreteOwner = suite.its.userID
 
 	var (
 		mb   = evmock.NewBus()
 		opts = control.Defaults()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
 
-	rsel, err := baseSel.ToOneDriveRestore()
-	require.NoError(t, err, clues.ToCore(err))
-
 	var (
-		restoreCfg          = ctrlTD.DefaultRestoreConfig("onedrive_adv_restore")
-		sel                 = rsel.Selector
-		userDriveID         = suite.its.userDriveID
+		restoreCfg          = ctrlTD.DefaultRestoreConfig("drive_adv_restore")
 		containerID         string
 		countItemsInRestore int
 		collKeys            = map[string]api.DriveCollisionItem{}
-		acd                 = suite.its.ac.Drives()
+		acd                 = ac.Drives()
 	)
 
 	// initial restore
@@ -964,18 +972,18 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
-		contGC, err := acd.GetFolderByName(ctx, userDriveID, suite.its.userDriveRootFolderID, restoreCfg.Location)
+		contGC, err := acd.GetFolderByName(ctx, driveID, rootFolderID, restoreCfg.Location)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// the folder containing the files is a child of the folder created by the restore.
-		contGC, err = acd.GetFolderByName(ctx, userDriveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
+		contGC, err = acd.GetFolderByName(ctx, driveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
 		require.NoError(t, err, clues.ToCore(err))
 
 		containerID = ptr.Val(contGC.GetId())
 
 		collKeys, err = acd.GetItemsInContainerByCollisionKey(
 			ctx,
-			userDriveID,
+			driveID,
 			containerID)
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -1022,7 +1030,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		result := filterCollisionKeyResults(
 			t,
 			ctx,
-			userDriveID,
+			driveID,
 			containerID,
 			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
 			collKeys)
@@ -1073,7 +1081,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		result := filterCollisionKeyResults(
 			t,
 			ctx,
-			userDriveID,
+			driveID,
 			containerID,
 			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
 			collKeys)
@@ -1128,7 +1136,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 		result := filterCollisionKeyResults(
 			t,
 			ctx,
-			userDriveID,
+			driveID,
 			containerID,
 			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
 			collKeys)
