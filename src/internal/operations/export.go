@@ -189,7 +189,7 @@ func (op *ExportOperation) Run(ctx context.Context) (
 }
 
 type zipExportCol struct {
-	reader io.Reader
+	reader io.ReadCloser
 }
 
 func (z zipExportCol) GetBasePath() string {

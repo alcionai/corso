@@ -166,7 +166,7 @@ type ExportCollection interface {
 
 type ExportItemData struct {
 	Name string
-	Body io.Reader
+	Body io.ReadCloser
 }
 
 // ExportItem is the item that is returned to the SDK consumer
