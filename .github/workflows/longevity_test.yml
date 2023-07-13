@@ -70,7 +70,7 @@ jobs:
 
       - run:  ls -t ./cmd
       - run: go build -o corso
-      - run: go build -o longevity-test ./cmd/longevity_test
+      - run: go build -o longevity-test ./cmd/longevity_testing
         working-directory: src
       
       - run: mkdir ${CORSO_LOG_DIR}
