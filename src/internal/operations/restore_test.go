@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -399,6 +400,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
 				rsel.Include(rsel.AllData())
+				selTD.SharePointRestoreStandardLibraryFilter(rsel)
 
 				return rsel.Selector
 			},
