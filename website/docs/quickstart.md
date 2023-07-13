@@ -338,3 +338,4 @@ The above tutorial only scratches the surface for Corso's capabilities. We encou
 
 * Learning about [Corso concepts and setup](../setup/concepts)
 * Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](../cli/corso)
+* Leverage Corso's [Advanced Restoration Options](../setup/advanced-restore)
