@@ -449,8 +449,8 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 				Mode:     ptr.To(repository.RetentionMode(-1)),
 				Duration: ptr.To(time.Hour * 48),
 			},
-			expectErr:      assert.Error,
-			expectExtend:   assert.False,
+			expectErr:    assert.Error,
+			expectExtend: assert.False,
 		},
 		{
 			name: "UpdateMode_NoRetention",
