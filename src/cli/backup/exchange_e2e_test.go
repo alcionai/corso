@@ -117,7 +117,7 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestBackupCreateExchange_azureIDFromC
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&suite.recorder)
+	cmd.SetOut(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -143,10 +143,11 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupValueFromEnvCmd_emp
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--user", suite.m365UserID)
+		"--user", suite.m365UserID,
+		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&suite.recorder)
+	cmd.SetOut(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -178,7 +179,7 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupInvalidAWSClientIDC
 	)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&suite.recorder)
+	cmd.SetOut(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -199,10 +200,12 @@ func (suite *ExchangeCMDWithFlagsE2ESuite) TestExchangeBackupAWSValueFromEnvCmd_
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--user", suite.m365UserID)
+		"--user", suite.m365UserID,
+		"--config-file", suite.cfgFP)
+
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&suite.recorder)
+	cmd.SetOut(&suite.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
