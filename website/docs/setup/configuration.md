@@ -10,6 +10,11 @@ Two things are needed to configure Corso:
 * Environment variables containing configuration information
 * A directory for Corso to store its configuration file
 
+ Apart from Environment variables configuration information can also be provided from flags or configuration files.
+ Preference of information provided is as-
+
+ Flags values > Environment variables > Configuration File information
+
 ## Environment variables
 
 Three distinct pieces of configuration are required by Corso:
@@ -34,15 +39,15 @@ alternate ways to pass AWS credentials.
 Ensure that all of the above environment variables are defined in your Powershell environment.
 
   ```powershell
-  $Env:AWS_ACCESS_KEY_ID = "..."
-  $Env:AWS_SECRET_ACCESS_KEY = "..."
+  $Env:AWS_ACCESS_KEY_ID = '...'
+  $Env:AWS_SECRET_ACCESS_KEY = '...'
   $Env:AWS_SESSION_TOKEN = ""
 
-  $Env:AZURE_CLIENT_ID = "..."
-  $Env:AZURE_TENANT_ID = "..."
-  $Env:AZURE_CLIENT_SECRET = "..."
+  $Env:AZURE_CLIENT_ID = '...'
+  $Env:AZURE_TENANT_ID = '...'
+  $Env:AZURE_CLIENT_SECRET = '...'
 
-  $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
+  $Env:CORSO_PASSPHRASE = 'CHANGE-ME-THIS-IS-INSECURE'
   ```
 
 </TabItem>
@@ -126,6 +131,24 @@ directory within the container.
 
 </TabItem>
 </Tabs>
+
+Similar to environment variables, user can specify the values in config file.
+
+  ```bash
+ # AWS configs
+ aws_access_key_id = '...'
+ aws_secret_access_key = '...'
+ aws_session_token = '...'
+  
+ # M365 config
+ account_provider = '...'
+ azure_tenantid = '...'
+ azure_client_id = '...' 
+ azure_secret = '...'
+
+ # Corso passphrase
+ passphrase = '...'
+```
 
 ## Log Files
 

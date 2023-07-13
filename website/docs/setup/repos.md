@@ -83,7 +83,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
 
   ```powershell
   # Initialize the Corso Repository
-  $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
+  $Env:CORSO_PASSPHRASE = 'CHANGE-ME-THIS-IS-INSECURE'
   .\corso repo init s3 --bucket corso-test
   ```
 
