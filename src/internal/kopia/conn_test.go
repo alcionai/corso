@@ -29,7 +29,7 @@ func openKopiaRepo(
 	st := storeTD.NewPrefixedS3Storage(t)
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx, repository.Options{}); err != nil {
+	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}); err != nil {
 		return nil, err
 	}
 
@@ -85,13 +85,13 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	st := storeTD.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Initialize(ctx, repository.Options{})
+	err = k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
@@ -106,7 +106,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -416,7 +416,7 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	st := storeTD.NewPrefixedS3Storage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, opts)
+	err := k.Initialize(ctx, opts, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	kopiaOpts := k.ClientOptions()

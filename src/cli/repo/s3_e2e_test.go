@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -200,7 +201,12 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			ctx = config.SetViper(ctx, vpr)
 
 			// init the repo first
-			_, err = repository.Initialize(ctx, account.Account{}, st, control.DefaultOptions())
+			_, err = repository.Initialize(
+				ctx,
+				account.Account{},
+				st,
+				control.DefaultOptions(),
+				rep.Retention{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

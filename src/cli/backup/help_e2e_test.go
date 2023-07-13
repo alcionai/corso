@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -47,7 +48,12 @@ func prepM365Test(
 	vpr, cfgFP := tconfig.MakeTempTestConfigClone(t, force)
 	ctx = config.SetViper(ctx, vpr)
 
-	repo, err := repository.Initialize(ctx, acct, st, control.DefaultOptions())
+	repo, err := repository.Initialize(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		rep.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return acct, st, repo, vpr, recorder, cfgFP
