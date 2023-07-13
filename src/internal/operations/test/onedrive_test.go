@@ -955,7 +955,7 @@ func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptio
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			count.New(),
+			ctr,
 			sel,
 			opts,
 			restoreCfg)
