@@ -52,27 +52,34 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 const (
 	oneDriveServiceCommand          = "onedrive"
-	oneDriveServiceCommandUseSuffix = "--backup <backupId>"
+	oneDriveServiceCommandUseSuffix = "--backup <backupId> <destination>"
 
-	oneDriveServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's last backup (1234abcd...)
-corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
+	//nolint:lll
+	oneDriveServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's last backup (1234abcd...) to my-exports directory
+corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef my-exports
 
-# Export files named "FY2021 Planning.xlsx" in "Documents/Finance Reports"
+# Export files named "FY2021 Planning.xlsx" in "Documents/Finance Reports" to current directory
 corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports" .
 
-# Export all files and folders in folder "Documents/Finance Reports" that were created before 2020
+# Export all files and folders in folder "Documents/Finance Reports" that were created before 2020 to my-exports
 corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00 my-exports`
 )
 
-// `corso export onedrive [<flag>...]`
+// `corso export onedrive [<flag>...] <destination>`
 func oneDriveExportCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     oneDriveServiceCommand,
-		Short:   "Export M365 OneDrive service data",
-		RunE:    exportOneDriveCmd,
-		Args:    cobra.NoArgs,
+		Use:   oneDriveServiceCommand,
+		Short: "Export M365 OneDrive service data",
+		RunE:  exportOneDriveCmd,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return errors.New("missing restore destination")
+			}
+
+			return nil
+		},
 		Example: oneDriveServiceCommandExportExamples,
 	}
 }
@@ -107,8 +114,9 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 		exportCfg.Archive = true
 	}
 
-	restoreLocation := flags.ExportDestFV
+	restoreLocation := args[0]
 	if restoreLocation == "" {
+		// This is unlikely, but adding it just in case.
 		restoreLocation = control.DefaultRestoreLocation + dttm.FormatNow(dttm.HumanReadableDriveItem)
 	}
 
