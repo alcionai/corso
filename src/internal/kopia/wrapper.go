@@ -714,10 +714,17 @@ func (w Wrapper) setMaintenanceParams(
 	return nil
 }
 
-func (w Wrapper) SetRetentionParameters(
+// SetRetentionParameters sets configuration values related to immutable backups
+// and retention policies on the storage bucket. The minimum retention period
+// must be >= 24hrs due to kopia default expectations about full maintenance.
+func (w *Wrapper) SetRetentionParameters(
 	ctx context.Context,
 	retention repository.Retention,
 ) error {
+	if retention.Mode == nil && retention.Duration == nil && retention.Extend == nil {
+		return nil
+	}
+
 	// Somewhat confusing case, when we have no retention but a non-zero duration
 	// it acts like we passed in only the duration and returns an error about
 	// having to set both. Return a clearer error here instead.
@@ -730,13 +737,13 @@ func (w Wrapper) SetRetentionParameters(
 		return clues.New("unable to get valid handle to repo").WithClues(ctx)
 	}
 
-	// Update blob config information.
-	blobCfg, err := dr.FormatManager().BlobCfgBlob()
+	blobCfg, params, err := getRetentionConfigs(ctx, dr)
 	if err != nil {
-		return clues.Wrap(err, "getting storage config")
+		return clues.Stack(err)
 	}
 
-	blobChanged, err := w.setRetentionMode(retention.Mode, &blobCfg)
+	// Update blob config information.
+	blobChanged, err := w.setRetentionMode(retention.Mode, blobCfg)
 	if err != nil {
 		return clues.Wrap(err, "setting retention mode")
 	}
@@ -747,11 +754,6 @@ func (w Wrapper) SetRetentionParameters(
 	}
 
 	// Update maintenance config information.
-	params, err := maintenance.GetParams(ctx, w.c)
-	if err != nil {
-		return clues.Wrap(err, "getting maintenance config").WithClues(ctx)
-	}
-
 	var maintenanceChanged bool
 
 	if retention.Extend != nil && params.ExtendObjectLocks != *retention.Extend {
@@ -761,11 +763,46 @@ func (w Wrapper) SetRetentionParameters(
 
 	// Check the new config is valid.
 	if blobCfg.IsRetentionEnabled() {
-		if err := maintenance.CheckExtendRetention(ctx, blobCfg, params); err != nil {
+		if err := maintenance.CheckExtendRetention(ctx, *blobCfg, params); err != nil {
 			return clues.Wrap(err, "invalid retention config")
 		}
 	}
 
+	return clues.Stack(persistRetentionConfigs(
+		ctx,
+		dr,
+		blobCfg,
+		blobChanged,
+		params,
+		maintenanceChanged,
+	)).OrNil()
+}
+
+func getRetentionConfigs(
+	ctx context.Context,
+	dr repo.DirectRepository,
+) (*format.BlobStorageConfiguration, *maintenance.Params, error) {
+	blobCfg, err := dr.FormatManager().BlobCfgBlob()
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "getting storage config").WithClues(ctx)
+	}
+
+	params, err := maintenance.GetParams(ctx, dr)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "getting maintenance config").WithClues(ctx)
+	}
+
+	return &blobCfg, params, nil
+}
+
+func persistRetentionConfigs(
+	ctx context.Context,
+	dr repo.DirectRepository,
+	blobCfg *format.BlobStorageConfiguration,
+	blobChanged bool,
+	params *maintenance.Params,
+	maintenanceChanged bool,
+) error {
 	// Persist changes.
 	if !blobChanged && !maintenanceChanged {
 		return nil
@@ -784,7 +821,7 @@ func (w Wrapper) SetRetentionParameters(
 	// Must be the case that only blob changed.
 	if !maintenanceChanged {
 		return clues.Wrap(
-			dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
+			dr.FormatManager().SetParameters(ctx, mp, *blobCfg, requiredFeatures),
 			"persisting storage config",
 		).WithClues(ctx).OrNil()
 	}
@@ -801,17 +838,21 @@ func (w Wrapper) SetRetentionParameters(
 			// Set the maintenance config first as we can bail out of the write
 			// session later.
 			if err := maintenance.SetParams(ctx, dw, params); err != nil {
-				return clues.Wrap(err, "persisting maintenance config").
+				return clues.Wrap(err, "maintenance config").
 					WithClues(ctx)
 			}
 
+			if !blobChanged {
+				return nil
+			}
+
 			return clues.Wrap(
-				dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
-				"persisting storage config",
+				dr.FormatManager().SetParameters(ctx, mp, *blobCfg, requiredFeatures),
+				"storage config",
 			).WithClues(ctx).OrNil()
 		})
 
-	return clues.Wrap(err, "persisting config changes").OrNil()
+	return clues.Wrap(err, "persisting config changes").WithClues(ctx).OrNil()
 }
 
 func (w Wrapper) setRetentionMode(
