@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -452,4 +455,76 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 
 	err = k.Close(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
+}
+
+// ---------------
+// integration tests that require object locking to be enabled on the bucket.
+// ---------------
+type ConnRetentionIntegrationSuite struct {
+	tester.Suite
+}
+
+func TestConnRetentionIntegrationSuite(t *testing.T) {
+	suite.Run(t, &ConnRetentionIntegrationSuite{
+		Suite: tester.NewRetentionSuite(
+			t,
+			[][]string{storeTD.AWSStorageCredEnvs},
+		),
+	})
+}
+
+// Test that providing retention doesn't change anything but retention values
+// from the default values that kopia uses.
+func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	st1 := storeTD.NewPrefixedS3Storage(t)
+
+	k1 := NewConn(st1)
+	err := k1.Initialize(ctx, repository.Options{}, repository.Retention{})
+	require.NoError(t, err, "initializing repo 1: %v", clues.ToCore(err))
+
+	st2 := storeTD.NewPrefixedS3Storage(t)
+
+	k2 := NewConn(st2)
+	err = k2.Initialize(
+		ctx,
+		repository.Options{},
+		repository.Retention{
+			Mode:     ptr.To(repository.GovernanceRetention),
+			Duration: ptr.To(time.Hour * 48),
+			Extend:   ptr.To(true),
+		})
+	require.NoError(t, err, "initializing repo 2: %v", clues.ToCore(err))
+
+	dr1, ok := k1.Repository.(repo.DirectRepository)
+	require.True(t, ok, "getting direct repo 1")
+
+	dr2, ok := k2.Repository.(repo.DirectRepository)
+	require.True(t, ok, "getting direct repo 2")
+
+	format1 := dr1.FormatManager().ScrubbedContentFormat()
+	format2 := dr2.FormatManager().ScrubbedContentFormat()
+
+	assert.Equal(t, format1, format2)
+
+	blobCfg1, err := dr1.FormatManager().BlobCfgBlob()
+	require.NoError(t, err, "getting blob config 1: %v", clues.ToCore(err))
+
+	blobCfg2, err := dr2.FormatManager().BlobCfgBlob()
+	require.NoError(t, err, "getting retention config 2: %v", clues.ToCore(err))
+
+	assert.NotEqual(t, blobCfg1, blobCfg2)
+
+	// Some checks to make sure retention was fully initialized as expected.
+	checkRetentionParams(
+		t,
+		ctx,
+		k2,
+		blob.Governance,
+		time.Hour*48,
+		assert.True)
 }
