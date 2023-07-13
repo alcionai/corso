@@ -70,8 +70,8 @@ jobs:
 
       - run: pwd
       - run: go build -o corso
-      # - run: cd src
       - run: go build -o longevity-test ./cmd/longevity_test
+        working-directory: src
       
       - run: mkdir ${CORSO_LOG_DIR}
 
