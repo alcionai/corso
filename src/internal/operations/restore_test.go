@@ -31,7 +31,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -351,11 +350,6 @@ func setupSharePointBackup(
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	spPgr := ctrl.AC.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
-
-	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
-	require.NoError(t, err, clues.ToCore(err))
-
 	err = bo.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results.BackupID)
@@ -363,12 +357,14 @@ func setupSharePointBackup(
 	return bupResults{
 		selectorResourceOwners: sites,
 		backupID:               bo.Results.BackupID,
-		// Discount metadata files (1 delta, 1 prev path)
+		// Discount metadata files (2: 1 delta, 1 prev path)
 		// assume only one folder, and therefore 1 dirmeta per drive
-		// assume only one file in each folder, and therefore 1 meta per drive.
-		// These meta files are used to aid restore, but are not themselves
+		// (2 drives: documents and more documents)
+		// assume only one file in each folder, and therefore 1 meta per drive
+		// (2 drives: documents and more documents)
+		// Meta files are used to aid restore, but are not themselves
 		// restored (ie: counted as writes).
-		items: bo.Results.ItemsWritten - 2 - len(drives) - len(drives),
+		items: bo.Results.ItemsWritten - 6,
 		ctrl:  ctrl,
 	}
 }
@@ -399,8 +395,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			restoreCfg: control.DefaultRestoreConfig(dttm.SafeForTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
-				rsel.Include(rsel.AllData())
-				selTD.SharePointRestoreStandardLibraryFilter(rsel)
+				rsel.Include(rsel.Library(tconfig.LibraryDocuments), rsel.Library(tconfig.LibraryMoreDocuments))
 
 				return rsel.Selector
 			},

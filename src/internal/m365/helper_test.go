@@ -27,7 +27,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -1182,7 +1181,7 @@ func getSelectorWith(
 	case path.SharePointService:
 		if forRestore {
 			sel := selectors.NewSharePointRestore(resourceOwners)
-			selTD.SharePointRestoreStandardLibraryFilter(sel)
+			sel.Include(sel.Library(tconfig.LibraryDocuments), sel.Library(tconfig.LibraryMoreDocuments))
 
 			return sel.Selector
 		}
