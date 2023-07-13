@@ -68,7 +68,7 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: pwd
+      - run:  ls -t ./cmd
       - run: go build -o corso
       - run: go build -o longevity-test ./cmd/longevity_test
         working-directory: src
