@@ -937,6 +937,12 @@ func restoreFile(
 
 	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
 
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
+	}
+
 	return ptr.Val(newItem.GetId()), dii, nil
 }
 

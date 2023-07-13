@@ -227,12 +227,13 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		restoreCfg  = ctrlTD.DefaultRestoreConfig("sharepoint_adv_restore")
-		sel         = rsel.Selector
-		siteDriveID = suite.its.siteDriveID
-		containerID string
-		collKeys    = map[string]api.DriveCollisionItem{}
-		acd         = suite.its.ac.Drives()
+		restoreCfg          = ctrlTD.DefaultRestoreConfig("sharepoint_adv_restore")
+		sel                 = rsel.Selector
+		siteDriveID         = suite.its.siteDriveID
+		containerID         string
+		countItemsInRestore int
+		collKeys            = map[string]api.DriveCollisionItem{}
+		acd                 = suite.its.ac.Drives()
 	)
 
 	// initial restore
@@ -244,6 +245,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 		defer flush()
 
 		mb := evmock.NewBus()
+		ctr := count.New()
 
 		restoreCfg.OnCollision = control.Copy
 
@@ -253,12 +255,12 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			bod.st,
 			bo.Results.BackupID,
 			mb,
-			count.New(),
+			ctr,
 			sel,
 			opts,
 			restoreCfg)
 
-		runAndCheckRestore(t, ctx, &ro, mb, -1, false)
+		runAndCheckRestore(t, ctx, &ro, mb, false)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -276,6 +278,10 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			siteDriveID,
 			containerID)
 		require.NoError(t, err, clues.ToCore(err))
+
+		countItemsInRestore = len(collKeys)
+
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 	})
 
 	// skip restore
@@ -302,17 +308,13 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, 0, false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 
-		assert.Equal(
-			t,
-			int64(len(collKeys)),
-			ctr.Total(count.CollisionSkip),
-			"all attempted item restores should have been skipped")
 		assert.Zero(
 			t,
 			len(deets.Entries),
 			"no items should have been restored")
+		checkRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -350,7 +352,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -359,15 +361,12 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			}
 		}
 
-		assert.Zero(
+		assert.Len(
 			t,
-			ctr.Total(count.CollisionSkip),
-			"no attempted item restores should have been skipped")
-		assert.Equal(
-			t,
-			len(filtEnts),
-			len(collKeys),
-			"every item should have been replaced: %+v", filtEnts)
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been replaced")
+		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
 
 		result := filterCollisionKeyResults(
 			t,
@@ -408,7 +407,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, len(collKeys), false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -417,15 +416,12 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 			}
 		}
 
-		assert.Zero(
+		assert.Len(
 			t,
-			ctr.Total(count.CollisionSkip),
-			"no attempted item restores should have been skipped")
-		assert.Equal(
-			t,
-			len(filtEnts),
-			len(collKeys),
-			"every item should have been copied: %+v", filtEnts)
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been copied")
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 
 		result := filterCollisionKeyResults(
 			t,
