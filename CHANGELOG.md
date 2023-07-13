@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+- Added retries for http/2 stream connection failures when downloading large item content.
 
 ### Known issues
 - If a link share is created for an item with inheritance disabled
