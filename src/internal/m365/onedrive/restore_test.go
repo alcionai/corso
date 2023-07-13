@@ -329,6 +329,12 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 	const mndiID = "mndi-id"
 
+	type counts struct {
+		skip    int64
+		replace int64
+		new     int64
+	}
+
 	table := []struct {
 		name          string
 		collisionKeys map[string]api.DriveCollisionItem
@@ -336,6 +342,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		deleteErr     error
 		expectSkipped assert.BoolAssertionFunc
 		expectMock    func(*testing.T, *mock.RestoreHandler)
+		expectCounts  counts
 	}{
 		{
 			name:          "no collision, copy",
@@ -346,6 +353,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:          "no collision, replace",
@@ -356,6 +364,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:          "no collision, skip",
@@ -366,6 +375,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name: "collision, copy",
@@ -378,6 +388,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name: "collision, replace",
@@ -391,6 +402,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledDeleteItem, "new item deleted")
 				assert.Equal(t, mndiID, rh.CalledDeleteItemOn, "deleted the correct item")
 			},
+			expectCounts: counts{0, 1, 0},
 		},
 		{
 			name: "collision, replace - err already deleted",
@@ -404,6 +416,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.True(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 1, 0},
 		},
 		{
 			name: "collision, skip",
@@ -416,6 +429,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.False(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{1, 0, 0},
 		},
 		{
 			name: "file-folder collision, copy",
@@ -431,6 +445,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name: "file-folder collision, replace",
@@ -446,6 +461,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name: "file-folder collision, skip",
@@ -461,6 +477,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				assert.False(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
+			expectCounts: counts{1, 0, 0},
 		},
 	}
 	for _, test := range table {
@@ -491,6 +508,8 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			dp, err := path.ToDrivePath(dpp)
 			require.NoError(t, err)
 
+			ctr := count.New()
+
 			_, skip, err := restoreItem(
 				ctx,
 				rh,
@@ -511,10 +530,14 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 					Reader: mock.FileRespReadCloser(mock.DriveFilePayloadData),
 				},
 				nil,
-				count.New())
+				ctr)
+
 			require.NoError(t, err, clues.ToCore(err))
 			test.expectSkipped(t, skip)
 			test.expectMock(t, rh)
+			assert.Equal(t, test.expectCounts.skip, ctr.Get(count.CollisionSkip), "skips")
+			assert.Equal(t, test.expectCounts.replace, ctr.Get(count.CollisionReplace), "replaces")
+			assert.Equal(t, test.expectCounts.new, ctr.Get(count.NewItemCreated), "new items")
 		})
 	}
 }

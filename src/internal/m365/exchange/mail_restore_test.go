@@ -107,6 +107,12 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 
 	collisionKey := api.MailCollisionKey(stub)
 
+	type counts struct {
+		skip    int64
+		replace int64
+		new     int64
+	}
+
 	table := []struct {
 		name         string
 		apiMock      *mailRestoreMock
@@ -114,6 +120,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 		onCollision  control.CollisionPolicy
 		expectErr    func(*testing.T, error)
 		expectMock   func(*testing.T, *mailRestoreMock)
+		expectCounts counts
 	}{
 		{
 			name:         "no collision: skip",
@@ -127,6 +134,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "no collision: copy",
@@ -140,6 +148,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "no collision: replace",
@@ -153,6 +162,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "collision: skip",
@@ -166,6 +176,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.False(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{1, 0, 0},
 		},
 		{
 			name:         "collision: copy",
@@ -179,6 +190,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "collision: replace",
@@ -192,6 +204,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.True(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 1, 0},
 		},
 		{
 			name:         "collision: replace - err already deleted",
@@ -205,6 +218,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.True(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 0},
 		},
 	}
 	for _, test := range table {
@@ -213,6 +227,8 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
+
+			ctr := count.New()
 
 			_, err := restoreMail(
 				ctx,
@@ -223,10 +239,13 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				test.collisionMap,
 				test.onCollision,
 				fault.New(true),
-				count.New())
+				ctr)
 
 			test.expectErr(t, err)
 			test.expectMock(t, test.apiMock)
+			assert.Equal(t, test.expectCounts.skip, ctr.Get(count.CollisionSkip), "skips")
+			assert.Equal(t, test.expectCounts.replace, ctr.Get(count.CollisionReplace), "replaces")
+			assert.Equal(t, test.expectCounts.new, ctr.Get(count.NewItemCreated), "new items")
 		})
 	}
 }
