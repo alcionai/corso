@@ -90,6 +90,12 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 
 	collisionKey := api.ContactCollisionKey(stub)
 
+	type counts struct {
+		skip    int64
+		replace int64
+		new     int64
+	}
+
 	table := []struct {
 		name         string
 		apiMock      *contactRestoreMock
@@ -97,6 +103,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 		onCollision  control.CollisionPolicy
 		expectErr    func(*testing.T, error)
 		expectMock   func(*testing.T, *contactRestoreMock)
+		expectCounts counts
 	}{
 		{
 			name:         "no collision: skip",
@@ -110,6 +117,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "no collision: copy",
@@ -123,6 +131,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "no collision: replace",
@@ -136,6 +145,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "collision: skip",
@@ -149,6 +159,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.False(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{1, 0, 0},
 		},
 		{
 			name:         "collision: copy",
@@ -162,6 +173,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.False(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 1},
 		},
 		{
 			name:         "collision: replace",
@@ -175,6 +187,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.True(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 1, 0},
 		},
 		{
 			name:         "collision: replace - err already deleted",
@@ -188,6 +201,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.True(t, m.calledDelete, "old item deleted")
 			},
+			expectCounts: counts{0, 0, 0},
 		},
 	}
 	for _, test := range table {
@@ -196,6 +210,8 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
+
+			ctr := count.New()
 
 			_, err := restoreContact(
 				ctx,
@@ -206,10 +222,13 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				test.collisionMap,
 				test.onCollision,
 				fault.New(true),
-				count.New())
+				ctr)
 
 			test.expectErr(t, err)
 			test.expectMock(t, test.apiMock)
+			assert.Equal(t, test.expectCounts.skip, ctr.Get(count.CollisionSkip), "skips")
+			assert.Equal(t, test.expectCounts.replace, ctr.Get(count.CollisionReplace), "replaces")
+			assert.Equal(t, test.expectCounts.new, ctr.Get(count.NewItemCreated), "new items")
 		})
 	}
 }
