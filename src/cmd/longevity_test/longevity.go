@@ -56,13 +56,13 @@ func main() {
 		if backup.Stats.EndedAt.Before(time.Now().AddDate(0, 0, -days)) {
 			cmd := exec.Command(
 				"./corso", "backup", "delete", service, "--backup", backup.ID)
+
 			err := cmd.Run()
 			if err != nil {
 				fatal(ctx, "deletion failed", nil)
 			}
 		}
 	}
-
 }
 
 func fatal(ctx context.Context, msg string, err error) {
