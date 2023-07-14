@@ -10,10 +10,12 @@ Two things are needed to configure Corso:
 * Environment variables containing configuration information
 * A directory for Corso to store its configuration file
 
- Apart from Environment variables configuration information can also be provided from flags or configuration files.
- Preference of information provided is as-
+Apart from Environment variables configuration information can also be provided from flags or configuration files.
+Corso uses the following priority order for configuration:
 
- Flags values > Environment variables > Configuration File information
+1. Flags values
+2. Environment variables
+3. Configuration File information
 
 ## Environment variables
 
@@ -109,12 +111,46 @@ To create the environment variables file, you can run the following command:
 
 By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
+The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
+
+  ```bash
+ # AWS configs
+ aws_access_key_id = '...'
+ aws_secret_access_key = '...'
+ aws_session_token = '...'
+  
+ # M365 config
+ account_provider = '...'
+ azure_tenantid = '...'
+ azure_client_id = '...' 
+ azure_secret = '...'
+
+ # Corso passphrase
+ passphrase = '...'
+```
 
 </TabItem>
 <TabItem value="unix" label="Linux/macOS">
 
 By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
+The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
+
+  ```bash
+ # AWS configs
+ aws_access_key_id = '...'
+ aws_secret_access_key = '...'
+ aws_session_token = '...'
+  
+ # M365 config
+ account_provider = '...'
+ azure_tenantid = '...'
+ azure_client_id = '...' 
+ azure_secret = '...'
+
+ # Corso passphrase
+ passphrase = '...'
+```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
@@ -132,7 +168,7 @@ directory within the container.
 </TabItem>
 </Tabs>
 
-Similar to environment variables, user can specify the values in config file.
+The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
 
   ```bash
  # AWS configs
