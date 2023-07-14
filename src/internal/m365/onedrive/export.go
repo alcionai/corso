@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// exportCollection is the implementation of data.ExportCollection for OneDrive
 type exportCollection struct {
 	// baseDir contains the path of the collection
 	baseDir string

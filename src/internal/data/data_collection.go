@@ -91,6 +91,11 @@ func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Stre
 	return nil, ErrNotFound
 }
 
+type FetchRestoreCollection struct {
+	Collection
+	FetchItemByNamer
+}
+
 // Stream represents a single item within a Collection
 // that can be consumed as a stream (it embeds io.Reader)
 type Stream interface {
