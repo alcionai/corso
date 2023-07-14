@@ -24,7 +24,7 @@ write all of the restored data.
 
 If the flag isn't provided, Corso will create a new folder with a standard name:
 `Corso_Restore_<current-date-time>`. The default restore folder is always newly
-created, and cannot interfere with any existing items.  If you're concerned about
+created, and can't interfere with any existing items. If you're concerned about
 data integrity then this is always the safest option.
 
 ### An alternate destination
@@ -34,7 +34,7 @@ data integrity then this is always the safest option.
 }</CodeBlock>
 
 When a destination is manually specified, all restored will appear in that top-level
-folder.  In the example above, Corso will restore everything into `my-latest-restore`.
+folder. In the example above, Corso will restore everything into `my-latest-restore`.
 If that folder doesn't already exist, Corso will automatically create it. If it does
 exist, the restore will use the existing folder, allowing you to restore to the same
 folder multiple times.
@@ -97,7 +97,7 @@ no restore is attempted.
 
 Item collisions create a copy of the item in the backup. The copy holds the backup
 version of the item, leaving the current version unchanged. If necessary, changes
-item properties (such as filenames) to avoid additional collisions.  Eg:
+item properties (such as filenames) to avoid additional collisions. Eg:
 the copy of`reports.txt` is named `reports 1.txt`.
 
 ## Replace
