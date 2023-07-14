@@ -369,6 +369,26 @@ func checkRetentionParams(
 	expectExtend(t, params.ExtendObjectLocks, "extend object locks")
 }
 
+// mustReopen closes and reopens the connection that w uses. Assumes no other
+// structs besides w are holding a reference to the conn that w has.
+// TODO(ashmrtn): Remove this when kopia caching is fixed.
+//
+//revive:disable-next-line:context-as-argument
+func mustReopen(t *testing.T, ctx context.Context, w *Wrapper) {
+	k := w.c
+
+	err := w.Close(ctx)
+	require.NoError(t, err, "closing wrapper: %v", clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, "closing conn: %v", clues.ToCore(err))
+
+	err = k.Connect(ctx, repository.Options{})
+	require.NoError(t, err, "reconnecting conn: %v", clues.ToCore(err))
+
+	w.c = k
+}
+
 type RetentionIntegrationSuite struct {
 	tester.Suite
 }
@@ -498,6 +518,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 			err = w.SetRetentionParameters(ctx, test.opts)
 			test.expectErr(t, err, clues.ToCore(err))
 
+			mustReopen(t, ctx, w)
 			checkRetentionParams(
 				t,
 				ctx,
@@ -539,6 +560,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
+	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
@@ -553,6 +575,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
+	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
@@ -567,6 +590,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
+	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
