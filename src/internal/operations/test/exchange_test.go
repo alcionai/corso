@@ -1238,7 +1238,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, 2*len(mailIDs), len(currentMailIDs), "count of ids should be double from before")
-		assert.Subset(t, maps.Keys(mailIDs), maps.Keys(currentMailIDs), "original item should exist after copy")
+		assert.Subset(t, maps.Keys(currentMailIDs), maps.Keys(mailIDs), "original item should exist after copy")
 
 		// TODO: we have the option of modifying copy creations in exchange
 		// so that the results don't collide.  But we haven't made that
