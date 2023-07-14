@@ -1,67 +1,67 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"time"
 
+	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/spf13/cobra"
 )
 
-type backup struct {
-	ID    string `json:"id"`
-	Stats struct {
-		ID      string    `json:"id"`
-		EndedAt time.Time `json:"endedAt"`
-	} `json:"stats"`
-}
-
 func main() {
-	var backups []backup
+	var service path.ServiceType
+	cc := cobra.Command{}
 
-	ctx := context.Background()
-	service := os.Getenv("SERVICE")
-	cmd := exec.Command(
-		"./corso", "backup", "list", service, "--json", "--hide-progress")
+	cc.SetContext(context.Background())
 
-	output, err := cmd.CombinedOutput()
+	if err := config.InitFunc(&cc, []string{}); err != nil {
+		return
+	}
+
+	switch serviceName := os.Getenv("SERVICE"); serviceName {
+	case "exchange":
+		service = path.ExchangeService
+	case "onedrive":
+		service = path.OneDriveService
+	case "sharepoint":
+		service = path.SharePointService
+	default:
+		fatal(cc.Context(), "unknown service", nil)
+	}
+
+	r, _, _, err := utils.GetAccountAndConnect(cc.Context(), service, nil)
 	if err != nil {
-		fatal(ctx, "could not find backup", err)
+		fatal(cc.Context(), "unable to connect account", err)
 	}
 
-	jsonStart := bytes.Index(output, []byte("["))
-	jsonEnd := bytes.LastIndex(output, []byte("]"))
+	defer r.Close(cc.Context())
 
-	if jsonStart == -1 || jsonEnd == -1 || jsonEnd < jsonStart {
-		fatal(ctx, "No valid JSON found in the output", nil)
-	}
-
-	jsonData := output[jsonStart : jsonEnd+1]
-
-	if err := json.Unmarshal([]byte(jsonData), &backups); err != nil {
-		fatal(ctx, "no service specified", nil)
+	backups, err := r.BackupsByTag(cc.Context(), store.Service(service))
+	if err != nil {
+		fatal(cc.Context(), "unable to find backups", err)
 	}
 
 	days, err := strconv.Atoi(os.Getenv("DELETION_DAYS"))
 	if err != nil {
-		fatal(ctx, "invalid no of days provided", nil)
+		fatal(cc.Context(), "invalid no of days provided", nil)
 	}
 
 	for _, backup := range backups {
-		if backup.Stats.EndedAt.Before(time.Now().AddDate(0, 0, -days)) {
-			cmd := exec.Command(
-				"./corso", "backup", "delete", service, "--backup", backup.ID)
-
-			err := cmd.Run()
-			if err != nil {
-				fatal(ctx, "deletion failed", nil)
+		if backup.StartAndEndTime.CompletedAt.Before(time.Now().AddDate(0, 0, -days)) {
+			if err := r.DeleteBackup(cc.Context(), backup.ID.String()); err != nil {
+				fatal(cc.Context(), "deleting backup", err)
 			}
+
+			logAndPrint(cc.Context(), "Deleted backup %s", backup.ID.String())
 		}
+
 	}
 }
 
@@ -69,4 +69,9 @@ func fatal(ctx context.Context, msg string, err error) {
 	logger.CtxErr(ctx, err).Error("test failure: " + msg)
 	fmt.Println(msg+": ", err)
 	os.Exit(1)
+}
+
+func logAndPrint(ctx context.Context, tmpl string, vs ...any) {
+	logger.Ctx(ctx).Infof(tmpl, vs...)
+	fmt.Printf(tmpl+"\n", vs...)
 }
