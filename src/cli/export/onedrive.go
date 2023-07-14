@@ -167,6 +167,7 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// writeFile writes an ExportItem to disk in the specified folder.
 func writeFile(ctx context.Context, item data.ExportItem, folder string) error {
 	name := item.Data.Name
 	fpath := ospath.Join(folder, name)
