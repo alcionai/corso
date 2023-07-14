@@ -539,29 +539,23 @@ func (oc *Collection) populateDriveItem(
 				return nil, err
 			}
 
-			itemData := rc
-
-			// Add per item extensions if available
-			if len(itemExtensionFactory) > 0 {
-				extRc, extData, err := extensions.AddItemExtensions(
-					ctx,
-					rc,
-					itemInfo,
-					itemExtensionFactory)
-				if err != nil {
-					err := clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation)
-					el.AddRecoverable(ctx, err)
-					return nil, err
-				}
-
-				itemData = extRc
-				itemInfo.Extension.Data = extData.Data
+			extRc, extData, err := extensions.AddItemExtensions(
+				ctx,
+				rc,
+				itemInfo,
+				itemExtensionFactory)
+			if err != nil {
+				err := clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+				return nil, err
 			}
+
+			itemInfo.Extension.Data = extData.Data
 
 			// display/log the item download
 			progReader, _ := observe.ItemProgress(
 				ctx,
-				itemData,
+				extRc,
 				observe.ItemBackupMsg,
 				clues.Hide(itemName+dataSuffix),
 				itemSize)

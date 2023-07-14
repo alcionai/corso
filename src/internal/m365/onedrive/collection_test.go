@@ -936,7 +936,10 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 			mbh.GI = mock.GetsItem{Err: assert.AnError}
 			mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 			mbh.GetResps = []*http.Response{
-				{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(test.payload)))},
+				{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(string(test.payload))),
+				},
 			}
 			mbh.GetErrs = []error{
 				nil,
