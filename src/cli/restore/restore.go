@@ -41,11 +41,11 @@ corso restore exchange \
 	--email-folder '/inbox' \
 	--destination '/'
 
-# Restore a specific OneDrive folder to the root-level destination named "recovered_june_releases"
+# Restore a specific OneDrive folder to the top-level destination named "recovered_june_releases"
 corso restore onedrive \
 	--backup 1234abcd-12ab-cd34-56de-1234abcd \
 	--folder '/work/corso_june_releases' \
-	--destination recovered_june_releases
+	--destination /recovered_june_releases
 
 # Restore a calendar event, making a copy if the event already exists.
 corso restore exchange \
