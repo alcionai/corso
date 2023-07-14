@@ -1,39 +1,55 @@
-# Advanced Restorations
+# Restore Options
 
 import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import {Version} from '@site/src/corsoEnv';
 
-The basic restore command is an great way to restore all of your data
-without hassle.  When you need more control over the results you can
+The default restore command is an great way to restore data in a non-destructive
+manner to a new folder.  When you need more control over the results you can
 use the advanced configuration options to change where and how your data
 gets restored.
 
 ## Destination
 
-The `--destination` flag lets you select the top-level folder where corso will
+The `--destination` flag lets you select the top-level folder where Corso will
 write all of the restored data.
 
+
+### The default destination
+
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --destination my-latest-restore`
+    `corso restore onedrive --backup abcd`
 }</CodeBlock>
 
-If the flag isn't provided, Corso will use its standard restore folder name:
-`Corso_Restore_<current-date-time>`. If you're concerned about data integrity
-then this is always the safest option, 
+If the flag isn't provided, Corso will create a new folder with a standard name:
+`Corso_Restore_<current-date-time>`. The default restore folder is always newly
+created, and cannot interfere with any existing items.  If you're concerned about
+data integrity then this is always the safest option.
 
-In the above example, the onedrive restore will appear in a top-level folder
-named `my-latest-restore`. If that folder doesn't already exist, Corso will
-automatically create it. If it does exist, the restore will use the existing
-folder and restore the items again. This allows you to restore to the same folder
-multiple times.
+### An alternate destination
+
+<CodeBlock language="bash">{
+    `corso restore onedrive --backup abcd --destination /my-latest-restore`
+}</CodeBlock>
+
+When a destination is manually specified, all restored will appear in that top-level
+folder.  In the example above, Corso will restore everything into `my-latest-restore`.
+If that folder doesn't already exist, Corso will automatically create it. If it does
+exist, the restore will use the existing folder, allowing you to restore to the same
+folder multiple times.
+
+### The original location
+
+<CodeBlock language="bash">{
+    `corso restore onedrive --backup abcd --destination /`
+}</CodeBlock>
 
 You can restore items back to their original location by setting the destination
-to `/`: `--destination /`. This skips the creation of a top-level folder, and
-all restored items will appear back in their location at the time of backup.
+to `/`. This skips the creation of a top-level folder, and all restored items will
+appear back in their location at the time of backup.
 
-### Known Issues
+### Limitations
 
 * Destination won't create N-depth folder structures. `--destination a/b/c`
 doesn't create three folders; it creates a single, top-level folder named `a/b/c`.
@@ -47,15 +63,11 @@ their original calendars.
 * When restoring Exchange Calendar Events to a destination folder, Events that were
 safe in different calendars may collide with each other in the destination calendar.
 
-## Item Collision Handling
+## Item collision handling
 
-When restoring data into an existing folder, the items from the backup may conflict
+When restoring data into an existing folder, the items restored may conflict
 with existing data. When this happens, Corso resolves the conflict using its
 collision configuration.
-
-<CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --collisions skip`
-}</CodeBlock>
 
 Collision detection differs between each service and type of data. The general
 comparison always follows the same pattern: "within the current folder, if the
@@ -68,17 +80,31 @@ it still collides.
 Collisions can be handled with three different configurations: `Skip`, `Copy`,
 and `Replace`.
 
-## Skip
+## Skip (default)
 
-The default behavior. When a collision is identified, no restore is attempted.
+<CodeBlock language="bash">{
+    `corso restore onedrive --backup abcd --collisions skip --destination /`
+}</CodeBlock>
+
+When a collision is identified, the item is skipped and
+no restore is attempted.
 
 ## Copy
 
+<CodeBlock language="bash">{
+    `corso restore onedrive --backup abcd --collisions copy --destination /my-latest-restore`
+}</CodeBlock>
+
 Item collisions create a copy of the item in the backup. The copy holds the backup
 version of the item, leaving the current version unchanged. If necessary, changes
-item properties (such as filenames) to avoid additional collisions.
+item properties (such as filenames) to avoid additional collisions.  Eg:
+the copy of`reports.txt` is named `reports 1.txt`.
 
 ## Replace
+
+<CodeBlock language="bash">{
+    `corso restore onedrive --backup abcd --collisions replace --destination /`
+}</CodeBlock>
 
 Collisions will entirely replace the current version of the item with the backup
 version. If multiple existing items collide with the backup item, only one of the
