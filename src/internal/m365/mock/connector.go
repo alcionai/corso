@@ -69,3 +69,15 @@ func (ctrl Controller) ConsumeRestoreCollections(
 ) (*details.Details, error) {
 	return ctrl.Deets, ctrl.Err
 }
+
+func (ctrl Controller) ExportRestoreCollections(
+	_ context.Context,
+	_ int,
+	_ selectors.Selector,
+	_ control.ExportConfig,
+	_ control.Options,
+	_ []data.RestoreCollection,
+	_ *fault.Bus,
+) ([]data.ExportCollection, error) {
+	return nil, ctrl.Err
+}

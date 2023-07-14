@@ -215,7 +215,11 @@ func (z zipExportCol) GetItems(ctx context.Context) <-chan data.ExportItem {
 func zipExportCollection(
 	ctx context.Context,
 	expCollections []data.ExportCollection,
-) data.ExportCollection {
+) (data.ExportCollection, error) {
+	if len(expCollections) == 0 {
+		return nil, clues.New("no export collections provided")
+	}
+
 	reader, writer := io.Pipe()
 	wr := zip.NewWriter(writer)
 
@@ -251,7 +255,7 @@ func zipExportCollection(
 		}
 	}()
 
-	return zipExportCol{reader}
+	return zipExportCol{reader}, nil
 }
 
 func (op *ExportOperation) do(
@@ -336,7 +340,11 @@ func (op *ExportOperation) do(
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	if op.ExportCfg.Archive {
-		zc := zipExportCollection(ctx, expCollections)
+		zc, err := zipExportCollection(ctx, expCollections)
+		if err != nil {
+			return nil, clues.Wrap(err, "zipping export collections")
+		}
+
 		return []data.ExportCollection{zc}, nil
 	}
 
