@@ -172,11 +172,12 @@ func NewInDeets(repoRefPrefix string) *InDeets {
 
 func (id *InDeets) getSet(set string) *locSet {
 	s, ok := id.Sets[set]
-	if ok {
-		return s
+	if !ok {
+		id.Sets[set] = newLocSet()
+		s = id.Sets[set]
 	}
 
-	return newLocSet()
+	return s
 }
 
 func (id *InDeets) AddAll(deets details.Details, ws whatSet) {
@@ -193,8 +194,13 @@ func (id *InDeets) AddAll(deets details.Details, ws whatSet) {
 		dir := ent.LocationRef
 
 		if ent.Folder != nil {
-			dir = dir + ent.Folder.DisplayName
-			id.AddLocation(set, dir)
+			pb, err := path.Builder{}.SplitUnescapeAppend(dir)
+			if err != nil {
+				id.AddLocation(set, err.Error())
+			}
+
+			pb = pb.Append(ent.Folder.DisplayName)
+			id.AddLocation(set, pb.String())
 		} else {
 			id.AddItem(set, ent.LocationRef, ent.ItemRef)
 		}
@@ -310,6 +316,11 @@ func CheckBackupDetails(
 			expect.RRPrefix, ent.RepoRef)
 	}
 
+	// Basic check to try to ensure we're checking things when we should be.
+	if len(deets.Entries) > 0 {
+		require.NotEmpty(t, expect.Sets, "expected non-empty sets to compare")
+	}
+
 	for set := range expect.Sets {
 		check := assert.Subsetf
 
@@ -317,15 +328,40 @@ func CheckBackupDetails(
 			check = assert.ElementsMatchf
 		}
 
+		// Compare folders.
+		// Have result first since it may be a Subset call.
 		check(
 			t,
 			maps.Keys(result.Sets[set].Locations),
 			maps.Keys(expect.Sets[set].Locations),
 			"results in %s missing expected location", set)
 
+		// Compare items in folders.
+		for lr, items := range expect.Sets[set].Locations {
+			// Have result first since it may be a Subset call.
+			check(
+				t,
+				maps.Keys(result.Sets[set].Locations[lr]),
+				maps.Keys(items),
+				"results in set %s location %s missing expected item",
+				set,
+				lr)
+		}
+
+		// Ensure deleted items aren't present.
 		for lr, items := range expect.Sets[set].Deleted {
+			// Only report an error for an undeleted container if it's not also
+			// expected in Locations. We could have the container in both sets if one
+			// of several items was deleted.
+			_, lok := expect.Sets[set].Locations[lr]
 			_, ok := result.Sets[set].Locations[lr]
-			assert.Falsef(t, ok, "deleted location in %s found in result: %s", set, lr)
+			assert.Falsef(
+				t,
+				!lok && ok,
+				"deleted location in %s found in result (expected normally %v): %s",
+				set,
+				lok,
+				lr)
 
 			for ir := range items {
 				_, ok := result.Sets[set].Locations[lr][ir]

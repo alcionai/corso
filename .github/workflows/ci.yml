@@ -391,7 +391,7 @@ jobs:
         with:
           # Keep pinned to a verson as sometimes updates will add new lint
           # failures in unchanged code.
-          version: v1.52.2
+          version: v1.53.3
           working-directory: src
           skip-pkg-cache: true
           skip-build-cache: true
@@ -408,6 +408,11 @@ jobs:
         with:
           install-go: false
           working-directory: src
+
+      - name: Run allowtags
+        run: |
+          go install github.com/ashmrtn/allowtags@latest
+          allowtags --allow-key json --allow-key uriparametername ./...
 
 
   # ----------------------------------------------------------------------------------------------------
