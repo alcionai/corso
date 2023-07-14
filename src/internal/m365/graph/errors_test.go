@@ -55,7 +55,7 @@ func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
 	require.NoError(t, err, "serialize")
 
 	content, err := sw.GetSerializedContent()
-	require.NoError(t, err, "serialize")
+	require.NoError(t, err, "deserialize")
 
 	var out map[string]any
 	err = json.Unmarshal([]byte(content), &out)

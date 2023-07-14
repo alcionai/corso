@@ -252,10 +252,9 @@ func (mw RetryMiddleware) retryRequest(
 	}
 
 	// only retry if all the following conditions are met:
-	// 1, there was a prior error.
-	// 2, the resp and/or status code match retriable conditions.
-	// 3, the request is retriable.
-	// 4, we haven't hit our max retries already.
+	// 1, there was a prior error OR the status code match retriable conditions.
+	// 3, the request method is retriable.
+	// 4, we haven't already hit maximum retries.
 	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp)) &&
 		mw.isRetriableRequest(req) &&
 		executionCount < mw.MaxRetries
@@ -290,6 +289,8 @@ func (mw RetryMiddleware) retryRequest(
 			if _, err := s.Seek(0, io.SeekStart); err != nil {
 				return resp, Wrap(ctx, err, "resetting request body reader")
 			}
+		} else {
+			logger.Ctx(ctx).Error("body is not an io.Seeker: unable to reset request body")
 		}
 	}
 
