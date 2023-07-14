@@ -114,13 +114,13 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 		exportCfg.Archive = true
 	}
 
-	restoreLocation := args[0]
-	if restoreLocation == "" {
+	exportLocation := args[0]
+	if exportLocation == "" {
 		// This is unlikely, but adding it just in case.
-		restoreLocation = control.DefaultRestoreLocation + dttm.FormatNow(dttm.HumanReadableDriveItem)
+		exportLocation = control.DefaultRestoreLocation + dttm.FormatNow(dttm.HumanReadableDriveItem)
 	}
 
-	Infof(ctx, "Restoring to folder %s", restoreLocation)
+	Infof(ctx, "Exporting to folder %s", exportLocation)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
@@ -145,7 +145,7 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 	defer close(diskWriteComplete)
 
 	for _, col := range expColl {
-		folder := ospath.Join(restoreLocation, col.GetBasePath())
+		folder := ospath.Join(exportLocation, col.GetBasePath())
 
 		for item := range col.GetItems(ctx) {
 			err := item.Error
