@@ -1180,7 +1180,10 @@ func getSelectorWith(
 
 	case path.SharePointService:
 		if forRestore {
-			return selectors.NewSharePointRestore(resourceOwners).Selector
+			sel := selectors.NewSharePointRestore(resourceOwners)
+			sel.Include(sel.Library(tconfig.LibraryDocuments), sel.Library(tconfig.LibraryMoreDocuments))
+
+			return sel.Selector
 		}
 
 		return selectors.NewSharePointBackup(resourceOwners).Selector
