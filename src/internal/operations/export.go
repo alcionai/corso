@@ -215,61 +215,43 @@ func (z zipExportCol) GetItems(ctx context.Context) <-chan data.ExportItem {
 func zipExportCollection(
 	ctx context.Context,
 	expCollections []data.ExportCollection,
-	errs *fault.Bus,
-) (data.ExportCollection, error) {
+) data.ExportCollection {
 	reader, writer := io.Pipe()
 	wr := zip.NewWriter(writer)
 
-	el := errs.Local()
-
 	go func() {
-		// TODO(meain): This blocks disk write somehow
-		// zipComplete := observe.MessageWithCompletion(ctx, "Zipping data")
-		// defer func() {
-		// 	zipComplete <- struct{}{}
-		// 	close(zipComplete)
-		// }()
 		defer writer.Close()
 		defer wr.Close()
 
 		for _, ec := range expCollections {
-			if el.Failure() != nil {
-				break
-			}
-
 			folder := ec.GetBasePath()
 			items := ec.GetItems(ctx)
 
-			// for each item in dc add contents to tarball
 			for item := range items {
-				if el.Failure() != nil {
-					break
-				}
-
 				err := item.Error
 				if err != nil {
-					el.AddRecoverable(ctx, clues.Wrap(err, "getting export item").With("id", item.ID))
-					continue
+					writer.CloseWithError(clues.Wrap(err, "getting export item").With("id", item.ID))
+					return
 				}
 
 				name := item.Data.Name
 
 				f, err := wr.Create(folder + "/" + name)
 				if err != nil {
-					el.AddRecoverable(ctx, clues.Wrap(err, "creating zip entry").With("name", name).With("id", item.ID))
-					continue
+					writer.CloseWithError(clues.Wrap(err, "creating zip entry").With("name", name).With("id", item.ID))
+					return
 				}
 
 				_, err = io.Copy(f, item.Data.Body)
 				if err != nil {
-					el.AddRecoverable(ctx, clues.Wrap(err, "writing zip entry").With("name", name).With("id", item.ID))
-					continue
+					writer.CloseWithError(clues.Wrap(err, "writing zip entry").With("name", name).With("id", item.ID))
+					return
 				}
 			}
 		}
 	}()
 
-	return zipExportCol{reader}, el.Failure()
+	return zipExportCol{reader}
 }
 
 func (op *ExportOperation) do(
@@ -354,11 +336,7 @@ func (op *ExportOperation) do(
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	if op.ExportCfg.Archive {
-		zc, err := zipExportCollection(ctx, expCollections, op.Errors)
-		if err != nil {
-			return nil, clues.Wrap(err, "zipping exports")
-		}
-
+		zc := zipExportCollection(ctx, expCollections)
 		return []data.ExportCollection{zc}, nil
 	}
 
