@@ -169,7 +169,6 @@ func (pl pipeline) Next(req *http.Request, idx int) (*http.Response, error) {
 func defaultTransport() http.RoundTripper {
 	defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
 	defaultTransport.ForceAttemptHTTP2 = true
-	defaultTransport.IdleConnTimeout = 0 // no limit
 
 	return defaultTransport
 }
