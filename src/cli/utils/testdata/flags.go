@@ -44,5 +44,17 @@ var (
 	PageFolderInput = []string{"pageFolder1", "pageFolder2"}
 	PageInput       = []string{"page1", "page2"}
 
+	Collisions         = "collisions"
+	Destination        = "destination"
 	RestorePermissions = true
+
+	AzureClientID     = "testAzureClientId"
+	AzureTenantID     = "testAzureTenantId"
+	AzureClientSecret = "testAzureClientSecret"
+
+	AWSAccessKeyID     = "testAWSAccessKeyID"
+	AWSSecretAccessKey = "testAWSSecretAccessKey"
+	AWSSessionToken    = "testAWSSessionToken"
+
+	CorsoPassphrase = "testCorsoPassphrase"
 )

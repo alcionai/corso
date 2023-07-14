@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/control"
 )
@@ -29,21 +30,24 @@ type Drives struct {
 // Folders
 // ---------------------------------------------------------------------------
 
-const itemByPathRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+const (
+	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	createLinkShareURLFmt = "https://graph.microsoft.com/beta/drives/%s/items/%s/createLink"
+)
 
 var ErrFolderNotFound = clues.New("folder not found")
 
 // GetFolderByName will lookup the specified folder by name within the parentFolderID folder.
 func (c Drives) GetFolderByName(
 	ctx context.Context,
-	driveID, parentFolderID, folderID string,
+	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
 	// will be sub-optimal.
 	// Instead, we leverage OneDrive path-based addressing -
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
-	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderID)
+	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
 	builder := drives.NewItemItemsDriveItemItemRequestBuilder(rawURL, c.Stable.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)
@@ -304,4 +308,35 @@ func (c Drives) DeleteItemPermission(
 	}
 
 	return nil
+}
+
+func (c Drives) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	ctx = graph.ConsumeNTokens(ctx, graph.PermissionsLC)
+
+	// We are using the beta version of the endpoint. This allows us
+	// to add recipients in the same request as well as to make it not
+	// send out and email for every link share the user gets added to.
+	rawURL := fmt.Sprintf(createLinkShareURLFmt, driveID, itemID)
+	builder := drives.NewItemItemsItemCreateLinkRequestBuilder(rawURL, c.Stable.Adapter())
+
+	itm, err := builder.Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating link share")
+	}
+
+	return itm, nil
+}
+
+// DriveItemCollisionKeyy constructs a key from the item name.
+// collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
+func DriveItemCollisionKey(item models.DriveItemable) string {
+	if item == nil {
+		return ""
+	}
+
+	return ptr.Val(item.GetName())
 }

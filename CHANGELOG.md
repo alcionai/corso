@@ -7,20 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Drive items backup and restore link shares
+
+### Fixed
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+
+### Known issues
+- If a link share is created for an item with inheritance disabled
+  (via the Graph API), the link shares restored in that item will
+  not be inheritable by children
+- Link shares with password protection can't be restored
+
+## [v0.10.0] (beta) - 2023-06-26
+
+### Added
+- Exceptions and cancellations for recurring events are now backed up and restored
+- Introduced a URL cache for OneDrive that helps reduce Graph API calls for long running (>1hr) backups
+- Improve incremental backup behavior by leveraging information from incomplete backups
+- Improve restore performance and memory use for Exchange and OneDrive
+
+### Fixed
+- Handle OLE conversion errors when trying to fetch attachments
+- Fix uploading large attachments for emails and calendar
+- Fixed high memory use in OneDrive backup related to logging
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+
+### Changed
+- Switched to Go 1.20
+  
 ## [v0.9.0] (beta) - 2023-06-05
 
 ### Added
 - Added ProtectedResourceName to the backup list json output.  ProtectedResourceName holds either a UPN or a WebURL, depending on the resource type.
 - Rework base selection logic for incremental backups so it's more likely to find a valid base.
 - Improve OneDrive restore performance by paralleling item restores
-- Exceptions and cancellations for recurring events are now backed up and restored
 
 ### Fixed
 - Fix Exchange folder cache population error when parent folder isn't found.
 - Fix Exchange backup issue caused by incorrect json serialization
 - Fix issues with details model containing duplicate entry for api consumers
-- Handle OLE conversion errors when trying to fetch attachments
-- Fix uploading large attachments for emails and calendar
 
 ### Changed
 - Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.
@@ -293,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.10.0...HEAD
+[v0.10.0]: https://github.com/alcionai/corso/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/alcionai/corso/compare/v0.8.1...v0.9.0
 [v0.8.0]: https://github.com/alcionai/corso/compare/v0.7.1...v0.8.0
 [v0.7.0]: https://github.com/alcionai/corso/compare/v0.6.1...v0.7.0

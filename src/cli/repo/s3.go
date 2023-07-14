@@ -10,23 +10,34 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // s3 bucket info from flags
 var (
+	succeedIfExists bool
 	bucket          string
 	endpoint        string
 	prefix          string
 	doNotUseTLS     bool
 	doNotVerifyTLS  bool
-	succeedIfExists bool
+)
+
+// s3 bucket flags
+const (
+	succeedIfExistsFN = "succeedIfExists"
+	bucketFN          = "bucket"
+	endpointFN        = "endpoint"
+	prefixFN          = "prefix"
+	doNotUseTLSFN     = "disable-tls"
+	doNotVerifyTLSFN  = "disable-tls-verification"
 )
 
 // called by repo.go to map subcommands to provider-specific handling.
@@ -46,14 +57,17 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
+	flags.AddAWSCredsFlags(c)
+	flags.AddAzureCredsFlags(c)
+	flags.AddCorsoPassphaseFlags(c)
+
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
-	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
-	cobra.CheckErr(c.MarkFlagRequired("bucket"))
-	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
-	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
-	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
-	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
+	fs.StringVar(&bucket, bucketFN, "", "Name of S3 bucket for repo. (required)")
+	fs.StringVar(&prefix, prefixFN, "", "Repo prefix within bucket.")
+	fs.StringVar(&endpoint, endpointFN, "", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, doNotUseTLSFN, false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&doNotVerifyTLS, doNotVerifyTLSFN, false, "Disable TLS (HTTPS) certificate verification.")
 
 	// In general, we don't want to expose this flag to users and have them mistake it
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
@@ -108,11 +122,10 @@ func s3InitCmd() *cobra.Command {
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
+	// s3 values from flags
+	s3Override := S3Overrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, false, S3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -124,7 +137,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		map[string]any{"command": "init repo"},
 		cfg.Account.ID(),
-		options.Control())
+		utils.Control())
 
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
@@ -143,7 +156,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, options.Control())
+	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, utils.Control())
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -183,11 +196,10 @@ func s3ConnectCmd() *cobra.Command {
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
+	// s3 values from flags
+	s3Override := S3Overrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, S3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -214,7 +226,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
+	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, utils.Control())
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}
@@ -230,14 +242,47 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func S3Overrides() map[string]string {
-	return map[string]string{
-		config.AccountProviderTypeKey: account.ProviderM365.String(),
-		config.StorageProviderTypeKey: storage.ProviderS3.String(),
-		storage.Bucket:                bucket,
-		storage.Endpoint:              endpoint,
-		storage.Prefix:                prefix,
-		storage.DoNotUseTLS:           strconv.FormatBool(doNotUseTLS),
-		storage.DoNotVerifyTLS:        strconv.FormatBool(doNotVerifyTLS),
+func S3Overrides(cmd *cobra.Command) map[string]string {
+	fs := flags.GetPopulatedFlags(cmd)
+	return PopulateS3Flags(fs)
+}
+
+func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
+	s3Overrides := make(map[string]string)
+	s3Overrides[config.AccountProviderTypeKey] = account.ProviderM365.String()
+	s3Overrides[config.StorageProviderTypeKey] = storage.ProviderS3.String()
+
+	if _, ok := flagset[flags.AWSAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSAccessKeyID] = flags.AWSAccessKeyFV
 	}
+
+	if _, ok := flagset[flags.AWSSecretAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
+	}
+
+	if _, ok := flagset[flags.AWSSessionTokenFN]; ok {
+		s3Overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
+	}
+
+	if _, ok := flagset[bucketFN]; ok {
+		s3Overrides[storage.Bucket] = bucket
+	}
+
+	if _, ok := flagset[prefixFN]; ok {
+		s3Overrides[storage.Prefix] = prefix
+	}
+
+	if _, ok := flagset[doNotUseTLSFN]; ok {
+		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(doNotUseTLS)
+	}
+
+	if _, ok := flagset[doNotVerifyTLSFN]; ok {
+		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(doNotVerifyTLS)
+	}
+
+	if _, ok := flagset[endpointFN]; ok {
+		s3Overrides[storage.Endpoint] = endpoint
+	}
+
+	return s3Overrides
 }

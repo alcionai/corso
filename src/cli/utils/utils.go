@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -20,12 +19,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-const (
-	Wildcard = "*"
-)
-
-func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.Storage, *account.Account, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+func GetAccountAndConnect(
+	ctx context.Context,
+	pst path.ServiceType,
+	overrides map[string]string,
+) (repository.Repository, *storage.Storage, *account.Account, error) {
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -35,16 +34,26 @@ func GetAccountAndConnect(ctx context.Context) (repository.Repository, *storage.
 		repoID = events.RepoIDNotFound
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, Control())
 	if err != nil {
 		return nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
+	}
+
+	// this initializes our graph api client configurations,
+	// including control options such as concurency limitations.
+	if _, err := r.ConnectToM365(ctx, pst); err != nil {
+		return nil, nil, nil, clues.Wrap(err, "connecting to m365")
 	}
 
 	return r, &cfg.Storage, &cfg.Account, nil
 }
 
-func AccountConnectAndWriteRepoConfig(ctx context.Context) (repository.Repository, *account.Account, error) {
-	r, stg, acc, err := GetAccountAndConnect(ctx)
+func AccountConnectAndWriteRepoConfig(
+	ctx context.Context,
+	pst path.ServiceType,
+	overrides map[string]string,
+) (repository.Repository, *account.Account, error) {
+	r, stg, acc, err := GetAccountAndConnect(ctx, pst, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err
@@ -62,8 +71,8 @@ func AccountConnectAndWriteRepoConfig(ctx context.Context) (repository.Repositor
 		return nil, nil, err
 	}
 
-	// repo config is already set while repo connect and init. This is just to confirm correct values.
-	// So won't fail is the write fails
+	// repo config gets set during repo connect and init.
+	// This call confirms we have the correct values.
 	err = config.WriteRepoConfig(ctx, s3Config, m365Config, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")

@@ -19,8 +19,8 @@ const _opStatus_name = "Status UnknownIn ProgressCompletedFailedNo Data"
 
 var _opStatus_index = [...]uint8{0, 14, 25, 34, 40, 47}
 
-func (i opStatus) String() string {
-	if i < 0 || i >= opStatus(len(_opStatus_index)-1) {
+func (i OpStatus) String() string {
+	if i < 0 || i >= OpStatus(len(_opStatus_index)-1) {
 		return "opStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _opStatus_name[_opStatus_index[i]:_opStatus_index[i+1]]

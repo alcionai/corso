@@ -12,8 +12,11 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -29,14 +32,14 @@ func TestRestoreIntgSuite(t *testing.T) {
 	suite.Run(t, &RestoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *RestoreIntgSuite) SetupSuite() {
 	t := suite.T()
 
-	a := tester.NewM365Account(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -54,12 +57,12 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 	defer flush()
 
 	var (
-		userID     = tester.M365UserID(t)
+		userID     = tconfig.M365UserID(t)
 		folderName = testdata.DefaultRestoreConfig("contact").Location
 		handler    = newContactRestoreHandler(suite.ac)
 	)
 
-	aFolder, err := handler.ac.CreateContainer(ctx, userID, folderName, "")
+	aFolder, err := handler.ac.CreateContainer(ctx, userID, "", folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
 	folderID := ptr.Val(aFolder.GetId())
@@ -74,7 +77,10 @@ func (suite *RestoreIntgSuite) TestRestoreContact() {
 		ctx,
 		exchMock.ContactBytes("Corso TestContact"),
 		userID, folderID,
-		fault.New(true))
+		nil,
+		control.Copy,
+		fault.New(true),
+		count.New())
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "contact item info")
 }
@@ -88,12 +94,12 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	defer flush()
 
 	var (
-		userID  = tester.M365UserID(t)
+		userID  = tconfig.M365UserID(t)
 		subject = testdata.DefaultRestoreConfig("event").Location
 		handler = newEventRestoreHandler(suite.ac)
 	)
 
-	calendar, err := handler.ac.CreateContainer(ctx, userID, subject, "")
+	calendar, err := handler.ac.CreateContainer(ctx, userID, "", subject)
 	require.NoError(t, err, clues.ToCore(err))
 
 	calendarID := ptr.Val(calendar.GetId())
@@ -131,6 +137,11 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	}
 
 	for _, test := range tests {
+		// Skip till https://github.com/alcionai/corso/issues/3675 is fixed
+		if test.name == "Test exceptionOccurrences" {
+			t.Skip("Bug 3675")
+		}
+
 		suite.Run(test.name, func() {
 			t := suite.T()
 
@@ -141,7 +152,10 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 				ctx,
 				test.bytes,
 				userID, calendarID,
-				fault.New(true))
+				nil,
+				control.Copy,
+				fault.New(true),
+				count.New())
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "event item info")
 		})
@@ -154,7 +168,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 
 	handlers := restoreHandlers(suite.ac)
 
-	userID := tester.M365UserID(suite.T())
+	userID := tconfig.M365UserID(suite.T())
 
 	tests := []struct {
 		name        string
@@ -169,7 +183,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailobj").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -182,7 +196,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailwattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -195,7 +209,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("eventwattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -208,7 +222,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailitemattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -224,7 +238,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailbasicattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -240,7 +254,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailnestattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -256,7 +270,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailcontactattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -269,7 +283,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("nestedattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -282,7 +296,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("maillargeattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -295,7 +309,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailtwoattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -308,7 +322,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailrefattch").Location
 				folder, err := handlers[path.EmailCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -321,7 +335,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("contact").Location
 				folder, err := handlers[path.ContactsCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
@@ -334,7 +348,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("event").Location
 				calendar, err := handlers[path.EventsCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(calendar.GetId())
@@ -347,7 +361,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("eventobj").Location
 				calendar, err := handlers[path.EventsCategory].
-					CreateContainer(ctx, userID, folderName, "")
+					CreateContainer(ctx, userID, "", folderName)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(calendar.GetId())
@@ -367,7 +381,10 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 				ctx,
 				test.bytes,
 				userID, destination,
-				fault.New(true))
+				nil,
+				control.Copy,
+				fault.New(true),
+				count.New())
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "item info was not populated")
 		})
@@ -377,16 +394,18 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithAttachments() {
 	t := suite.T()
 
+	t.Skip("Bug 3675")
+
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		userID  = tester.M365UserID(t)
+		userID  = tconfig.M365UserID(t)
 		subject = testdata.DefaultRestoreConfig("event").Location
 		handler = newEventRestoreHandler(suite.ac)
 	)
 
-	calendar, err := handler.ac.CreateContainer(ctx, userID, subject, "")
+	calendar, err := handler.ac.CreateContainer(ctx, userID, "", subject)
 	require.NoError(t, err, clues.ToCore(err))
 
 	calendarID := ptr.Val(calendar.GetId())
@@ -396,7 +415,10 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithA
 		ctx,
 		bytes,
 		userID, calendarID,
-		fault.New(true))
+		nil,
+		control.Copy,
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
 

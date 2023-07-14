@@ -71,7 +71,7 @@ func NewConn(s storage.Storage) *conn {
 }
 
 func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
-	bst, err := blobStoreByProvider(ctx, w.storage)
+	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
 	}
@@ -111,7 +111,7 @@ func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
 }
 
 func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
-	bst, err := blobStoreByProvider(ctx, w.storage)
+	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
 	}
@@ -174,10 +174,14 @@ func (w *conn) commonConnect(
 	return nil
 }
 
-func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
+func blobStoreByProvider(
+	ctx context.Context,
+	opts repository.Options,
+	s storage.Storage,
+) (blob.Storage, error) {
 	switch s.Provider {
 	case storage.ProviderS3:
-		return s3BlobStorage(ctx, s)
+		return s3BlobStorage(ctx, opts, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
 	}
@@ -381,7 +385,7 @@ func (w *conn) writePolicy(
 	ctx = clues.Add(ctx, "source_info", si)
 
 	writeOpts := repo.WriteSessionOptions{Purpose: purpose}
-	cb := func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+	ctr := func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 		if err := policy.SetPolicy(ctx, rw, si, p); err != nil {
 			return clues.Stack(err).WithClues(innerCtx)
 		}
@@ -389,7 +393,7 @@ func (w *conn) writePolicy(
 		return nil
 	}
 
-	if err := repo.WriteSession(ctx, w.Repository, writeOpts, cb); err != nil {
+	if err := repo.WriteSession(ctx, w.Repository, writeOpts, ctr); err != nil {
 		return clues.Wrap(err, "updating policy").WithClues(ctx)
 	}
 

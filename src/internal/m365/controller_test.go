@@ -20,13 +20,16 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -272,7 +275,7 @@ func TestControllerIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
+			[][]string{tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -283,9 +286,9 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.ctrl = newController(ctx, t, resource.Users)
-	suite.user = tester.M365UserID(t)
-	suite.secondaryUser = tester.SecondaryM365UserID(t)
+	suite.ctrl = newController(ctx, t, resource.Users, path.ExchangeService)
+	suite.user = tconfig.M365UserID(t)
+	suite.secondaryUser = tconfig.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
 }
@@ -313,7 +316,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 			ToggleFeatures:     control.Toggles{},
 		},
 		nil,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
@@ -391,7 +395,8 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 					ToggleFeatures:     control.Toggles{},
 				},
 				test.col,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
@@ -410,28 +415,29 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 func runRestore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config stub.ConfigInfo,
+	sci stub.ConfigInfo,
 	backupVersion int,
 	collections []data.RestoreCollection,
 	numRestoreItems int,
 ) {
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
-		config.RestoreCfg.Location,
-		config.ResourceOwners)
+		sci.RestoreCfg.Location,
+		sci.ResourceOwners)
 
 	start := time.Now()
 
-	restoreCtrl := newController(ctx, t, config.Resource)
-	restoreSel := getSelectorWith(t, config.Service, config.ResourceOwners, true)
+	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
+	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		restoreSel,
-		config.RestoreCfg,
-		config.Opts,
+		sci.RestoreCfg,
+		sci.Opts,
 		collections,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
@@ -453,7 +459,7 @@ func runRestore(
 func runBackupAndCompare(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	config stub.ConfigInfo,
+	sci stub.ConfigInfo,
 	expectedData map[string]map[string][]byte,
 	totalItems int,
 	totalKopiaItems int,
@@ -468,15 +474,15 @@ func runBackupAndCompare(
 	}
 
 	var (
-		expectedDests = make([]destAndCats, 0, len(config.ResourceOwners))
+		expectedDests = make([]destAndCats, 0, len(sci.ResourceOwners))
 		idToName      = map[string]string{}
 		nameToID      = map[string]string{}
 	)
 
-	for _, ro := range config.ResourceOwners {
+	for _, ro := range sci.ResourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
-			dest:          config.RestoreCfg.Location,
+			dest:          sci.RestoreCfg.Location,
 			cats:          cats,
 		})
 
@@ -484,10 +490,10 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupCtrl := newController(ctx, t, config.Resource)
+	backupCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
 	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
-	backupSel := backupSelectorForExpected(t, config.Service, expectedDests)
+	backupSel := backupSelectorForExpected(t, sci.Service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
@@ -497,7 +503,7 @@ func runBackupAndCompare(
 		backupSel,
 		nil,
 		version.NoBackup,
-		config.Opts,
+		sci.Opts,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -514,7 +520,7 @@ func runBackupAndCompare(
 		totalKopiaItems,
 		expectedData,
 		dcs,
-		config)
+		sci)
 
 	status := backupCtrl.Wait()
 
@@ -534,7 +540,7 @@ func runRestoreBackupTest(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := stub.ConfigInfo{
+	cfg := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -544,7 +550,7 @@ func runRestoreBackupTest(
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collections,
 		version.Backup)
 
@@ -553,7 +559,7 @@ func runRestoreBackupTest(
 	runRestore(
 		t,
 		ctx,
-		config,
+		cfg,
 		version.Backup,
 		collections,
 		totalItems)
@@ -561,7 +567,7 @@ func runRestoreBackupTest(
 	runBackupAndCompare(
 		t,
 		ctx,
-		config,
+		cfg,
 		expectedData,
 		totalItems,
 		totalKopiaItems,
@@ -579,7 +585,7 @@ func runRestoreTestWithVersion(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := stub.ConfigInfo{
+	cfg := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -589,7 +595,7 @@ func runRestoreTestWithVersion(
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collectionsPrevious,
 		test.backupVersion)
 	require.NoError(t, err)
@@ -597,7 +603,7 @@ func runRestoreTestWithVersion(
 	runRestore(
 		t,
 		ctx,
-		config,
+		cfg,
 		test.backupVersion,
 		collections,
 		totalItems)
@@ -616,7 +622,7 @@ func runRestoreBackupTestVersions(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	config := stub.ConfigInfo{
+	cfg := stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       test.resourceCat,
 		Service:        test.service,
@@ -626,7 +632,7 @@ func runRestoreBackupTestVersions(
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collectionsPrevious,
 		test.backupVersion)
 	require.NoError(t, err)
@@ -634,14 +640,14 @@ func runRestoreBackupTestVersions(
 	runRestore(
 		t,
 		ctx,
-		config,
+		cfg,
 		test.backupVersion,
 		collections,
 		totalItems)
 
 	// Get expected output for new version.
 	totalItems, totalKopiaItems, _, expectedData, err := stub.GetCollectionsAndExpected(
-		config,
+		cfg,
 		test.collectionsLatest,
 		version.Backup)
 	require.NoError(t, err)
@@ -649,7 +655,7 @@ func runRestoreBackupTestVersions(
 	runBackupAndCompare(
 		t,
 		ctx,
-		config,
+		cfg,
 		expectedData,
 		totalItems,
 		totalKopiaItems,
@@ -667,7 +673,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			resourceCat: resource.Users,
 			collections: []stub.ColInfo{
 				{
-					PathElements: []string{"Inbox"},
+					PathElements: []string{api.MailInbox},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -694,7 +700,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 			resourceCat: resource.Users,
 			collections: []stub.ColInfo{
 				{
-					PathElements: []string{"Inbox"},
+					PathElements: []string{api.MailInbox},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -733,7 +739,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					PathElements: []string{"Work", "Inbox"},
+					PathElements: []string{"Work", api.MailInbox},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -748,7 +754,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 				{
-					PathElements: []string{"Work", "Inbox", "Work"},
+					PathElements: []string{"Work", api.MailInbox, "Work"},
 					Category:     path.EmailCategory,
 					Items: []stub.ItemInfo{
 						{
@@ -1030,7 +1036,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					restoreCfg.Location,
 				)
 
-				restoreCtrl := newController(ctx, t, test.resourceCat)
+				restoreCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
 				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
@@ -1041,7 +1047,8 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 						ToggleFeatures:     control.Toggles{},
 					},
 					collections,
-					fault.New(true))
+					fault.New(true),
+					count.New())
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
@@ -1060,7 +1067,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Run a backup and compare its output with what we put in.
 
-			backupCtrl := newController(ctx, t, test.resourceCat)
+			backupCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1110,7 +1117,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 		resourceCat: resource.Users,
 		collections: []stub.ColInfo{
 			{
-				PathElements: []string{"Inbox"},
+				PathElements: []string{api.MailInbox},
 				Category:     path.EmailCategory,
 				Items: []stub.ItemInfo{
 					{
@@ -1181,7 +1188,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			name:        "SharePoint",
 			resourceCat: resource.Sites,
 			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
+				sel := selectors.NewSharePointBackup([]string{tconfig.M365SiteID(t)})
 				sel.Include(
 					sel.LibraryFolders([]string{selectors.NoneTgt}),
 					// not yet in use
@@ -1209,7 +1216,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = newController(ctx, t, test.resourceCat)
+				backupCtrl = newController(ctx, t, test.resourceCat, path.ExchangeService)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()

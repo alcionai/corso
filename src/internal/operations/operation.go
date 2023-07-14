@@ -8,11 +8,12 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-// opStatus describes the current status of an operation.
+// OpStatus describes the current status of an operation.
 // InProgress - the standard value for any process that has not
 // arrived at an end state.  The end states are Failed, Completed,
 // or NoData.
@@ -28,11 +29,11 @@ import (
 // For example, if a backup is requested for a specific user's
 // mail, but that account contains zero mail messages, the backup
 // contains No Data.
-type opStatus int
+type OpStatus int
 
-//go:generate stringer -type=opStatus -linecomment
+//go:generate stringer -type=OpStatus -linecomment
 const (
-	Unknown    opStatus = iota // Status Unknown
+	Unknown    OpStatus = iota // Status Unknown
 	InProgress                 // In Progress
 	Completed                  // Completed
 	Failed                     // Failed
@@ -49,9 +50,10 @@ const (
 type operation struct {
 	CreatedAt time.Time `json:"createdAt"`
 
-	Errors  *fault.Bus      `json:"errors"`
+	Errors  *fault.Bus `json:"errors"`
+	Counter *count.Bus
 	Options control.Options `json:"options"`
-	Status  opStatus        `json:"status"`
+	Status  OpStatus        `json:"status"`
 
 	bus   events.Eventer
 	kopia *kopia.Wrapper
@@ -67,6 +69,7 @@ func newOperation(
 	return operation{
 		CreatedAt: time.Now(),
 		Errors:    fault.New(opts.FailureHandling == control.FailFast),
+		Counter:   count.New(),
 		Options:   opts,
 
 		bus:   bus,

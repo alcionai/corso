@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -33,8 +34,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ItemIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -45,7 +45,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	suite.service = loadTestService(t)
-	suite.user = tester.SecondaryM365UserID(t)
+	suite.user = tconfig.SecondaryM365UserID(t)
 
 	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 
@@ -99,7 +99,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	ip := suite.service.ac.
 		Drives().
-		NewItemPager(suite.userDriveID, "", api.DriveItemSelectDefault())
+		NewDriveItemDeltaPager(suite.userDriveID, "", api.DriveItemSelectDefault())
 
 	_, _, _, err := collectItems(
 		ctx,
@@ -315,7 +315,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			name: "success",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
-				di.SetAdditionalData(map[string]interface{}{
+				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
 
@@ -334,7 +334,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			name: "success, content url set instead of download url",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
-				di.SetAdditionalData(map[string]interface{}{
+				di.SetAdditionalData(map[string]any{
 					"@content.downloadUrl": url,
 				})
 
@@ -353,7 +353,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			name: "api getter returns error",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
-				di.SetAdditionalData(map[string]interface{}{
+				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
 
@@ -384,7 +384,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			name: "malware",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
-				di.SetAdditionalData(map[string]interface{}{
+				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
 
@@ -406,7 +406,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			name: "non-2xx http response",
 			itemFunc: func() models.DriveItemable {
 				di := newItem("test", false)
-				di.SetAdditionalData(map[string]interface{}{
+				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
 

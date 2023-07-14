@@ -7,9 +7,11 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -42,8 +44,8 @@ func AddCommands(cmd *cobra.Command) {
 		maintenanceCmd,
 		utils.HideCommand(),
 		utils.MarkPreReleaseCommand())
-	utils.AddMaintenanceModeFlag(maintenanceCmd)
-	utils.AddForceMaintenanceFlag(maintenanceCmd)
+	flags.AddMaintenanceModeFlag(maintenanceCmd)
+	flags.AddForceMaintenanceFlag(maintenanceCmd)
 
 	for _, addRepoTo := range repoCommands {
 		addRepoTo(initCmd)
@@ -116,12 +118,12 @@ func maintenanceCmd() *cobra.Command {
 func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	t, err := getMaintenanceType(utils.MaintenanceModeFV)
+	t, err := getMaintenanceType(flags.MaintenanceModeFV)
 	if err != nil {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.UnknownService, S3Overrides(cmd))
 	if err != nil {
 		return print.Only(ctx, err)
 	}
@@ -133,7 +135,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		repository.Maintenance{
 			Type:   t,
 			Safety: repository.FullMaintenanceSafety,
-			Force:  utils.ForceMaintenanceFV,
+			Force:  flags.ForceMaintenanceFV,
 		})
 	if err != nil {
 		return print.Only(ctx, err)

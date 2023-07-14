@@ -149,6 +149,71 @@ func (suite *PermissionsUnitTestSuite) TestDiffPermissions() {
 	}
 }
 
+func (suite *PermissionsUnitTestSuite) TestDiffLinkShares() {
+	entities1 := []Entity{{ID: "e1"}}
+	ls1 := LinkShare{
+		ID:       "id1",
+		Entities: entities1,
+		Link:     LinkShareLink{WebURL: "id1"},
+	}
+
+	lsempty := LinkShare{
+		ID:   "id2",
+		Link: LinkShareLink{WebURL: "id2"},
+	}
+
+	table := []struct {
+		name    string
+		before  []LinkShare
+		after   []LinkShare
+		added   []LinkShare
+		removed []LinkShare
+	}{
+		{
+			name:    "single link share added",
+			before:  []LinkShare{},
+			after:   []LinkShare{ls1},
+			added:   []LinkShare{ls1},
+			removed: []LinkShare{},
+		},
+		{
+			name:    "empty filtered from before",
+			before:  []LinkShare{lsempty},
+			after:   []LinkShare{},
+			added:   []LinkShare{},
+			removed: []LinkShare{},
+		},
+		{
+			name:    "empty filtered from after",
+			before:  []LinkShare{},
+			after:   []LinkShare{lsempty},
+			added:   []LinkShare{},
+			removed: []LinkShare{},
+		},
+		{
+			name:    "empty filtered from both",
+			before:  []LinkShare{lsempty, ls1},
+			after:   []LinkShare{lsempty},
+			added:   []LinkShare{},
+			removed: []LinkShare{ls1},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			_, flush := tester.NewContext(t)
+			defer flush()
+
+			added, removed := DiffLinkShares(test.before, test.after)
+
+			assert.Equal(t, added, test.added, "added link shares")
+			assert.Equal(t, removed, test.removed, "removed link shares")
+		})
+	}
+}
+
 func getPermsAndResourceOwnerPerms(
 	permID, resourceOwner string,
 	gv2t GV2Type,

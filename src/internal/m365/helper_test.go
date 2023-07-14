@@ -22,7 +22,8 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -684,11 +685,38 @@ func permissionEqual(expected metadata.Permission, got metadata.Permission) bool
 	return true
 }
 
+func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
+	if !strings.EqualFold(expected.Link.Scope, got.Link.Scope) {
+		return false
+	}
+
+	if !strings.EqualFold(expected.Link.Type, got.Link.Type) {
+		return false
+	}
+
+	if !slices.Equal(expected.Entities, got.Entities) {
+		return false
+	}
+
+	if (expected.Expiration == nil && got.Expiration != nil) ||
+		(expected.Expiration != nil && got.Expiration == nil) {
+		return false
+	}
+
+	if expected.Expiration != nil &&
+		got.Expiration != nil &&
+		!expected.Expiration.Equal(ptr.Val(got.Expiration)) {
+		return false
+	}
+
+	return true
+}
+
 func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
-	config m365Stub.ConfigInfo,
+	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
@@ -768,10 +796,12 @@ func compareDriveItem(
 			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
 		}
 
-		if !config.Opts.RestorePermissions {
+		if !mci.Opts.RestorePermissions {
 			assert.Equal(t, 0, len(itemMeta.Permissions))
 			return true
 		}
+
+		assert.Equal(t, expectedMeta.SharingMode, itemMeta.SharingMode, "sharing mode")
 
 		// We cannot restore owner permissions, so skip checking them
 		itemPerms := []metadata.Permission{}
@@ -789,8 +819,15 @@ func compareDriveItem(
 			// sharepoint retrieves a superset of permissions
 			// (all site admins, site groups, built in by default)
 			// relative to the permissions changed by the test.
-			config.Service == path.SharePointService,
+			mci.Service == path.SharePointService,
 			permissionEqual)
+
+		testElementsMatch(
+			t,
+			expectedMeta.LinkShares,
+			itemMeta.LinkShares,
+			false,
+			linkSharesEqual)
 
 		return true
 	}
@@ -831,7 +868,7 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
-	config m365Stub.ConfigInfo,
+	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
@@ -852,7 +889,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		return compareDriveItem(t, expected, item, config, rootDir)
+		return compareDriveItem(t, expected, item, mci, rootDir)
 
 	case path.SharePointService:
 		if category != path.LibrariesCategory {
@@ -860,7 +897,7 @@ func compareItem(
 		}
 
 		// SharePoint libraries reuses OneDrive code.
-		return compareDriveItem(t, expected, item, config, rootDir)
+		return compareDriveItem(t, expected, item, mci, rootDir)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
@@ -925,7 +962,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
-	config m365Stub.ConfigInfo,
+	mci m365Stub.ConfigInfo,
 ) int {
 	collectionsWithItems := []data.BackupCollection{}
 
@@ -939,7 +976,7 @@ func checkCollections(
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == config.RestoreCfg.Location
+			rootDir         = folders[len(folders)-1] == mci.RestoreCfg.Location
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -972,7 +1009,7 @@ func checkCollections(
 				service,
 				category,
 				item,
-				config,
+				mci,
 				rootDir) {
 				gotItems--
 			}
@@ -1143,7 +1180,10 @@ func getSelectorWith(
 
 	case path.SharePointService:
 		if forRestore {
-			return selectors.NewSharePointRestore(resourceOwners).Selector
+			sel := selectors.NewSharePointRestore(resourceOwners)
+			sel.Include(sel.Library(tconfig.LibraryDocuments), sel.Library(tconfig.LibraryMoreDocuments))
+
+			return sel.Selector
 		}
 
 		return selectors.NewSharePointBackup(resourceOwners).Selector
@@ -1154,10 +1194,15 @@ func getSelectorWith(
 	}
 }
 
-func newController(ctx context.Context, t *testing.T, r resource.Category) *Controller {
-	a := tester.NewM365Account(t)
+func newController(
+	ctx context.Context,
+	t *testing.T,
+	r resource.Category,
+	pst path.ServiceType,
+) *Controller {
+	a := tconfig.NewM365Account(t)
 
-	controller, err := NewController(ctx, a, r)
+	controller, err := NewController(ctx, a, r, pst, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return controller

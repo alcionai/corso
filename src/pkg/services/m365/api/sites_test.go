@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"strings"
@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SitesUnitSuite struct {
@@ -77,7 +79,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 			args: func() *models.Site {
 				s := models.NewSite()
 				s.SetId(ptr.To("id"))
-				s.SetWebUrl(ptr.To("https://" + personalSitePath + "/someone's/onedrive"))
+				s.SetWebUrl(ptr.To("https://" + api.PersonalSitePath + "/someone's/onedrive"))
 				return s
 			}(),
 			errCheck:       assert.Error,
@@ -93,11 +95,11 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := validateSite(test.args)
+			err := api.ValidateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
-				assert.ErrorIs(t, err, errKnownSkippableCase)
+				assert.ErrorIs(t, err, api.ErrKnownSkippableCase)
 			}
 		})
 	}
@@ -105,28 +107,19 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 type SitesIntgSuite struct {
 	tester.Suite
-
-	creds account.M365Config
+	its intgTesterSetup
 }
 
 func TestSitesIntgSuite(t *testing.T) {
 	suite.Run(t, &SitesIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *SitesIntgSuite) SetupSuite() {
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(t)
-	)
-
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.creds = m365
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func (suite *SitesIntgSuite) TestGetAll() {
@@ -135,59 +128,119 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	cli, err := NewClient(suite.creds)
-	require.NoError(t, err, clues.ToCore(err))
-
-	sites, err := cli.Sites().GetAll(ctx, fault.New(true))
+	sites, err := suite.its.ac.
+		Sites().
+		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(sites), "must have at least one site")
 
 	for _, site := range sites {
-		assert.NotContains(t, ptr.Val(site.GetWebUrl()), personalSitePath, "must not return onedrive sites")
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), api.PersonalSitePath, "must not return onedrive sites")
 	}
 }
 
 func (suite *SitesIntgSuite) TestSites_GetByID() {
 	var (
-		t       = suite.T()
-		siteID  = tester.M365SiteID(t)
-		host    = strings.Split(siteID, ",")[0]
-		shortID = strings.TrimPrefix(siteID, host+",")
-		siteURL = tester.M365SiteURL(t)
-		acct    = tester.NewM365Account(t)
+		t               = suite.T()
+		siteID          = tconfig.M365SiteID(t)
+		host            = strings.Split(siteID, ",")[0]
+		shortID         = strings.TrimPrefix(siteID, host+",")
+		siteURL         = tconfig.M365SiteURL(t)
+		modifiedSiteURL = siteURL + "foo"
 	)
 
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	client, err := NewClient(creds)
-	require.NoError(t, err, clues.ToCore(err))
-
-	sitesAPI := client.Sites()
+	sitesAPI := suite.its.ac.Sites()
 
 	table := []struct {
 		name      string
 		id        string
-		expectErr assert.ErrorAssertionFunc
+		expectErr func(*testing.T, error)
 	}{
-		{"3 part id", siteID, assert.NoError},
-		{"2 part id", shortID, assert.NoError},
-		{"malformed id", uuid.NewString(), assert.Error},
-		{"random id", uuid.NewString() + "," + uuid.NewString(), assert.Error},
-		{"url", siteURL, assert.NoError},
-		{"host only", host, assert.NoError},
-		{"malformed url", "barunihlda", assert.Error},
-		{"non-matching url", "https://test/sites/testing", assert.Error},
+		{
+			name: "3 part id",
+			id:   siteID,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "2 part id",
+			id:   shortID,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "malformed id",
+			id:   uuid.NewString(),
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "random id",
+			id:   uuid.NewString() + "," + uuid.NewString(),
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
+		},
+		{
+			name: "url",
+			id:   siteURL,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "host only",
+			id:   host,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "malformed url",
+			id:   "barunihlda",
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "well formed url, invalid hostname",
+			id:   "https://test/sites/testing",
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "well formed url, no sites match",
+			id:   modifiedSiteURL,
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
-
 			_, err := sitesAPI.GetByID(ctx, test.id)
-			test.expectErr(t, err, clues.ToCore(err))
+			test.expectErr(t, err)
 		})
 	}
+}
+
+func (suite *SitesIntgSuite) TestGetRoot() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	result, err := suite.its.ac.Sites().GetRoot(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, result, "must find the root site")
+	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")
 }

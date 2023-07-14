@@ -407,8 +407,8 @@ func EventWithAttendeesBytes(subject string) []byte {
 // Body must contain a well-formatted string, consumable in a json payload.  IE: no unescaped newlines.
 func EventWith(
 	organizer, subject, body, bodyPreview,
-	originalStartDate, startDateTime, endDateTime, recurrence, attendees string,
-	attachments string, cancelledOccurrences, exceptionOccurrences string,
+	originalStartDate, startDateTime, endDateTime, recurrence, attendees,
+	attachments, cancelledOccurrences, exceptionOccurrences string,
 ) []byte {
 	hasAttachments := len(attachments) > 0
 	startDateTime = strings.TrimSuffix(startDateTime, "Z")

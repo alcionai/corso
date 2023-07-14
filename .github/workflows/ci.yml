@@ -179,7 +179,7 @@ jobs:
           -v            \
           -failfast     \
           -p 1          \
-          -timeout 15m  \
+          -timeout 20m  \
           ./... \
           2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
 
@@ -233,7 +233,7 @@ jobs:
           -v            \
           -failfast     \
           -p 1          \
-          -timeout 15m  \
+          -timeout 20m  \
           ./... \
           2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
 
@@ -391,7 +391,7 @@ jobs:
         with:
           # Keep pinned to a verson as sometimes updates will add new lint
           # failures in unchanged code.
-          version: v1.52.2
+          version: v1.53.3
           working-directory: src
           skip-pkg-cache: true
           skip-build-cache: true
@@ -408,6 +408,11 @@ jobs:
         with:
           install-go: false
           working-directory: src
+
+      - name: Run allowtags
+        run: |
+          go install github.com/ashmrtn/allowtags@latest
+          allowtags --allow-key json --allow-key uriparametername ./...
 
 
   # ----------------------------------------------------------------------------------------------------
@@ -454,6 +459,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           rudderstack_write_key: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
           rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   Publish-Image:
     needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]

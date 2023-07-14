@@ -35,21 +35,29 @@ type Sites struct {
 // api calls
 // ---------------------------------------------------------------------------
 
-// GetAll retrieves all sites.
-func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error) {
-	service, err := c.Service()
+func (c Sites) GetRoot(ctx context.Context) (models.Siteable, error) {
+	resp, err := c.Stable.
+		Client().
+		Sites().
+		BySiteId("root").
+		Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, graph.Wrap(ctx, err, "getting root site")
 	}
 
-	resp, err := service.Client().Sites().Get(ctx, nil)
+	return resp, nil
+}
+
+// GetAll retrieves all sites.
+func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error) {
+	resp, err := c.Stable.Client().Sites().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting all sites")
 	}
 
 	iter, err := msgraphgocore.NewPageIterator[models.Siteable](
 		resp,
-		service.Adapter(),
+		c.Stable.Adapter(),
 		models.CreateSiteCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating sites iterator")
@@ -65,8 +73,8 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 			return false
 		}
 
-		err := validateSite(item)
-		if errors.Is(err, errKnownSkippableCase) {
+		err := ValidateSite(item)
+		if errors.Is(err, ErrKnownSkippableCase) {
 			// safe to no-op
 			return true
 		}
@@ -109,9 +117,21 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	ctx = clues.Add(ctx, "given_site_id", identifier)
 
 	if siteIDRE.MatchString(identifier) {
-		resp, err = c.Stable.Client().Sites().BySiteId(identifier).Get(ctx, nil)
+		resp, err = c.Stable.
+			Client().
+			Sites().
+			BySiteId(identifier).
+			Get(ctx, nil)
 		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting site by id")
+			err := graph.Wrap(ctx, err, "getting site by id")
+
+			// a 404 when getting sites by ID returns an itemNotFound
+			// error code, instead of something more sensible.
+			if graph.IsErrItemNotFound(err) {
+				err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
+			}
+
+			return nil, err
 		}
 
 		return resp, err
@@ -139,7 +159,15 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting site by weburl")
+		err := graph.Wrap(ctx, err, "getting site by weburl")
+
+		// a 404 when getting sites by ID returns an itemNotFound
+		// error code, instead of something more sensible.
+		if graph.IsErrItemNotFound(err) {
+			err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
+		return nil, err
 	}
 
 	return resp, err
@@ -182,14 +210,14 @@ func (c Sites) GetDefaultDrive(
 // helpers
 // ---------------------------------------------------------------------------
 
-var errKnownSkippableCase = clues.New("case is known and skippable")
+var ErrKnownSkippableCase = clues.New("case is known and skippable")
 
-const personalSitePath = "sharepoint.com/personal/"
+const PersonalSitePath = "sharepoint.com/personal/"
 
-// validateSite ensures the item is a Siteable, and contains the necessary
+// ValidateSite ensures the item is a Siteable, and contains the necessary
 // identifiers that we handle with all users.
 // returns the item as a Siteable model.
-func validateSite(item models.Siteable) error {
+func ValidateSite(item models.Siteable) error {
 	id := ptr.Val(item.GetId())
 	if len(id) == 0 {
 		return clues.New("missing ID")
@@ -201,8 +229,8 @@ func validateSite(item models.Siteable) error {
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if strings.Contains(wURL, personalSitePath) {
-		return clues.Stack(errKnownSkippableCase).
+	if strings.Contains(wURL, PersonalSitePath) {
+		return clues.Stack(ErrKnownSkippableCase).
 			With("site_id", id, "site_web_url", wURL) // TODO: pii
 	}
 
@@ -210,7 +238,7 @@ func validateSite(item models.Siteable) error {
 	if len(name) == 0 {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if strings.HasSuffix(wURL, "/search") {
-			return clues.Stack(errKnownSkippableCase).
+			return clues.Stack(ErrKnownSkippableCase).
 				With("site_id", id, "site_web_url", wURL) // TODO: pii
 		}
 

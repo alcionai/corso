@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type boolfAssertionFunc func(assert.TestingT, bool, string, ...interface{}) bool
+type boolfAssertionFunc func(assert.TestingT, bool, string, ...any) bool
 
 type testCase struct {
 	service  path.ServiceType

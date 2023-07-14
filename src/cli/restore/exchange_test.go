@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -43,7 +44,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 
 			// normally a persistent flag from the root.
 			// required to ensure a dry run.
-			utils.AddRunModeFlag(cmd, true)
+			flags.AddRunModeFlag(cmd, true)
 
 			c := addExchangeCommands(cmd)
 			require.NotNil(t, c)
@@ -59,27 +60,40 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			// Test arg parsing for few args
 			cmd.SetArgs([]string{
 				"exchange",
-				"--" + utils.RunModeFN, utils.RunModeFlagTest,
-				"--" + utils.BackupFN, testdata.BackupInput,
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, testdata.BackupInput,
 
-				"--" + utils.ContactFN, testdata.FlgInputs(testdata.ContactInput),
-				"--" + utils.ContactFolderFN, testdata.FlgInputs(testdata.ContactFldInput),
-				"--" + utils.ContactNameFN, testdata.ContactNameInput,
+				"--" + flags.ContactFN, testdata.FlgInputs(testdata.ContactInput),
+				"--" + flags.ContactFolderFN, testdata.FlgInputs(testdata.ContactFldInput),
+				"--" + flags.ContactNameFN, testdata.ContactNameInput,
 
-				"--" + utils.EmailFN, testdata.FlgInputs(testdata.EmailInput),
-				"--" + utils.EmailFolderFN, testdata.FlgInputs(testdata.EmailFldInput),
-				"--" + utils.EmailReceivedAfterFN, testdata.EmailReceivedAfterInput,
-				"--" + utils.EmailReceivedBeforeFN, testdata.EmailReceivedBeforeInput,
-				"--" + utils.EmailSenderFN, testdata.EmailSenderInput,
-				"--" + utils.EmailSubjectFN, testdata.EmailSubjectInput,
+				"--" + flags.EmailFN, testdata.FlgInputs(testdata.EmailInput),
+				"--" + flags.EmailFolderFN, testdata.FlgInputs(testdata.EmailFldInput),
+				"--" + flags.EmailReceivedAfterFN, testdata.EmailReceivedAfterInput,
+				"--" + flags.EmailReceivedBeforeFN, testdata.EmailReceivedBeforeInput,
+				"--" + flags.EmailSenderFN, testdata.EmailSenderInput,
+				"--" + flags.EmailSubjectFN, testdata.EmailSubjectInput,
 
-				"--" + utils.EventFN, testdata.FlgInputs(testdata.EventInput),
-				"--" + utils.EventCalendarFN, testdata.FlgInputs(testdata.EventCalInput),
-				"--" + utils.EventOrganizerFN, testdata.EventOrganizerInput,
-				"--" + utils.EventRecursFN, testdata.EventRecursInput,
-				"--" + utils.EventStartsAfterFN, testdata.EventStartsAfterInput,
-				"--" + utils.EventStartsBeforeFN, testdata.EventStartsBeforeInput,
-				"--" + utils.EventSubjectFN, testdata.EventSubjectInput,
+				"--" + flags.EventFN, testdata.FlgInputs(testdata.EventInput),
+				"--" + flags.EventCalendarFN, testdata.FlgInputs(testdata.EventCalInput),
+				"--" + flags.EventOrganizerFN, testdata.EventOrganizerInput,
+				"--" + flags.EventRecursFN, testdata.EventRecursInput,
+				"--" + flags.EventStartsAfterFN, testdata.EventStartsAfterInput,
+				"--" + flags.EventStartsBeforeFN, testdata.EventStartsBeforeInput,
+				"--" + flags.EventSubjectFN, testdata.EventSubjectInput,
+
+				"--" + flags.CollisionsFN, testdata.Collisions,
+				"--" + flags.DestinationFN, testdata.Destination,
+
+				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -88,7 +102,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeExchangeOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
+			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
 			assert.ElementsMatch(t, testdata.ContactInput, opts.Contact)
 			assert.ElementsMatch(t, testdata.ContactFldInput, opts.ContactFolder)
@@ -108,6 +122,19 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			assert.Equal(t, testdata.EventStartsAfterInput, opts.EventStartsAfter)
 			assert.Equal(t, testdata.EventStartsBeforeInput, opts.EventStartsBefore)
 			assert.Equal(t, testdata.EventSubjectInput, opts.EventSubject)
+
+			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
+			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
+
+			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 		})
 	}
 }

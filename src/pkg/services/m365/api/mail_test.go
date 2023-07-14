@@ -1,14 +1,11 @@
 package api_test
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,12 +14,11 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type MailAPIUnitSuite struct {
@@ -192,9 +188,7 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 
 type MailAPIIntgSuite struct {
 	tester.Suite
-	credentials account.M365Config
-	ac          api.Client
-	user        string
+	its intgTesterSetup
 }
 
 // We do end up mocking the actual request, but creating the rest
@@ -203,39 +197,12 @@ func TestMailAPIIntgSuite(t *testing.T) {
 	suite.Run(t, &MailAPIIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *MailAPIIntgSuite) SetupSuite() {
-	t := suite.T()
-
-	a := tester.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.credentials = m365
-	suite.ac, err = mock.NewClient(m365)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.user = tester.M365UserID(suite.T())
-}
-
-func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interface{} {
-	sw := kjson.NewJsonSerializationWriter()
-
-	err := sw.WriteObjectValue("", thing)
-	require.NoError(t, err, "serialize")
-
-	content, err := sw.GetSerializedContent()
-	require.NoError(t, err, "serialize")
-
-	var out map[string]interface{}
-	err = json.Unmarshal([]byte(content), &out)
-	require.NoError(t, err, "unmarshall")
-
-	return out
+	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
 func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
@@ -255,10 +222,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem := models.NewMessage()
 				mitem.SetId(&mid)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 			},
 			expect: assert.NoError,
 		},
@@ -269,10 +235,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem.SetId(&mid)
 				mitem.SetHasAttachments(ptr.To(true))
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
@@ -281,10 +246,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				aitem.SetSize(&asize)
 				atts.SetValue([]models.Attachmentable{aitem})
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(getJSONObject(suite.T(), atts))
+					JSON(parseableToMap(suite.T(), atts))
 			},
 			attachmentCount: 1,
 			size:            50,
@@ -298,10 +262,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem.SetId(&mid)
 				mitem.SetHasAttachments(&truthy)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
@@ -312,19 +275,16 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				atts.SetValue([]models.Attachmentable{aitem})
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(503)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(getJSONObject(suite.T(), atts))
+					JSON(parseableToMap(suite.T(), atts))
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments/" + aid).
+				interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), aitem))
+					JSON(parseableToMap(suite.T(), aitem))
 			},
 			attachmentCount: 1,
 			size:            200,
@@ -338,10 +298,9 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mitem.SetId(&mid)
 				mitem.SetHasAttachments(&truthy)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid).
+				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(getJSONObject(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), mitem))
 
 				atts := models.NewAttachmentCollectionResponse()
 				aitem := models.NewAttachment()
@@ -352,20 +311,17 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				atts.SetValue([]models.Attachmentable{aitem, aitem, aitem, aitem, aitem})
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(503)
 
-				gock.New("https://graph.microsoft.com").
-					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(getJSONObject(suite.T(), atts))
+					JSON(parseableToMap(suite.T(), atts))
 
 				for i := 0; i < 5; i++ {
-					gock.New("https://graph.microsoft.com").
-						Get("/v1.0/users/user/messages/" + mid + "/attachments/" + aid).
+					interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 						Reply(200).
-						JSON(getJSONObject(suite.T(), aitem))
+						JSON(parseableToMap(suite.T(), aitem))
 				}
 			},
 			attachmentCount: 5,
@@ -384,7 +340,12 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 			defer gock.Off()
 			tt.setupf()
 
-			item, _, err := suite.ac.Mail().GetItem(ctx, "user", mid, false, fault.New(true))
+			item, _, err := suite.its.gockAC.Mail().GetItem(
+				ctx,
+				"user",
+				mid,
+				false,
+				fault.New(true))
 			tt.expect(t, err)
 
 			it, ok := item.(models.Messageable)
@@ -412,16 +373,16 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 	}
 }
 
-func (suite *MailAPIIntgSuite) TestRestoreLargeAttachment() {
+func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	userID := tester.M365UserID(suite.T())
+	userID := tconfig.M365UserID(suite.T())
 
 	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
-	msgs := suite.ac.Mail()
+	msgs := suite.its.ac.Mail()
 	mailfolder, err := msgs.CreateMailFolder(ctx, userID, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -441,4 +402,128 @@ func (suite *MailAPIIntgSuite) TestRestoreLargeAttachment() {
 	)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id, "empty id for large attachment")
+}
+
+func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
+	var (
+		t   = suite.T()
+		acm = suite.its.ac.Mail()
+		rc  = testdata.DefaultRestoreConfig("mail_get_container_by_name")
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	parent, err := acm.CreateContainer(ctx, suite.its.userID, "msgfolderroot", rc.Location)
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name              string
+		parentContainerID string
+		expectErr         assert.ErrorAssertionFunc
+	}{
+		{
+			name:      api.MailInbox,
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "smarfs",
+			expectErr: assert.Error,
+		},
+		{
+			name:              rc.Location,
+			parentContainerID: ptr.Val(parent.GetId()),
+			expectErr:         assert.Error,
+		},
+		{
+			name:              "Inbox",
+			parentContainerID: ptr.Val(parent.GetId()),
+			expectErr:         assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			_, err := acm.GetContainerByName(ctx, suite.its.userID, test.parentContainerID, test.name)
+			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+
+	suite.Run("child folder with same name", func() {
+		pid := ptr.Val(parent.GetId())
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		child, err := acm.CreateContainer(ctx, suite.its.userID, pid, rc.Location)
+		require.NoError(t, err, clues.ToCore(err))
+
+		result, err := acm.GetContainerByName(ctx, suite.its.userID, pid, rc.Location)
+		assert.NoError(t, err, clues.ToCore(err))
+		assert.Equal(t, ptr.Val(child.GetId()), ptr.Val(result.GetId()))
+	})
+}
+
+func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
+	mf := models.NewMailFolder()
+	mf.SetId(ptr.To("id"))
+	mf.SetDisplayName(ptr.To("display name"))
+
+	table := []struct {
+		name      string
+		results   func(*testing.T) map[string]any
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "zero",
+			results: func(t *testing.T) map[string]any {
+				return parseableToMap(t, models.NewMailFolderCollectionResponse())
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "one",
+			results: func(t *testing.T) map[string]any {
+				mfcr := models.NewMailFolderCollectionResponse()
+				mfcr.SetValue([]models.MailFolderable{mf})
+
+				return parseableToMap(t, mfcr)
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "two",
+			results: func(t *testing.T) map[string]any {
+				mfcr := models.NewMailFolderCollectionResponse()
+				mfcr.SetValue([]models.MailFolderable{mf, mf})
+
+				return parseableToMap(t, mfcr)
+			},
+			expectErr: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+
+			defer flush()
+			defer gock.Off()
+
+			interceptV1Path("users", "u", "mailFolders").
+				Reply(200).
+				JSON(test.results(t))
+
+			_, err := suite.its.gockAC.
+				Mail().
+				GetContainerByName(ctx, "u", "", test.name)
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.True(t, gock.IsDone())
+		})
+	}
 }

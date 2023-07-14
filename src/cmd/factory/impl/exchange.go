@@ -8,6 +8,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -52,7 +53,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -72,7 +73,8 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 				now, now, now, now)
 		},
 		control.Defaults(),
-		errs)
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -98,7 +100,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -120,7 +122,8 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 				exchMock.NoExceptionOccurrences)
 		},
 		control.Defaults(),
-		errs)
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -146,7 +149,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -170,7 +173,8 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 			)
 		},
 		control.Defaults(),
-		errs)
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}

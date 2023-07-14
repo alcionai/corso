@@ -47,7 +47,7 @@ type urlCache struct {
 	refreshMu       sync.Mutex
 	deltaQueryCount int
 
-	itemPager api.DriveItemEnumerator
+	itemPager api.DriveItemDeltaEnumerator
 
 	errs *fault.Bus
 }
@@ -56,7 +56,7 @@ type urlCache struct {
 func newURLCache(
 	driveID, prevDelta string,
 	refreshInterval time.Duration,
-	itemPager api.DriveItemEnumerator,
+	itemPager api.DriveItemDeltaEnumerator,
 	errs *fault.Bus,
 ) (*urlCache, error) {
 	err := validateCacheParams(
@@ -83,7 +83,7 @@ func newURLCache(
 func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
-	itemPager api.DriveItemEnumerator,
+	itemPager api.DriveItemDeltaEnumerator,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")

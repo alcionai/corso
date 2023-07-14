@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -394,29 +395,36 @@ func TestBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &BackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *BackupIntgSuite) SetupSuite() {
-	suite.user = tester.M365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
+	t := suite.T()
 
-	acct := tester.NewM365Account(suite.T())
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	suite.user = tconfig.M365UserID(t)
+	suite.site = tconfig.M365SiteID(t)
+
+	acct := tconfig.NewM365Account(t)
 	creds, err := acct.M365Config()
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ac, err = api.NewClient(creds)
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID
 
-	tester.LogTimeOfTest(suite.T())
+	tester.LogTimeOfTest(t)
 }
 
 func (suite *BackupIntgSuite) TestMailFetch() {
 	var (
-		userID   = tester.M365UserID(suite.T())
+		userID   = tconfig.M365UserID(suite.T())
 		users    = []string{userID}
 		handlers = BackupHandlers(suite.ac)
 	)
@@ -430,22 +438,22 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 		{
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{DefaultMailFolder},
+				[]string{api.MailInbox},
 				selectors.PrefixMatch(),
 			)[0],
 			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
+				api.MailInbox: {},
 			},
 			canMakeDeltaQueries: true,
 		},
 		{
 			name: "Folder Iterative Check Mail Non-Delta",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{DefaultMailFolder},
+				[]string{api.MailInbox},
 				selectors.PrefixMatch(),
 			)[0],
 			folderNames: map[string]struct{}{
-				DefaultMailFolder: {},
+				api.MailInbox: {},
 			},
 			canMakeDeltaQueries: false,
 		},
@@ -500,7 +508,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 
 func (suite *BackupIntgSuite) TestDelta() {
 	var (
-		userID   = tester.M365UserID(suite.T())
+		userID   = tconfig.M365UserID(suite.T())
 		users    = []string{userID}
 		handlers = BackupHandlers(suite.ac)
 	)
@@ -512,21 +520,21 @@ func (suite *BackupIntgSuite) TestDelta() {
 		{
 			name: "Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{DefaultMailFolder},
+				[]string{api.MailInbox},
 				selectors.PrefixMatch(),
 			)[0],
 		},
 		{
 			name: "Contacts",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{DefaultContactFolder},
+				[]string{api.DefaultContacts},
 				selectors.PrefixMatch(),
 			)[0],
 		},
 		{
 			name: "Events",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				[]string{DefaultCalendar},
+				[]string{api.DefaultCalendar},
 				selectors.PrefixMatch(),
 			)[0],
 		},
@@ -616,7 +624,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 	)
 
 	sel := selectors.NewExchangeBackup(users)
-	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
+	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
 	collections, err := createCollections(
 		ctx,
@@ -680,7 +688,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 		{
 			name: "Default Contact Folder",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{DefaultContactFolder},
+				[]string{api.DefaultContacts},
 				selectors.PrefixMatch())[0],
 		},
 	}
@@ -744,7 +752,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 				assert.Equal(
 					t,
 					edc.(data.LocationPather).LocationPath().String(),
-					DefaultContactFolder)
+					api.DefaultContacts)
 				assert.NotZero(t, count)
 			}
 
@@ -769,7 +777,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 	)
 
 	fn := func(gcc graph.CachedContainer) error {
-		if ptr.Val(gcc.GetDisplayName()) == DefaultCalendar {
+		if ptr.Val(gcc.GetDisplayName()) == api.DefaultCalendar {
 			calID = ptr.Val(gcc.GetId())
 		}
 
@@ -780,7 +788,12 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 		return nil
 	}
 
-	err := suite.ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true))
+	err := suite.ac.Events().EnumerateContainers(
+		ctx,
+		suite.user,
+		api.DefaultCalendar,
+		fn,
+		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	tests := []struct {
@@ -791,7 +804,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			name:     "Default Event Calendar",
 			expected: calID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				[]string{DefaultCalendar},
+				[]string{api.DefaultCalendar},
 				selectors.PrefixMatch(),
 			)[0],
 		},
@@ -871,7 +884,7 @@ func TestServiceIteratorsUnitSuite(t *testing.T) {
 }
 
 func (suite *CollectionPopulationSuite) SetupSuite() {
-	a := tester.NewMockM365Account(suite.T())
+	a := tconfig.NewFakeM365Account(suite.T())
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	suite.creds = m365
