@@ -35,7 +35,7 @@ type ExportOperation struct {
 	operation
 
 	BackupID  model.StableID
-	Results   RestoreResults // TODO(meain): populate written?
+	Results   RestoreResults
 	Selectors selectors.Selector
 	ExportCfg control.ExportConfig
 	Version   string
@@ -349,7 +349,6 @@ func (op *ExportOperation) do(
 		return nil, clues.Wrap(err, "restoring collections")
 	}
 
-	// TODO(meain): look into this
 	opStats.ctrl = op.ec.Wait()
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
@@ -394,7 +393,8 @@ func (op *ExportOperation) persistResults(
 		op.Status = NoData
 	}
 
-	op.Results.ItemsWritten = opStats.ctrl.Successes
+	// We don't have data on what all items were written
+	// op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
 }
