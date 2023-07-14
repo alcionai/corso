@@ -337,7 +337,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 
 	table := []struct {
 		name          string
-		collisionKeys map[string]api.DriveCollisionItem
+		collisionKeys map[string]api.DriveItemIDType
 		onCollision   control.CollisionPolicy
 		deleteErr     error
 		expectSkipped assert.BoolAssertionFunc
@@ -346,7 +346,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 	}{
 		{
 			name:          "no collision, copy",
-			collisionKeys: map[string]api.DriveCollisionItem{},
+			collisionKeys: map[string]api.DriveItemIDType{},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -357,7 +357,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name:          "no collision, replace",
-			collisionKeys: map[string]api.DriveCollisionItem{},
+			collisionKeys: map[string]api.DriveItemIDType{},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -368,7 +368,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name:          "no collision, skip",
-			collisionKeys: map[string]api.DriveCollisionItem{},
+			collisionKeys: map[string]api.DriveItemIDType{},
 			onCollision:   control.Skip,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mock.RestoreHandler) {
@@ -379,7 +379,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "collision, copy",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {ItemID: mndiID},
 			},
 			onCollision:   control.Copy,
@@ -392,7 +392,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "collision, replace",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {ItemID: mndiID},
 			},
 			onCollision:   control.Replace,
@@ -406,7 +406,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "collision, replace - err already deleted",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {ItemID: "smarf"},
 			},
 			onCollision:   control.Replace,
@@ -420,7 +420,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "collision, skip",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {ItemID: mndiID},
 			},
 			onCollision:   control.Skip,
@@ -433,7 +433,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "file-folder collision, copy",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {
 					ItemID:   mndiID,
 					IsFolder: true,
@@ -449,7 +449,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "file-folder collision, replace",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {
 					ItemID:   mndiID,
 					IsFolder: true,
@@ -465,7 +465,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		},
 		{
 			name: "file-folder collision, skip",
-			collisionKeys: map[string]api.DriveCollisionItem{
+			collisionKeys: map[string]api.DriveItemIDType{
 				mock.DriveItemFileName: {
 					ItemID:   mndiID,
 					IsFolder: true,
