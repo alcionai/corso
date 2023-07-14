@@ -940,7 +940,8 @@ func runDriveRestoreWithAdvancedOptions(
 		restoreCfg          = ctrlTD.DefaultRestoreConfig("drive_adv_restore")
 		containerID         string
 		countItemsInRestore int
-		collKeys            = map[string]api.DriveCollisionItem{}
+		collKeys            = map[string]api.DriveItemIDType{}
+		fileIDs             map[string]api.DriveItemIDType
 		acd                 = ac.Drives()
 	)
 
@@ -990,6 +991,9 @@ func runDriveRestoreWithAdvancedOptions(
 		countItemsInRestore = len(collKeys)
 
 		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+
+		fileIDs, err = acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
 	})
 
 	// skip restore
@@ -1032,10 +1036,15 @@ func runDriveRestoreWithAdvancedOptions(
 			ctx,
 			driveID,
 			containerID,
-			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
 			collKeys)
 
 		assert.Len(t, result, 0, "no new items should get added")
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, fileIDs, currentFileIDs, "ids are equal")
 	})
 
 	// replace restore
@@ -1083,7 +1092,7 @@ func runDriveRestoreWithAdvancedOptions(
 			ctx,
 			driveID,
 			containerID,
-			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
 			collKeys)
 
 		assert.Len(t, result, 0, "all items should have been replaced")
@@ -1091,6 +1100,17 @@ func runDriveRestoreWithAdvancedOptions(
 		for k, v := range result {
 			assert.NotEqual(t, v, collKeys[k], "replaced items should have new IDs")
 		}
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, len(fileIDs), len(currentFileIDs), "count of ids ids are equal")
+		for orig := range fileIDs {
+			_, ok := currentFileIDs[orig]
+			assert.False(t, ok, "original item should not exist after replacement")
+		}
+
+		fileIDs = currentFileIDs
 	})
 
 	// copy restore
@@ -1138,9 +1158,18 @@ func runDriveRestoreWithAdvancedOptions(
 			ctx,
 			driveID,
 			containerID,
-			GetItemsInContainerByCollisionKeyer[api.DriveCollisionItem](acd),
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
 			collKeys)
 
 		assert.Len(t, result, len(collKeys), "all items should have been added as copies")
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, 2*len(fileIDs), len(currentFileIDs), "count of ids should be double from before")
+		for orig := range fileIDs {
+			_, ok := currentFileIDs[orig]
+			assert.True(t, ok, "original item should exist after copy")
+		}
 	})
 }
