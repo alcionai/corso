@@ -2,6 +2,7 @@ package graph
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"syscall"
@@ -80,7 +81,10 @@ func (mw *testMW) Intercept(
 		i = 0
 	}
 
-	// panic on out-of-bounds intentionally not protected
+	if i >= len(mw.toReturn) {
+		panic(clues.New("middleware test had more calls than responses"))
+	}
+
 	tr := mw.toReturn[i]
 
 	mw.iter++
@@ -89,7 +93,11 @@ func (mw *testMW) Intercept(
 }
 
 // can't use graph/mock.CreateAdapter() due to circular references.
-func mockAdapter(creds account.M365Config, mw khttp.Middleware) (*msgraphsdkgo.GraphRequestAdapter, error) {
+func mockAdapter(
+	creds account.M365Config,
+	mw khttp.Middleware,
+	timeout time.Duration,
+) (*msgraphsdkgo.GraphRequestAdapter, error) {
 	auth, err := GetAuth(
 		creds.AzureTenantID,
 		creds.AzureClientID,
@@ -105,7 +113,7 @@ func mockAdapter(creds account.M365Config, mw khttp.Middleware) (*msgraphsdkgo.G
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
-	httpClient.Timeout = 15 * time.Second
+	httpClient.Timeout = timeout
 
 	cc.apply(httpClient)
 
@@ -229,7 +237,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 				newMWReturns(test.status, nil, test.providedErr))
 			mw.repeatReturn0 = true
 
-			adpt, err := mockAdapter(suite.creds, mw)
+			adpt, err := mockAdapter(suite.creds, mw, 15*time.Second)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// url doesn't fit the builder, but that shouldn't matter
@@ -273,7 +281,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 		newMWReturns(http.StatusInternalServerError, nil, nil),
 		newMWReturns(http.StatusOK, nil, nil))
 
-	adpt, err := mockAdapter(suite.creds, mw)
+	adpt, err := mockAdapter(suite.creds, mw, 15*time.Second)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// no api package needed here, this is a mocked request that works
@@ -285,6 +293,45 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 		MailFolders().
 		Post(ctx, body, nil)
 	require.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAfter503() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	InitializeConcurrencyLimiter(ctx, false, -1)
+
+	odem := odErrMsg("SystemDown", "The System, Is Down, bah-dup-da-woo-woo!")
+	m := parseableToMap(t, odem)
+
+	body, err := json.Marshal(m)
+	require.NoError(t, err, clues.ToCore(err))
+
+	mw := newTestMW(
+		// intentional no-op, just need to conrol the response code
+		func(*http.Request) {},
+		newMWReturns(http.StatusServiceUnavailable, body, nil),
+		newMWReturns(http.StatusServiceUnavailable, body, nil),
+		newMWReturns(http.StatusServiceUnavailable, body, nil),
+		newMWReturns(http.StatusServiceUnavailable, body, nil))
+
+	adpt, err := mockAdapter(suite.creds, mw, 55*time.Second)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// no api package needed here,
+	// this is a mocked request that works
+	// independent of the query.
+	_, err = NewService(adpt).
+		Client().
+		Users().
+		ByUserId("user").
+		MailFolders().
+		Post(ctx, models.NewMailFolder(), nil)
+	require.Error(t, err, clues.ToCore(err))
+	require.NotContains(t, err.Error(), "content is empty", clues.ToCore(err))
+	require.Contains(t, err.Error(), "503", clues.ToCore(err))
 }
 
 type MiddlewareUnitSuite struct {

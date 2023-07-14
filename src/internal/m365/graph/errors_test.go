@@ -2,14 +2,18 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"syscall"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -42,6 +46,22 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	odErr.SetError(merr)
 
 	return odErr
+}
+
+func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
+	sw := kjson.NewJsonSerializationWriter()
+
+	err := sw.WriteObjectValue("", thing)
+	require.NoError(t, err, "serialize")
+
+	content, err := sw.GetSerializedContent()
+	require.NoError(t, err, "serialize")
+
+	var out map[string]any
+	err = json.Unmarshal([]byte(content), &out)
+	require.NoError(t, err, "unmarshall")
+
+	return out
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {

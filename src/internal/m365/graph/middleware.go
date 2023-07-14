@@ -206,18 +206,14 @@ func (mw RetryMiddleware) Intercept(
 	req *http.Request,
 ) (*http.Response, error) {
 	ctx := req.Context()
-
 	resp, err := pipeline.Next(req, middlewareIndex)
 
-	retriable := IsErrTimeout(err) || IsErrConnectionReset(err) ||
-		(resp != nil && (resp.StatusCode/100 == 4 || resp.StatusCode/100 == 5))
+	retriable := IsErrTimeout(err) ||
+		IsErrConnectionReset(err) ||
+		mw.isRetriableRespCode(ctx, resp)
 
 	if !retriable {
-		if err != nil {
-			return resp, stackReq(ctx, req, resp, err)
-		}
-
-		return resp, nil
+		return resp, stackReq(ctx, req, resp, err).OrNil()
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
@@ -234,11 +230,8 @@ func (mw RetryMiddleware) Intercept(
 		0,
 		exponentialBackOff,
 		err)
-	if err != nil {
-		return nil, stackReq(ctx, req, resp, err)
-	}
 
-	return resp, nil
+	return resp, stackReq(ctx, req, resp, err).OrNil()
 }
 
 func (mw RetryMiddleware) retryRequest(
@@ -252,78 +245,69 @@ func (mw RetryMiddleware) retryRequest(
 	exponentialBackoff *backoff.ExponentialBackOff,
 	priorErr error,
 ) (*http.Response, error) {
-	status := "unknown_resp_status"
-	statusCode := -1
+	ctx = clues.Add(ctx, "retry_count", executionCount)
 
 	if resp != nil {
-		status = resp.Status
-		statusCode = resp.StatusCode
+		ctx = clues.Add(ctx, "prev_resp_status", resp.Status)
 	}
 
-	ctx = clues.Add(
-		ctx,
-		"prev_resp_status", status,
-		"retry_count", executionCount)
-
-	// only retry under certain conditions:
-	// 1, there was an error.  2, the resp and/or status code match retriable conditions.
+	// only retry if all the following conditions are met:
+	// 1, there was a prior error.
+	// 2, the resp and/or status code match retriable conditions.
 	// 3, the request is retriable.
 	// 4, we haven't hit our max retries already.
-	if (priorErr != nil || mw.isRetriableRespCode(ctx, resp, statusCode)) &&
+	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp)) &&
 		mw.isRetriableRequest(req) &&
-		executionCount < mw.MaxRetries {
-		executionCount++
+		executionCount < mw.MaxRetries
 
-		delay := mw.getRetryDelay(req, resp, exponentialBackoff)
-		cumulativeDelay += delay
+	if !shouldRetry {
+		return resp, stackReq(ctx, req, resp, priorErr).OrNil()
+	}
 
-		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
+	executionCount++
 
-		timer := time.NewTimer(delay)
+	delay := mw.getRetryDelay(req, resp, exponentialBackoff)
+	cumulativeDelay += delay
 
-		select {
-		case <-ctx.Done():
-			// Don't retry if the context is marked as done, it will just error out
-			// when we attempt to send the retry anyway.
-			return resp, clues.Stack(ctx.Err()).WithClues(ctx)
+	req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
 
-		case <-timer.C:
-		}
+	timer := time.NewTimer(delay)
 
-		// we have to reset the original body reader for each retry, or else the graph
-		// compressor will produce a 0 length body following an error response such
-		// as a 500.
-		if req.Body != nil {
-			if s, ok := req.Body.(io.Seeker); ok {
-				_, err := s.Seek(0, io.SeekStart)
-				if err != nil {
-					return nil, Wrap(ctx, err, "resetting request body reader")
-				}
+	select {
+	case <-ctx.Done():
+		// Don't retry if the context is marked as done, it will just error out
+		// when we attempt to send the retry anyway.
+		return resp, clues.Stack(ctx.Err()).WithClues(ctx)
+
+	case <-timer.C:
+	}
+
+	// we have to reset the original body reader for each retry, or else the graph
+	// compressor will produce a 0 length body following an error response such
+	// as a 500.
+	if req.Body != nil {
+		if s, ok := req.Body.(io.Seeker); ok {
+			if _, err := s.Seek(0, io.SeekStart); err != nil {
+				return resp, Wrap(ctx, err, "resetting request body reader")
 			}
 		}
-
-		nextResp, err := pipeline.Next(req, middlewareIndex)
-		if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
-			return nextResp, stackReq(ctx, req, nextResp, err)
-		}
-
-		return mw.retryRequest(
-			ctx,
-			pipeline,
-			middlewareIndex,
-			req,
-			nextResp,
-			executionCount,
-			cumulativeDelay,
-			exponentialBackoff,
-			err)
 	}
 
-	if priorErr != nil {
-		return nil, stackReq(ctx, req, nil, priorErr)
+	nextResp, err := pipeline.Next(req, middlewareIndex)
+	if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
+		return nextResp, stackReq(ctx, req, nextResp, err)
 	}
 
-	return resp, nil
+	return mw.retryRequest(
+		ctx,
+		pipeline,
+		middlewareIndex,
+		req,
+		nextResp,
+		executionCount,
+		cumulativeDelay,
+		exponentialBackoff,
+		err)
 }
 
 var retryableRespCodes = []int{
@@ -331,14 +315,18 @@ var retryableRespCodes = []int{
 	http.StatusBadGateway,
 }
 
-func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response, code int) bool {
-	if slices.Contains(retryableRespCodes, code) {
+func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response) bool {
+	if resp == nil {
+		return false
+	}
+
+	if slices.Contains(retryableRespCodes, resp.StatusCode) {
 		return true
 	}
 
 	// prevent the body dump below in case of a 2xx response.
 	// There's no reason to check the body on a healthy status.
-	if code/100 != 4 && code/100 != 5 {
+	if resp.StatusCode/100 != 4 && resp.StatusCode/100 != 5 {
 		return false
 	}
 
