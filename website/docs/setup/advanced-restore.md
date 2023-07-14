@@ -5,9 +5,9 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import {Version} from '@site/src/corsoEnv';
 
-The basic restore command is a great and simple way to retrieve all of your data.
-But when more control of the results is needed, you can use the advanced
-configuration options.
+The basic restore command is an easy way to return all of your data.
+But when you need more control over the results you can use the advanced
+configuration options to change where and how the data gets restored
 
 ## Destination
 
