@@ -68,8 +68,8 @@ func (h libraryBackupHandler) NewDrivePager(
 func (h libraryBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
-) api.DriveItemEnumerator {
-	return h.ac.NewItemPager(driveID, link, fields)
+) api.DriveItemDeltaEnumerator {
+	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
 }
 
 func (h libraryBackupHandler) AugmentItemInfo(
@@ -173,11 +173,11 @@ func (h libraryRestoreHandler) AugmentItemInfo(
 	return augmentItemInfo(dii, item, size, parentPath)
 }
 
-func (h libraryRestoreHandler) NewItemContentUpload(
+func (h libraryRestoreHandler) DeleteItem(
 	ctx context.Context,
 	driveID, itemID string,
-) (models.UploadSessionable, error) {
-	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+) error {
+	return h.ac.DeleteItem(ctx, driveID, itemID)
 }
 
 func (h libraryRestoreHandler) DeleteItemPermission(
@@ -187,12 +187,39 @@ func (h libraryRestoreHandler) DeleteItemPermission(
 	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
 }
 
+func (h libraryRestoreHandler) GetItemsInContainerByCollisionKey(
+	ctx context.Context,
+	driveID, containerID string,
+) (map[string]api.DriveCollisionItem, error) {
+	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, driveID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func (h libraryRestoreHandler) NewItemContentUpload(
+	ctx context.Context,
+	driveID, itemID string,
+) (models.UploadSessionable, error) {
+	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+}
+
 func (h libraryRestoreHandler) PostItemPermissionUpdate(
 	ctx context.Context,
 	driveID, itemID string,
 	body *drives.ItemItemsItemInvitePostRequestBody,
 ) (drives.ItemItemsItemInviteResponseable, error) {
 	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
+}
+
+func (h libraryRestoreHandler) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	return h.ac.PostItemLinkShareUpdate(ctx, driveID, itemID, body)
 }
 
 func (h libraryRestoreHandler) PostItemInContainer(
@@ -282,6 +309,8 @@ func augmentItemInfo(
 		Size:       size,
 		WebURL:     weburl,
 	}
+
+	dii.Extension = &details.ExtensionData{}
 
 	return dii
 }

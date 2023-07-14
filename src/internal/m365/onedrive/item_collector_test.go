@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -292,16 +293,21 @@ func TestOneDriveSuite(t *testing.T) {
 	suite.Run(t, &OneDriveIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *OneDriveIntgSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.userID = tester.SecondaryM365UserID(t)
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-	acct := tester.NewM365Account(t)
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	suite.userID = tconfig.SecondaryM365UserID(t)
+
+	acct := tconfig.NewM365Account(t)
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -419,7 +425,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 }
 
 func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
-	creds, err := tester.NewM365Account(suite.T()).M365Config()
+	creds, err := tconfig.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {

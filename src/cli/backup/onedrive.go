@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -71,6 +72,10 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandCreateExamples
 
 		flags.AddUserFlag(c)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
+
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
 
@@ -79,6 +84,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -92,6 +100,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSkipReduceFlag(c)
 		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -102,6 +113,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandDeleteExamples
 
 		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -134,7 +148,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx)
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.OneDriveService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -220,7 +234,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -295,5 +309,5 @@ func oneDriveDeleteCmd() *cobra.Command {
 
 // deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, flags.BackupIDFV, "OneDrive", args)
+	return genericDeleteCommand(cmd, path.OneDriveService, flags.BackupIDFV, "OneDrive", args)
 }

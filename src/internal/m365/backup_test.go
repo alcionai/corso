@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -40,17 +41,17 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 	suite.Run(t, &DataCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *DataCollectionIntgSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.user = tester.M365UserID(t)
-	suite.site = tester.M365SiteID(t)
+	suite.user = tconfig.M365UserID(t)
+	suite.site = tconfig.M365SiteID(t)
 
-	acct := tester.NewM365Account(t)
+	acct := tconfig.NewM365Account(t)
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -66,7 +67,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 
 	selUsers := []string{suite.user}
 
-	ctrl := newController(ctx, suite.T(), resource.Users)
+	ctrl := newController(ctx, suite.T(), resource.Users, path.ExchangeService)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -75,7 +76,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			name: "Email",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
@@ -84,7 +85,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			name: "Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
@@ -167,7 +168,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 	defer flush()
 
 	owners := []string{"snuffleupagus"}
-	ctrl := newController(ctx, suite.T(), resource.Users)
+	ctrl := newController(ctx, suite.T(), resource.Users, path.ExchangeService)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -253,7 +254,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	defer flush()
 
 	selSites := []string{suite.site}
-	ctrl := newController(ctx, suite.T(), resource.Sites)
+	ctrl := newController(ctx, suite.T(), resource.Sites, path.SharePointService)
 	tests := []struct {
 		name        string
 		expected    int
@@ -339,7 +340,7 @@ func TestSPCollectionIntgSuite(t *testing.T) {
 	suite.Run(t, &SPCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
+			[][]string{tconfig.M365AcctCredEnvs},
 		),
 	})
 }
@@ -348,8 +349,8 @@ func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	suite.connector = newController(ctx, suite.T(), resource.Sites)
-	suite.user = tester.M365UserID(suite.T())
+	suite.connector = newController(ctx, suite.T(), resource.Sites, path.SharePointService)
+	suite.user = tconfig.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -361,8 +362,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	defer flush()
 
 	var (
-		siteID  = tester.M365SiteID(t)
-		ctrl    = newController(ctx, t, resource.Sites)
+		siteID  = tconfig.M365SiteID(t)
+		ctrl    = newController(ctx, t, resource.Sites, path.SharePointService)
 		siteIDs = []string{siteID}
 	)
 
@@ -408,8 +409,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	defer flush()
 
 	var (
-		siteID  = tester.M365SiteID(t)
-		ctrl    = newController(ctx, t, resource.Sites)
+		siteID  = tconfig.M365SiteID(t)
+		ctrl    = newController(ctx, t, resource.Sites, path.SharePointService)
 		siteIDs = []string{siteID}
 	)
 

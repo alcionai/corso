@@ -1,17 +1,12 @@
 package restore
 
 import (
-	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/control"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -34,7 +29,11 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddBackupIDFlag(c, true)
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 		flags.AddRestorePermissionsFlag(c)
+		flags.AddRestoreConfigFlags(c)
 		flags.AddFailFastFlag(c)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -79,6 +78,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.MakeOneDriveOpts(cmd)
+	opts.RestoreCfg.DTTMFormat = dttm.HumanReadableDriveItem
 
 	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
@@ -88,34 +88,14 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
-	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
-
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, flags.BackupIDFV, sel.Selector, restoreCfg)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
-	}
-
-	ds, err := ro.Run(ctx)
-	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
-		}
-
-		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
-	}
-
-	ds.Items().MaybePrintEntries(ctx)
-
-	return nil
+	return runRestore(
+		ctx,
+		cmd,
+		opts.RestoreCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"OneDrive")
 }

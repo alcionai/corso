@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -35,7 +36,7 @@ func TestURLCacheIntegrationSuite(t *testing.T) {
 	suite.Run(t, &URLCacheIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -45,9 +46,9 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.user = tester.SecondaryM365UserID(t)
+	suite.user = tconfig.SecondaryM365UserID(t)
 
-	acct := tester.NewM365Account(t)
+	acct := tconfig.NewM365Account(t)
 
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
@@ -69,7 +70,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		ac             = suite.ac.Drives()
 		driveID        = suite.driveID
 		newFolderName  = testdata.DefaultRestoreConfig("folder").Location
-		driveItemPager = suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault())
+		driveItemPager = suite.ac.Drives().NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault())
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -108,7 +109,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// Get the previous delta to feed into url cache
 	prevDelta, _, _, err := collectItems(
 		ctx,
-		suite.ac.Drives().NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+		suite.ac.Drives().NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault()),
 		suite.driveID,
 		"drive-name",
 		collectorFunc,
@@ -506,7 +507,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		name        string
 		driveID     string
 		refreshInt  time.Duration
-		itemPager   api.DriveItemEnumerator
+		itemPager   api.DriveItemDeltaEnumerator
 		errors      *fault.Bus
 		expectedErr require.ErrorAssertionFunc
 	}{

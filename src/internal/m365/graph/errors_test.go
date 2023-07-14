@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -72,6 +73,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrAuthenticationError() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "authenticationError oDataErr",
+			err:    odErr(string(AuthenticationError)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrAuthenticationError(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 	table := []struct {
 		name   string
@@ -100,7 +135,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(string(itemNotFound)),
+			err:    odErr(string(errorItemNotFound)),
 			expect: assert.True,
 		},
 		{
@@ -232,8 +267,47 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 			expect: assert.False,
 		},
 		{
+			name: "non-matching resource not found",
+			err: func() error {
+				res := odErr(string(ResourceNotFound))
+				res.GetError().SetMessage(ptr.To("Calendar not found"))
+
+				return res
+			}(),
+			expect: assert.False,
+		},
+		{
 			name:   "request resource not found oDataErr",
 			err:    odErr(string(RequestResourceNotFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "invalid user oDataErr",
+			err:    odErr(string(invalidUser)),
+			expect: assert.True,
+		},
+		{
+			name: "resource not found oDataErr",
+			err: func() error {
+				res := odErrMsg(string(ResourceNotFound), "User not found")
+				return res
+			}(),
+			expect: assert.True,
+		},
+		{
+			name: "resource not found oDataErr wrapped",
+			err: func() error {
+				res := odErrMsg(string(ResourceNotFound), "User not found")
+				return clues.Wrap(res, "getting mail folder")
+			}(),
+			expect: assert.True,
+		},
+		{
+			name: "resource not found oDataErr stacked",
+			err: func() error {
+				res := odErrMsg(string(ResourceNotFound), "User not found")
+				return clues.Stack(res, assert.AnError)
+			}(),
 			expect: assert.True,
 		},
 	}
@@ -310,22 +384,22 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 
 func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 	var (
-		i        = models.NewDriveItem()
-		cb       = models.NewUser()
-		cbID     = "created-by"
-		lm       = models.NewUser()
-		lmID     = "last-mod-by"
-		ref      = models.NewItemReference()
-		refCID   = "container-id"
-		refCN    = "container-name"
-		refCP    = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
-		refCPexp = "/Folder/container-name"
-		mal      = models.NewMalware()
-		malDesc  = "malware-description"
+		i         = models.NewDriveItem()
+		createdBy = models.NewUser()
+		cbID      = "created-by"
+		lm        = models.NewUser()
+		lmID      = "last-mod-by"
+		ref       = models.NewItemReference()
+		refCID    = "container-id"
+		refCN     = "container-name"
+		refCP     = "/drives/b!vF-sdsdsds-sdsdsa-sdsd/root:/Folder/container-name"
+		refCPexp  = "/Folder/container-name"
+		mal       = models.NewMalware()
+		malDesc   = "malware-description"
 	)
 
-	cb.SetId(&cbID)
-	i.SetCreatedByUser(cb)
+	createdBy.SetId(&cbID)
+	i.SetCreatedByUser(createdBy)
 
 	lm.SetId(&lmID)
 	i.SetLastModifiedByUser(lm)
@@ -458,17 +532,17 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 		{
 			name:   "mysite not found",
 			err:    odErrMsg("code", string(MysiteNotFound)),
-			expect: []string{},
+			expect: []string{LabelsMysiteNotFound},
 		},
 		{
 			name:   "mysite url not found",
 			err:    odErrMsg("code", string(MysiteURLNotFound)),
-			expect: []string{},
+			expect: []string{LabelsMysiteNotFound},
 		},
 		{
 			name:   "no sp license",
 			err:    odErrMsg("code", string(NoSPLicense)),
-			expect: []string{},
+			expect: []string{LabelsNoSharePointLicense},
 		},
 	}
 	for _, test := range table {
@@ -483,6 +557,50 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 			for _, e := range test.expect {
 				assert.True(t, clues.HasLabel(result, e), clues.ToCore(result))
 			}
+
+			labels := clues.Labels(result)
+			assert.Equal(t,
+				len(test.expect), len(labels),
+				"result should have as many labels as expected")
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "as",
+			err:    ErrInvalidDelta,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "item nott found oDataErr",
+			err:    odErr(string(itemNotFound)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrItemNotFound(test.err))
 		})
 	}
 }

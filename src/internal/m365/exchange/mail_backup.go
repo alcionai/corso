@@ -32,7 +32,7 @@ func (h mailBackupHandler) itemHandler() itemGetterSerializer {
 func (h mailBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {
-	return rootFolderAlias, &mailContainerCache{
+	return api.MsgFolderRoot, &mailContainerCache{
 		userID: userID,
 		enumer: h.ac,
 		getter: h.ac,

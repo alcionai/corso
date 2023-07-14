@@ -8,9 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Drive items backup and restore link shares
 
 ### Fixed
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+
+### Known issues
+- If a link share is created for an item with inheritance disabled
+  (via the Graph API), the link shares restored in that item will
+  not be inheritable by children
+- Link shares with password protection can't be restored
 
 ## [v0.10.0] (beta) - 2023-06-26
 
@@ -24,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle OLE conversion errors when trying to fetch attachments
 - Fix uploading large attachments for emails and calendar
 - Fixed high memory use in OneDrive backup related to logging
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
 
 ### Changed
 - Switched to Go 1.20
@@ -311,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.10.0...HEAD
+[v0.10.0]: https://github.com/alcionai/corso/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/alcionai/corso/compare/v0.8.1...v0.9.0
 [v0.8.0]: https://github.com/alcionai/corso/compare/v0.7.1...v0.8.0
 [v0.7.0]: https://github.com/alcionai/corso/compare/v0.6.1...v0.7.0

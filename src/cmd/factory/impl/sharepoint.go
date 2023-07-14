@@ -8,6 +8,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,7 +37,7 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Sites, Site)
+	ctrl, acct, inp, err := getControllerAndVerifyResourceOwner(ctx, resource.Sites, Site, path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -56,7 +57,8 @@ func handleSharePointLibraryFileFactory(cmd *cobra.Command, args []string) error
 		Tenant,
 		Destination,
 		Count,
-		errs)
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}

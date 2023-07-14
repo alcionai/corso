@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/discovery"
 	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
@@ -21,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -158,13 +158,21 @@ func (ctrl *Controller) IsBackupRunnable(
 	resourceOwner string,
 ) (bool, error) {
 	if service == path.SharePointService {
-		// No "enabled" check required for sharepoint
+		_, err := ctrl.AC.Sites().GetRoot(ctx)
+		if err != nil {
+			if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+				return false, clues.Stack(graph.ErrServiceNotEnabled, err)
+			}
+
+			return false, err
+		}
+
 		return true, nil
 	}
 
 	info, err := ctrl.AC.Users().GetInfo(ctx, resourceOwner)
 	if err != nil {
-		return false, err
+		return false, clues.Stack(err)
 	}
 
 	if !info.ServiceEnabled(service) {
@@ -195,9 +203,13 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	return nil
 }
 
+type getInfoer interface {
+	GetInfo(context.Context, string) (*api.UserInfo, error)
+}
+
 func checkServiceEnabled(
 	ctx context.Context,
-	gi discovery.GetInfoer,
+	gi getInfoer,
 	service path.ServiceType,
 	resource string,
 ) (bool, bool, error) {
@@ -208,7 +220,7 @@ func checkServiceEnabled(
 
 	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
-		return false, false, err
+		return false, false, clues.Stack(err)
 	}
 
 	if !info.ServiceEnabled(service) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -84,6 +85,9 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddMailBoxFlag(c)
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
@@ -96,6 +100,9 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
@@ -112,6 +119,9 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 		flags.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -122,6 +132,9 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = exchangeServiceCommandDeleteExamples
 
 		flags.AddBackupIDFlag(c, true)
+		flags.AddCorsoPassphaseFlags(c)
+		flags.AddAWSCredsFlags(c)
+		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -153,7 +166,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx)
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.ExchangeService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -262,7 +275,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx)
+	r, _, _, err := utils.GetAccountAndConnect(ctx, path.ExchangeService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -340,5 +353,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, flags.BackupIDFV, "Exchange", args)
+	return genericDeleteCommand(cmd, path.ExchangeService, flags.BackupIDFV, "Exchange", args)
 }

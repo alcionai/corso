@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -47,18 +48,20 @@ func (h contactRestoreHandler) formatRestoreDestination(
 
 func (h contactRestoreHandler) CreateContainer(
 	ctx context.Context,
-	userID, containerName, _ string, // parent container not used
+	userID, _, containerName string, // parent container not used
 ) (graph.Container, error) {
-	return h.ac.CreateContainer(ctx, userID, containerName, "")
+	return h.ac.CreateContainer(ctx, userID, "", containerName)
 }
 
-func (h contactRestoreHandler) containerSearcher() containerByNamer {
-	return nil
+func (h contactRestoreHandler) GetContainerByName(
+	ctx context.Context,
+	userID, _, containerName string, // parent container not used
+) (graph.Container, error) {
+	return h.ac.GetContainerByName(ctx, userID, "", containerName)
 }
 
-// always returns the provided value
-func (h contactRestoreHandler) orRootContainer(c string) string {
-	return c
+func (h contactRestoreHandler) defaultRootContainer() string {
+	return api.DefaultContacts
 }
 
 func (h contactRestoreHandler) restore(
@@ -68,6 +71,7 @@ func (h contactRestoreHandler) restore(
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
 	return restoreContact(
 		ctx,
@@ -76,40 +80,75 @@ func (h contactRestoreHandler) restore(
 		userID, destinationID,
 		collisionKeyToItemID,
 		collisionPolicy,
-		errs)
+		errs,
+		ctr)
+}
+
+type contactRestorer interface {
+	postItemer[models.Contactable]
+	deleteItemer
 }
 
 func restoreContact(
 	ctx context.Context,
-	pi postItemer[models.Contactable],
+	cr contactRestorer,
 	body []byte,
 	userID, destinationID string,
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	errs *fault.Bus,
+	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
+	// contacts has a weird relationship with its default
+	// folder, which is that the folder is treated as invisible
+	// in many cases.  If we're restoring to a blank location,
+	// we can interpret that as the root.
+	if len(destinationID) == 0 {
+		destinationID = api.DefaultContacts
+	}
+
 	contact, err := api.BytesToContactable(body)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
-	collisionKey := api.ContactCollisionKey(contact)
 
-	if _, ok := collisionKeyToItemID[collisionKey]; ok {
+	var (
+		collisionKey         = api.ContactCollisionKey(contact)
+		collisionID          string
+		shouldDeleteOriginal bool
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
 		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
 		log.Debug("item collision")
 
-		// TODO(rkeepers): Replace probably shouldn't no-op.  Just a starting point.
-		if collisionPolicy == control.Skip || collisionPolicy == control.Replace {
+		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
+
 			return nil, graph.ErrItemAlreadyExistsConflict
 		}
+
+		collisionID = id
+		shouldDeleteOriginal = collisionPolicy == control.Replace
 	}
 
-	item, err := pi.PostItem(ctx, userID, destinationID, contact)
+	item, err := cr.PostItem(ctx, userID, destinationID, contact)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring mail message")
+		return nil, graph.Wrap(ctx, err, "restoring contact")
+	}
+
+	// contacts have no PUT request, and PATCH could retain data that's not
+	// associated with the backup item state.  Instead of updating, we
+	// post first, then delete.  In case of failure between the two calls,
+	// at least we'll have accidentally over-produced data instead of deleting
+	// the user's data.
+	if shouldDeleteOriginal {
+		if err := cr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
+			return nil, graph.Wrap(ctx, err, "deleting colliding contact")
+		}
 	}
 
 	info := api.ContactInfo(item)

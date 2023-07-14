@@ -67,6 +67,19 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
 				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
 				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+
+				"--" + flags.CollisionsFN, testdata.Collisions,
+				"--" + flags.DestinationFN, testdata.Destination,
+
+				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -83,6 +96,19 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
 			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
+
+			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
+			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
+
+			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 		})
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -26,7 +27,7 @@ func ControllerWithSelector(
 	ins idname.Cacher,
 	onFail func(),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr)
+	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()

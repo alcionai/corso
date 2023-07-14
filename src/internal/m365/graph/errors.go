@@ -26,31 +26,37 @@ import (
 type errorCode string
 
 const (
-	activityLimitReached        errorCode = "activityLimitReached"
-	emailFolderNotFound         errorCode = "ErrorSyncFolderNotFound"
-	errorAccessDenied           errorCode = "ErrorAccessDenied"
-	itemNotFound                errorCode = "ErrorItemNotFound"
-	itemNotFoundShort           errorCode = "itemNotFound"
-	mailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
+	// this auth error is a catch-all used by graph in a variety of cases:
+	// users without licenses, bad jwts, missing account permissions, etc.
+	AuthenticationError errorCode = "AuthenticationError"
+	// cannotOpenFileAttachment happen when an attachment is
+	// inaccessible. The error message is usually "OLE conversion
+	// failed for an attachment."
+	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
+	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
+	errorAccessDenied        errorCode = "ErrorAccessDenied"
+	errorItemNotFound        errorCode = "ErrorItemNotFound"
+	// This error occurs when an attempt is made to create a folder that has
+	// the same name as another folder in the same parent. Such duplicate folder
+	// names are not allowed by graph.
+	folderExists errorCode = "ErrorFolderExists"
+	// Some datacenters are returning this when we try to get the inbox of a user
+	// that doesn't exist.
+	invalidUser                 errorCode = "ErrorInvalidUser"
+	itemNotFound                errorCode = "itemNotFound"
+	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
 	// nameAlreadyExists occurs when a request with
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
 	quotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
-	resourceNotFound        errorCode = "ResourceNotFound"
-	resyncRequired          errorCode = "ResyncRequired" // alt: resyncRequired
-	syncFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
-	syncStateInvalid        errorCode = "SyncStateInvalid"
-	syncStateNotFound       errorCode = "SyncStateNotFound"
-	// This error occurs when an attempt is made to create a folder that has
-	// the same name as another folder in the same parent. Such duplicate folder
-	// names are not allowed by graph.
-	folderExists errorCode = "ErrorFolderExists"
-	// cannotOpenFileAttachment happen when an attachment is
-	// inaccessible. The error message is usually "OLE conversion
-	// failed for an attachment."
-	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
+	// Returned when we try to get the inbox of a user that doesn't exist.
+	ResourceNotFound   errorCode = "ResourceNotFound"
+	resyncRequired     errorCode = "ResyncRequired"
+	syncFolderNotFound errorCode = "ErrorSyncFolderNotFound"
+	syncStateInvalid   errorCode = "SyncStateInvalid"
+	syncStateNotFound  errorCode = "SyncStateNotFound"
 )
 
 type errorMessage string
@@ -100,6 +106,10 @@ var (
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
 
+func IsErrAuthenticationError(err error) bool {
+	return hasErrorCode(err, AuthenticationError)
+}
+
 func IsErrDeletedInFlight(err error) bool {
 	if errors.Is(err, ErrDeletedInFlight) {
 		return true
@@ -107,14 +117,18 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if hasErrorCode(
 		err,
+		errorItemNotFound,
 		itemNotFound,
-		itemNotFoundShort,
 		syncFolderNotFound,
 	) {
 		return true
 	}
 
 	return false
+}
+
+func IsErrItemNotFound(err error) bool {
+	return hasErrorCode(err, itemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -127,15 +141,28 @@ func IsErrQuotaExceeded(err error) bool {
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	return hasErrorCode(err, resourceNotFound, mailboxNotEnabledForRESTAPI)
+	// Not sure if we can actually see a resourceNotFound error here. I've only
+	// seen the latter two.
+	return hasErrorCode(err, ResourceNotFound, errorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
-	return hasErrorCode(err, RequestResourceNotFound)
-}
+	if hasErrorCode(err, RequestResourceNotFound, invalidUser) {
+		return true
+	}
 
-func IsErrResourceNotFound(err error) bool {
-	return hasErrorCode(err, resourceNotFound)
+	if hasErrorCode(err, ResourceNotFound) {
+		var odErr odataerrors.ODataErrorable
+		if !errors.As(err, &odErr) {
+			return false
+		}
+
+		mainMsg, _, _ := errData(odErr)
+
+		return strings.Contains(strings.ToLower(mainMsg), "user")
+	}
+
+	return false
 }
 
 func IsErrCannotOpenFileAttachment(err error) bool {
@@ -208,7 +235,7 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 		return false
 	}
 
-	var oDataError *odataerrors.ODataError
+	var oDataError odataerrors.ODataErrorable
 	if !errors.As(err, &oDataError) {
 		return false
 	}
@@ -233,12 +260,12 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(e, &oDataError) {
 		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))
@@ -254,12 +281,12 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return nil
 	}
 
-	odErr, ok := e.(odataerrors.ODataErrorable)
-	if !ok {
+	var oDataError *odataerrors.ODataError
+	if !errors.As(e, &oDataError) {
 		return clues.Stack(e).WithClues(ctx)
 	}
 
-	mainMsg, data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(oDataError)
 
 	if len(mainMsg) > 0 {
 		e = clues.Stack(e, clues.New(mainMsg))

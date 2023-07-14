@@ -13,25 +13,39 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var _ postItemer[models.Contactable] = &mockContactRestorer{}
+var _ contactRestorer = &contactRestoreMock{}
 
-type mockContactRestorer struct {
-	postItemErr error
+type contactRestoreMock struct {
+	postItemErr   error
+	calledPost    bool
+	deleteItemErr error
+	calledDelete  bool
 }
 
-func (m mockContactRestorer) PostItem(
-	ctx context.Context,
-	userID, containerID string,
-	body models.Contactable,
+func (m *contactRestoreMock) PostItem(
+	_ context.Context,
+	_, _ string,
+	_ models.Contactable,
 ) (models.Contactable, error) {
+	m.calledPost = true
 	return models.NewContact(), m.postItemErr
+}
+
+func (m *contactRestoreMock) DeleteItem(
+	_ context.Context,
+	_, _ string,
+) error {
+	m.calledDelete = true
+	return m.deleteItemErr
 }
 
 // ---------------------------------------------------------------------------
@@ -47,7 +61,7 @@ func TestContactsRestoreIntgSuite(t *testing.T) {
 	suite.Run(t, &ContactsRestoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -78,63 +92,101 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 
 	table := []struct {
 		name         string
-		apiMock      postItemer[models.Contactable]
+		apiMock      *contactRestoreMock
 		collisionMap map[string]string
 		onCollision  control.CollisionPolicy
 		expectErr    func(*testing.T, error)
+		expectMock   func(*testing.T, *contactRestoreMock)
 	}{
 		{
 			name:         "no collision: skip",
-			apiMock:      mockContactRestorer{},
+			apiMock:      &contactRestoreMock{},
 			collisionMap: map[string]string{},
 			onCollision:  control.Copy,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
 			},
 		},
 		{
 			name:         "no collision: copy",
-			apiMock:      mockContactRestorer{},
+			apiMock:      &contactRestoreMock{},
 			collisionMap: map[string]string{},
 			onCollision:  control.Skip,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "no collision: replace",
-			apiMock:      mockContactRestorer{},
+			apiMock:      &contactRestoreMock{},
 			collisionMap: map[string]string{},
 			onCollision:  control.Replace,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "collision: skip",
-			apiMock:      mockContactRestorer{},
+			apiMock:      &contactRestoreMock{},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Skip,
 			expectErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.False(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "collision: copy",
-			apiMock:      mockContactRestorer{},
+			apiMock:      &contactRestoreMock{},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Copy,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.False(t, m.calledDelete, "old item deleted")
+			},
 		},
 		{
 			name:         "collision: replace",
-			apiMock:      mockContactRestorer{},
+			apiMock:      &contactRestoreMock{},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Replace,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.True(t, m.calledDelete, "old item deleted")
+			},
+		},
+		{
+			name:         "collision: replace - err already deleted",
+			apiMock:      &contactRestoreMock{deleteItemErr: graph.ErrDeletedInFlight},
+			collisionMap: map[string]string{collisionKey: "smarf"},
+			onCollision:  control.Replace,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectMock: func(t *testing.T, m *contactRestoreMock) {
+				assert.True(t, m.calledPost, "new item posted")
+				assert.True(t, m.calledDelete, "old item deleted")
 			},
 		},
 	}
@@ -153,9 +205,11 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				"destination",
 				test.collisionMap,
 				test.onCollision,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 
 			test.expectErr(t, err)
+			test.expectMock(t, test.apiMock)
 		})
 	}
 }

@@ -199,14 +199,17 @@ func ProduceBackupCollections(
 
 	// Turn on concurrency limiter middleware for exchange backups
 	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
-	if !ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter {
-		graph.InitializeConcurrencyLimiter(ctrlOpts.Parallelism.ItemFetch)
-	}
+	graph.InitializeConcurrencyLimiter(
+		ctx,
+		ctrlOpts.ToggleFeatures.DisableConcurrencyLimiter,
+		ctrlOpts.Parallelism.ItemFetch)
 
 	cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, metadata)
 	if err != nil {
 		return nil, nil, false, err
 	}
+
+	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
 	for _, scope := range eb.Scopes() {
 		if el.Failure() != nil {
@@ -563,8 +566,8 @@ func includeContainer(
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
-	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == DefaultContactFolder {
-		loc = loc.Append(DefaultContactFolder)
+	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == api.DefaultContacts {
+		loc = loc.Append(api.DefaultContacts)
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(

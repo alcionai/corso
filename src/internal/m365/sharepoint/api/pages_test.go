@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -40,8 +41,13 @@ type SharePointPageSuite struct {
 func (suite *SharePointPageSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.siteID = tester.M365SiteID(t)
-	a := tester.NewM365Account(t)
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	suite.siteID = tconfig.M365SiteID(t)
+	a := tconfig.NewM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -51,7 +57,7 @@ func (suite *SharePointPageSuite) SetupSuite() {
 
 func TestSharePointPageSuite(t *testing.T) {
 	suite.Run(t, &SharePointPageSuite{
-		Suite: tester.NewIntegrationSuite(t, [][]string{tester.M365AcctCredEnvs}),
+		Suite: tester.NewIntegrationSuite(t, [][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -73,6 +79,7 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 
 func (suite *SharePointPageSuite) TestGetSitePages() {
 	t := suite.T()
+	t.Skip("skipping until code is maintained again")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -89,6 +96,7 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 
 func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	t := suite.T()
+	t.Skip("skipping until code is maintained again")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()

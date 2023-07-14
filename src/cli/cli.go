@@ -65,17 +65,13 @@ func preRun(cc *cobra.Command, args []string) error {
 		"Initialize a S3 repository",
 		"Help about any command",
 		"Free, Secure, Open-Source Backup for M365.",
+		"env var guide",
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := map[string]string{}
-		if cc.Short == "Connect to a S3 repository" {
-			// Get s3 overrides for connect. Ideally we also need this
-			// for init, but we don't reach this block for init.
-			overrides = repo.S3Overrides()
-		}
+		overrides := repo.S3Overrides(cc)
 
-		cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
+		cfg, err := config.GetConfigRepoDetails(ctx, true, false, overrides)
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)
 			return err
