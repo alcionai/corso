@@ -329,18 +329,20 @@ func CheckBackupDetails(
 		}
 
 		// Compare folders.
+		// Have result first since it may be a Subset call.
 		check(
 			t,
-			maps.Keys(expect.Sets[set].Locations),
 			maps.Keys(result.Sets[set].Locations),
+			maps.Keys(expect.Sets[set].Locations),
 			"results in %s missing expected location", set)
 
 		// Compare items in folders.
 		for lr, items := range expect.Sets[set].Locations {
+			// Have result first since it may be a Subset call.
 			check(
 				t,
-				maps.Keys(items),
 				maps.Keys(result.Sets[set].Locations[lr]),
+				maps.Keys(items),
 				"results in set %s location %s missing expected item",
 				set,
 				lr)
