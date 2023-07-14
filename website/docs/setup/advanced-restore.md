@@ -6,7 +6,7 @@ import TabItem from '@theme/TabItem';
 import {Version} from '@site/src/corsoEnv';
 
 The default restore command is an great way to restore data in a non-destructive
-manner to a new folder.  When you need more control over the results you can
+manner to a new folder. When you need more control over the results you can
 use the advanced configuration options to change where and how your data
 gets restored.
 
