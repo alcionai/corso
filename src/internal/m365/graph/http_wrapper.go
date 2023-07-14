@@ -4,11 +4,15 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"regexp"
+	"time"
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -70,6 +74,8 @@ func NewNoTimeoutHTTPWrapper(opts ...Option) *httpWrapper {
 // requests
 // ---------------------------------------------------------------------------
 
+var streamErrRE = regexp.MustCompile(`stream error: stream ID \d+; .+; received from peer`)
+
 // Request does the provided request.
 func (hw httpWrapper) Request(
 	ctx context.Context,
@@ -91,7 +97,35 @@ func (hw httpWrapper) Request(
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
-	resp, err := hw.client.Do(req)
+	var resp *http.Response
+
+	i := 0
+
+	// stream errors from http/2 will fail before we reach
+	// client middleware handling, therefore we don't get to
+	// make use of the retry middleware.  This external
+	// retry wrapper is unsophisticated, but should only
+	// retry in the event of a `stream error`, which is not
+	// a common expectation.
+	for i < 3 {
+		ictx := clues.Add(ctx, "request_retry_iter", i)
+
+		resp, err = hw.client.Do(req)
+		if err != nil && !streamErrRE.MatchString(err.Error()) {
+			return nil, Stack(ictx, err)
+		}
+
+		if err == nil {
+			break
+		}
+
+		logger.Ctx(ictx).Debug("retrying after stream error")
+		events.Inc(events.APICall, "streamerror")
+
+		time.Sleep(3 * time.Second)
+		i++
+	}
+
 	if err != nil {
 		return nil, Stack(ctx, err)
 	}

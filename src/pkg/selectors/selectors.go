@@ -34,7 +34,7 @@ var serviceToPathType = map[service]path.ServiceType{
 
 var (
 	ErrorBadSelectorCast     = clues.New("wrong selector service type")
-	ErrorNoMatchingItems     = clues.New("no items match the specified selectors")
+	ErrorNoMatchingItems     = clues.New("no items match the provided selectors")
 	ErrorUnrecognizedService = clues.New("unrecognized service")
 )
 
