@@ -12,7 +12,7 @@ Below is a list of known Corso issues and limitations:
 
 * Folders and Calendars containing zero items or subfolders aren't included in the backup.
 
-* Provides no guarantees the inclusion of data that is moved, added, or deleted
+* Provides no guarantees the inclusion of data that's moved, added, or deleted
   from M365 while a backup creation is running.
   The next backup creation will correct any missing data.
 

@@ -284,7 +284,7 @@ A confirmation of the recovered email will be shown and the email will appear in
 ## Advanced Restores
 
 You can control where your data gets restored, and what happens if restored items would overwrite existing
-ones. Let's restore a folder in OneDrive back to its original location.  Since the folder already exists, we can
+ones. Let's restore a folder in OneDrive back to its original location. Since the folder already exists, we can
 tell corso to with duplicate names as copies.
 
 <Tabs groupId="os">
