@@ -1129,10 +1129,9 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		currentContactIDs, err := acCont.GetItemIDsInContainer(ctx, userID, cIDs[path.ContactsCategory])
 		require.NoError(t, err, clues.ToCore(err))
 
-		assert.Equal(t, len(contactIDs), len(currentContactIDs), "count of ids ids are equal")
+		assert.Equal(t, len(contactIDs), len(currentContactIDs), "count of ids are equal")
 		for orig := range contactIDs {
-			_, ok := currentContactIDs[orig]
-			assert.False(t, ok, "original item should not exist after replacement")
+			assert.NotContains(t, currentContactIDs, orig, "original item should not exist after replacement")
 		}
 
 		contactIDs = currentContactIDs
@@ -1160,8 +1159,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 		assert.Equal(t, len(mailIDs), len(currentMailIDs), "count of ids are equal")
 		for orig := range mailIDs {
-			_, ok := currentMailIDs[orig]
-			assert.False(t, ok, "original item should not exist after replacement")
+			assert.NotContains(t, currentMailIDs, orig, "original item should not exist after replacement")
 		}
 
 		mailIDs = currentMailIDs
@@ -1222,10 +1220,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, 2*len(contactIDs), len(currentContactIDs), "count of ids should be double from before")
-		for orig := range contactIDs {
-			_, ok := currentContactIDs[orig]
-			assert.True(t, ok, "original item should exist after copy")
-		}
+		assert.Subset(t, maps.Keys(currentContactIDs), maps.Keys(contactIDs), "original item should exist after copy")
 
 		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
 		// maps.Copy(result, m)
@@ -1243,10 +1238,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, 2*len(mailIDs), len(currentMailIDs), "count of ids should be double from before")
-		for orig := range mailIDs {
-			_, ok := currentMailIDs[orig]
-			assert.True(t, ok, "original item should exist after copy")
-		}
+		assert.Subset(t, maps.Keys(mailIDs), maps.Keys(currentMailIDs), "original item should exist after copy")
 
 		// TODO: we have the option of modifying copy creations in exchange
 		// so that the results don't collide.  But we haven't made that

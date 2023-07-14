@@ -1106,8 +1106,7 @@ func runDriveRestoreWithAdvancedOptions(
 
 		assert.Equal(t, len(fileIDs), len(currentFileIDs), "count of ids ids are equal")
 		for orig := range fileIDs {
-			_, ok := currentFileIDs[orig]
-			assert.False(t, ok, "original item should not exist after replacement")
+			assert.NotContains(t, currentFileIDs, orig, "original item should not exist after replacement")
 		}
 
 		fileIDs = currentFileIDs
@@ -1167,9 +1166,6 @@ func runDriveRestoreWithAdvancedOptions(
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, 2*len(fileIDs), len(currentFileIDs), "count of ids should be double from before")
-		for orig := range fileIDs {
-			_, ok := currentFileIDs[orig]
-			assert.True(t, ok, "original item should exist after copy")
-		}
+		assert.Subset(t, maps.Keys(currentFileIDs), maps.Keys(fileIDs), "original item should exist after copy")
 	})
 }
