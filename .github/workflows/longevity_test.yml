@@ -196,7 +196,7 @@ jobs:
         id: delete-exchange-test
         env:
           SERVICE: "exchange"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup Exchange test\n" >> ${CORSO_LOG_FILE}
@@ -210,7 +210,7 @@ jobs:
         id: delete-onedrive-test
         env:
           SERVICE: "onedrive"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup Onedrive test\n" >> ${CORSO_LOG_FILE}
@@ -224,7 +224,7 @@ jobs:
         id: delete-sharepoint-test
         env:
           SERVICE: "sharepoint"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup Sharepoint test\n" >> ${CORSO_LOG_FILE}
@@ -280,33 +280,33 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # - name: SHA info
-      #   id: sha-info
-      #   if: failure()
-      #   run: |
-      #     echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
-      #     echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-      #     echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
-      #     echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+      - name: SHA info
+        id: sha-info
+        if: failure()
+        run: |
+          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
 
-      # - name: Send Github Action failure to Slack
-      #   id: slack-notification
-      #   if: failure()
-      #   uses: slackapi/slack-github-action@v1.24.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "text": "Longevity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
-      #         "blocks": [
-      #           {
-      #             "type": "section",
-      #             "text": {
-      #               "type": "mrkdwn",
-      #               "text": "[FAILED] Longevity Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-      #             }
-      #           }
-      #         ]
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      - name: Send Github Action failure to Slack
+        id: slack-notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Longevity test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "[FAILED] Longevity Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
