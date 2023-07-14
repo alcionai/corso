@@ -194,13 +194,13 @@ func getDriveItemContent(
 
 	resp, err := gr.Request(ctx, http.MethodGet, *url, nil, nil)
 	if err != nil {
-		return nil, clues.New("downloading item").With("error", err)
+		return nil, clues.New("requesting item content").With("error", err)
 	}
 	defer resp.Body.Close()
 
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, clues.New("read downloaded item").With("error", err)
+		return nil, clues.New("reading item content").With("error", err)
 	}
 
 	return content, nil
