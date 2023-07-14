@@ -7,8 +7,11 @@ import (
 	"testing"
 
 	"github.com/alcionai/corso/src/internal/data"
+	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/stretchr/testify/assert"
@@ -113,7 +116,7 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 		{
 			tname:   "name in metadata",
 			id:      "name.data",
-			version: 5,
+			version: version.Backup,
 			name:    "name",
 			fin:     finD{id: "name.data", name: "name"},
 			errFunc: assert.NoError,
@@ -121,7 +124,7 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 		{
 			tname:   "name in metadata but error",
 			id:      "name.data",
-			version: 5,
+			version: version.Backup,
 			name:    "",
 			fin:     finD{err: assert.AnError},
 			errFunc: assert.Error,
@@ -176,7 +179,7 @@ type mockDataStream struct {
 }
 
 func (ms mockDataStream) ToReader() io.ReadCloser {
-	if ms.data == "" {
+	if ms.data != "" {
 		return io.NopCloser(bytes.NewBufferString(ms.data))
 	}
 
@@ -268,7 +271,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		},
 		{
 			name:    "single item name from metadata",
-			version: 5,
+			version: version.Backup,
 			backingCollections: []data.RestoreCollection{
 				data.FetchRestoreCollection{
 					Collection: mockRestoreCollection{
@@ -291,7 +294,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		},
 		{
 			name:    "single item name from metadata with error",
-			version: 5,
+			version: version.Backup,
 			backingCollections: []data.RestoreCollection{
 				data.FetchRestoreCollection{
 					Collection: mockRestoreCollection{
@@ -344,4 +347,53 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			}
 		})
 	}
+}
+
+func (suite *ExportUnitSuite) TestExportRestoreCollections() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	dpb := odConsts.DriveFolderPrefixBuilder("driveID1")
+
+	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+	assert.NoError(t, err, "build path")
+
+	dcs := []data.RestoreCollection{
+		data.FetchRestoreCollection{
+			Collection: mockRestoreCollection{
+				path: p,
+				items: []data.Stream{
+					mockDataStream{id: "id1.data", data: "body1"},
+				},
+			},
+			FetchItemByNamer: finD{id: "id1.data", name: "name1"},
+		},
+	}
+
+	expectedItems := []data.ExportItem{
+		{
+			ID: "id1.data",
+			Data: data.ExportItemData{
+				Name: "name1",
+				Body: io.NopCloser((bytes.NewBufferString("body1"))),
+			},
+		},
+	}
+
+	exportCfg := control.ExportConfig{}
+	ecs, err := ExportRestoreCollections(ctx, int(version.Backup), exportCfg, control.Options{}, dcs, nil, fault.New(true))
+	assert.NoError(t, err, "export collections error")
+
+	assert.Len(t, ecs, 1, "num of collections")
+
+	items := ecs[0].GetItems(ctx)
+
+	fitems := []data.ExportItem{}
+	for item := range items {
+		fitems = append(fitems, item)
+	}
+
+	assert.Equal(t, expectedItems, fitems, "items")
 }
