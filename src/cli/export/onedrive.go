@@ -142,8 +142,24 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 	// It would be better to give a progressbar than a spinner, but we
 	// have know way of knowing how many files are available as of now.
 	diskWriteComplete := observe.MessageWithCompletion(ctx, "Writing data to disk")
-	defer close(diskWriteComplete)
+	defer func() {
+		diskWriteComplete <- struct{}{}
+		close(diskWriteComplete)
+	}()
 
+	err = writeExportCollections(ctx, exportLocation, expColl)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func writeExportCollections(
+	ctx context.Context,
+	exportLocation string,
+	expColl []data.ExportCollection,
+) error {
 	for _, col := range expColl {
 		folder := ospath.Join(exportLocation, col.GetBasePath())
 
@@ -153,22 +169,18 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 				return Only(ctx, clues.Wrap(err, "getting item").With("dir_name", folder))
 			}
 
-			// In case the user tries to restore to a non-clean
-			// directory, we might run into collisions an fail.
-			err = writeFile(ctx, item, folder)
+			err = writeExportItem(ctx, item, folder)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	diskWriteComplete <- struct{}{}
-
 	return nil
 }
 
-// writeFile writes an ExportItem to disk in the specified folder.
-func writeFile(ctx context.Context, item data.ExportItem, folder string) error {
+// writeExportItem writes an ExportItem to disk in the specified folder.
+func writeExportItem(ctx context.Context, item data.ExportItem, folder string) error {
 	name := item.Data.Name
 	fpath := ospath.Join(folder, name)
 
@@ -186,6 +198,8 @@ func writeFile(ctx context.Context, item data.ExportItem, folder string) error {
 		return Only(ctx, clues.Wrap(err, "creating directory").With("dir_name", folder))
 	}
 
+	// In case the user tries to restore to a non-clean
+	// directory, we might run into collisions an fail.
 	f, err := os.Create(fpath)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "creating file").With("file_name", name, "file_dir", folder))

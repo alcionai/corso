@@ -6,6 +6,9 @@ import (
 	"io"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/alcionai/corso/src/internal/data"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
@@ -14,8 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 )
 
 type ExportUnitSuite struct {
@@ -161,6 +162,7 @@ func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-ch
 
 	go func() {
 		defer close(ch)
+
 		for _, item := range rc.items {
 			ch <- item
 		}
