@@ -316,7 +316,9 @@ tell corso to with duplicate names as copies.
   `# Restore a folder to its original location
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  restore exchange --backup <id of your selected backup> --email <email message ID> --folder '/presentations/company_culture' --destination '/' --collisions copy`
+  restore exchange --backup <id of your selected backup> \\
+  --email <email message ID> --folder '/presentations/company_culture' \\
+  --destination '/' --collisions copy`
 }</CodeBlock>
 
 </TabItem>

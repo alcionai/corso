@@ -15,7 +15,6 @@ gets restored.
 The `--destination` flag lets you select the top-level folder where Corso will
 write all of the restored data.
 
-
 ### The default destination
 
 <CodeBlock language="bash">{
@@ -109,4 +108,3 @@ the copy of`reports.txt` is named `reports 1.txt`.
 Collisions will entirely replace the current version of the item with the backup
 version. If multiple existing items collide with the backup item, only one of the
 existing items is replaced.
-
