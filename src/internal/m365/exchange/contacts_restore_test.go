@@ -201,7 +201,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 				assert.True(t, m.calledPost, "new item posted")
 				assert.True(t, m.calledDelete, "old item deleted")
 			},
-			expectCounts: counts{0, 0, 0},
+			expectCounts: counts{0, 1, 0},
 		},
 	}
 	for _, test := range table {
