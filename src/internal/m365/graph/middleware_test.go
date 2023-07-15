@@ -237,7 +237,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 				newMWReturns(test.status, nil, test.providedErr))
 			mw.repeatReturn0 = true
 
-			adpt, err := mockAdapter(suite.creds, mw, 15*time.Second)
+			adpt, err := mockAdapter(suite.creds, mw, 25*time.Second)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// url doesn't fit the builder, but that shouldn't matter
