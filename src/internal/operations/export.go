@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -58,7 +59,7 @@ func NewExportOperation(
 	bus events.Eventer,
 ) (ExportOperation, error) {
 	op := ExportOperation{
-		operation: newOperation(opts, bus, kw, sw),
+		operation: newOperation(opts, bus, count.New(), kw, sw),
 		acct:      acct,
 		BackupID:  backupID,
 		ExportCfg: exportCfg,
