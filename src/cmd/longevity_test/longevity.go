@@ -7,20 +7,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/spf13/cobra"
 )
 
 func main() {
-	var (
-		service path.ServiceType
-		cc      cobra.Command
-	)
+	var service path.ServiceType
+	cc := cobra.Command{}
 
 	cc.SetContext(context.Background())
 
@@ -58,13 +55,13 @@ func main() {
 
 	for _, backup := range backups {
 		if backup.StartAndEndTime.CompletedAt.Before(time.Now().AddDate(0, 0, -days)) {
-			err := r.DeleteBackup(cc.Context(), backup.ID.String())
-			if err != nil {
+			if err := r.DeleteBackup(cc.Context(), backup.ID.String()); err != nil {
 				fatal(cc.Context(), "deleting backup", err)
 			}
 
 			logAndPrint(cc.Context(), "Deleted backup %s", backup.ID.String())
 		}
+
 	}
 }
 
