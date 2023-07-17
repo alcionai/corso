@@ -111,6 +111,7 @@ To create the environment variables file, you can run the following command:
 
 By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
+
 The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
 
   ```bash
