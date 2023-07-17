@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -82,4 +83,51 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 		_, ok := results[e]
 		assert.Truef(t, ok, "expected results to contain collision key: %s", e)
 	}
+}
+
+func (suite *MailPagerIntgSuite) TestMail_GetItemsIDsInContainer() {
+	t := suite.T()
+	ac := suite.its.ac.Mail()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+			Top: ptr.To[int32](1000),
+		},
+	}
+
+	msgs, err := ac.Stable.
+		Client().
+		Users().
+		ByUserId(suite.its.userID).
+		MailFolders().
+		ByMailFolderId(api.MailInbox).
+		Messages().
+		Get(ctx, config)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ms := msgs.GetValue()
+	expect := map[string]struct{}{}
+
+	for _, m := range ms {
+		expect[ptr.Val(m.GetId())] = struct{}{}
+	}
+
+	results, err := suite.its.ac.Mail().
+		GetItemIDsInContainer(ctx, suite.its.userID, api.MailInbox)
+	require.NoError(t, err, clues.ToCore(err))
+	require.Less(t, 0, len(results), "requires at least one result")
+	require.Equal(t, len(expect), len(results), "must have same count of items")
+
+	for k := range expect {
+		t.Log("expects key", k)
+	}
+
+	for k := range results {
+		t.Log("results key", k)
+	}
+
+	assert.Equal(t, expect, results)
 }

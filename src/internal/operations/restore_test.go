@@ -30,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -118,7 +119,8 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
 				restoreCfg,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
@@ -258,7 +260,8 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
 				restoreCfg,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -427,7 +430,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				bup.backupID,
 				test.getSelector(t, bup.selectorResourceOwners),
 				test.restoreCfg,
-				mb)
+				mb,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			ds, err := ro.Run(ctx)
@@ -481,7 +485,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		"backupID",
 		rsel.Selector,
 		restoreCfg,
-		mb)
+		mb,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ds, err := ro.Run(ctx)

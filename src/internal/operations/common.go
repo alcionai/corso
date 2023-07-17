@@ -22,7 +22,7 @@ func getBackupAndDetailsFromID(
 ) (*backup.Backup, *details.Details, error) {
 	bup, err := ms.GetBackup(ctx, backupID)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting backup")
+		return nil, nil, clues.Stack(err)
 	}
 
 	deets, err := getDetailsFromBackup(ctx, bup, detailsStore, errs)

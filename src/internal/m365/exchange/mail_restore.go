@@ -174,6 +174,12 @@ func restoreMail(
 		size = int64(len(bc))
 	}
 
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
+	}
+
 	return api.MailInfo(msg, size), nil
 }
 

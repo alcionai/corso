@@ -32,6 +32,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -960,4 +962,291 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 			verifyExtensionData(t, ent.ItemInfo, path.OneDriveService)
 		}
 	}
+}
+
+type OneDriveRestoreIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestOneDriveRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &OneDriveRestoreIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *OneDriveRestoreIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
+	sel := selectors.NewOneDriveBackup([]string{suite.its.userID})
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
+	sel.DiscreteOwner = suite.its.userID
+
+	runDriveRestoreWithAdvancedOptions(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.userDriveID,
+		suite.its.userDriveRootFolderID)
+}
+
+func runDriveRestoreWithAdvancedOptions(
+	t *testing.T,
+	suite tester.Suite,
+	ac api.Client,
+	sel selectors.Selector, // both Restore and Backup types work.
+	driveID, rootFolderID string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.Defaults()
+	)
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	var (
+		restoreCfg          = ctrlTD.DefaultRestoreConfig("drive_adv_restore")
+		containerID         string
+		countItemsInRestore int
+		collKeys            = map[string]api.DriveItemIDType{}
+		fileIDs             map[string]api.DriveItemIDType
+		acd                 = ac.Drives()
+	)
+
+	// initial restore
+
+	suite.Run("baseline", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		runAndCheckRestore(t, ctx, &ro, mb, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		contGC, err := acd.GetFolderByName(ctx, driveID, rootFolderID, restoreCfg.Location)
+		require.NoError(t, err, clues.ToCore(err))
+
+		// the folder containing the files is a child of the folder created by the restore.
+		contGC, err = acd.GetFolderByName(ctx, driveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
+		require.NoError(t, err, clues.ToCore(err))
+
+		containerID = ptr.Val(contGC.GetId())
+
+		collKeys, err = acd.GetItemsInContainerByCollisionKey(
+			ctx,
+			driveID,
+			containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		countItemsInRestore = len(collKeys)
+
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+
+		fileIDs, err = acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+	})
+
+	// skip restore
+
+	suite.Run("skip collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Skip
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+
+		checkRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
+		assert.Zero(
+			t,
+			len(deets.Entries),
+			"no items should have been restored")
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+
+		result := filterCollisionKeyResults(
+			t,
+			ctx,
+			driveID,
+			containerID,
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
+			collKeys)
+
+		assert.Len(t, result, 0, "no new items should get added")
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, fileIDs, currentFileIDs, "ids are equal")
+	})
+
+	// replace restore
+
+	suite.Run("replace collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Replace
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		filtEnts := []details.Entry{}
+
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
+
+		checkRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
+		assert.Len(
+			t,
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been replaced")
+
+		result := filterCollisionKeyResults(
+			t,
+			ctx,
+			driveID,
+			containerID,
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
+			collKeys)
+
+		assert.Len(t, result, 0, "all items should have been replaced")
+
+		for k, v := range result {
+			assert.NotEqual(t, v, collKeys[k], "replaced items should have new IDs")
+		}
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, len(fileIDs), len(currentFileIDs), "count of ids ids are equal")
+		for orig := range fileIDs {
+			assert.NotContains(t, currentFileIDs, orig, "original item should not exist after replacement")
+		}
+
+		fileIDs = currentFileIDs
+	})
+
+	// copy restore
+
+	suite.Run("copy collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		filtEnts := []details.Entry{}
+
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
+
+		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+		assert.Len(
+			t,
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been copied")
+
+		result := filterCollisionKeyResults(
+			t,
+			ctx,
+			driveID,
+			containerID,
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
+			collKeys)
+
+		assert.Len(t, result, len(collKeys), "all items should have been added as copies")
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, 2*len(fileIDs), len(currentFileIDs), "count of ids should be double from before")
+		assert.Subset(t, maps.Keys(currentFileIDs), maps.Keys(fileIDs), "original item should exist after copy")
+	})
 }

@@ -164,7 +164,7 @@ func (h itemRestoreHandler) DeleteItemPermission(
 func (h itemRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	driveID, containerID string,
-) (map[string]api.DriveCollisionItem, error) {
+) (map[string]api.DriveItemIDType, error) {
 	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, driveID, containerID)
 	if err != nil {
 		return nil, err

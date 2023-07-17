@@ -108,7 +108,7 @@ func ConsumeRestoreCollections(
 			restoreCfg.OnCollision,
 			deets,
 			errs,
-			ctr.Local())
+			ctr)
 
 		metrics = support.CombineMetrics(metrics, temp)
 
