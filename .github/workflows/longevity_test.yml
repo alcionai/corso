@@ -199,7 +199,6 @@ jobs:
           DELETION_DAYS: 10
         run: |
           set -euo pipefail
-          echo -e "\nDelete Backup Exchange test\n" >> ${CORSO_LOG_FILE}
           CORSO_LOG_FILE=${{ env.CORSO_LOG_DIR }}/backup_exchange.log
           ./longevity-test
 
@@ -213,7 +212,6 @@ jobs:
           DELETION_DAYS: 10
         run: |
           set -euo pipefail
-          echo -e "\nDelete Backup Onedrive test\n" >> ${CORSO_LOG_FILE}
           CORSO_LOG_FILE=${{ env.CORSO_LOG_DIR }}/backup_onedrive.log
           ./longevity-test
 
@@ -227,7 +225,6 @@ jobs:
           DELETION_DAYS: 10
         run: |
           set -euo pipefail
-          echo -e "\nDelete Backup Sharepoint test\n" >> ${CORSO_LOG_FILE}
           CORSO_LOG_FILE=${{ env.CORSO_LOG_DIR }}/backup_sharepoint.log
           ./longevity-test
 
