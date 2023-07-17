@@ -83,3 +83,47 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 		assert.Truef(t, ok, "expected results to contain collision key: %s", e)
 	}
 }
+
+func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
+	t := suite.T()
+	ac := suite.its.ac.Contacts()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	container, err := ac.GetContainerByID(ctx, suite.its.userID, api.DefaultContacts)
+	require.NoError(t, err, clues.ToCore(err))
+
+	msgs, err := ac.Stable.
+		Client().
+		Users().
+		ByUserId(suite.its.userID).
+		ContactFolders().
+		ByContactFolderId(ptr.Val(container.GetId())).
+		Contacts().
+		Get(ctx, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ms := msgs.GetValue()
+	expect := map[string]struct{}{}
+
+	for _, m := range ms {
+		expect[ptr.Val(m.GetId())] = struct{}{}
+	}
+
+	results, err := suite.its.ac.Contacts().
+		GetItemIDsInContainer(ctx, suite.its.userID, api.DefaultContacts)
+	require.NoError(t, err, clues.ToCore(err))
+	require.Less(t, 0, len(results), "requires at least one result")
+	require.Equal(t, len(expect), len(results), "must have same count of items")
+
+	for _, k := range expect {
+		t.Log("expects key", k)
+	}
+
+	for k := range results {
+		t.Log("results key", k)
+	}
+
+	assert.Equal(t, expect, results)
+}

@@ -30,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -118,7 +119,8 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
 				restoreCfg,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
@@ -258,7 +260,8 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
 				restoreCfg,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -350,11 +353,6 @@ func setupSharePointBackup(
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	spPgr := ctrl.AC.Drives().NewSiteDrivePager(owner, []string{"id", "name"})
-
-	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
-	require.NoError(t, err, clues.ToCore(err))
-
 	err = bo.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results.BackupID)
@@ -362,12 +360,14 @@ func setupSharePointBackup(
 	return bupResults{
 		selectorResourceOwners: sites,
 		backupID:               bo.Results.BackupID,
-		// Discount metadata files (1 delta, 1 prev path)
+		// Discount metadata files (2: 1 delta, 1 prev path)
 		// assume only one folder, and therefore 1 dirmeta per drive
-		// assume only one file in each folder, and therefore 1 meta per drive.
-		// These meta files are used to aid restore, but are not themselves
+		// (2 drives: documents and more documents)
+		// assume only one file in each folder, and therefore 1 meta per drive
+		// (2 drives: documents and more documents)
+		// Meta files are used to aid restore, but are not themselves
 		// restored (ie: counted as writes).
-		items: bo.Results.ItemsWritten - 2 - len(drives) - len(drives),
+		items: bo.Results.ItemsWritten - 6,
 		ctrl:  ctrl,
 	}
 }
@@ -398,7 +398,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			restoreCfg: control.DefaultRestoreConfig(dttm.SafeForTesting),
 			getSelector: func(t *testing.T, owners []string) selectors.Selector {
 				rsel := selectors.NewSharePointRestore(owners)
-				rsel.Include(rsel.AllData())
+				rsel.Include(rsel.Library(tconfig.LibraryDocuments), rsel.Library(tconfig.LibraryMoreDocuments))
 
 				return rsel.Selector
 			},
@@ -430,7 +430,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				bup.backupID,
 				test.getSelector(t, bup.selectorResourceOwners),
 				test.restoreCfg,
-				mb)
+				mb,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			ds, err := ro.Run(ctx)
@@ -484,7 +485,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		"backupID",
 		rsel.Selector,
 		restoreCfg,
-		mb)
+		mb,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ds, err := ro.Run(ctx)

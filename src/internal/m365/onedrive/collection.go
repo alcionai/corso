@@ -271,21 +271,20 @@ func (oc *Collection) getDriveItemContent(
 	var (
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
-		el       = errs.Local()
 	)
 
 	itemData, err := downloadContent(ctx, oc.handler, oc.urlCache, item, oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
-			el.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
+			errs.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
-			el.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
+			errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
@@ -300,13 +299,13 @@ func (oc *Collection) getDriveItemContent(
 			// restore, or we have to handle it separately by somehow
 			// deleting the entire collection.
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
-			el.AddSkip(ctx, fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
+			errs.AddSkip(ctx, fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
-		logger.CtxErr(ctx, err).Error("downloading item")
-		el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+		logger.CtxErr(ctx, err).Error("downloading item content")
+		errs.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
@@ -416,7 +415,6 @@ type driveStats struct {
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	var (
-		el    = errs.Local()
 		stats driveStats
 		wg    sync.WaitGroup
 	)
@@ -442,7 +440,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {
-		if el.Failure() != nil {
+		if errs.Failure() != nil {
 			break
 		}
 
@@ -481,7 +479,6 @@ func (oc *Collection) populateDriveItem(
 	errs *fault.Bus,
 ) {
 	var (
-		el           = errs.Local()
 		itemID       = ptr.Val(item.GetId())
 		itemName     = ptr.Val(item.GetName())
 		itemSize     = ptr.Val(item.GetSize())
@@ -518,7 +515,7 @@ func (oc *Collection) populateDriveItem(
 	// Fetch metadata for the file
 	itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 	if err != nil {
-		el.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+		errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 		return
 	}
 
@@ -546,7 +543,7 @@ func (oc *Collection) populateDriveItem(
 				itemExtensionFactory)
 			if err != nil {
 				err := clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation)
-				el.AddRecoverable(ctx, err)
+				errs.AddRecoverable(ctx, err)
 				return nil, err
 			}
 

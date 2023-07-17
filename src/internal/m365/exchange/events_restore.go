@@ -196,6 +196,12 @@ func restoreEvent(
 	info := api.EventInfo(event)
 	info.Size = int64(len(body))
 
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
+	}
+
 	return info, nil
 }
 

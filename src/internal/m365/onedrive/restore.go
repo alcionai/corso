@@ -38,7 +38,7 @@ const (
 )
 
 type restoreCaches struct {
-	collisionKeyToItemID  map[string]api.DriveCollisionItem
+	collisionKeyToItemID  map[string]api.DriveItemIDType
 	DriveIDToRootFolderID map[string]string
 	Folders               *folderCache
 	OldLinkShareIDToNewID map[string]string
@@ -50,7 +50,7 @@ type restoreCaches struct {
 
 func NewRestoreCaches() *restoreCaches {
 	return &restoreCaches{
-		collisionKeyToItemID:  map[string]api.DriveCollisionItem{},
+		collisionKeyToItemID:  map[string]api.DriveItemIDType{},
 		DriveIDToRootFolderID: map[string]string{},
 		Folders:               NewFolderCache(),
 		OldLinkShareIDToNewID: map[string]string{},
@@ -478,7 +478,7 @@ func restoreV0File(
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
-	collisionKeyToItemID map[string]api.DriveCollisionItem,
+	collisionKeyToItemID map[string]api.DriveItemIDType,
 	itemData data.Stream,
 	ctr *count.Bus,
 ) (details.ItemInfo, error) {
@@ -808,7 +808,7 @@ func restoreFile(
 	name string,
 	itemData data.Stream,
 	driveID, parentFolderID string,
-	collisionKeyToItemID map[string]api.DriveCollisionItem,
+	collisionKeyToItemID map[string]api.DriveItemIDType,
 	copyBuffer []byte,
 	ctr *count.Bus,
 ) (string, details.ItemInfo, error) {
@@ -826,7 +826,7 @@ func restoreFile(
 	var (
 		item                 = newItem(name, false)
 		collisionKey         = api.DriveItemCollisionKey(item)
-		collision            api.DriveCollisionItem
+		collision            api.DriveItemIDType
 		shouldDeleteOriginal bool
 	)
 
@@ -936,6 +936,12 @@ func restoreFile(
 	}
 
 	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
+
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
+	}
 
 	return ptr.Val(newItem.GetId()), dii, nil
 }

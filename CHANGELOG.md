@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Drive items backup and restore link shares
+- Restore commands now accept an optional top-level restore destination with the `--destination` flag.  Setting the destination to '/' will restore items back into their original location.  
+- Restore commands can specify item collision behavior.  Options are Skip (default), Replace, and Copy.
 
 ### Fixed
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+- Added retries for http/2 stream connection failures when downloading large item content.
 
 ### Known issues
 - If a link share is created for an item with inheritance disabled

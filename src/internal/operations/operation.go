@@ -63,13 +63,14 @@ type operation struct {
 func newOperation(
 	opts control.Options,
 	bus events.Eventer,
+	ctr *count.Bus,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
 		Errors:    fault.New(opts.FailureHandling == control.FailFast),
-		Counter:   count.New(),
+		Counter:   ctr,
 		Options:   opts,
 
 		bus:   bus,

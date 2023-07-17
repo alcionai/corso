@@ -67,7 +67,7 @@ func (p *driveItemPageCtrl) setNext(nextLink string) {
 	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-type DriveCollisionItem struct {
+type DriveItemIDType struct {
 	ItemID   string
 	IsFolder bool
 }
@@ -75,7 +75,7 @@ type DriveCollisionItem struct {
 func (c Drives) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	driveID, containerID string,
-) (map[string]DriveCollisionItem, error) {
+) (map[string]DriveItemIDType, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name")...)
 
@@ -84,10 +84,34 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 		return nil, graph.Wrap(ctx, err, "enumerating drive items")
 	}
 
-	m := map[string]DriveCollisionItem{}
+	m := map[string]DriveItemIDType{}
 
 	for _, item := range items {
-		m[DriveItemCollisionKey(item)] = DriveCollisionItem{
+		m[DriveItemCollisionKey(item)] = DriveItemIDType{
+			ItemID:   ptr.Val(item.GetId()),
+			IsFolder: item.GetFolder() != nil,
+		}
+	}
+
+	return m, nil
+}
+
+func (c Drives) GetItemIDsInContainer(
+	ctx context.Context,
+	driveID, containerID string,
+) (map[string]DriveItemIDType, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewDriveItemPager(driveID, containerID, idAnd("file", "folder")...)
+
+	items, err := enumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating contacts")
+	}
+
+	m := map[string]DriveItemIDType{}
+
+	for _, item := range items {
+		m[ptr.Val(item.GetId())] = DriveItemIDType{
 			ItemID:   ptr.Val(item.GetId()),
 			IsFolder: item.GetFolder() != nil,
 		}

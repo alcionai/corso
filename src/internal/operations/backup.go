@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -79,7 +80,7 @@ func NewBackupOperation(
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:     newOperation(opts, bus, kw, sw),
+		operation:     newOperation(opts, bus, count.New(), kw, sw),
 		ResourceOwner: owner,
 		Selectors:     selector,
 		Version:       "v0",

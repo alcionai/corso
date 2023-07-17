@@ -506,11 +506,11 @@ func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID
 	}
 
 	opts := repo.WriteSessionOptions{Purpose: "ModelStoreDelete"}
-	ctr := func(innerCtx context.Context, w repo.RepositoryWriter) error {
+	cb := func(innerCtx context.Context, w repo.RepositoryWriter) error {
 		return w.DeleteManifest(innerCtx, id)
 	}
 
-	if err := repo.WriteSession(ctx, ms.c, opts, ctr); err != nil {
+	if err := repo.WriteSession(ctx, ms.c, opts, cb); err != nil {
 		return clues.Wrap(err, "deleting model").WithClues(ctx)
 	}
 
