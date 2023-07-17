@@ -20,7 +20,15 @@ const sidebars = {
     {
       type: 'category',
       label: 'Usage',
-      items: ['setup/concepts', 'setup/download', 'setup/m365-access', 'setup/configuration', 'setup/repos', 'setup/fault-tolerance'],
+      items: [
+        'setup/concepts',
+        'setup/download',
+        'setup/m365-access',
+        'setup/configuration',
+        'setup/repos',
+        'setup/fault-tolerance',
+        'setup/maintenance'
+      ],
     },
     {
       type: 'category',
