@@ -215,10 +215,10 @@ func runAndCheckBackup(
 		expectStatus,
 		bo.Status)
 
-	require.Less(t, 0, bo.Results.ItemsWritten)
-	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
-	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
-	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
+	require.NotZero(t, bo.Results.ItemsWritten)
+	assert.NotZero(t, bo.Results.ItemsRead, "count of items read")
+	assert.NotZero(t, bo.Results.BytesRead, "bytes read")
+	assert.NotZero(t, bo.Results.BytesUploaded, "bytes uploaded")
 	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
 	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
 	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")

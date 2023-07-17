@@ -65,9 +65,10 @@ func NewRestoreOperation(
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 	bus events.Eventer,
+	ctr *count.Bus,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:  newOperation(opts, bus, kw, sw),
+		operation:  newOperation(opts, bus, ctr, kw, sw),
 		acct:       acct,
 		BackupID:   backupID,
 		RestoreCfg: control.EnsureRestoreConfigDefaults(ctx, restoreCfg),

@@ -154,6 +154,12 @@ func restoreContact(
 	info := api.ContactInfo(item)
 	info.Size = int64(len(body))
 
+	if shouldDeleteOriginal {
+		ctr.Inc(count.CollisionReplace)
+	} else {
+		ctr.Inc(count.NewItemCreated)
+	}
+
 	return info, nil
 }
 

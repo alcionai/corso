@@ -177,3 +177,35 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 		}
 	}
 }
+
+type SharePointRestoreIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestSharePointRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &SharePointRestoreIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *SharePointRestoreIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedOptions() {
+	sel := selectors.NewSharePointBackup([]string{suite.its.userID})
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.siteID
+
+	runDriveRestoreWithAdvancedOptions(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.siteDriveID,
+		suite.its.siteDriveRootFolderID)
+}

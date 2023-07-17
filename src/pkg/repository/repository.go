@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	rep "github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -370,7 +371,8 @@ func (r repository) NewRestore(
 		model.StableID(backupID),
 		sel,
 		restoreCfg,
-		r.Bus)
+		r.Bus,
+		count.New())
 }
 
 func (r repository) NewMaintenance(

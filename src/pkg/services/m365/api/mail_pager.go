@@ -247,6 +247,27 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	return m, nil
 }
 
+func (c Mail) GetItemIDsInContainer(
+	ctx context.Context,
+	userID, containerID string,
+) (map[string]struct{}, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewMailPager(userID, containerID, "id")
+
+	items, err := enumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating contacts")
+	}
+
+	m := map[string]struct{}{}
+
+	for _, item := range items {
+		m[ptr.Val(item.GetId())] = struct{}{}
+	}
+
+	return m, nil
+}
+
 // ---------------------------------------------------------------------------
 // delta item ID pager
 // ---------------------------------------------------------------------------

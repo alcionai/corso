@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 // MaintenanceOperation wraps an operation with restore-specific props.
@@ -36,7 +37,7 @@ func NewMaintenanceOperation(
 	bus events.Eventer,
 ) (MaintenanceOperation, error) {
 	op := MaintenanceOperation{
-		operation: newOperation(opts, bus, kw, nil),
+		operation: newOperation(opts, bus, count.New(), kw, nil),
 		mOpts:     mOpts,
 	}
 
