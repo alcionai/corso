@@ -7,17 +7,20 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/store"
-	"github.com/spf13/cobra"
 )
 
 func main() {
-	var service path.ServiceType
-	cc := cobra.Command{}
+	var (
+		service path.ServiceType
+		cc      = cobra.Command{}
+	)
 
 	cc.SetContext(context.Background())
 
@@ -61,7 +64,6 @@ func main() {
 
 			logAndPrint(cc.Context(), "Deleted backup %s", backup.ID.String())
 		}
-
 	}
 }
 
