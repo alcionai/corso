@@ -10,6 +10,13 @@ Two things are needed to configure Corso:
 * Environment variables containing configuration information
 * A directory for Corso to store its configuration file
 
+Apart from Environment variables configuration information can also be provided from flags or configuration files.
+Corso uses the following priority order for configuration:
+
+1. Flags values
+2. Environment variables
+3. Configuration File information
+
 ## Environment variables
 
 Three distinct pieces of configuration are required by Corso:
@@ -34,15 +41,15 @@ alternate ways to pass AWS credentials.
 Ensure that all of the above environment variables are defined in your Powershell environment.
 
   ```powershell
-  $Env:AWS_ACCESS_KEY_ID = "..."
-  $Env:AWS_SECRET_ACCESS_KEY = "..."
+  $Env:AWS_ACCESS_KEY_ID = '...'
+  $Env:AWS_SECRET_ACCESS_KEY = '...'
   $Env:AWS_SESSION_TOKEN = ""
 
-  $Env:AZURE_CLIENT_ID = "..."
-  $Env:AZURE_TENANT_ID = "..."
-  $Env:AZURE_CLIENT_SECRET = "..."
+  $Env:AZURE_CLIENT_ID = '...'
+  $Env:AZURE_TENANT_ID = '...'
+  $Env:AZURE_CLIENT_SECRET = '...'
 
-  $Env:CORSO_PASSPHRASE = "CHANGE-ME-THIS-IS-INSECURE"
+  $Env:CORSO_PASSPHRASE = 'CHANGE-ME-THIS-IS-INSECURE'
   ```
 
 </TabItem>
@@ -105,11 +112,47 @@ To create the environment variables file, you can run the following command:
 By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
 
+The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
+
+  ```bash
+ # AWS configs
+ aws_access_key_id = '...'
+ aws_secret_access_key = '...'
+ aws_session_token = '...'
+  
+ # M365 config
+ account_provider = '...'
+ azure_tenantid = '...'
+ azure_client_id = '...' 
+ azure_secret = '...'
+
+ # Corso passphrase
+ passphrase = '...'
+```
+
 </TabItem>
 <TabItem value="unix" label="Linux/macOS">
 
 By default, Corso stores its configuration file (`.corso.toml`) in the user's home directory.
 The location of the configuration file can be specified using the `--config-file` option.
+
+The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
+
+  ```bash
+ # AWS configs
+ aws_access_key_id = '...'
+ aws_secret_access_key = '...'
+ aws_session_token = '...'
+  
+ # M365 config
+ account_provider = '...'
+ azure_tenantid = '...'
+ azure_client_id = '...' 
+ azure_secret = '...'
+
+ # Corso passphrase
+ passphrase = '...'
+```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
@@ -123,6 +166,24 @@ directory within the container.
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
   <command> <command options>`
 }</CodeBlock>
+
+The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
+
+  ```bash
+ # AWS configs
+ aws_access_key_id = '...'
+ aws_secret_access_key = '...'
+ aws_session_token = '...'
+  
+ # M365 config
+ account_provider = '...'
+ azure_tenantid = '...'
+ azure_client_id = '...' 
+ azure_secret = '...'
+
+ # Corso passphrase
+ passphrase = '...'
+```
 
 </TabItem>
 </Tabs>
