@@ -281,9 +281,63 @@ A confirmation of the recovered email will be shown and the email will appear in
   360bf6840396  phish@contoso.info     Re: Request for Apple/Amazon gift cards  2022-10-18T02:27:47Z
 ```
 
+## Advanced Restores
+
+You can control where your data gets restored, and what happens if restored items would overwrite existing
+ones. Let's restore a folder in OneDrive back to its original location. Since the folder already exists, we can
+tell corso to with duplicate names as copies.
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  # Restore a folder to its original location
+  .\corso restore onedrive --backup <id of your selected backup> `
+    --folder "/presentations/company_culture" `
+    --destination "/" `
+    --collisions copy
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Restore a folder to its original location
+  ./corso restore onedrive --backup <id of your selected backup> \
+    --folder "/presentations/company_culture" \
+    --destination "/" \
+    --collisions copy
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+<CodeBlock language="bash">{
+  `# Restore a folder to its original location
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  restore exchange --backup <id of your selected backup> \\
+  --email <email message ID> --folder '/presentations/company_culture' \\
+  --destination '/' --collisions copy`
+}</CodeBlock>
+
+</TabItem>
+</Tabs>
+
+A confirmation of the recovered files will be shown and those files will appear back in their original folder.
+
+```text
+  ID            ItemName        ParentPath                       Size    Owner  Created               Modified
+  f43bff59de56  slides 1.ppt    /presentations/company_culture   23 kB          2023-07-05T18:37:57Z  2023-07-05T18:37:58Z
+  c0de2282e9c7  giftcards.xls   /presentations/company_culture   0 B            2023-07-05T18:37:47Z  2023-07-05T18:37:47Z
+```
+
+See [here](../setup/restore-options) for more restoration options.
+
 ## Read more
 
 The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
 
 * Learning about [Corso concepts and setup](../setup/concepts)
 * Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](../cli/corso)
+* Leverage Corso's [Advanced Restoration Options](../setup/restore-options)
