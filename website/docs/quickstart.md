@@ -332,7 +332,7 @@ A confirmation of the recovered files will be shown and those files will appear 
   c0de2282e9c7  giftcards.xls   /presentations/company_culture   0 B            2023-07-05T18:37:47Z  2023-07-05T18:37:47Z
 ```
 
-See [here](../cli/corso-restore) for more advanced restoration examples.
+See [here](../setup/restore-options) for more restoration options.
 
 ## Read more
 
@@ -340,4 +340,4 @@ The above tutorial only scratches the surface for Corso's capabilities. We encou
 
 * Learning about [Corso concepts and setup](../setup/concepts)
 * Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](../cli/corso)
-* Leverage Corso's [Advanced Restoration Options](../setup/advanced-restore)
+* Leverage Corso's [Advanced Restoration Options](../setup/restore-options)

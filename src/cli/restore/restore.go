@@ -34,6 +34,9 @@ func AddCommands(cmd *cobra.Command) {
 
 const restoreCommand = "restore"
 
+// FIXME: this command doesn't build docs, and so these examples
+// are not visible within the website.
+//
 //nolint:lll
 const restoreCommandExamples = `# Restore email inbox messages to their original location
 corso restore exchange \
