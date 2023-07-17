@@ -41,7 +41,8 @@ func (ctrl *Controller) ExportRestoreCollections(
 	)
 
 	switch sels.Service {
-	case selectors.ServiceOneDrive:
+	case selectors.ServiceOneDrive, selectors.ServiceSharePoint:
+		// OneDrive and SharePoint can share the code to create collections
 		expCollections, err = onedrive.ExportRestoreCollections(
 			ctx,
 			backupVersion,

@@ -6,6 +6,7 @@ import (
 
 var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addOneDriveCommands,
+	addSharePointCommands,
 }
 
 // AddCommands attaches all `corso export * *` commands to the parent.

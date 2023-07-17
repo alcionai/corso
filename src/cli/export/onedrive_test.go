@@ -68,13 +68,13 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
 				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
 
-				"--" + flags.ArchiveFN,
-
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
 				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+				"--" + flags.ArchiveFN,
 
 				testdata.RestoreDestination,
 			})
