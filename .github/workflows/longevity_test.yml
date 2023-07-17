@@ -3,9 +3,6 @@ on:
   schedule:
     # Run every day at 04:00 GMT (roughly 8pm PST)
     - cron: "0 4 * * *"
-  push:
-    branches:
-      - longetivityTest
   workflow_dispatch:
     inputs:
       user:
@@ -54,22 +51,22 @@ jobs:
         with:
           fetch-depth: 0 # needed to get latest tag
 
-      - name: Get version string
-        id: version
-        run: |
-          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
-
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.version.outputs.version }}
-
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v4
         with:
           go-version-file: src/go.mod
 
-      - run: go build -o corso
+      - run: go build -o longevity-test ./cmd/longevity_test
 
+      - name: Get version string
+        id: version
+        run: |
+          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
+
+      - run: git checkout ${{ steps.version.outputs.version }}
+
+      - run: go build -o corso
+      
       - run: mkdir ${CORSO_LOG_DIR}
 
 ##########################################################################################################################################
@@ -191,6 +188,45 @@ jobs:
 
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
+
+##########################################################################################################################################
+
+# Backup Exchange Deletion test
+      - name: Backup Delete exchange test
+        id: delete-exchange-test
+        env:
+          SERVICE: "exchange"
+          DELETION_DAYS: 5
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup exchange \n" >> ${CORSO_LOG_FILE}
+          ./longevity-test
+
+##########################################################################################################################################
+
+# Backup Onedrive Deletion test
+      - name: Backup Delete onedrive test
+        id: delete-onedrive-test
+        env:
+          SERVICE: "onedrive"
+          DELETION_DAYS: 5
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup onedrive \n" >> ${CORSO_LOG_FILE}
+          ./longevity-test
+
+##########################################################################################################################################
+
+# Backup Sharepoint Deletion test
+      - name: Backup Delete Sharepoint test
+        id: delete-sharepoint-test
+        env:
+          SERVICE: "sharepoint"
+          DELETION_DAYS: 5
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup sharepoint \n" >> ${CORSO_LOG_FILE}
+          ./longevity-test
 
 ##########################################################################################################################################
 
