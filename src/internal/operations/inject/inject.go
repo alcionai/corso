@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -57,6 +58,20 @@ type (
 		// Ex: pairing drive ids with drive names as they appeared at the time
 		// of backup.
 		CacheItemInfo(v details.ItemInfo)
+	}
+
+	ExportConsumer interface {
+		ExportRestoreCollections(
+			ctx context.Context,
+			backupVersion int,
+			selector selectors.Selector,
+			exportCfg control.ExportConfig,
+			opts control.Options,
+			dcs []data.RestoreCollection,
+			errs *fault.Bus,
+		) ([]export.Collection, error)
+
+		Wait() *data.CollectionStats
 	}
 
 	RepoMaintenancer interface {
