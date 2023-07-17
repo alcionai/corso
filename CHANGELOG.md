@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - SharePoint document libraries deleted after the last backup can now be restored.
 
+### Added
+- Added option to export data from OneDrive backups
+
 ## [v0.11.1] (beta) - 2023-07-20
 
 ### Fixed
