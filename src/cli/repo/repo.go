@@ -38,12 +38,8 @@ func AddCommands(cmd *cobra.Command) {
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
+	repoCmd.AddCommand(maintenanceCmd)
 
-	utils.AddCommand(
-		repoCmd,
-		maintenanceCmd,
-		utils.HideCommand(),
-		utils.MarkPreReleaseCommand())
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
 

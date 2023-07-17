@@ -27,7 +27,6 @@ func AddMaintenanceModeFlag(cmd *cobra.Command) {
 			"that does minimal clean-up and optimization. Pass '"+
 			repository.CompleteMaintenance.String()+"' to fully compact existing "+
 			"data and delete unused data.")
-	cobra.CheckErr(fs.MarkHidden(MaintenanceModeFN))
 }
 
 func AddForceMaintenanceFlag(cmd *cobra.Command) {
