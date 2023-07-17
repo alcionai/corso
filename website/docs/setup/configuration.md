@@ -165,9 +165,6 @@ directory within the container.
   <command> <command options>`
 }</CodeBlock>
 
-</TabItem>
-</Tabs>
-
 The config file can also be used to provide other configuration information like Azure and AWS credentials as mentioned below:
 
   ```bash
@@ -185,6 +182,9 @@ The config file can also be used to provide other configuration information like
  # Corso passphrase
  passphrase = '...'
 ```
+
+</TabItem>
+</Tabs>
 
 ## Log Files
 
