@@ -50,6 +50,8 @@ var (
 
 	DeltaPageSize = "deltaPageSize"
 
+	Archive = true
+
 	AzureClientID     = "testAzureClientId"
 	AzureTenantID     = "testAzureTenantId"
 	AzureClientSecret = "testAzureClientSecret"
@@ -59,4 +61,6 @@ var (
 	AWSSessionToken    = "testAWSSessionToken"
 
 	CorsoPassphrase = "testCorsoPassphrase"
+
+	RestoreDestination = "test-restore-destination"
 )

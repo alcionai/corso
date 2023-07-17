@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/export"
 )
 
 type ExportE2ESuite struct {
@@ -31,12 +31,12 @@ func (suite *ExportE2ESuite) SetupSuite() {
 
 type mockExportCollection struct {
 	path  string
-	items []data.ExportItem
+	items []export.Item
 }
 
 func (mec mockExportCollection) GetBasePath() string { return mec.path }
-func (mec mockExportCollection) GetItems(context.Context) <-chan data.ExportItem {
-	ch := make(chan data.ExportItem)
+func (mec mockExportCollection) GetItems(context.Context) <-chan export.Item {
+	ch := make(chan export.Item)
 
 	go func() {
 		defer close(ch)
@@ -132,12 +132,12 @@ func (suite *ExportE2ESuite) TestWriteExportCollection() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ecs := []data.ExportCollection{}
+			ecs := []export.Collection{}
 			for _, col := range test.cols {
-				items := []data.ExportItem{}
+				items := []export.Item{}
 				for _, item := range col.items {
-					items = append(items, data.ExportItem{
-						Data: data.ExportItemData{
+					items = append(items, export.Item{
+						Data: export.ItemData{
 							Name: item.name,
 							Body: io.NopCloser((bytes.NewBufferString(item.body))),
 						},

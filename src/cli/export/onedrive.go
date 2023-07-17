@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -109,11 +110,6 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	exportCfg := control.DefaultExportConfig()
-	if flags.ArchiveFV {
-		exportCfg.Archive = true
-	}
-
 	exportLocation := args[0]
 	if exportLocation == "" {
 		// This is unlikely, but adding it just in case.
@@ -125,7 +121,12 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	eo, err := r.NewExport(ctx, flags.BackupIDFV, sel.Selector, exportCfg)
+	eo, err := r.NewExport(
+		ctx,
+		flags.BackupIDFV,
+		sel.Selector,
+		utils.MakeExportConfig(ctx, opts.ExportCfg),
+	)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive export"))
 	}
@@ -158,7 +159,7 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 func writeExportCollections(
 	ctx context.Context,
 	exportLocation string,
-	expColl []data.ExportCollection,
+	expColl []export.Collection,
 ) error {
 	for _, col := range expColl {
 		folder := ospath.Join(exportLocation, col.GetBasePath())
@@ -180,7 +181,7 @@ func writeExportCollections(
 }
 
 // writeExportItem writes an ExportItem to disk in the specified folder.
-func writeExportItem(ctx context.Context, item data.ExportItem, folder string) error {
+func writeExportItem(ctx context.Context, item export.Item, folder string) error {
 	name := item.Data.Name
 	fpath := ospath.Join(folder, name)
 
