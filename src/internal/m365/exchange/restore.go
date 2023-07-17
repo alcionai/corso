@@ -345,18 +345,6 @@ func uploadAttachments(
 			itemID,
 			a)
 		if err != nil {
-			// FIXME: I don't know why we're swallowing this error case.
-			// It needs investigation: https://github.com/alcionai/corso/issues/3498
-			if ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
-				name := ptr.Val(a.GetName())
-
-				logger.CtxErr(ctx, err).
-					With("attachment_name", name).
-					Info("mail upload failed")
-
-				continue
-			}
-
 			el.AddRecoverable(ctx, clues.Wrap(err, "uploading mail attachment").WithClues(ctx))
 		}
 	}
