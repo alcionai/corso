@@ -91,6 +91,11 @@ func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Stre
 	return nil, ErrNotFound
 }
 
+type FetchRestoreCollection struct {
+	Collection
+	FetchItemByNamer
+}
+
 // Stream represents a single item within a Collection
 // that can be consumed as a stream (it embeds io.Reader)
 type Stream interface {
@@ -153,4 +158,25 @@ func StateOf(prev, curr path.Path) CollectionState {
 	}
 
 	return NotMovedState
+}
+
+// ExportCollection is the interface that is returned to the SDK consumer
+type ExportCollection interface {
+	// GetBasePath gets the base path of the collection
+	GetBasePath() string
+
+	// GetItems gets the items within the collection(folder)
+	GetItems(context.Context) <-chan ExportItem
+}
+
+type ExportItemData struct {
+	Name string
+	Body io.ReadCloser
+}
+
+// ExportItem is the item that is returned to the SDK consumer
+type ExportItem struct {
+	ID    string
+	Data  ExportItemData
+	Error error
 }
