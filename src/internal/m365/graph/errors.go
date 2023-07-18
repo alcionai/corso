@@ -65,12 +65,13 @@ const (
 	IOErrDuringRead   errorMessage = "IO error during request payload read"
 	MysiteURLNotFound errorMessage = "unable to retrieve user's mysite url"
 	MysiteNotFound    errorMessage = "user's mysite not found"
+	FileNotFound      errorMessage = "404 FILE NOT FOUND"
 	NoSPLicense       errorMessage = "Tenant does not have a SPO license"
 )
 
 const (
 	LabelsMalware             = "malware_detected"
-	LabelsMysiteNotFound      = "mysite_not_found"
+	LabelsDriveNotFound       = "drive_not_found"
 	LabelsNoSharePointLicense = "no_sharepoint_license"
 
 	// LabelsSkippable is used to determine if an error is skippable
@@ -316,7 +317,8 @@ func stackReq(
 }
 
 // Checks for the following conditions and labels the error accordingly:
-// * mysiteNotFound | mysiteURLNotFound
+// * MysiteNotFound | MysiteURLNotFound | FileNotFound
+// * NoSPLicense
 // * malware
 func setLabels(err *clues.Err, msg string) *clues.Err {
 	if err == nil {
@@ -326,8 +328,9 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 	f := filters.Contains([]string{msg})
 
 	if f.Compare(string(MysiteNotFound)) ||
-		f.Compare(string(MysiteURLNotFound)) {
-		err = err.Label(LabelsMysiteNotFound)
+		f.Compare(string(MysiteURLNotFound)) ||
+		f.Compare(string(FileNotFound)) {
+		err = err.Label(LabelsDriveNotFound)
 	}
 
 	if f.Compare(string(NoSPLicense)) {

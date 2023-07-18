@@ -552,12 +552,17 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 		{
 			name:   "mysite not found",
 			err:    odErrMsg("code", string(MysiteNotFound)),
-			expect: []string{LabelsMysiteNotFound},
+			expect: []string{LabelsDriveNotFound},
 		},
 		{
 			name:   "mysite url not found",
 			err:    odErrMsg("code", string(MysiteURLNotFound)),
-			expect: []string{LabelsMysiteNotFound},
+			expect: []string{LabelsDriveNotFound},
+		},
+		{
+			name:   "404 file not found",
+			err:    odErrMsg("code", string(FileNotFound)),
+			expect: []string{LabelsDriveNotFound},
 		},
 		{
 			name:   "no sp license",

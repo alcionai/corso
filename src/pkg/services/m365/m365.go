@@ -107,7 +107,8 @@ func checkUserHasDrives(ctx context.Context, dgdd getDefaultDriver, userID strin
 	if err != nil {
 		// we consider this a non-error case, since it
 		// answers the question the caller is asking.
-		if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+		if clues.HasLabel(err, graph.LabelsDriveNotFound) ||
+			clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			return false, nil
 		}
 

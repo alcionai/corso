@@ -182,7 +182,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// check whether the user is able to access their onedrive drive.
 	// if they cannot, we can assume they are ineligible for onedrive backups.
 	if _, err := c.GetDefaultDrive(ctx, userID); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+		if !clues.HasLabel(err, graph.LabelsDriveNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			logger.CtxErr(ctx, err).Error("getting user's default drive")
 			return nil, graph.Wrap(ctx, err, "getting user's default drive info")
 		}
