@@ -138,10 +138,6 @@ func ExportRestoreCollections(
 ) ([]export.ExportCollection, error) {
 	el := errs.Local()
 
-	// Reorder collections so that the parents directories are created
-	// before the child directories; a requirement for permissions.
-	data.SortRestoreCollections(dcs)
-
 	ec := make([]export.ExportCollection, 0, len(dcs))
 
 	for _, dc := range dcs {
