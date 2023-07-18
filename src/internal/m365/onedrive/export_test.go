@@ -3,6 +3,7 @@ package onedrive
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 
@@ -89,7 +90,11 @@ func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Stream, e
 		return nil, fd.err
 	}
 
-	return metadataStream{id: fd.id, name: fd.name}, nil
+	if name == fd.id {
+		return metadataStream{id: fd.id, name: fd.name}, nil
+	}
+
+	return nil, errors.New("not found")
 }
 
 func (suite *ExportUnitSuite) TestGetItemName() {
@@ -117,15 +122,15 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 		},
 		{
 			tname:         "name in metadata",
-			id:            "name.data",
+			id:            "id.data",
 			backupVersion: version.Backup,
 			name:          "name",
-			fin:           finD{id: "name.data", name: "name"},
+			fin:           finD{id: "id.meta", name: "name"},
 			errFunc:       assert.NoError,
 		},
 		{
 			tname:         "name in metadata but error",
-			id:            "name.data",
+			id:            "id.data",
 			backupVersion: version.Backup,
 			name:          "",
 			fin:           finD{err: assert.AnError},
@@ -282,7 +287,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 							mockDataStream{id: "id1.data", data: "body1"},
 						},
 					},
-					FetchItemByNamer: finD{id: "id1.data", name: "name1"},
+					FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 				},
 			},
 			expectedItems: []export.ExportItem{
@@ -371,7 +376,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 					mockDataStream{id: "id1.data", data: "body1"},
 				},
 			},
-			FetchItemByNamer: finD{id: "id1.data", name: "name1"},
+			FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 		},
 	}
 
