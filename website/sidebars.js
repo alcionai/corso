@@ -27,7 +27,8 @@ const sidebars = {
         'setup/configuration',
         'setup/repos',
         'setup/fault-tolerance',
-        'setup/restore-options'
+        'setup/restore-options',
+        'setup/maintenance'
       ],
     },
     {
