@@ -11,6 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -34,6 +35,7 @@ func ConsumeRestoreCollections(
 	ac api.Client,
 	restoreCfg control.RestoreConfig,
 	opts control.Options,
+	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -43,7 +45,7 @@ func ConsumeRestoreCollections(
 		lrh                 = libraryRestoreHandler{ac}
 		protectedResourceID = dcs[0].FullPath().ResourceOwner()
 		restoreMetrics      support.CollectionMetrics
-		caches              = onedrive.NewRestoreCaches()
+		caches              = onedrive.NewRestoreCaches(backupDriveIDNames)
 		el                  = errs.Local()
 	)
 

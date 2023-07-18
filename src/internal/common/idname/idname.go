@@ -40,6 +40,11 @@ type Cacher interface {
 	ProviderForName(id string) Provider
 }
 
+type CacheBuilder interface {
+	Add(id, name string)
+	Cacher
+}
+
 var _ Cacher = &cache{}
 
 type cache struct {
@@ -47,17 +52,27 @@ type cache struct {
 	nameToID map[string]string
 }
 
-func NewCache(idToName map[string]string) cache {
+func NewCache(idToName map[string]string) *cache {
 	nti := make(map[string]string, len(idToName))
 
 	for id, name := range idToName {
 		nti[name] = id
 	}
 
-	return cache{
+	return &cache{
 		idToName: idToName,
 		nameToID: nti,
 	}
+}
+
+func (c *cache) Add(id, name string) {
+	if len(c.idToName) == 0 {
+		c.idToName = map[string]string{}
+		c.nameToID = map[string]string{}
+	}
+
+	c.idToName[id] = name
+	c.nameToID[name] = id
 }
 
 // IDOf returns the id associated with the given name.

@@ -15,6 +15,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -44,6 +45,7 @@ type driveInfo struct {
 }
 
 type restoreCaches struct {
+	BackupDriveIDName     idname.Cacher
 	collisionKeyToItemID  map[string]api.DriveItemIDType
 	DriveIDToDriveInfo    map[string]driveInfo
 	DriveNameToDriveInfo  map[string]driveInfo
@@ -110,8 +112,16 @@ type GetDrivePagerAndRootFolderer interface {
 	NewDrivePagerer
 }
 
-func NewRestoreCaches() *restoreCaches {
+func NewRestoreCaches(
+	backupDriveIDNames idname.Cacher,
+) *restoreCaches {
+	// avoid nil panics
+	if backupDriveIDNames == nil {
+		backupDriveIDNames = idname.NewCache(nil)
+	}
+
 	return &restoreCaches{
+		BackupDriveIDName:     backupDriveIDNames,
 		collisionKeyToItemID:  map[string]api.DriveItemIDType{},
 		DriveIDToDriveInfo:    map[string]driveInfo{},
 		DriveNameToDriveInfo:  map[string]driveInfo{},
@@ -136,6 +146,7 @@ func ConsumeRestoreCollections(
 	backupVersion int,
 	restoreCfg control.RestoreConfig,
 	opts control.Options,
+	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -144,7 +155,7 @@ func ConsumeRestoreCollections(
 	var (
 		restoreMetrics      support.CollectionMetrics
 		el                  = errs.Local()
-		caches              = NewRestoreCaches()
+		caches              = NewRestoreCaches(backupDriveIDNames)
 		protectedResourceID = dcs[0].FullPath().ResourceOwner()
 		fallbackDriveName   = "" // onedrive cannot create drives
 	)

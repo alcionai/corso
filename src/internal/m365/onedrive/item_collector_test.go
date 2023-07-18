@@ -361,7 +361,7 @@ func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
 		Folders: folderElements,
 	}
 
-	caches := NewRestoreCaches()
+	caches := NewRestoreCaches(nil)
 	caches.DriveIDToDriveInfo[driveID] = driveInfo{rootFolderID: ptr.Val(rootFolder.GetId())}
 
 	rh := NewRestoreHandler(suite.ac)
