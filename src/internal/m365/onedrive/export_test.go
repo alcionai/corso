@@ -256,6 +256,36 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			},
 		},
 		{
+			name:    "items with success and error",
+			version: 1,
+			backingCollections: []data.RestoreCollection{
+				data.NoFetchRestoreCollection{
+					Collection: mockRestoreCollection{
+						items: []data.Stream{
+							mockDataStream{id: "name1", data: "body1"},
+							mockDataStream{id: "name2", data: "body2"},
+						},
+					},
+				},
+			},
+			expectedItems: []export.ExportItem{
+				{
+					ID: "name1",
+					Data: export.ExportItemData{
+						Name: "name1",
+						Body: io.NopCloser((bytes.NewBufferString("body1"))),
+					},
+				},
+				{
+					ID: "name2",
+					Data: export.ExportItemData{
+						Name: "name2",
+						Body: io.NopCloser((bytes.NewBufferString("body2"))),
+					},
+				},
+			},
+		},
+		{
 			name:    "single item with data suffix",
 			version: 2,
 			backingCollections: []data.RestoreCollection{
@@ -348,10 +378,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.Equal(t, test.expectedItems[i].ID, item.ID, "id")
 				assert.Equal(t, test.expectedItems[i].Data.Name, item.Data.Name, "name")
 				assert.Equal(t, test.expectedItems[i].Data.Body, item.Data.Body, "body")
-
-				if test.expectedItems[i].Error != nil {
-					assert.Contains(t, item.Error.Error(), test.expectedItems[i].Error.Error(), "error")
-				}
+				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error, "error")
 			}
 		})
 	}
