@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ export.ExportCollection = &exportCollection{}
+var _ export.Collection = &exportCollection{}
 
 // exportCollection is the implementation of export.ExportCollection for OneDrive
 type exportCollection struct {
@@ -39,8 +39,8 @@ func (ec exportCollection) GetBasePath() string {
 	return ec.baseDir
 }
 
-func (ec exportCollection) GetItems(ctx context.Context) <-chan export.ExportItem {
-	ch := make(chan export.ExportItem)
+func (ec exportCollection) GetItems(ctx context.Context) <-chan export.Item {
+	ch := make(chan export.Item)
 
 	go func() {
 		defer close(ch)
@@ -58,9 +58,9 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan export.ExportIte
 
 				name, err := getItemName(ctx, itemUUID, ec.version, c)
 
-				ch <- export.ExportItem{
+				ch <- export.Item{
 					ID: itemUUID,
-					Data: export.ExportItemData{
+					Data: export.ItemData{
 						Name: name,
 						Body: item.ToReader(),
 					},
@@ -71,7 +71,7 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan export.ExportIte
 
 		// Return all the items that we failed to get from kopia at the end
 		for _, err := range errs.Errors().Items {
-			ch <- export.ExportItem{
+			ch <- export.Item{
 				ID:    err.ID,
 				Error: &err,
 			}
@@ -135,10 +135,10 @@ func ExportRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-) ([]export.ExportCollection, error) {
+) ([]export.Collection, error) {
 	el := errs.Local()
 
-	ec := make([]export.ExportCollection, 0, len(dcs))
+	ec := make([]export.Collection, 0, len(dcs))
 
 	for _, dc := range dcs {
 		drivePath, err := path.ToDrivePath(dc.FullPath())

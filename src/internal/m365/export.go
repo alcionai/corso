@@ -26,7 +26,7 @@ func (ctrl *Controller) ExportRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
-) ([]export.ExportCollection, error) {
+) ([]export.Collection, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:export")
 	defer end()
 
@@ -34,7 +34,7 @@ func (ctrl *Controller) ExportRestoreCollections(
 	ctx = clues.Add(ctx, "export_config", exportCfg) // TODO(rkeepers): needs PII control
 
 	var (
-		expCollections []export.ExportCollection
+		expCollections []export.Collection
 		status         *support.ControllerOperationStatus
 		deets          = &details.Builder{}
 		err            error
