@@ -130,6 +130,8 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
+	opt := utils.ControlWithConfig(cfg)
+
 	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
 	utils.SendStartCorsoEvent(
 		ctx,
@@ -137,7 +139,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		map[string]any{"command": "init repo"},
 		cfg.Account.ID(),
-		utils.Control())
+		opt)
 
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
@@ -156,7 +158,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, utils.Control())
+	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, opt)
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -226,7 +228,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, repoID, utils.Control())
+	r, err := repository.ConnectAndSendConnectEvent(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		repoID,
+		utils.ControlWithConfig(cfg))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}

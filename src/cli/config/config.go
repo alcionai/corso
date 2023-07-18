@@ -10,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -38,6 +40,8 @@ const (
 
 	// Corso passphrase in config
 	CorsoPassphrase = "passphrase"
+	CorsoUser       = "corso_user"
+	CorsoHost       = "corso_host"
 )
 
 var (
@@ -50,9 +54,11 @@ var (
 // RepoDetails holds the repository configuration retrieved from
 // the .corso.toml configuration file.
 type RepoDetails struct {
-	Storage storage.Storage
-	Account account.Account
-	RepoID  string
+	Storage  storage.Storage
+	Account  account.Account
+	RepoID   string
+	RepoUser string
+	RepoHost string
 }
 
 // Attempts to set the default dir and config file path.
@@ -294,7 +300,18 @@ func getStorageAndAccountWithViper(
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}
 
+	config.RepoUser, config.RepoHost = getUserHost(vpr, readConfigFromViper)
+
 	return config, nil
+}
+
+func getUserHost(vpr *viper.Viper, readConfigFromViper bool) (string, string) {
+	user := str.First(flags.UserMaintenanceFV, vpr.GetString(CorsoUser))
+	host := str.First(flags.HostnameMaintenanceFV, vpr.GetString(CorsoHost))
+
+	// Fine if these are empty; later code will assign a meaningful default if
+	// needed.
+	return user, host
 }
 
 // ---------------------------------------------------------------------------

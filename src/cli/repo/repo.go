@@ -42,6 +42,8 @@ func AddCommands(cmd *cobra.Command) {
 
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
+	flags.AddMaintenanceUserFlag(maintenanceCmd)
+	flags.AddMaintenanceHostnameFlag(maintenanceCmd)
 
 	for _, addRepoTo := range repoCommands {
 		addRepoTo(initCmd)
