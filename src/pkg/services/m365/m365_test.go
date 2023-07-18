@@ -145,6 +145,30 @@ func (suite *M365IntegrationSuite) TestSites() {
 	}
 }
 
+func (suite *M365IntegrationSuite) TestTeams() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	acct := tconfig.NewM365Account(suite.T())
+
+	teams, err := Teams(ctx, acct, fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, teams)
+
+	for _, team := range teams {
+		suite.Run("team_"+team.ID, func() {
+			t := suite.T()
+
+			assert.NotEmpty(t, team.ID)
+			assert.NotEmpty(t, team.DisplayName)
+		})
+	}
+}
+
 type m365UnitSuite struct {
 	tester.Suite
 }
@@ -468,6 +492,45 @@ func (suite *DiscoveryIntgSuite) TestSites_InvalidCredentials() {
 
 			sites, err := Sites(ctx, test.acct(t), fault.New(true))
 			assert.Empty(t, sites, "returned some sites")
+			assert.NotNil(t, err)
+		})
+	}
+}
+
+func (suite *DiscoveryIntgSuite) TestTeams_InvalidCredentials() {
+	table := []struct {
+		name string
+		acct func(t *testing.T) account.Account
+	}{
+		{
+			name: "Invalid Credentials",
+			acct: func(t *testing.T) account.Account {
+				a, err := account.NewAccount(
+					account.ProviderM365,
+					account.M365Config{
+						M365: credentials.M365{
+							AzureClientID:     "Test",
+							AzureClientSecret: "without",
+						},
+						AzureTenantID: "data",
+					},
+				)
+				require.NoError(t, err, clues.ToCore(err))
+
+				return a
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			teams, err := Teams(ctx, test.acct(t), fault.New(true))
+			assert.Empty(t, teams, "returned some teams")
 			assert.NotNil(t, err)
 		})
 	}
