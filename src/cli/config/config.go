@@ -14,6 +14,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -204,9 +205,15 @@ func WriteRepoConfig(
 	ctx context.Context,
 	s3Config storage.S3Config,
 	m365Config account.M365Config,
+	repoOpts repository.Options,
 	repoID string,
 ) error {
-	return writeRepoConfigWithViper(GetViper(ctx), s3Config, m365Config, repoID)
+	return writeRepoConfigWithViper(
+		GetViper(ctx),
+		s3Config,
+		m365Config,
+		repoOpts,
+		repoID)
 }
 
 // writeRepoConfigWithViper implements WriteRepoConfig, but takes in a viper
@@ -215,6 +222,7 @@ func writeRepoConfigWithViper(
 	vpr *viper.Viper,
 	s3Config storage.S3Config,
 	m365Config account.M365Config,
+	repoOpts repository.Options,
 	repoID string,
 ) error {
 	s3Config = s3Config.Normalize()
@@ -227,6 +235,15 @@ func writeRepoConfigWithViper(
 	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
 	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
 	vpr.Set(RepoID, repoID)
+
+	// Need if-checks as Viper will write empty values otherwise.
+	if len(repoOpts.User) > 0 {
+		vpr.Set(CorsoUser, repoOpts.User)
+	}
+
+	if len(repoOpts.Host) > 0 {
+		vpr.Set(CorsoHost, repoOpts.Host)
+	}
 
 	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
 	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)

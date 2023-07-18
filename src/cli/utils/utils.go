@@ -55,7 +55,7 @@ func AccountConnectAndWriteRepoConfig(
 	pst path.ServiceType,
 	overrides map[string]string,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, _, err := GetAccountAndConnect(ctx, pst, overrides)
+	r, stg, acc, opts, err := GetAccountAndConnect(ctx, pst, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err
@@ -75,7 +75,7 @@ func AccountConnectAndWriteRepoConfig(
 
 	// repo config gets set during repo connect and init.
 	// This call confirms we have the correct values.
-	err = config.WriteRepoConfig(ctx, s3Config, m365Config, r.GetID())
+	err = config.WriteRepoConfig(ctx, s3Config, m365Config, opts.Repo, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")
 		return nil, nil, err
