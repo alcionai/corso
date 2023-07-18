@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -29,39 +30,39 @@ func TestExportUnitSuite(t *testing.T) {
 
 func (suite *ExportUnitSuite) TestIsMetadataFile() {
 	table := []struct {
-		name    string
-		id      string
-		version int
-		isMeta  bool
+		name          string
+		id            string
+		backupVersion int
+		isMeta        bool
 	}{
 		{
-			name:    "legacy",
-			version: 1,
-			isMeta:  false,
+			name:          "legacy",
+			backupVersion: version.OneDrive1DataAndMetaFiles,
+			isMeta:        false,
 		},
 		{
-			name:    "metadata file",
-			version: 2,
-			id:      "name" + metadata.MetaFileSuffix,
-			isMeta:  true,
+			name:          "metadata file",
+			backupVersion: version.OneDrive3IsMetaMarker,
+			id:            "name" + metadata.MetaFileSuffix,
+			isMeta:        true,
 		},
 		{
-			name:    "dir metadata file",
-			version: 2,
-			id:      "name" + metadata.DirMetaFileSuffix,
-			isMeta:  true,
+			name:          "dir metadata file",
+			backupVersion: version.OneDrive3IsMetaMarker,
+			id:            "name" + metadata.DirMetaFileSuffix,
+			isMeta:        true,
 		},
 		{
-			name:    "non metadata file",
-			version: 2,
-			id:      "name" + metadata.DataFileSuffix,
-			isMeta:  false,
+			name:          "non metadata file",
+			backupVersion: version.OneDrive3IsMetaMarker,
+			id:            "name" + metadata.DataFileSuffix,
+			isMeta:        false,
 		},
 	}
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.Equal(suite.T(), test.isMeta, isMetadataFile(test.id, test.version), "is metadata")
+			assert.Equal(suite.T(), test.isMeta, isMetadataFile(test.id, test.backupVersion), "is metadata")
 		})
 	}
 }
@@ -93,42 +94,42 @@ func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Stream, e
 
 func (suite *ExportUnitSuite) TestGetItemName() {
 	table := []struct {
-		tname   string
-		id      string
-		version int
-		name    string
-		fin     data.FetchItemByNamer
-		errFunc assert.ErrorAssertionFunc
+		tname         string
+		id            string
+		backupVersion int
+		name          string
+		fin           data.FetchItemByNamer
+		errFunc       assert.ErrorAssertionFunc
 	}{
 		{
-			tname:   "legacy",
-			id:      "name",
-			version: 1,
-			name:    "name",
-			errFunc: assert.NoError,
+			tname:         "legacy",
+			id:            "name",
+			backupVersion: version.OneDrive1DataAndMetaFiles,
+			name:          "name",
+			errFunc:       assert.NoError,
 		},
 		{
-			tname:   "name in filename",
-			id:      "name.data",
-			version: 4,
-			name:    "name",
-			errFunc: assert.NoError,
+			tname:         "name in filename",
+			id:            "name.data",
+			backupVersion: version.OneDrive4DirIncludesPermissions,
+			name:          "name",
+			errFunc:       assert.NoError,
 		},
 		{
-			tname:   "name in metadata",
-			id:      "name.data",
-			version: version.Backup,
-			name:    "name",
-			fin:     finD{id: "name.data", name: "name"},
-			errFunc: assert.NoError,
+			tname:         "name in metadata",
+			id:            "name.data",
+			backupVersion: version.Backup,
+			name:          "name",
+			fin:           finD{id: "name.data", name: "name"},
+			errFunc:       assert.NoError,
 		},
 		{
-			tname:   "name in metadata but error",
-			id:      "name.data",
-			version: version.Backup,
-			name:    "",
-			fin:     finD{err: assert.AnError},
-			errFunc: assert.Error,
+			tname:         "name in metadata but error",
+			id:            "name.data",
+			backupVersion: version.Backup,
+			name:          "",
+			fin:           finD{err: assert.AnError},
+			errFunc:       assert.Error,
 		},
 	}
 
@@ -142,7 +143,7 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 			name, err := getItemName(
 				ctx,
 				test.id,
-				test.version,
+				test.backupVersion,
 				test.fin,
 			)
 			test.errFunc(t, err)

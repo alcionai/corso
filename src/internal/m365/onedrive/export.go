@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -68,7 +69,7 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan export.ExportIte
 			}
 		}
 
-		// Return all the errored items at the end
+		// Return all the items that we failed to get from kopia at the end
 		for _, err := range errs.Errors().Items {
 			ch <- export.ExportItem{
 				ID:    err.ID,
@@ -84,8 +85,8 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan export.ExportIte
 // metadata file.  This is OneDrive specific logic and depends on the
 // version of the backup unlike metadata.IsMetadataFile which only has
 // to be concerned about the current version.
-func isMetadataFile(id string, version int) bool {
-	if version < 1 {
+func isMetadataFile(id string, backupVersion int) bool {
+	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		return false
 	}
 
@@ -98,14 +99,14 @@ func isMetadataFile(id string, version int) bool {
 func getItemName(
 	ctx context.Context,
 	id string,
-	version int,
+	backupVersion int,
 	fin data.FetchItemByNamer,
 ) (string, error) {
-	if version < 1 {
+	if backupVersion < version.OneDrive1DataAndMetaFiles {
 		return id, nil
 	}
 
-	if version < 5 {
+	if backupVersion < version.OneDrive5DirMetaNoName {
 		return strings.TrimSuffix(id, metadata.DataFileSuffix), nil
 	}
 
