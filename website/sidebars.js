@@ -42,14 +42,15 @@ const sidebars = {
       items: [
         {
           type: 'category',
-          label: 'Setup',
+          label: 'Setup and maintenance',
           link: {
             slug: 'cli/setup',
-            description: 'Documentation for commonly-used Corso setup CLI commands',
+            description: 'Documentation for Corso setup and maintenance commands',
           },
           items: [
             'cli/corso-repo-init-s3',
             'cli/corso-repo-connect-s3',
+            'cli/corso-repo-maintenance',
             'cli/corso-env']
         },
         {
