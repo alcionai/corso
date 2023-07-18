@@ -52,6 +52,6 @@ func (suite *ListsAPIIntgSuite) TestLists_PostDrive() {
 	assert.Equal(t, driveName, ptr.Val(list.GetName()))
 
 	// second post, same name, should error on name conflict]
-	list, err = acl.PostDrive(ctx, siteID, driveName)
+	_, err = acl.PostDrive(ctx, siteID, driveName)
 	require.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
 }

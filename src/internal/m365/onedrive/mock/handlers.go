@@ -249,7 +249,23 @@ type RestoreHandler struct {
 	PostItemResp   models.DriveItemable
 	PostItemErr    error
 
+	DrivePagerV api.DrivePager
+
+	PostDriveResp models.Driveable
+	PostDriveErr  error
+
 	UploadSessionErr error
+}
+
+func (h RestoreHandler) PostDrive(
+	ctx context.Context,
+	protectedResourceID, driveName string,
+) (models.Driveable, error) {
+	return h.PostDriveResp, h.PostDriveErr
+}
+
+func (h RestoreHandler) NewDrivePager(string, []string) api.DrivePager {
+	return h.DrivePagerV
 }
 
 func (h *RestoreHandler) AugmentItemInfo(

@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -39,10 +40,17 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		restoreMetrics support.CollectionMetrics
-		caches         = onedrive.NewRestoreCaches()
-		el             = errs.Local()
+		lrh                 = libraryRestoreHandler{ac}
+		protectedResourceID = dcs[0].FullPath().ResourceOwner()
+		restoreMetrics      support.CollectionMetrics
+		caches              = onedrive.NewRestoreCaches()
+		el                  = errs.Local()
 	)
+
+	err := caches.Populate(ctx, lrh, protectedResourceID)
+	if err != nil {
+		return nil, clues.Wrap(err, "initializing restore caches")
+	}
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
@@ -69,13 +77,14 @@ func ConsumeRestoreCollections(
 		case path.LibrariesCategory:
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
-				libraryRestoreHandler{ac.Drives()},
+				lrh,
 				restoreCfg,
 				backupVersion,
 				dc,
 				caches,
 				deets,
 				opts.RestorePermissions,
+				control.DefaultRestoreContainerName(dttm.HumanReadableDriveItem),
 				errs,
 				ctr)
 
