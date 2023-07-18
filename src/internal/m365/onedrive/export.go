@@ -10,11 +10,14 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// exportCollection is the implementation of data.ExportCollection for OneDrive
+var _ export.ExportCollection = &exportCollection{}
+
+// exportCollection is the implementation of export.ExportCollection for OneDrive
 type exportCollection struct {
 	// baseDir contains the path of the collection
 	baseDir string
@@ -35,8 +38,8 @@ func (ec exportCollection) GetBasePath() string {
 	return ec.baseDir
 }
 
-func (ec exportCollection) GetItems(ctx context.Context) <-chan data.ExportItem {
-	ch := make(chan data.ExportItem)
+func (ec exportCollection) GetItems(ctx context.Context) <-chan export.ExportItem {
+	ch := make(chan export.ExportItem)
 
 	go func() {
 		defer close(ch)
@@ -54,9 +57,9 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan data.ExportItem 
 
 				name, err := getItemName(ctx, itemUUID, ec.version, c)
 
-				ch <- data.ExportItem{
+				ch <- export.ExportItem{
 					ID: itemUUID,
-					Data: data.ExportItemData{
+					Data: export.ExportItemData{
 						Name: name,
 						Body: item.ToReader(),
 					},
@@ -67,7 +70,7 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan data.ExportItem 
 
 		// Return all the errored items at the end
 		for _, err := range errs.Errors().Items {
-			ch <- data.ExportItem{
+			ch <- export.ExportItem{
 				ID:    err.ID,
 				Error: &err,
 			}
@@ -131,14 +134,14 @@ func ExportRestoreCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-) ([]data.ExportCollection, error) {
+) ([]export.ExportCollection, error) {
 	el := errs.Local()
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
 	data.SortRestoreCollections(dcs)
 
-	ec := make([]data.ExportCollection, 0, len(dcs))
+	ec := make([]export.ExportCollection, 0, len(dcs))
 
 	for _, dc := range dcs {
 		drivePath, err := path.ToDrivePath(dc.FullPath())

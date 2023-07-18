@@ -195,7 +195,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		name               string
 		version            int
 		backingCollections []data.RestoreCollection
-		expectedItems      []data.ExportItem
+		expectedItems      []export.ExportItem
 	}{
 		{
 			name:    "single item",
@@ -209,10 +209,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 					},
 				},
 			},
-			expectedItems: []data.ExportItem{
+			expectedItems: []export.ExportItem{
 				{
 					ID: "name1",
-					Data: data.ExportItemData{
+					Data: export.ExportItemData{
 						Name: "name1",
 						Body: io.NopCloser((bytes.NewBufferString("body1"))),
 					},
@@ -232,17 +232,17 @@ func (suite *ExportUnitSuite) TestGetItems() {
 					},
 				},
 			},
-			expectedItems: []data.ExportItem{
+			expectedItems: []export.ExportItem{
 				{
 					ID: "name1",
-					Data: data.ExportItemData{
+					Data: export.ExportItemData{
 						Name: "name1",
 						Body: io.NopCloser((bytes.NewBufferString("body1"))),
 					},
 				},
 				{
 					ID: "name2",
-					Data: data.ExportItemData{
+					Data: export.ExportItemData{
 						Name: "name2",
 						Body: io.NopCloser((bytes.NewBufferString("body2"))),
 					},
@@ -261,10 +261,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 					},
 				},
 			},
-			expectedItems: []data.ExportItem{
+			expectedItems: []export.ExportItem{
 				{
 					ID: "name1.data",
-					Data: data.ExportItemData{
+					Data: export.ExportItemData{
 						Name: "name1",
 						Body: io.NopCloser((bytes.NewBufferString("body1"))),
 					},
@@ -284,10 +284,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 					FetchItemByNamer: finD{id: "id1.data", name: "name1"},
 				},
 			},
-			expectedItems: []data.ExportItem{
+			expectedItems: []export.ExportItem{
 				{
 					ID: "id1.data",
-					Data: data.ExportItemData{
+					Data: export.ExportItemData{
 						Name: "name1",
 						Body: io.NopCloser((bytes.NewBufferString("body1"))),
 					},
@@ -307,7 +307,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 					FetchItemByNamer: finD{err: assert.AnError},
 				},
 			},
-			expectedItems: []data.ExportItem{
+			expectedItems: []export.ExportItem{
 				{
 					ID:    "id1.data",
 					Error: assert.AnError,
@@ -331,7 +331,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 
 			items := ec.GetItems(ctx)
 
-			fitems := []data.ExportItem{}
+			fitems := []export.ExportItem{}
 			for item := range items {
 				fitems = append(fitems, item)
 			}
@@ -374,10 +374,10 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		},
 	}
 
-	expectedItems := []data.ExportItem{
+	expectedItems := []export.ExportItem{
 		{
 			ID: "id1.data",
-			Data: data.ExportItemData{
+			Data: export.ExportItemData{
 				Name: "name1",
 				Body: io.NopCloser((bytes.NewBufferString("body1"))),
 			},
@@ -392,7 +392,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	items := ecs[0].GetItems(ctx)
 
-	fitems := []data.ExportItem{}
+	fitems := []export.ExportItem{}
 	for item := range items {
 		fitems = append(fitems, item)
 	}

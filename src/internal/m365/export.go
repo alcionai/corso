@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -25,7 +26,7 @@ func (ctrl *Controller) ExportRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
-) ([]data.ExportCollection, error) {
+) ([]export.ExportCollection, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:export")
 	defer end()
 
@@ -33,7 +34,7 @@ func (ctrl *Controller) ExportRestoreCollections(
 	ctx = clues.Add(ctx, "export_config", exportCfg) // TODO(rkeepers): needs PII control
 
 	var (
-		expCollections []data.ExportCollection
+		expCollections []export.ExportCollection
 		status         *support.ControllerOperationStatus
 		deets          = &details.Builder{}
 		err            error
