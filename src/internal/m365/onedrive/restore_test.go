@@ -736,9 +736,8 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 					{Drives: []models.Driveable{}},
 				},
 			},
-			expectErr:   require.NoError,
-			expectLen:   0,
-			checkValues: true,
+			expectErr: require.NoError,
+			expectLen: 0,
 		},
 		{
 			name: "one result",

@@ -255,7 +255,7 @@ func RestoreCollection(
 		protectedResourceID,
 		fallbackDriveName)
 	if err != nil {
-		return metrics, clues.Wrap(err, "ensureing drive exists")
+		return metrics, clues.Wrap(err, "ensuring drive exists")
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -1217,12 +1217,10 @@ func ensureDriveExists(
 		newDriveName = driveName
 		newDrive     models.Driveable
 		err          error
-		i            = 1
 	)
 
 	if _, ok := caches.DriveNameToDriveInfo[newDriveName]; ok {
 		newDriveName = fmt.Sprintf("%s %d", driveName, 1)
-		i++
 	}
 
 	// if not, double check that the name won't collide by looking
@@ -1235,7 +1233,7 @@ func ensureDriveExists(
 	// names with document libraries.  In those cases it's not enough
 	// to compare the names of drives; we also need to continue this
 	// loop until we can create a drive without error.
-	for {
+	for i := 2; ; i++ {
 		ictx := clues.Add(ctx, "new_drive_name", clues.Hide(newDriveName))
 
 		newDrive, err = pdagrf.PostDrive(ictx, protectedResourceID, newDriveName)
@@ -1248,7 +1246,6 @@ func ensureDriveExists(
 		}
 
 		newDriveName = fmt.Sprintf("%s %d", driveName, i)
-		i++
 	}
 
 	err = caches.AddDrive(ctx, newDrive, pdagrf)
