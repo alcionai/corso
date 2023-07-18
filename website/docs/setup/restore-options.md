@@ -1,4 +1,4 @@
-# Restore Options
+# Restore options
 
 import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
