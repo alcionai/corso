@@ -38,6 +38,8 @@ type Item struct {
 	Data ItemData
 
 	// Error will contain any error that happened while trying to get
-	// the item like when trying to resolve the name of the item.
+	// the item/items like when trying to resolve the name of the item.
+	// In case we have the error bound to a particular item, we will
+	// also return the id of the item.
 	Error error
 }

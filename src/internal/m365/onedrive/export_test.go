@@ -3,7 +3,6 @@ package onedrive
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"testing"
 
@@ -94,7 +93,7 @@ func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Stream, e
 		return metadataStream{id: fd.id, name: fd.name}, nil
 	}
 
-	return nil, errors.New("not found")
+	return nil, assert.AnError
 }
 
 func (suite *ExportUnitSuite) TestGetItemName() {
@@ -160,7 +159,7 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 
 type mockRestoreCollection struct {
 	path  path.Path
-	items []data.Stream
+	items []mockDataStream
 }
 
 func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
@@ -169,7 +168,14 @@ func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-ch
 	go func() {
 		defer close(ch)
 
+		el := errs.Local()
+
 		for _, item := range rc.items {
+			if item.err != nil {
+				el.AddRecoverable(ctx, item.err)
+				continue
+			}
+
 			ch <- item
 		}
 	}()
@@ -184,6 +190,7 @@ func (rc mockRestoreCollection) FullPath() path.Path {
 type mockDataStream struct {
 	id   string
 	data string
+	err  error
 }
 
 func (ms mockDataStream) ToReader() io.ReadCloser {
@@ -209,8 +216,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			backingCollections: []data.RestoreCollection{
 				data.NoFetchRestoreCollection{
 					Collection: mockRestoreCollection{
-						items: []data.Stream{
-							mockDataStream{id: "name1", data: "body1"},
+						items: []mockDataStream{
+							{id: "name1", data: "body1"},
 						},
 					},
 				},
@@ -231,39 +238,9 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			backingCollections: []data.RestoreCollection{
 				data.NoFetchRestoreCollection{
 					Collection: mockRestoreCollection{
-						items: []data.Stream{
-							mockDataStream{id: "name1", data: "body1"},
-							mockDataStream{id: "name2", data: "body2"},
-						},
-					},
-				},
-			},
-			expectedItems: []export.Item{
-				{
-					ID: "name1",
-					Data: export.ItemData{
-						Name: "name1",
-						Body: io.NopCloser((bytes.NewBufferString("body1"))),
-					},
-				},
-				{
-					ID: "name2",
-					Data: export.ItemData{
-						Name: "name2",
-						Body: io.NopCloser((bytes.NewBufferString("body2"))),
-					},
-				},
-			},
-		},
-		{
-			name:    "items with success and error",
-			version: 1,
-			backingCollections: []data.RestoreCollection{
-				data.NoFetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []data.Stream{
-							mockDataStream{id: "name1", data: "body1"},
-							mockDataStream{id: "name2", data: "body2"},
+						items: []mockDataStream{
+							{id: "name1", data: "body1"},
+							{id: "name2", data: "body2"},
 						},
 					},
 				},
@@ -291,8 +268,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			backingCollections: []data.RestoreCollection{
 				data.NoFetchRestoreCollection{
 					Collection: mockRestoreCollection{
-						items: []data.Stream{
-							mockDataStream{id: "name1.data", data: "body1"},
+						items: []mockDataStream{
+							{id: "name1.data", data: "body1"},
 						},
 					},
 				},
@@ -313,8 +290,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			backingCollections: []data.RestoreCollection{
 				data.FetchRestoreCollection{
 					Collection: mockRestoreCollection{
-						items: []data.Stream{
-							mockDataStream{id: "id1.data", data: "body1"},
+						items: []mockDataStream{
+							{id: "id1.data", data: "body1"},
 						},
 					},
 					FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
@@ -336,8 +313,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			backingCollections: []data.RestoreCollection{
 				data.FetchRestoreCollection{
 					Collection: mockRestoreCollection{
-						items: []data.Stream{
-							mockDataStream{id: "id1.data"},
+						items: []mockDataStream{
+							{id: "id1.data"},
 						},
 					},
 					FetchItemByNamer: finD{err: assert.AnError},
@@ -346,6 +323,69 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			expectedItems: []export.Item{
 				{
 					ID:    "id1.data",
+					Error: assert.AnError,
+				},
+			},
+		},
+		{
+			name:    "items with success and metadata read error",
+			version: version.Backup,
+			backingCollections: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: mockRestoreCollection{
+						items: []mockDataStream{
+							{id: "missing.data"},
+							{id: "id1.data", data: "body1"},
+						},
+					},
+					FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
+				},
+			},
+			expectedItems: []export.Item{
+				{
+					ID:    "missing.data",
+					Error: assert.AnError,
+				},
+				{
+					ID: "id1.data",
+					Data: export.ItemData{
+						Name: "name1",
+						Body: io.NopCloser(bytes.NewBufferString("body1")),
+					},
+				},
+			},
+		},
+		{
+			name:    "items with success and fetch error",
+			version: version.OneDrive1DataAndMetaFiles,
+			backingCollections: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: mockRestoreCollection{
+						items: []mockDataStream{
+							{id: "name0", data: "body0"},
+							{id: "name1", err: assert.AnError},
+							{id: "name2", data: "body2"},
+						},
+					},
+				},
+			},
+			expectedItems: []export.Item{
+				{
+					ID: "name0",
+					Data: export.ItemData{
+						Name: "name0",
+						Body: io.NopCloser(bytes.NewBufferString("body0")),
+					},
+				},
+				{
+					ID: "name2",
+					Data: export.ItemData{
+						Name: "name2",
+						Body: io.NopCloser(bytes.NewBufferString("body2")),
+					},
+				},
+				{
+					ID:    "",
 					Error: assert.AnError,
 				},
 			},
@@ -374,11 +414,20 @@ func (suite *ExportUnitSuite) TestGetItems() {
 
 			assert.Len(t, fitems, len(test.expectedItems), "num of items")
 
+			// We do not have any grantees about the ordering of the
+			// items in the SDK, but leaving the test this way for now
+			// to simplify testing.
 			for i, item := range fitems {
 				assert.Equal(t, test.expectedItems[i].ID, item.ID, "id")
 				assert.Equal(t, test.expectedItems[i].Data.Name, item.Data.Name, "name")
 				assert.Equal(t, test.expectedItems[i].Data.Body, item.Data.Body, "body")
-				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error, "error")
+
+				if test.expectedItems[i].Error != nil {
+					// Have to compare error strings because the error
+					// will be differently formatted for recoverable
+					// errors
+					assert.Contains(t, item.Error.Error(), test.expectedItems[i].Error.Error(), "error")
+				}
 			}
 		})
 	}
@@ -399,8 +448,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		data.FetchRestoreCollection{
 			Collection: mockRestoreCollection{
 				path: p,
-				items: []data.Stream{
-					mockDataStream{id: "id1.data", data: "body1"},
+				items: []mockDataStream{
+					{id: "id1.data", data: "body1"},
 				},
 			},
 			FetchItemByNamer: finD{id: "id1.meta", name: "name1"},

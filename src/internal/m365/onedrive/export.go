@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -74,6 +75,14 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan export.Item {
 			ch <- export.Item{
 				ID:    err.ID,
 				Error: &err,
+			}
+		}
+
+		for _, ec := range errs.Errors().Recovered {
+			ch <- export.Item{
+				// Convert recovered errors to simpler errors. These
+				// will not have an ID associated with them.
+				Error: errors.New(ec.String()),
 			}
 		}
 	}()
