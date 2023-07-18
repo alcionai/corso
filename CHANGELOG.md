@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.11.0] (beta) - 2023-07-18
+
 ### Added
 - Drive items backup and restore link shares
 - Restore commands now accept an optional top-level restore destination with the `--destination` flag.  Setting the destination to '/' will restore items back into their original location.  
@@ -322,7 +324,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.11.0...HEAD
+[v0.11.0]: https://github.com/alcionai/corso/compare/v0.10.0...v0.11.0
 [v0.10.0]: https://github.com/alcionai/corso/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/alcionai/corso/compare/v0.8.1...v0.9.0
 [v0.8.0]: https://github.com/alcionai/corso/compare/v0.7.1...v0.8.0
