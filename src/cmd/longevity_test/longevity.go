@@ -39,7 +39,7 @@ func main() {
 		fatal(cc.Context(), "unknown service", nil)
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(cc.Context(), service, nil)
+	r, _, _, _, err := utils.GetAccountAndConnect(cc.Context(), service, nil)
 	if err != nil {
 		fatal(cc.Context(), "unable to connect account", err)
 	}

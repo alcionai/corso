@@ -171,7 +171,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opt.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
@@ -228,12 +228,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
+	opts := utils.ControlWithConfig(cfg)
+
 	r, err := repository.ConnectAndSendConnectEvent(
 		ctx,
 		cfg.Account,
 		cfg.Storage,
 		repoID,
-		utils.ControlWithConfig(cfg))
+		opts)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}
@@ -242,7 +244,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opts.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 

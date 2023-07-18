@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -135,8 +136,11 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	)
 
 	const (
-		bkt = "write-read-config-bucket"
-		tid = "3c0748d2-470e-444c-9064-1268e52609d5"
+		bkt    = "write-read-config-bucket"
+		tid    = "3c0748d2-470e-444c-9064-1268e52609d5"
+		repoID = "repoid"
+		user   = "a-user"
+		host   = "some-host"
 	)
 
 	err := initWithViper(vpr, testConfigFilePath)
@@ -145,7 +149,12 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	s3Cfg := storage.S3Config{Bucket: bkt, DoNotUseTLS: true, DoNotVerifyTLS: true}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid")
+	rOpts := repository.Options{
+		User: user,
+		Host: host,
+	}
+
+	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, rOpts, repoID)
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
 	err = vpr.ReadInConfig()
@@ -160,6 +169,10 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	readM365, err := m365ConfigsFromViper(vpr)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
+
+	gotUser, gotHost := getUserHost(vpr, true)
+	assert.Equal(t, user, gotUser)
+	assert.Equal(t, host, gotHost)
 }
 
 func (suite *ConfigSuite) TestMustMatchConfig() {
@@ -181,7 +194,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	s3Cfg := storage.S3Config{Bucket: bkt}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid")
+	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, repository.Options{}, "repoid")
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
 	err = vpr.ReadInConfig()
@@ -383,7 +396,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid")
+	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, repository.Options{}, "repoid")
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
 	err = vpr.ReadInConfig()
