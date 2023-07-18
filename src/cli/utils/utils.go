@@ -23,10 +23,10 @@ func GetAccountAndConnect(
 	ctx context.Context,
 	pst path.ServiceType,
 	overrides map[string]string,
-) (repository.Repository, *storage.Storage, *account.Account, error) {
+) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
 	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	repoID := cfg.RepoID
@@ -34,18 +34,20 @@ func GetAccountAndConnect(
 		repoID = events.RepoIDNotFound
 	}
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, ControlWithConfig(cfg))
+	opts := ControlWithConfig(cfg)
+
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, opts)
 	if err != nil {
-		return nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
+		return nil, nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
 	// this initializes our graph api client configurations,
 	// including control options such as concurency limitations.
 	if _, err := r.ConnectToM365(ctx, pst); err != nil {
-		return nil, nil, nil, clues.Wrap(err, "connecting to m365")
+		return nil, nil, nil, nil, clues.Wrap(err, "connecting to m365")
 	}
 
-	return r, &cfg.Storage, &cfg.Account, nil
+	return r, &cfg.Storage, &cfg.Account, &opts, nil
 }
 
 func AccountConnectAndWriteRepoConfig(
@@ -53,7 +55,7 @@ func AccountConnectAndWriteRepoConfig(
 	pst path.ServiceType,
 	overrides map[string]string,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, err := GetAccountAndConnect(ctx, pst, overrides)
+	r, stg, acc, _, err := GetAccountAndConnect(ctx, pst, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err

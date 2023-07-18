@@ -276,7 +276,7 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -302,7 +302,7 @@ func genericListCommand(
 ) error {
 	ctx := cmd.Context()
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
