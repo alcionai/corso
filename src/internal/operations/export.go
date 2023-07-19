@@ -285,7 +285,7 @@ func (op *ExportOperation) do(
 ) ([]export.Collection, error) {
 	logger.Ctx(ctx).
 		With("control_options", op.Options, "selectors", op.Selectors).
-		Info("restoring selection")
+		Info("exporting selection")
 
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
@@ -297,7 +297,7 @@ func (op *ExportOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
+	observe.Message(ctx, "Exporting", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
 
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
 	if err != nil {
@@ -351,7 +351,7 @@ func (op *ExportOperation) do(
 		dcs,
 		op.Errors)
 	if err != nil {
-		return nil, clues.Wrap(err, "restoring collections")
+		return nil, clues.Wrap(err, "exporting collections")
 	}
 
 	opStats.ctrl = op.ec.Wait()
