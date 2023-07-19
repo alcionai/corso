@@ -71,15 +71,17 @@ func items(ctx context.Context, ec exportCollection, ch chan<- export.Item) {
 		}
 	}
 
+	perrs := errs.Errors()
+
 	// Return all the items that we failed to get from kopia at the end
-	for _, err := range errs.Errors().Items {
+	for _, err := range perrs.Items {
 		ch <- export.Item{
 			ID:    err.ID,
 			Error: &err,
 		}
 	}
 
-	for _, ec := range errs.Errors().Recovered {
+	for _, ec := range perrs.Recovered {
 		ch <- export.Item{
 			// Convert recovered errors to simpler errors. These
 			// will not have an ID associated with them.
@@ -101,8 +103,8 @@ func isMetadataFile(id string, backupVersion int) bool {
 		strings.HasSuffix(id, metadata.DirMetaFileSuffix)
 }
 
-// getItemName is used to get the name of the item as how we get the
-// name depends on the version of the backup.
+// getItemName is used to get the name of the item.
+// How we get the name depends on the version of the backup.
 func getItemName(
 	ctx context.Context,
 	id string,
@@ -143,18 +145,18 @@ func ExportRestoreCollections(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) ([]export.Collection, error) {
-	el := errs.Local()
-
-	ec := make([]export.Collection, 0, len(dcs))
+	var (
+		el = errs.Local()
+		ec = make([]export.Collection, 0, len(dcs))
+	)
 
 	for _, dc := range dcs {
 		drivePath, err := path.ToDrivePath(dc.FullPath())
 		if err != nil {
-			return nil, clues.Wrap(err, "creating drive path").WithClues(ctx)
+			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
 		}
 
-		baseDir := &path.Builder{}
-		baseDir = baseDir.Append(drivePath.Folders...)
+		baseDir := path.Builder{}.Append(drivePath.Folders...)
 
 		ec = append(ec, exportCollection{
 			baseDir:           baseDir.String(),
