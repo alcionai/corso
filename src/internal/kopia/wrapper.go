@@ -862,7 +862,7 @@ func (w Wrapper) setBlobConfigParams(
 		return false, clues.Stack(err)
 	}
 
-  tmp := setBlobConfigDuration(duration, blobCfg)
+	tmp := setBlobConfigDuration(duration, blobCfg)
 	changed = changed || tmp
 
 	return changed, nil
