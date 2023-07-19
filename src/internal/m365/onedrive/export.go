@@ -24,16 +24,14 @@ type exportCollection struct {
 	// baseDir contains the path of the collection
 	baseDir string
 
-	// backingCollections will, in most cases contain just one
-	// collection. However, in cases where we have to combine multiple
-	// collections, like when generating pst files for outlook, this
-	// will contain multiple collections.
-	backingCollections []data.RestoreCollection
+	// backingCollection is the restore collection from which we will
+	// create the export collection.
+	backingCollection data.RestoreCollection
 
-	// version is the version of the backup this collection was part
+	// backupVersion is the backupVersion of the backup this collection was part
 	// of. This is required to figure out how to get the name of the
 	// item.
-	version int
+	backupVersion int
 }
 
 func (ec exportCollection) GetBasePath() string {
@@ -50,23 +48,21 @@ func (ec exportCollection) GetItems(ctx context.Context) <-chan export.Item {
 
 		// There will only be a single item in the backingCollections
 		// for OneDrive
-		for _, c := range ec.backingCollections {
-			for item := range c.Items(ctx, errs) {
-				itemUUID := item.UUID()
-				if isMetadataFile(itemUUID, ec.version) {
-					continue
-				}
+		for item := range ec.backingCollection.Items(ctx, errs) {
+			itemUUID := item.UUID()
+			if isMetadataFile(itemUUID, ec.backupVersion) {
+				continue
+			}
 
-				name, err := getItemName(ctx, itemUUID, ec.version, c)
+			name, err := getItemName(ctx, itemUUID, ec.backupVersion, ec.backingCollection)
 
-				ch <- export.Item{
-					ID: itemUUID,
-					Data: export.ItemData{
-						Name: name,
-						Body: item.ToReader(),
-					},
-					Error: err,
-				}
+			ch <- export.Item{
+				ID: itemUUID,
+				Data: export.ItemData{
+					Name: name,
+					Body: item.ToReader(),
+				},
+				Error: err,
 			}
 		}
 
@@ -159,9 +155,9 @@ func ExportRestoreCollections(
 		baseDir = baseDir.Append(drivePath.Folders...)
 
 		ec = append(ec, exportCollection{
-			baseDir:            baseDir.String(),
-			backingCollections: []data.RestoreCollection{dc},
-			version:            backupVersion,
+			baseDir:           baseDir.String(),
+			backingCollection: dc,
+			backupVersion:           backupVersion,
 		})
 	}
 

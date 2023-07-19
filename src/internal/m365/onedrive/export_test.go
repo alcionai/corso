@@ -205,20 +205,18 @@ func (ms mockDataStream) Deleted() bool { return false }
 
 func (suite *ExportUnitSuite) TestGetItems() {
 	table := []struct {
-		name               string
-		version            int
-		backingCollections []data.RestoreCollection
-		expectedItems      []export.Item
+		name              string
+		version           int
+		backingCollection data.RestoreCollection
+		expectedItems     []export.Item
 	}{
 		{
 			name:    "single item",
 			version: 1,
-			backingCollections: []data.RestoreCollection{
-				data.NoFetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "name1", data: "body1"},
-						},
+			backingCollection: data.NoFetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "name1", data: "body1"},
 					},
 				},
 			},
@@ -235,13 +233,11 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		{
 			name:    "multiple items",
 			version: 1,
-			backingCollections: []data.RestoreCollection{
-				data.NoFetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "name1", data: "body1"},
-							{id: "name2", data: "body2"},
-						},
+			backingCollection: data.NoFetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "name1", data: "body1"},
+						{id: "name2", data: "body2"},
 					},
 				},
 			},
@@ -265,12 +261,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		{
 			name:    "single item with data suffix",
 			version: 2,
-			backingCollections: []data.RestoreCollection{
-				data.NoFetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "name1.data", data: "body1"},
-						},
+			backingCollection: data.NoFetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "name1.data", data: "body1"},
 					},
 				},
 			},
@@ -287,15 +281,13 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		{
 			name:    "single item name from metadata",
 			version: version.Backup,
-			backingCollections: []data.RestoreCollection{
-				data.FetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "id1.data", data: "body1"},
-						},
+			backingCollection: data.FetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "id1.data", data: "body1"},
 					},
-					FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 				},
+				FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 			},
 			expectedItems: []export.Item{
 				{
@@ -310,15 +302,13 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		{
 			name:    "single item name from metadata with error",
 			version: version.Backup,
-			backingCollections: []data.RestoreCollection{
-				data.FetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "id1.data"},
-						},
+			backingCollection: data.FetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "id1.data"},
 					},
-					FetchItemByNamer: finD{err: assert.AnError},
 				},
+				FetchItemByNamer: finD{err: assert.AnError},
 			},
 			expectedItems: []export.Item{
 				{
@@ -330,16 +320,14 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		{
 			name:    "items with success and metadata read error",
 			version: version.Backup,
-			backingCollections: []data.RestoreCollection{
-				data.FetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "missing.data"},
-							{id: "id1.data", data: "body1"},
-						},
+			backingCollection: data.FetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "missing.data"},
+						{id: "id1.data", data: "body1"},
 					},
-					FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 				},
+				FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 			},
 			expectedItems: []export.Item{
 				{
@@ -358,14 +346,12 @@ func (suite *ExportUnitSuite) TestGetItems() {
 		{
 			name:    "items with success and fetch error",
 			version: version.OneDrive1DataAndMetaFiles,
-			backingCollections: []data.RestoreCollection{
-				data.FetchRestoreCollection{
-					Collection: mockRestoreCollection{
-						items: []mockDataStream{
-							{id: "name0", data: "body0"},
-							{id: "name1", err: assert.AnError},
-							{id: "name2", data: "body2"},
-						},
+			backingCollection: data.FetchRestoreCollection{
+				Collection: mockRestoreCollection{
+					items: []mockDataStream{
+						{id: "name0", data: "body0"},
+						{id: "name1", err: assert.AnError},
+						{id: "name2", data: "body2"},
 					},
 				},
 			},
@@ -400,9 +386,9 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			defer flush()
 
 			ec := exportCollection{
-				baseDir:            "",
-				backingCollections: test.backingCollections,
-				version:            test.version,
+				baseDir:           "",
+				backingCollection: test.backingCollection,
+				backupVersion:     test.version,
 			}
 
 			items := ec.GetItems(ctx)

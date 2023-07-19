@@ -31,7 +31,7 @@ func (ctrl *Controller) ExportRestoreCollections(
 	defer end()
 
 	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
-	ctx = clues.Add(ctx, "export_config", exportCfg) // TODO(rkeepers): needs PII control
+	ctx = clues.Add(ctx, "export_config", exportCfg) // TODO(meain): needs PII control
 
 	var (
 		expCollections []export.Collection
