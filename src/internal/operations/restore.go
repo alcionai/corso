@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -217,7 +218,19 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
+	restoreProtectedResource, err := chooseRestoreResource(ctx, op.rc, op.RestoreCfg, bup.Selector)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting destination protected resource")
+	}
+
+	ctx = clues.Add(
+		ctx,
+		"backup_protected_resource_id", bup.Selector.ID(),
+		"backup_protected_resource_name", clues.Hide(bup.Selector.Name()),
+		"restore_protected_resource_id", restoreProtectedResource.ID(),
+		"restore_protected_resource_name", clues.Hide(restoreProtectedResource.Name()))
+
+	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreProtectedResource.Name()))
 
 	paths, err := formatDetailsForRestoration(
 		ctx,
@@ -232,8 +245,6 @@ func (op *RestoreOperation) do(
 
 	ctx = clues.Add(
 		ctx,
-		"resource_owner_id", bup.Selector.ID(),
-		"resource_owner_name", clues.Hide(bup.Selector.Name()),
 		"details_entries", len(deets.Entries),
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
@@ -319,6 +330,24 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
+}
+
+func chooseRestoreResource(
+	ctx context.Context,
+	pprian inject.PopulateProtectedResourceIDAndNamer,
+	restoreCfg control.RestoreConfig,
+	orig idname.Provider,
+) (idname.Provider, error) {
+	if len(restoreCfg.ProtectedResource) == 0 {
+		return orig, nil
+	}
+
+	id, name, err := pprian.PopulateProtectedResourceIDAndName(
+		ctx,
+		restoreCfg.ProtectedResource,
+		nil)
+
+	return idname.NewProvider(id, name), clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

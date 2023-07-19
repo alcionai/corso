@@ -248,7 +248,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 	return id, name, nil
 }
 
-// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// PopulateProtectedResourceIDAndName takes the provided owner identifier and produces
 // the owner's name and ID from that value.  Returns an error if the owner is
 // not recognized by the current tenant.
 //
@@ -256,7 +256,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
 // data gets stored inside the controller instance for later re-use.
-func (ctrl *Controller) PopulateOwnerIDAndNamesFrom(
+func (ctrl *Controller) PopulateProtectedResourceIDAndName(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
 	ins idname.Cacher,

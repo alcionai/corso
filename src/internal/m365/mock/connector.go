@@ -26,6 +26,10 @@ type Controller struct {
 	Err error
 
 	Stats data.CollectionStats
+
+	ProtectedResourceID   string
+	ProtectedResourceName string
+	ProtectedResourceErr  error
 }
 
 func (ctrl Controller) ProduceBackupCollections(
@@ -71,3 +75,13 @@ func (ctrl Controller) ConsumeRestoreCollections(
 }
 
 func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
+
+func (ctrl Controller) PopulateProtectedResourceIDAndName(
+	ctx context.Context,
+	protectedResource string, // input value, can be either id or name
+	ins idname.Cacher,
+) (string, string, error) {
+	return ctrl.ProtectedResourceID,
+		ctrl.ProtectedResourceName,
+		ctrl.ProtectedResourceErr
+}
