@@ -18,8 +18,8 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v1.0.0
 	github.com/microsoft/kiota-http-go v1.0.0
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
-	github.com/microsoft/kiota-serialization-json-go v1.0.3
-	github.com/microsoftgraph/msgraph-sdk-go v1.10.0
+	github.com/microsoft/kiota-serialization-json-go v1.0.4
+	github.com/microsoftgraph/msgraph-sdk-go v1.12.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v2 v2.4.1
@@ -61,7 +61,7 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.6.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.7.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
