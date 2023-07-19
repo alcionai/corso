@@ -14,7 +14,7 @@ import (
 // ------------------------------------------------------------------------------------------------
 
 const (
-	teamsServiceCommand                 = "team"
+	teamsServiceCommand                 = "teams"
 	teamsServiceCommandCreateUseSuffix  = "--team <teamsName> | '" + flags.Wildcard + "'"
 	teamsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	teamsServiceCommandDetailsUseSuffix = "--backup <backupId>"
@@ -22,27 +22,23 @@ const (
 
 const (
 	teamsServiceCommandCreateExamples = `# Backup all Teams data for Alice
-corso backup create team --team alice@example.com 
+corso backup create teams --team alice@example.com 
 
 # Backup only Teams contacts for Alice and Bob
-corso backup create team --team testTeams1,testTeams2 --data contacts
+corso backup create teams --team engineering,sales --data contacts
 
 # Backup all Teams data for all M365 users 
-corso backup create team --team '*'`
+corso backup create teams --team '*'`
 
 	teamsServiceCommandDeleteExamples = `# Delete Teams backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete team --backup 1234abcd-12ab-cd34-56de-1234abcd`
+corso backup delete teams --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
 	teamsServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
-corso backup details team --backup 1234abcd-12ab-cd34-56de-1234abcd
+corso backup details teams --backup 1234abcd-12ab-cd34-56de-1234abcd
 
 # Explore calendar events occurring after start of 2022
 corso backup details teams --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --event-starts-after 2022-01-01T00:00:00
-
-# Explore contacts named Andy
-corso backup details teams --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --contact-name Andy`
+    --event-starts-after 2022-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -117,7 +113,7 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 // backup create
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup create team [<flag>...]`
+// `corso backup create teams [<flag>...]`
 func teamsCreateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamsServiceCommand,
@@ -127,7 +123,7 @@ func teamsCreateCmd() *cobra.Command {
 	}
 }
 
-// processes an team service backup.
+// processes a teams service backup.
 func createTeamsCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
@@ -136,7 +132,7 @@ func createTeamsCmd(cmd *cobra.Command, args []string) error {
 // backup list
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup list team [<flag>...]`
+// `corso backup list teams [<flag>...]`
 func teamsListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamsServiceCommand,
@@ -155,7 +151,7 @@ func listTeamsCmd(cmd *cobra.Command, args []string) error {
 // backup details
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup details team [<flag>...]`
+// `corso backup details teams [<flag>...]`
 func teamsDetailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamsServiceCommand,
@@ -165,7 +161,7 @@ func teamsDetailsCmd() *cobra.Command {
 	}
 }
 
-// processes an team service backup.
+// processes a teams service backup.
 func detailsTeamsCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
@@ -174,7 +170,7 @@ func detailsTeamsCmd(cmd *cobra.Command, args []string) error {
 // backup delete
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup delete team [<flag>...]`
+// `corso backup delete teams [<flag>...]`
 func teamsDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamsServiceCommand,
