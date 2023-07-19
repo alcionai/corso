@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -369,87 +368,6 @@ func setupSharePointBackup(
 		// restored (ie: counted as writes).
 		items: bo.Results.ItemsWritten - 6,
 		ctrl:  ctrl,
-	}
-}
-
-func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
-	tables := []struct {
-		name        string
-		owner       string
-		restoreCfg  control.RestoreConfig
-		getSelector func(t *testing.T, owners []string) selectors.Selector
-		setup       func(t *testing.T, kw *kopia.Wrapper, sw *store.Wrapper, acct account.Account, owner string) bupResults
-	}{
-		{
-			name:       "Exchange_Restore",
-			owner:      tconfig.M365UserID(suite.T()),
-			restoreCfg: testdata.DefaultRestoreConfig(""),
-			getSelector: func(t *testing.T, owners []string) selectors.Selector {
-				rsel := selectors.NewExchangeRestore(owners)
-				rsel.Include(rsel.AllData())
-
-				return rsel.Selector
-			},
-			setup: setupExchangeBackup,
-		},
-		{
-			name:       "SharePoint_Restore",
-			owner:      tconfig.M365SiteID(suite.T()),
-			restoreCfg: control.DefaultRestoreConfig(dttm.SafeForTesting),
-			getSelector: func(t *testing.T, owners []string) selectors.Selector {
-				rsel := selectors.NewSharePointRestore(owners)
-				rsel.Include(rsel.Library(tconfig.LibraryDocuments), rsel.Library(tconfig.LibraryMoreDocuments))
-
-				return rsel.Selector
-			},
-			setup: setupSharePointBackup,
-		},
-	}
-
-	for _, test := range tables {
-		suite.Run(test.name, func() {
-			var (
-				t   = suite.T()
-				mb  = evmock.NewBus()
-				bup = test.setup(t, suite.kw, suite.sw, suite.acct, test.owner)
-			)
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			require.NotZero(t, bup.items)
-			require.NotEmpty(t, bup.backupID)
-
-			ro, err := NewRestoreOperation(
-				ctx,
-				control.Options{FailureHandling: control.FailFast},
-				suite.kw,
-				suite.sw,
-				bup.ctrl,
-				tconfig.NewM365Account(t),
-				bup.backupID,
-				test.getSelector(t, bup.selectorResourceOwners),
-				test.restoreCfg,
-				mb,
-				count.New())
-			require.NoError(t, err, clues.ToCore(err))
-
-			ds, err := ro.Run(ctx)
-
-			require.NoError(t, err, "restoreOp.Run() %+v", clues.ToCore(err))
-			require.NotEmpty(t, ro.Results, "restoreOp results")
-			require.NotNil(t, ds, "restored details")
-			assert.Equal(t, ro.Status, Completed, "restoreOp status")
-			assert.Equal(t, ro.Results.ItemsWritten, len(ds.Items()), "item write count matches len details")
-			assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
-			assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
-			assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-			assert.NoError(t, ro.Errors.Failure(), "non-recoverable error", clues.ToCore(ro.Errors.Failure()))
-			assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
-			assert.Equal(t, bup.items, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
-			assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
-			assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
-		})
 	}
 }
 

@@ -796,7 +796,7 @@ func createRestoreFolders(
 		driveID        = drivePath.DriveID
 		folders        = restoreDir.Elements()
 		location       = path.Builder{}.Append(driveID)
-		parentFolderID = caches.DriveIDToDriveInfo[drivePath.DriveID].id
+		parentFolderID = caches.DriveIDToDriveInfo[drivePath.DriveID].rootFolderID
 	)
 
 	ctx = clues.Add(

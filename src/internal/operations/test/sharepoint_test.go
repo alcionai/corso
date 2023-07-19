@@ -218,6 +218,10 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
 	t := suite.T()
 
+	// despite the client having a method for drive.Patch and drive.Delete, both only return
+	// the error code and message `invalidRequest`.
+	t.Skip("graph api doesn't allow patch or delete on drives, so we cannot run any conditions")
+
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
@@ -282,13 +286,14 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 		ctx, flush := tester.NewContext(t)
 		defer flush()
 
-		md.SetName(ptr.To("some other name"))
+		patchBody := models.NewDrive()
+		patchBody.SetName(ptr.To("some other name"))
 
 		md, err = graphClient.
 			Drives().
 			ByDriveId(driveID).
-			Patch(ctx, md, nil)
-		require.NoError(t, err, clues.ToCore(err))
+			Patch(ctx, patchBody, nil)
+		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
 		var (
 			mb  = evmock.NewBus()
@@ -316,7 +321,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 			ByDriveItemId(rootFolderID).
 			Children().
 			Get(ctx, nil)
-		require.NoError(t, err, clues.ToCore(err))
+		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
 		items := resp.GetValue()
 		assert.Len(t, items, 2)
@@ -339,7 +344,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 			Drives().
 			ByDriveId(driveID).
 			Delete(ctx, nil)
-		require.NoError(t, err, clues.ToCore(err))
+		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
 		var (
 			mb  = evmock.NewBus()
@@ -393,7 +398,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 			ByDriveItemId(rootFolderID).
 			Children().
 			Get(ctx, nil)
-		require.NoError(t, err, clues.ToCore(err))
+		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
 		items := resp.GetValue()
 		assert.Len(t, items, 1)
@@ -436,7 +441,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 			ByDriveItemId(rootFolderID).
 			Children().
 			Get(ctx, nil)
-		require.NoError(t, err, clues.ToCore(err))
+		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
 		items := resp.GetValue()
 		assert.Len(t, items, 2)

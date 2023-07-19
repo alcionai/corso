@@ -38,6 +38,10 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
 	ctx = clues.Add(ctx, "restore_config", restoreCfg) // TODO(rkeepers): needs PII control
 
+	if len(dcs) == 0 {
+		return nil, clues.New("no collections to restore")
+	}
+
 	var (
 		status *support.ControllerOperationStatus
 		deets  = &details.Builder{}
