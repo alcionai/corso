@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
@@ -516,15 +517,16 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -763,15 +765,16 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -851,15 +854,16 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1054,15 +1058,16 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1247,15 +1252,16 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1362,16 +1368,16 @@ func testRestoreFolderNamedFolderRegression(
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreTestWithVersion(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				},
-			)
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }

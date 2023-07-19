@@ -72,7 +72,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 		osel   = selectors.NewOneDriveBackup([]string{userID})
 		ws     = deeTD.DriveIDFromRepoRef
 		svc    = path.OneDriveService
-		opts   = control.Defaults()
+		opts   = control.DefaultOptions()
 	)
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
@@ -166,7 +166,7 @@ func runDriveIncrementalTest(
 
 	var (
 		acct = tconfig.NewM365Account(t)
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 		mb   = evmock.NewBus()
 		ws   = deeTD.DriveIDFromRepoRef
 
@@ -683,7 +683,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.Defaults())
+			cleanCtrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.DefaultOptions())
 			require.NoError(t, err, clues.ToCore(err))
 
 			bod.ctrl = cleanCtrl
@@ -785,7 +785,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	var (
 		acct = tconfig.NewM365Account(t)
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 		mb   = evmock.NewBus()
 
 		categories = map[path.CategoryType][]string{
@@ -801,7 +801,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		acct,
 		resource.Users,
 		path.OneDriveService,
-		control.Defaults())
+		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.userID)
@@ -922,7 +922,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 		osel   = selectors.NewOneDriveBackup([]string{userID})
 		ws     = deeTD.DriveIDFromRepoRef
 		svc    = path.OneDriveService
-		opts   = control.Defaults()
+		opts   = control.DefaultOptions()
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
@@ -1009,7 +1009,7 @@ func runDriveRestoreWithAdvancedOptions(
 
 	var (
 		mb   = evmock.NewBus()
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)

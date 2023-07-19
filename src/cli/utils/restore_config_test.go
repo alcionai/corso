@@ -68,18 +68,18 @@ func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
 }
 
 func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
-	rco := &RestoreCfgOpts{
-		Collisions:  "collisions",
-		Destination: "destination",
-	}
-
 	table := []struct {
 		name      string
+		rco       *RestoreCfgOpts
 		populated flags.PopulatedFlags
 		expect    control.RestoreConfig
 	}{
 		{
-			name:      "not populated",
+			name: "not populated",
+			rco: &RestoreCfgOpts{
+				Collisions:  "collisions",
+				Destination: "destination",
+			},
 			populated: flags.PopulatedFlags{},
 			expect: control.RestoreConfig{
 				OnCollision: control.Skip,
@@ -88,6 +88,10 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 		},
 		{
 			name: "collision populated",
+			rco: &RestoreCfgOpts{
+				Collisions:  "collisions",
+				Destination: "destination",
+			},
 			populated: flags.PopulatedFlags{
 				flags.CollisionsFN: {},
 			},
@@ -98,6 +102,10 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 		},
 		{
 			name: "destination populated",
+			rco: &RestoreCfgOpts{
+				Collisions:  "collisions",
+				Destination: "destination",
+			},
 			populated: flags.PopulatedFlags{
 				flags.DestinationFN: {},
 			},
@@ -108,6 +116,10 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 		},
 		{
 			name: "both populated",
+			rco: &RestoreCfgOpts{
+				Collisions:  "collisions",
+				Destination: "destination",
+			},
 			populated: flags.PopulatedFlags{
 				flags.CollisionsFN:  {},
 				flags.DestinationFN: {},
@@ -115,6 +127,23 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			expect: control.RestoreConfig{
 				OnCollision: control.CollisionPolicy("collisions"),
 				Location:    "destination",
+			},
+		},
+		{
+			name: "with restore permissions",
+			rco: &RestoreCfgOpts{
+				Collisions:         "collisions",
+				Destination:        "destination",
+				RestorePermissions: true,
+			},
+			populated: flags.PopulatedFlags{
+				flags.CollisionsFN:  {},
+				flags.DestinationFN: {},
+			},
+			expect: control.RestoreConfig{
+				OnCollision:        control.CollisionPolicy("collisions"),
+				Location:           "destination",
+				IncludePermissions: true,
 			},
 		},
 	}
@@ -125,12 +154,13 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			opts := *rco
+			opts := *test.rco
 			opts.Populated = test.populated
 
 			result := MakeRestoreConfig(ctx, opts)
 			assert.Equal(t, test.expect.OnCollision, result.OnCollision)
 			assert.Contains(t, result.Location, test.expect.Location)
+			assert.Equal(t, test.expect.IncludePermissions, result.IncludePermissions)
 		})
 	}
 }

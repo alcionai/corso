@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -28,7 +29,7 @@ import (
 func ConsumeRestoreCollections(
 	ctx context.Context,
 	ac api.Client,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -80,7 +81,7 @@ func ConsumeRestoreCollections(
 		containerID, gcc, err := createDestination(
 			ictx,
 			handler,
-			handler.formatRestoreDestination(restoreCfg.Location, dc.FullPath()),
+			handler.formatRestoreDestination(rcc.RestoreConfig.Location, dc.FullPath()),
 			userID,
 			directoryCache[category],
 			errs)
@@ -105,7 +106,7 @@ func ConsumeRestoreCollections(
 			userID,
 			containerID,
 			collisionKeyToItemID,
-			restoreCfg.OnCollision,
+			rcc.RestoreConfig.OnCollision,
 			deets,
 			errs,
 			ctr)
@@ -126,7 +127,7 @@ func ConsumeRestoreCollections(
 		support.Restore,
 		len(dcs),
 		metrics,
-		restoreCfg.Location)
+		rcc.RestoreConfig.Location)
 
 	return status, el.Failure()
 }

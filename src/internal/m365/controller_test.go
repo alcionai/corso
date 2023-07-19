@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
@@ -20,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -384,15 +386,19 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
+	restoreCfg.IncludePermissions = true
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     version.Backup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: sel,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
 	deets, err := suite.ctrl.ConsumeRestoreCollections(
 		ctx,
-		version.Backup,
-		sel,
-		restoreCfg,
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{},
-		},
+		rcc,
 		nil,
 		fault.New(true),
 		count.New())
@@ -407,6 +413,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 	restoreCfg := testdata.DefaultRestoreConfig("")
+	restoreCfg.IncludePermissions = true
+
 	table := []struct {
 		name string
 		col  []data.RestoreCollection
@@ -463,15 +471,17 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			rcc := inject.RestoreConsumerConfig{
+				BackupVersion:     version.Backup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: test.sel,
+				RestoreConfig:     restoreCfg,
+				Selector:          test.sel,
+			}
+
 			deets, err := suite.ctrl.ConsumeRestoreCollections(
 				ctx,
-				version.Backup,
-				test.sel,
-				restoreCfg,
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				},
+				rcc,
 				test.col,
 				fault.New(true),
 				count.New())
@@ -498,16 +508,24 @@ func runRestore(
 		sci.RestoreCfg.Location,
 		sci.ResourceOwners)
 
+	sci.RestoreCfg.IncludePermissions = true
+
 	start := time.Now()
 
 	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
 	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: restoreSel,
+		RestoreConfig:     sci.RestoreCfg,
+		Selector:          restoreSel,
+	}
+
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
-		backupVersion,
-		restoreSel,
-		sci.RestoreCfg,
-		sci.Opts,
+		rcc,
 		collections,
 		fault.New(true),
 		count.New())
@@ -609,6 +627,7 @@ func runRestoreBackupTest(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
+	restoreCfg control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -619,7 +638,7 @@ func runRestoreBackupTest(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		RestoreCfg:     restoreCfg,
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
@@ -654,6 +673,7 @@ func runRestoreTestWithVersion(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
+	restoreCfg control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -664,7 +684,7 @@ func runRestoreTestWithVersion(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		RestoreCfg:     restoreCfg,
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
@@ -691,6 +711,7 @@ func runRestoreBackupTestVersions(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
+	restoreCfg control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -701,7 +722,7 @@ func runRestoreBackupTestVersions(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		RestoreCfg:     restoreCfg,
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
@@ -738,6 +759,9 @@ func runRestoreBackupTestVersions(
 func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
+
+	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+	restoreCfg.IncludePermissions = true
 
 	table := []restoreBackupInfo{
 		{
@@ -994,10 +1018,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 				test,
 				suite.ctrl.tenant,
 				[]string{suite.user},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1078,6 +1100,8 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			for i, collection := range test.collections {
 				// Get a restoreCfg per collection so they're independent.
 				restoreCfg := testdata.DefaultRestoreConfig("")
+				restoreCfg.IncludePermissions = true
+
 				expectedDests = append(expectedDests, destAndCats{
 					resourceOwner: suite.user,
 					dest:          restoreCfg.Location,
@@ -1110,15 +1134,18 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				)
 
 				restoreCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
+
+				rcc := inject.RestoreConsumerConfig{
+					BackupVersion:     version.Backup,
+					Options:           control.DefaultOptions(),
+					ProtectedResource: restoreSel,
+					RestoreConfig:     restoreCfg,
+					Selector:          restoreSel,
+				}
+
 				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
-					version.Backup,
-					restoreSel,
-					restoreCfg,
-					control.Options{
-						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{},
-					},
+					rcc,
 					collections,
 					fault.New(true),
 					count.New())
@@ -1150,10 +1177,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				backupSel,
 				nil,
 				version.NoBackup,
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				},
+				control.DefaultOptions(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -1162,10 +1186,13 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			t.Log("Backup enumeration complete")
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			ci := stub.ConfigInfo{
-				Opts: control.Options{RestorePermissions: true},
+				Opts: control.DefaultOptions(),
 				// Alright to be empty, needed for OneDrive.
-				RestoreCfg: control.RestoreConfig{},
+				RestoreCfg: restoreCfg,
 			}
 
 			// Pull the data prior to waiting for the status as otherwise it will
@@ -1203,16 +1230,16 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 		},
 	}
 
+	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+	restoreCfg.IncludePermissions = true
+
 	runRestoreBackupTest(
 		suite.T(),
 		test,
 		suite.ctrl.tenant,
 		[]string{suite.user},
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{},
-		},
-	)
+		control.DefaultOptions(),
+		restoreCfg)
 }
 
 func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
@@ -1306,10 +1333,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				backupSel,
 				nil,
 				version.NoBackup,
-				control.Options{
-					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{},
-				},
+				control.DefaultOptions(),
 				fault.New(true))
 			require.NoError(t, err)
 			assert.True(t, canUsePreviousBackup, "can use previous backup")

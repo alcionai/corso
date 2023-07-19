@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -31,10 +32,8 @@ import (
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
 func ConsumeRestoreCollections(
 	ctx context.Context,
-	backupVersion int,
+	rcc inject.RestoreConsumerConfig,
 	ac api.Client,
-	restoreCfg control.RestoreConfig,
-	opts control.Options,
 	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
@@ -70,7 +69,7 @@ func ConsumeRestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"restore_location", restoreCfg.Location,
+				"restore_location", rcc.RestoreConfig.Location,
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"full_path", dc.FullPath())
 		)
@@ -80,12 +79,10 @@ func ConsumeRestoreCollections(
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
 				lrh,
-				restoreCfg,
-				backupVersion,
+				rcc,
 				dc,
 				caches,
 				deets,
-				opts.RestorePermissions,
 				control.DefaultRestoreContainerName(dttm.HumanReadableDriveItem),
 				errs,
 				ctr)
@@ -95,7 +92,7 @@ func ConsumeRestoreCollections(
 				ictx,
 				ac.Stable,
 				dc,
-				restoreCfg.Location,
+				rcc.RestoreConfig.Location,
 				deets,
 				errs)
 
@@ -104,7 +101,7 @@ func ConsumeRestoreCollections(
 				ictx,
 				ac.Stable,
 				dc,
-				restoreCfg.Location,
+				rcc.RestoreConfig.Location,
 				deets,
 				errs)
 
@@ -128,7 +125,7 @@ func ConsumeRestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		restoreCfg.Location)
+		rcc.RestoreConfig.Location)
 
 	return status, el.Failure()
 }
