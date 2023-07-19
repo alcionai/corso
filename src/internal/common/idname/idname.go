@@ -53,24 +53,26 @@ type cache struct {
 }
 
 func NewCache(idToName map[string]string) *cache {
-	nti := make(map[string]string, len(idToName))
-
-	for id, name := range idToName {
-		nti[name] = id
+	c := cache{
+		idToName: map[string]string{},
+		nameToID: map[string]string{},
 	}
 
-	return &cache{
-		idToName: idToName,
-		nameToID: nti,
+	if len(idToName) > 0 {
+		nti := make(map[string]string, len(idToName))
+
+		for id, name := range idToName {
+			nti[name] = id
+		}
+
+		c.idToName = idToName
+		c.nameToID = nti
 	}
+
+	return &c
 }
 
 func (c *cache) Add(id, name string) {
-	if len(c.idToName) == 0 {
-		c.idToName = map[string]string{}
-		c.nameToID = map[string]string{}
-	}
-
 	c.idToName[id] = name
 	c.nameToID[name] = id
 }
