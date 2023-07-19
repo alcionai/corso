@@ -71,7 +71,7 @@ func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
 }
 
 func DefaultRestoreContainerName(timeFormat dttm.TimeFormat) string {
-	return defaultRestoreLocation + dttm.FormatNow(timeFormat)
+	return DefaultRestoreLocation + dttm.FormatNow(timeFormat)
 }
 
 // EnsureRestoreConfigDefaults sets all non-supported values in the config

@@ -103,7 +103,7 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -162,9 +162,9 @@ func writeExportCollections(
 	expColl []export.Collection,
 ) error {
 	for _, col := range expColl {
-		folder := ospath.Join(exportLocation, col.GetBasePath())
+		folder := ospath.Join(exportLocation, col.BasePath())
 
-		for item := range col.GetItems(ctx) {
+		for item := range col.Items(ctx) {
 			err := item.Error
 			if err != nil {
 				return Only(ctx, clues.Wrap(err, "getting item").With("dir_name", folder))

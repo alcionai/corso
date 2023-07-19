@@ -34,8 +34,8 @@ type mockExportCollection struct {
 	items []export.Item
 }
 
-func (mec mockExportCollection) GetBasePath() string { return mec.path }
-func (mec mockExportCollection) GetItems(context.Context) <-chan export.Item {
+func (mec mockExportCollection) BasePath() string { return mec.path }
+func (mec mockExportCollection) Items(context.Context) <-chan export.Item {
 	ch := make(chan export.Item)
 
 	go func() {
