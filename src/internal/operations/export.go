@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -204,7 +205,7 @@ func (z zipExportCol) Items(ctx context.Context) <-chan export.Item {
 
 	rc <- export.Item{
 		Data: export.ItemData{
-			Name: "export.zip",
+			Name: "Corso_Export_" + dttm.FormatNow(dttm.HumanReadable) + ".zip",
 			Body: z.reader,
 		},
 	}
@@ -242,7 +243,14 @@ func zipExportCollection(
 
 				name := item.Data.Name
 
-				f, err := wr.Create(folder + "/" + name)
+				// We assume folder and name to not contain any path separators.
+				// Also, this should always use `/` as this is
+				// created within a zip file and not written to disk.
+				// TODO(meain): Exchange paths might contain a path
+				// separator and will have to have special handling.
+
+				//nolint:forbidigo
+				f, err := wr.Create(path.Join(folder, name))
 				if err != nil {
 					writer.CloseWithError(clues.Wrap(err, "creating zip entry").With("name", name).With("id", item.ID))
 					return
