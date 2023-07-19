@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
@@ -727,14 +728,15 @@ func (w *Wrapper) SetRetentionParameters(
 
 	// Somewhat confusing case, when we have no retention but a non-zero duration
 	// it acts like we passed in only the duration and returns an error about
-	// having to set both. Return a clearer error here instead.
-	if ptr.Val(retention.Mode) == repository.NoRetention && ptr.Val(retention.Duration) != 0 {
-		return clues.New("retention duration must be 0 or unset if disabling retention")
+	// having to set both. Return a clearer error here instead. Check if mode is
+	// set so we still allow changing duration if mode is already set.
+	if m, ok := ptr.ValOK(retention.Mode); ok && m == repository.NoRetention && ptr.Val(retention.Duration) != 0 {
+		return clues.New("duration must be 0 if retention is disabled").WithClues(ctx)
 	}
 
 	dr, ok := w.c.Repository.(repo.DirectRepository)
 	if !ok {
-		return clues.New("unable to get valid handle to repo").WithClues(ctx)
+		return clues.New("getting handle to repo").WithClues(ctx)
 	}
 
 	blobCfg, params, err := getRetentionConfigs(ctx, dr)
@@ -743,14 +745,9 @@ func (w *Wrapper) SetRetentionParameters(
 	}
 
 	// Update blob config information.
-	blobChanged, err := w.setRetentionMode(retention.Mode, blobCfg)
+	blobChanged, err := w.setBlobConfigParams(retention.Mode, retention.Duration, blobCfg)
 	if err != nil {
-		return clues.Wrap(err, "setting retention mode")
-	}
-
-	if retention.Duration != nil && blobCfg.RetentionPeriod != *retention.Duration {
-		blobCfg.RetentionPeriod = *retention.Duration
-		blobChanged = true
+		return clues.Wrap(err, "setting retention mode or duration").WithClues(ctx)
 	}
 
 	// Update maintenance config information.
@@ -764,7 +761,7 @@ func (w *Wrapper) SetRetentionParameters(
 	// Check the new config is valid.
 	if blobCfg.IsRetentionEnabled() {
 		if err := maintenance.CheckExtendRetention(ctx, *blobCfg, params); err != nil {
-			return clues.Wrap(err, "invalid retention config")
+			return clues.Wrap(err, "invalid retention config").WithClues(ctx)
 		}
 	}
 
@@ -815,7 +812,7 @@ func persistRetentionConfigs(
 
 	requiredFeatures, err := dr.FormatManager().RequiredFeatures()
 	if err != nil {
-		return clues.Wrap(err, "getting required features")
+		return clues.Wrap(err, "getting required features").WithClues(ctx)
 	}
 
 	// Must be the case that only blob changed.
@@ -855,7 +852,37 @@ func persistRetentionConfigs(
 	return clues.Wrap(err, "persisting config changes").WithClues(ctx).OrNil()
 }
 
-func (w Wrapper) setRetentionMode(
+func (w Wrapper) setBlobConfigParams(
+	mode *repository.RetentionMode,
+	duration *time.Duration,
+	blobCfg *format.BlobStorageConfiguration,
+) (bool, error) {
+	changed, err := setBlobConfigMode(mode, blobCfg)
+	if err != nil {
+		return false, clues.Stack(err)
+	}
+
+  tmp := setBlobConfigDuration(duration, blobCfg)
+	changed = changed || tmp
+
+	return changed, nil
+}
+
+func setBlobConfigDuration(
+	duration *time.Duration,
+	blobCfg *format.BlobStorageConfiguration,
+) bool {
+	var changed bool
+
+	if duration != nil && blobCfg.RetentionPeriod != *duration {
+		blobCfg.RetentionPeriod = *duration
+		changed = true
+	}
+
+	return changed
+}
+
+func setBlobConfigMode(
 	mode *repository.RetentionMode,
 	blobCfg *format.BlobStorageConfiguration,
 ) (bool, error) {
