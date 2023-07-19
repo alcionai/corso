@@ -38,14 +38,12 @@ func AddCommands(cmd *cobra.Command) {
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
+	repoCmd.AddCommand(maintenanceCmd)
 
-	utils.AddCommand(
-		repoCmd,
-		maintenanceCmd,
-		utils.HideCommand(),
-		utils.MarkPreReleaseCommand())
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
+	flags.AddMaintenanceUserFlag(maintenanceCmd)
+	flags.AddMaintenanceHostnameFlag(maintenanceCmd)
 
 	for _, addRepoTo := range repoCommands {
 		addRepoTo(initCmd)
@@ -123,7 +121,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, err := utils.GetAccountAndConnect(ctx, path.UnknownService, S3Overrides(cmd))
+	r, _, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.UnknownService, S3Overrides(cmd))
 	if err != nil {
 		return print.Only(ctx, err)
 	}

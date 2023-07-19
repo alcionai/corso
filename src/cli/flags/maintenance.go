@@ -7,13 +7,17 @@ import (
 )
 
 const (
-	MaintenanceModeFN  = "mode"
-	ForceMaintenanceFN = "force"
+	MaintenanceModeFN     = "mode"
+	ForceMaintenanceFN    = "force"
+	UserMaintenanceFN     = "user"
+	HostnameMaintenanceFN = "host"
 )
 
 var (
-	MaintenanceModeFV  string
-	ForceMaintenanceFV bool
+	MaintenanceModeFV     string
+	ForceMaintenanceFV    bool
+	UserMaintenanceFV     string
+	HostnameMaintenanceFV string
 )
 
 func AddMaintenanceModeFlag(cmd *cobra.Command) {
@@ -22,12 +26,9 @@ func AddMaintenanceModeFlag(cmd *cobra.Command) {
 		&MaintenanceModeFV,
 		MaintenanceModeFN,
 		repository.CompleteMaintenance.String(),
-		"Type of maintenance operation to run. Pass '"+
-			repository.MetadataMaintenance.String()+"' to run a faster maintenance "+
-			"that does minimal clean-up and optimization. Pass '"+
-			repository.CompleteMaintenance.String()+"' to fully compact existing "+
-			"data and delete unused data.")
-	cobra.CheckErr(fs.MarkHidden(MaintenanceModeFN))
+		"Type of maintenance operation to run ('"+
+			repository.MetadataMaintenance.String()+"' | '"+
+			repository.CompleteMaintenance.String()+"' )")
 }
 
 func AddForceMaintenanceFlag(cmd *cobra.Command) {
@@ -38,4 +39,22 @@ func AddForceMaintenanceFlag(cmd *cobra.Command) {
 		false,
 		"Force maintenance. Caution: user must ensure this is not run concurrently on a single repo")
 	cobra.CheckErr(fs.MarkHidden(ForceMaintenanceFN))
+}
+
+func AddMaintenanceUserFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(
+		&UserMaintenanceFV,
+		UserMaintenanceFN,
+		"",
+		"Attempt to run maintenance as the specified user for the repo owner user")
+}
+
+func AddMaintenanceHostnameFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(
+		&HostnameMaintenanceFV,
+		HostnameMaintenanceFN,
+		"",
+		"Attempt to run maintenance with the specified hostname for the repo owner hostname")
 }

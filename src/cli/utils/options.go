@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/control"
 )
@@ -21,6 +22,15 @@ func Control() control.Options {
 	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
 	opt.ToggleFeatures.DisableConcurrencyLimiter = flags.DisableConcurrencyLimiterFV
 	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
+
+	return opt
+}
+
+func ControlWithConfig(cfg config.RepoDetails) control.Options {
+	opt := Control()
+
+	opt.Repo.User = cfg.RepoUser
+	opt.Repo.Host = cfg.RepoHost
 
 	return opt
 }
