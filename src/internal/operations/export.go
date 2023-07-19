@@ -33,6 +33,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+const (
+	// CopyBufferSize is the size of the copy buffer for disk
+	// write operations
+	// TODO(meain): tweak this value
+	CopyBufferSize = 5 * 1024 * 1024
+)
+
 // ExportOperation wraps an operation with export-specific props.
 type ExportOperation struct {
 	operation
@@ -230,6 +237,8 @@ func zipExportCollection(
 		defer writer.Close()
 		defer wr.Close()
 
+		buf := make([]byte, CopyBufferSize)
+
 		for _, ec := range expCollections {
 			folder := ec.BasePath()
 			items := ec.Items(ctx)
@@ -256,7 +265,7 @@ func zipExportCollection(
 					return
 				}
 
-				_, err = io.Copy(f, item.Data.Body)
+				_, err = io.CopyBuffer(f, item.Data.Body, buf)
 				if err != nil {
 					writer.CloseWithError(clues.Wrap(err, "writing zip entry").With("name", name).With("id", item.ID))
 					return
