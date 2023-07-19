@@ -391,7 +391,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				backupVersion:     test.version,
 			}
 
-			items := ec.GetItems(ctx)
+			items := ec.Items(ctx)
 
 			fitems := []export.Item{}
 			for item := range items {
@@ -458,7 +458,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	assert.Len(t, ecs, 1, "num of collections")
 
-	items := ecs[0].GetItems(ctx)
+	items := ecs[0].Items(ctx)
 
 	fitems := []export.Item{}
 	for item := range items {

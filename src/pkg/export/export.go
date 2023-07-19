@@ -7,11 +7,11 @@ import (
 
 // Collection is the interface that is returned to the SDK consumer
 type Collection interface {
-	// GetBasePath gets the base path of the collection
-	GetBasePath() string
+	// BasePath gets the base path of the collection
+	BasePath() string
 
-	// GetItems gets the items within the collection(folder)
-	GetItems(context.Context) <-chan Item
+	// Items gets the items within the collection(folder)
+	Items(context.Context) <-chan Item
 }
 
 // ItemData is the data for an individual item.

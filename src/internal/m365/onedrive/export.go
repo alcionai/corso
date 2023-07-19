@@ -34,11 +34,11 @@ type exportCollection struct {
 	backupVersion int
 }
 
-func (ec exportCollection) GetBasePath() string {
+func (ec exportCollection) BasePath() string {
 	return ec.baseDir
 }
 
-func (ec exportCollection) GetItems(ctx context.Context) <-chan export.Item {
+func (ec exportCollection) Items(ctx context.Context) <-chan export.Item {
 	ch := make(chan export.Item)
 
 	go func() {
