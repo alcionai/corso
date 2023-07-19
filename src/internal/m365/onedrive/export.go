@@ -40,50 +40,52 @@ func (ec exportCollection) BasePath() string {
 
 func (ec exportCollection) Items(ctx context.Context) <-chan export.Item {
 	ch := make(chan export.Item)
-
-	go func() {
-		defer close(ch)
-
-		errs := fault.New(false)
-
-		// There will only be a single item in the backingCollections
-		// for OneDrive
-		for item := range ec.backingCollection.Items(ctx, errs) {
-			itemUUID := item.UUID()
-			if isMetadataFile(itemUUID, ec.backupVersion) {
-				continue
-			}
-
-			name, err := getItemName(ctx, itemUUID, ec.backupVersion, ec.backingCollection)
-
-			ch <- export.Item{
-				ID: itemUUID,
-				Data: export.ItemData{
-					Name: name,
-					Body: item.ToReader(),
-				},
-				Error: err,
-			}
-		}
-
-		// Return all the items that we failed to get from kopia at the end
-		for _, err := range errs.Errors().Items {
-			ch <- export.Item{
-				ID:    err.ID,
-				Error: &err,
-			}
-		}
-
-		for _, ec := range errs.Errors().Recovered {
-			ch <- export.Item{
-				// Convert recovered errors to simpler errors. These
-				// will not have an ID associated with them.
-				Error: errors.New(ec.String()),
-			}
-		}
-	}()
+	go items(ctx, ec, ch)
 
 	return ch
+}
+
+// items converts items in backing collection to export items
+func items(ctx context.Context, ec exportCollection, ch chan<- export.Item) {
+	defer close(ch)
+
+	errs := fault.New(false)
+
+	// There will only be a single item in the backingCollections
+	// for OneDrive
+	for item := range ec.backingCollection.Items(ctx, errs) {
+		itemUUID := item.UUID()
+		if isMetadataFile(itemUUID, ec.backupVersion) {
+			continue
+		}
+
+		name, err := getItemName(ctx, itemUUID, ec.backupVersion, ec.backingCollection)
+
+		ch <- export.Item{
+			ID: itemUUID,
+			Data: export.ItemData{
+				Name: name,
+				Body: item.ToReader(),
+			},
+			Error: err,
+		}
+	}
+
+	// Return all the items that we failed to get from kopia at the end
+	for _, err := range errs.Errors().Items {
+		ch <- export.Item{
+			ID:    err.ID,
+			Error: &err,
+		}
+	}
+
+	for _, ec := range errs.Errors().Recovered {
+		ch <- export.Item{
+			// Convert recovered errors to simpler errors. These
+			// will not have an ID associated with them.
+			Error: errors.New(ec.String()),
+		}
+	}
 }
 
 // isMetadataFile is used to determine if a path corresponds to a
@@ -157,7 +159,7 @@ func ExportRestoreCollections(
 		ec = append(ec, exportCollection{
 			baseDir:           baseDir.String(),
 			backingCollection: dc,
-			backupVersion:           backupVersion,
+			backupVersion:     backupVersion,
 		})
 	}
 
