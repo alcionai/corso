@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 // RetentionConfigOperation wraps an operation with restore-specific props.
@@ -36,7 +37,7 @@ func NewRetentionConfigOperation(
 	bus events.Eventer,
 ) (RetentionConfigOperation, error) {
 	op := RetentionConfigOperation{
-		operation: newOperation(opts, bus, kw, nil),
+		operation: newOperation(opts, bus, count.New(), kw, nil),
 		rcOpts:    rcOpts,
 	}
 
