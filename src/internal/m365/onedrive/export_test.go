@@ -407,13 +407,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.Equal(t, test.expectedItems[i].ID, item.ID, "id")
 				assert.Equal(t, test.expectedItems[i].Data.Name, item.Data.Name, "name")
 				assert.Equal(t, test.expectedItems[i].Data.Body, item.Data.Body, "body")
-
-				if test.expectedItems[i].Error != nil {
-					// Have to compare error strings because the error
-					// will be differently formatted for recoverable
-					// errors
-					assert.Contains(t, item.Error.Error(), test.expectedItems[i].Error.Error(), "error")
-				}
+				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error)
 			}
 		})
 	}

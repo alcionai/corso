@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -71,21 +70,19 @@ func items(ctx context.Context, ec exportCollection, ch chan<- export.Item) {
 		}
 	}
 
-	perrs := errs.Errors()
+	eitems, erecovereable := errs.ErrorEntries()
 
 	// Return all the items that we failed to get from kopia at the end
-	for _, err := range perrs.Items {
+	for _, err := range eitems {
 		ch <- export.Item{
 			ID:    err.ID,
 			Error: &err,
 		}
 	}
 
-	for _, ec := range perrs.Recovered {
+	for _, ec := range erecovereable {
 		ch <- export.Item{
-			// Convert recovered errors to simpler errors. These
-			// will not have an ID associated with them.
-			Error: errors.New(ec.String()),
+			Error: ec,
 		}
 	}
 }
