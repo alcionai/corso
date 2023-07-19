@@ -36,10 +36,7 @@ type (
 	RestoreConsumer interface {
 		ConsumeRestoreCollections(
 			ctx context.Context,
-			backupVersion int,
-			selector selectors.Selector,
-			restoreCfg control.RestoreConfig,
-			opts control.Options,
+			rcc RestoreConsumerConfig,
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
 			ctr *count.Bus,

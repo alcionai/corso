@@ -57,6 +57,10 @@ type RestoreConfig struct {
 	// up.
 	// Defaults to empty.
 	Drive string
+
+	// IncludePermissions toggles whether the restore will include the original
+	// folder- and item-level permissions.
+	IncludePermissions bool
 }
 
 func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
