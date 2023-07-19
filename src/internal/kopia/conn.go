@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/kopia/retention"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -329,12 +330,12 @@ func updateCompressionOnPolicy(compressor string, p *policy.Policy) (bool, error
 	return true, nil
 }
 
-func updateRetentionOnPolicy(retention policy.RetentionPolicy, p *policy.Policy) bool {
-	if retention == p.RetentionPolicy {
+func updateRetentionOnPolicy(retPolicy policy.RetentionPolicy, p *policy.Policy) bool {
+	if retPolicy == p.RetentionPolicy {
 		return false
 	}
 
-	p.RetentionPolicy = retention
+	p.RetentionPolicy = retPolicy
 
 	return true
 }
@@ -415,17 +416,17 @@ func checkCompressor(compressor compression.Name) error {
 
 func (w *conn) setRetentionParameters(
 	ctx context.Context,
-	retention repository.Retention,
+	rrOpts repository.Retention,
 ) error {
-	if retention.Mode == nil && retention.Duration == nil && retention.Extend == nil {
+	if rrOpts.Mode == nil && rrOpts.Duration == nil && rrOpts.Extend == nil {
 		return nil
 	}
 
 	// Somewhat confusing case, when we have no retention but a non-zero duration
 	// it acts like we passed in only the duration and returns an error about
 	// having to set both. Return a clearer error here instead.
-	if ptr.Val(retention.Mode) == repository.NoRetention && ptr.Val(retention.Duration) != 0 {
-		return clues.New("duration must be 0 if retention is disabled").WithClues(ctx)
+	if ptr.Val(rrOpts.Mode) == repository.NoRetention && ptr.Val(rrOpts.Duration) != 0 {
+		return clues.New("duration must be 0 if rrOpts is disabled").WithClues(ctx)
 	}
 
 	dr, ok := w.Repository.(repo.DirectRepository)
@@ -438,38 +439,12 @@ func (w *conn) setRetentionParameters(
 		return clues.Stack(err)
 	}
 
-	// Update blob config information.
-	blobChanged, err := setBlobConfigParams(
-		retention.Mode,
-		retention.Duration,
-		blobCfg)
-	if err != nil {
-		return clues.Wrap(err, "setting retention mode or duration").WithClues(ctx)
+	opts := retention.OptsFromConfigs(*blobCfg, *params)
+	if err := opts.Set(rrOpts); err != nil {
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	// Update maintenance config information.
-	var maintenanceChanged bool
-
-	if retention.Extend != nil && params.ExtendObjectLocks != *retention.Extend {
-		params.ExtendObjectLocks = *retention.Extend
-		maintenanceChanged = true
-	}
-
-	// Check the new config is valid.
-	if blobCfg.IsRetentionEnabled() {
-		if err := maintenance.CheckExtendRetention(ctx, *blobCfg, params); err != nil {
-			return clues.Wrap(err, "invalid retention config").WithClues(ctx)
-		}
-	}
-
-	return clues.Stack(persistRetentionConfigs(
-		ctx,
-		dr,
-		blobCfg,
-		blobChanged,
-		params,
-		maintenanceChanged,
-	)).OrNil()
+	return clues.Stack(persistRetentionConfigs(ctx, dr, opts)).OrNil()
 }
 
 func getRetentionConfigs(
@@ -492,14 +467,16 @@ func getRetentionConfigs(
 func persistRetentionConfigs(
 	ctx context.Context,
 	dr repo.DirectRepository,
-	blobCfg *format.BlobStorageConfiguration,
-	blobChanged bool,
-	params *maintenance.Params,
-	maintenanceChanged bool,
+	opts *retention.Opts,
 ) error {
 	// Persist changes.
-	if !blobChanged && !maintenanceChanged {
+	if !opts.BlobChanged() && !opts.ParamsChanged() {
 		return nil
+	}
+
+	blobCfg, params, err := opts.AsConfigs(ctx)
+	if err != nil {
+		return clues.Stack(err)
 	}
 
 	mp, err := dr.FormatManager().GetMutableParameters()
@@ -513,9 +490,9 @@ func persistRetentionConfigs(
 	}
 
 	// Must be the case that only blob changed.
-	if !maintenanceChanged {
+	if !opts.ParamsChanged() {
 		return clues.Wrap(
-			dr.FormatManager().SetParameters(ctx, mp, *blobCfg, requiredFeatures),
+			dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
 			"persisting storage config",
 		).WithClues(ctx).OrNil()
 	}
@@ -531,17 +508,17 @@ func persistRetentionConfigs(
 		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
 			// Set the maintenance config first as we can bail out of the write
 			// session later.
-			if err := maintenance.SetParams(ctx, dw, params); err != nil {
+			if err := maintenance.SetParams(ctx, dw, &params); err != nil {
 				return clues.Wrap(err, "maintenance config").
 					WithClues(ctx)
 			}
 
-			if !blobChanged {
+			if !opts.BlobChanged() {
 				return nil
 			}
 
 			return clues.Wrap(
-				dr.FormatManager().SetParameters(ctx, mp, *blobCfg, requiredFeatures),
+				dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
 				"storage config",
 			).WithClues(ctx).OrNil()
 		})
