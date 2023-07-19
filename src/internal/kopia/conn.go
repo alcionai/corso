@@ -12,12 +12,15 @@ import (
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/compression"
 	"github.com/kopia/kopia/repo/content"
+	"github.com/kopia/kopia/repo/format"
+	"github.com/kopia/kopia/repo/maintenance"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -408,6 +411,142 @@ func checkCompressor(compressor compression.Name) error {
 	}
 
 	return clues.Stack(clues.New("unknown compressor type"), clues.New(string(compressor)))
+}
+
+func (w *conn) setRetentionParameters(
+	ctx context.Context,
+	retention repository.Retention,
+) error {
+	if retention.Mode == nil && retention.Duration == nil && retention.Extend == nil {
+		return nil
+	}
+
+	// Somewhat confusing case, when we have no retention but a non-zero duration
+	// it acts like we passed in only the duration and returns an error about
+	// having to set both. Return a clearer error here instead.
+	if ptr.Val(retention.Mode) == repository.NoRetention && ptr.Val(retention.Duration) != 0 {
+		return clues.New("duration must be 0 if retention is disabled").WithClues(ctx)
+	}
+
+	dr, ok := w.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.New("getting handle to repo").WithClues(ctx)
+	}
+
+	blobCfg, params, err := getRetentionConfigs(ctx, dr)
+	if err != nil {
+		return clues.Stack(err)
+	}
+
+	// Update blob config information.
+	blobChanged, err := setBlobConfigParams(
+		retention.Mode,
+		retention.Duration,
+		blobCfg)
+	if err != nil {
+		return clues.Wrap(err, "setting retention mode or duration").WithClues(ctx)
+	}
+
+	// Update maintenance config information.
+	var maintenanceChanged bool
+
+	if retention.Extend != nil && params.ExtendObjectLocks != *retention.Extend {
+		params.ExtendObjectLocks = *retention.Extend
+		maintenanceChanged = true
+	}
+
+	// Check the new config is valid.
+	if blobCfg.IsRetentionEnabled() {
+		if err := maintenance.CheckExtendRetention(ctx, *blobCfg, params); err != nil {
+			return clues.Wrap(err, "invalid retention config").WithClues(ctx)
+		}
+	}
+
+	return clues.Stack(persistRetentionConfigs(
+		ctx,
+		dr,
+		blobCfg,
+		blobChanged,
+		params,
+		maintenanceChanged,
+	)).OrNil()
+}
+
+func getRetentionConfigs(
+	ctx context.Context,
+	dr repo.DirectRepository,
+) (*format.BlobStorageConfiguration, *maintenance.Params, error) {
+	blobCfg, err := dr.FormatManager().BlobCfgBlob()
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "getting storage config").WithClues(ctx)
+	}
+
+	params, err := maintenance.GetParams(ctx, dr)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "getting maintenance config").WithClues(ctx)
+	}
+
+	return &blobCfg, params, nil
+}
+
+func persistRetentionConfigs(
+	ctx context.Context,
+	dr repo.DirectRepository,
+	blobCfg *format.BlobStorageConfiguration,
+	blobChanged bool,
+	params *maintenance.Params,
+	maintenanceChanged bool,
+) error {
+	// Persist changes.
+	if !blobChanged && !maintenanceChanged {
+		return nil
+	}
+
+	mp, err := dr.FormatManager().GetMutableParameters()
+	if err != nil {
+		return clues.Wrap(err, "getting mutable parameters").WithClues(ctx)
+	}
+
+	requiredFeatures, err := dr.FormatManager().RequiredFeatures()
+	if err != nil {
+		return clues.Wrap(err, "getting required features").WithClues(ctx)
+	}
+
+	// Must be the case that only blob changed.
+	if !maintenanceChanged {
+		return clues.Wrap(
+			dr.FormatManager().SetParameters(ctx, mp, *blobCfg, requiredFeatures),
+			"persisting storage config",
+		).WithClues(ctx).OrNil()
+	}
+
+	// Both blob and maintenance changed. A DirectWriteSession is required to
+	// update the maintenance config but not the blob config.
+	err = repo.DirectWriteSession(
+		ctx,
+		dr,
+		repo.WriteSessionOptions{
+			Purpose: "Corso immutable backups config",
+		},
+		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
+			// Set the maintenance config first as we can bail out of the write
+			// session later.
+			if err := maintenance.SetParams(ctx, dw, params); err != nil {
+				return clues.Wrap(err, "maintenance config").
+					WithClues(ctx)
+			}
+
+			if !blobChanged {
+				return nil
+			}
+
+			return clues.Wrap(
+				dr.FormatManager().SetParameters(ctx, mp, *blobCfg, requiredFeatures),
+				"storage config",
+			).WithClues(ctx).OrNil()
+		})
+
+	return clues.Wrap(err, "persisting config changes").WithClues(ctx).OrNil()
 }
 
 func (w *conn) LoadSnapshot(
