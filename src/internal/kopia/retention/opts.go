@@ -1,82 +1,139 @@
 package retention
 
 import (
-  "time"
+	"context"
+	"time"
 
-  "github.com/alcionai/clues"
-  "github.com/kopia/kopia/repo/blob"
-  "github.com/kopia/kopia/repo/format"
+	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/format"
+	"github.com/kopia/kopia/repo/maintenance"
 
-  "github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 )
 
-func setBlobConfigParams(
+type Opts struct {
+	blobCfg format.BlobStorageConfiguration
+	params  maintenance.Params
+
+	blobChanged   bool
+	paramsChanged bool
+}
+
+func NewOpts() *Opts {
+	return &Opts{}
+}
+
+func OptsFromConfigs(
+	blobCfg format.BlobStorageConfiguration,
+	params maintenance.Params,
+) *Opts {
+	return &Opts{
+		blobCfg: blobCfg,
+		params:  params,
+	}
+}
+
+func (r *Opts) AsConfigs(
+	ctx context.Context,
+) (format.BlobStorageConfiguration, maintenance.Params, error) {
+	// Check the new config is valid.
+	if r.blobCfg.IsRetentionEnabled() {
+		if err := maintenance.CheckExtendRetention(ctx, r.blobCfg, &r.params); err != nil {
+			return format.BlobStorageConfiguration{}, maintenance.Params{}, clues.Wrap(
+				err,
+				"invalid retention config",
+			).WithClues(ctx)
+		}
+	}
+
+	return r.blobCfg, r.params, nil
+}
+
+func (r *Opts) BlobChanged() bool {
+	return r.blobChanged
+}
+
+func (r *Opts) ParamsChanged() bool {
+	return r.paramsChanged
+}
+
+func (r *Opts) Set(opts repository.Retention) error {
+	r.setMaintenanceParams(opts.Extend)
+
+	return clues.Wrap(
+		r.setBlobConfigParams(opts.Mode, opts.Duration),
+		"setting mode or duration",
+	).OrNil()
+}
+
+func (r *Opts) setMaintenanceParams(extend *bool) {
+	if extend != nil && r.params.ExtendObjectLocks != *extend {
+		r.params.ExtendObjectLocks = *extend
+		r.paramsChanged = true
+	}
+}
+
+func (r *Opts) setBlobConfigParams(
 	mode *repository.RetentionMode,
 	duration *time.Duration,
-	blobCfg *format.BlobStorageConfiguration,
-) (bool, error) {
-	changed, err := setBlobConfigMode(mode, blobCfg)
+) error {
+	err := r.setBlobConfigMode(mode)
 	if err != nil {
-		return false, clues.Stack(err)
+		return clues.Stack(err)
 	}
 
-	tmp := setBlobConfigDuration(duration, blobCfg)
-	changed = changed || tmp
+	r.setBlobConfigDuration(duration)
 
-	return changed, nil
+	return nil
 }
 
-func setBlobConfigDuration(
-	duration *time.Duration,
-	blobCfg *format.BlobStorageConfiguration,
-) bool {
-	var changed bool
-
-	if duration != nil && blobCfg.RetentionPeriod != *duration {
-		blobCfg.RetentionPeriod = *duration
-		changed = true
+func (r *Opts) setBlobConfigDuration(duration *time.Duration) {
+	if duration != nil && r.blobCfg.RetentionPeriod != *duration {
+		r.blobCfg.RetentionPeriod = *duration
+		r.blobChanged = true
 	}
-
-	return changed
 }
 
-func setBlobConfigMode(
+func (r *Opts) setBlobConfigMode(
 	mode *repository.RetentionMode,
-	blobCfg *format.BlobStorageConfiguration,
-) (bool, error) {
+) error {
 	if mode == nil {
-		return false, nil
+		return nil
 	}
 
-	startMode := blobCfg.RetentionMode
+	startMode := r.blobCfg.RetentionMode
 
 	switch *mode {
 	case repository.NoRetention:
-		if !blobCfg.IsRetentionEnabled() {
-			return false, nil
+		if !r.blobCfg.IsRetentionEnabled() {
+			return nil
 		}
 
-		blobCfg.RetentionMode = ""
-		blobCfg.RetentionPeriod = 0
+		r.blobCfg.RetentionMode = ""
+		r.blobCfg.RetentionPeriod = 0
 
 	case repository.GovernanceRetention:
-		blobCfg.RetentionMode = blob.Governance
+		r.blobCfg.RetentionMode = blob.Governance
 
 	case repository.ComplianceRetention:
-		blobCfg.RetentionMode = blob.Compliance
+		r.blobCfg.RetentionMode = blob.Compliance
 
 	default:
-		return false, clues.New("unknown retention mode").
+		return clues.New("unknown retention mode").
 			With("provided_retention_mode", mode.String())
 	}
 
 	// Only check if the retention mode is not empty. IsValid errors out if it's
 	// empty.
-	if len(blobCfg.RetentionMode) > 0 && !blobCfg.RetentionMode.IsValid() {
-		return false, clues.New("invalid retention mode").
-			With("retention_mode", blobCfg.RetentionMode)
+	if len(r.blobCfg.RetentionMode) > 0 && !r.blobCfg.RetentionMode.IsValid() {
+		return clues.New("invalid retention mode").
+			With("retention_mode", r.blobCfg.RetentionMode)
 	}
 
-	return startMode != blobCfg.RetentionMode, nil
-}
+	// Take into account previous operations on r that could have already updated
+	// blobChanged.
+	r.blobChanged = r.blobChanged || startMode != r.blobCfg.RetentionMode
 
+	return nil
+}
