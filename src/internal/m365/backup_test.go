@@ -367,7 +367,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -414,7 +414,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)

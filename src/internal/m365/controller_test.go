@@ -222,7 +222,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 
 			ctrl := &Controller{ownerLookup: test.rc}
 
-			rID, rName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
+			rID, rName, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.owner, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectID, rID, "id")
 			assert.Equal(t, test.expectName, rName, "name")
@@ -1295,7 +1295,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				start      = time.Now()
 			)
 
-			id, name, err := backupCtrl.PopulateOwnerIDAndNamesFrom(ctx, backupSel.DiscreteOwner, nil)
+			id, name, err := backupCtrl.PopulateProtectedResourceIDAndName(ctx, backupSel.DiscreteOwner, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			backupSel.SetDiscreteOwnerIDName(id, name)

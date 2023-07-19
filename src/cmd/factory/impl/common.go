@@ -144,7 +144,7 @@ func getControllerAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
 
-	id, _, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, resourceOwner, nil)
+	id, _, err := ctrl.PopulateProtectedResourceIDAndName(ctx, resourceOwner, nil)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "verifying user")
 	}
