@@ -27,10 +27,10 @@ const (
 	ExchangeService                       // exchange
 	OneDriveService                       // onedrive
 	SharePointService                     // sharepoint
-	TeamsService                          // teams
 	ExchangeMetadataService               // exchangeMetadata
 	OneDriveMetadataService               // onedriveMetadata
 	SharePointMetadataService             // sharepointMetadata
+	TeamsService                          // teams
 	TeamsMetadataService                  // teamsMetadata
 )
 
