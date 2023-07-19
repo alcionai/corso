@@ -301,7 +301,7 @@ func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnF
 		Duration: ptr.To(time.Hour * 48),
 		Extend:   ptr.To(true),
 	})
-	require.Error(t, err)
+	require.Error(t, err, clues.ToCore(err))
 
 	checkRetentionParams(
 		t,
@@ -452,6 +452,8 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 			expectDuration: time.Hour * 48,
 			expectExtend:   assert.False,
 		},
+		// Skip for now since compliance mode won't let us delete the blobs at all
+		// until they expire.
 		//{
 		//  name: "UpdateModeAndDuration_Compliance",
 		//  opts: repository.Retention{
@@ -567,6 +569,21 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 		k,
 		blob.Governance,
 		time.Hour*48,
+		assert.True)
+
+	// Change retention duration without updating mode.
+	err = w.SetRetentionParameters(ctx, repository.Retention{
+		Duration: ptr.To(time.Hour * 49),
+	})
+	require.NoError(t, err, clues.ToCore(err))
+
+	mustReopen(t, ctx, w)
+	checkRetentionParams(
+		t,
+		ctx,
+		k,
+		blob.Governance,
+		time.Hour*49,
 		assert.True)
 
 	// Disable retention.
