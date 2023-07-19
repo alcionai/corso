@@ -94,7 +94,7 @@ func runRestore(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	r, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
