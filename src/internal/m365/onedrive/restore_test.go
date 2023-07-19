@@ -492,7 +492,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			mndi.SetId(ptr.To(mndiID))
 
 			var (
-				caches = NewRestoreCaches()
+				caches = NewRestoreCaches(nil)
 				rh     = &mock.RestoreHandler{
 					PostItemResp:  models.NewDriveItem(),
 					DeleteItemErr: test.deleteErr,
@@ -671,7 +671,7 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_AddDrive() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			rc := NewRestoreCaches()
+			rc := NewRestoreCaches(nil)
 			err := rc.AddDrive(ctx, md, test.mock)
 			test.expectErr(t, err, clues.ToCore(err))
 
@@ -773,7 +773,7 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 				pager:      test.mock,
 			}
 
-			rc := NewRestoreCaches()
+			rc := NewRestoreCaches(nil)
 			err := rc.Populate(ctx, gdparf, "shmoo")
 			test.expectErr(t, err, clues.ToCore(err))
 
@@ -849,7 +849,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 	}
 
 	populatedCache := func(id string) *restoreCaches {
-		rc := NewRestoreCaches()
+		rc := NewRestoreCaches(nil)
 		di := driveInfo{
 			id:   id,
 			name: name,
@@ -886,7 +886,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 				postErr:  []error{nil},
 				grf:      grf,
 			},
-			rc:         NewRestoreCaches(),
+			rc:         NewRestoreCaches(nil),
 			expectErr:  require.NoError,
 			expectName: name,
 		},
@@ -897,7 +897,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 				postErr:  []error{assert.AnError},
 				grf:      grf,
 			},
-			rc:              NewRestoreCaches(),
+			rc:              NewRestoreCaches(nil),
 			expectErr:       require.Error,
 			expectName:      "",
 			skipValueChecks: true,
@@ -920,7 +920,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
 				grf:      grf,
 			},
-			rc:         NewRestoreCaches(),
+			rc:         NewRestoreCaches(nil),
 			expectErr:  require.NoError,
 			expectName: name + " 1",
 		},

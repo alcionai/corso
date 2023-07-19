@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
@@ -22,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -258,6 +260,82 @@ func (suite *ControllerUnitSuite) TestController_Wait() {
 	assert.Equal(t, 2, result.Objects)
 	assert.Equal(t, 3, result.Successes)
 	assert.Equal(t, int64(4), result.Bytes)
+}
+
+func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
+	var (
+		odid   = "od-id"
+		odname = "od-name"
+		spid   = "sp-id"
+		spname = "sp-name"
+		// intentionally declared outside the test loop
+		ctrl = &Controller{
+			wg:                 &sync.WaitGroup{},
+			region:             &trace.Region{},
+			backupDriveIDNames: idname.NewCache(nil),
+		}
+	)
+
+	table := []struct {
+		name       string
+		service    path.ServiceType
+		cat        path.CategoryType
+		dii        details.ItemInfo
+		expectID   string
+		expectName string
+	}{
+		{
+			name: "exchange",
+			dii: details.ItemInfo{
+				Exchange: &details.ExchangeInfo{},
+			},
+			expectID:   "",
+			expectName: "",
+		},
+		{
+			name: "folder",
+			dii: details.ItemInfo{
+				Folder: &details.FolderInfo{},
+			},
+			expectID:   "",
+			expectName: "",
+		},
+		{
+			name: "onedrive",
+			dii: details.ItemInfo{
+				OneDrive: &details.OneDriveInfo{
+					DriveID:   odid,
+					DriveName: odname,
+				},
+			},
+			expectID:   odid,
+			expectName: odname,
+		},
+		{
+			name: "sharepoint",
+			dii: details.ItemInfo{
+				SharePoint: &details.SharePointInfo{
+					DriveID:   spid,
+					DriveName: spname,
+				},
+			},
+			expectID:   spid,
+			expectName: spname,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctrl.CacheItemInfo(test.dii)
+
+			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectID)
+			assert.Equal(t, test.expectName, name)
+
+			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectName)
+			assert.Equal(t, test.expectID, id)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

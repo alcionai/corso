@@ -46,6 +46,17 @@ type (
 		) (*details.Details, error)
 
 		Wait() *data.CollectionStats
+
+		CacheItemInfoer
+	}
+
+	CacheItemInfoer interface {
+		// CacheItemInfo is used by the consumer to cache metadata that is
+		// sourced from per-item info, but may be valuable to the restore at
+		// large.
+		// Ex: pairing drive ids with drive names as they appeared at the time
+		// of backup.
+		CacheItemInfo(v details.ItemInfo)
 	}
 
 	RepoMaintenancer interface {

@@ -219,7 +219,13 @@ func (op *RestoreOperation) do(
 
 	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
 
-	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
+	paths, err := formatDetailsForRestoration(
+		ctx,
+		bup.Version,
+		op.Selectors,
+		deets,
+		op.rc,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "formatting paths from details")
 	}
@@ -359,11 +365,17 @@ func formatDetailsForRestoration(
 	backupVersion int,
 	sel selectors.Selector,
 	deets *details.Details,
+	cii inject.CacheItemInfoer,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
 		return nil, err
+	}
+
+	// allow restore controllers to iterate over item metadata
+	for _, ent := range fds.Entries {
+		cii.CacheItemInfo(ent.ItemInfo)
 	}
 
 	paths, err := pathtransformer.GetPaths(ctx, backupVersion, fds.Items(), errs)
