@@ -58,10 +58,10 @@ type RetentionMode int
 //
 //go:generate stringer -type=RetentionMode -linecomment
 const (
-	UnknownRetention RetentionMode = iota
-	NoRetention
-	GovernanceRetention
-	ComplianceRetention
+	UnknownRetention    RetentionMode = 0
+	NoRetention         RetentionMode = 1
+	GovernanceRetention RetentionMode = 2
+	ComplianceRetention RetentionMode = 3
 )
 
 // Retention contains various options for configuring the retention mode. Takes
