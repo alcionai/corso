@@ -67,9 +67,9 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.its.userID
+				sel.DiscreteOwner = suite.its.user.ID
 
 				return sel
 			},
@@ -79,7 +79,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -89,7 +89,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -107,7 +107,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			var (
 				mb      = evmock.NewBus()
 				sel     = test.selector().Selector
-				opts    = control.Defaults()
+				opts    = control.DefaultOptions()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
@@ -258,9 +258,9 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		// later on during the tests.  Putting their identifiers into the selector
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
-		sel        = selectors.NewExchangeBackup([]string{suite.its.userID})
+		sel        = selectors.NewExchangeBackup([]string{suite.its.user.ID})
 		whatSet    = deeTD.CategoryFromRepoRef
-		opts       = control.Defaults()
+		opts       = control.DefaultOptions()
 	)
 
 	opts.ToggleFeatures = toggles
@@ -295,7 +295,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.MessageWith(
-			suite.its.userID, suite.its.userID, suite.its.userID,
+			suite.its.user.ID, suite.its.user.ID, suite.its.user.ID,
 			subject, body, body,
 			now, now, now, now)
 	}
@@ -312,7 +312,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.EventWith(
-			suite.its.userID, subject, body, body,
+			suite.its.user.ID, subject, body, body,
 			exchMock.NoOriginalStartDate, now, now,
 			exchMock.NoRecurrence, exchMock.NoAttendees,
 			exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
@@ -578,7 +578,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.userID, "", container3,
+						creds.AzureTenantID, suite.its.user.ID, "", container3,
 						2,
 						version.Backup,
 						gen.dbf)
@@ -897,7 +897,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 	// a backup is required to run restores
 
-	baseSel := selectors.NewExchangeBackup([]string{suite.its.userID})
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 	baseSel.Include(
 		// events cannot be run, for the same reason as incremental backups: the user needs
 		// to have their account recycled.
@@ -905,11 +905,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	baseSel.DiscreteOwner = suite.its.userID
+	baseSel.DiscreteOwner = suite.its.user.ID
 
 	var (
 		mb   = evmock.NewBus()
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
@@ -1271,4 +1271,217 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		// decision yet.
 		assert.Len(t, result, 0, "no items should have been added as copies")
 	})
+}
+
+func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+	baseSel.Include(
+		// events cannot be run, for the same reason as incremental backups: the user needs
+		// to have their account recycled.
+		// base_sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
+		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+
+	baseSel.DiscreteOwner = suite.its.user.ID
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.DefaultOptions()
+	)
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	rsel, err := baseSel.ToExchangeRestore()
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		restoreCfg      = ctrlTD.DefaultRestoreConfig("exchange_restore_to_user")
+		sel             = rsel.Selector
+		userID          = suite.its.user.ID
+		secondaryUserID = suite.its.secondaryUser.ID
+		uid             = userID
+		acCont          = suite.its.ac.Contacts()
+		acMail          = suite.its.ac.Mail()
+		// acEvts   = suite.its.ac.Events()
+		firstCtr = count.New()
+	)
+
+	restoreCfg.OnCollision = control.Copy
+	mb = evmock.NewBus()
+
+	// first restore to the current user
+
+	ro1, _ := prepNewTestRestoreOp(
+		t,
+		ctx,
+		bod.st,
+		bo.Results.BackupID,
+		mb,
+		firstCtr,
+		sel,
+		opts,
+		restoreCfg)
+
+	runAndCheckRestore(t, ctx, &ro1, mb, false)
+
+	// get all files in folder, use these as the base
+	// set of files to compare against.
+
+	var (
+		userItemIDs       = map[path.CategoryType]map[string]struct{}{}
+		userCollisionKeys = map[path.CategoryType]map[string]string{}
+	)
+
+	// --- contacts
+	cat := path.ContactsCategory
+	userItemIDs[cat], userCollisionKeys[cat] = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acCont,
+		uid,
+		"",
+		restoreCfg.Location)
+
+	// --- events
+	// cat = path.EventsCategory
+	// userItemIDs[cat], userCollisionKeys[cat] = getCollKeysAndItemIDs(
+	// t,
+	// ctx,
+	// acEvts,
+	// uid,
+	// "",
+	// restoreCfg.Location)
+
+	// --- mail
+	cat = path.EmailCategory
+	userItemIDs[cat], userCollisionKeys[cat] = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acMail,
+		uid,
+		"",
+		restoreCfg.Location,
+		api.MailInbox)
+
+	// then restore to the secondary user
+
+	uid = secondaryUserID
+	mb = evmock.NewBus()
+	secondCtr := count.New()
+	restoreCfg.ProtectedResource = uid
+
+	ro2, _ := prepNewTestRestoreOp(
+		t,
+		ctx,
+		bod.st,
+		bo.Results.BackupID,
+		mb,
+		secondCtr,
+		sel,
+		opts,
+		restoreCfg)
+
+	runAndCheckRestore(t, ctx, &ro2, mb, false)
+
+	var (
+		secondaryItemIDs       = map[path.CategoryType]map[string]struct{}{}
+		secondaryCollisionKeys = map[path.CategoryType]map[string]string{}
+	)
+
+	// --- contacts
+	cat = path.ContactsCategory
+	secondaryItemIDs[cat], secondaryCollisionKeys[cat] = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acCont,
+		uid,
+		"",
+		restoreCfg.Location)
+
+	// --- events
+	// cat = path.EventsCategory
+	// secondaryItemIDs[cat], secondaryCollisionKeys[cat] = getCollKeysAndItemIDs(
+	// t,
+	// ctx,
+	// acEvts,
+	// uid,
+	// "",
+	// restoreCfg.Location)
+
+	// --- mail
+	cat = path.EmailCategory
+	secondaryItemIDs[cat], secondaryCollisionKeys[cat] = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acMail,
+		uid,
+		"",
+		restoreCfg.Location,
+		api.MailInbox)
+
+	// compare restore results
+	for _, cat := range []path.CategoryType{path.ContactsCategory, path.EmailCategory, path.EventsCategory} {
+		assert.Equal(t, len(userItemIDs[cat]), len(secondaryItemIDs[cat]))
+		assert.ElementsMatch(t, maps.Keys(userCollisionKeys[cat]), maps.Keys(secondaryCollisionKeys[cat]))
+	}
+}
+
+type GetItemsKeysAndContainerByNameer interface {
+	GetItemIDsInContainer(
+		ctx context.Context,
+		userID, containerID string,
+	) (map[string]struct{}, error)
+	GetContainerByName(
+		ctx context.Context,
+		userID, parentContainerID, containerName string,
+	) (graph.Container, error)
+	GetItemsInContainerByCollisionKey(
+		ctx context.Context,
+		userID, containerID string,
+	) (map[string]string, error)
+}
+
+func getCollKeysAndItemIDs(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	gikacbn GetItemsKeysAndContainerByNameer,
+	userID, parentContainerID string,
+	containerNames ...string,
+) (map[string]struct{}, map[string]string) {
+	var (
+		c   graph.Container
+		err error
+		cID string
+	)
+
+	for _, cn := range containerNames {
+		pcid := parentContainerID
+
+		if len(cID) != 0 {
+			pcid = cID
+		}
+
+		c, err = gikacbn.GetContainerByName(ctx, userID, pcid, cn)
+		require.NoError(t, err, clues.ToCore(err))
+
+		cID = ptr.Val(c.GetId())
+	}
+
+	itemIDs, err := gikacbn.GetItemIDsInContainer(ctx, userID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	collisionKeys, err := gikacbn.GetItemsInContainerByCollisionKey(ctx, userID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return itemIDs, collisionKeys
 }

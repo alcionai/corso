@@ -54,7 +54,7 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 
 	mo, err := NewMaintenanceOperation(
 		ctx,
-		control.Defaults(),
+		control.DefaultOptions(),
 		kw,
 		repository.Maintenance{
 			Type: repository.MetadataMaintenance,

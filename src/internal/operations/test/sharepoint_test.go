@@ -49,7 +49,7 @@ func (suite *SharePointBackupIntgSuite) SetupSuite() {
 }
 
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
-	sel := selectors.NewSharePointRestore([]string{suite.its.siteID})
+	sel := selectors.NewSharePointRestore([]string{suite.its.site.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
@@ -60,10 +60,10 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		d, err := suite.its.ac.Sites().GetDefaultDrive(ctx, suite.its.siteID)
+		d, err := suite.its.ac.Sites().GetDefaultDrive(ctx, suite.its.site.ID)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
-				With("site", suite.its.siteID)
+				With("site", suite.its.site.ID)
 		}
 
 		require.NoError(t, err, clues.ToCore(err))
@@ -80,8 +80,8 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 
 	runDriveIncrementalTest(
 		suite,
-		suite.its.siteID,
-		suite.its.userID,
+		suite.its.site.ID,
+		suite.its.user.ID,
 		resource.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
@@ -99,8 +99,8 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 
 	var (
 		mb   = evmock.NewBus()
-		sel  = selectors.NewSharePointBackup([]string{suite.its.siteID})
-		opts = control.Defaults()
+		sel  = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts = control.DefaultOptions()
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
@@ -116,7 +116,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 		bod.sw,
 		&bo,
 		bod.sel,
-		suite.its.siteID,
+		suite.its.site.ID,
 		path.LibrariesCategory)
 }
 
@@ -128,8 +128,8 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 
 	var (
 		mb    = evmock.NewBus()
-		sel   = selectors.NewSharePointBackup([]string{suite.its.siteID})
-		opts  = control.Defaults()
+		sel   = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts  = control.DefaultOptions()
 		tenID = tconfig.M365TenantID(t)
 		svc   = path.SharePointService
 		ws    = deeTD.DriveIDFromRepoRef
@@ -150,7 +150,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 		bod.sw,
 		&bo,
 		bod.sel,
-		suite.its.siteID,
+		suite.its.site.ID,
 		path.LibrariesCategory)
 
 	bID := bo.Results.BackupID
@@ -201,18 +201,33 @@ func (suite *SharePointRestoreIntgSuite) SetupSuite() {
 }
 
 func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedOptions() {
-	sel := selectors.NewSharePointBackup([]string{suite.its.siteID})
+	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
-	sel.DiscreteOwner = suite.its.siteID
+	sel.DiscreteOwner = suite.its.site.ID
 
 	runDriveRestoreWithAdvancedOptions(
 		suite.T(),
 		suite,
 		suite.its.ac,
 		sel.Selector,
-		suite.its.siteDriveID,
-		suite.its.siteDriveRootFolderID)
+		suite.its.site.DriveID,
+		suite.its.site.DriveRootFolderID)
+}
+
+func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointAlternateProtectedResource() {
+	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.site.ID
+
+	runDriveRestoreToAlternateProtectedResource(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.site,
+		suite.its.secondarySite)
 }
 
 func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
@@ -229,7 +244,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 	rc.OnCollision = control.Copy
 
 	// create a new drive
-	md, err := suite.its.ac.Lists().PostDrive(ctx, suite.its.siteID, rc.Location)
+	md, err := suite.its.ac.Lists().PostDrive(ctx, suite.its.site.ID, rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	driveID := ptr.Val(md.GetId())
@@ -260,14 +275,14 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 	// run a backup
 	var (
 		mb          = evmock.NewBus()
-		opts        = control.Defaults()
+		opts        = control.DefaultOptions()
 		graphClient = suite.its.ac.Stable.Client()
 	)
 
-	bsel := selectors.NewSharePointBackup([]string{suite.its.siteID})
+	bsel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
 	bsel.Include(selTD.SharePointBackupFolderScope(bsel))
 	bsel.Filter(bsel.Library(rc.Location))
-	bsel.DiscreteOwner = suite.its.siteID
+	bsel.DiscreteOwner = suite.its.site.ID
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
@@ -367,7 +382,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives
 
 		pgr := suite.its.ac.
 			Drives().
-			NewSiteDrivePager(suite.its.siteID, []string{"id", "name"})
+			NewSiteDrivePager(suite.its.site.ID, []string{"id", "name"})
 
 		drives, err := api.GetAllDrives(ctx, pgr, false, -1)
 		require.NoError(t, err, clues.ToCore(err))

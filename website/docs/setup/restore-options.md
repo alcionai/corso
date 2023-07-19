@@ -10,7 +10,7 @@ manner to a new folder. When you need more control over the results you can
 use the advanced configuration options to change where and how your data
 gets restored.
 
-## Destination
+## Restore to target folder
 
 The `--destination` flag lets you select the top-level folder where Corso will
 write all of the restored data.
@@ -18,7 +18,7 @@ write all of the restored data.
 ### The default destination
 
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd`
+    `corso restore onedrive --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
 If the flag isn't provided, Corso will create a new folder with a standard name:
@@ -29,7 +29,7 @@ data integrity then this is always the safest option.
 ### An alternate destination
 
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --destination /my-latest-restore`
+    `corso restore onedrive --destination /my-latest-restore --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
 When a destination is manually specified, all restored will appear in that top-level
@@ -41,7 +41,7 @@ folder multiple times.
 ### The original location
 
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --destination /`
+    `corso restore onedrive --destination / --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
 You can restore items back to their original location by setting the destination
@@ -79,19 +79,19 @@ it still collides.
 Collisions can be handled with three different configurations: `Skip`, `Copy`,
 and `Replace`.
 
-## Skip (default)
+### Skip (default)
 
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --collisions skip --destination /`
+    `corso restore onedrive --collisions skip --destination / --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
 When a collision is identified, the item is skipped and
 no restore is attempted.
 
-## Copy
+### Copy
 
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --collisions copy --destination /my-latest-restore`
+    `corso restore onedrive --collisions copy --destination /my-latest-restore --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
 Item collisions create a copy of the item in the backup. The copy holds the backup
@@ -99,12 +99,31 @@ version of the item, leaving the current version unchanged. If necessary, change
 item properties (such as filenames) to avoid additional collisions. Eg:
 the copy of`reports.txt` is named `reports 1.txt`.
 
-## Replace
+### Replace
 
 <CodeBlock language="bash">{
-    `corso restore onedrive --backup abcd --collisions replace --destination /`
+    `corso restore onedrive --collisions replace --destination / --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
 Collisions will entirely replace the current version of the item with the backup
 version. If multiple existing items collide with the backup item, only one of the
 existing items is replaced.
+
+## Restore to target resource
+
+The `--to-resource` flag lets you select which resource will receive the restored data.
+A resource can be a mailbox, user, sharepoint site, or other owner of data.
+
+When restoring to a target resource, all other restore configuration behaves normally.
+Data is restored into the default folder: `Corso_Restore_<current-date-time>` (unless a
+`--destination` flag is added).  When restoring in-place, collision policies are followed.
+
+<CodeBlock language="bash">{
+    `corso restore onedrive --to-resource adelev@alcion.ai --backup a422895c-c20c-4b06-883d-b866db9f86ef`
+}</CodeBlock>
+
+### Limitations
+
+* The resource must exist.  Corso will not create new mailboxes, users, or sites.
+* The resource must have access to the service being restored.  No restore will be
+performed for an unlicensed resource.

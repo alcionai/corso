@@ -61,6 +61,10 @@ type RestoreConfig struct {
 	// up.
 	// Defaults to empty.
 	Drive string `json:"drive"`
+
+	// IncludePermissions toggles whether the restore will include the original
+	// folder- and item-level permissions.
+	IncludePermissions bool `json:"includePermissions"`
 }
 
 func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
@@ -120,10 +124,11 @@ func (rc RestoreConfig) marshal() string {
 
 func (rc RestoreConfig) concealed() RestoreConfig {
 	return RestoreConfig{
-		OnCollision:       rc.OnCollision,
-		ProtectedResource: clues.Hide(rc.ProtectedResource).Conceal(),
-		Location:          path.LoggableDir(rc.Location),
-		Drive:             clues.Hide(rc.Drive).Conceal(),
+		OnCollision:        rc.OnCollision,
+		ProtectedResource:  clues.Hide(rc.ProtectedResource).Conceal(),
+		Location:           path.LoggableDir(rc.Location),
+		Drive:              clues.Hide(rc.Drive).Conceal(),
+		IncludePermissions: rc.IncludePermissions,
 	}
 }
 

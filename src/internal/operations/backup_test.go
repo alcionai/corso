@@ -362,7 +362,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.Defaults(),
+				control.DefaultOptions(),
 				kw,
 				sw,
 				ctrl,
@@ -1147,7 +1147,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		sw   = &store.Wrapper{}
 		ctrl = &mock.Controller{}
 		acct = tconfig.NewM365Account(suite.T())
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 	)
 
 	table := []struct {
