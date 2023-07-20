@@ -73,8 +73,8 @@ func NewCache(idToName map[string]string) *cache {
 }
 
 func (c *cache) Add(id, name string) {
-	c.idToName[id] = name
-	c.nameToID[name] = id
+	c.idToName[strings.ToLower(id)] = name
+	c.nameToID[strings.ToLower(name)] = id
 }
 
 // IDOf returns the id associated with the given name.
