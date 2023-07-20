@@ -157,7 +157,7 @@ func ConsumeRestoreCollections(
 		el                  = errs.Local()
 		caches              = NewRestoreCaches(backupDriveIDNames)
 		protectedResourceID = dcs[0].FullPath().ResourceOwner()
-		fallbackDriveName   = "" // onedrive cannot create drives
+		fallbackDriveName   = restoreCfg.Location
 	)
 
 	ctx = clues.Add(ctx, "backup_version", backupVersion)
@@ -796,7 +796,7 @@ func createRestoreFolders(
 		driveID        = drivePath.DriveID
 		folders        = restoreDir.Elements()
 		location       = path.Builder{}.Append(driveID)
-		parentFolderID = caches.DriveIDToDriveInfo[drivePath.DriveID].id
+		parentFolderID = caches.DriveIDToDriveInfo[drivePath.DriveID].rootFolderID
 	)
 
 	ctx = clues.Add(
