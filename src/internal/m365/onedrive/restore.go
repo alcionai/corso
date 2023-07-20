@@ -258,7 +258,7 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
-	err = ensureDriveExists(
+	di, err := ensureDriveExists(
 		ctx,
 		rh,
 		caches,
@@ -268,6 +268,12 @@ func RestoreCollection(
 	if err != nil {
 		return metrics, clues.Wrap(err, "ensuring drive exists")
 	}
+
+	// clobber the drivePath details with the details retrieved
+	// in the ensure func, as they might have changed to reflect
+	// a different drive as a restore location.
+	drivePath.DriveID = di.id
+	drivePath.Root = di.rootFolderID
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
 	// from the backup under this the restore folder instead of root)
@@ -1215,51 +1221,63 @@ func ensureDriveExists(
 	pdagrf PostDriveAndGetRootFolderer,
 	caches *restoreCaches,
 	drivePath *path.DrivePath,
-	protectedResourceID, driveName string,
-) error {
+	protectedResourceID, fallbackDriveName string,
+) (driveInfo, error) {
 	driveID := drivePath.DriveID
 
-	// the drive might already be cached
-	if _, ok := caches.DriveIDToDriveInfo[driveID]; ok {
-		return nil
+	// the drive might already be cached by ID.  it's okay
+	// if the name has changed.  the ID is a better reference
+	// anyway.
+	if di, ok := caches.DriveIDToDriveInfo[driveID]; ok {
+		return di, nil
 	}
 
 	var (
-		newDriveName = driveName
+		newDriveName = fallbackDriveName
 		newDrive     models.Driveable
 		err          error
 	)
 
-	if _, ok := caches.DriveNameToDriveInfo[newDriveName]; ok {
-		newDriveName = fmt.Sprintf("%s %d", driveName, 1)
+	// if the drive wasn't found by ID, maybe we can find a
+	// drive with the same name but different ID.
+	// start by looking up the old drive's name
+	oldName, ok := caches.BackupDriveIDName.NameOf(driveID)
+	if ok {
+		// check for drives that currently have the same name
+		if di, ok := caches.DriveNameToDriveInfo[oldName]; ok {
+			return di, nil
+		}
+
+		// if no current drives have the same name, we'll make
+		// a new drive with that name.
+		newDriveName = oldName
 	}
 
-	// if not, double check that the name won't collide by looking
-	// up drives by name until we can make some name like `foo N` that
-	// doesn't collide with `foo` or other values of N in `foo N`.
-	// Ex: foo -> foo 1 -> foo 2 -> ... -> foo N
-	//
+	nextDriveName := newDriveName
+
 	// For sharepoint, document libraries can collide by name with
 	// item types beyond just drive.  Lists, for example, cannot share
-	// names with document libraries.  In those cases it's not enough
-	// to compare the names of drives; we also need to continue this
-	// loop until we can create a drive without error.
-	for i := 2; ; i++ {
-		ictx := clues.Add(ctx, "new_drive_name", clues.Hide(newDriveName))
+	// names with document libraries (they're the same type, actually).
+	// In those cases we need to rename the drive until we can create
+	// one without a collision.
+	for i := 1; ; i++ {
+		ictx := clues.Add(ctx, "new_drive_name", clues.Hide(nextDriveName))
 
-		newDrive, err = pdagrf.PostDrive(ictx, protectedResourceID, newDriveName)
+		newDrive, err = pdagrf.PostDrive(ictx, protectedResourceID, nextDriveName)
 		if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
-			return clues.Wrap(err, "creating new drive")
+			return driveInfo{}, clues.Wrap(err, "creating new drive")
 		}
 
 		if err == nil {
 			break
 		}
 
-		newDriveName = fmt.Sprintf("%s %d", driveName, i)
+		nextDriveName = fmt.Sprintf("%s %d", newDriveName, i)
 	}
 
-	err = caches.AddDrive(ctx, newDrive, pdagrf)
+	if err := caches.AddDrive(ctx, newDrive, pdagrf); err != nil {
+		return driveInfo{}, clues.Wrap(err, "adding drive to cache").OrNil()
+	}
 
-	return clues.Wrap(err, "adding drive to cache").OrNil()
+	return caches.DriveIDToDriveInfo[ptr.Val(newDrive.GetId())], nil
 }
