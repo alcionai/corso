@@ -704,16 +704,18 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	}
 
 	reasons := []Reason{
-		{
-			ResourceOwner: suite.storePath1.ResourceOwner(),
-			Service:       suite.storePath1.Service(),
-			Category:      suite.storePath1.Category(),
-		},
-		{
-			ResourceOwner: suite.storePath2.ResourceOwner(),
-			Service:       suite.storePath2.Service(),
-			Category:      suite.storePath2.Category(),
-		},
+		NewReason(
+			testTenant,
+			suite.storePath1.ResourceOwner(),
+			suite.storePath1.Service(),
+			suite.storePath1.Category(),
+		),
+		NewReason(
+			testTenant,
+			suite.storePath2.ResourceOwner(),
+			suite.storePath2.Service(),
+			suite.storePath2.Category(),
+		),
 	}
 
 	for _, r := range reasons {
@@ -838,11 +840,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	}
 
 	reasons := []Reason{
-		{
-			ResourceOwner: storePath.ResourceOwner(),
-			Service:       storePath.Service(),
-			Category:      storePath.Category(),
-		},
+		NewReason(testTenant,
+			storePath.ResourceOwner(),
+			storePath.Service(),
+			storePath.Category(),
+		),
 	}
 
 	for _, r := range reasons {
@@ -1017,13 +1019,9 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	w := &Wrapper{k}
 
 	tags := map[string]string{}
-	reason := Reason{
-		ResourceOwner: testUser,
-		Service:       path.ExchangeService,
-		Category:      path.EmailCategory,
-	}
+	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
-	for _, k := range reason.TagKeys() {
+	for _, k := range r.TagKeys() {
 		tags[k] = ""
 	}
 
@@ -1113,13 +1111,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	loc1 := path.Builder{}.Append(suite.storePath1.Folders()...)
 	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
 	tags := map[string]string{}
-	reason := Reason{
-		ResourceOwner: testUser,
-		Service:       path.ExchangeService,
-		Category:      path.EmailCategory,
-	}
+	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
-	for _, k := range reason.TagKeys() {
+	for _, k := range r.TagKeys() {
 		tags[k] = ""
 	}
 
@@ -1392,13 +1386,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	}
 
 	tags := map[string]string{}
-	reason := Reason{
-		ResourceOwner: testUser,
-		Service:       path.ExchangeService,
-		Category:      path.EmailCategory,
-	}
+	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
-	for _, k := range reason.TagKeys() {
+	for _, k := range r.TagKeys() {
 		tags[k] = ""
 	}
 
@@ -1437,11 +1427,7 @@ func (c *i64counter) Count(i int64) {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
-	reason := Reason{
-		ResourceOwner: testUser,
-		Service:       path.ExchangeService,
-		Category:      path.EmailCategory,
-	}
+	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	subtreePathTmp, err := path.Build(
 		testTenant,
@@ -1459,7 +1445,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 	tags := map[string]string{}
 
-	for _, k := range reason.TagKeys() {
+	for _, k := range r.TagKeys() {
 		tags[k] = ""
 	}
 

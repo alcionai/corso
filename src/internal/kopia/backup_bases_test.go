@@ -226,10 +226,10 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			reasons := make([]Reason, 0, len(i.cat))
 
 			for _, c := range i.cat {
-				reasons = append(reasons, Reason{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      c,
+				reasons = append(reasons, reason{
+					resource: ro,
+					service:  path.ExchangeService,
+					category: c,
 				})
 			}
 
@@ -458,7 +458,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 				ctx,
 				other,
 				func(reason Reason) string {
-					return reason.Service.String() + reason.Category.String()
+					return reason.Service().String() + reason.Category().String()
 				})
 			AssertBackupBasesEqual(t, expect, got)
 		})
@@ -469,10 +469,10 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	ro := "resource_owner"
 
 	makeMan := func(pct path.CategoryType, id, incmpl, bID string) ManifestEntry {
-		reason := Reason{
-			ResourceOwner: ro,
-			Service:       path.ExchangeService,
-			Category:      pct,
+		reason := reason{
+			resource: ro,
+			service:  path.ExchangeService,
+			category: pct,
 		}
 
 		return makeManifest(id, incmpl, bID, reason)
@@ -606,10 +606,10 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					Reason{
-						ResourceOwner: ro,
-						Service:       path.ExchangeService,
-						Category:      path.ContactsCategory,
+					reason{
+						resource: ro,
+						service:  path.ExchangeService,
+						category: path.ContactsCategory,
 					})
 				res.assistBases = res.mergeBases
 
@@ -619,10 +619,10 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					Reason{
-						ResourceOwner: ro,
-						Service:       path.ExchangeService,
-						Category:      path.ContactsCategory,
+					reason{
+						resource: ro,
+						service:  path.ExchangeService,
+						category: path.ContactsCategory,
 					})
 				res.assistBases = res.mergeBases
 

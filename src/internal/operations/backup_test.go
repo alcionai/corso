@@ -404,16 +404,18 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			path.ContactsCategory.String(),
 		)
 
-		emailReason = kopia.Reason{
-			ResourceOwner: resourceOwner,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		}
-		contactsReason = kopia.Reason{
-			ResourceOwner: resourceOwner,
-			Service:       path.ExchangeService,
-			Category:      path.ContactsCategory,
-		}
+		emailReason = kopia.NewReason(
+			"",
+			resourceOwner,
+			path.ExchangeService,
+			path.EmailCategory,
+		)
+		contactsReason = kopia.NewReason(
+			"",
+			resourceOwner,
+			path.ExchangeService,
+			path.ContactsCategory,
+		)
 
 		manifest1 = &snapshot.Manifest{
 			ID: "id1",
@@ -629,16 +631,18 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			DetailsID: "did2",
 		}
 
-		pathReason1 = kopia.Reason{
-			ResourceOwner: itemPath1.ResourceOwner(),
-			Service:       itemPath1.Service(),
-			Category:      itemPath1.Category(),
-		}
-		pathReason3 = kopia.Reason{
-			ResourceOwner: itemPath3.ResourceOwner(),
-			Service:       itemPath3.Service(),
-			Category:      itemPath3.Category(),
-		}
+		pathReason1 = kopia.NewReason(
+			"",
+			itemPath1.ResourceOwner(),
+			itemPath1.Service(),
+			itemPath1.Category(),
+		)
+		pathReason3 = kopia.NewReason(
+			"",
+			itemPath3.ResourceOwner(),
+			itemPath3.Service(),
+			itemPath3.Category(),
+		)
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
@@ -1064,11 +1068,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 		locPath1 = path.Builder{}.Append(itemPath1.Folders()...)
 
-		pathReason1 = kopia.Reason{
-			ResourceOwner: itemPath1.ResourceOwner(),
-			Service:       itemPath1.Service(),
-			Category:      itemPath1.Category(),
-		}
+		pathReason1 = kopia.NewReason(
+			"",
+			itemPath1.ResourceOwner(),
+			itemPath1.Service(),
+			itemPath1.Category(),
+		)
 
 		backup1 = kopia.BackupEntry{
 			Backup: &backup.Backup{

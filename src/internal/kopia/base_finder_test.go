@@ -40,59 +40,59 @@ var (
 	testUser3 = "user3"
 
 	testAllUsersAllCats = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser1,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
+		reason{
+			resource: testUser1,
+			service:  path.ExchangeService,
+			category: path.EventsCategory,
 		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser2,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
+		reason{
+			resource: testUser2,
+			service:  path.ExchangeService,
+			category: path.EventsCategory,
 		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser3,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
+		reason{
+			resource: testUser3,
+			service:  path.ExchangeService,
+			category: path.EventsCategory,
 		},
 	}
 	testAllUsersMail = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser1,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser2,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser3,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
 	}
 	testUser1Mail = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: testUser1,
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
 	}
 )
@@ -323,10 +323,10 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []Reason{
-		{
-			ResourceOwner: "a-user",
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: "a-user",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
 	}
 
@@ -346,10 +346,10 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []Reason{
-		{
-			ResourceOwner: "a-user",
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
+		reason{
+			resource: "a-user",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
 		},
 	}
 
@@ -559,73 +559,73 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			},
 			expectedBaseReasons: map[int][]Reason{
 				0: {
-					{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
+					reason{
+						resource: testUser1,
+						service:  path.ExchangeService,
+						category: path.EmailCategory,
 					},
-					{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
+					reason{
+						resource: testUser2,
+						service:  path.ExchangeService,
+						category: path.EmailCategory,
 					},
-					{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
+					reason{
+						resource: testUser3,
+						service:  path.ExchangeService,
+						category: path.EmailCategory,
 					},
 				},
 				1: {
-					Reason{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
+					reason{
+						resource: testUser1,
+						service:  path.ExchangeService,
+						category: path.EventsCategory,
 					},
-					Reason{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
+					reason{
+						resource: testUser2,
+						service:  path.ExchangeService,
+						category: path.EventsCategory,
 					},
-					Reason{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
+					reason{
+						resource: testUser3,
+						service:  path.ExchangeService,
+						category: path.EventsCategory,
 					},
 				},
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
 				0: {
-					{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
+					reason{
+						resource: testUser1,
+						service:  path.ExchangeService,
+						category: path.EmailCategory,
 					},
-					{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
+					reason{
+						resource: testUser2,
+						service:  path.ExchangeService,
+						category: path.EmailCategory,
 					},
-					{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
+					reason{
+						resource: testUser3,
+						service:  path.ExchangeService,
+						category: path.EmailCategory,
 					},
 				},
 				1: {
-					Reason{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
+					reason{
+						resource: testUser1,
+						service:  path.ExchangeService,
+						category: path.EventsCategory,
 					},
-					Reason{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
+					reason{
+						resource: testUser2,
+						service:  path.ExchangeService,
+						category: path.EventsCategory,
 					},
-					Reason{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
+					reason{
+						resource: testUser3,
+						service:  path.ExchangeService,
+						category: path.EventsCategory,
 					},
 				},
 			},
