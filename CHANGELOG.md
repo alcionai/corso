@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.11.1] (beta) - 2023-07-20
+
 ### Fixed
 - Allow repo connect to succeed when a `corso.toml` file was not provided but configuration is specified using environment variables and flags.
 
@@ -328,7 +330,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.11.1...HEAD
+[v0.11.1]: https://github.com/alcionai/corso/compare/v0.11.0...v0.11.1
 [v0.11.0]: https://github.com/alcionai/corso/compare/v0.10.0...v0.11.0
 [v0.10.0]: https://github.com/alcionai/corso/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/alcionai/corso/compare/v0.8.1...v0.9.0
