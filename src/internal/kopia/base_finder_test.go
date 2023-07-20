@@ -40,60 +40,23 @@ var (
 	testUser3 = "user3"
 
 	testAllUsersAllCats = []Reason{
-		reason{
-			resource: testUser1,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
-		reason{
-			resource: testUser1,
-			service:  path.ExchangeService,
-			category: path.EventsCategory,
-		},
-		reason{
-			resource: testUser2,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
-		reason{
-			resource: testUser2,
-			service:  path.ExchangeService,
-			category: path.EventsCategory,
-		},
-		reason{
-			resource: testUser3,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
-		reason{
-			resource: testUser3,
-			service:  path.ExchangeService,
-			category: path.EventsCategory,
-		},
+		// User1 email and events.
+		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+		// User2 email and events.
+		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+		// User3 email and events.
+		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 	}
 	testAllUsersMail = []Reason{
-		reason{
-			resource: testUser1,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
-		reason{
-			resource: testUser2,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
-		reason{
-			resource: testUser3,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
+		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 	}
 	testUser1Mail = []Reason{
-		reason{
-			resource: testUser1,
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
+		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 	}
 )
 
@@ -323,11 +286,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []Reason{
-		reason{
-			resource: "a-user",
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
+		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
 	}
 
 	bb := bf.FindBases(ctx, reasons, nil)
@@ -346,11 +305,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []Reason{
-		reason{
-			resource: "a-user",
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-		},
+		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
 	}
 
 	bb := bf.FindBases(ctx, reasons, nil)
@@ -559,74 +514,26 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			},
 			expectedBaseReasons: map[int][]Reason{
 				0: {
-					reason{
-						resource: testUser1,
-						service:  path.ExchangeService,
-						category: path.EmailCategory,
-					},
-					reason{
-						resource: testUser2,
-						service:  path.ExchangeService,
-						category: path.EmailCategory,
-					},
-					reason{
-						resource: testUser3,
-						service:  path.ExchangeService,
-						category: path.EmailCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 				},
 				1: {
-					reason{
-						resource: testUser1,
-						service:  path.ExchangeService,
-						category: path.EventsCategory,
-					},
-					reason{
-						resource: testUser2,
-						service:  path.ExchangeService,
-						category: path.EventsCategory,
-					},
-					reason{
-						resource: testUser3,
-						service:  path.ExchangeService,
-						category: path.EventsCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 				},
 			},
 			expectedAssistManifestReasons: map[int][]Reason{
 				0: {
-					reason{
-						resource: testUser1,
-						service:  path.ExchangeService,
-						category: path.EmailCategory,
-					},
-					reason{
-						resource: testUser2,
-						service:  path.ExchangeService,
-						category: path.EmailCategory,
-					},
-					reason{
-						resource: testUser3,
-						service:  path.ExchangeService,
-						category: path.EmailCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 				},
 				1: {
-					reason{
-						resource: testUser1,
-						service:  path.ExchangeService,
-						category: path.EventsCategory,
-					},
-					reason{
-						resource: testUser2,
-						service:  path.ExchangeService,
-						category: path.EventsCategory,
-					},
-					reason{
-						resource: testUser3,
-						service:  path.ExchangeService,
-						category: path.EventsCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 				},
 			},
 			backupData: []backupInfo{
