@@ -29,22 +29,74 @@ const (
 	userTagPrefix = "tag:"
 )
 
-type Reason struct {
-	ResourceOwner string
-	Service       path.ServiceType
-	Category      path.CategoryType
+// TODO(ashmrtn): Move this into some inject package. Here to avoid import
+// cycles.
+type Reason interface {
+	Tenant() string
+	Resource() string
+	Service() path.ServiceType
+	Category() path.CategoryType
+	SubtreePath() (path.Path, error)
+	// TODO(ashmrtn): Remove this when kopia generates tags from Reasons.
+	TagKeys() []string
 }
 
-func (r Reason) TagKeys() []string {
-	return []string{
-		r.ResourceOwner,
-		serviceCatString(r.Service, r.Category),
+func NewReason(
+	tenant, resource string,
+	service path.ServiceType,
+	category path.CategoryType,
+) Reason {
+	return reason{
+		tenant:   tenant,
+		resource: resource,
+		service:  service,
+		category: category,
 	}
 }
 
-// Key is the concatenation of the ResourceOwner, Service, and Category.
-func (r Reason) Key() string {
-	return r.ResourceOwner + r.Service.String() + r.Category.String()
+type reason struct {
+	// tenant appears here so that when this is moved to an inject package nothing
+	// needs changed. However, kopia itself is blind to the fields in the reason
+	// struct and relies on helper functions to get the information it needs.
+	tenant   string
+	resource string
+	service  path.ServiceType
+	category path.CategoryType
+}
+
+func (r reason) Tenant() string {
+	return r.tenant
+}
+
+func (r reason) Resource() string {
+	return r.resource
+}
+
+func (r reason) Service() path.ServiceType {
+	return r.service
+}
+
+func (r reason) Category() path.CategoryType {
+	return r.category
+}
+
+func (r reason) SubtreePath() (path.Path, error) {
+	p, err := path.ServicePrefix(
+		r.Tenant(),
+		r.Resource(),
+		r.Service(),
+		r.Category())
+
+	return p, clues.Wrap(err, "building path").OrNil()
+}
+
+// TODO(ashmrtn): Remove this when kopia generates tags based off Reasons. Here
+// at the moment so things compile.
+func (r reason) TagKeys() []string {
+	return []string{
+		r.Resource(),
+		serviceCatString(r.Service(), r.Category()),
+	}
 }
 
 type BackupEntry struct {
