@@ -267,8 +267,8 @@ func findNonUniqueManifests(
 		}
 
 		for _, reason := range man.Reasons {
-			reasonKey := reason.ResourceOwner + reason.Service.String() + reason.Category.String()
-			reasons[reasonKey] = append(reasons[reasonKey], man)
+			mapKey := reasonKey(reason)
+			reasons[mapKey] = append(reasons[mapKey], man)
 		}
 	}
 

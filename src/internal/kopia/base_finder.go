@@ -99,6 +99,11 @@ func (r reason) TagKeys() []string {
 	}
 }
 
+// reasonKey returns the concatenation of the Resource, Service, and Category.
+func reasonKey(r Reason) string {
+	return r.Resource() + r.Service().String() + r.Category().String()
+}
+
 type BackupEntry struct {
 	*backup.Backup
 	Reasons []Reason
@@ -322,12 +327,12 @@ func (b *baseFinder) findBasesInSet(
 
 func (b *baseFinder) getBase(
 	ctx context.Context,
-	reason Reason,
+	r Reason,
 	tags map[string]string,
 ) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
 	allTags := map[string]string{}
 
-	for _, k := range reason.TagKeys() {
+	for _, k := range r.TagKeys() {
 		allTags[k] = ""
 	}
 
@@ -344,7 +349,7 @@ func (b *baseFinder) getBase(
 		return nil, nil, nil, nil
 	}
 
-	return b.findBasesInSet(ctx, reason, metas)
+	return b.findBasesInSet(ctx, r, metas)
 }
 
 func (b *baseFinder) FindBases(
@@ -362,14 +367,14 @@ func (b *baseFinder) FindBases(
 		kopiaAssistSnaps = map[manifest.ID]ManifestEntry{}
 	)
 
-	for _, reason := range reasons {
+	for _, searchReason := range reasons {
 		ictx := clues.Add(
 			ctx,
-			"search_service", reason.Service.String(),
-			"search_category", reason.Category.String())
+			"search_service", searchReason.Service().String(),
+			"search_category", searchReason.Category().String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 
-		baseBackup, baseSnap, assistSnaps, err := b.getBase(ictx, reason, tags)
+		baseBackup, baseSnap, assistSnaps, err := b.getBase(ictx, searchReason, tags)
 		if err != nil {
 			logger.Ctx(ctx).Info(
 				"getting base, falling back to full backup for reason",

@@ -48,7 +48,7 @@ func produceManifestsAndMetadata(
 		ctx,
 		fbb,
 		func(r kopia.Reason) string {
-			return r.Service.String() + r.Category.String()
+			return r.Service().String() + r.Category().String()
 		})
 
 	if !getMetadata {
@@ -115,9 +115,9 @@ func collectMetadata(
 				Append(fn).
 				ToServiceCategoryMetadataPath(
 					tenantID,
-					reason.ResourceOwner,
-					reason.Service,
-					reason.Category,
+					reason.Resource(),
+					reason.Service(),
+					reason.Category(),
 					true)
 			if err != nil {
 				return nil, clues.

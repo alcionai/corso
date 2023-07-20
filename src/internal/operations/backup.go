@@ -280,8 +280,8 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	var (
-		reasons           = selectorToReasons(op.Selectors, false)
-		fallbackReasons   = makeFallbackReasons(op.Selectors)
+		reasons           = selectorToReasons(op.account.ID(), op.Selectors, false)
+		fallbackReasons   = makeFallbackReasons(op.account.ID(), op.Selectors)
 		lastBackupVersion = version.NoBackup
 	)
 
@@ -370,10 +370,10 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
-func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
+func makeFallbackReasons(tenant string, sel selectors.Selector) []kopia.Reason {
 	if sel.PathService() != path.SharePointService &&
 		sel.DiscreteOwner != sel.DiscreteOwnerName {
-		return selectorToReasons(sel, true)
+		return selectorToReasons(tenant, sel, true)
 	}
 
 	return nil
@@ -420,7 +420,11 @@ func produceBackupDataCollections(
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.Reason {
+func selectorToReasons(
+	tenant string,
+	sel selectors.Selector,
+	useOwnerNameForID bool,
+) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
 
@@ -438,11 +442,7 @@ func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.R
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
-			reasons = append(reasons, kopia.Reason{
-				ResourceOwner: owner,
-				Service:       service,
-				Category:      cat,
-			})
+			reasons = append(reasons, kopia.NewReason(tenant, owner, service, cat))
 		}
 	}
 
@@ -450,16 +450,16 @@ func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.R
 }
 
 func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*path.Builder, error) {
-	ctx = clues.Add(ctx, "category", r.Category.String())
+	ctx = clues.Add(ctx, "category", r.Category().String())
 
 	// This is hacky, but we want the path package to format the path the right
 	// way (e.x. proper order for service, category, etc), but we don't care about
 	// the folders after the prefix.
 	p, err := path.Build(
 		tenant,
-		r.ResourceOwner,
-		r.Service,
-		r.Category,
+		r.Resource(),
+		r.Service(),
+		r.Category(),
 		false,
 		"tmp")
 	if err != nil {
@@ -530,8 +530,8 @@ func consumeBackupCollections(
 			}
 
 			paths = append(paths, pb)
-			services[reason.Service.String()] = struct{}{}
-			categories[reason.Category.String()] = struct{}{}
+			services[reason.Service().String()] = struct{}{}
+			categories[reason.Category().String()] = struct{}{}
 		}
 
 		ids[m.ID] = struct{}{}
@@ -611,9 +611,9 @@ func consumeBackupCollections(
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 	for _, reason := range reasons {
-		if p.ResourceOwner() == reason.ResourceOwner &&
-			p.Service() == reason.Service &&
-			p.Category() == reason.Category {
+		if p.ResourceOwner() == reason.Resource() &&
+			p.Service() == reason.Service() &&
+			p.Category() == reason.Category() {
 			return true
 		}
 	}
