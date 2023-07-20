@@ -475,13 +475,8 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 				test.col,
 				fault.New(true),
 				count.New())
-			require.NoError(t, err, clues.ToCore(err))
-			assert.NotNil(t, deets)
-
-			stats := suite.ctrl.Wait()
-			assert.Zero(t, stats.Objects)
-			assert.Zero(t, stats.Folders)
-			assert.Zero(t, stats.Successes)
+			require.Error(t, err, clues.ToCore(err))
+			assert.Nil(t, deets)
 		})
 	}
 }
