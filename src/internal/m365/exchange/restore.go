@@ -40,15 +40,12 @@ func ConsumeRestoreCollections(
 	}
 
 	var (
-		userID         = dcs[0].FullPath().ResourceOwner()
+		userID         = rcc.ProtectedResource.ID()
 		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
 		handlers       = restoreHandlers(ac)
 		metrics        support.CollectionMetrics
 		el             = errs.Local()
 	)
-
-	// FIXME: should be user name
-	ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
 
 	for _, dc := range dcs {
 		if el.Failure() != nil {
