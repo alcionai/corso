@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
@@ -393,7 +394,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{},
 		},
-		nil,
+		[]data.RestoreCollection{&dataMock.Collection{}},
 		fault.New(true),
 		count.New())
 	assert.Error(t, err, clues.ToCore(err))
