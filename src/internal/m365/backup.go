@@ -61,7 +61,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
 		ctrl.AC.Users(),
-		path.ServiceType(sels.Service),
+		sels.PathService(),
 		sels.DiscreteOwner)
 	if err != nil {
 		return nil, nil, false, err
