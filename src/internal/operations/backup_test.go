@@ -107,6 +107,7 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 
 type mockBackupConsumer struct {
 	checkFunc func(
+		backupReasons []kopia.Reason,
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
 		tags map[string]string,
@@ -115,6 +116,7 @@ type mockBackupConsumer struct {
 
 func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
+	backupReasons []kopia.Reason,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
 	excluded prefixmatcher.StringSetReader,
@@ -123,7 +125,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	if mbu.checkFunc != nil {
-		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
+		mbu.checkFunc(backupReasons, bases, cs, tags, buildTreeWithBase)
 	}
 
 	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
@@ -537,6 +539,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 
 			mbu := &mockBackupConsumer{
 				checkFunc: func(
+					backupReasons []kopia.Reason,
 					bases []kopia.IncrementalBase,
 					cs []data.BackupCollection,
 					tags map[string]string,

@@ -330,7 +330,7 @@ func (b *baseFinder) getBase(
 ) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
 	allTags := map[string]string{}
 
-	for _, k := range r.TagKeys() {
+	for _, k := range tagKeys(r) {
 		allTags[k] = ""
 	}
 

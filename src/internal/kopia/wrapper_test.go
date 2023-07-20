@@ -718,15 +718,17 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
+	expectedTags := map[string]string{}
+
+	maps.Copy(expectedTags, tags)
+
 	for _, r := range reasons {
-		for _, k := range r.TagKeys() {
-			tags[k] = ""
+		for _, k := range tagKeys(r) {
+			expectedTags[k] = ""
 		}
 	}
 
-	expectedTags := map[string]string{}
-
-	maps.Copy(expectedTags, normalizeTagKVs(tags))
+	expectedTags = normalizeTagKVs(expectedTags)
 
 	table := []struct {
 		name                  string
@@ -757,6 +759,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 			stats, deets, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
+				reasons,
 				prevSnaps,
 				collections,
 				nil,
@@ -847,15 +850,17 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			storePath.Category()),
 	}
 
+	expectedTags := map[string]string{}
+
+	maps.Copy(expectedTags, tags)
+
 	for _, r := range reasons {
-		for _, k := range r.TagKeys() {
-			tags[k] = ""
+		for _, k := range tagKeys(r) {
+			expectedTags[k] = ""
 		}
 	}
 
-	expectedTags := map[string]string{}
-
-	maps.Copy(expectedTags, normalizeTagKVs(tags))
+	expectedTags = normalizeTagKVs(expectedTags)
 
 	table := []struct {
 		name                  string
@@ -942,6 +947,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 
 			stats, deets, prevShortRefs, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
+				reasons,
 				prevSnaps,
 				collections,
 				nil,
@@ -1018,12 +1024,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
-	tags := map[string]string{}
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
-
-	for _, k := range r.TagKeys() {
-		tags[k] = ""
-	}
 
 	dc1 := exchMock.NewCollection(suite.storePath1, suite.locPath1, 1)
 	dc2 := exchMock.NewCollection(suite.storePath2, suite.locPath2, 1)
@@ -1036,10 +1037,11 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
+		[]Reason{r},
 		nil,
 		[]data.BackupCollection{dc1, dc2},
 		nil,
-		tags,
+		nil,
 		true,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -1110,12 +1112,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	loc1 := path.Builder{}.Append(suite.storePath1.Folders()...)
 	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
-	tags := map[string]string{}
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
-
-	for _, k := range r.TagKeys() {
-		tags[k] = ""
-	}
 
 	collections := []data.BackupCollection{
 		&mockBackupCollection{
@@ -1158,10 +1155,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
+		[]Reason{r},
 		nil,
 		collections,
 		nil,
-		tags,
+		nil,
 		true,
 		fault.New(true))
 	require.Error(t, err, clues.ToCore(err))
@@ -1232,6 +1230,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 
 			s, d, _, err := suite.w.ConsumeBackupCollections(
 				ctx,
+				nil,
 				nil,
 				test.collections,
 				nil,
@@ -1385,19 +1384,15 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
-	tags := map[string]string{}
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
-
-	for _, k := range r.TagKeys() {
-		tags[k] = ""
-	}
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
+		[]Reason{r},
 		nil,
 		collections,
 		nil,
-		tags,
+		nil,
 		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -1442,12 +1437,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 	man, err := suite.w.c.LoadSnapshot(suite.ctx, suite.snapshotID)
 	require.NoError(suite.T(), err, "getting base snapshot: %v", clues.ToCore(err))
-
-	tags := map[string]string{}
-
-	for _, k := range r.TagKeys() {
-		tags[k] = ""
-	}
 
 	table := []struct {
 		name                  string
@@ -1537,6 +1526,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
+				[]Reason{r},
 				[]IncrementalBase{
 					{
 						Manifest: man,
@@ -1547,7 +1537,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				},
 				test.cols(),
 				excluded,
-				tags,
+				nil,
 				true,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
