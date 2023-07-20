@@ -51,16 +51,15 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		restoreMetrics      support.CollectionMetrics
-		el                  = errs.Local()
-		caches              = NewRestoreCaches(backupDriveIDNames)
-		protectedResourceID = rcc.ProtectedResource.ID()
-		fallbackDriveName   = "" // onedrive cannot create drives
+		restoreMetrics    support.CollectionMetrics
+		el                = errs.Local()
+		caches            = NewRestoreCaches(backupDriveIDNames)
+		fallbackDriveName = "" // onedrive cannot create drives
 	)
 
 	ctx = clues.Add(ctx, "backup_version", rcc.BackupVersion)
 
-	err := caches.Populate(ctx, rh, protectedResourceID)
+	err := caches.Populate(ctx, rh, rcc.ProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "initializing restore caches")
 	}
@@ -132,15 +131,14 @@ func RestoreCollection(
 	ctr *count.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
-		metrics             = support.CollectionMetrics{}
-		directory           = dc.FullPath()
-		protectedResourceID = directory.ResourceOwner()
-		el                  = errs.Local()
-		metricsObjects      int64
-		metricsBytes        int64
-		metricsSuccess      int64
-		wg                  sync.WaitGroup
-		complete            bool
+		metrics        = support.CollectionMetrics{}
+		directory      = dc.FullPath()
+		el             = errs.Local()
+		metricsObjects int64
+		metricsBytes   int64
+		metricsSuccess int64
+		wg             sync.WaitGroup
+		complete       bool
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -156,7 +154,7 @@ func RestoreCollection(
 		rh,
 		caches,
 		drivePath,
-		protectedResourceID,
+		rcc.ProtectedResource.ID(),
 		fallbackDriveName)
 	if err != nil {
 		return metrics, clues.Wrap(err, "ensuring drive exists")

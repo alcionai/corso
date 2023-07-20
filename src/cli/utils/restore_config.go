@@ -19,6 +19,7 @@ type RestoreCfgOpts struct {
 	// to the default folder name.  Defaults to
 	// dttm.HumanReadable.
 	DTTMFormat         dttm.TimeFormat
+	ProtectedResource  string
 	RestorePermissions bool
 
 	Populated flags.PopulatedFlags
@@ -29,6 +30,7 @@ func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 		Collisions:         flags.CollisionsFV,
 		Destination:        flags.DestinationFV,
 		DTTMFormat:         dttm.HumanReadable,
+		ProtectedResource:  flags.ToResourceFV,
 		RestorePermissions: flags.RestorePermissionsFV,
 
 		// populated contains the list of flags that appear in the
@@ -69,6 +71,7 @@ func MakeRestoreConfig(
 		restoreCfg.Location = opts.Destination
 	}
 
+	restoreCfg.ProtectedResource = opts.ProtectedResource
 	restoreCfg.IncludePermissions = opts.RestorePermissions
 
 	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
