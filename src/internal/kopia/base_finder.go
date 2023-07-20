@@ -39,8 +39,6 @@ type Reasoner interface {
 	// SubtreePath returns the path prefix for data in existing backups that have
 	// parameters (tenant, protected resourced, etc) that match this Reasoner.
 	SubtreePath() (path.Path, error)
-	// TODO(ashmrtn): Remove this when kopia generates tags from Reasons.
-	TagKeys() []string
 }
 
 func NewReason(
@@ -92,9 +90,7 @@ func (r reason) SubtreePath() (path.Path, error) {
 	return p, clues.Wrap(err, "building path").OrNil()
 }
 
-// TODO(ashmrtn): Remove this when kopia generates tags based off Reasons. Here
-// at the moment so things compile.
-func (r reason) TagKeys() []string {
+func tagKeys(r Reason) []string {
 	return []string{
 		r.ProtectedResource(),
 		serviceCatString(r.Service(), r.Category()),
