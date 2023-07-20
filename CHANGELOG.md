@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+- Allow repo connect to succeed when a `corso.toml` file was not provided but configuration is specified using environment variables and flags.
+
 ## [v0.11.0] (beta) - 2023-07-18
 
 ### Added
 - Drive items backup and restore link shares
 - Restore commands now accept an optional top-level restore destination with the `--destination` flag.  Setting the destination to '/' will restore items back into their original location.  
 - Restore commands can specify item collision behavior.  Options are Skip (default), Replace, and Copy.
+- Introduced repository maintenance commands to help optimize the repository as well as unreferenced data.
 
 ### Fixed
 - Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
