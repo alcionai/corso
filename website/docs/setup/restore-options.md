@@ -108,3 +108,18 @@ the copy of`reports.txt` is named `reports 1.txt`.
 Collisions will entirely replace the current version of the item with the backup
 version. If multiple existing items collide with the backup item, only one of the
 existing items is replaced.
+
+## To resource
+
+The `--to-resource` flag lets you select which resource will receive the restored data.
+A resource can be a mailbox, user, or sharepoint site.  
+
+<CodeBlock language="bash">{
+    `corso restore onedrive --backup abcd --to-resource adelev@alcion.ai`
+}</CodeBlock>
+
+### Limitations
+
+* The resource must exist.  Corso will not create new mailboxes, users, or sites.
+* The resource must have access to the service being restored.  No restore will be
+performed for an unlicensed resource.

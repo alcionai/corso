@@ -46,6 +46,7 @@ var (
 
 	Collisions         = "collisions"
 	Destination        = "destination"
+	ToResource         = "toResource"
 	RestorePermissions = true
 
 	AzureClientID     = "testAzureClientId"

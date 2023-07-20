@@ -41,14 +41,13 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		lrh                 = libraryRestoreHandler{ac}
-		protectedResourceID = dcs[0].FullPath().ResourceOwner()
-		restoreMetrics      support.CollectionMetrics
-		caches              = onedrive.NewRestoreCaches(backupDriveIDNames)
-		el                  = errs.Local()
+		lrh            = libraryRestoreHandler{ac}
+		restoreMetrics support.CollectionMetrics
+		caches         = onedrive.NewRestoreCaches(backupDriveIDNames)
+		el             = errs.Local()
 	)
 
-	err := caches.Populate(ctx, lrh, protectedResourceID)
+	err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "initializing restore caches")
 	}
@@ -69,7 +68,7 @@ func ConsumeRestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"restore_location", rcc.RestoreConfig.Location,
+				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"full_path", dc.FullPath())
 		)
