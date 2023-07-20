@@ -106,7 +106,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
-	sel := selectors.NewOneDriveRestore([]string{suite.its.userID})
+	sel := selectors.NewOneDriveRestore([]string{suite.its.user.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.Folders(cs, selectors.PrefixMatch()))
@@ -117,10 +117,10 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		d, err := suite.its.ac.Users().GetDefaultDrive(ctx, suite.its.userID)
+		d, err := suite.its.ac.Users().GetDefaultDrive(ctx, suite.its.user.ID)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default user drive").
-				With("user", suite.its.userID)
+				With("user", suite.its.user.ID)
 		}
 
 		require.NoError(t, err, clues.ToCore(err))
@@ -137,8 +137,8 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 
 	runDriveIncrementalTest(
 		suite,
-		suite.its.userID,
-		suite.its.userID,
+		suite.its.user.ID,
+		suite.its.user.ID,
 		resource.Users,
 		path.OneDriveService,
 		path.FilesCategory,
@@ -804,7 +804,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
-	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.userID)
+	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.user.ID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	uid := ptr.Val(userable.GetId())
@@ -982,17 +982,17 @@ func (suite *OneDriveRestoreIntgSuite) SetupSuite() {
 }
 
 func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
-	sel := selectors.NewOneDriveBackup([]string{suite.its.userID})
+	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
-	sel.DiscreteOwner = suite.its.userID
+	sel.DiscreteOwner = suite.its.user.ID
 
 	runDriveRestoreWithAdvancedOptions(
 		suite.T(),
 		suite,
 		suite.its.ac,
 		sel.Selector,
-		suite.its.userDriveID,
-		suite.its.userDriveRootFolderID)
+		suite.its.user.DriveID,
+		suite.its.user.DriveRootFolderID)
 }
 
 func runDriveRestoreWithAdvancedOptions(
@@ -1249,4 +1249,174 @@ func runDriveRestoreWithAdvancedOptions(
 		assert.Equal(t, 2*len(fileIDs), len(currentFileIDs), "count of ids should be double from before")
 		assert.Subset(t, maps.Keys(currentFileIDs), maps.Keys(fileIDs), "original item should exist after copy")
 	})
+}
+
+func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveAlternateProtectedResource() {
+	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
+	sel.DiscreteOwner = suite.its.user.ID
+
+	runDriveRestoreToAlternateProtectedResource(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.user,
+		suite.its.secondaryUser)
+}
+
+func runDriveRestoreToAlternateProtectedResource(
+	t *testing.T,
+	suite tester.Suite,
+	ac api.Client,
+	sel selectors.Selector, // owner should match 'from', both Restore and Backup types work.
+	from, to ids,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.DefaultOptions()
+	)
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	var (
+		restoreCfg        = ctrlTD.DefaultRestoreConfig("drive_restore_to_resource")
+		fromCollisionKeys map[string]api.DriveItemIDType
+		fromItemIDs       map[string]api.DriveItemIDType
+		acd               = ac.Drives()
+	)
+
+	// first restore to the 'from' resource
+
+	suite.Run("restore original resource", func() {
+		mb = evmock.NewBus()
+		fromCtr := count.New()
+		driveID := from.DriveID
+		rootFolderID := from.DriveRootFolderID
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			fromCtr,
+			sel,
+			opts,
+			restoreCfg)
+
+		runAndCheckRestore(t, ctx, &ro, mb, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		fromItemIDs, fromCollisionKeys = getDriveCollKeysAndItemIDs(
+			t,
+			ctx,
+			acd,
+			driveID,
+			rootFolderID,
+			restoreCfg.Location,
+			selTD.TestFolderName)
+	})
+
+	// then restore to the 'to' resource
+	var (
+		toCollisionKeys map[string]api.DriveItemIDType
+		toItemIDs       map[string]api.DriveItemIDType
+	)
+
+	suite.Run("restore to alternate resource", func() {
+		mb = evmock.NewBus()
+		toCtr := count.New()
+		driveID := to.DriveID
+		rootFolderID := to.DriveRootFolderID
+		restoreCfg.ProtectedResource = to.ID
+
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			toCtr,
+			sel,
+			opts,
+			restoreCfg)
+
+		runAndCheckRestore(t, ctx, &ro, mb, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		toItemIDs, toCollisionKeys = getDriveCollKeysAndItemIDs(
+			t,
+			ctx,
+			acd,
+			driveID,
+			rootFolderID,
+			restoreCfg.Location,
+			selTD.TestFolderName)
+	})
+
+	// compare restore results
+	assert.Equal(t, len(fromItemIDs), len(toItemIDs))
+	assert.ElementsMatch(t, maps.Keys(fromCollisionKeys), maps.Keys(toCollisionKeys))
+}
+
+type GetItemsKeysAndFolderByNameer interface {
+	GetItemIDsInContainer(
+		ctx context.Context,
+		driveID, containerID string,
+	) (map[string]api.DriveItemIDType, error)
+	GetFolderByName(
+		ctx context.Context,
+		driveID, parentFolderID, folderName string,
+	) (models.DriveItemable, error)
+	GetItemsInContainerByCollisionKey(
+		ctx context.Context,
+		driveID, containerID string,
+	) (map[string]api.DriveItemIDType, error)
+}
+
+func getDriveCollKeysAndItemIDs(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	gikafbn GetItemsKeysAndFolderByNameer,
+	driveID, parentContainerID string,
+	containerNames ...string,
+) (map[string]api.DriveItemIDType, map[string]api.DriveItemIDType) {
+	var (
+		c   models.DriveItemable
+		err error
+		cID string
+	)
+
+	for _, cn := range containerNames {
+		pcid := parentContainerID
+
+		if len(cID) != 0 {
+			pcid = cID
+		}
+
+		c, err = gikafbn.GetFolderByName(ctx, driveID, pcid, cn)
+		require.NoError(t, err, clues.ToCore(err))
+
+		cID = ptr.Val(c.GetId())
+	}
+
+	itemIDs, err := gikafbn.GetItemIDsInContainer(ctx, driveID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	collisionKeys, err := gikafbn.GetItemsInContainerByCollisionKey(ctx, driveID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return itemIDs, collisionKeys
 }

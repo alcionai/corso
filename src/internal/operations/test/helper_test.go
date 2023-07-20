@@ -574,15 +574,19 @@ func ControllerWithSelector(
 // Suite Setup
 // ---------------------------------------------------------------------------
 
+type ids struct {
+	ID                string
+	DriveID           string
+	DriveRootFolderID string
+}
+
 type intgTesterSetup struct {
-	ac                    api.Client
-	gockAC                api.Client
-	userID                string
-	userDriveID           string
-	userDriveRootFolderID string
-	siteID                string
-	siteDriveID           string
-	siteDriveRootFolderID string
+	ac            api.Client
+	gockAC        api.Client
+	user          ids
+	secondaryUser ids
+	site          ids
+	secondarySite ids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -603,35 +607,50 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.gockAC, err = mock.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
-	// user drive
-
-	its.userID = tconfig.M365UserID(t)
-
-	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.userDriveID = ptr.Val(userDrive.GetId())
-
-	userDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.userDriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
-
-	its.siteID = tconfig.M365SiteID(t)
-
-	// site
-
-	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.siteID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.siteDriveID = ptr.Val(siteDrive.GetId())
-
-	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.siteDriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+	its.user = userIDs(t, tconfig.M365UserID(t), its.ac)
+	its.secondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.ac)
+	its.site = siteIDs(t, tconfig.M365SiteID(t), its.ac)
+	its.secondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.ac)
 
 	return its
+}
+
+func userIDs(t *testing.T, id string, ac api.Client) ids {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	r := ids{ID: id}
+
+	drive, err := ac.Users().GetDefaultDrive(ctx, id)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveID = ptr.Val(drive.GetId())
+
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+
+	return r
+}
+
+func siteIDs(t *testing.T, id string, ac api.Client) ids {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	r := ids{ID: id}
+
+	drive, err := ac.Sites().GetDefaultDrive(ctx, id)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveID = ptr.Val(drive.GetId())
+
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+
+	return r
 }
 
 func getTestExtensionFactories() []extensions.CreateItemExtensioner {
