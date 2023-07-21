@@ -244,7 +244,7 @@ func (c Events) NewEventDeltaIDsPager(
 	immutableIDs bool,
 ) (itemIDPager, error) {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{
 			// do NOT set Top.  It limits the total items received.
 		},
