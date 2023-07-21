@@ -22,7 +22,7 @@ Param (
     [String[]]$FolderPrefixPurgeList,
 
     [Parameter(Mandatory = $False, HelpMessage = "Delete document libraries with this prefix")]
-    [String[]]$LibraryPrefixDeleteList
+    [String[]]$LibraryPrefixDeleteList = @()
 )
 
 Set-StrictMode -Version 2.0
