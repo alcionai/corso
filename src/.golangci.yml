@@ -12,9 +12,11 @@ linters:
     - govet
     - ineffassign
     - lll
+    - loggercheck
     - misspell
     - revive
     - unused
+    - usestdlibvars
     - wsl
 
   disable:
