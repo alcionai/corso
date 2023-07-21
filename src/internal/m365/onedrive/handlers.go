@@ -35,6 +35,7 @@ type BackupHandler interface {
 	api.Getter
 	GetItemPermissioner
 	GetItemer
+	NewDrivePagerer
 
 	// PathPrefix constructs the service and category specific path prefix for
 	// the given values.
@@ -49,7 +50,6 @@ type BackupHandler interface {
 
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
-	NewDrivePager(resourceOwner string, fields []string) api.DrivePager
 	NewItemPager(driveID, link string, fields []string) api.DriveItemDeltaEnumerator
 	// FormatDisplayPath creates a human-readable string to represent the
 	// provided path.
@@ -59,6 +59,10 @@ type BackupHandler interface {
 	// scope wrapper funcs
 	IsAllPass() bool
 	IncludesDir(dir string) bool
+}
+
+type NewDrivePagerer interface {
+	NewDrivePager(resourceOwner string, fields []string) api.DrivePager
 }
 
 type GetItemPermissioner interface {
@@ -86,7 +90,9 @@ type RestoreHandler interface {
 	GetItemsByCollisionKeyser
 	GetRootFolderer
 	ItemInfoAugmenter
+	NewDrivePagerer
 	NewItemContentUploader
+	PostDriver
 	PostItemInContainerer
 	DeleteItemPermissioner
 	UpdateItemPermissioner
@@ -143,6 +149,13 @@ type UpdateItemLinkSharer interface {
 		driveID, itemID string,
 		body *drives.ItemItemsItemCreateLinkPostRequestBody,
 	) (models.Permissionable, error)
+}
+
+type PostDriver interface {
+	PostDrive(
+		ctx context.Context,
+		protectedResourceID, driveName string,
+	) (models.Driveable, error)
 }
 
 type PostItemInContainerer interface {

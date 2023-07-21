@@ -52,8 +52,9 @@ type RestoreConfig struct {
 	// Defaults to "Corso_Restore_<current_dttm>"
 	Location string
 
-	// Drive specifies the drive into which the data will be restored.
-	// If empty, data is restored to the same drive that was backed up.
+	// Drive specifies the name of the drive into which the data will be
+	// restored. If empty, data is restored to the same drive that was backed
+	// up.
 	// Defaults to empty.
 	Drive string
 }
@@ -63,6 +64,10 @@ func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
 		OnCollision: Skip,
 		Location:    defaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
+}
+
+func DefaultRestoreContainerName(timeFormat dttm.TimeFormat) string {
+	return defaultRestoreLocation + dttm.FormatNow(timeFormat)
 }
 
 // EnsureRestoreConfigDefaults sets all non-supported values in the config

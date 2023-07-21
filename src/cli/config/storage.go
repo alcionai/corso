@@ -75,16 +75,16 @@ func configureStorage(
 		if p, ok := overrides[storage.Prefix]; ok {
 			overrides[storage.Prefix] = common.NormalizePrefix(p)
 		}
-	}
 
-	if matchFromConfig {
-		providerType := vpr.GetString(StorageProviderTypeKey)
-		if providerType != storage.ProviderS3.String() {
-			return store, clues.New("unsupported storage provider: " + providerType)
-		}
+		if matchFromConfig {
+			providerType := vpr.GetString(StorageProviderTypeKey)
+			if providerType != storage.ProviderS3.String() {
+				return store, clues.New("unsupported storage provider: " + providerType)
+			}
 
-		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
-			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
+			if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
+				return store, clues.Wrap(err, "verifying s3 configs in corso config file")
+			}
 		}
 	}
 

@@ -19,7 +19,9 @@ inputs:
   site:
     description: Sharepoint site where data is to be purged.
   libraries:
-    description: List of library names within site where data is to be purged.
+    description: List of library names within the site where data is to be purged.
+  library-prefix:
+    description: List of library names within the site where the library will get deleted entirely.
   folder-prefix:
     description: Name of the folder to be purged.  If falsy, will purge the set of static, well known folders instead.
   older-than:
@@ -51,8 +53,7 @@ runs:
         AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
-      run: |
-        ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
+      run: ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     - name: Reset retention for all mailboxes to 0
       if: ${{ inputs.user == '' }}
@@ -61,8 +62,7 @@ runs:
       env:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
-      run: |
-        ./exchangeRetention.ps1
+      run: ./exchangeRetention.ps1
 
     ################################################################################################################
     # OneDrive
@@ -89,5 +89,4 @@ runs:
       env:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
-      run: |
-        ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+      run: ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -LibraryPrefixDeleteList ${{ inputs.library-prefix && inputs.library-prefix || '[]' }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
