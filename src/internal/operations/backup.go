@@ -236,7 +236,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Persistence
 	// -----
 
-	// TODO(pandeyabs): Move createBackupModel before these
 	err = op.persistResults(startTime, &opStats)
 	if err != nil && !isAtleastPartialBackup {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
@@ -259,13 +258,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}
 
+	// TODO(pandeyabs): Pass a flag to mark the backup as partial
 	err = op.createBackupModels(
 		ctx,
 		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
 		op.BackupVersion,
-		deets.Details())
+		deets.Details(),
+		isAtleastPartialBackup)
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
 		return op.Errors.Failure()
@@ -856,6 +857,7 @@ func (op *BackupOperation) createBackupModels(
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
+	isPartialBackup bool,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
@@ -896,7 +898,8 @@ func (op *BackupOperation) createBackupModels(
 		op.ResourceOwner.Name(),
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors.Errors())
+		op.Errors.Errors(),
+		isPartialBackup)
 
 	logger.Ctx(ctx).Info("creating new backup")
 

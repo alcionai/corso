@@ -32,7 +32,8 @@ const (
 
 // common tags for filtering
 const (
-	ServiceTag = "service"
+	ServiceTag       = "service"
+	PartialBackupTag = "partialBackup"
 )
 
 // Valid returns true if the ModelType value fits within the iota range.

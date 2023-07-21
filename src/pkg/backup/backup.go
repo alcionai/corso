@@ -79,6 +79,7 @@ func New(
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
+	isPartialBackup bool,
 ) *Backup {
 	if fe == nil {
 		fe = &fault.Errors{}
@@ -115,7 +116,8 @@ func New(
 		BaseModel: model.BaseModel{
 			ID: id,
 			Tags: map[string]string{
-				model.ServiceTag: selector.PathService().String(),
+				model.ServiceTag:       selector.PathService().String(),
+				model.PartialBackupTag: strconv.FormatBool(isPartialBackup),
 			},
 		},
 
