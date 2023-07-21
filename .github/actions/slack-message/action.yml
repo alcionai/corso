@@ -22,11 +22,12 @@ runs:
     - name: trim ref
       shell: bash
       run: |
-        echo IN_REF=${{ github.ref }} >> $GITHUB_ENV
-        echo "test 1 ${{env.IN_REF}}"
-        echo "test 2 ${IN_REF}"
-        echo "test 3 ${IN_REF#refs}"
-        echo "test 4 $IN_REF"
+        echo github_reference=${{ github.ref }} >> $GITHUB_ENV
+        echo "proof ${{ github.ref }}"
+        echo "test 1 ${{env.github_reference}}"
+        echo "test 2 ${github_reference}"
+        echo "test 3 ${github_reference#refs}"
+        echo "test 4 $github_reference"
         vvv=${{github.ref}} echo "test 5 ${vvv#refs}"
         echo trimmed_ref=${IN_REF#refs/} >> $GITHUB_ENV
 
