@@ -840,7 +840,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	}
 
 	reasons := []Reasoner{
-		NewReason(testTenant,
+		NewReason(
+			testTenant,
 			storePath.ResourceOwner(),
 			storePath.Service(),
 			storePath.Category()),

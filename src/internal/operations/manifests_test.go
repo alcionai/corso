@@ -536,15 +536,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		"",
 		ro,
 		path.ExchangeService,
-		path.EmailCategory,
-	)
+		path.EmailCategory)
 
 	fbEmailReason := kopia.NewReason(
 		"",
 		fbro,
 		path.ExchangeService,
-		path.EmailCategory,
-	)
+		path.EmailCategory)
 
 	table := []struct {
 		name            string

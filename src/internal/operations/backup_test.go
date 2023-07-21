@@ -631,14 +631,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			"",
 			itemPath1.ResourceOwner(),
 			itemPath1.Service(),
-			itemPath1.Category(),
-		)
+			itemPath1.Category())
 		pathReason3 = kopia.NewReason(
 			"",
 			itemPath3.ResourceOwner(),
 			itemPath3.Service(),
-			itemPath3.Category(),
-		)
+			itemPath3.Category())
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
