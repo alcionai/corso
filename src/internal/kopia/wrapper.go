@@ -17,6 +17,7 @@ import (
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -145,10 +146,11 @@ type IncrementalBase struct {
 // complete backup of all data.
 func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
+	backupReasons []Reasoner,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
-	tags map[string]string,
+	additionalTags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
@@ -188,6 +190,19 @@ func (w Wrapper) ConsumeBackupCollections(
 		progress)
 	if err != nil {
 		return nil, nil, nil, clues.Wrap(err, "building kopia directories")
+	}
+
+	// Add some extra tags so we can look things up by reason.
+	tags := maps.Clone(additionalTags)
+	if tags == nil {
+		// Some platforms seem to return nil if the input is nil.
+		tags = map[string]string{}
+	}
+
+	for _, r := range backupReasons {
+		for _, k := range tagKeys(r) {
+			tags[k] = ""
+		}
 	}
 
 	s, err := w.makeSnapshotWithRoot(

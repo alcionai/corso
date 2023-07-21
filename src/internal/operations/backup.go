@@ -495,12 +495,6 @@ func consumeBackupCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	for _, reason := range reasons {
-		for _, k := range reason.TagKeys() {
-			tags[k] = ""
-		}
-	}
-
 	// AssistBases should be the upper bound for how many snapshots we pass in.
 	bases := make([]kopia.IncrementalBase, 0, len(bbs.AssistBases()))
 	// Track IDs we've seen already so we don't accidentally duplicate some
@@ -578,6 +572,7 @@ func consumeBackupCollections(
 
 	kopiaStats, deets, itemsSourcedFromBase, err := bc.ConsumeBackupCollections(
 		ctx,
+		reasons,
 		bases,
 		cs,
 		pmr,
