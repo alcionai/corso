@@ -1037,7 +1037,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
-		[]Reason{r},
+		[]Reasoner{r},
 		nil,
 		[]data.BackupCollection{dc1, dc2},
 		nil,
@@ -1155,7 +1155,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
-		[]Reason{r},
+		[]Reasoner{r},
 		nil,
 		collections,
 		nil,
@@ -1388,7 +1388,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
-		[]Reason{r},
+		[]Reasoner{r},
 		nil,
 		collections,
 		nil,
@@ -1526,7 +1526,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
-				[]Reason{r},
+				[]Reasoner{r},
 				[]IncrementalBase{
 					{
 						Manifest: man,

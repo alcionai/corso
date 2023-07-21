@@ -146,7 +146,7 @@ type IncrementalBase struct {
 // complete backup of all data.
 func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
-	backupReasons []Reason,
+	backupReasons []Reasoner,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,

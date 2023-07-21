@@ -90,7 +90,7 @@ func (r reason) SubtreePath() (path.Path, error) {
 	return p, clues.Wrap(err, "building path").OrNil()
 }
 
-func tagKeys(r Reason) []string {
+func tagKeys(r Reasoner) []string {
 	return []string{
 		r.ProtectedResource(),
 		serviceCatString(r.Service(), r.Category()),

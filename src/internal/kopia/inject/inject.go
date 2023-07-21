@@ -15,7 +15,7 @@ type (
 	BackupConsumer interface {
 		ConsumeBackupCollections(
 			ctx context.Context,
-			backupReasons []kopia.Reason,
+			backupReasons []kopia.Reasoner,
 			bases []kopia.IncrementalBase,
 			cs []data.BackupCollection,
 			pmr prefixmatcher.StringSetReader,
