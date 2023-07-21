@@ -242,13 +242,7 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				reasons = []kopia.Reason{
-					{
-						ResourceOwner: resourceOwner,
-						Service:       sel.PathService(),
-						Category:      category,
-					},
-				}
+				r     = kopia.NewReason("", resourceOwner, sel.PathService(), category)
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)
@@ -256,7 +250,7 @@ func checkBackupIsInManifests(
 			bf, err := kw.NewBaseFinder(sw)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mans := bf.FindBases(ctx, reasons, tags)
+			mans := bf.FindBases(ctx, []kopia.Reasoner{r}, tags)
 			for _, man := range mans.MergeBases() {
 				bID, ok := man.GetTag(kopia.TagBackupID)
 				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {

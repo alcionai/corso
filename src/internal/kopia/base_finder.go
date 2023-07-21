@@ -29,39 +29,98 @@ const (
 	userTagPrefix = "tag:"
 )
 
-type Reason struct {
-	ResourceOwner string
-	Service       path.ServiceType
-	Category      path.CategoryType
+// TODO(ashmrtn): Move this into some inject package. Here to avoid import
+// cycles.
+type Reasoner interface {
+	Tenant() string
+	ProtectedResource() string
+	Service() path.ServiceType
+	Category() path.CategoryType
+	// SubtreePath returns the path prefix for data in existing backups that have
+	// parameters (tenant, protected resourced, etc) that match this Reasoner.
+	SubtreePath() (path.Path, error)
+	// TODO(ashmrtn): Remove this when kopia generates tags from Reasons.
+	TagKeys() []string
 }
 
-func (r Reason) TagKeys() []string {
-	return []string{
-		r.ResourceOwner,
-		serviceCatString(r.Service, r.Category),
+func NewReason(
+	tenant, resource string,
+	service path.ServiceType,
+	category path.CategoryType,
+) Reasoner {
+	return reason{
+		tenant:   tenant,
+		resource: resource,
+		service:  service,
+		category: category,
 	}
 }
 
-// Key is the concatenation of the ResourceOwner, Service, and Category.
-func (r Reason) Key() string {
-	return r.ResourceOwner + r.Service.String() + r.Category.String()
+type reason struct {
+	// tenant appears here so that when this is moved to an inject package nothing
+	// needs changed. However, kopia itself is blind to the fields in the reason
+	// struct and relies on helper functions to get the information it needs.
+	tenant   string
+	resource string
+	service  path.ServiceType
+	category path.CategoryType
+}
+
+func (r reason) Tenant() string {
+	return r.tenant
+}
+
+func (r reason) ProtectedResource() string {
+	return r.resource
+}
+
+func (r reason) Service() path.ServiceType {
+	return r.service
+}
+
+func (r reason) Category() path.CategoryType {
+	return r.category
+}
+
+func (r reason) SubtreePath() (path.Path, error) {
+	p, err := path.ServicePrefix(
+		r.Tenant(),
+		r.ProtectedResource(),
+		r.Service(),
+		r.Category())
+
+	return p, clues.Wrap(err, "building path").OrNil()
+}
+
+// TODO(ashmrtn): Remove this when kopia generates tags based off Reasons. Here
+// at the moment so things compile.
+func (r reason) TagKeys() []string {
+	return []string{
+		r.ProtectedResource(),
+		serviceCatString(r.Service(), r.Category()),
+	}
+}
+
+// reasonKey returns the concatenation of the ProtectedResource, Service, and Category.
+func reasonKey(r Reasoner) string {
+	return r.ProtectedResource() + r.Service().String() + r.Category().String()
 }
 
 type BackupEntry struct {
 	*backup.Backup
-	Reasons []Reason
+	Reasons []Reasoner
 }
 
 type ManifestEntry struct {
 	*snapshot.Manifest
-	// Reason contains the ResourceOwners and Service/Categories that caused this
+	// Reasons contains the ResourceOwners and Service/Categories that caused this
 	// snapshot to be selected as a base. We can't reuse OwnersCats here because
 	// it's possible some ResourceOwners will have a subset of the Categories as
 	// the reason for selecting a snapshot. For example:
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)
 	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
-	Reasons []Reason
+	Reasons []Reasoner
 }
 
 func (me ManifestEntry) GetTag(key string) (string, bool) {
@@ -157,7 +216,7 @@ func (b *baseFinder) getBackupModel(
 // most recent complete backup as the base.
 func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
-	reason Reason,
+	reason Reasoner,
 	metas []*manifest.EntryMetadata,
 ) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
 	// Sort manifests by time so we can go through them sequentially. The code in
@@ -190,7 +249,7 @@ func (b *baseFinder) findBasesInSet(
 
 				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reason{reason},
+					Reasons:  []Reasoner{reason},
 				})
 
 				logger.Ctx(ictx).Info("found incomplete backup")
@@ -211,7 +270,7 @@ func (b *baseFinder) findBasesInSet(
 
 				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reason{reason},
+					Reasons:  []Reasoner{reason},
 				})
 
 				logger.Ctx(ictx).Info("found incomplete backup")
@@ -235,7 +294,7 @@ func (b *baseFinder) findBasesInSet(
 
 				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reason{reason},
+					Reasons:  []Reasoner{reason},
 				})
 
 				logger.Ctx(ictx).Infow(
@@ -253,13 +312,13 @@ func (b *baseFinder) findBasesInSet(
 
 		me := ManifestEntry{
 			Manifest: man,
-			Reasons:  []Reason{reason},
+			Reasons:  []Reasoner{reason},
 		}
 		kopiaAssistSnaps = append(kopiaAssistSnaps, me)
 
 		return &BackupEntry{
 			Backup:  bup,
-			Reasons: []Reason{reason},
+			Reasons: []Reasoner{reason},
 		}, &me, kopiaAssistSnaps, nil
 	}
 
@@ -270,12 +329,12 @@ func (b *baseFinder) findBasesInSet(
 
 func (b *baseFinder) getBase(
 	ctx context.Context,
-	reason Reason,
+	r Reasoner,
 	tags map[string]string,
 ) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
 	allTags := map[string]string{}
 
-	for _, k := range reason.TagKeys() {
+	for _, k := range r.TagKeys() {
 		allTags[k] = ""
 	}
 
@@ -292,12 +351,12 @@ func (b *baseFinder) getBase(
 		return nil, nil, nil, nil
 	}
 
-	return b.findBasesInSet(ctx, reason, metas)
+	return b.findBasesInSet(ctx, r, metas)
 }
 
 func (b *baseFinder) FindBases(
 	ctx context.Context,
-	reasons []Reason,
+	reasons []Reasoner,
 	tags map[string]string,
 ) BackupBases {
 	var (
@@ -310,14 +369,14 @@ func (b *baseFinder) FindBases(
 		kopiaAssistSnaps = map[manifest.ID]ManifestEntry{}
 	)
 
-	for _, reason := range reasons {
+	for _, searchReason := range reasons {
 		ictx := clues.Add(
 			ctx,
-			"search_service", reason.Service.String(),
-			"search_category", reason.Category.String())
+			"search_service", searchReason.Service().String(),
+			"search_category", searchReason.Category().String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 
-		baseBackup, baseSnap, assistSnaps, err := b.getBase(ictx, reason, tags)
+		baseBackup, baseSnap, assistSnaps, err := b.getBase(ictx, searchReason, tags)
 		if err != nil {
 			logger.Ctx(ctx).Info(
 				"getting base, falling back to full backup for reason",
