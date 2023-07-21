@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -20,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -31,7 +29,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -141,13 +138,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 // ---------------------------------------------------------------------------
 // integration
 // ---------------------------------------------------------------------------
-
-type bupResults struct {
-	selectorResourceOwners []string
-	backupID               model.StableID
-	items                  int
-	ctrl                   *m365.Controller
-}
 
 type RestoreOpIntegrationSuite struct {
 	tester.Suite
@@ -263,111 +253,6 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				count.New())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
-	}
-}
-
-func setupExchangeBackup(
-	t *testing.T,
-	kw *kopia.Wrapper,
-	sw *store.Wrapper,
-	acct account.Account,
-	owner string,
-) bupResults {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		users = []string{owner}
-		esel  = selectors.NewExchangeBackup(users)
-	)
-
-	esel.DiscreteOwner = owner
-	esel.Include(
-		esel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()),
-		esel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
-		esel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
-
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Users, esel.Selector, nil, nil)
-
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Defaults(),
-		kw,
-		sw,
-		ctrl,
-		acct,
-		sel,
-		inMock.NewProvider(owner, owner),
-		evmock.NewBus())
-	require.NoError(t, err, clues.ToCore(err))
-
-	err = bo.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, bo.Results.BackupID)
-
-	return bupResults{
-		selectorResourceOwners: users,
-		backupID:               bo.Results.BackupID,
-		// Discount metadata collection files (1 delta and one prev path for each category).
-		// These meta files are used to aid restore, but are not themselves
-		// restored (ie: counted as writes).
-		items: bo.Results.ItemsWritten - 6,
-		ctrl:  ctrl,
-	}
-}
-
-func setupSharePointBackup(
-	t *testing.T,
-	kw *kopia.Wrapper,
-	sw *store.Wrapper,
-	acct account.Account,
-	owner string,
-) bupResults {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		sites = []string{owner}
-		ssel  = selectors.NewSharePointBackup(sites)
-	)
-
-	// assume a folder name "test" exists in the drive.
-	// this is brittle, and requires us to backfill anytime
-	// the site under test changes, but also prevents explosive
-	// growth from re-backup/restore of restored files.
-	ssel.Include(ssel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
-	ssel.DiscreteOwner = owner
-
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, resource.Sites, ssel.Selector, nil, nil)
-
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Defaults(),
-		kw,
-		sw,
-		ctrl,
-		acct,
-		sel,
-		inMock.NewProvider(owner, owner),
-		evmock.NewBus())
-	require.NoError(t, err, clues.ToCore(err))
-
-	err = bo.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, bo.Results.BackupID)
-
-	return bupResults{
-		selectorResourceOwners: sites,
-		backupID:               bo.Results.BackupID,
-		// Discount metadata files (2: 1 delta, 1 prev path)
-		// assume only one folder, and therefore 1 dirmeta per drive
-		// (2 drives: documents and more documents)
-		// assume only one file in each folder, and therefore 1 meta per drive
-		// (2 drives: documents and more documents)
-		// Meta files are used to aid restore, but are not themselves
-		// restored (ie: counted as writes).
-		items: bo.Results.ItemsWritten - 6,
-		ctrl:  ctrl,
 	}
 }
 
