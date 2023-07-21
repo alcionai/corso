@@ -26,10 +26,10 @@ runs:
         echo "proof ${{ github.ref }}"
         echo "test 1 ${{env.github_reference}}"
         echo "test 2 ${github_reference}"
-        echo "test 3 ${github_reference#refs}"
+        echo "test 3 ${github_reference#refs} ${ github_reference#refs} ${github_reference#refs } ${ github_reference#refs }"
         echo "test 4 $github_reference"
-        vvv=${{github.ref}} echo "test 5 ${vvv#refs}"
-        echo trimmed_ref=${IN_REF#refs/} >> $GITHUB_ENV
+        vvv=${{github.ref}} echo "test 5 ${ vvv#refs } ${vvv#refs} ${vvv#refs } ${ vvv#refs}"
+        echo trimmed_ref=${ IN_REF#refs/ } >> $GITHUB_ENV
 
     - name: compose links
       shell: bash
