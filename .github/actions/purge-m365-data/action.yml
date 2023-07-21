@@ -78,10 +78,7 @@ runs:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
-        ./onedrivePurge.ps1 \
-          -User ${{ inputs.user }} \
-          -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") \
-          -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     ################################################################################################################
     # Sharepoint
@@ -95,8 +92,4 @@ runs:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
-        ./onedrivePurge.ps1 -Site ${{ inputs.site }} \
-          -LibraryNameList "${{ inputs.libraries }}".split(",") \
-          -FolderPrefixPurgeList ${{ inputs.folder-prefix }} \
-          -LibraryPrefixDeleteList ${{ inputs.library-prefix }} \
-          -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -LibraryPrefixDeleteList ${{ inputs.library-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
