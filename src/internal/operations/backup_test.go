@@ -108,7 +108,7 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 type mockBackupConsumer struct {
 	checkFunc func(
 		backupReasons []kopia.Reasoner,
-		bases []kopia.IncrementalBase,
+		bases kopia.BackupBases,
 		cs []data.BackupCollection,
 		tags map[string]string,
 		buildTreeWithBase bool)
@@ -117,7 +117,7 @@ type mockBackupConsumer struct {
 func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	backupReasons []kopia.Reasoner,
-	bases []kopia.IncrementalBase,
+	bases kopia.BackupBases,
 	cs []data.BackupCollection,
 	excluded prefixmatcher.StringSetReader,
 	tags map[string]string,
@@ -390,30 +390,26 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
 	var (
+		t = suite.T()
+
 		tenant        = "a-tenant"
 		resourceOwner = "a-user"
 
-		emailBuilder = path.Builder{}.Append(
-			tenant,
-			path.ExchangeService.String(),
-			resourceOwner,
-			path.EmailCategory.String())
-		contactsBuilder = path.Builder{}.Append(
-			tenant,
-			path.ExchangeService.String(),
-			resourceOwner,
-			path.ContactsCategory.String())
-
 		emailReason = kopia.NewReason(
-			"",
+			tenant,
 			resourceOwner,
 			path.ExchangeService,
 			path.EmailCategory)
 		contactsReason = kopia.NewReason(
-			"",
+			tenant,
 			resourceOwner,
 			path.ExchangeService,
 			path.ContactsCategory)
+
+		reasons = []kopia.Reason{
+			emailReason,
+			contactsReason,
+		}
 
 		manifest1 = &snapshot.Manifest{
 			ID: "id1",
@@ -421,148 +417,57 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		manifest2 = &snapshot.Manifest{
 			ID: "id2",
 		}
+
+		bases = kopia.NewMockBackupBases().WithMergeBases(
+			kopia.ManifestEntry{
+				Manifest: manifest1,
+				Reasons: []kopia.Reason{
+					emailReason,
+				},
+			}).WithAssistBases(
+			kopia.ManifestEntry{
+				Manifest: manifest2,
+				Reasons: []kopia.Reason{
+					contactsReason,
+				},
+			})
+
+		backupID     = model.StableID("foo")
+		expectedTags = map[string]string{
+			kopia.TagBackupID:       string(backupID),
+			kopia.TagBackupCategory: "",
+		}
 	)
 
-	table := []struct {
-		name string
-		// Backup model is untouched in this test so there's no need to populate it.
-		input    kopia.BackupBases
-		expected []kopia.IncrementalBase
-	}{
-		{
-			name: "SingleManifestSingleReason",
-			input: kopia.NewMockBackupBases().WithMergeBases(
-				kopia.ManifestEntry{
-					Manifest: manifest1,
-					Reasons: []kopia.Reasoner{
-						emailReason,
-					},
-				}).ClearMockAssistBases(),
-			expected: []kopia.IncrementalBase{
-				{
-					Manifest: manifest1,
-					SubtreePaths: []*path.Builder{
-						emailBuilder,
-					},
-				},
-			},
-		},
-		{
-			name: "SingleManifestMultipleReasons",
-			input: kopia.NewMockBackupBases().WithMergeBases(
-				kopia.ManifestEntry{
-					Manifest: manifest1,
-					Reasons: []kopia.Reasoner{
-						emailReason,
-						contactsReason,
-					},
-				}).ClearMockAssistBases(),
-			expected: []kopia.IncrementalBase{
-				{
-					Manifest: manifest1,
-					SubtreePaths: []*path.Builder{
-						emailBuilder,
-						contactsBuilder,
-					},
-				},
-			},
-		},
-		{
-			name: "MultipleManifestsMultipleReasons",
-			input: kopia.NewMockBackupBases().WithMergeBases(
-				kopia.ManifestEntry{
-					Manifest: manifest1,
-					Reasons: []kopia.Reasoner{
-						emailReason,
-						contactsReason,
-					},
-				},
-				kopia.ManifestEntry{
-					Manifest: manifest2,
-					Reasons: []kopia.Reasoner{
-						emailReason,
-						contactsReason,
-					},
-				}).ClearMockAssistBases(),
-			expected: []kopia.IncrementalBase{
-				{
-					Manifest: manifest1,
-					SubtreePaths: []*path.Builder{
-						emailBuilder,
-						contactsBuilder,
-					},
-				},
-				{
-					Manifest: manifest2,
-					SubtreePaths: []*path.Builder{
-						emailBuilder,
-						contactsBuilder,
-					},
-				},
-			},
-		},
-		{
-			name: "Single Manifest Single Reason With Assist Base",
-			input: kopia.NewMockBackupBases().WithMergeBases(
-				kopia.ManifestEntry{
-					Manifest: manifest1,
-					Reasons: []kopia.Reasoner{
-						emailReason,
-					},
-				}).WithAssistBases(
-				kopia.ManifestEntry{
-					Manifest: manifest2,
-					Reasons: []kopia.Reasoner{
-						contactsReason,
-					},
-				}),
-			expected: []kopia.IncrementalBase{
-				{
-					Manifest: manifest1,
-					SubtreePaths: []*path.Builder{
-						emailBuilder,
-					},
-				},
-				{
-					Manifest: manifest2,
-				},
-			},
+	mbu := &mockBackupConsumer{
+		checkFunc: func(
+			backupReasons []kopia.Reason,
+			gotBases kopia.BackupBases,
+			cs []data.BackupCollection,
+			gotTags map[string]string,
+			buildTreeWithBase bool,
+		) {
+			kopia.AssertBackupBasesEqual(t, bases, gotBases)
+			assert.Equal(t, expectedTags, gotTags)
+			assert.ElementsMatch(t, reasons, backupReasons)
 		},
 	}
 
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			mbu := &mockBackupConsumer{
-				checkFunc: func(
-					backupReasons []kopia.Reasoner,
-					bases []kopia.IncrementalBase,
-					cs []data.BackupCollection,
-					tags map[string]string,
-					buildTreeWithBase bool,
-				) {
-					assert.ElementsMatch(t, test.expected, bases)
-				},
-			}
-
-			//nolint:errcheck
-			consumeBackupCollections(
-				ctx,
-				mbu,
-				tenant,
-				nil,
-				test.input,
-				nil,
-				nil,
-				model.StableID(""),
-				true,
-				fault.New(true))
-		})
-	}
+	//nolint:errcheck
+	consumeBackupCollections(
+		ctx,
+		mbu,
+		tenant,
+		reasons,
+		bases,
+		nil,
+		nil,
+		backupID,
+		true,
+		fault.New(true))
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
