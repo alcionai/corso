@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makeManifest(id, incmpl, bID string, reasons ...Reason) ManifestEntry {
+func makeManifest(id, incmpl, bID string, reasons ...Reasoner) ManifestEntry {
 	bIDKey, _ := makeTagKV(TagBackupID)
 
 	return ManifestEntry{
@@ -223,7 +223,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 				ir = "checkpoint"
 			}
 
-			reasons := make([]Reason, 0, len(i.cat))
+			reasons := make([]Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
 				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
@@ -453,7 +453,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			got := bb.MergeBackupBases(
 				ctx,
 				other,
-				func(r Reason) string {
+				func(r Reasoner) string {
 					return r.Service().String() + r.Category().String()
 				})
 			AssertBackupBasesEqual(t, expect, got)

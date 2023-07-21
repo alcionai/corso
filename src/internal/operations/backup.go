@@ -370,7 +370,7 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
-func makeFallbackReasons(tenant string, sel selectors.Selector) []kopia.Reason {
+func makeFallbackReasons(tenant string, sel selectors.Selector) []kopia.Reasoner {
 	if sel.PathService() != path.SharePointService &&
 		sel.DiscreteOwner != sel.DiscreteOwnerName {
 		return selectorToReasons(tenant, sel, true)
@@ -424,9 +424,9 @@ func selectorToReasons(
 	tenant string,
 	sel selectors.Selector,
 	useOwnerNameForID bool,
-) []kopia.Reason {
+) []kopia.Reasoner {
 	service := sel.PathService()
-	reasons := []kopia.Reason{}
+	reasons := []kopia.Reasoner{}
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
@@ -449,7 +449,7 @@ func selectorToReasons(
 	return reasons
 }
 
-func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*path.Builder, error) {
+func builderFromReason(ctx context.Context, tenant string, r kopia.Reasoner) (*path.Builder, error) {
 	ctx = clues.Add(ctx, "category", r.Category().String())
 
 	// This is hacky, but we want the path package to format the path the right
@@ -457,7 +457,7 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 	// the folders after the prefix.
 	p, err := path.Build(
 		tenant,
-		r.Resource(),
+		r.ProtectedResource(),
 		r.Service(),
 		r.Category(),
 		false,
@@ -474,7 +474,7 @@ func consumeBackupCollections(
 	ctx context.Context,
 	bc kinject.BackupConsumer,
 	tenantID string,
-	reasons []kopia.Reason,
+	reasons []kopia.Reasoner,
 	bbs kopia.BackupBases,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
@@ -609,9 +609,9 @@ func consumeBackupCollections(
 	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
-func matchesReason(reasons []kopia.Reason, p path.Path) bool {
+func matchesReason(reasons []kopia.Reasoner, p path.Path) bool {
 	for _, reason := range reasons {
-		if p.ResourceOwner() == reason.Resource() &&
+		if p.ResourceOwner() == reason.ProtectedResource() &&
 			p.Service() == reason.Service() &&
 			p.Category() == reason.Category() {
 			return true

@@ -395,27 +395,23 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			tenant,
 			path.ExchangeService.String(),
 			resourceOwner,
-			path.EmailCategory.String(),
-		)
+			path.EmailCategory.String())
 		contactsBuilder = path.Builder{}.Append(
 			tenant,
 			path.ExchangeService.String(),
 			resourceOwner,
-			path.ContactsCategory.String(),
-		)
+			path.ContactsCategory.String())
 
 		emailReason = kopia.NewReason(
 			"",
 			resourceOwner,
 			path.ExchangeService,
-			path.EmailCategory,
-		)
+			path.EmailCategory)
 		contactsReason = kopia.NewReason(
 			"",
 			resourceOwner,
 			path.ExchangeService,
-			path.ContactsCategory,
-		)
+			path.ContactsCategory)
 
 		manifest1 = &snapshot.Manifest{
 			ID: "id1",
@@ -436,7 +432,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			input: kopia.NewMockBackupBases().WithMergeBases(
 				kopia.ManifestEntry{
 					Manifest: manifest1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						emailReason,
 					},
 				}).ClearMockAssistBases(),
@@ -454,7 +450,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			input: kopia.NewMockBackupBases().WithMergeBases(
 				kopia.ManifestEntry{
 					Manifest: manifest1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						emailReason,
 						contactsReason,
 					},
@@ -474,14 +470,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			input: kopia.NewMockBackupBases().WithMergeBases(
 				kopia.ManifestEntry{
 					Manifest: manifest1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						emailReason,
 						contactsReason,
 					},
 				},
 				kopia.ManifestEntry{
 					Manifest: manifest2,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						emailReason,
 						contactsReason,
 					},
@@ -508,13 +504,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			input: kopia.NewMockBackupBases().WithMergeBases(
 				kopia.ManifestEntry{
 					Manifest: manifest1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						emailReason,
 					},
 				}).WithAssistBases(
 				kopia.ManifestEntry{
 					Manifest: manifest2,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						contactsReason,
 					},
 				}),
@@ -688,7 +684,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 						},
 						DetailsID: "foo",
 					},
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -707,7 +703,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -734,13 +730,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -767,7 +763,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -826,7 +822,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -853,7 +849,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -883,7 +879,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -913,7 +909,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -944,7 +940,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
@@ -975,13 +971,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason1,
 					},
 				},
 				{
 					Backup: &backup2,
-					Reasons: []kopia.Reason{
+					Reasons: []kopia.Reasoner{
 						pathReason3,
 					},
 				},
@@ -1072,8 +1068,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			"",
 			itemPath1.ResourceOwner(),
 			itemPath1.Service(),
-			itemPath1.Category(),
-		)
+			itemPath1.Category())
 
 		backup1 = kopia.BackupEntry{
 			Backup: &backup.Backup{
@@ -1082,7 +1077,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 				},
 				DetailsID: "did1",
 			},
-			Reasons: []kopia.Reason{
+			Reasons: []kopia.Reasoner{
 				pathReason1,
 			},
 		}

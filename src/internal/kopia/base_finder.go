@@ -31,11 +31,13 @@ const (
 
 // TODO(ashmrtn): Move this into some inject package. Here to avoid import
 // cycles.
-type Reason interface {
+type Reasoner interface {
 	Tenant() string
-	Resource() string
+	ProtectedResource() string
 	Service() path.ServiceType
 	Category() path.CategoryType
+	// SubtreePath returns the path prefix for data in existing backups that have
+	// parameters (tenant, protected resourced, etc) that match this Reasoner.
 	SubtreePath() (path.Path, error)
 	// TODO(ashmrtn): Remove this when kopia generates tags from Reasons.
 	TagKeys() []string
@@ -45,7 +47,7 @@ func NewReason(
 	tenant, resource string,
 	service path.ServiceType,
 	category path.CategoryType,
-) Reason {
+) Reasoner {
 	return reason{
 		tenant:   tenant,
 		resource: resource,
@@ -68,7 +70,7 @@ func (r reason) Tenant() string {
 	return r.tenant
 }
 
-func (r reason) Resource() string {
+func (r reason) ProtectedResource() string {
 	return r.resource
 }
 
@@ -83,7 +85,7 @@ func (r reason) Category() path.CategoryType {
 func (r reason) SubtreePath() (path.Path, error) {
 	p, err := path.ServicePrefix(
 		r.Tenant(),
-		r.Resource(),
+		r.ProtectedResource(),
 		r.Service(),
 		r.Category())
 
@@ -94,31 +96,31 @@ func (r reason) SubtreePath() (path.Path, error) {
 // at the moment so things compile.
 func (r reason) TagKeys() []string {
 	return []string{
-		r.Resource(),
+		r.ProtectedResource(),
 		serviceCatString(r.Service(), r.Category()),
 	}
 }
 
-// reasonKey returns the concatenation of the Resource, Service, and Category.
-func reasonKey(r Reason) string {
-	return r.Resource() + r.Service().String() + r.Category().String()
+// reasonKey returns the concatenation of the ProtectedResource, Service, and Category.
+func reasonKey(r Reasoner) string {
+	return r.ProtectedResource() + r.Service().String() + r.Category().String()
 }
 
 type BackupEntry struct {
 	*backup.Backup
-	Reasons []Reason
+	Reasons []Reasoner
 }
 
 type ManifestEntry struct {
 	*snapshot.Manifest
-	// Reason contains the ResourceOwners and Service/Categories that caused this
+	// Reasons contains the ResourceOwners and Service/Categories that caused this
 	// snapshot to be selected as a base. We can't reuse OwnersCats here because
 	// it's possible some ResourceOwners will have a subset of the Categories as
 	// the reason for selecting a snapshot. For example:
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)
 	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
-	Reasons []Reason
+	Reasons []Reasoner
 }
 
 func (me ManifestEntry) GetTag(key string) (string, bool) {
@@ -214,7 +216,7 @@ func (b *baseFinder) getBackupModel(
 // most recent complete backup as the base.
 func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
-	reason Reason,
+	reason Reasoner,
 	metas []*manifest.EntryMetadata,
 ) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
 	// Sort manifests by time so we can go through them sequentially. The code in
@@ -247,7 +249,7 @@ func (b *baseFinder) findBasesInSet(
 
 				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reason{reason},
+					Reasons:  []Reasoner{reason},
 				})
 
 				logger.Ctx(ictx).Info("found incomplete backup")
@@ -268,7 +270,7 @@ func (b *baseFinder) findBasesInSet(
 
 				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reason{reason},
+					Reasons:  []Reasoner{reason},
 				})
 
 				logger.Ctx(ictx).Info("found incomplete backup")
@@ -292,7 +294,7 @@ func (b *baseFinder) findBasesInSet(
 
 				kopiaAssistSnaps = append(kopiaAssistSnaps, ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reason{reason},
+					Reasons:  []Reasoner{reason},
 				})
 
 				logger.Ctx(ictx).Infow(
@@ -310,13 +312,13 @@ func (b *baseFinder) findBasesInSet(
 
 		me := ManifestEntry{
 			Manifest: man,
-			Reasons:  []Reason{reason},
+			Reasons:  []Reasoner{reason},
 		}
 		kopiaAssistSnaps = append(kopiaAssistSnaps, me)
 
 		return &BackupEntry{
 			Backup:  bup,
-			Reasons: []Reason{reason},
+			Reasons: []Reasoner{reason},
 		}, &me, kopiaAssistSnaps, nil
 	}
 
@@ -327,7 +329,7 @@ func (b *baseFinder) findBasesInSet(
 
 func (b *baseFinder) getBase(
 	ctx context.Context,
-	r Reason,
+	r Reasoner,
 	tags map[string]string,
 ) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
 	allTags := map[string]string{}
@@ -354,7 +356,7 @@ func (b *baseFinder) getBase(
 
 func (b *baseFinder) FindBases(
 	ctx context.Context,
-	reasons []Reason,
+	reasons []Reasoner,
 	tags map[string]string,
 ) BackupBases {
 	var (

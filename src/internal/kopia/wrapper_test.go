@@ -703,7 +703,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		"brunhilda": "",
 	}
 
-	reasons := []Reason{
+	reasons := []Reasoner{
 		NewReason(
 			testTenant,
 			suite.storePath1.ResourceOwner(),
@@ -839,12 +839,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		"brunhilda": "",
 	}
 
-	reasons := []Reason{
+	reasons := []Reasoner{
 		NewReason(testTenant,
 			storePath.ResourceOwner(),
 			storePath.Service(),
-			storePath.Category(),
-		),
+			storePath.Category()),
 	}
 
 	for _, r := range reasons {
