@@ -938,7 +938,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		},
 	}
 
-	prevSnaps := []IncrementalBase{}
+	prevSnaps := NewMockBackupBases()
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -1000,12 +1000,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
 
-			prevSnaps = append(prevSnaps, IncrementalBase{
-				Manifest: snap,
-				SubtreePaths: []*path.Builder{
-					storePath.ToBuilder().Dir(),
+			prevSnaps.WithMergeBases(
+				ManifestEntry{
+					Manifest: snap,
+					Reasons:  reasons,
 				},
-			})
+			)
 		})
 	}
 }
@@ -1424,17 +1424,6 @@ func (c *i64counter) Count(i int64) {
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
-	subtreePathTmp, err := path.Build(
-		testTenant,
-		testUser,
-		path.ExchangeService,
-		path.EmailCategory,
-		false,
-		"tmp")
-	require.NoError(suite.T(), err, clues.ToCore(err))
-
-	subtreePath := subtreePathTmp.ToBuilder().Dir()
-
 	man, err := suite.w.c.LoadSnapshot(suite.ctx, suite.snapshotID)
 	require.NoError(suite.T(), err, "getting base snapshot: %v", clues.ToCore(err))
 
@@ -1527,14 +1516,12 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				[]Reasoner{r},
-				[]IncrementalBase{
-					{
+				NewMockBackupBases().WithMergeBases(
+					ManifestEntry{
 						Manifest: man,
-						SubtreePaths: []*path.Builder{
-							subtreePath,
-						},
+						Reasons:  []Reason{r},
 					},
-				},
+				),
 				test.cols(),
 				excluded,
 				nil,
