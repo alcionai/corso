@@ -227,6 +227,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
+	isPartialBackup := err != nil &&
+		(deets == nil || deets.Empty())
+
 	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
@@ -235,24 +238,26 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// -----
 
 	err = op.persistResults(startTime, &opStats)
-	if err != nil && (deets == nil || deets.Empty()) {
+	if err != nil && !isPartialBackup {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
 	}
 
 	// force exit without backup in certain cases.
 	// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
-	// for _, e := range op.Errors.Recovered() {
-	// 	if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
-	// 		logger.Ctx(ctx).
-	// 			With("error", e).
-	// 			With(clues.InErr(err).Slice()...).
-	// 			Infow("completed backup; conditional error forcing exit without model persistence",
-	// 				"results", op.Results)
+	for _, e := range op.Errors.Recovered() {
+		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
+			logger.Ctx(ctx).
+				With("error", e).
+				With(clues.InErr(err).Slice()...).
+				Infow("completed backup; conditional error forcing exit without model persistence",
+					"results", op.Results)
 
-	// 		return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
-	// 	}
-	// }
+			if !isPartialBackup {
+				return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
+			}
+		}
+	}
 
 	err = op.createBackupModels(
 		ctx,
