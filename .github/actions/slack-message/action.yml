@@ -22,9 +22,12 @@ runs:
     - name: trim ref
       shell: bash
       run: |
-        echo testing=${ github.ref#refs/ } >> $GITHUB_ENV
-        echo "test ${{env.testing}}"
         echo IN_REF=${{ github.ref }} >> $GITHUB_ENV
+        echo "test 1 ${{env.IN_REF}}"
+        echo "test 2 ${IN_REF}"
+        echo "test 3 ${IN_REF#refs}"
+        echo "test 4 $IN_REF"
+        vvv=${{github.ref}} echo "test 5 ${vvv#refs}"
         echo trimmed_ref=${IN_REF#refs/} >> $GITHUB_ENV
 
     - name: compose links
