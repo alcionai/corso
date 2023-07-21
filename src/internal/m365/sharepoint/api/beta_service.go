@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/alcionai/clues"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 
 	"github.com/alcionai/corso/src/internal/m365/graph/betasdk"
 )
@@ -19,7 +19,7 @@ func (s BetaService) Client() *betasdk.BetaClient {
 	return s.client
 }
 
-func NewBetaService(adpt *msgraphsdkgo.GraphRequestAdapter) *BetaService {
+func NewBetaService(adpt abstractions.RequestAdapter) *BetaService {
 	return &BetaService{
 		client: betasdk.NewBetaClient(adpt),
 	}

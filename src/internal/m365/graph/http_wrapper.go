@@ -99,15 +99,13 @@ func (hw httpWrapper) Request(
 
 	var resp *http.Response
 
-	i := 0
-
 	// stream errors from http/2 will fail before we reach
 	// client middleware handling, therefore we don't get to
 	// make use of the retry middleware.  This external
 	// retry wrapper is unsophisticated, but should only
 	// retry in the event of a `stream error`, which is not
 	// a common expectation.
-	for i < 3 {
+	for i := 0; i < 3; i++ {
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
 		resp, err = hw.client.Do(req)
@@ -119,11 +117,10 @@ func (hw httpWrapper) Request(
 			break
 		}
 
-		logger.Ctx(ictx).Debug("retrying after stream error")
+		logger.Ctx(ictx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
 		time.Sleep(3 * time.Second)
-		i++
 	}
 
 	if err != nil {
