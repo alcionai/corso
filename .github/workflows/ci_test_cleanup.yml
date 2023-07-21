@@ -52,8 +52,7 @@ jobs:
       # At 20 minutes ago, we should be safe from conflicts.
       # The additional 10 minutes is just to be good citizens.
       - name: Set purge boundary
-        run: ?
-        echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+        run: echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
       - name: Purge CI-Produced Folders for Sites
         uses: ./.github/actions/purge-m365-data
