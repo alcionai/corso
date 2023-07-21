@@ -344,7 +344,7 @@ func (op *BackupOperation) do(
 		backupID,
 		op.incremental && canUseMetadata && canUsePreviousBackup,
 		op.Errors)
-	if err != nil {
+	if err != nil && (deets == nil || deets.Empty()) {
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 

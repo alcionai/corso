@@ -401,6 +401,13 @@ func (b *Builder) Details() *Details {
 	return details
 }
 
+func (b *Builder) Empty() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return len(b.d.Entries) == 0
+}
+
 // --------------------------------------------------------------------------------
 // Details
 // --------------------------------------------------------------------------------
