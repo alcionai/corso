@@ -1,5 +1,7 @@
 name: CI Test Cleanup
 on:
+  push:
+    branches: [purge-script-fix-3]
   workflow_dispatch:
   schedule:
     # every half hour
