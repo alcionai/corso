@@ -20,6 +20,7 @@ import (
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
@@ -970,6 +971,28 @@ func traverseBaseDir(
 	return nil
 }
 
+func logBaseInfo(ctx context.Context, m ManifestEntry) {
+	svcs := map[string]struct{}{}
+	cats := map[string]struct{}{}
+
+	for _, r := range m.Reasons {
+		svcs[r.Service().String()] = struct{}{}
+		cats[r.Category().String()] = struct{}{}
+	}
+
+	mbID, _ := m.GetTag(TagBackupID)
+	if len(mbID) == 0 {
+		mbID = "no_backup_id_tag"
+	}
+
+	logger.Ctx(ctx).Infow(
+		"using base for backup",
+		"base_snapshot_id", m.ID,
+		"services", maps.Keys(svcs),
+		"categories", maps.Keys(cats),
+		"base_backup_id", mbID)
+}
+
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
@@ -995,6 +1018,9 @@ func inflateBaseTree(
 	if !ok {
 		return clues.New("snapshot root is not a directory").WithClues(ctx)
 	}
+
+	// Some logging to help track things.
+	logBaseInfo(ctx, snap)
 
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
