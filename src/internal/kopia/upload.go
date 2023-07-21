@@ -973,7 +973,7 @@ func traverseBaseDir(
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap IncrementalBase,
+	snap ManifestEntry,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
@@ -999,10 +999,19 @@ func inflateBaseTree(
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
 	// what has been reported in the collections we got.
-	for _, subtreePath := range snap.SubtreePaths {
+	for _, r := range snap.Reasons {
+		ictx := clues.Add(
+			ctx,
+			"subtree_service", r.Service().String(),
+			"subtree_category", r.Category().String())
+
+		subtreePath, err := r.SubtreePath()
+		if err != nil {
+			return clues.Wrap(err, "building subtree path").WithClues(ictx)
+		}
+
 		// We're starting from the root directory so don't need it in the path.
 		pathElems := encodeElements(subtreePath.PopFront().Elements()...)
-		ictx := clues.Add(ctx, "subtree_path", subtreePath)
 
 		ent, err := snapshotfs.GetNestedEntry(ictx, dir, pathElems)
 		if err != nil {
@@ -1022,7 +1031,7 @@ func inflateBaseTree(
 		// This ensures that a migration on the directory prefix can complete.
 		// The prefix is the tenant/service/owner/category set, which remains
 		// otherwise unchecked in tree inflation below this point.
-		newSubtreePath := subtreePath
+		newSubtreePath := subtreePath.ToBuilder()
 		if p, ok := updatedPaths[subtreePath.String()]; ok {
 			newSubtreePath = p.ToBuilder()
 		}
@@ -1031,7 +1040,7 @@ func inflateBaseTree(
 			ictx,
 			0,
 			updatedPaths,
-			subtreePath.Dir(),
+			subtreePath.ToBuilder().Dir(),
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
@@ -1059,7 +1068,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []IncrementalBase,
+	baseSnaps []ManifestEntry,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
