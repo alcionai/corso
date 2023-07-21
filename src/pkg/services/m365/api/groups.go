@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 const (
@@ -22,8 +23,8 @@ const (
 // controller
 // ---------------------------------------------------------------------------
 
-func (c Client) Groups() Groups {
-	return Groups{c}
+func (c Client) Teams() Teams {
+	return Teams{c}
 }
 
 // On creation of each Teams team a corrsponding group gets created.
@@ -31,12 +32,12 @@ func (c Client) Groups() Groups {
 // drive and mail messages are owned by that group.
 
 // Teams is an interface-compliant provider of the client.
-type Groups struct {
+type Teams struct {
 	Client
 }
 
 // GetAllTeams retrieves all groups.
-func (c Groups) GetAllTeams(
+func (c Teams) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]models.Groupable, error) {
@@ -48,19 +49,6 @@ func (c Groups) GetAllTeams(
 	return getGroups(ctx, true, errs, service)
 }
 
-// GetAllGroups retrieves all groups.
-func (c Groups) GetAll(
-	ctx context.Context,
-	errs *fault.Bus,
-) ([]models.Groupable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, err
-	}
-
-	return getGroups(ctx, false, errs, service)
-}
-
 // GetAll retrieves all groups.
 func getGroups(
 	ctx context.Context,
@@ -68,7 +56,6 @@ func getGroups(
 	errs *fault.Bus,
 	service graph.Servicer,
 ) ([]models.Groupable, error) {
-
 	resp, err := service.Client().Groups().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting all groups")
@@ -123,16 +110,18 @@ func IsTeam(ctx context.Context, g models.Groupable) bool {
 				log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
 				return false
 			}
+
 			if s == teamsAdditionalDataLabel {
 				return true
 			}
 		}
 	}
+
 	return false
 }
 
 // GetID retrieves team by groupID/teamID.
-func (c Groups) GetByID(
+func (c Teams) GetByID(
 	ctx context.Context,
 	identifier string,
 ) (models.Groupable, error) {
@@ -144,6 +133,12 @@ func (c Groups) GetByID(
 	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
 	if err != nil {
 		err := graph.Wrap(ctx, err, "getting group by id")
+
+		return nil, err
+	}
+
+	if !IsTeam(ctx, resp) {
+		err := clues.New("given teamID is not related to any team")
 
 		return nil, err
 	}

@@ -82,6 +82,7 @@ type intgTesterSetup struct {
 	siteID                string
 	siteDriveID           string
 	siteDriveRootFolderID string
+	teamID                string
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -129,6 +130,14 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+
+	// teams
+	its.teamID = tconfig.M365TeamsID(t)
+
+	team, err := its.ac.Teams().GetByID(ctx, its.teamID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.teamID = ptr.Val(team.GetId())
 
 	return its
 }

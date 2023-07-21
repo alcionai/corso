@@ -25,6 +25,8 @@ const (
 	TestCfgAzureTenantID    = "azure_tenantid"
 	TestCfgSiteID           = "m365siteid"
 	TestCfgSiteURL          = "m365siteurl"
+	TestCfgTeamID           = "m365teamid"
+	TestCfgGroupID          = "m365groupid"
 	TestCfgUserID           = "m365userid"
 	TestCfgSecondaryUserID  = "secondarym365userid"
 	TestCfgTertiaryUserID   = "tertiarym365userid"
@@ -38,6 +40,8 @@ const (
 const (
 	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
 	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
+	EnvCorsoM365TestTeamID           = "CORSO_M365_TEST_TEAM_ID"
+	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_Group_ID"
 	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
 	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
 	EnvCorsoTertiaryM365TestUserID   = "CORSO_TERTIARY_M365_TEST_USER_ID"
@@ -148,6 +152,18 @@ func ReadTestConfig() (map[string]string, error) {
 		os.Getenv(EnvCorsoM365TestSiteID),
 		vpr.GetString(TestCfgSiteID),
 		"10rqc2.sharepoint.com,4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
+	fallbackTo(
+		testEnv,
+		TestCfgTeamID,
+		os.Getenv(EnvCorsoM365TestTeamID),
+		vpr.GetString(TestCfgTeamID),
+		"d288d6bc-4595-4ff5-87a1-6e7fd750aa42")
+	fallbackTo(
+		testEnv,
+		TestCfgGroupID,
+		os.Getenv(EnvCorsoM365TestGroupID),
+		vpr.GetString(TestCfgGroupID),
+		"3d1129b1-52e1-4f49-a47a-a515b14c8a8e")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,
