@@ -227,8 +227,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
-	isPartialBackup := err != nil &&
-		(deets == nil || deets.Empty())
+	isAtleastPartialBackup := deets != nil && !deets.Empty()
 
 	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
@@ -237,8 +236,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Persistence
 	// -----
 
+	// TODO(pandeyabs): Move createBackupModel before these
 	err = op.persistResults(startTime, &opStats)
-	if err != nil && !isPartialBackup {
+	if err != nil && !isAtleastPartialBackup {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
 	}
@@ -253,7 +253,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 				Infow("completed backup; conditional error forcing exit without model persistence",
 					"results", op.Results)
 
-			if !isPartialBackup {
+			if !isAtleastPartialBackup {
 				return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
 			}
 		}
