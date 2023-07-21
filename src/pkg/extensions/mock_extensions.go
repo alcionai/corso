@@ -33,8 +33,7 @@ type MockExtension struct {
 }
 
 func (me *MockExtension) Read(p []byte) (int, error) {
-	// randomly fail with 50% prob
-	if me.ItemNumber > 3 {
+	if me.ItemNumber > 1 {
 		return 0, clues.New("mock read error")
 	}
 
@@ -103,6 +102,8 @@ func (m *MockItemExtensionFactory) CreateItemExtension(
 		return nil, clues.New("factory error")
 	}
 
+	logger.Ctx(ctx).Infow("mock extension created", "itemnumber", m.ItemNumber)
+
 	return &MockExtension{
 		Ctx:         ctx,
 		InnerRc:     rc,
@@ -112,4 +113,15 @@ func (m *MockItemExtensionFactory) CreateItemExtension(
 		FailOnClose: m.FailOnClose,
 		ItemNumber:  m.ItemNumber,
 	}, nil
+}
+
+var ctr int32
+
+func GetMockExtensions() CreateItemExtensioner {
+	atomic.AddInt32(&ctr, 1)
+	mf := &MockItemExtensionFactory{
+		ItemNumber: ctr,
+	}
+
+	return mf
 }
