@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makeManifest(id, incmpl, bID string, reasons ...Reason) ManifestEntry {
+func makeManifest(id, incmpl, bID string, reasons ...Reasoner) ManifestEntry {
 	bIDKey, _ := makeTagKV(TagBackupID)
 
 	return ManifestEntry{
@@ -223,14 +223,10 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 				ir = "checkpoint"
 			}
 
-			reasons := make([]Reason, 0, len(i.cat))
+			reasons := make([]Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
-				reasons = append(reasons, Reason{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      c,
-				})
+				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
 			}
 
 			m := makeManifest(baseID, ir, "b"+baseID, reasons...)
@@ -457,8 +453,8 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			got := bb.MergeBackupBases(
 				ctx,
 				other,
-				func(reason Reason) string {
-					return reason.Service.String() + reason.Category.String()
+				func(r Reasoner) string {
+					return r.Service().String() + r.Category().String()
 				})
 			AssertBackupBasesEqual(t, expect, got)
 		})
@@ -469,13 +465,8 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	ro := "resource_owner"
 
 	makeMan := func(pct path.CategoryType, id, incmpl, bID string) ManifestEntry {
-		reason := Reason{
-			ResourceOwner: ro,
-			Service:       path.ExchangeService,
-			Category:      pct,
-		}
-
-		return makeManifest(id, incmpl, bID, reason)
+		r := NewReason("", ro, path.ExchangeService, pct)
+		return makeManifest(id, incmpl, bID, r)
 	}
 
 	// Make a function so tests can modify things without messing with each other.
@@ -606,11 +597,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					Reason{
-						ResourceOwner: ro,
-						Service:       path.ExchangeService,
-						Category:      path.ContactsCategory,
-					})
+					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 				res.assistBases = res.mergeBases
 
 				return res
@@ -619,11 +606,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					Reason{
-						ResourceOwner: ro,
-						Service:       path.ExchangeService,
-						Category:      path.ContactsCategory,
-					})
+					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 				res.assistBases = res.mergeBases
 
 				return res

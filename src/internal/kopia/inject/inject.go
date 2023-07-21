@@ -37,7 +37,7 @@ type (
 	BaseFinder interface {
 		FindBases(
 			ctx context.Context,
-			reasons []kopia.Reason,
+			reasons []kopia.Reasoner,
 			tags map[string]string,
 		) kopia.BackupBases
 	}
