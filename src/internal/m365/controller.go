@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -47,6 +48,11 @@ type Controller struct {
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
 	status support.ControllerOperationStatus // contains the status of the last run status
+
+	// backupDriveIDNames is populated on restore.  It maps the backup's
+	// drive names to their id. Primarily for use when creating or looking
+	// up a new drive.
+	backupDriveIDNames idname.CacheBuilder
 }
 
 func NewController(
@@ -140,6 +146,20 @@ func (ctrl *Controller) PrintableStatus() string {
 
 func (ctrl *Controller) incrementAwaitingMessages() {
 	ctrl.wg.Add(1)
+}
+
+func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
+	if ctrl.backupDriveIDNames == nil {
+		ctrl.backupDriveIDNames = idname.NewCache(map[string]string{})
+	}
+
+	if dii.SharePoint != nil {
+		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
+	}
+
+	if dii.OneDrive != nil {
+		ctrl.backupDriveIDNames.Add(dii.OneDrive.DriveID, dii.OneDrive.DriveName)
+	}
 }
 
 // ---------------------------------------------------------------------------

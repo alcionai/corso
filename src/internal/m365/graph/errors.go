@@ -271,7 +271,9 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		e = clues.Stack(e, clues.New(mainMsg))
 	}
 
-	return setLabels(clues.Wrap(e, msg).WithClues(ctx).With(data...), innerMsg)
+	ce := clues.Wrap(e, msg).WithClues(ctx).With(data...).WithTrace(1)
+
+	return setLabels(ce, innerMsg)
 }
 
 // Stack is a helper function that extracts ODataError metadata from
@@ -292,7 +294,9 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		e = clues.Stack(e, clues.New(mainMsg))
 	}
 
-	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
+	ce := clues.Stack(e).WithClues(ctx).With(data...).WithTrace(1)
+
+	return setLabels(ce, innerMsg)
 }
 
 // stackReq is a helper function that extracts ODataError metadata from

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -131,6 +132,19 @@ type itemRestoreHandler struct {
 
 func NewRestoreHandler(ac api.Client) *itemRestoreHandler {
 	return &itemRestoreHandler{ac.Drives()}
+}
+
+func (h itemRestoreHandler) PostDrive(
+	context.Context,
+	string, string,
+) (models.Driveable, error) {
+	return nil, clues.New("creating drives in oneDrive is not supported")
+}
+
+func (h itemRestoreHandler) NewDrivePager(
+	resourceOwner string, fields []string,
+) api.DrivePager {
+	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
 // AugmentItemInfo will populate a details.OneDriveInfo struct

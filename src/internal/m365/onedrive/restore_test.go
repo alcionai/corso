@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
@@ -21,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type RestoreUnitSuite struct {
@@ -491,7 +493,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			mndi.SetId(ptr.To(mndiID))
 
 			var (
-				caches = NewRestoreCaches()
+				caches = NewRestoreCaches(nil)
 				rh     = &mock.RestoreHandler{
 					PostItemResp:  models.NewDriveItem(),
 					DeleteItemErr: test.deleteErr,
@@ -614,6 +616,438 @@ func (suite *RestoreUnitSuite) TestCreateFolder() {
 			result, err := createFolder(ctx, test.mock, "d", "pf", "fn")
 			test.expectErr(t, err, clues.ToCore(err))
 			test.expectItem(t, result)
+		})
+	}
+}
+
+type mockGRF struct {
+	err        error
+	rootFolder models.DriveItemable
+}
+
+func (m *mockGRF) GetRootFolder(
+	context.Context,
+	string,
+) (models.DriveItemable, error) {
+	return m.rootFolder, m.err
+}
+
+func (suite *RestoreUnitSuite) TestRestoreCaches_AddDrive() {
+	rfID := "this-is-id"
+	driveID := "another-id"
+	name := "name"
+
+	rf := models.NewDriveItem()
+	rf.SetId(&rfID)
+
+	md := models.NewDrive()
+	md.SetId(&driveID)
+	md.SetName(&name)
+
+	table := []struct {
+		name        string
+		mock        *mockGRF
+		expectErr   require.ErrorAssertionFunc
+		expectID    string
+		checkValues bool
+	}{
+		{
+			name:        "good",
+			mock:        &mockGRF{rootFolder: rf},
+			expectErr:   require.NoError,
+			expectID:    rfID,
+			checkValues: true,
+		},
+		{
+			name:      "err",
+			mock:      &mockGRF{err: assert.AnError},
+			expectErr: require.Error,
+			expectID:  "",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			rc := NewRestoreCaches(nil)
+			err := rc.AddDrive(ctx, md, test.mock)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if test.checkValues {
+				idResult := rc.DriveIDToDriveInfo[driveID]
+				assert.Equal(t, driveID, idResult.id, "drive id")
+				assert.Equal(t, name, idResult.name, "drive name")
+				assert.Equal(t, test.expectID, idResult.rootFolderID, "root folder id")
+
+				nameResult := rc.DriveNameToDriveInfo[name]
+				assert.Equal(t, driveID, nameResult.id, "drive id")
+				assert.Equal(t, name, nameResult.name, "drive name")
+				assert.Equal(t, test.expectID, nameResult.rootFolderID, "root folder id")
+			}
+		})
+	}
+}
+
+type mockGDPARF struct {
+	err        error
+	rootFolder models.DriveItemable
+	pager      *apiMock.DrivePager
+}
+
+func (m *mockGDPARF) GetRootFolder(
+	context.Context,
+	string,
+) (models.DriveItemable, error) {
+	return m.rootFolder, m.err
+}
+
+func (m *mockGDPARF) NewDrivePager(
+	string,
+	[]string,
+) api.DrivePager {
+	return m.pager
+}
+
+func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
+	rfID := "this-is-id"
+	driveID := "another-id"
+	name := "name"
+
+	rf := models.NewDriveItem()
+	rf.SetId(&rfID)
+
+	md := models.NewDrive()
+	md.SetId(&driveID)
+	md.SetName(&name)
+
+	table := []struct {
+		name        string
+		mock        *apiMock.DrivePager
+		expectErr   require.ErrorAssertionFunc
+		expectLen   int
+		checkValues bool
+	}{
+		{
+			name: "no results",
+			mock: &apiMock.DrivePager{
+				ToReturn: []apiMock.PagerResult{
+					{Drives: []models.Driveable{}},
+				},
+			},
+			expectErr: require.NoError,
+			expectLen: 0,
+		},
+		{
+			name: "one result",
+			mock: &apiMock.DrivePager{
+				ToReturn: []apiMock.PagerResult{
+					{Drives: []models.Driveable{md}},
+				},
+			},
+			expectErr:   require.NoError,
+			expectLen:   1,
+			checkValues: true,
+		},
+		{
+			name: "error",
+			mock: &apiMock.DrivePager{
+				ToReturn: []apiMock.PagerResult{
+					{Err: assert.AnError},
+				},
+			},
+			expectErr: require.Error,
+			expectLen: 0,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			gdparf := &mockGDPARF{
+				rootFolder: rf,
+				pager:      test.mock,
+			}
+
+			rc := NewRestoreCaches(nil)
+			err := rc.Populate(ctx, gdparf, "shmoo")
+			test.expectErr(t, err, clues.ToCore(err))
+
+			assert.Len(t, rc.DriveIDToDriveInfo, test.expectLen)
+			assert.Len(t, rc.DriveNameToDriveInfo, test.expectLen)
+
+			if test.checkValues {
+				idResult := rc.DriveIDToDriveInfo[driveID]
+				assert.Equal(t, driveID, idResult.id, "drive id")
+				assert.Equal(t, name, idResult.name, "drive name")
+				assert.Equal(t, rfID, idResult.rootFolderID, "root folder id")
+
+				nameResult := rc.DriveNameToDriveInfo[name]
+				assert.Equal(t, driveID, nameResult.id, "drive id")
+				assert.Equal(t, name, nameResult.name, "drive name")
+				assert.Equal(t, rfID, nameResult.rootFolderID, "root folder id")
+			}
+		})
+	}
+}
+
+type mockPDAGRF struct {
+	i        int
+	postResp []models.Driveable
+	postErr  []error
+
+	grf mockGRF
+}
+
+func (m *mockPDAGRF) PostDrive(
+	ctx context.Context,
+	protectedResourceID, driveName string,
+) (models.Driveable, error) {
+	defer func() { m.i++ }()
+
+	md := m.postResp[m.i]
+	if md != nil {
+		md.SetName(&driveName)
+	}
+
+	return md, m.postErr[m.i]
+}
+
+func (m *mockPDAGRF) GetRootFolder(
+	ctx context.Context,
+	driveID string,
+) (models.DriveItemable, error) {
+	return m.grf.rootFolder, m.grf.err
+}
+
+func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
+	rfID := "this-is-id"
+	driveID := "another-id"
+	oldID := "old-id"
+	name := "name"
+	otherName := "other name"
+
+	rf := models.NewDriveItem()
+	rf.SetId(&rfID)
+
+	grf := mockGRF{rootFolder: rf}
+
+	makeMD := func() models.Driveable {
+		md := models.NewDrive()
+		md.SetId(&driveID)
+		md.SetName(&name)
+
+		return md
+	}
+
+	dp := &path.DrivePath{
+		DriveID: driveID,
+		Root:    "root:",
+		Folders: path.Elements{},
+	}
+
+	oldDP := &path.DrivePath{
+		DriveID: oldID,
+		Root:    "root:",
+		Folders: path.Elements{},
+	}
+
+	populatedCache := func(id string) *restoreCaches {
+		rc := NewRestoreCaches(nil)
+		di := driveInfo{
+			id:   id,
+			name: name,
+		}
+		rc.DriveIDToDriveInfo[id] = di
+		rc.DriveNameToDriveInfo[name] = di
+
+		return rc
+	}
+
+	oldDriveIDNames := idname.NewCache(nil)
+	oldDriveIDNames.Add(oldID, name)
+
+	idSwitchedCache := func() *restoreCaches {
+		rc := NewRestoreCaches(oldDriveIDNames)
+		di := driveInfo{
+			id:   "diff",
+			name: name,
+		}
+		rc.DriveIDToDriveInfo["diff"] = di
+		rc.DriveNameToDriveInfo[name] = di
+
+		return rc
+	}
+
+	table := []struct {
+		name            string
+		dp              *path.DrivePath
+		mock            *mockPDAGRF
+		rc              *restoreCaches
+		expectErr       require.ErrorAssertionFunc
+		fallbackName    string
+		expectName      string
+		expectID        string
+		skipValueChecks bool
+	}{
+		{
+			name: "drive already in cache",
+			dp:   dp,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{makeMD()},
+				postErr:  []error{nil},
+				grf:      grf,
+			},
+			rc:           populatedCache(driveID),
+			expectErr:    require.NoError,
+			fallbackName: name,
+			expectName:   name,
+			expectID:     driveID,
+		},
+		{
+			name: "drive with same name but different id exists",
+			dp:   oldDP,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{makeMD()},
+				postErr:  []error{nil},
+				grf:      grf,
+			},
+			rc:           idSwitchedCache(),
+			expectErr:    require.NoError,
+			fallbackName: otherName,
+			expectName:   name,
+			expectID:     "diff",
+		},
+		{
+			name: "drive created with old name",
+			dp:   oldDP,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{makeMD()},
+				postErr:  []error{nil},
+				grf:      grf,
+			},
+			rc:           NewRestoreCaches(oldDriveIDNames),
+			expectErr:    require.NoError,
+			fallbackName: otherName,
+			expectName:   name,
+			expectID:     driveID,
+		},
+		{
+			name: "drive created with fallback name",
+			dp:   dp,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{makeMD()},
+				postErr:  []error{nil},
+				grf:      grf,
+			},
+			rc:           NewRestoreCaches(nil),
+			expectErr:    require.NoError,
+			fallbackName: otherName,
+			expectName:   otherName,
+			expectID:     driveID,
+		},
+		{
+			name: "error creating drive",
+			dp:   dp,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{nil},
+				postErr:  []error{assert.AnError},
+				grf:      grf,
+			},
+			rc:              NewRestoreCaches(nil),
+			expectErr:       require.Error,
+			fallbackName:    name,
+			expectName:      "",
+			skipValueChecks: true,
+			expectID:        driveID,
+		},
+		{
+			name: "drive name already exists",
+			dp:   dp,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{makeMD()},
+				postErr:  []error{nil},
+				grf:      grf,
+			},
+			rc:           populatedCache("beaux"),
+			expectErr:    require.NoError,
+			fallbackName: name,
+			expectName:   name,
+			expectID:     driveID,
+		},
+		{
+			name: "list with name already exists",
+			dp:   dp,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{nil, makeMD()},
+				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				grf:      grf,
+			},
+			rc:           NewRestoreCaches(nil),
+			expectErr:    require.NoError,
+			fallbackName: name,
+			expectName:   name + " 1",
+			expectID:     driveID,
+		},
+		{
+			name: "list with old name already exists",
+			dp:   oldDP,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{nil, makeMD()},
+				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				grf:      grf,
+			},
+			rc:           NewRestoreCaches(oldDriveIDNames),
+			expectErr:    require.NoError,
+			fallbackName: name,
+			expectName:   name + " 1",
+			expectID:     driveID,
+		},
+		{
+			name: "drive and list with name already exist",
+			dp:   dp,
+			mock: &mockPDAGRF{
+				postResp: []models.Driveable{nil, makeMD()},
+				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				grf:      grf,
+			},
+			rc:           populatedCache(driveID),
+			expectErr:    require.NoError,
+			fallbackName: name,
+			expectName:   name,
+			expectID:     driveID,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			rc := test.rc
+
+			di, err := ensureDriveExists(
+				ctx,
+				test.mock,
+				rc,
+				test.dp,
+				"prID",
+				test.fallbackName)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if !test.skipValueChecks {
+				assert.Equal(t, test.expectName, di.name, "ensured drive has expected name")
+				assert.Equal(t, test.expectID, di.id, "ensured drive has expected id")
+
+				nameResult := rc.DriveNameToDriveInfo[test.expectName]
+				assert.Equal(t, test.expectName, nameResult.name, "found drive entry with expected name")
+			}
 		})
 	}
 }

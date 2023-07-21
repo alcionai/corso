@@ -69,3 +69,5 @@ func (ctrl Controller) ConsumeRestoreCollections(
 ) (*details.Details, error) {
 	return ctrl.Deets, ctrl.Err
 }
+
+func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
