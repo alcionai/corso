@@ -411,6 +411,9 @@ type driveStats struct {
 	itemsFound int64
 }
 
+// global counter
+var ctr int32
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
@@ -452,17 +455,26 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
+			itf := []extensions.CreateItemExtensioner{
+				&extensions.MockItemExtensionFactory{
+					ItemNumber: ctr,
+				},
+			}
+
+			atomic.AddInt32(&ctr, 1)
+
 			// Read the item
 			oc.populateDriveItem(
 				ctx,
 				parentPath,
 				item,
 				&stats,
-				oc.ctrl.ItemExtensionFactory,
+				itf,
 				errs)
 
 			folderProgress <- struct{}{}
 		}(item)
+
 	}
 
 	wg.Wait()

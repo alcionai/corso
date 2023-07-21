@@ -29,9 +29,15 @@ type MockExtension struct {
 	Ctx         context.Context
 	FailOnRead  bool
 	FailOnClose bool
+	ItemNumber  int32
 }
 
 func (me *MockExtension) Read(p []byte) (int, error) {
+	// randomly fail with 50% prob
+	if me.ItemNumber > 3 {
+		return 0, clues.New("mock read error")
+	}
+
 	if me.FailOnRead {
 		return 0, clues.New("mock read error")
 	}
@@ -55,6 +61,11 @@ func (me *MockExtension) Read(p []byte) (int, error) {
 }
 
 func (me *MockExtension) Close() error {
+	// if me.itemCount > 3 {
+	// 	return clues.New("mock close error")
+	// }
+
+	// atomic.AddInt32(&me.itemCount, 1)
 	if me.FailOnClose {
 		return clues.New("mock close error")
 	}
@@ -66,6 +77,8 @@ func (me *MockExtension) Close() error {
 
 	me.ExtData.Data[KNumBytes] = me.NumBytes
 	me.ExtData.Data[KCrc32] = me.Crc32
+	me.ExtData.Data["ItemNumber"] = me.ItemNumber
+
 	logger.Ctx(me.Ctx).Infow(
 		"mock extension closed",
 		KNumBytes, me.NumBytes, KCrc32, me.Crc32)
@@ -77,6 +90,7 @@ type MockItemExtensionFactory struct {
 	FailOnFactoryCreation bool
 	FailOnRead            bool
 	FailOnClose           bool
+	ItemNumber            int32
 }
 
 func (m *MockItemExtensionFactory) CreateItemExtension(
@@ -96,5 +110,6 @@ func (m *MockItemExtensionFactory) CreateItemExtension(
 		ExtData:     extData,
 		FailOnRead:  m.FailOnRead,
 		FailOnClose: m.FailOnClose,
+		ItemNumber:  m.ItemNumber,
 	}, nil
 }
