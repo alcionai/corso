@@ -730,38 +730,52 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	expectedTags = normalizeTagKVs(expectedTags)
 
-	table := []struct {
+	type testCase struct {
 		name                  string
+		baseBackups           func(base ManifestEntry) BackupBases
+		collections           []data.BackupCollection
 		expectedUploadedFiles int
 		expectedCachedFiles   int
 		// Whether entries in the resulting details should be marked as updated.
-		deetsUpdated bool
-	}{
-		{
-			name:                  "Uncached",
-			expectedUploadedFiles: 47,
-			expectedCachedFiles:   0,
-			deetsUpdated:          true,
-		},
-		{
-			name:                  "Cached",
-			expectedUploadedFiles: 0,
-			expectedCachedFiles:   47,
-			deetsUpdated:          false,
-		},
+		deetsUpdated     assert.BoolAssertionFunc
+		hashedBytesCheck assert.ValueAssertionFunc
+		// Range of bytes (inclusive) to expect as uploaded. A little fragile, but
+		// allows us to differentiate between content that wasn't uploaded due to
+		// being cached/deduped/skipped due to existing dir entries and stuff that
+		// was actually pushed to S3.
+		uploadedBytes []int64
 	}
 
-	prevSnaps := []IncrementalBase{}
+	// Initial backup. All files should be considered new by kopia.
+	baseBackupCase := testCase{
+		name: "Uncached",
+		baseBackups: func(ManifestEntry) BackupBases {
+			return NewMockBackupBases()
+		},
+		collections:           collections,
+		expectedUploadedFiles: 47,
+		expectedCachedFiles:   0,
+		deetsUpdated:          assert.True,
+		hashedBytesCheck:      assert.NotZero,
+		uploadedBytes:         []int64{8000, 10000},
+	}
 
-	for _, test := range table {
+	runAndTestBackup := func(test testCase, base ManifestEntry) ManifestEntry {
+		var res ManifestEntry
+
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			bbs := test.baseBackups(base)
+
 			stats, deets, _, err := suite.w.ConsumeBackupCollections(
-				suite.ctx,
+				ctx,
 				reasons,
-				prevSnaps,
-				collections,
+				bbs,
+				test.collections,
 				nil,
 				tags,
 				true,
@@ -771,10 +785,21 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
 			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
 			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
-			assert.Equal(t, 6, stats.TotalDirectoryCount)
+			assert.Equal(t, 4+len(test.collections), stats.TotalDirectoryCount)
 			assert.Equal(t, 0, stats.IgnoredErrorCount)
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
+			test.hashedBytesCheck(t, stats.TotalHashedBytes, "hashed bytes")
+			assert.LessOrEqual(
+				t,
+				test.uploadedBytes[0],
+				stats.TotalUploadedBytes,
+				"low end of uploaded bytes")
+			assert.GreaterOrEqual(
+				t,
+				test.uploadedBytes[1],
+				stats.TotalUploadedBytes,
+				"high end of uploaded bytes")
 
 			// 47 file and 2 folder entries.
 			details := deets.Details().Entries
@@ -785,31 +810,156 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			)
 
 			for _, entry := range details {
-				assert.Equal(t, test.deetsUpdated, entry.Updated)
+				test.deetsUpdated(t, entry.Updated)
 			}
 
 			checkSnapshotTags(
 				t,
-				suite.ctx,
+				ctx,
 				suite.w.c,
 				expectedTags,
 				stats.SnapshotID,
 			)
 
 			snap, err := snapshot.LoadSnapshot(
-				suite.ctx,
+				ctx,
 				suite.w.c,
 				manifest.ID(stats.SnapshotID),
 			)
 			require.NoError(t, err, clues.ToCore(err))
 
-			prevSnaps = append(prevSnaps, IncrementalBase{
+			res = ManifestEntry{
 				Manifest: snap,
-				SubtreePaths: []*path.Builder{
-					suite.storePath1.ToBuilder().Dir(),
-				},
-			})
+				Reasons:  reasons,
+			}
 		})
+
+		return res
+	}
+
+	base := runAndTestBackup(baseBackupCase, ManifestEntry{})
+
+	table := []testCase{
+		{
+			name: "Kopia Assist And Merge All Files Changed",
+			baseBackups: func(base ManifestEntry) BackupBases {
+				return NewMockBackupBases().WithMergeBases(base)
+			},
+			collections:           collections,
+			expectedUploadedFiles: 0,
+			expectedCachedFiles:   47,
+			deetsUpdated:          assert.False,
+			hashedBytesCheck:      assert.Zero,
+			uploadedBytes:         []int64{4000, 6000},
+		},
+		{
+			name: "Kopia Assist And Merge No Files Changed",
+			baseBackups: func(base ManifestEntry) BackupBases {
+				return NewMockBackupBases().WithMergeBases(base)
+			},
+			collections:           collections,
+			expectedUploadedFiles: 0,
+			expectedCachedFiles:   47,
+			deetsUpdated:          assert.False,
+			hashedBytesCheck:      assert.Zero,
+			uploadedBytes:         []int64{4000, 6000},
+		},
+		{
+			name: "Kopia Assist Only",
+			baseBackups: func(base ManifestEntry) BackupBases {
+				return NewMockBackupBases().WithMergeBases(base)
+			},
+			// Pass in an extra empty collection to force a backup. Otherwise we'll
+			// skip actually trying to do anything because we'll see there's nothing
+			// that changed. The real goal is to get it to deal with the merged
+			// collections again though.
+			collections: func() []data.BackupCollection {
+				sp, err := suite.storePath1.Append(false, "foo")
+				require.NoError(
+					suite.T(),
+					err,
+					"building store path: %v",
+					clues.ToCore(err))
+
+				lp, err := suite.locPath1.Append(false, "foo")
+				require.NoError(
+					suite.T(),
+					err,
+					"building location path: %v",
+					clues.ToCore(err))
+
+				c := exchMock.NewCollection(sp, lp, 0)
+
+				return append([]data.BackupCollection{c}, collections...)
+			}(),
+			// Should hit cached check prior to dir entry check so we see them as
+			// cached.
+			expectedUploadedFiles: 0,
+			expectedCachedFiles:   47,
+			deetsUpdated:          assert.False,
+			hashedBytesCheck:      assert.Zero,
+			uploadedBytes:         []int64{4000, 6000},
+		},
+		{
+			name: "Merge Only",
+			baseBackups: func(base ManifestEntry) BackupBases {
+				return NewMockBackupBases().WithMergeBases(base).ClearMockAssistBases()
+			},
+			// Pass in an extra empty collection to force a backup. Otherwise we'll
+			// skip actually trying to do anything because we'll see there's nothing
+			// that changed. The real goal is to get it to deal with the merged
+			// collections again though.
+			collections: func() []data.BackupCollection {
+				sp, err := suite.storePath1.Append(false, "foo")
+				require.NoError(
+					suite.T(),
+					err,
+					"building store path: %v",
+					clues.ToCore(err))
+
+				lp, err := suite.locPath1.Append(false, "foo")
+				require.NoError(
+					suite.T(),
+					err,
+					"building location path: %v",
+					clues.ToCore(err))
+
+				c := exchMock.NewCollection(sp, lp, 0)
+
+				return append([]data.BackupCollection{c}, collections...)
+			}(),
+			expectedUploadedFiles: 47,
+			expectedCachedFiles:   0,
+			// Marked as updated because we still fall into the uploadFile handler in
+			// kopia instead of the cachedFile handler.
+			deetsUpdated: assert.True,
+			// Kopia still counts these bytes as "hashed" even though it won't read
+			// the file data since they already have dir entries it can reuse.
+			hashedBytesCheck: assert.NotZero,
+			uploadedBytes:    []int64{4000, 6000},
+		},
+		{
+			name: "Content Hash Only",
+			baseBackups: func(base ManifestEntry) BackupBases {
+				return NewMockBackupBases()
+			},
+			// Pass in an extra empty collection to force a backup. Otherwise we'll
+			// skip actually trying to do anything because we'll see there's nothing
+			// that changed. The real goal is to get it to deal with the merged
+			// collections again though.
+			collections:           collections,
+			expectedUploadedFiles: 47,
+			expectedCachedFiles:   0,
+			// Marked as updated because we still fall into the uploadFile handler in
+			// kopia instead of the cachedFile handler.
+			deetsUpdated:     assert.True,
+			hashedBytesCheck: assert.NotZero,
+			uploadedBytes:    []int64{4000, 6000},
+		},
+	}
+
+	for _, test := range table {
+		runAndTestBackup(test, base)
 	}
 }
 
