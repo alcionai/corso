@@ -22,50 +22,36 @@ runs:
     - name: trim ref
       shell: bash
       run: |
-        echo IN_REF=${{ inputs.ref }} >> $GITHUB_ENV
+        echo IN_REF=${{ github.ref }} >> $GITHUB_ENV
         echo trimmed_ref=${IN_REF#refs/} >> $GITHUB_ENV
 
     - shell: bash
       run: |
         echo "-----"
-        echo "j ${{inputs.job}}"
-        echo "r ${{inputs.ref}}"
-        echo "s ${{inputs.run_id}}"
-        echo "i ${{inputs.sha}}"
-        echo "-----"
         echo "j ${{github.job}}"
         echo "r ${{github.ref}}"
+        echo "t ${{env.trimmed_ref}}"
         echo "s ${{github.run_id}}"
         echo "i ${{github.sha}}"
         echo "u ${{github.server_url}}"
         echo "e ${{github.repository}}"
         echo "-----"
-        echo "j ${{env.JOB}}"
-        echo "r ${{env.LOGS}}"
-        echo "s ${{env.COMMIT}}"
-        echo "i ${{env.REF}}"
-        echo "-----"
-        echo "j ${env.GITHUB_JOB}"
-        echo "r ${env.GITHUB_REF}"
-        echo "s ${env.GITHUB_SHA}"
-        echo "i ${env.GITHUB_RUN_ID}"
-        echo "-----"
 
     - name: compose links
       shell: bash
       run: |
-        echo JOB=${{ inputs.job && ' -:- ${{ inputs.job }}' || ''}} >> $GITHUB_ENV
-        echo LOGS=${{ inputs.run_id && format('<https://github.com/alcionai/corso/actions/runs/${0}|[Logs]>', inputs.run_id) || ''}} >> $GITHUB_ENV
-        echo COMMIT=${{ inputs.sha && format('<https://github.com/alcionai/corso/commit/${0}|[Commit]>', inputs.sha) || ''}} >> $GITHUB_ENV
-        echo REF=${{ env.trimmed_ref && format('<https://github.com/alcionai/corso/${0}|[Ref]>', env.trimmed_ref) || ''}} >> $GITHUB_ENV
+        echo JOB=${{ github.job && ' -:- ${{ github.job }}' || ''}} >> $GITHUB_ENV
+        echo LOGS=${{ github.run_id && format('<${0}/${1}/actions/runs/${2}|[Logs]>', github.server_url, github.repository, github.run_id) || ''}} >> $GITHUB_ENV
+        echo COMMIT=${{ github.sha && format('<${0}/${1}/commit/${2}|[Commit]>', github.server_url, github.repository, github.sha) || ''}} >> $GITHUB_ENV
+        echo REF=${{ env.trimmed_ref && format('<${0}/${1}/${2}|[Ref]>', github.server_url, github.repository, env.trimmed_ref) || ''}} >> $GITHUB_ENV
 
     - shell: bash
       run: |
         echo "-----"
-        echo "j ${{env.GITHUB_JOB}}"
-        echo "r ${{env.GITHUB_REF}}"
-        echo "s ${{env.GITHUB_SHA}}"
-        echo "i ${{env.GITHUB_RUN_ID}}"
+        echo "jj ${{env.GITHUB_JOB}}"
+        echo "rr ${{env.GITHUB_REF}}"
+        echo "ss ${{env.GITHUB_SHA}}"
+        echo "ii ${{env.GITHUB_RUN_ID}}"
         echo "-----"
 
     - id: slack-message

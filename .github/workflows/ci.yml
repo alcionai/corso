@@ -318,27 +318,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - shell: bash
-        run: |
-          echo "-----"
-          echo "ci-j ${{github.job}}"
-          echo "ci-r ${{github.ref}}"
-          echo "ci-s ${{github.run_id}}"
-          echo "ci-i ${{github.sha}}"
-          echo "ci-u ${{github.server_url}}"
-          echo "ci-e ${{github.repository}}"
-          echo "-----"
-          echo "ci-j ${{env.JOB}}"
-          echo "ci-r ${{env.LOGS}}"
-          echo "ci-s ${{env.COMMIT}}"
-          echo "ci-i ${{env.REF}}"
-          echo "-----"
-          echo "ci-j ${env.GITHUB_JOB}"
-          echo "ci-r ${env.GITHUB_REF}"
-          echo "ci-s ${env.GITHUB_SHA}"
-          echo "ci-i ${env.GITHUB_RUN_ID}"
-          echo "-----"
-
       - name: Notify failure in slack
         if: always()
         uses: ./.github/actions/slack-message
