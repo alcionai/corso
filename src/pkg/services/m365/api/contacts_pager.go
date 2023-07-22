@@ -277,7 +277,7 @@ func (c Contacts) NewContactDeltaIDsPager(
 			Select: idAnd(parentFolderID),
 			// do NOT set Top.  It limits the total items received.
 		},
-		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder

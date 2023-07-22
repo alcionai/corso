@@ -313,7 +313,7 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 
 	suite.creds = creds
 
-	suite.ac, err = api.NewClient(creds)
+	suite.ac, err = api.NewClient(creds, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
