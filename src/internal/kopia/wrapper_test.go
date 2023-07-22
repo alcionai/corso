@@ -1669,7 +1669,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				NewMockBackupBases().WithMergeBases(
 					ManifestEntry{
 						Manifest: man,
-						Reasons:  []Reason{r},
+						Reasons:  []Reasoner{r},
 					},
 				),
 				test.cols(),

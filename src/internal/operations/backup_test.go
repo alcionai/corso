@@ -406,7 +406,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			path.ExchangeService,
 			path.ContactsCategory)
 
-		reasons = []kopia.Reason{
+		reasons = []kopia.Reasoner{
 			emailReason,
 			contactsReason,
 		}
@@ -421,13 +421,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		bases = kopia.NewMockBackupBases().WithMergeBases(
 			kopia.ManifestEntry{
 				Manifest: manifest1,
-				Reasons: []kopia.Reason{
+				Reasons: []kopia.Reasoner{
 					emailReason,
 				},
 			}).WithAssistBases(
 			kopia.ManifestEntry{
 				Manifest: manifest2,
-				Reasons: []kopia.Reason{
+				Reasons: []kopia.Reasoner{
 					contactsReason,
 				},
 			})
@@ -441,7 +441,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 
 	mbu := &mockBackupConsumer{
 		checkFunc: func(
-			backupReasons []kopia.Reason,
+			backupReasons []kopia.Reasoner,
 			gotBases kopia.BackupBases,
 			cs []data.BackupCollection,
 			gotTags map[string]string,

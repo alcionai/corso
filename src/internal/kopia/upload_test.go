@@ -951,7 +951,7 @@ func makeManifestEntry(
 	service path.ServiceType,
 	categories ...path.CategoryType,
 ) ManifestEntry {
-	var reasons []Reason
+	var reasons []Reasoner
 
 	for _, c := range categories {
 		reasons = append(reasons, NewReason(tenant, resourceOwner, service, c))
