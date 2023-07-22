@@ -24,6 +24,10 @@ inputs:
   log-dir:
     description: Folder to store test log files
     required: true
+  on-collision:
+    description: Value for the --collisions flag
+    requried: false
+    default: "replace"
 
 outputs:
   backup-id:
@@ -57,6 +61,7 @@ runs:
         ./corso restore '${{ inputs.service }}' \
             --no-stats \
             --hide-progress \
+            --collisions ${{ inputs.on-collision }} \
             ${{ inputs.restore-args }} \
             --backup '${{ steps.backup.outputs.result }}' \
             2>&1 |

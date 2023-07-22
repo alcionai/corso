@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	DeltaPageSizeFN             = "delta-page-size"
 	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
 	DisableDeltaFN              = "disable-delta"
 	DisableIncrementalsFN       = "disable-incrementals"
@@ -21,6 +22,7 @@ const (
 )
 
 var (
+	DeltaPageSizeFV             int
 	DisableConcurrencyLimiterFV bool
 	DisableDeltaFV              bool
 	DisableIncrementalsFV       bool
@@ -70,6 +72,18 @@ func AddSkipReduceFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(&SkipReduceFV, SkipReduceFN, false, "Skip the selector reduce filtering")
 	cobra.CheckErr(fs.MarkHidden(SkipReduceFN))
+}
+
+// AddDeltaPageSizeFlag adds a hidden flag that allows callers to reduce delta
+// query page sizes below 500.
+func AddDeltaPageSizeFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.IntVar(
+		&DeltaPageSizeFV,
+		DeltaPageSizeFN,
+		500,
+		"Control quantity of items returned in paged queries. Valid range is [1-500]. Default: 500")
+	cobra.CheckErr(fs.MarkHidden(DeltaPageSizeFN))
 }
 
 // AddFetchParallelismFlag adds a hidden flag that allows callers to reduce call

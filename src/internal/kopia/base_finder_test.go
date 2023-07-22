@@ -39,61 +39,24 @@ var (
 	testUser2 = "user2"
 	testUser3 = "user3"
 
-	testAllUsersAllCats = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
-		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
-		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EventsCategory,
-		},
+	testAllUsersAllCats = []Reasoner{
+		// User1 email and events.
+		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+		// User2 email and events.
+		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+		// User3 email and events.
+		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 	}
-	testAllUsersMail = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser2,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
-		{
-			ResourceOwner: testUser3,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
+	testAllUsersMail = []Reasoner{
+		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 	}
-	testUser1Mail = []Reason{
-		{
-			ResourceOwner: testUser1,
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
+	testUser1Mail = []Reasoner{
+		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 	}
 )
 
@@ -322,12 +285,8 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		sm: mockEmptySnapshotManager{},
 		bg: mockEmptyModelGetter{},
 	}
-	reasons := []Reason{
-		{
-			ResourceOwner: "a-user",
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
+	reasons := []Reasoner{
+		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
 	}
 
 	bb := bf.FindBases(ctx, reasons, nil)
@@ -345,12 +304,8 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		sm: &mockSnapshotManager{findErr: assert.AnError},
 		bg: mockEmptyModelGetter{},
 	}
-	reasons := []Reason{
-		{
-			ResourceOwner: "a-user",
-			Service:       path.ExchangeService,
-			Category:      path.EmailCategory,
-		},
+	reasons := []Reasoner{
+		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
 	}
 
 	bb := bf.FindBases(ctx, reasons, nil)
@@ -361,14 +316,14 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 func (suite *BaseFinderUnitSuite) TestGetBases() {
 	table := []struct {
 		name         string
-		input        []Reason
+		input        []Reasoner
 		manifestData []manifestInfo
 		// Use this to denote the Reasons a base backup or base manifest is
 		// selected. The int maps to the index of the backup or manifest in data.
-		expectedBaseReasons map[int][]Reason
+		expectedBaseReasons map[int][]Reasoner
 		// Use this to denote the Reasons a kopia assised incrementals manifest is
 		// selected. The int maps to the index of the manifest in data.
-		expectedAssistManifestReasons map[int][]Reason
+		expectedAssistManifestReasons map[int][]Reasoner
 		backupData                    []backupInfo
 	}{
 		{
@@ -394,10 +349,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -428,10 +383,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 				1: testUser1Mail,
 			},
@@ -463,10 +418,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 				1: testUser1Mail,
 			},
@@ -492,10 +447,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser3,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -519,10 +474,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser3,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				0: testAllUsersAllCats,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testAllUsersAllCats,
 			},
 			backupData: []backupInfo{
@@ -557,76 +512,28 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser3,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				0: {
-					{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
-					{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
-					{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 				},
 				1: {
-					Reason{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
-					},
-					Reason{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
-					},
-					Reason{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 				},
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: {
-					{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
-					{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
-					{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 				},
 				1: {
-					Reason{
-						ResourceOwner: testUser1,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
-					},
-					Reason{
-						ResourceOwner: testUser2,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
-					},
-					Reason{
-						ResourceOwner: testUser3,
-						Service:       path.ExchangeService,
-						Category:      path.EventsCategory,
-					},
+					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 				},
 			},
 			backupData: []backupInfo{
@@ -657,10 +564,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 				1: testUser1Mail,
 			},
@@ -693,10 +600,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -728,8 +635,8 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{},
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -752,10 +659,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -787,10 +694,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reason{
+			expectedBaseReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reason{
+			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -857,17 +764,17 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 
 	table := []struct {
 		name  string
-		input []Reason
+		input []Reasoner
 		tags  map[string]string
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and
 		// expected.
-		expectedIdxs map[int][]Reason
+		expectedIdxs map[int][]Reasoner
 	}{
 		{
 			name: "no tags specified",
 			tags: nil,
-			expectedIdxs: map[int][]Reason{
+			expectedIdxs: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -877,14 +784,14 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 				"fnords": "",
 				"smarf":  "",
 			},
-			expectedIdxs: map[int][]Reason{
+			expectedIdxs: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
 		},
 		{
 			name: "subset of custom tags",
 			tags: map[string]string{"fnords": ""},
-			expectedIdxs: map[int][]Reason{
+			expectedIdxs: map[int][]Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -925,7 +832,7 @@ func checkManifestEntriesMatch(
 	t *testing.T,
 	retSnaps []ManifestEntry,
 	allExpected []manifestInfo,
-	expectedIdxsAndReasons map[int][]Reason,
+	expectedIdxsAndReasons map[int][]Reasoner,
 ) {
 	// Check the proper snapshot manifests were returned.
 	expected := make([]*snapshot.Manifest, 0, len(expectedIdxsAndReasons))
@@ -941,7 +848,7 @@ func checkManifestEntriesMatch(
 	assert.ElementsMatch(t, expected, got)
 
 	// Check the reasons for selecting each manifest are correct.
-	expectedReasons := make(map[manifest.ID][]Reason, len(expectedIdxsAndReasons))
+	expectedReasons := make(map[manifest.ID][]Reasoner, len(expectedIdxsAndReasons))
 	for idx, reasons := range expectedIdxsAndReasons {
 		expectedReasons[allExpected[idx].man.ID] = reasons
 	}
@@ -967,7 +874,7 @@ func checkBackupEntriesMatch(
 	t *testing.T,
 	retBups []BackupEntry,
 	allExpected []backupInfo,
-	expectedIdxsAndReasons map[int][]Reason,
+	expectedIdxsAndReasons map[int][]Reasoner,
 ) {
 	// Check the proper snapshot manifests were returned.
 	expected := make([]*backup.Backup, 0, len(expectedIdxsAndReasons))
@@ -983,7 +890,7 @@ func checkBackupEntriesMatch(
 	assert.ElementsMatch(t, expected, got)
 
 	// Check the reasons for selecting each manifest are correct.
-	expectedReasons := make(map[model.StableID][]Reason, len(expectedIdxsAndReasons))
+	expectedReasons := make(map[model.StableID][]Reasoner, len(expectedIdxsAndReasons))
 	for idx, reasons := range expectedIdxsAndReasons {
 		expectedReasons[allExpected[idx].b.ID] = reasons
 	}
