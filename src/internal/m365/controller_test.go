@@ -692,6 +692,7 @@ func runRestoreBackupTestVersions(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
+	crc control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -702,7 +703,7 @@ func runRestoreBackupTestVersions(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		RestoreCfg:     crc,
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
