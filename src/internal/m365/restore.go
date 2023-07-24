@@ -48,7 +48,14 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 
 	switch service {
 	case path.ExchangeService:
-		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, rcc, dcs, deets, errs, ctr)
+		status, err = exchange.ConsumeRestoreCollections(
+			ctx,
+			ctrl.AC,
+			rcc,
+			dcs,
+			deets,
+			errs,
+			ctr)
 	case path.OneDriveService:
 		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,

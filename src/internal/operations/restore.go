@@ -364,7 +364,7 @@ func consumeRestoreCollections(
 	ctx context.Context,
 	rc inject.RestoreConsumer,
 	backupVersion int,
-	toProtectedResoruce idname.Provider,
+	toProtectedResource idname.Provider,
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 	opts control.Options,
@@ -381,7 +381,7 @@ func consumeRestoreCollections(
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     backupVersion,
 		Options:           opts,
-		ProtectedResource: toProtectedResoruce,
+		ProtectedResource: toProtectedResource,
 		RestoreConfig:     restoreCfg,
 		Selector:          sel,
 	}

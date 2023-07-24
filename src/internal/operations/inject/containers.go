@@ -6,7 +6,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-// RestoreConsumerConfig container-of-things for holding options and
+// RestoreConsumerConfig is a container-of-things for holding options and
 // configurations from various packages, which are widely used by all
 // restore consumers independent of service or data category.
 type RestoreConsumerConfig struct {
