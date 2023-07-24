@@ -252,7 +252,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 // the owner's name and ID from that value.  Returns an error if the owner is
 // not recognized by the current tenant.
 //
-// The id-name swapper is optional.  Some processes will look up all owners in
+// The id-name cacher is optional.  Some processes will look up all owners in
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
 // data gets stored inside the controller instance for later re-use.
