@@ -73,7 +73,16 @@ func checkDriveRestoration(
 
 	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 
-	restoreFolderID := PopulateDriveDetails(ctx, client, driveID, folderName, dataFolder, fileSizes, folderPermissions, startTime)
+	restoreFolderID := PopulateDriveDetails(
+		ctx,
+		client,
+		driveID,
+		folderName,
+		dataFolder,
+		fileSizes,
+		folderPermissions,
+		startTime,
+	)
 
 	getRestoredDrive(ctx, client, driveID, restoreFolderID, restoreFile, restoredFolderPermissions, startTime)
 
@@ -156,7 +165,7 @@ func PopulateDriveDetails(
 		}
 
 		folderPermissions[itemName] = permissionIn(ctx, client, driveID, itemID)
-		GetOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermissions, startTime)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermissions, startTime)
 	}
 
 	return restoreFolderID
@@ -225,7 +234,7 @@ func checkRestoredDriveItemPermissions(
 	}
 }
 
-func GetOneDriveChildFolder(
+func getOneDriveChildFolder(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	driveID, itemID, parentName string,
@@ -268,7 +277,7 @@ func GetOneDriveChildFolder(
 		}
 
 		folderPermission[fullName] = permissionIn(ctx, client, driveID, itemID)
-		GetOneDriveChildFolder(ctx, client, driveID, itemID, fullName, fileSizes, folderPermission, startTime)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, fullName, fileSizes, folderPermission, startTime)
 	}
 }
 
@@ -308,7 +317,7 @@ func getRestoredDrive(
 		}
 
 		restoreFolder[itemName] = permissionIn(ctx, client, driveID, itemID)
-		GetOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder, startTime)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder, startTime)
 	}
 }
 

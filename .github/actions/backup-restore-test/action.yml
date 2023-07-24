@@ -72,12 +72,42 @@ runs:
 
             cat /tmp/corsologs
 
-    - name: Check ${{ inputs.service }} ${{ inputs.kind }}
+    - name: Check restore ${{ inputs.service }} ${{ inputs.kind }}
       shell: bash
       working-directory: src
       env:
-        SANITY_RESTORE_FOLDER: ${{ steps.restore.outputs.result }}
-        SANITY_RESTORE_SERVICE: ${{ inputs.service }}
+        SANITY_TEST_KIND: restore
+        SANITY_TEST_FOLDER: ${{ steps.restore.outputs.result }}
+        SANITY_TEST_SERVICE: ${{ inputs.service }}
+        TEST_DATA: ${{ inputs.test-folder }}
+        BASE_BACKUP: ${{ inputs.base-backup }}
+      run: |
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        ./sanity-test
+
+    - name: Export ${{ inputs.service }} ${{ inputs.kind }}
+      id: export
+      shell: bash
+      working-directory: src
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso export '${{ inputs.service }}' \
+            --no-stats \
+            --hide-progress \
+            ${{ inputs.export-args }} \
+            --backup '${{ steps.backup.outputs.result }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+
+          cat /tmp/corsologs
+
+    - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      env:
+        SANITY_TEST_KIND: export
+        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+        SANITY_TEST_SERVICE: ${{ inputs.service }}
         TEST_DATA: ${{ inputs.test-folder }}
         BASE_BACKUP: ${{ inputs.base-backup }}
       run: |
