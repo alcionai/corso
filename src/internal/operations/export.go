@@ -299,7 +299,7 @@ func (op *ExportOperation) do(
 
 	observe.Message(ctx, "Exporting", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
 
-	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
+	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.ec, op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "formatting paths from details")
 	}

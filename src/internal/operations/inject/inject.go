@@ -72,6 +72,8 @@ type (
 		) ([]export.Collection, error)
 
 		Wait() *data.CollectionStats
+
+		CacheItemInfoer
 	}
 
 	RepoMaintenancer interface {
