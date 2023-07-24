@@ -894,10 +894,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			baseBackups: func(base ManifestEntry) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
-			// Pass in an extra empty collection to force a backup. Otherwise we'll
-			// skip actually trying to do anything because we'll see there's nothing
-			// that changed. The real goal is to get it to deal with the merged
-			// collections again though.
+			// Pass in empty collections to force a backup. Otherwise we'll skip
+			// actually trying to do anything because we'll see there's nothing that
+			// changed. The real goal is to get it to deal with the merged collections
+			// again though.
 			collections: emptyCollections,
 			// Should hit cached check prior to dir entry check so we see them as
 			// cached.
@@ -928,18 +928,18 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			baseBackups: func(base ManifestEntry) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base).ClearMockAssistBases()
 			},
-			// Pass in an extra empty collection to force a backup. Otherwise we'll
-			// skip actually trying to do anything because we'll see there's nothing
-			// that changed. The real goal is to get it to deal with the merged
-			// collections again though.
+			// Pass in empty collections to force a backup. Otherwise we'll skip
+			// actually trying to do anything because we'll see there's nothing that
+			// changed. The real goal is to get it to deal with the merged collections
+			// again though.
 			collections:           emptyCollections,
 			expectedUploadedFiles: 47,
 			expectedCachedFiles:   0,
 			expectMerge:           true,
 			// Not used since there's no details entries.
 			deetsUpdated: assert.False,
-			// Kopia still counts these bytes as "hashed" even though it won't read
-			// the file data since they already have dir entries it can reuse.
+			// Kopia still counts these bytes as "hashed" even though it shouldn't
+			// read the file data since they already have dir entries it can reuse.
 			hashedBytesCheck: assert.NotZero,
 			uploadedBytes:    []int64{4000, 6000},
 		},
