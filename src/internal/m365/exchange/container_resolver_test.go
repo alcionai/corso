@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -698,7 +699,7 @@ func (suite *ContainerResolverSuite) SetupSuite() {
 }
 
 func (suite *ContainerResolverSuite) TestPopulate() {
-	ac, err := api.NewClient(suite.credentials)
+	ac, err := api.NewClient(suite.credentials, control.Defaults())
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
