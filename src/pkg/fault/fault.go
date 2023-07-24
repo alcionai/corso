@@ -208,9 +208,9 @@ func (e *Bus) Errors() *Errors {
 	}
 }
 
-// ErrorEntries returns the items that failed along with other
+// ItemsAndRecovered returns the items that failed along with other
 // recoverable errors
-func (e *Bus) ErrorEntries() ([]Item, []error) {
+func (e *Bus) ItemsAndRecovered() ([]Item, []error) {
 	var (
 		is  = map[string]Item{}
 		non = []error{}

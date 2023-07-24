@@ -70,7 +70,7 @@ func items(ctx context.Context, ec exportCollection, ch chan<- export.Item) {
 		}
 	}
 
-	eitems, erecovereable := errs.ErrorEntries()
+	eitems, erecovereable := errs.ItemsAndRecovered()
 
 	// Return all the items that we failed to get from kopia at the end
 	for _, err := range eitems {
