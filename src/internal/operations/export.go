@@ -187,9 +187,9 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	// Persistence
 	// -----
 
-	err = op.persistResults(ctx, start, &opStats)
+	err = op.finalizeMetrics(ctx, start, &opStats)
 	if err != nil {
-		op.Errors.Fail(clues.Wrap(err, "persisting export results"))
+		op.Errors.Fail(clues.Wrap(err, "finalizing export metrics"))
 		return nil, op.Errors.Failure()
 	}
 
@@ -371,7 +371,7 @@ func (op *ExportOperation) do(
 }
 
 // persists details and statistics about the export operation.
-func (op *ExportOperation) persistResults(
+func (op *ExportOperation) finalizeMetrics(
 	ctx context.Context,
 	started time.Time,
 	opStats *exportStats,

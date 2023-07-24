@@ -109,7 +109,7 @@ func (suite *ExportOpSuite) TestExportOperation_PersistResults() {
 
 			op.Errors.Fail(test.fail)
 
-			err = op.persistResults(ctx, now, &test.stats)
+			err = op.finalizeMetrics(ctx, now, &test.stats)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
