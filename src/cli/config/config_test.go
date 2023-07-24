@@ -450,7 +450,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	cfg, err := getStorageAndAccountWithViper(vpr, false, false, overrides)
+	cfg, err := getStorageAndAccountWithViper(vpr, false, true, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.S3Config()

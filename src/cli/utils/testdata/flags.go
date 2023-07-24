@@ -48,6 +48,8 @@ var (
 	Destination        = "destination"
 	RestorePermissions = true
 
+	DeltaPageSize = "deltaPageSize"
+
 	AzureClientID     = "testAzureClientId"
 	AzureTenantID     = "testAzureTenantId"
 	AzureClientSecret = "testAzureClientSecret"

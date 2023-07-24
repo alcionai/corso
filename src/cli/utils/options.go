@@ -14,6 +14,12 @@ func Control() control.Options {
 		opt.FailureHandling = control.FailFast
 	}
 
+	dps := int32(flags.DeltaPageSizeFV)
+	if dps > 500 || dps < 1 {
+		dps = 500
+	}
+
+	opt.DeltaPageSize = dps
 	opt.DisableMetrics = flags.NoStatsFV
 	opt.RestorePermissions = flags.RestorePermissionsFV
 	opt.SkipReduce = flags.SkipReduceFV

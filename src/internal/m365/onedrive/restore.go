@@ -15,6 +15,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -37,9 +38,17 @@ const (
 	maxUploadRetries = 3
 )
 
+type driveInfo struct {
+	id           string
+	name         string
+	rootFolderID string
+}
+
 type restoreCaches struct {
+	BackupDriveIDName     idname.Cacher
 	collisionKeyToItemID  map[string]api.DriveItemIDType
-	DriveIDToRootFolderID map[string]string
+	DriveIDToDriveInfo    map[string]driveInfo
+	DriveNameToDriveInfo  map[string]driveInfo
 	Folders               *folderCache
 	OldLinkShareIDToNewID map[string]string
 	OldPermIDToNewID      map[string]string
@@ -48,10 +57,74 @@ type restoreCaches struct {
 	pool sync.Pool
 }
 
-func NewRestoreCaches() *restoreCaches {
+func (rc *restoreCaches) AddDrive(
+	ctx context.Context,
+	md models.Driveable,
+	grf GetRootFolderer,
+) error {
+	di := driveInfo{
+		id:   ptr.Val(md.GetId()),
+		name: ptr.Val(md.GetName()),
+	}
+
+	ctx = clues.Add(ctx, "drive_info", di)
+
+	root, err := grf.GetRootFolder(ctx, di.id)
+	if err != nil {
+		return clues.Wrap(err, "getting drive root id")
+	}
+
+	di.rootFolderID = ptr.Val(root.GetId())
+
+	rc.DriveIDToDriveInfo[di.id] = di
+	rc.DriveNameToDriveInfo[di.name] = di
+
+	return nil
+}
+
+// Populate looks up drive items available to the protectedResource
+// and adds their info to the caches.
+func (rc *restoreCaches) Populate(
+	ctx context.Context,
+	gdparf GetDrivePagerAndRootFolderer,
+	protectedResourceID string,
+) error {
+	drives, err := api.GetAllDrives(
+		ctx,
+		gdparf.NewDrivePager(protectedResourceID, nil),
+		true,
+		maxDrivesRetries)
+	if err != nil {
+		return clues.Wrap(err, "getting drives")
+	}
+
+	for _, md := range drives {
+		if err := rc.AddDrive(ctx, md, gdparf); err != nil {
+			return clues.Wrap(err, "caching drive")
+		}
+	}
+
+	return nil
+}
+
+type GetDrivePagerAndRootFolderer interface {
+	GetRootFolderer
+	NewDrivePagerer
+}
+
+func NewRestoreCaches(
+	backupDriveIDNames idname.Cacher,
+) *restoreCaches {
+	// avoid nil panics
+	if backupDriveIDNames == nil {
+		backupDriveIDNames = idname.NewCache(nil)
+	}
+
 	return &restoreCaches{
+		BackupDriveIDName:     backupDriveIDNames,
 		collisionKeyToItemID:  map[string]api.DriveItemIDType{},
-		DriveIDToRootFolderID: map[string]string{},
+		DriveIDToDriveInfo:    map[string]driveInfo{},
+		DriveNameToDriveInfo:  map[string]driveInfo{},
 		Folders:               NewFolderCache(),
 		OldLinkShareIDToNewID: map[string]string{},
 		OldPermIDToNewID:      map[string]string{},
@@ -73,18 +146,26 @@ func ConsumeRestoreCollections(
 	backupVersion int,
 	restoreCfg control.RestoreConfig,
 	opts control.Options,
+	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		restoreMetrics support.CollectionMetrics
-		caches         = NewRestoreCaches()
-		el             = errs.Local()
+		restoreMetrics      support.CollectionMetrics
+		el                  = errs.Local()
+		caches              = NewRestoreCaches(backupDriveIDNames)
+		protectedResourceID = dcs[0].FullPath().ResourceOwner()
+		fallbackDriveName   = restoreCfg.Location
 	)
 
 	ctx = clues.Add(ctx, "backup_version", backupVersion)
+
+	err := caches.Populate(ctx, rh, protectedResourceID)
+	if err != nil {
+		return nil, clues.Wrap(err, "initializing restore caches")
+	}
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
@@ -102,7 +183,7 @@ func ConsumeRestoreCollections(
 			ictx    = clues.Add(
 				ctx,
 				"category", dc.FullPath().Category(),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"resource_owner", clues.Hide(protectedResourceID),
 				"full_path", dc.FullPath())
 		)
 
@@ -115,6 +196,7 @@ func ConsumeRestoreCollections(
 			caches,
 			deets,
 			opts.RestorePermissions,
+			fallbackDriveName,
 			errs,
 			ctr.Local())
 		if err != nil {
@@ -152,18 +234,20 @@ func RestoreCollection(
 	caches *restoreCaches,
 	deets *details.Builder,
 	restorePerms bool, // TODD: move into restoreConfig
+	fallbackDriveName string,
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
-		metrics        = support.CollectionMetrics{}
-		directory      = dc.FullPath()
-		el             = errs.Local()
-		metricsObjects int64
-		metricsBytes   int64
-		metricsSuccess int64
-		wg             sync.WaitGroup
-		complete       bool
+		metrics             = support.CollectionMetrics{}
+		directory           = dc.FullPath()
+		protectedResourceID = directory.ResourceOwner()
+		el                  = errs.Local()
+		metricsObjects      int64
+		metricsBytes        int64
+		metricsSuccess      int64
+		wg                  sync.WaitGroup
+		complete            bool
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -174,14 +258,22 @@ func RestoreCollection(
 		return metrics, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
-	if _, ok := caches.DriveIDToRootFolderID[drivePath.DriveID]; !ok {
-		root, err := rh.GetRootFolder(ctx, drivePath.DriveID)
-		if err != nil {
-			return metrics, clues.Wrap(err, "getting drive root id")
-		}
-
-		caches.DriveIDToRootFolderID[drivePath.DriveID] = ptr.Val(root.GetId())
+	di, err := ensureDriveExists(
+		ctx,
+		rh,
+		caches,
+		drivePath,
+		protectedResourceID,
+		fallbackDriveName)
+	if err != nil {
+		return metrics, clues.Wrap(err, "ensuring drive exists")
 	}
+
+	// clobber the drivePath details with the details retrieved
+	// in the ensure func, as they might have changed to reflect
+	// a different drive as a restore location.
+	drivePath.DriveID = di.id
+	drivePath.Root = di.rootFolderID
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
 	// from the backup under this the restore folder instead of root)
@@ -704,7 +796,7 @@ func createRestoreFolders(
 		driveID        = drivePath.DriveID
 		folders        = restoreDir.Elements()
 		location       = path.Builder{}.Append(driveID)
-		parentFolderID = caches.DriveIDToRootFolderID[drivePath.DriveID]
+		parentFolderID = caches.DriveIDToDriveInfo[drivePath.DriveID].rootFolderID
 	)
 
 	ctx = clues.Add(
@@ -1112,4 +1204,80 @@ func AugmentRestorePaths(
 	})
 
 	return paths, nil
+}
+
+type PostDriveAndGetRootFolderer interface {
+	PostDriver
+	GetRootFolderer
+}
+
+// ensureDriveExists looks up the drive by its id.  If no drive is found with
+// that ID, a new drive is generated with the same name.  If the name collides
+// with an existing drive, a number is appended to the drive name.  Eg: foo ->
+// foo 1.  This will repeat as many times as is needed.
+// Returns the root folder of the drive
+func ensureDriveExists(
+	ctx context.Context,
+	pdagrf PostDriveAndGetRootFolderer,
+	caches *restoreCaches,
+	drivePath *path.DrivePath,
+	protectedResourceID, fallbackDriveName string,
+) (driveInfo, error) {
+	driveID := drivePath.DriveID
+
+	// the drive might already be cached by ID.  it's okay
+	// if the name has changed.  the ID is a better reference
+	// anyway.
+	if di, ok := caches.DriveIDToDriveInfo[driveID]; ok {
+		return di, nil
+	}
+
+	var (
+		newDriveName = fallbackDriveName
+		newDrive     models.Driveable
+		err          error
+	)
+
+	// if the drive wasn't found by ID, maybe we can find a
+	// drive with the same name but different ID.
+	// start by looking up the old drive's name
+	oldName, ok := caches.BackupDriveIDName.NameOf(driveID)
+	if ok {
+		// check for drives that currently have the same name
+		if di, ok := caches.DriveNameToDriveInfo[oldName]; ok {
+			return di, nil
+		}
+
+		// if no current drives have the same name, we'll make
+		// a new drive with that name.
+		newDriveName = oldName
+	}
+
+	nextDriveName := newDriveName
+
+	// For sharepoint, document libraries can collide by name with
+	// item types beyond just drive.  Lists, for example, cannot share
+	// names with document libraries (they're the same type, actually).
+	// In those cases we need to rename the drive until we can create
+	// one without a collision.
+	for i := 1; ; i++ {
+		ictx := clues.Add(ctx, "new_drive_name", clues.Hide(nextDriveName))
+
+		newDrive, err = pdagrf.PostDrive(ictx, protectedResourceID, nextDriveName)
+		if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+			return driveInfo{}, clues.Wrap(err, "creating new drive")
+		}
+
+		if err == nil {
+			break
+		}
+
+		nextDriveName = fmt.Sprintf("%s %d", newDriveName, i)
+	}
+
+	if err := caches.AddDrive(ctx, newDrive, pdagrf); err != nil {
+		return driveInfo{}, clues.Wrap(err, "adding drive to cache").OrNil()
+	}
+
+	return caches.DriveIDToDriveInfo[ptr.Val(newDrive.GetId())], nil
 }

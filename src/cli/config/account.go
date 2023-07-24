@@ -50,16 +50,16 @@ func configureAccount(
 		if err != nil {
 			return acct, clues.Wrap(err, "reading m365 configs from corso config file")
 		}
-	}
 
-	if matchFromConfig {
-		providerType := vpr.GetString(AccountProviderTypeKey)
-		if providerType != account.ProviderM365.String() {
-			return acct, clues.New("unsupported account provider: " + providerType)
-		}
+		if matchFromConfig {
+			providerType := vpr.GetString(AccountProviderTypeKey)
+			if providerType != account.ProviderM365.String() {
+				return acct, clues.New("unsupported account provider: " + providerType)
+			}
 
-		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
-			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
+			if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
+				return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
+			}
 		}
 	}
 

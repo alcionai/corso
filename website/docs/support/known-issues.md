@@ -16,8 +16,6 @@ Below is a list of known Corso issues and limitations:
   from M365 while a backup creation is running.
   The next backup creation will correct any missing data.
 
-* SharePoint document library data can't be restored after the library has been deleted.
-
 * Sharing information of items in OneDrive/SharePoint using sharing links aren't backed up and restored.
 
 * Permissions/Access given to a site group can't be restored.
