@@ -83,10 +83,11 @@ func NewController(
 		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
 
-		credentials: creds,
-		ownerLookup: rCli,
-		tenant:      acct.ID(),
-		wg:          &sync.WaitGroup{},
+		credentials:        creds,
+		ownerLookup:        rCli,
+		tenant:             acct.ID(),
+		wg:                 &sync.WaitGroup{},
+		backupDriveIDNames: idname.NewCache(nil),
 	}
 
 	return &ctrl, nil
@@ -149,10 +150,6 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 }
 
 func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
-	if ctrl.backupDriveIDNames == nil {
-		ctrl.backupDriveIDNames = idname.NewCache(map[string]string{})
-	}
-
 	if dii.SharePoint != nil {
 		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
 	}
