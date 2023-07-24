@@ -33,10 +33,10 @@ runs:
     - name: compose links
       shell: bash
       run: |
-        echo JOB=${{ github.job && ' -:- ${{ github.job }}' || ''}} >> $GITHUB_ENV
-        echo LOGS=${{ github.run_id && format('<${0}/${1}/actions/runs/${2}|[Logs]>', github.server_url, github.repository, github.run_id) || ''}} >> $GITHUB_ENV
-        echo COMMIT=${{ github.sha && format('<${0}/${1}/commit/${2}|[Commit]>', github.server_url, github.repository, github.sha) || ''}} >> $GITHUB_ENV
-        echo REF=${{ env.trimmed_ref && format('<${0}/${1}/${2}|[Ref]>', github.server_url, github.repository, env.trimmed_ref) || ''}} >> $GITHUB_ENV
+        echo "JOB=${{ github.job && ' -:- ${{ github.job }}' || ''}}" >> $GITHUB_ENV
+        echo "LOGS=${{ github.run_id && format('<${0}/${1}/actions/runs/${2}|[Logs]>', github.server_url, github.repository, github.run_id) || '-'}}" >> $GITHUB_ENV
+        echo "COMMIT=${{ github.sha && format('<${0}/${1}/commit/${2}|[Commit]>', github.server_url, github.repository, github.sha) || '-'}}" >> $GITHUB_ENV
+        echo "REF=${{ env.trimmed_ref && format('<${0}/${1}/${2}|[Ref]>', github.server_url, github.repository, env.trimmed_ref) || '-'}}" >> $GITHUB_ENV
 
     - shell: bash
       run: |
