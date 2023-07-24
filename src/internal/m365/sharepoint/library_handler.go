@@ -157,11 +157,25 @@ func (h libraryBackupHandler) IncludesDir(dir string) bool {
 var _ onedrive.RestoreHandler = &libraryRestoreHandler{}
 
 type libraryRestoreHandler struct {
-	ac api.Drives
+	ac api.Client
+}
+
+func (h libraryRestoreHandler) PostDrive(
+	ctx context.Context,
+	siteID, driveName string,
+) (models.Driveable, error) {
+	return h.ac.Lists().PostDrive(ctx, siteID, driveName)
 }
 
 func NewRestoreHandler(ac api.Client) *libraryRestoreHandler {
-	return &libraryRestoreHandler{ac.Drives()}
+	return &libraryRestoreHandler{ac}
+}
+
+func (h libraryRestoreHandler) NewDrivePager(
+	resourceOwner string,
+	fields []string,
+) api.DrivePager {
+	return h.ac.Drives().NewSiteDrivePager(resourceOwner, fields)
 }
 
 func (h libraryRestoreHandler) AugmentItemInfo(
@@ -177,21 +191,21 @@ func (h libraryRestoreHandler) DeleteItem(
 	ctx context.Context,
 	driveID, itemID string,
 ) error {
-	return h.ac.DeleteItem(ctx, driveID, itemID)
+	return h.ac.Drives().DeleteItem(ctx, driveID, itemID)
 }
 
 func (h libraryRestoreHandler) DeleteItemPermission(
 	ctx context.Context,
 	driveID, itemID, permissionID string,
 ) error {
-	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
+	return h.ac.Drives().DeleteItemPermission(ctx, driveID, itemID, permissionID)
 }
 
 func (h libraryRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	driveID, containerID string,
 ) (map[string]api.DriveItemIDType, error) {
-	m, err := h.ac.GetItemsInContainerByCollisionKey(ctx, driveID, containerID)
+	m, err := h.ac.Drives().GetItemsInContainerByCollisionKey(ctx, driveID, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +217,7 @@ func (h libraryRestoreHandler) NewItemContentUpload(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.UploadSessionable, error) {
-	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
+	return h.ac.Drives().NewItemContentUpload(ctx, driveID, itemID)
 }
 
 func (h libraryRestoreHandler) PostItemPermissionUpdate(
@@ -211,7 +225,7 @@ func (h libraryRestoreHandler) PostItemPermissionUpdate(
 	driveID, itemID string,
 	body *drives.ItemItemsItemInvitePostRequestBody,
 ) (drives.ItemItemsItemInviteResponseable, error) {
-	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
+	return h.ac.Drives().PostItemPermissionUpdate(ctx, driveID, itemID, body)
 }
 
 func (h libraryRestoreHandler) PostItemLinkShareUpdate(
@@ -219,7 +233,7 @@ func (h libraryRestoreHandler) PostItemLinkShareUpdate(
 	driveID, itemID string,
 	body *drives.ItemItemsItemCreateLinkPostRequestBody,
 ) (models.Permissionable, error) {
-	return h.ac.PostItemLinkShareUpdate(ctx, driveID, itemID, body)
+	return h.ac.Drives().PostItemLinkShareUpdate(ctx, driveID, itemID, body)
 }
 
 func (h libraryRestoreHandler) PostItemInContainer(
@@ -228,21 +242,21 @@ func (h libraryRestoreHandler) PostItemInContainer(
 	newItem models.DriveItemable,
 	onCollision control.CollisionPolicy,
 ) (models.DriveItemable, error) {
-	return h.ac.PostItemInContainer(ctx, driveID, parentFolderID, newItem, onCollision)
+	return h.ac.Drives().PostItemInContainer(ctx, driveID, parentFolderID, newItem, onCollision)
 }
 
 func (h libraryRestoreHandler) GetFolderByName(
 	ctx context.Context,
 	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
-	return h.ac.GetFolderByName(ctx, driveID, parentFolderID, folderName)
+	return h.ac.Drives().GetFolderByName(ctx, driveID, parentFolderID, folderName)
 }
 
 func (h libraryRestoreHandler) GetRootFolder(
 	ctx context.Context,
 	driveID string,
 ) (models.DriveItemable, error) {
-	return h.ac.GetRootFolder(ctx, driveID)
+	return h.ac.Drives().GetRootFolder(ctx, driveID)
 }
 
 // ---------------------------------------------------------------------------
