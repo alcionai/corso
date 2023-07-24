@@ -23,12 +23,41 @@ runs:
       shell: bash
       run: |
         echo "github_reference=${{ github.ref }}" >> $GITHUB_ENV
+
+    - name: trim ref
+      shell: bash
+      run: |
         echo "proof ${{ github.ref }}"
         echo "test 1 ${{env.github_reference}}"
         echo "test 2 ${github_reference}"
         echo "test 3 ${github_reference#refs} ${github_reference#refs }"
         echo "test 4 $github_reference"
-        echo "trimmed_ref=${IN_REF#refs/}" >> $GITHUB_ENV
+
+    - name: Get and set environment variables
+      shell: bash
+      run: |
+        gr="${{ env.github_reference }}"
+        gr="${gr#refs/}"
+        echo "REF=$gr" >> $GITHUB_ENV
+        echo "will it? $REF"
+  
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'  # Replace with the desired Python version
+
+    - name: trim ref
+      shell: python
+      run: |
+        import os
+        gr = os.environ.get("github_reference")
+        gr = gr.lstrip("refs/")
+        os.environ["PREF"] = gr
+
+    - name: trim ref
+      shell: bash
+      run: |
+        echo "python? $PREF"
 
     - name: compose links
       shell: bash
