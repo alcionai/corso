@@ -30,5 +30,5 @@ func AddRestoreConfigFlags(cmd *cobra.Command) {
 		"Overrides the folder where items get restored; '/' places items into their original location")
 	fs.StringVar(
 		&ToResourceFV, ToResourceFN, "",
-		"Overrides the protected resource (mailbox, site, etc) where data gets restored")
+		"Overrides the protected resource (mailbox, site, user, etc) where data gets restored")
 }
