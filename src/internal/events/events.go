@@ -82,8 +82,8 @@ var (
 	RudderStackDataPlaneURL string
 )
 
-func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.Options) (Bus, error) {
-	if opts.DisableMetrics {
+func NewBus(ctx context.Context, s storage.Storage, tenID string, co control.Options) (Bus, error) {
+	if co.DisableMetrics {
 		return Bus{}, nil
 	}
 

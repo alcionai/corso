@@ -23,7 +23,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
 	rp inject.RestoreProducer,
-	reasons, fallbackReasons []kopia.Reason,
+	reasons, fallbackReasons []kopia.Reasoner,
 	tenantID string,
 	getMetadata bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
@@ -47,8 +47,8 @@ func produceManifestsAndMetadata(
 	bb = bb.MergeBackupBases(
 		ctx,
 		fbb,
-		func(r kopia.Reason) string {
-			return r.Service.String() + r.Category.String()
+		func(r kopia.Reasoner) string {
+			return r.Service().String() + r.Category().String()
 		})
 
 	if !getMetadata {
@@ -115,9 +115,9 @@ func collectMetadata(
 				Append(fn).
 				ToServiceCategoryMetadataPath(
 					tenantID,
-					reason.ResourceOwner,
-					reason.Service,
-					reason.Category,
+					reason.ProtectedResource(),
+					reason.Service(),
+					reason.Category(),
 					true)
 			if err != nil {
 				return nil, clues.

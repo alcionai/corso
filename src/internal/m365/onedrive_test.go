@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -516,6 +517,9 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				collectionsLatest:   expected,
 			}
 
+			rc := testdata.DefaultRestoreConfig("od_restore_and_backup_multi")
+			rc.OnCollision = control.Replace
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
@@ -524,7 +528,8 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				})
+				},
+				rc)
 		})
 	}
 }
@@ -763,6 +768,9 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				collectionsLatest:   expected,
 			}
 
+			rc := testdata.DefaultRestoreConfig("perms_restore_and_backup")
+			rc.OnCollision = control.Replace
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
@@ -771,7 +779,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				})
+				},
+				rc)
 		})
 	}
 }
@@ -851,6 +860,9 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				collectionsLatest:   expected,
 			}
 
+			rc := testdata.DefaultRestoreConfig("perms_backup_no_restore")
+			rc.OnCollision = control.Replace
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
@@ -859,7 +871,8 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				control.Options{
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{},
-				})
+				},
+				rc)
 		})
 	}
 }
@@ -1054,6 +1067,9 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				collectionsLatest:   expected,
 			}
 
+			rc := testdata.DefaultRestoreConfig("perms_inherit_restore_and_backup")
+			rc.OnCollision = control.Replace
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
@@ -1062,7 +1078,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				})
+				},
+				rc)
 		})
 	}
 }
@@ -1247,6 +1264,9 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				collectionsLatest:   expected,
 			}
 
+			rc := testdata.DefaultRestoreConfig("linkshares_inherit_restore_and_backup")
+			rc.OnCollision = control.Replace
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
@@ -1255,7 +1275,8 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{},
-				})
+				},
+				rc)
 		})
 	}
 }

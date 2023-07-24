@@ -310,7 +310,7 @@ func (c Mail) NewMailDeltaIDsPager(
 			Select: idAnd("isRead"),
 			// do NOT set Top.  It limits the total items received.
 		},
-		Headers: newPreferHeaders(preferPageSize(maxDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
