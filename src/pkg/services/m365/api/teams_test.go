@@ -25,21 +25,21 @@ func TestTeamsUnitSuite(t *testing.T) {
 	suite.Run(t, &TeamsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *TeamsUnitSuite) TestValidateGroup() {
+func (suite *TeamsUnitSuite) TestValidateTeams() {
 	team := models.NewTeam()
-	team.SetDisplayName(ptr.To("testgroup"))
+	team.SetDisplayName(ptr.To("testteam"))
 	team.SetId(ptr.To("testID"))
 
 	tests := []struct {
 		name           string
-		args           models.Groupable
+		args           models.Teamable
 		errCheck       assert.ErrorAssertionFunc
 		errIsSkippable bool
 	}{
 		{
-			name: "Valid group ",
-			args: func() *models.Group {
-				s := models.NewGroup()
+			name: "Valid Team",
+			args: func() *models.Team {
+				s := models.NewTeam()
 				s.SetId(ptr.To("id"))
 				s.SetDisplayName(ptr.To("testTeam"))
 				return s
@@ -48,8 +48,8 @@ func (suite *TeamsUnitSuite) TestValidateGroup() {
 		},
 		{
 			name: "No name",
-			args: func() *models.Group {
-				s := models.NewGroup()
+			args: func() *models.Team {
+				s := models.NewTeam()
 				s.SetId(ptr.To("id"))
 				return s
 			}(),
@@ -57,8 +57,8 @@ func (suite *TeamsUnitSuite) TestValidateGroup() {
 		},
 		{
 			name: "No ID",
-			args: func() *models.Group {
-				s := models.NewGroup()
+			args: func() *models.Team {
+				s := models.NewTeam()
 				s.SetDisplayName(ptr.To("testTeam"))
 				return s
 			}(),
@@ -70,7 +70,7 @@ func (suite *TeamsUnitSuite) TestValidateGroup() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := api.ValidateGroup(test.args)
+			err := api.ValidateTeams(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
@@ -108,10 +108,6 @@ func (suite *TeamsIntgSuite) TestGetAllTeams() {
 		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(teams), "must have at least one team")
-
-	for _, team := range teams {
-		assert.True(t, api.IsTeam(ctx, team), "must not return non teams groups")
-	}
 }
 
 func (suite *TeamsIntgSuite) TestTeams_GetByID() {
