@@ -12,11 +12,11 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // ConsumeRestoreCollections restores data from the specified collections
@@ -24,10 +24,7 @@ import (
 // SideEffect: status is updated at the completion of operation
 func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx context.Context,
-	backupVersion int,
-	sels selectors.Selector,
-	restoreCfg control.RestoreConfig,
-	opts control.Options,
+	rcc inject.RestoreConsumerConfig,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
@@ -35,48 +32,52 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx, end := diagnostics.Span(ctx, "m365:restore")
 	defer end()
 
-	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
-	ctx = clues.Add(ctx, "restore_config", restoreCfg) // TODO(rkeepers): needs PII control
+	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: rcc.Selector.PathService()})
+	ctx = clues.Add(ctx, "restore_config", rcc.RestoreConfig) // TODO(rkeepers): needs PII control
 
 	if len(dcs) == 0 {
 		return nil, clues.New("no data collections to restore")
 	}
 
 	var (
-		status *support.ControllerOperationStatus
-		deets  = &details.Builder{}
-		err    error
+		service = rcc.Selector.PathService()
+		status  *support.ControllerOperationStatus
+		deets   = &details.Builder{}
+		err     error
 	)
 
-	switch sels.Service {
-	case selectors.ServiceExchange:
-		status, err = exchange.ConsumeRestoreCollections(ctx, ctrl.AC, restoreCfg, dcs, deets, errs, ctr)
-	case selectors.ServiceOneDrive:
+	switch service {
+	case path.ExchangeService:
+		status, err = exchange.ConsumeRestoreCollections(
+			ctx,
+			ctrl.AC,
+			rcc,
+			dcs,
+			deets,
+			errs,
+			ctr)
+	case path.OneDriveService:
 		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
 			onedrive.NewRestoreHandler(ctrl.AC),
-			backupVersion,
-			restoreCfg,
-			opts,
+			rcc,
 			ctrl.backupDriveIDNames,
 			dcs,
 			deets,
 			errs,
 			ctr)
-	case selectors.ServiceSharePoint:
+	case path.SharePointService:
 		status, err = sharepoint.ConsumeRestoreCollections(
 			ctx,
-			backupVersion,
+			rcc,
 			ctrl.AC,
-			restoreCfg,
-			opts,
 			ctrl.backupDriveIDNames,
 			dcs,
 			deets,
 			errs,
 			ctr)
 	default:
-		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
+		err = clues.Wrap(clues.New(service.String()), "service not supported")
 	}
 
 	ctrl.incrementAwaitingMessages()

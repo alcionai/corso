@@ -218,7 +218,7 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	restoreProtectedResource, err := chooseRestoreResource(ctx, op.rc, op.RestoreCfg, bup.Selector)
+	restoreToProtectedResource, err := chooseRestoreResource(ctx, op.rc, op.RestoreCfg, bup.Selector)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting destination protected resource")
 	}
@@ -227,10 +227,10 @@ func (op *RestoreOperation) do(
 		ctx,
 		"backup_protected_resource_id", bup.Selector.ID(),
 		"backup_protected_resource_name", clues.Hide(bup.Selector.Name()),
-		"restore_protected_resource_id", restoreProtectedResource.ID(),
-		"restore_protected_resource_name", clues.Hide(restoreProtectedResource.Name()))
+		"restore_protected_resource_id", restoreToProtectedResource.ID(),
+		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
-	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreProtectedResource.Name()))
+	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))
 
 	paths, err := formatDetailsForRestoration(
 		ctx,
@@ -265,7 +265,12 @@ func (op *RestoreOperation) do(
 	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer close(kopiaComplete)
 
-	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
+	dcs, err := op.kopia.ProduceRestoreCollections(
+		ctx,
+		bup.SnapshotID,
+		paths,
+		opStats.bytesRead,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing collections to restore")
 	}
@@ -282,6 +287,7 @@ func (op *RestoreOperation) do(
 		ctx,
 		op.rc,
 		bup.Version,
+		restoreToProtectedResource,
 		op.Selectors,
 		op.RestoreCfg,
 		op.Options,
@@ -358,6 +364,7 @@ func consumeRestoreCollections(
 	ctx context.Context,
 	rc inject.RestoreConsumer,
 	backupVersion int,
+	toProtectedResource idname.Provider,
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 	opts control.Options,
@@ -371,15 +378,15 @@ func consumeRestoreCollections(
 		close(complete)
 	}()
 
-	deets, err := rc.ConsumeRestoreCollections(
-		ctx,
-		backupVersion,
-		sel,
-		restoreCfg,
-		opts,
-		dcs,
-		errs,
-		ctr)
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           opts,
+		ProtectedResource: toProtectedResource,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
+	deets, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}

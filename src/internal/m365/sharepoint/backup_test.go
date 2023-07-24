@@ -107,7 +107,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				tenantID,
 				site,
 				nil,
-				control.Defaults())
+				control.DefaultOptions())
 
 			c.CollectionMap = collMap
 
@@ -210,7 +210,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ac,
 		mock.NewProvider(siteID, siteID),
 		&MockGraphService{},
-		control.Defaults(),
+		control.DefaultOptions(),
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, col)

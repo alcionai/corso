@@ -109,7 +109,7 @@ func (suite *RestoreOpUnitSuite) TestRestoreOperation_PersistResults() {
 
 			op, err := NewRestoreOperation(
 				ctx,
-				control.Defaults(),
+				control.DefaultOptions(),
 				kw,
 				sw,
 				ctrl,
@@ -287,7 +287,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		sw         = &store.Wrapper{}
 		ctrl       = &mock.Controller{}
 		restoreCfg = testdata.DefaultRestoreConfig("")
-		opts       = control.Defaults()
+		opts       = control.DefaultOptions()
 	)
 
 	table := []struct {
@@ -346,12 +346,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		suite.acct,
 		resource.Users,
 		rsel.PathService(),
-		control.Defaults())
+		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(
 		ctx,
-		control.Defaults(),
+		control.DefaultOptions(),
 		suite.kw,
 		suite.sw,
 		ctrl,

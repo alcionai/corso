@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -406,6 +407,7 @@ func generateContainerOfItems(
 
 	restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 	restoreCfg.Location = destFldr
+	restoreCfg.IncludePermissions = true
 
 	dataColls := buildCollections(
 		t,
@@ -414,15 +416,19 @@ func generateContainerOfItems(
 		restoreCfg,
 		collections)
 
-	opts := control.Defaults()
-	opts.RestorePermissions = true
+	opts := control.DefaultOptions()
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           opts,
+		ProtectedResource: sel,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
 
 	deets, err := ctrl.ConsumeRestoreCollections(
 		ctx,
-		backupVersion,
-		sel,
-		restoreCfg,
-		opts,
+		rcc,
 		dataColls,
 		fault.New(true),
 		count.New())
@@ -541,7 +547,7 @@ func ControllerWithSelector(
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
+	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)

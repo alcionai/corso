@@ -63,10 +63,7 @@ func (ctrl Controller) Wait() *data.CollectionStats {
 
 func (ctrl Controller) ConsumeRestoreCollections(
 	_ context.Context,
-	_ int,
-	_ selectors.Selector,
-	_ control.RestoreConfig,
-	_ control.Options,
+	_ inject.RestoreConsumerConfig,
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
 	_ *count.Bus,

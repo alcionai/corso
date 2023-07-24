@@ -8,14 +8,13 @@ import (
 
 // Control produces the control options based on the user's flags.
 func Control() control.Options {
-	opt := control.Defaults()
+	opt := control.DefaultOptions()
 
 	if flags.FailFastFV {
 		opt.FailureHandling = control.FailFast
 	}
 
 	opt.DisableMetrics = flags.NoStatsFV
-	opt.RestorePermissions = flags.RestorePermissionsFV
 	opt.SkipReduce = flags.SkipReduceFV
 	opt.ToggleFeatures.DisableIncrementals = flags.DisableIncrementalsFV
 	opt.ToggleFeatures.DisableDelta = flags.DisableDeltaFV

@@ -9,7 +9,6 @@ import (
 type Options struct {
 	DisableMetrics       bool                               `json:"disableMetrics"`
 	FailureHandling      FailurePolicy                      `json:"failureHandling"`
-	RestorePermissions   bool                               `json:"restorePermissions"`
 	SkipReduce           bool                               `json:"skipReduce"`
 	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
 	Parallelism          Parallelism                        `json:"parallelism"`
@@ -35,8 +34,8 @@ const (
 	BestEffort FailurePolicy = "best-effort"
 )
 
-// Defaults provides an Options with the default values set.
-func Defaults() Options {
+// DefaultOptions provides an Options with the default values set.
+func DefaultOptions() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
 		ToggleFeatures:  Toggles{},
