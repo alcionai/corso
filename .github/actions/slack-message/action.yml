@@ -19,7 +19,7 @@ runs:
   steps:
     - uses: actions/checkout@v3
 
-    - name: trim ref
+    - name: set trimmable ref
       shell: bash
       run: |
         echo "github_reference=${{ github.ref }}" >> $GITHUB_ENV
@@ -27,10 +27,15 @@ runs:
     - name: trim ref
       shell: bash
       run: |
+        echo "trimmed_ref=${github_reference#refs/}" >> $GITHUB_ENV
+
+    - name: trim ref
+      shell: bash
+      run: |
         echo "proof ${{ github.ref }}"
         echo "test 1 ${{env.github_reference}}"
         echo "test 2 ${github_reference}"
-        echo "test 3 ${github_reference#refs} ${github_reference#refs }"
+        echo "test 3 ${github_reference#refs/} ${github_reference#refs }"
         echo "test 4 $github_reference"
 
     - name: Get and set environment variables
@@ -57,7 +62,8 @@ runs:
     - name: trim ref
       shell: bash
       run: |
-        echo "python? $PREF"
+        echo "python? ${PREF}"
+        echo "trimmed? ${{ env.trimmed_ref }}"
 
     - name: compose links
       shell: bash
