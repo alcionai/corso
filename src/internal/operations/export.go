@@ -1,17 +1,15 @@
 package operations
 
 import (
-	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"path"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
+	"github.com/alcionai/corso/src/internal/archive"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
@@ -198,85 +196,6 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	return expCollections, nil
 }
 
-type zipExportCol struct {
-	reader io.ReadCloser
-}
-
-func (z zipExportCol) BasePath() string {
-	return ""
-}
-
-func (z zipExportCol) Items(ctx context.Context) <-chan export.Item {
-	rc := make(chan export.Item, 1)
-	defer close(rc)
-
-	rc <- export.Item{
-		Data: export.ItemData{
-			Name: "Corso_Export_" + dttm.FormatNow(dttm.HumanReadable) + ".zip",
-			Body: z.reader,
-		},
-	}
-
-	return rc
-}
-
-// zipExportCollection takes a list of export collections and zips
-// them into a single collection.
-func zipExportCollection(
-	ctx context.Context,
-	expCollections []export.Collection,
-) (export.Collection, error) {
-	if len(expCollections) == 0 {
-		return nil, clues.New("no export collections provided")
-	}
-
-	reader, writer := io.Pipe()
-	wr := zip.NewWriter(writer)
-
-	go func() {
-		defer writer.Close()
-		defer wr.Close()
-
-		buf := make([]byte, CopyBufferSize)
-
-		for _, ec := range expCollections {
-			folder := ec.BasePath()
-			items := ec.Items(ctx)
-
-			for item := range items {
-				err := item.Error
-				if err != nil {
-					writer.CloseWithError(clues.Wrap(err, "getting export item").With("id", item.ID))
-					return
-				}
-
-				name := item.Data.Name
-
-				// We assume folder and name to not contain any path separators.
-				// Also, this should always use `/` as this is
-				// created within a zip file and not written to disk.
-				// TODO(meain): Exchange paths might contain a path
-				// separator and will have to have special handling.
-
-				//nolint:forbidigo
-				f, err := wr.Create(path.Join(folder, name))
-				if err != nil {
-					writer.CloseWithError(clues.Wrap(err, "creating zip entry").With("name", name).With("id", item.ID))
-					return
-				}
-
-				_, err = io.CopyBuffer(f, item.Data.Body, buf)
-				if err != nil {
-					writer.CloseWithError(clues.Wrap(err, "writing zip entry").With("name", name).With("id", item.ID))
-					return
-				}
-			}
-		}
-	}()
-
-	return zipExportCol{reader}, nil
-}
-
 func (op *ExportOperation) do(
 	ctx context.Context,
 	opStats *exportStats,
@@ -359,7 +278,7 @@ func (op *ExportOperation) do(
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	if op.ExportCfg.Archive {
-		zc, err := zipExportCollection(ctx, expCollections)
+		zc, err := archive.ZipExportCollection(ctx, expCollections)
 		if err != nil {
 			return nil, clues.Wrap(err, "zipping export collections")
 		}
@@ -405,7 +324,7 @@ func (op *ExportOperation) finalizeMetrics(
 }
 
 // ---------------------------------------------------------------------------
-// Exportr funcs
+// Exporter funcs
 // ---------------------------------------------------------------------------
 
 func exportRestoreCollections(
