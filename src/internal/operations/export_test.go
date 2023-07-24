@@ -1,9 +1,11 @@
 package operations
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/archive"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -142,6 +145,24 @@ func (ec expCol) Items(ctx context.Context) <-chan export.Item {
 	return ch
 }
 
+// ReadSeekCloser implements io.ReadSeekCloser.
+type ReadSeekCloser struct {
+	*bytes.Reader
+}
+
+// NewReadSeekCloser creates a new ReadSeekCloser from a byte slice.
+func NewReadSeekCloser(byts []byte) *ReadSeekCloser {
+	return &ReadSeekCloser{
+		Reader: bytes.NewReader(byts),
+	}
+}
+
+// Close implements the io.Closer interface.
+func (r *ReadSeekCloser) Close() error {
+	// Nothing to close for a byte slice.
+	return nil
+}
+
 func (suite *ExportOpSuite) TestZipExports() {
 	table := []struct {
 		name       string
@@ -173,7 +194,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 							ID: "id1",
 							Data: export.ItemData{
 								Name: "test",
-								Body: io.NopCloser(bytes.NewBufferString("test")),
+								Body: NewReadSeekCloser([]byte("test")),
 							},
 						},
 					},
@@ -190,7 +211,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 							ID: "id1",
 							Data: export.ItemData{
 								Name: "test",
-								Body: io.NopCloser(bytes.NewBufferString("test")),
+								Body: NewReadSeekCloser([]byte("test")),
 							},
 						},
 					},
@@ -202,7 +223,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 							ID: "id2",
 							Data: export.ItemData{
 								Name: "test2",
-								Body: io.NopCloser(bytes.NewBufferString("test2")),
+								Body: NewReadSeekCloser([]byte("test2")),
 							},
 						},
 					},
@@ -233,7 +254,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			zc, err := zipExportCollection(ctx, test.collection)
+			zc, err := archive.ZipExportCollection(ctx, test.collection)
 
 			if test.shouldErr {
 				assert.Error(t, err, "error")
@@ -241,27 +262,60 @@ func (suite *ExportOpSuite) TestZipExports() {
 			}
 
 			require.NoError(t, err, "error")
-
 			assert.Empty(t, zc.BasePath(), "base path")
+
+			zippedItems := []export.ItemData{}
 
 			count := 0
 			for item := range zc.Items(ctx) {
-				assert.Equal(t, "export.zip", item.Data.Name, "name")
+				assert.True(t, strings.HasPrefix(item.Data.Name, "Corso_Export_"), "name prefix")
+				assert.True(t, strings.HasSuffix(item.Data.Name, ".zip"), "name suffix")
 
-				_, err := io.Copy(io.Discard, item.Data.Body)
+				data, err := io.ReadAll(item.Data.Body)
 				if test.readErr {
 					assert.Error(t, err, "read error")
 					return
 				}
 
-				require.NoError(t, err, "read item")
+				size := int64(len(data))
 
 				item.Data.Body.Close()
+
+				reader, err := zip.NewReader(bytes.NewReader(data), size)
+				require.NoError(t, err, "zip reader")
+
+				for _, f := range reader.File {
+					rc, err := f.Open()
+					assert.NoError(t, err, "open file in zip")
+
+					data, err := io.ReadAll(rc)
+					require.NoError(t, err, "read zip file content")
+
+					rc.Close()
+
+					zippedItems = append(zippedItems, export.ItemData{
+						Name: f.Name,
+						Body: NewReadSeekCloser([]byte(data)),
+					})
+				}
 
 				count++
 			}
 
 			assert.Equal(t, 1, count, "single item")
+
+			expectedZippedItems := []export.ItemData{}
+			for _, col := range test.collection {
+				for item := range col.Items(ctx) {
+					if col.BasePath() != "" {
+						item.Data.Name = strings.Join([]string{col.BasePath(), item.Data.Name}, "/")
+					}
+					_, err := item.Data.Body.(io.ReadSeeker).Seek(0, io.SeekStart)
+					require.NoError(t, err, "seek")
+					expectedZippedItems = append(expectedZippedItems, item.Data)
+				}
+			}
+			assert.Equal(t, expectedZippedItems, zippedItems, "items")
 		})
 	}
 }
