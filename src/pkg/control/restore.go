@@ -2,13 +2,17 @@ package control
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -39,24 +43,24 @@ const RootLocation = "/"
 type RestoreConfig struct {
 	// Defines the per-item collision handling policy.
 	// Defaults to Skip.
-	OnCollision CollisionPolicy
+	OnCollision CollisionPolicy `json:"onCollision"`
 
 	// ProtectedResource specifies which resource the data will be restored to.
 	// If empty, restores to the same resource that was backed up.
 	// Defaults to empty.
-	ProtectedResource string
+	ProtectedResource string `json:"protectedResource"`
 
 	// Location specifies the container into which the data will be restored.
 	// Only accepts container names, does not accept IDs.
 	// If empty or "/", data will get restored in place, beginning at the root.
 	// Defaults to "Corso_Restore_<current_dttm>"
-	Location string
+	Location string `json:"location"`
 
 	// Drive specifies the name of the drive into which the data will be
 	// restored. If empty, data is restored to the same drive that was backed
 	// up.
 	// Defaults to empty.
-	Drive string
+	Drive string `json:"drive"`
 }
 
 func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
@@ -89,4 +93,63 @@ func EnsureRestoreConfigDefaults(
 	rc.Location = strings.TrimPrefix(strings.TrimSpace(rc.Location), "/")
 
 	return rc
+}
+
+// ---------------------------------------------------------------------------
+// pii control
+// ---------------------------------------------------------------------------
+
+var (
+	// interface compliance required for handling PII
+	_ clues.Concealer = &RestoreConfig{}
+	_ fmt.Stringer    = &RestoreConfig{}
+
+	// interface compliance for the observe package to display
+	// values without concealing PII.
+	_ clues.PlainStringer = &RestoreConfig{}
+)
+
+func (rc RestoreConfig) marshal() string {
+	bs, err := json.Marshal(rc)
+	if err != nil {
+		return "err marshalling"
+	}
+
+	return string(bs)
+}
+
+func (rc RestoreConfig) concealed() RestoreConfig {
+	return RestoreConfig{
+		OnCollision:       rc.OnCollision,
+		ProtectedResource: clues.Hide(rc.ProtectedResource).Conceal(),
+		Location:          path.LoggableDir(rc.Location),
+		Drive:             clues.Hide(rc.Drive).Conceal(),
+	}
+}
+
+// Conceal produces a concealed representation of the config, suitable for
+// logging, storing in errors, and other output.
+func (rc RestoreConfig) Conceal() string {
+	return rc.concealed().marshal()
+}
+
+// Format produces a concealed representation of the config, even when
+// used within a PrintF, suitable for logging, storing in errors,
+// and other output.
+func (rc RestoreConfig) Format(fs fmt.State, _ rune) {
+	fmt.Fprint(fs, rc.concealed())
+}
+
+// String returns a string that contains all path config joined together.
+// Configs that need escaping are escaped.  The result is not concealed, and
+// is not suitable for logging or structured errors.
+func (rc RestoreConfig) String() string {
+	return rc.PlainString()
+}
+
+// PlainString returns an unescaped, unmodified string of the joined elements.
+// The result is not concealed, and is not suitable for logging or structured
+// errors.
+func (rc RestoreConfig) PlainString() string {
+	return rc.marshal()
 }
