@@ -22,7 +22,7 @@ runs:
     - name: trim ref
       shell: bash
       run: |
-        echo "github_reference=${{ github.ref }}"" >> $GITHUB_ENV
+        echo "github_reference=${{ github.ref }}" >> $GITHUB_ENV
         echo "proof ${{ github.ref }}"
         echo "test 1 ${{env.github_reference}}"
         echo "test 2 ${github_reference}"
