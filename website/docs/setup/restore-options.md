@@ -10,7 +10,7 @@ manner to a new folder. When you need more control over the results you can
 use the advanced configuration options to change where and how your data
 gets restored.
 
-## Restore folder target
+## Restore to target folder
 
 The `--destination` flag lets you select the top-level folder where Corso will
 write all of the restored data.
@@ -109,7 +109,7 @@ Collisions will entirely replace the current version of the item with the backup
 version. If multiple existing items collide with the backup item, only one of the
 existing items is replaced.
 
-## Restore resource target
+## Restore to target resource
 
 The `--to-resource` flag lets you select which resource will receive the restored data.
 A resource can be a mailbox, user, sharepoint site, or other owner of data.
