@@ -156,7 +156,7 @@ func ConsumeRestoreCollections(
 		el                  = errs.Local()
 		caches              = NewRestoreCaches(backupDriveIDNames)
 		protectedResourceID = dcs[0].FullPath().ResourceOwner()
-		fallbackDriveName   = restoreCfg.Location
+		fallbackDriveName   = rcc.RestoreConfig.Location
 	)
 
 	ctx = clues.Add(ctx, "backup_version", rcc.BackupVersion)
