@@ -21,6 +21,16 @@ You can run the linter manually or with the `Makefile` in the repository. Runnin
 the `Makefile` will also ensure you have the proper version of golangci-lint
 installed.
 
+### Running the actions linter
+
+Installation:
+
+```sh
+go install github.com/rhysd/actionlint/cmd/actionlint@latest
+```
+
+[Instructions for running locally.](https://github.com/rhysd/actionlint/blob/main/docs/usage.md)
+
 ### Running with the `Makefile`
 
 There’s a `Makefile` in the corso/src that will automatically check if the proper
