@@ -322,11 +322,7 @@ jobs:
         if: always()
         uses: ./.github/actions/slack-message
         with:
-          job: ${{ env.GITHUB_JOB }}
           msg: "[TESTING] Proof of functionality - tell keepers to remove it"
-          ref: ${{ env.GITHUB_REF }}
-          run_id: ${{ env.GITHUB_RUN_ID }}
-          sha: ${{ env.GITHUB_SHA }}
           slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   Test-Suite-Fork:

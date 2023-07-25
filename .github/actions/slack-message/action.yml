@@ -1,16 +1,8 @@
 name: Send a message to slack
 
 inputs:
-  job:
-    descrption: passthrough for env.GITHUB_JOB
   msg:
     description: The slack message text
-  ref:
-    description: passthrough for env.GITHUB_REF
-  run_id:
-    description: passthrough for env.GITHUB_RUN_ID
-  sha:
-    description: passthrough for env.GITHUB_SHA
   slack_url:
     description: passthrough for secrets.SLACK_WEBHOOK_URL
 
@@ -33,18 +25,9 @@ runs:
       shell: bash
       run: |
         echo "JOB=${{ github.job && format(' -:- ${0}', github.job) || ''}}" >> $GITHUB_ENV
-        echo "LOGS=${{ github.run_id && format('<${0}/${1}/actions/runs/${2}|[Logs]>', github.server_url, github.repository, github.run_id) || '-'}}" >> $GITHUB_ENV
-        echo "COMMIT=${{ github.sha && format('<${0}/${1}/commit/${2}|[Commit]>', github.server_url, github.repository, github.sha) || '-'}}" >> $GITHUB_ENV
-        echo "REF=${{ env.trimmed_ref && format('<${0}/${1}/${2}|[Ref]>', github.server_url, github.repository, env.trimmed_ref) || '-'}}" >> $GITHUB_ENV
-
-    - shell: bash
-      run: |
-        echo "-----"
-        echo "jj ${{env.GITHUB_JOB}}"
-        echo "rr ${{env.GITHUB_REF}}"
-        echo "ss ${{env.GITHUB_SHA}}"
-        echo "ii ${{env.GITHUB_RUN_ID}}"
-        echo "-----"
+        echo "LOGS=${{ github.run_id && format('<https://github.com/alcionai/corso/actions/runs/${0}|[Logs]>', github.run_id) || '-'}}" >> $GITHUB_ENV
+        echo "COMMIT=${{ github.sha && format('<https://github.com/alcionai/corso/commit/${0}|[Commit]>', github.sha) || '-'}}" >> $GITHUB_ENV
+        echo "REF=${{ env.trimmed_ref && format('<https://github.com/alcionai/corso/${0}|[Ref]>', env.trimmed_ref) || '-'}}" >> $GITHUB_ENV
 
     - id: slack-message
       uses: slackapi/slack-github-action@v1.24.0

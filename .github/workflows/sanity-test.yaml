@@ -337,9 +337,5 @@ jobs:
         if: failure()
         uses: ./.github/actions/slack-message
         with:
-          job: ${{ env.GITHUB_JOB }}
           msg: "[FAILED] Sanity Tests"
-          ref: ${{ env.GITHUB_REF }}
-          run_id: ${{ env.GITHUB_RUN_ID }}
-          sha: ${{ env.GITHUB_SHA }}
           slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
