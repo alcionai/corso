@@ -8,7 +8,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.0
 	github.com/alcionai/clues v0.0.0-20230630194723-e24d7940e07a
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.44.306
+	github.com/aws/aws-sdk-go v1.44.307
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/google/uuid v1.3.0
@@ -16,7 +16,7 @@ require (
 	github.com/kopia/kopia v0.12.2-0.20230327171220-747baeebdab1
 	github.com/microsoft/kiota-abstractions-go v1.1.0
 	github.com/microsoft/kiota-authentication-azure-go v1.0.0
-	github.com/microsoft/kiota-http-go v1.0.0
+	github.com/microsoft/kiota-http-go v1.0.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
 	github.com/microsoftgraph/msgraph-sdk-go v1.12.0
