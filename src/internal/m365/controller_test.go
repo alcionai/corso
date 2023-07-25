@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/stub"
@@ -403,8 +404,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 		[]data.RestoreCollection{&dataMock.Collection{}},
 		fault.New(true),
 		count.New())
-	assert.Error(t, err, clues.ToCore(err))
-	assert.NotNil(t, deets)
+	assert.Error(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
+	assert.Nil(t, deets)
 
 	status := suite.ctrl.Wait()
 	assert.Equal(t, 0, status.Objects)
