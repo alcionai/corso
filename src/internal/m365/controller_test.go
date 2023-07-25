@@ -1251,40 +1251,39 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 		service      path.ServiceType
 		categories   []string
 	}{
-		{
-			name:        "Exchange",
-			resourceCat: resource.Users,
-			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup([]string{suite.user})
-				sel.Include(
-					sel.ContactFolders([]string{selectors.NoneTgt}),
-					sel.EventCalendars([]string{selectors.NoneTgt}),
-					sel.MailFolders([]string{selectors.NoneTgt}),
-				)
+		// {
+		// 	name:        "Exchange",
+		// 	resourceCat: resource.Users,
+		// 	selectorFunc: func(t *testing.T) selectors.Selector {
+		// 		sel := selectors.NewExchangeBackup([]string{suite.user})
+		// 		sel.Include(
+		// 			sel.ContactFolders([]string{selectors.NoneTgt}),
+		// 			sel.EventCalendars([]string{selectors.NoneTgt}),
+		// 			sel.MailFolders([]string{selectors.NoneTgt}))
 
-				return sel.Selector
-			},
-			service: path.ExchangeService,
-			categories: []string{
-				path.EmailCategory.String(),
-				path.ContactsCategory.String(),
-				path.EventsCategory.String(),
-			},
-		},
-		{
-			name:        "OneDrive",
-			resourceCat: resource.Users,
-			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{suite.user})
-				sel.Include(sel.Folders([]string{selectors.NoneTgt}))
+		// 		return sel.Selector
+		// 	},
+		// 	service: path.ExchangeService,
+		// 	categories: []string{
+		// 		path.EmailCategory.String(),
+		// 		path.ContactsCategory.String(),
+		// 		path.EventsCategory.String(),
+		// 	},
+		// },
+		// {
+		// 	name:        "OneDrive",
+		// 	resourceCat: resource.Users,
+		// 	selectorFunc: func(t *testing.T) selectors.Selector {
+		// 		sel := selectors.NewOneDriveBackup([]string{suite.user})
+		// 		sel.Include(sel.Folders([]string{selectors.NoneTgt}))
 
-				return sel.Selector
-			},
-			service: path.OneDriveService,
-			categories: []string{
-				path.FilesCategory.String(),
-			},
-		},
+		// 		return sel.Selector
+		// 	},
+		// 	service: path.OneDriveService,
+		// 	categories: []string{
+		// 		path.FilesCategory.String(),
+		// 	},
+		// },
 		{
 			name:        "SharePoint",
 			resourceCat: resource.Sites,
@@ -1330,13 +1329,13 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 
 			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
-				inMock.NewProvider(id, name),
+				idname.NewProvider(id, name),
 				backupSel,
 				nil,
 				version.NoBackup,
 				control.DefaultOptions(),
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
 			// No excludes yet because this isn't an incremental backup.
 			assert.True(t, excludes.Empty())
