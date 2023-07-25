@@ -48,7 +48,7 @@ You can restore items back to their original location by setting the destination
 to `/`. This skips the creation of a top-level folder, and all restored items will
 appear back in their location at the time of backup.
 
-### Limitations
+### Destination Limitations
 
 * Destination won't create N-depth folder structures. `--destination a/b/c`
 doesn't create three folders; it creates a single, top-level folder named `a/b/c`.
@@ -122,7 +122,7 @@ Data is restored into the default folder: `Corso_Restore_<current-date-time>` (u
     `corso restore onedrive --to-resource adelev@alcion.ai --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
-### Limitations
+### Resource Limitations
 
 * The resource must exist. Corso won't create new mailboxes, users, or sites.
 * The resource must have access to the service being restored. No restore will be
