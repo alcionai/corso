@@ -757,12 +757,9 @@ func runRestoreBackupTestVersions(
 		test.collectionsLatest)
 }
 
-func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
+func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
-
-	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
-	restoreCfg.IncludePermissions = true
 
 	table := []restoreBackupInfo{
 		{
@@ -1020,7 +1017,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 				suite.ctrl.tenant,
 				[]string{suite.user},
 				control.DefaultOptions(),
-				restoreCfg)
+				control.DefaultRestoreConfig(dttm.HumanReadableDriveItem))
 		})
 	}
 }
@@ -1251,39 +1248,39 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 		service      path.ServiceType
 		categories   []string
 	}{
-		// {
-		// 	name:        "Exchange",
-		// 	resourceCat: resource.Users,
-		// 	selectorFunc: func(t *testing.T) selectors.Selector {
-		// 		sel := selectors.NewExchangeBackup([]string{suite.user})
-		// 		sel.Include(
-		// 			sel.ContactFolders([]string{selectors.NoneTgt}),
-		// 			sel.EventCalendars([]string{selectors.NoneTgt}),
-		// 			sel.MailFolders([]string{selectors.NoneTgt}))
+		{
+			name:        "Exchange",
+			resourceCat: resource.Users,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup([]string{suite.user})
+				sel.Include(
+					sel.ContactFolders([]string{selectors.NoneTgt}),
+					sel.EventCalendars([]string{selectors.NoneTgt}),
+					sel.MailFolders([]string{selectors.NoneTgt}))
 
-		// 		return sel.Selector
-		// 	},
-		// 	service: path.ExchangeService,
-		// 	categories: []string{
-		// 		path.EmailCategory.String(),
-		// 		path.ContactsCategory.String(),
-		// 		path.EventsCategory.String(),
-		// 	},
-		// },
-		// {
-		// 	name:        "OneDrive",
-		// 	resourceCat: resource.Users,
-		// 	selectorFunc: func(t *testing.T) selectors.Selector {
-		// 		sel := selectors.NewOneDriveBackup([]string{suite.user})
-		// 		sel.Include(sel.Folders([]string{selectors.NoneTgt}))
+				return sel.Selector
+			},
+			service: path.ExchangeService,
+			categories: []string{
+				path.EmailCategory.String(),
+				path.ContactsCategory.String(),
+				path.EventsCategory.String(),
+			},
+		},
+		{
+			name:        "OneDrive",
+			resourceCat: resource.Users,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{suite.user})
+				sel.Include(sel.Folders([]string{selectors.NoneTgt}))
 
-		// 		return sel.Selector
-		// 	},
-		// 	service: path.OneDriveService,
-		// 	categories: []string{
-		// 		path.FilesCategory.String(),
-		// 	},
-		// },
+				return sel.Selector
+			},
+			service: path.OneDriveService,
+			categories: []string{
+				path.FilesCategory.String(),
+			},
+		},
 		{
 			name:        "SharePoint",
 			resourceCat: resource.Sites,
