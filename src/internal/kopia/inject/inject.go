@@ -16,7 +16,7 @@ type (
 		ConsumeBackupCollections(
 			ctx context.Context,
 			backupReasons []kopia.Reasoner,
-			bases []kopia.IncrementalBase,
+			bases kopia.BackupBases,
 			cs []data.BackupCollection,
 			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,

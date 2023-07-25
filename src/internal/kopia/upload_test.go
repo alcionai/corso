@@ -946,21 +946,22 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 	return msw.snapshotRoot, nil
 }
 
-func mockIncrementalBase(
+func makeManifestEntry(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
 	categories ...path.CategoryType,
-) IncrementalBase {
-	stps := []*path.Builder{}
+) ManifestEntry {
+	var reasons []Reasoner
+
 	for _, c := range categories {
-		stps = append(stps, path.Builder{}.Append(tenant, service.String(), resourceOwner, c.String()))
+		reasons = append(reasons, NewReason(tenant, resourceOwner, service, c))
 	}
 
-	return IncrementalBase{
+	return ManifestEntry{
 		Manifest: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
-		SubtreePaths: stps,
+		Reasons: reasons,
 	}
 }
 
@@ -1331,8 +1332,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]IncrementalBase{
-					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				[]ManifestEntry{
+					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
 				pmMock.NewPrefixMap(nil),
@@ -2260,8 +2261,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]IncrementalBase{
-					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				[]ManifestEntry{
+					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
 				ie,
@@ -2425,8 +2426,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]IncrementalBase{
-			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]ManifestEntry{
+			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2531,8 +2532,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]IncrementalBase{
-			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]ManifestEntry{
+			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2782,9 +2783,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]IncrementalBase{
-			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
-			mockIncrementalBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]ManifestEntry{
+			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			makeManifestEntry("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2948,8 +2949,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]IncrementalBase{
-			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		[]ManifestEntry{
+			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
 		},
 		[]data.BackupCollection{mce, mcc},
 		pmMock.NewPrefixMap(nil),
