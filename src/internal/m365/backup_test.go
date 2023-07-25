@@ -57,7 +57,7 @@ func (suite *DataCollectionIntgSuite) SetupSuite() {
 
 	suite.tenantID = creds.AzureTenantID
 
-	suite.ac, err = api.NewClient(creds, control.Defaults())
+	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 }
 

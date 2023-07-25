@@ -43,7 +43,7 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 
 	suite.creds = m365
 
-	ac, err := api.NewClient(m365, control.Defaults())
+	ac, err := api.NewClient(m365, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ac = ac
