@@ -94,6 +94,7 @@ jobs:
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-nightly.log
           LOG_GRAPH_REQUESTS: true
+          S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
         run: |
           set -euo pipefail
           go test       \
