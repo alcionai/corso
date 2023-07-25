@@ -164,7 +164,6 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		ctx,
 		cfg.Account,
 		cfg.Storage,
-		utils.Control(),
 		opt,
 		rep.Retention{})
 	if err != nil {
