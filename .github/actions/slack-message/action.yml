@@ -29,46 +29,10 @@ runs:
       run: |
         echo "trimmed_ref=${github_reference#refs/}" >> $GITHUB_ENV
 
-    - name: trim ref
-      shell: bash
-      run: |
-        echo "proof ${{ github.ref }}"
-        echo "test 1 ${{env.github_reference}}"
-        echo "test 2 ${github_reference}"
-        echo "test 3 ${github_reference#refs/} ${github_reference#refs }"
-        echo "test 4 $github_reference"
-
-    - name: Get and set environment variables
-      shell: bash
-      run: |
-        gr="${{ env.github_reference }}"
-        gr="${gr#refs/}"
-        echo "REF=$gr" >> $GITHUB_ENV
-        echo "will it? $REF"
-  
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'  # Replace with the desired Python version
-
-    - name: trim ref
-      shell: python
-      run: |
-        import os
-        gr = os.environ.get("github_reference")
-        gr = gr.lstrip("refs/")
-        os.environ["PREF"] = gr
-
-    - name: trim ref
-      shell: bash
-      run: |
-        echo "python? ${PREF}"
-        echo "trimmed? ${{ env.trimmed_ref }}"
-
     - name: compose links
       shell: bash
       run: |
-        echo "JOB=${{ github.job && ' -:- ${{ github.job }}' || ''}}" >> $GITHUB_ENV
+        echo "JOB=${{ github.job && format(' -:- ${0}', github.job) || ''}}" >> $GITHUB_ENV
         echo "LOGS=${{ github.run_id && format('<${0}/${1}/actions/runs/${2}|[Logs]>', github.server_url, github.repository, github.run_id) || '-'}}" >> $GITHUB_ENV
         echo "COMMIT=${{ github.sha && format('<${0}/${1}/commit/${2}|[Commit]>', github.server_url, github.repository, github.sha) || '-'}}" >> $GITHUB_ENV
         echo "REF=${{ env.trimmed_ref && format('<${0}/${1}/${2}|[Ref]>', github.server_url, github.repository, env.trimmed_ref) || '-'}}" >> $GITHUB_ENV
