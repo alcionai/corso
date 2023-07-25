@@ -140,16 +140,12 @@ func (rc RestoreConfig) Format(fs fmt.State, _ rune) {
 	fmt.Fprint(fs, rc.concealed())
 }
 
-// String returns a string that contains all path config joined together.
-// Configs that need escaping are escaped.  The result is not concealed, and
-// is not suitable for logging or structured errors.
+// String returns a plain text version of the restoreConfig.
 func (rc RestoreConfig) String() string {
 	return rc.PlainString()
 }
 
-// PlainString returns an unescaped, unmodified string of the joined elements.
-// The result is not concealed, and is not suitable for logging or structured
-// errors.
+// PlainString returns an unescaped, unmodified string of the restore configuration.
 func (rc RestoreConfig) PlainString() string {
 	return rc.marshal()
 }
