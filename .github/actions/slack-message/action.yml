@@ -20,14 +20,21 @@ runs:
       shell: bash
       run: |
         echo "trimmed_ref=${github_reference#refs/}" >> $GITHUB_ENV
+    
+    - name: build urls
+      shell: bash
+      run: |
+        echo "logurl=$(printf '<https://github.com/alcionai/corso/actions/runs/%s|[Action]>' ${{ github.run_id }})" >> $GITHUB_ENV"
+        echo "commiturl=$(printf '<https://github.com/alcionai/corso/commit/${0}|[Commit]>' ${{ github.sha }})" >> $GITHUB_ENV"
+        echo "refurl=$(printf '<https://github.com/alcionai/corso/${0}|[Ref]>' ${{ env.trimmed_ref }})" >> $GITHUB_ENV"
 
     - name: compose links
       shell: bash
       run: |
-        echo "JOB=${{ github.job && format(' -:- ${0}', github.job) || ''}}" >> $GITHUB_ENV
-        echo "LOGS=${{ github.run_id && format('<https://github.com/alcionai/corso/actions/runs/${0}|[Logs]>', github.run_id) || '-'}}" >> $GITHUB_ENV
-        echo "COMMIT=${{ github.sha && format('<https://github.com/alcionai/corso/commit/${0}|[Commit]>', github.sha) || '-'}}" >> $GITHUB_ENV
-        echo "REF=${{ env.trimmed_ref && format('<https://github.com/alcionai/corso/${0}|[Ref]>', env.trimmed_ref) || '-'}}" >> $GITHUB_ENV
+        echo "JOB=${{ github.job || '' }}" >> $GITHUB_ENV
+        echo "LOGS=${{ github.run_id && envlogurl || '-' }}" >> $GITHUB_ENV
+        echo "COMMIT=${{ github.sha && commiturl || '-' }}" >> $GITHUB_ENV
+        echo "REF=${{ env.trimmed_ref && refurl || '-' }}" >> $GITHUB_ENV
 
     - id: slack-message
       uses: slackapi/slack-github-action@v1.24.0
@@ -43,7 +50,7 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "${{ inputs.msg }}${{ env.JOB }}\n${{ env.LOGS }} ${{ env.COMMIT }} ${{ env.REF }}"
+                  "text": "${{ inputs.msg }} :: ${{ env.JOB }}\n${{ env.LOGS }} ${{ env.COMMIT }} ${{ env.REF }}"
                 }
               }
             ]
