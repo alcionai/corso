@@ -9,11 +9,13 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -62,6 +64,62 @@ func deleteBackups(
 	return deleted, nil
 }
 
+// pitrListBackups connects to the repository at the given point in time and
+// lists the backups for service. It then checks the list of backups contains
+// the backups in backupIDs.
+func pitrListBackups(
+	ctx context.Context,
+	service path.ServiceType,
+	pitr time.Time,
+	backupIDs []string,
+) error {
+	if len(backupIDs) == 0 {
+		return nil
+	}
+
+	ctx = clues.Add(ctx, "pitr_time", pitr, "search_backups", backupIDs)
+
+	// TODO(ashmrtn): This may be moved into CLI layer at some point when we add
+	// flags for opening a repo at a point in time.
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, nil)
+	if err != nil {
+		return clues.Wrap(err, "getting config info")
+	}
+
+	opts := utils.ControlWithConfig(cfg)
+	opts.Repo.ViewTimestamp = &pitr
+
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, cfg.RepoID, opts)
+	if err != nil {
+		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
+	}
+
+	defer r.Close(ctx)
+
+	backups, err := r.BackupsByTag(ctx, store.Service(service))
+	if err != nil {
+		return clues.Wrap(err, "listing backups").WithClues(ctx)
+	}
+
+	bups := map[string]struct{}{}
+
+	for _, backup := range backups {
+		bups[backup.ID.String()] = struct{}{}
+	}
+
+	ctx = clues.Add(ctx, "found_backups", maps.Keys(bups))
+
+	for _, backupID := range backupIDs {
+		if _, ok := bups[backupID]; !ok {
+			return clues.New("looking for backup").
+				With("search_backup_id", backupID).
+				WithClues(ctx)
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	var (
 		service path.ServiceType
@@ -93,8 +151,18 @@ func main() {
 	}
 
 	_, err = deleteBackups(ctx, service, days)
+	// Get the time before we delete anything so we can open kopia at that time
+	// to ensure the PiTR function works.
+	beforeDel := time.Now()
+
+	deleted, err := deleteBackups(ctx, service, days)
 	if err != nil {
 		fatal(cc.Context(), "deleting backups", clues.Stack(err))
+	}
+
+	err = pitrListBackups(ctx, service, beforeDel, deleted)
+	if err != nil {
+		fatal(ctx, "looking for backups at previous point in time", err)
 	}
 }
 
