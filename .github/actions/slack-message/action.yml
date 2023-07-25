@@ -24,9 +24,9 @@ runs:
     - name: build urls
       shell: bash
       run: |
-        echo "logurl=$(printf '<https://github.com/alcionai/corso/actions/runs/%s|[Action]>' ${{ github.run_id }})" >> $GITHUB_ENV"
-        echo "commiturl=$(printf '<https://github.com/alcionai/corso/commit/${0}|[Commit]>' ${{ github.sha }})" >> $GITHUB_ENV"
-        echo "refurl=$(printf '<https://github.com/alcionai/corso/${0}|[Ref]>' ${{ env.trimmed_ref }})" >> $GITHUB_ENV"
+        echo "logurl=$(printf '<https://github.com/alcionai/corso/actions/runs/%s|[Action]>' ${{ github.run_id }})" >> $GITHUB_ENV
+        echo "commiturl=$(printf '<https://github.com/alcionai/corso/commit/%s|[Commit]>' ${{ github.sha }})" >> $GITHUB_ENV
+        echo "refurl=$(printf '<https://github.com/alcionai/corso/%s|[Ref]>' ${{ env.trimmed_ref }})" >> $GITHUB_ENV
 
     - name: compose links
       shell: bash
