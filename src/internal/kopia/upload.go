@@ -20,6 +20,7 @@ import (
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
@@ -970,10 +971,32 @@ func traverseBaseDir(
 	return nil
 }
 
+func logBaseInfo(ctx context.Context, m ManifestEntry) {
+	svcs := map[string]struct{}{}
+	cats := map[string]struct{}{}
+
+	for _, r := range m.Reasons {
+		svcs[r.Service().String()] = struct{}{}
+		cats[r.Category().String()] = struct{}{}
+	}
+
+	mbID, _ := m.GetTag(TagBackupID)
+	if len(mbID) == 0 {
+		mbID = "no_backup_id_tag"
+	}
+
+	logger.Ctx(ctx).Infow(
+		"using base for backup",
+		"base_snapshot_id", m.ID,
+		"services", maps.Keys(svcs),
+		"categories", maps.Keys(cats),
+		"base_backup_id", mbID)
+}
+
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap IncrementalBase,
+	snap ManifestEntry,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
@@ -996,13 +1019,25 @@ func inflateBaseTree(
 		return clues.New("snapshot root is not a directory").WithClues(ctx)
 	}
 
+	// Some logging to help track things.
+	logBaseInfo(ctx, snap)
+
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
 	// what has been reported in the collections we got.
-	for _, subtreePath := range snap.SubtreePaths {
+	for _, r := range snap.Reasons {
+		ictx := clues.Add(
+			ctx,
+			"subtree_service", r.Service().String(),
+			"subtree_category", r.Category().String())
+
+		subtreePath, err := r.SubtreePath()
+		if err != nil {
+			return clues.Wrap(err, "building subtree path").WithClues(ictx)
+		}
+
 		// We're starting from the root directory so don't need it in the path.
 		pathElems := encodeElements(subtreePath.PopFront().Elements()...)
-		ictx := clues.Add(ctx, "subtree_path", subtreePath)
 
 		ent, err := snapshotfs.GetNestedEntry(ictx, dir, pathElems)
 		if err != nil {
@@ -1022,7 +1057,7 @@ func inflateBaseTree(
 		// This ensures that a migration on the directory prefix can complete.
 		// The prefix is the tenant/service/owner/category set, which remains
 		// otherwise unchecked in tree inflation below this point.
-		newSubtreePath := subtreePath
+		newSubtreePath := subtreePath.ToBuilder()
 		if p, ok := updatedPaths[subtreePath.String()]; ok {
 			newSubtreePath = p.ToBuilder()
 		}
@@ -1031,7 +1066,7 @@ func inflateBaseTree(
 			ictx,
 			0,
 			updatedPaths,
-			subtreePath.Dir(),
+			subtreePath.ToBuilder().Dir(),
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
@@ -1059,7 +1094,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []IncrementalBase,
+	baseSnaps []ManifestEntry,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,

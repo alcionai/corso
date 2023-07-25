@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo/manifest"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -449,26 +448,6 @@ func selectorToReasons(
 	return reasons
 }
 
-func builderFromReason(ctx context.Context, tenant string, r kopia.Reasoner) (*path.Builder, error) {
-	ctx = clues.Add(ctx, "category", r.Category().String())
-
-	// This is hacky, but we want the path package to format the path the right
-	// way (e.x. proper order for service, category, etc), but we don't care about
-	// the folders after the prefix.
-	p, err := path.Build(
-		tenant,
-		r.ProtectedResource(),
-		r.Service(),
-		r.Category(),
-		false,
-		"tmp")
-	if err != nil {
-		return nil, clues.Wrap(err, "building path").WithClues(ctx)
-	}
-
-	return p.ToBuilder().Dir(), nil
-}
-
 // calls kopia to backup the collections of data
 func consumeBackupCollections(
 	ctx context.Context,
@@ -495,85 +474,10 @@ func consumeBackupCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	// AssistBases should be the upper bound for how many snapshots we pass in.
-	bases := make([]kopia.IncrementalBase, 0, len(bbs.AssistBases()))
-	// Track IDs we've seen already so we don't accidentally duplicate some
-	// manifests. This can be removed when we move the code below into the kopia
-	// package.
-	ids := map[manifest.ID]struct{}{}
-
-	var mb []kopia.ManifestEntry
-
-	if bbs != nil {
-		mb = bbs.MergeBases()
-	}
-
-	// TODO(ashmrtn): Make a wrapper for Reson that allows adding a tenant and
-	// make a function that will spit out a prefix that includes the tenant. With
-	// that done this code can be moved to kopia wrapper since it's really more
-	// specific to that.
-	for _, m := range mb {
-		paths := make([]*path.Builder, 0, len(m.Reasons))
-		services := map[string]struct{}{}
-		categories := map[string]struct{}{}
-
-		for _, reason := range m.Reasons {
-			pb, err := builderFromReason(ctx, tenantID, reason)
-			if err != nil {
-				return nil, nil, nil, clues.Wrap(err, "getting subtree paths for bases")
-			}
-
-			paths = append(paths, pb)
-			services[reason.Service().String()] = struct{}{}
-			categories[reason.Category().String()] = struct{}{}
-		}
-
-		ids[m.ID] = struct{}{}
-
-		bases = append(bases, kopia.IncrementalBase{
-			Manifest:     m.Manifest,
-			SubtreePaths: paths,
-		})
-
-		svcs := make([]string, 0, len(services))
-		for k := range services {
-			svcs = append(svcs, k)
-		}
-
-		cats := make([]string, 0, len(categories))
-		for k := range categories {
-			cats = append(cats, k)
-		}
-
-		mbID, ok := m.GetTag(kopia.TagBackupID)
-		if !ok {
-			mbID = "no_backup_id_tag"
-		}
-
-		logger.Ctx(ctx).Infow(
-			"using base for backup",
-			"base_snapshot_id", m.ID,
-			"services", svcs,
-			"categories", cats,
-			"base_backup_id", mbID)
-	}
-
-	// At the moment kopia assisted snapshots are in the same set as merge bases.
-	// When we fixup generating subtree paths we can remove this.
-	if bbs != nil {
-		for _, ab := range bbs.AssistBases() {
-			if _, ok := ids[ab.ID]; ok {
-				continue
-			}
-
-			bases = append(bases, kopia.IncrementalBase{Manifest: ab.Manifest})
-		}
-	}
-
 	kopiaStats, deets, itemsSourcedFromBase, err := bc.ConsumeBackupCollections(
 		ctx,
 		reasons,
-		bases,
+		bbs,
 		cs,
 		pmr,
 		tags,
@@ -581,7 +485,7 @@ func consumeBackupCollections(
 		errs)
 	if err != nil {
 		if kopiaStats == nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, clues.Stack(err)
 		}
 
 		return nil, nil, nil, clues.Stack(err).With(
