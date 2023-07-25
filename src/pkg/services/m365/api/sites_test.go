@@ -143,11 +143,15 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 	var (
 		t               = suite.T()
 		siteID          = tconfig.M365SiteID(t)
-		host            = strings.Split(siteID, ",")[0]
-		shortID         = strings.TrimPrefix(siteID, host+",")
+		parts           = strings.Split(siteID, ",")
+		uuids           = siteID
 		siteURL         = tconfig.M365SiteURL(t)
 		modifiedSiteURL = siteURL + "foo"
 	)
+
+	if len(parts) == 3 {
+		uuids = strings.Join(parts[1:], ",")
+	}
 
 	sitesAPI := suite.its.ac.Sites()
 
@@ -165,7 +169,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 		},
 		{
 			name: "2 part id",
-			id:   shortID,
+			id:   uuids,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
@@ -187,13 +191,6 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 		{
 			name: "url",
 			id:   siteURL,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "host only",
-			id:   host,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},

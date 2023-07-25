@@ -91,7 +91,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		true)
 }
 
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -116,7 +116,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 		bod.sw,
 		&bo,
 		bod.sel,
-		suite.its.site.ID,
+		bod.sel.ID(),
 		path.LibrariesCategory)
 }
 
@@ -150,7 +150,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 		bod.sw,
 		&bo,
 		bod.sel,
-		suite.its.site.ID,
+		bod.sel.ID(),
 		path.LibrariesCategory)
 
 	bID := bo.Results.BackupID
