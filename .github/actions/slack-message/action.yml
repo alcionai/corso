@@ -11,12 +11,12 @@ runs:
   steps:
     - uses: actions/checkout@v3
 
-    - name: set trimmable ref
+    - name: set github ref
       shell: bash
       run: |
         echo "github_reference=${{ github.ref }}" >> $GITHUB_ENV
 
-    - name: trim ref
+    - name: trim github ref
       shell: bash
       run: |
         echo "trimmed_ref=${github_reference#refs/}" >> $GITHUB_ENV
@@ -28,7 +28,7 @@ runs:
         echo "commiturl=$(printf '<https://github.com/alcionai/corso/commit/%s|[Commit]>' ${{ github.sha }})" >> $GITHUB_ENV
         echo "refurl=$(printf '<https://github.com/alcionai/corso/%s|[Ref]>' ${{ env.trimmed_ref }})" >> $GITHUB_ENV
 
-    - name: compose links
+    - name: use url or blank val
       shell: bash
       run: |
         echo "JOB=${{ github.job || '' }}" >> $GITHUB_ENV

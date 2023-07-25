@@ -318,13 +318,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Notify failure in slack
-        if: always()
-        uses: ./.github/actions/slack-message
-        with:
-          msg: "[TESTING] Proof of functionality - tell keepers to remove it"
-          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-
   Test-Suite-Fork:
     needs: [Precheck]
     environment: Testing
