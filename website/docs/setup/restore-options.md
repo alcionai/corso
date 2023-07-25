@@ -116,7 +116,7 @@ A resource can be a mailbox, user, sharepoint site, or other owner of data.
 
 When restoring to a target resource, all other restore configuration behaves normally.
 Data is restored into the default folder: `Corso_Restore_<current-date-time>` (unless a
-`--destination` flag is added).  When restoring in-place, collision policies are followed.
+`--destination` flag is added). When restoring in-place, collision policies are followed.
 
 <CodeBlock language="bash">{
     `corso restore onedrive --to-resource adelev@alcion.ai --backup a422895c-c20c-4b06-883d-b866db9f86ef`
@@ -124,6 +124,6 @@ Data is restored into the default folder: `Corso_Restore_<current-date-time>` (u
 
 ### Limitations
 
-* The resource must exist.  Corso will not create new mailboxes, users, or sites.
-* The resource must have access to the service being restored.  No restore will be
+* The resource must exist. Corso won't create new mailboxes, users, or sites.
+* The resource must have access to the service being restored. No restore will be
 performed for an unlicensed resource.
