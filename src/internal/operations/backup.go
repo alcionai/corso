@@ -653,13 +653,81 @@ func mergeDetails(
 		return nil
 	}
 
-	var addedEntries int
+	var (
+		addedEntries int
+		excludeList  = make(map[path.Path]struct{})
+	)
+
+	// Process partial backups first, as they are more recent
+	for _, partialBackup := range partialBackups {
+		err := mergeDetailsFromBackup(
+			ctx,
+			detailsStore,
+			partialBackup,
+			dataFromBackup,
+			deets,
+			&addedEntries,
+			errs,
+			nil)
+		if err != nil {
+			return clues.Wrap(err, "merging details from partial backup")
+		}
+
+		// TODO(pandeyabs): This doesn't handle folders yet.
+		for _, entry := range deets.Details().Entries {
+			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
+			if err != nil {
+				return clues.New("parsing deets item info path").
+					WithClues(ctx).
+					With("repo_ref", path.NewElements(entry.RepoRef))
+			}
+
+			excludeList[rr] = struct{}{}
+		}
+	}
 
 	for _, baseBackup := range backups {
-		var (
-			mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
-			manifestAddedEntries int
-		)
+		err := mergeDetailsFromBackup(
+			ctx,
+			detailsStore,
+			baseBackup,
+			dataFromBackup,
+			deets,
+			&addedEntries,
+			errs,
+			excludeList)
+		if err != nil {
+			return clues.Wrap(err, "merging details from base backup")
+		}
+	}
+
+	checkCount := dataFromBackup.ItemsToMerge()
+
+	if addedEntries != checkCount {
+		return clues.New("incomplete migration of backup details").
+			WithClues(ctx).
+			With(
+				"item_count", addedEntries,
+				"expected_item_count", checkCount)
+	}
+
+	return nil
+}
+
+func mergeDetailsFromBackup(
+	ctx context.Context,
+	detailsStore streamstore.Streamer,
+	baseBackup kopia.BackupEntry,
+	dataFromBackup kopia.DetailsMergeInfoer,
+	deets *details.Builder,
+	addedEntries *int,
+	errs *fault.Bus,
+	excludeList map[path.Path]struct{},
+) error {
+	var (
+		mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+		manifestAddedEntries int
+	)
 
 		baseDeets, err := getDetailsFromBackup(
 			mctx,
@@ -678,15 +746,20 @@ func mergeDetails(
 					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
-			// Although this base has an entry it may not be the most recent. Check
-			// the reasons a snapshot was returned to ensure we only choose the recent
-			// entries.
-			//
-			// TODO(ashmrtn): This logic will need expanded to cover entries from
-			// checkpoints if we start doing kopia-assisted incrementals for those.
-			if !matchesReason(baseBackup.Reasons, rr) {
-				continue
-			}
+		// Although this base has an entry it may not be the most recent. Check
+		// the reasons a snapshot was returned to ensure we only choose the recent
+		// entries.
+		//
+		// TODO(ashmrtn): This logic will need expanded to cover entries from
+		// checkpoints if we start doing kopia-assisted incrementals for those.
+		if !matchesReason(baseBackup.Reasons, rr) {
+			continue
+		}
+
+		// If we've already added this entry from a more recent backup, skip it.
+		if _, ok := excludeList[rr]; ok {
+			continue
+		}
 
 			mctx = clues.Add(mctx, "repo_ref", rr)
 
