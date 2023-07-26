@@ -31,6 +31,7 @@ runs:
     - name: use url or blank val
       shell: bash
       run: |
+        echo "STEP=${{ github.action || '' }}" >> $GITHUB_ENV
         echo "JOB=${{ github.job || '' }}" >> $GITHUB_ENV
         echo "LOGS=${{ github.run_id && env.logurl || '-' }}" >> $GITHUB_ENV
         echo "COMMIT=${{ github.sha && env.commiturl || '-' }}" >> $GITHUB_ENV
@@ -50,7 +51,7 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "${{ inputs.msg }} :: ${{ env.JOB }}\n${{ env.LOGS }} ${{ env.COMMIT }} ${{ env.REF }}"
+                  "text": "${{ inputs.msg }} :: ${{ env.JOB }} - ${{ env.STEP }}\n${{ env.LOGS }} ${{ env.COMMIT }} ${{ env.REF }}"
                 }
               }
             ]
