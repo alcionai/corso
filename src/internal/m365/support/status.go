@@ -40,6 +40,7 @@ const (
 	OpUnknown Operation = iota
 	Backup
 	Restore
+	Export
 )
 
 // Constructor for ConnectorOperationStatus. If the counts do not agree, an error is returned.

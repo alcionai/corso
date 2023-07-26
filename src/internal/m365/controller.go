@@ -24,6 +24,7 @@ import (
 var (
 	_ inject.BackupProducer  = &Controller{}
 	_ inject.RestoreConsumer = &Controller{}
+	_ inject.ExportConsumer  = &Controller{}
 )
 
 // Controller is a struct used to wrap the GraphServiceClient and
