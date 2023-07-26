@@ -655,7 +655,7 @@ func mergeDetails(
 
 	var (
 		addedEntries int
-		excludeList  = make(map[path.Path]struct{})
+		excludeList  = make(map[string]struct{})
 	)
 
 	// Process partial backups first, as they are more recent
@@ -682,7 +682,7 @@ func mergeDetails(
 					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
-			excludeList[rr] = struct{}{}
+			excludeList[rr.ShortRef()] = struct{}{}
 		}
 	}
 
@@ -722,7 +722,7 @@ func mergeDetailsFromBackup(
 	deets *details.Builder,
 	addedEntries *int,
 	errs *fault.Bus,
-	excludeList map[path.Path]struct{},
+	excludeList map[string]struct{},
 ) error {
 	var (
 		mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
@@ -757,7 +757,7 @@ func mergeDetailsFromBackup(
 		}
 
 		// If we've already added this entry from a more recent backup, skip it.
-		if _, ok := excludeList[rr]; ok {
+		if _, ok := excludeList[rr.ShortRef()]; ok {
 			continue
 		}
 
