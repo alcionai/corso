@@ -41,7 +41,7 @@ const (
 	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
 	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
 	EnvCorsoM365TestTeamID           = "CORSO_M365_TEST_TEAM_ID"
-	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_Group_ID"
+	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_GROUP_ID"
 	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
 	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
 	EnvCorsoTertiaryM365TestUserID   = "CORSO_TERTIARY_M365_TEST_USER_ID"
@@ -157,13 +157,13 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgTeamID,
 		os.Getenv(EnvCorsoM365TestTeamID),
 		vpr.GetString(TestCfgTeamID),
-		"d288d6bc-4595-4ff5-87a1-6e7fd750aa42")
+		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
 	fallbackTo(
 		testEnv,
 		TestCfgGroupID,
 		os.Getenv(EnvCorsoM365TestGroupID),
 		vpr.GetString(TestCfgGroupID),
-		"3d1129b1-52e1-4f49-a47a-a515b14c8a8e")
+		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,

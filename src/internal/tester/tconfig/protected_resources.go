@@ -226,7 +226,7 @@ func M365TeamsID(t *testing.T) string {
 // Groups
 
 // M365GroupID returns a groupID string representing the m365GroupID described
-// by either the env var CORSO_M365_TEST_Group_ID, the corso_test.toml config
+// by either the env var CORSO_M365_TEST_GROUP_ID, the corso_test.toml config
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func M365GroupID(t *testing.T) string {
