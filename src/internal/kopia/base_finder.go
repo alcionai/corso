@@ -214,7 +214,7 @@ func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
 	reason Reasoner,
 	metas []*manifest.EntryMetadata,
-) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
+) (*BackupEntry, *ManifestEntry, []ManifestEntry, *BackupEntry, error) {
 	// Sort manifests by time so we can go through them sequentially. The code in
 	// kopia appears to sort them already, but add sorting here just so we're not
 	// reliant on undocumented behavior.
@@ -310,24 +310,83 @@ func (b *baseFinder) findBasesInSet(
 			Manifest: man,
 			Reasons:  []Reasoner{reason},
 		}
+
+		// Find any partial backups associated with kopias assisted snapshots
+		// TODO(pandeyabs): Confirm if there can never be multiple partial backups?
+		pBup, err := b.getPartialBackupModels(ictx, reason, kopiaAssistSnaps)
+		if err != nil {
+			logger.CtxErr(ictx, err).Info("getting partial backups")
+
+			pBup = nil
+		}
+
 		kopiaAssistSnaps = append(kopiaAssistSnaps, me)
 
 		return &BackupEntry{
-			Backup:  bup,
-			Reasons: []Reasoner{reason},
-		}, &me, kopiaAssistSnaps, nil
+				Backup:  bup,
+				Reasons: []Reasoner{reason},
+			},
+			&me,
+			kopiaAssistSnaps,
+			pBup,
+			nil
 	}
 
 	logger.Ctx(ctx).Info("no base backups for reason")
 
-	return nil, nil, kopiaAssistSnaps, nil
+	return nil, nil, kopiaAssistSnaps, nil, nil
+}
+
+// getPartialBackupModels returns the backup models for all partial backups
+// associated with the provided kopia assisted snapshots.
+// A partial backup must satisfy below conditions:
+// 1) it must have a valid snapshot id
+// 2) it must have a valid streamstore id
+// 3) it must be tagged with models.partialBackup tag
+// 4) it must be tagged with reasons
+// TODO(pandeyabs): See if 3 can be sourced from existing stats instead.
+func (b *baseFinder) getPartialBackupModels(
+	ctx context.Context,
+	r Reasoner,
+	kopiaAssistSnaps []ManifestEntry,
+) (*BackupEntry, error) {
+	// TODO(pandeyabs): These should be sorted by time.
+	for _, snap := range kopiaAssistSnaps {
+		man := snap.Manifest
+
+		bup, err := b.getBackupModel(ctx, man)
+		if err != nil {
+			continue
+		}
+
+		// Check if this backup has required tags
+		// TODO(pandeyabs): Also check for reasons tags
+		tags := bup.Tags
+		if _, ok := tags[model.PartialBackupTag]; !ok {
+			continue
+		}
+
+		// Check if this qualifies as a partial backup model
+		// This is unusual.
+		if len(bup.StreamStoreID) == 0 || len(bup.SnapshotID) == 0 {
+			logger.Ctx(ctx).Info("empty streamstore or snapshot id")
+			continue
+		}
+
+		return &BackupEntry{
+			Backup:  bup,
+			Reasons: []Reasoner{r},
+		}, nil
+	}
+
+	return nil, clues.New("partial backup models not found")
 }
 
 func (b *baseFinder) getBase(
 	ctx context.Context,
 	r Reasoner,
 	tags map[string]string,
-) (*BackupEntry, *ManifestEntry, []ManifestEntry, error) {
+) (*BackupEntry, *ManifestEntry, []ManifestEntry, *BackupEntry, error) {
 	allTags := map[string]string{}
 
 	for _, k := range tagKeys(r) {
@@ -339,12 +398,12 @@ func (b *baseFinder) getBase(
 
 	metas, err := b.sm.FindManifests(ctx, allTags)
 	if err != nil {
-		return nil, nil, nil, clues.Wrap(err, "getting snapshots")
+		return nil, nil, nil, nil, clues.Wrap(err, "getting snapshots")
 	}
 
 	// No snapshots means no backups so we can just exit here.
 	if len(metas) == 0 {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	return b.findBasesInSet(ctx, r, metas)
@@ -361,6 +420,7 @@ func (b *baseFinder) FindBases(
 		// ManifestEntry so we have the reasons for selecting them to aid in
 		// debugging.
 		baseBups         = map[model.StableID]BackupEntry{}
+		partialBups      = map[model.StableID]BackupEntry{}
 		baseSnaps        = map[manifest.ID]ManifestEntry{}
 		kopiaAssistSnaps = map[manifest.ID]ManifestEntry{}
 	)
@@ -372,7 +432,7 @@ func (b *baseFinder) FindBases(
 			"search_category", searchReason.Category().String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 
-		baseBackup, baseSnap, assistSnaps, err := b.getBase(ictx, searchReason, tags)
+		baseBackup, baseSnap, assistSnaps, partialBackup, err := b.getBase(ictx, searchReason, tags)
 		if err != nil {
 			logger.Ctx(ctx).Info(
 				"getting base, falling back to full backup for reason",
@@ -416,12 +476,25 @@ func (b *baseFinder) FindBases(
 			// Reassign since it's structs not pointers to structs.
 			kopiaAssistSnaps[s.ID] = bs
 		}
+
+		if partialBackup != nil {
+			bs, ok := partialBups[partialBackup.ID]
+			if ok {
+				bs.Reasons = append(bs.Reasons, baseSnap.Reasons...)
+			} else {
+				bs = *partialBackup
+			}
+
+			// Reassign since it's structs not pointers to structs.
+			partialBups[baseBackup.ID] = bs
+		}
 	}
 
 	res := &backupBases{
-		backups:     maps.Values(baseBups),
-		mergeBases:  maps.Values(baseSnaps),
-		assistBases: maps.Values(kopiaAssistSnaps),
+		backups:        maps.Values(baseBups),
+		mergeBases:     maps.Values(baseSnaps),
+		assistBases:    maps.Values(kopiaAssistSnaps),
+		partialBackups: maps.Values(partialBups),
 	}
 
 	res.fixupAndVerify(ctx)
