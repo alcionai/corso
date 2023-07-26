@@ -351,6 +351,7 @@ func (op *BackupOperation) do(
 		ctx,
 		detailsStore,
 		mans.Backups(),
+		mans.PartialBackups(),
 		toMerge,
 		deets,
 		writeStats,
@@ -589,6 +590,7 @@ func mergeDetails(
 	ctx context.Context,
 	detailsStore streamstore.Streamer,
 	backups []kopia.BackupEntry,
+	partialBackups []kopia.BackupEntry,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	writeStats *kopia.BackupStats,
@@ -610,81 +612,17 @@ func mergeDetails(
 	var addedEntries int
 
 	for _, baseBackup := range backups {
-		var (
-			mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
-			manifestAddedEntries int
-		)
-
-		baseDeets, err := getDetailsFromBackup(
-			mctx,
-			baseBackup.Backup,
+		err := mergeDetailsFromBackup(
+			ctx,
 			detailsStore,
+			baseBackup,
+			dataFromBackup,
+			deets,
+			&addedEntries,
 			errs)
 		if err != nil {
-			return clues.New("fetching base details for backup")
+			return err
 		}
-
-		for _, entry := range baseDeets.Items() {
-			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
-			if err != nil {
-				return clues.New("parsing base item info path").
-					WithClues(mctx).
-					With("repo_ref", path.NewElements(entry.RepoRef))
-			}
-
-			// Although this base has an entry it may not be the most recent. Check
-			// the reasons a snapshot was returned to ensure we only choose the recent
-			// entries.
-			//
-			// TODO(ashmrtn): This logic will need expanded to cover entries from
-			// checkpoints if we start doing kopia-assisted incrementals for those.
-			if !matchesReason(baseBackup.Reasons, rr) {
-				continue
-			}
-
-			mctx = clues.Add(mctx, "repo_ref", rr)
-
-			newPath, newLoc, locUpdated, err := getNewPathRefs(
-				dataFromBackup,
-				entry,
-				rr,
-				baseBackup.Version)
-			if err != nil {
-				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
-			}
-
-			// This entry isn't merged.
-			if newPath == nil {
-				continue
-			}
-
-			// Fixup paths in the item.
-			item := entry.ItemInfo
-			details.UpdateItem(&item, newLoc)
-
-			// TODO(ashmrtn): This may need updated if we start using this merge
-			// strategry for items that were cached in kopia.
-			itemUpdated := newPath.String() != rr.String() || locUpdated
-
-			err = deets.Add(
-				newPath,
-				newLoc,
-				itemUpdated,
-				item)
-			if err != nil {
-				return clues.Wrap(err, "adding item to details")
-			}
-
-			// Track how many entries we added so that we know if we got them all when
-			// we're done.
-			addedEntries++
-			manifestAddedEntries++
-		}
-
-		logger.Ctx(mctx).Infow(
-			"merged details with base manifest",
-			"base_item_count_unfiltered", len(baseDeets.Items()),
-			"base_item_count_added", manifestAddedEntries)
 	}
 
 	checkCount := dataFromBackup.ItemsToMerge()
@@ -695,6 +633,94 @@ func mergeDetails(
 			With(
 				"item_count", addedEntries,
 				"expected_item_count", checkCount)
+	}
+
+	return nil
+}
+
+func mergeDetailsFromBackup(
+	ctx context.Context,
+	detailsStore streamstore.Streamer,
+	baseBackup kopia.BackupEntry,
+	dataFromBackup kopia.DetailsMergeInfoer,
+	deets *details.Builder,
+	addedEntries *int,
+	errs *fault.Bus,
+) error {
+	var (
+		mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+		manifestAddedEntries int
+	)
+
+	baseDeets, err := getDetailsFromBackup(
+		mctx,
+		baseBackup.Backup,
+		detailsStore,
+		errs)
+	if err != nil {
+		return clues.New("fetching base details for backup")
+	}
+
+	for _, entry := range baseDeets.Items() {
+		rr, err := path.FromDataLayerPath(entry.RepoRef, true)
+		if err != nil {
+			return clues.New("parsing base item info path").
+				WithClues(mctx).
+				With("repo_ref", path.NewElements(entry.RepoRef))
+		}
+
+		// Although this base has an entry it may not be the most recent. Check
+		// the reasons a snapshot was returned to ensure we only choose the recent
+		// entries.
+		//
+		// TODO(ashmrtn): This logic will need expanded to cover entries from
+		// checkpoints if we start doing kopia-assisted incrementals for those.
+		if !matchesReason(baseBackup.Reasons, rr) {
+			continue
+		}
+
+		mctx = clues.Add(mctx, "repo_ref", rr)
+
+		newPath, newLoc, locUpdated, err := getNewPathRefs(
+			dataFromBackup,
+			entry,
+			rr,
+			baseBackup.Version)
+		if err != nil {
+			return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
+		}
+
+		// This entry isn't merged.
+		if newPath == nil {
+			continue
+		}
+
+		// Fixup paths in the item.
+		item := entry.ItemInfo
+		details.UpdateItem(&item, newLoc)
+
+		// TODO(ashmrtn): This may need updated if we start using this merge
+		// strategry for items that were cached in kopia.
+		itemUpdated := newPath.String() != rr.String() || locUpdated
+
+		err = deets.Add(
+			newPath,
+			newLoc,
+			itemUpdated,
+			item)
+		if err != nil {
+			return clues.Wrap(err, "adding item to details")
+		}
+
+		// Track how many entries we added so that we know if we got them all when
+		// we're done.
+		*addedEntries++
+		manifestAddedEntries++
+
+		logger.Ctx(mctx).Infow(
+			"merged details with base manifest",
+			"base_item_count_unfiltered", len(baseDeets.Items()),
+			"base_item_count_added", manifestAddedEntries)
 	}
 
 	return nil
