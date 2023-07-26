@@ -15,7 +15,8 @@ type (
 	BackupConsumer interface {
 		ConsumeBackupCollections(
 			ctx context.Context,
-			bases []kopia.IncrementalBase,
+			backupReasons []kopia.Reasoner,
+			bases kopia.BackupBases,
 			cs []data.BackupCollection,
 			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,
@@ -37,7 +38,7 @@ type (
 	BaseFinder interface {
 		FindBases(
 			ctx context.Context,
-			reasons []kopia.Reason,
+			reasons []kopia.Reasoner,
 			tags map[string]string,
 		) kopia.BackupBases
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
@@ -97,7 +98,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds)
+	its.ac, err = api.NewClient(creds, control.Defaults())
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.gockAC, err = mock.NewClient(creds)

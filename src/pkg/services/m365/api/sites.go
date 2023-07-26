@@ -225,13 +225,13 @@ func ValidateSite(item models.Siteable) error {
 
 	wURL := ptr.Val(item.GetWebUrl())
 	if len(wURL) == 0 {
-		return clues.New("missing webURL").With("site_id", id) // TODO: pii
+		return clues.New("missing webURL").With("site_id", clues.Hide(id))
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	if strings.Contains(wURL, PersonalSitePath) {
 		return clues.Stack(ErrKnownSkippableCase).
-			With("site_id", id, "site_web_url", wURL) // TODO: pii
+			With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
 	}
 
 	name := ptr.Val(item.GetDisplayName())
@@ -239,10 +239,10 @@ func ValidateSite(item models.Siteable) error {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if strings.HasSuffix(wURL, "/search") {
 			return clues.Stack(ErrKnownSkippableCase).
-				With("site_id", id, "site_web_url", wURL) // TODO: pii
+				With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
 		}
 
-		return clues.New("missing site display name").With("site_id", id)
+		return clues.New("missing site display name").With("site_id", clues.Hide(id))
 	}
 
 	return nil

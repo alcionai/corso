@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -20,7 +21,7 @@ type oneDriveService struct {
 }
 
 func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error) {
-	ac, err := api.NewClient(credentials)
+	ac, err := api.NewClient(credentials, control.Defaults())
 	if err != nil {
 		return nil, err
 	}

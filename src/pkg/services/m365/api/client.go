@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -36,11 +37,13 @@ type Client struct {
 	// arbitrary urls instead of constructing queries using the
 	// graph api client.
 	Requester graph.Requester
+
+	options control.Options
 }
 
 // NewClient produces a new exchange api client.  Must be used in
 // place of creating an ad-hoc client struct.
-func NewClient(creds account.M365Config) (Client, error) {
+func NewClient(creds account.M365Config, co control.Options) (Client, error) {
 	s, err := NewService(creds)
 	if err != nil {
 		return Client{}, err
@@ -53,7 +56,11 @@ func NewClient(creds account.M365Config) (Client, error) {
 
 	rqr := graph.NewNoTimeoutHTTPWrapper()
 
-	return Client{creds, s, li, rqr}, nil
+	if co.DeltaPageSize < 1 || co.DeltaPageSize > maxDeltaPageSize {
+		co.DeltaPageSize = maxDeltaPageSize
+	}
+
+	return Client{creds, s, li, rqr, co}, nil
 }
 
 // initConcurrencyLimit ensures that the graph concurrency limiter is

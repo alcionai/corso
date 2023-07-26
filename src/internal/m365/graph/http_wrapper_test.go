@@ -93,7 +93,7 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 	hdr.Set("Location", "localhost:99999999/smarfs")
 
 	toResp := &http.Response{
-		StatusCode: 302,
+		StatusCode: http.StatusFound,
 		Header:     hdr,
 	}
 
