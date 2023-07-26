@@ -70,6 +70,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 				"--" + flags.CollisionsFN, testdata.Collisions,
 				"--" + flags.DestinationFN, testdata.Destination,
+				"--" + flags.ToResourceFN, testdata.ToResource,
 
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
@@ -80,6 +81,9 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+				// bool flags
+				"--" + flags.RestorePermissionsFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -99,6 +103,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
 			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
+			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
@@ -109,6 +114,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+			assert.True(t, flags.RestorePermissionsFV)
 		})
 	}
 }

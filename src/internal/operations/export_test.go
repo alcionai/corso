@@ -99,7 +99,7 @@ func (suite *ExportOpSuite) TestExportOperation_PersistResults() {
 
 			op, err := NewExportOperation(
 				ctx,
-				control.Defaults(),
+				control.DefaultOptions(),
 				kw,
 				sw,
 				ctrl,

@@ -27,6 +27,10 @@ type Controller struct {
 	Err error
 
 	Stats data.CollectionStats
+
+	ProtectedResourceID   string
+	ProtectedResourceName string
+	ProtectedResourceErr  error
 }
 
 func (ctrl Controller) ProduceBackupCollections(
@@ -60,10 +64,7 @@ func (ctrl Controller) Wait() *data.CollectionStats {
 
 func (ctrl Controller) ConsumeRestoreCollections(
 	_ context.Context,
-	_ int,
-	_ selectors.Selector,
-	_ control.RestoreConfig,
-	_ control.Options,
+	_ inject.RestoreConsumerConfig,
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
 	_ *count.Bus,
@@ -83,4 +84,14 @@ func (ctrl Controller) ExportRestoreCollections(
 	_ *fault.Bus,
 ) ([]export.Collection, error) {
 	return nil, ctrl.Err
+}
+
+func (ctrl Controller) PopulateProtectedResourceIDAndName(
+	ctx context.Context,
+	protectedResource string, // input value, can be either id or name
+	ins idname.Cacher,
+) (string, string, error) {
+	return ctrl.ProtectedResourceID,
+		ctrl.ProtectedResourceName,
+		ctrl.ProtectedResourceErr
 }

@@ -178,7 +178,7 @@ func (suite *CollectionSuite) TestNewCollection_state() {
 				test.curr, test.prev, test.loc,
 				0,
 				&mockItemer{}, nil,
-				control.Defaults(),
+				control.DefaultOptions(),
 				false)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
