@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -79,6 +80,7 @@ func New(
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
+	additionalTags map[string]string,
 ) *Backup {
 	if fe == nil {
 		fe = &fault.Errors{}
@@ -111,12 +113,18 @@ func New(
 		}
 	}
 
+	tags := maps.Clone(additionalTags)
+	if tags == nil {
+		// Some platforms seem to return nil if the input is nil.
+		tags = map[string]string{}
+	}
+
+	tags[model.ServiceTag] = selector.PathService().String()
+
 	return &Backup{
 		BaseModel: model.BaseModel{
-			ID: id,
-			Tags: map[string]string{
-				model.ServiceTag: selector.PathService().String(),
-			},
+			ID:   id,
+			Tags: tags,
 		},
 
 		ResourceOwnerID:   ownerID,
