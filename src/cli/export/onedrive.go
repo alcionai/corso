@@ -57,15 +57,15 @@ const (
 
 	//nolint:lll
 	oneDriveServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's last backup (1234abcd...) to my-exports directory
-corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef my-exports
+corso export onedrive my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
 # Export files named "FY2021 Planning.xlsx" in "Documents/Finance Reports" to current directory
-corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports" .
+corso export onedrive . --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
 # Export all files and folders in folder "Documents/Finance Reports" that were created before 2020 to my-exports
-corso export onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd
-    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00 my-exports`
+corso export onedrive my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso export onedrive [<flag>...] <destination>`

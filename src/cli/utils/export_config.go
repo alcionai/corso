@@ -32,9 +32,7 @@ func MakeExportConfig(
 ) control.ExportConfig {
 	exportCfg := control.DefaultExportConfig()
 
-	if _, ok := opts.Populated[flags.ArchiveFN]; ok {
-		exportCfg.Archive = opts.Archive
-	}
+	exportCfg.Archive = opts.Archive
 
 	return exportCfg
 }

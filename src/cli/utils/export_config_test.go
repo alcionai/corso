@@ -28,11 +28,6 @@ func (suite *ExportCfgUnitSuite) TestMakeExportConfig() {
 		expect    control.ExportConfig
 	}{
 		{
-			name:      "not populated",
-			populated: flags.PopulatedFlags{},
-			expect:    control.ExportConfig{},
-		},
-		{
 			name: "archive populated",
 			populated: flags.PopulatedFlags{
 				flags.ArchiveFN: {},
