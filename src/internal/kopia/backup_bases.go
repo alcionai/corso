@@ -212,8 +212,8 @@ func (bb *backupBases) MergeBackupBases(
 
 		res.backups = append(res.backups, bup)
 		res.mergeBases = append(res.mergeBases, man)
-		res.assistBases = append(res.assistBases, man)
 		// TODO(pandeyabs): Merge partialBackups from UPN tagged backups.
+		res.assistBases = append(res.assistBases, man)
 	}
 
 	// Add assistBases from other to this one as needed.
