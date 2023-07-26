@@ -224,9 +224,9 @@ func (suite *SharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *SharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+func (suite *SharePointIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testPermissionsBackupAndNoRestore(suite, version.Backup)
+	testRestoreNoPermissionsAndBackup(suite, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
@@ -291,8 +291,8 @@ func (suite *OneDriveIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *OneDriveIntegrationSuite) TestPermissionsBackupAndNoRestore() {
-	testPermissionsBackupAndNoRestore(suite, version.Backup)
+func (suite *OneDriveIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
+	testRestoreNoPermissionsAndBackup(suite, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
@@ -355,8 +355,8 @@ func (suite *OneDriveNightlySuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.OneDrive1DataAndMetaFiles)
 }
 
-func (suite *OneDriveNightlySuite) TestPermissionsBackupAndNoRestore() {
-	testPermissionsBackupAndNoRestore(suite, version.OneDrive1DataAndMetaFiles)
+func (suite *OneDriveNightlySuite) TestRestoreNoPermissionsAndBackup() {
+	testRestoreNoPermissionsAndBackup(suite, version.OneDrive1DataAndMetaFiles)
 }
 
 func (suite *OneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
@@ -782,7 +782,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	}
 }
 
-func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
+func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -859,7 +859,9 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 
 			restoreCfg := testdata.DefaultRestoreConfig("perms_backup_no_restore")
 			restoreCfg.OnCollision = control.Replace
-			restoreCfg.IncludePermissions = true
+			restoreCfg.IncludePermissions = false
+
+			fmt.Printf("\n-----\nrcfg %+v\n-----\n", restoreCfg.IncludePermissions)
 
 			runRestoreBackupTestVersions(
 				t,

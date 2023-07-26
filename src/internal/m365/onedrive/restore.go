@@ -599,6 +599,8 @@ func restoreV6File(
 		return itemInfo, nil
 	}
 
+	fmt.Printf("\n-----\nrestorev6 %+v\n-----\n", rcc.RestoreConfig.IncludePermissions)
+
 	err = RestorePermissions(
 		ctx,
 		rh,
@@ -647,6 +649,8 @@ func CreateRestoreFolders(
 	if !restorePerms {
 		return id, nil
 	}
+
+	fmt.Printf("\n-----\ncreatefolders %+v\n-----\n", restorePerms)
 
 	err = RestorePermissions(
 		ctx,

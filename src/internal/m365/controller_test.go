@@ -510,8 +510,6 @@ func runRestore(
 		sci.RestoreCfg.Location,
 		sci.ResourceOwners)
 
-	sci.RestoreCfg.IncludePermissions = true
-
 	start := time.Now()
 
 	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
