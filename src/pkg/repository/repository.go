@@ -616,8 +616,13 @@ func deleteBackup(
 		}
 	}
 
-	if len(b.DetailsID) > 0 {
-		if err := kw.DeleteSnapshot(ctx, b.DetailsID); err != nil {
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
+		ssid = b.DetailsID
+	}
+
+	if len(ssid) > 0 {
+		if err := kw.DeleteSnapshot(ctx, ssid); err != nil {
 			return err
 		}
 	}
