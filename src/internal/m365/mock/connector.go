@@ -8,12 +8,10 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var _ inject.BackupProducer = &Controller{}
@@ -35,11 +33,7 @@ type Controller struct {
 
 func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
-	_ idname.Provider,
-	_ selectors.Selector,
-	_ []data.RestoreCollection,
-	_ int,
-	_ control.Options,
+	_ inject.BackupProducerConfig,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
