@@ -486,7 +486,7 @@ func (b *baseFinder) FindBases(
 			}
 
 			// Reassign since it's structs not pointers to structs.
-			partialBups[baseBackup.ID] = bs
+			partialBups[partialBackup.ID] = bs
 		}
 	}
 
