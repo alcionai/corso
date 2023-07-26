@@ -208,6 +208,32 @@ func (e *Bus) Errors() *Errors {
 	}
 }
 
+// ItemsAndRecovered returns the items that failed along with other
+// recoverable errors
+func (e *Bus) ItemsAndRecovered() ([]Item, []error) {
+	var (
+		is  = map[string]Item{}
+		non = []error{}
+	)
+
+	for _, err := range e.recoverable {
+		var ie *Item
+		if !errors.As(err, &ie) {
+			non = append(non, err)
+			continue
+		}
+
+		is[ie.dedupeID()] = *ie
+	}
+
+	var ie *Item
+	if errors.As(e.failure, &ie) {
+		is[ie.dedupeID()] = *ie
+	}
+
+	return maps.Values(is), non
+}
+
 // ---------------------------------------------------------------------------
 // Errors Data
 // ---------------------------------------------------------------------------
