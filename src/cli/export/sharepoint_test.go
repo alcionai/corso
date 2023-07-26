@@ -59,6 +59,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			cmd.SetArgs([]string{
 				"sharepoint",
+				testdata.RestoreDestination,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
 				"--" + flags.LibraryFN, testdata.LibraryInput,
@@ -79,9 +80,8 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
+				// bool flags
 				"--" + flags.ArchiveFN,
-
-				testdata.RestoreDestination,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output

@@ -1,20 +1,12 @@
 package export
 
 import (
-	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by export.go to map subcommands to provider-specific handling.
@@ -101,55 +93,8 @@ func exportSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	exportLocation := args[0]
-	if exportLocation == "" {
-		// This is unlikely, but adding it just in case.
-		exportLocation = control.DefaultRestoreLocation + dttm.FormatNow(dttm.HumanReadableDriveItem)
-	}
-
-	Infof(ctx, "Exporting to folder %s", exportLocation)
-
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	eo, err := r.NewExport(
-		ctx,
-		flags.BackupIDFV,
-		sel.Selector,
-		utils.MakeExportConfig(ctx, opts.ExportCfg),
-	)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to initialize SharePoint export"))
-	}
-
-	expColl, err := eo.Run(ctx)
-	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+flags.BackupIDFV))
-		}
-
-		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint export"))
-	}
-
-	// It would be better to give a progressbar than a spinner, but we
-	// have know way of knowing how many files are available as of now.
-	diskWriteComplete := observe.MessageWithCompletion(ctx, "Writing data to disk")
-	defer func() {
-		diskWriteComplete <- struct{}{}
-		close(diskWriteComplete)
-	}()
-
-	err = writeExportCollections(ctx, exportLocation, expColl)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "SharePoint")
 }

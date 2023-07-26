@@ -59,6 +59,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 			cmd.SetArgs([]string{
 				"onedrive",
+				testdata.RestoreDestination,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
 				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
@@ -74,9 +75,8 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
+				// bool flags
 				"--" + flags.ArchiveFN,
-
-				testdata.RestoreDestination,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
