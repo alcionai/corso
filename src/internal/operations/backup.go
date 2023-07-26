@@ -233,8 +233,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Persistence
 	// -----
 
+	// TODO(pandeyabs): See if we should also consider op.Failure()
+	isPartialBackup := deets != nil &&
+		!deets.Empty() &&
+		opStats.k.IgnoredErrorCount > 0
+
 	err = op.persistResults(startTime, &opStats)
-	if err != nil {
+	if err != nil && !isPartialBackup {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
 	}
@@ -249,8 +254,17 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 				Infow("completed backup; conditional error forcing exit without model persistence",
 					"results", op.Results)
 
-			return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
+			// TODO(pandeyabs): Temporary hack. Better solution is to remove this label
+			// wherever it's no longer applicable.
+			if !isPartialBackup {
+				return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
+			}
 		}
+	}
+
+	tags := map[string]string{}
+	if isPartialBackup {
+		tags[model.PartialBackupTag] = ""
 	}
 
 	err = op.createBackupModels(
@@ -259,7 +273,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
 		op.BackupVersion,
-		deets.Details())
+		deets.Details(),
+		tags)
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
 		return op.Errors.Failure()
@@ -750,6 +765,7 @@ func (op *BackupOperation) createBackupModels(
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
+	additionalTags map[string]string,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
@@ -790,7 +806,8 @@ func (op *BackupOperation) createBackupModels(
 		op.ResourceOwner.Name(),
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors.Errors())
+		op.Errors.Errors(),
+		additionalTags)
 
 	logger.Ctx(ctx).Info("creating new backup")
 

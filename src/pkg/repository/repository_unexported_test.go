@@ -345,7 +345,8 @@ func writeBackup(
 		ownerID, ownerName,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
-		fe)
+		fe,
+		nil)
 
 	err = sw.Put(ctx, model.BackupSchema, b)
 	require.NoError(t, err)

@@ -275,6 +275,14 @@ type Builder struct {
 	knownFolders map[string]Entry `json:"-"`
 }
 
+func (b *Builder) Empty() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// TODO(pandeyabs): Check if this should include knownFolders check
+	return len(b.d.Entries) == 0
+}
+
 func (b *Builder) Add(
 	repoRef path.Path,
 	locationRef *path.Builder,
