@@ -9,8 +9,9 @@ import (
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
-	"github.com/alcionai/corso/src/cmd/sanity_test/utils"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
@@ -25,17 +26,19 @@ func CheckOneDriveExport(
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting the drive:", err)
+		common.Fatal(ctx, "getting the drive:", err)
 	}
 
 	// map itemID -> item size
-	fileSizes := make(map[string]int64)       // exportFileSizes = make(map[string]int64)
-	exportFileSizes := make(map[string]int64) // exportFileSizes = make(map[string]int64)
-	startTime := time.Now()
+	var (
+		fileSizes       = make(map[string]int64)
+		exportFileSizes = make(map[string]int64)
+		startTime       = time.Now()
+	)
 
 	err = filepath.Walk(folderName, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return clues.Stack(err)
 		}
 
 		if info.IsDir() {
@@ -44,7 +47,7 @@ func CheckOneDriveExport(
 
 		relPath, err := filepath.Rel(folderName, path)
 		if err != nil {
-			return err
+			return clues.Stack(err)
 		}
 
 		exportFileSizes[relPath] = info.Size()
@@ -65,16 +68,15 @@ func CheckOneDriveExport(
 		folderName,
 		dataFolder,
 		fileSizes,
-		map[string][]restore.PermissionInfo{},
-		startTime,
-	)
+		map[string][]common.PermissionInfo{},
+		startTime)
 
 	for fileName, expected := range fileSizes {
-		utils.LogAndPrint(ctx, "checking for file: %s", fileName)
+		common.LogAndPrint(ctx, "checking for file: %s", fileName)
 
 		got := exportFileSizes[fileName]
 
-		utils.Assert(
+		common.Assert(
 			ctx,
 			func() bool { return expected == got },
 			fmt.Sprintf("different file size: %s", fileName),

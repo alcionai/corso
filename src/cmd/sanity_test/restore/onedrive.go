@@ -10,7 +10,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/cmd/sanity_test/utils"
+	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -18,11 +18,6 @@ import (
 const (
 	owner = "owner"
 )
-
-type PermissionInfo struct {
-	entityID string
-	roles    []string
-}
 
 func CheckOneDriveRestoration(
 	ctx context.Context,
@@ -36,7 +31,7 @@ func CheckOneDriveRestoration(
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting the drive:", err)
+		common.Fatal(ctx, "getting the drive:", err)
 	}
 
 	checkDriveRestoration(
@@ -66,9 +61,9 @@ func checkDriveRestoration(
 		// map itemID -> item size
 		fileSizes = make(map[string]int64)
 		// map itemID -> permission id -> []permission roles
-		folderPermissions         = make(map[string][]PermissionInfo)
+		folderPermissions         = make(map[string][]common.PermissionInfo)
 		restoreFile               = make(map[string]int64)
-		restoredFolderPermissions = make(map[string][]PermissionInfo)
+		restoredFolderPermissions = make(map[string][]common.PermissionInfo)
 	)
 
 	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
@@ -81,8 +76,7 @@ func checkDriveRestoration(
 		dataFolder,
 		fileSizes,
 		folderPermissions,
-		startTime,
-	)
+		startTime)
 
 	getRestoredDrive(ctx, client, driveID, restoreFolderID, restoreFile, restoredFolderPermissions, startTime)
 
@@ -94,11 +88,11 @@ func checkDriveRestoration(
 		restoredFolderPermissions)
 
 	for fileName, expected := range fileSizes {
-		utils.LogAndPrint(ctx, "checking for file: %s", fileName)
+		common.LogAndPrint(ctx, "checking for file: %s", fileName)
 
 		got := restoreFile[fileName]
 
-		utils.Assert(
+		common.Assert(
 			ctx,
 			func() bool { return expected == got },
 			fmt.Sprintf("different file size: %s", fileName),
@@ -112,11 +106,9 @@ func checkDriveRestoration(
 func PopulateDriveDetails(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	driveID string,
-	folderName string,
-	dataFolder string,
+	driveID, folderName, dataFolder string,
 	fileSizes map[string]int64,
-	folderPermissions map[string][]PermissionInfo,
+	folderPermissions map[string][]common.PermissionInfo,
 	startTime time.Time,
 ) string {
 	var restoreFolderID string
@@ -129,7 +121,7 @@ func PopulateDriveDetails(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting drive by id", err)
+		common.Fatal(ctx, "getting drive by id", err)
 	}
 
 	for _, driveItem := range response.GetValue() {
@@ -144,7 +136,7 @@ func PopulateDriveDetails(
 		}
 
 		if itemName != dataFolder {
-			utils.LogAndPrint(ctx, "test data for folder: %s", dataFolder)
+			common.LogAndPrint(ctx, "test data for folder: %s", dataFolder)
 			continue
 		}
 
@@ -160,7 +152,7 @@ func PopulateDriveDetails(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			utils.LogAndPrint(ctx, "skipped empty folder: %s", itemName)
+			common.LogAndPrint(ctx, "skipped empty folder: %s", itemName)
 			continue
 		}
 
@@ -175,8 +167,8 @@ func checkRestoredDriveItemPermissions(
 	ctx context.Context,
 	service path.ServiceType,
 	skip bool,
-	folderPermissions map[string][]PermissionInfo,
-	restoredFolderPermissions map[string][]PermissionInfo,
+	folderPermissions map[string][]common.PermissionInfo,
+	restoredFolderPermissions map[string][]common.PermissionInfo,
 ) {
 	if skip {
 		return
@@ -188,12 +180,12 @@ func checkRestoredDriveItemPermissions(
 	**/
 
 	for folderName, permissions := range folderPermissions {
-		utils.LogAndPrint(ctx, "checking for folder: %s", folderName)
+		common.LogAndPrint(ctx, "checking for folder: %s", folderName)
 
 		restoreFolderPerm := restoredFolderPermissions[folderName]
 
 		if len(permissions) < 1 {
-			utils.LogAndPrint(ctx, "no permissions found in: %s", folderName)
+			common.LogAndPrint(ctx, "no permissions found in: %s", folderName)
 			continue
 		}
 
@@ -203,7 +195,7 @@ func checkRestoredDriveItemPermissions(
 			permCheck = func() bool { return len(permissions) <= len(restoreFolderPerm) }
 		}
 
-		utils.Assert(
+		common.Assert(
 			ctx,
 			permCheck,
 			fmt.Sprintf("wrong number of restored permissions: %s", folderName),
@@ -211,25 +203,25 @@ func checkRestoredDriveItemPermissions(
 			restoreFolderPerm)
 
 		for _, perm := range permissions {
-			eqID := func(pi PermissionInfo) bool { return strings.EqualFold(pi.entityID, perm.entityID) }
+			eqID := func(pi common.PermissionInfo) bool { return strings.EqualFold(pi.EntityID, perm.EntityID) }
 			i := slices.IndexFunc(restoreFolderPerm, eqID)
 
-			utils.Assert(
+			common.Assert(
 				ctx,
 				func() bool { return i >= 0 },
 				fmt.Sprintf("permission was restored in: %s", folderName),
-				perm.entityID,
+				perm.EntityID,
 				restoreFolderPerm)
 
 			// permissions should be sorted, so a by-index comparison works
 			restored := restoreFolderPerm[i]
 
-			utils.Assert(
+			common.Assert(
 				ctx,
-				func() bool { return slices.Equal(perm.roles, restored.roles) },
+				func() bool { return slices.Equal(perm.Roles, restored.Roles) },
 				fmt.Sprintf("different roles restored: %s", folderName),
-				perm.roles,
-				restored.roles)
+				perm.Roles,
+				restored.Roles)
 		}
 	}
 }
@@ -239,12 +231,12 @@ func getOneDriveChildFolder(
 	client *msgraphsdk.GraphServiceClient,
 	driveID, itemID, parentName string,
 	fileSizes map[string]int64,
-	folderPermission map[string][]PermissionInfo,
+	folderPermission map[string][]common.PermissionInfo,
 	startTime time.Time,
 ) {
 	response, err := client.Drives().ByDriveId(driveID).Items().ByDriveItemId(itemID).Children().Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting child folder", err)
+		common.Fatal(ctx, "getting child folder", err)
 	}
 
 	for _, driveItem := range response.GetValue() {
@@ -254,8 +246,8 @@ func getOneDriveChildFolder(
 			fullName = parentName + "/" + itemName
 		)
 
-		folderTime, hasTime := utils.MustGetTimeFromName(ctx, itemName)
-		if !utils.IsWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+		folderTime, hasTime := common.MustGetTimeFromName(ctx, itemName)
+		if !common.IsWithinTimeBound(ctx, startTime, folderTime, hasTime) {
 			continue
 		}
 
@@ -271,7 +263,7 @@ func getOneDriveChildFolder(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			utils.LogAndPrint(ctx, "skipped empty folder: %s", fullName)
+			common.LogAndPrint(ctx, "skipped empty folder: %s", fullName)
 
 			continue
 		}
@@ -286,7 +278,7 @@ func getRestoredDrive(
 	client *msgraphsdk.GraphServiceClient,
 	driveID, restoreFolderID string,
 	restoreFile map[string]int64,
-	restoreFolder map[string][]PermissionInfo,
+	restoreFolder map[string][]common.PermissionInfo,
 	startTime time.Time,
 ) {
 	restored, err := client.
@@ -297,7 +289,7 @@ func getRestoredDrive(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting child folder", err)
+		common.Fatal(ctx, "getting child folder", err)
 	}
 
 	for _, item := range restored.GetValue() {
@@ -329,8 +321,8 @@ func permissionIn(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	driveID, itemID string,
-) []PermissionInfo {
-	pi := []PermissionInfo{}
+) []common.PermissionInfo {
+	pi := []common.PermissionInfo{}
 
 	pcr, err := client.
 		Drives().
@@ -340,7 +332,7 @@ func permissionIn(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting permission", err)
+		common.Fatal(ctx, "getting permission", err)
 	}
 
 	for _, perm := range pcr.GetValue() {
@@ -350,7 +342,7 @@ func permissionIn(
 
 		var (
 			gv2      = perm.GetGrantedToV2()
-			permInfo = PermissionInfo{}
+			permInfo = common.PermissionInfo{}
 			entityID string
 		)
 
@@ -361,14 +353,14 @@ func permissionIn(
 			entityID = ptr.Val(gv2.GetGroup().GetId())
 		}
 
-		roles := utils.FilterSlice(perm.GetRoles(), owner)
+		roles := common.FilterSlice(perm.GetRoles(), owner)
 		for _, role := range roles {
-			permInfo.entityID = entityID
-			permInfo.roles = append(permInfo.roles, role)
+			permInfo.EntityID = entityID
+			permInfo.Roles = append(permInfo.Roles, role)
 		}
 
 		if len(roles) > 0 {
-			slices.Sort(permInfo.roles)
+			slices.Sort(permInfo.Roles)
 			pi = append(pi, permInfo)
 		}
 	}

@@ -9,9 +9,9 @@ import (
 	"github.com/alcionai/clues"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
+	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/export"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
-	"github.com/alcionai/corso/src/cmd/sanity_test/utils"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -36,7 +36,7 @@ func main() {
 		os.Getenv("AZURE_CLIENT_ID"),
 		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
-		utils.Fatal(ctx, "creating adapter", err)
+		common.Fatal(ctx, "creating adapter", err)
 	}
 
 	var (
@@ -60,7 +60,7 @@ func main() {
 
 	switch testKind {
 	case "restore":
-		startTime, _ := utils.MustGetTimeFromName(ctx, folder)
+		startTime, _ := common.MustGetTimeFromName(ctx, folder)
 		clues.Add(ctx, "sanity_restore_start_time", startTime.Format(time.RFC3339))
 
 		switch testService {
@@ -71,16 +71,16 @@ func main() {
 		case "sharepoint":
 			restore.CheckSharePointRestoration(ctx, client, testSite, testUser, folder, dataFolder, startTime)
 		default:
-			utils.Fatal(ctx, "unknown service for restore sanity tests", nil)
+			common.Fatal(ctx, "unknown service for restore sanity tests", nil)
 		}
 	case "export":
 		switch testService {
 		case "onedrive":
 			export.CheckOneDriveExport(ctx, client, testUser, folder, dataFolder)
 		default:
-			utils.Fatal(ctx, "unknown service for export sanity tests", nil)
+			common.Fatal(ctx, "unknown service for export sanity tests", nil)
 		}
 	default:
-		utils.Fatal(ctx, "unknown test kind (expected restore or export)", nil)
+		common.Fatal(ctx, "unknown test kind (expected restore or export)", nil)
 	}
 }
