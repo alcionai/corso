@@ -519,12 +519,9 @@ func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
 
 	assert.NotEqual(t, blobCfg1, blobCfg2)
 
+	// Check to make sure retention not enabled unexpectedly.
+	checkRetentionParams(t, ctx, k1, blob.RetentionMode(""), 0, assert.False)
+
 	// Some checks to make sure retention was fully initialized as expected.
-	checkRetentionParams(
-		t,
-		ctx,
-		k2,
-		blob.Governance,
-		time.Hour*48,
-		assert.True)
+	checkRetentionParams(t, ctx, k2, blob.Governance, time.Hour*48, assert.True)
 }
