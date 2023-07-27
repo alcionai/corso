@@ -24,19 +24,7 @@ const (
 	progressBarWidth     = 32
 )
 
-var (
-	wg sync.WaitGroup
-	// TODO: Revisit this being a global and make it a parameter to the progress methods
-	// so that each bar can be initialized with different contexts if needed.
-	contxt   context.Context
-	writer   io.Writer
-	progress *mpb.Progress
-	cfg      *config
-)
-
 func init() {
-	cfg = &config{}
-
 	makeSpinFrames(progressBarWidth)
 }
 
@@ -52,7 +40,7 @@ func AddProgressBarFlags(cmd *cobra.Command) {
 // Due to races between the lazy evaluation of flags in cobra and the need to init observer
 // behavior in a ctx, these options get pre-processed manually here using pflags.  The canonical
 // AddProgressBarFlag() ensures the flags are displayed as part of the help/usage output.
-func PreloadFlags() *config {
+func PreloadFlags() config {
 	fs := pflag.NewFlagSet("seed-observer", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.Bool(hideProgressBarsFN, false, "turn off the progress bar displays")
@@ -62,25 +50,26 @@ func PreloadFlags() *config {
 
 	// parse the os args list to find the observer display flags
 	if err := fs.Parse(os.Args[1:]); err != nil {
-		return nil
+		return config{}
 	}
 
 	// retrieve the user's preferred display
 	// automatically defaults to "info"
 	shouldHide, err := fs.GetBool(hideProgressBarsFN)
 	if err != nil {
-		return nil
+		return config{}
 	}
 
 	// retrieve the user's preferred display
 	// automatically defaults to "info"
 	shouldAlwaysShow, err := fs.GetBool(retainProgressBarsFN)
 	if err != nil {
-		return nil
+		return config{}
 	}
 
-	return &config{
+	return config{
 		doNotDisplay:          shouldHide,
+		displayIsTerminal:     true,
 		keepBarsAfterComplete: shouldAlwaysShow,
 	}
 }
@@ -92,42 +81,77 @@ func PreloadFlags() *config {
 // config handles observer configuration
 type config struct {
 	doNotDisplay          bool
+	displayIsTerminal     bool
 	keepBarsAfterComplete bool
 }
 
-func (c config) hidden() bool {
-	return c.doNotDisplay || writer == nil
+type observerKey string
+
+const ctxKey observerKey = "corsoObserver"
+
+type observer struct {
+	cfg config
+	mp  *mpb.Progress
+	w   io.Writer
+	wg  *sync.WaitGroup
 }
 
-// SeedWriter adds default writer to the observe package.
-// Uses a noop writer until seeded.
-func SeedWriter(ctx context.Context, w io.Writer, c *config) {
-	writer = w
-	contxt = ctx
+func (o observer) hidden() bool {
+	return o.cfg.doNotDisplay || o.w == nil
+}
 
-	if contxt == nil {
-		contxt = context.Background()
-	}
-
-	if c != nil {
-		cfg = c
-	}
-
-	progress = mpb.NewWithContext(
-		contxt,
+func (o *observer) cycleWriter(ctx context.Context) {
+	opts := []mpb.ContainerOption{
 		mpb.WithWidth(progressBarWidth),
-		mpb.WithWaitGroup(&wg),
-		mpb.WithOutput(writer))
-}
-
-// Complete blocks until the progress finishes writing out all data.
-// Afterwards, the progress instance is reset.
-func Complete() {
-	if progress != nil {
-		progress.Wait()
+		mpb.WithWaitGroup(o.wg),
+		mpb.WithOutput(o.w),
 	}
 
-	SeedWriter(contxt, writer, cfg)
+	if !o.cfg.displayIsTerminal {
+		opts = append(opts, mpb.WithAutoRefresh())
+	}
+
+	o.mp = mpb.NewWithContext(ctx, opts...)
+}
+
+// SeedObserver adds an observer to the context.  Any calls to observe
+// funcs will retrieve the observer from the context.  If no observer
+// is found in the context, the call no-ops.
+func SeedObserver(ctx context.Context, w io.Writer, cfg config) context.Context {
+	obs := &observer{
+		w:   w,
+		cfg: cfg,
+		wg:  &sync.WaitGroup{},
+	}
+
+	obs.cycleWriter(ctx)
+
+	return setObserver(ctx, obs)
+}
+
+func setObserver(ctx context.Context, obs *observer) context.Context {
+	return context.WithValue(ctx, ctxKey, obs)
+}
+
+func getObserver(ctx context.Context) *observer {
+	o := ctx.Value(ctxKey)
+	if o == nil {
+		return &observer{cfg: config{doNotDisplay: true}}
+	}
+
+	return o.(*observer)
+}
+
+// Flush blocks until the progress finishes writing out all data.
+// Afterwards, the progress instance is reset.
+func Flush(ctx context.Context) {
+	obs := getObserver(ctx)
+
+	if obs.mp != nil {
+		obs.mp.Wait()
+	}
+
+	obs.cycleWriter(ctx)
 }
 
 const (
@@ -136,12 +160,17 @@ const (
 	ItemQueueMsg   = "Queuing items"
 )
 
+// ---------------------------------------------------------------------------
 // Progress Updates
+// ---------------------------------------------------------------------------
 
 // Message is used to display a progress message
 func Message(ctx context.Context, msgs ...any) {
-	plainSl := make([]string, 0, len(msgs))
-	loggableSl := make([]string, 0, len(msgs))
+	var (
+		obs        = getObserver(ctx)
+		plainSl    = make([]string, 0, len(msgs))
+		loggableSl = make([]string, 0, len(msgs))
+	)
 
 	for _, m := range msgs {
 		plainSl = append(plainSl, plainString(m))
@@ -153,13 +182,13 @@ func Message(ctx context.Context, msgs ...any) {
 
 	logger.Ctx(ctx).Info(loggable)
 
-	if cfg.hidden() {
+	if obs.hidden() {
 		return
 	}
 
-	wg.Add(1)
+	obs.wg.Add(1)
 
-	bar := progress.New(
+	bar := obs.mp.New(
 		-1,
 		mpb.NopStyle(),
 		mpb.PrependDecorators(decor.Name(
@@ -171,8 +200,7 @@ func Message(ctx context.Context, msgs ...any) {
 
 	// Complete the bar immediately
 	bar.SetTotal(-1, true)
-
-	waitAndCloseBar(bar, func() {})()
+	waitAndCloseBar(ctx, bar, obs.wg, func() {})()
 }
 
 // MessageWithCompletion is used to display progress with a spinner
@@ -182,6 +210,7 @@ func MessageWithCompletion(
 	msg any,
 ) chan<- struct{} {
 	var (
+		obs      = getObserver(ctx)
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%v", msg)
 		log      = logger.Ctx(ctx)
@@ -190,16 +219,16 @@ func MessageWithCompletion(
 
 	log.Info(loggable)
 
-	if cfg.hidden() {
+	if obs.hidden() {
 		defer log.Info("done - " + loggable)
 		return ch
 	}
 
-	wg.Add(1)
+	obs.wg.Add(1)
 
 	frames := []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"}
 
-	bar := progress.New(
+	bar := obs.mp.New(
 		-1,
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
@@ -214,13 +243,10 @@ func MessageWithCompletion(
 			bar.SetTotal(-1, true)
 			bar.Abort(true)
 		},
-		func() {
-			// We don't care whether the channel was signalled or closed
-			// Use either one as an indication that the bar is done
-			bar.SetTotal(-1, true)
-		})
+		// callers should close the channel
+		func() {})
 
-	go waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(ctx, bar, obs.wg, func() {
 		log.Info("done - " + loggable)
 	})()
 
@@ -230,6 +256,25 @@ func MessageWithCompletion(
 // ---------------------------------------------------------------------------
 // Progress for Known Quantities
 // ---------------------------------------------------------------------------
+
+type autoCloser struct {
+	rc     io.ReadCloser
+	close  func()
+	closed bool
+}
+
+func (ac *autoCloser) Read(p []byte) (n int, err error) {
+	return ac.rc.Read(p)
+}
+
+func (ac *autoCloser) Close() error {
+	if !ac.closed {
+		ac.closed = true
+		ac.close()
+	}
+
+	return ac.rc.Close()
+}
 
 // ItemProgress tracks the display of an item in a folder by counting the bytes
 // read through the provided readcloser, up until the byte count matches
@@ -241,18 +286,22 @@ func ItemProgress(
 	iname any,
 	totalBytes int64,
 ) (io.ReadCloser, func()) {
-	plain := plainString(iname)
-	log := logger.Ctx(ctx).With(
-		"item", iname,
-		"size", humanize.Bytes(uint64(totalBytes)))
+	var (
+		obs   = getObserver(ctx)
+		plain = plainString(iname)
+		log   = logger.Ctx(ctx).With(
+			"item", iname,
+			"size", humanize.Bytes(uint64(totalBytes)))
+	)
+
 	log.Debug(header)
 
-	if cfg.hidden() || rc == nil || totalBytes == 0 {
+	if obs.hidden() || rc == nil {
 		defer log.Debug("done - " + header)
 		return rc, func() {}
 	}
 
-	wg.Add(1)
+	obs.wg.Add(1)
 
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
@@ -262,23 +311,26 @@ func ItemProgress(
 			decor.NewPercentage("%d ", decor.WC{W: 4})),
 	}
 
-	if !cfg.keepBarsAfterComplete {
+	if !obs.cfg.keepBarsAfterComplete {
 		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
 	}
 
-	bar := progress.New(totalBytes, mpb.NopStyle(), barOpts...)
+	bar := obs.mp.New(totalBytes, mpb.NopStyle(), barOpts...)
 
-	go waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(ctx, bar, obs.wg, func() {
 		// might be overly chatty, we can remove if needed.
 		log.Debug("done - " + header)
 	})()
 
-	abort := func() {
+	closer := &autoCloser{rc: bar.ProxyReader(rc)}
+
+	closer.close = func() {
+		closer.closed = true
 		bar.SetTotal(-1, true)
 		bar.Abort(true)
 	}
 
-	return bar.ProxyReader(rc), abort
+	return closer, closer.close
 }
 
 // ProgressWithCount tracks the display of a bar that tracks the completion
@@ -292,6 +344,7 @@ func ProgressWithCount(
 	count int64,
 ) chan<- struct{} {
 	var (
+		obs      = getObserver(ctx)
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%s %v - %d", header, msg, count)
 		log      = logger.Ctx(ctx)
@@ -300,7 +353,7 @@ func ProgressWithCount(
 
 	log.Info(loggable)
 
-	if cfg.hidden() {
+	if obs.hidden() {
 		go listen(ctx, ch, nop, nop)
 
 		defer log.Info("done - " + loggable)
@@ -308,7 +361,7 @@ func ProgressWithCount(
 		return ch
 	}
 
-	wg.Add(1)
+	obs.wg.Add(1)
 
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
@@ -317,19 +370,21 @@ func ProgressWithCount(
 			decor.Counters(0, " %d/%d ")),
 	}
 
-	if !cfg.keepBarsAfterComplete {
+	if !obs.cfg.keepBarsAfterComplete {
 		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
 	}
 
-	bar := progress.New(count, mpb.NopStyle(), barOpts...)
+	bar := obs.mp.New(count, mpb.NopStyle(), barOpts...)
 
 	go listen(
 		ctx,
 		ch,
-		func() { bar.Abort(true) },
+		func() {
+			bar.Abort(true)
+		},
 		bar.Increment)
 
-	go waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(ctx, bar, obs.wg, func() {
 		log.Info("done - " + loggable)
 	})()
 
@@ -377,6 +432,7 @@ func CollectionProgress(
 	dirName any,
 ) chan<- struct{} {
 	var (
+		obs     = getObserver(ctx)
 		counted int
 		plain   = plainString(dirName)
 		ch      = make(chan struct{})
@@ -396,7 +452,7 @@ func CollectionProgress(
 		}
 	}
 
-	if cfg.hidden() || len(plain) == 0 {
+	if obs.hidden() || len(plain) == 0 {
 		go listen(ctx, ch, nop, incCount)
 
 		defer log.Infow("done - "+message, "count", counted)
@@ -404,7 +460,7 @@ func CollectionProgress(
 		return ch
 	}
 
-	wg.Add(1)
+	obs.wg.Add(1)
 
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(decor.Name(string(category))),
@@ -415,11 +471,11 @@ func CollectionProgress(
 		mpb.BarFillerOnComplete(spinFrames[0]),
 	}
 
-	if !cfg.keepBarsAfterComplete {
+	if !obs.cfg.keepBarsAfterComplete {
 		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
 	}
 
-	bar := progress.New(
+	bar := obs.mp.New(
 		-1, // -1 to indicate an unbounded count
 		mpb.SpinnerStyle(spinFrames...),
 		barOpts...)
@@ -433,14 +489,14 @@ func CollectionProgress(
 			bar.Increment()
 		})
 
-	go waitAndCloseBar(bar, func() {
+	go waitAndCloseBar(ctx, bar, obs.wg, func() {
 		log.Infow("done - "+message, "count", counted)
 	})()
 
 	return ch
 }
 
-func waitAndCloseBar(bar *mpb.Bar, log func()) func() {
+func waitAndCloseBar(ctx context.Context, bar *mpb.Bar, wg *sync.WaitGroup, log func()) func() {
 	return func() {
 		bar.Wait()
 		wg.Done()

@@ -242,8 +242,8 @@ func (c *Collections) Get(
 		driveTombstones[driveID] = struct{}{}
 	}
 
-	driveComplete := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
-	defer close(driveComplete)
+	progressBar := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
+	defer close(progressBar)
 
 	// Enumerate drives for the specified resourceOwner
 	pager := c.handler.NewDrivePager(c.resourceOwner, nil)

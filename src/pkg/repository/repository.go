@@ -208,12 +208,8 @@ func Connect(
 		}
 	}()
 
-	// Close/Reset the progress bar. This ensures callers don't have to worry about
-	// their output getting clobbered (#1720)
-	defer observe.Complete()
-
-	complete := observe.MessageWithCompletion(ctx, "Connecting to repository")
-	defer close(complete)
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
+	defer close(progressBar)
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx, opts.Repo); err != nil {
@@ -251,8 +247,6 @@ func Connect(
 	if !opts.DisableMetrics {
 		bus.SetRepoID(repoid)
 	}
-
-	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
@@ -654,17 +648,20 @@ func newRepoID(s storage.Storage) string {
 // helpers
 // ---------------------------------------------------------------------------
 
+var m365nonce bool
+
 func connectToM365(
 	ctx context.Context,
 	pst path.ServiceType,
 	acct account.Account,
 	co control.Options,
 ) (*m365.Controller, error) {
-	complete := observe.MessageWithCompletion(ctx, "Connecting to M365")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	if !m365nonce {
+		m365nonce = true
+
+		progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
+		defer close(progressBar)
+	}
 
 	// retrieve data from the producer
 	rc := resource.Users

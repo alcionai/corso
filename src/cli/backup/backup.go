@@ -230,6 +230,9 @@ func runBackups(
 			continue
 		}
 
+		// // observe bars needs to be flushed before printing
+		// ctx = observe.Flush(ctx)
+
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
