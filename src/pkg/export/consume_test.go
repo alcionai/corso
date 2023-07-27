@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/export"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type ExportE2ESuite struct {
@@ -31,12 +31,12 @@ func (suite *ExportE2ESuite) SetupSuite() {
 
 type mockExportCollection struct {
 	path  string
-	items []export.Item
+	items []Item
 }
 
 func (mec mockExportCollection) BasePath() string { return mec.path }
-func (mec mockExportCollection) Items(context.Context) <-chan export.Item {
-	ch := make(chan export.Item)
+func (mec mockExportCollection) Items(context.Context) <-chan Item {
+	ch := make(chan Item)
 
 	go func() {
 		defer close(ch)
@@ -49,7 +49,7 @@ func (mec mockExportCollection) Items(context.Context) <-chan export.Item {
 	return ch
 }
 
-func (suite *ExportE2ESuite) TestWriteExportCollection() {
+func (suite *ExportE2ESuite) TestConsumeExportCollection() {
 	type ei struct {
 		name string
 		body string
@@ -132,12 +132,12 @@ func (suite *ExportE2ESuite) TestWriteExportCollection() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ecs := []export.Collection{}
+			ecs := []Collection{}
 			for _, col := range test.cols {
-				items := []export.Item{}
+				items := []Item{}
 				for _, item := range col.items {
-					items = append(items, export.Item{
-						Data: export.ItemData{
+					items = append(items, Item{
+						Data: ItemData{
 							Name: item.name,
 							Body: io.NopCloser((bytes.NewBufferString(item.body))),
 						},
@@ -154,7 +154,7 @@ func (suite *ExportE2ESuite) TestWriteExportCollection() {
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			err = writeExportCollections(ctx, dir, ecs)
+			err = ConsumeExportCollections(ctx, dir, ecs, fault.New(true))
 			require.NoError(t, err, "writing data")
 
 			for _, col := range test.cols {

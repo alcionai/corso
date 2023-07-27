@@ -3,9 +3,6 @@ package export
 import (
 	"context"
 	"errors"
-	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -72,7 +69,7 @@ func runExport(
 	defer utils.CloseRepo(ctx, r)
 
 	exportLocation := args[0]
-	if exportLocation == "" {
+	if len(exportLocation) == 0 {
 		// This should not be possible, but adding it just in case.
 		exportLocation = control.DefaultRestoreLocation + dttm.FormatNow(dttm.HumanReadableDriveItem)
 	}
@@ -83,8 +80,7 @@ func runExport(
 		ctx,
 		backupID,
 		sel,
-		utils.MakeExportConfig(ctx, ueco),
-	)
+		utils.MakeExportConfig(ctx, ueco))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize "+serviceName+" export"))
 	}
@@ -99,74 +95,13 @@ func runExport(
 	}
 
 	// It would be better to give a progressbar than a spinner, but we
-	// have know way of knowing how many files are available as of now.
+	// have any way of knowing how many files are available as of now.
 	diskWriteComplete := observe.MessageWithCompletion(ctx, "Writing data to disk")
-	defer func() {
-		diskWriteComplete <- struct{}{}
-		close(diskWriteComplete)
-	}()
+	defer close(diskWriteComplete)
 
-	err = writeExportCollections(ctx, exportLocation, expColl)
+	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
 	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func writeExportCollections(
-	ctx context.Context,
-	exportLocation string,
-	expColl []export.Collection,
-) error {
-	for _, col := range expColl {
-		folder := filepath.Join(exportLocation, col.BasePath())
-
-		for item := range col.Items(ctx) {
-			err := item.Error
-			if err != nil {
-				return Only(ctx, clues.Wrap(err, "getting item").With("dir_name", folder))
-			}
-
-			err = writeExportItem(ctx, item, folder)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// writeExportItem writes an ExportItem to disk in the specified folder.
-func writeExportItem(ctx context.Context, item export.Item, folder string) error {
-	name := item.Data.Name
-	fpath := filepath.Join(folder, name)
-
-	progReader, pclose := observe.ItemSpinner(
-		ctx,
-		item.Data.Body,
-		observe.ItemExportMsg,
-		clues.Hide(name))
-
-	defer item.Data.Body.Close()
-	defer pclose()
-
-	err := os.MkdirAll(folder, os.ModePerm)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "creating directory").With("dir_name", folder))
-	}
-
-	// In case the user tries to restore to a non-clean
-	// directory, we might run into collisions an fail.
-	f, err := os.Create(fpath)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "creating file").With("file_name", name, "file_dir", folder))
-	}
-
-	_, err = io.Copy(f, progReader)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "writing file").With("file_name", name, "file_dir", folder))
+		return Only(ctx, err)
 	}
 
 	return nil
