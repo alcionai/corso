@@ -103,7 +103,6 @@ func New(opt *Options) (*Client, error) {
 func maybeAddObj(prefix string, obj ObjInfo, m map[string]ObjInfo) {
 	// We've already found an item to check.
 	if _, ok := m[prefix]; ok {
-		fmt.Printf("prefix %s already matched\n", prefix)
 		return
 	}
 
@@ -134,7 +133,6 @@ func (c *Client) ListUntilAllFound(
 			return notDeleted, deleted, clues.Wrap(err, "searching object list")
 		}
 
-		fmt.Printf("looking at object %q\n", obj.Key)
 
 		var (
 			matchesPrefix string
@@ -142,9 +140,7 @@ func (c *Client) ListUntilAllFound(
 		)
 
 		for _, prefix := range wantedPrefixes {
-			fmt.Printf("checking %q for prefix %q\n", trimmedKey, prefix)
 			if strings.HasPrefix(trimmedKey, prefix) {
-				fmt.Println("matched prefix")
 				matchesPrefix = prefix
 				break
 			}

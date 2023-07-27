@@ -13,11 +13,10 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cmd/s3checker/pkg/s3"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
-
-	"github.com/alcionai/corso/src/cmd/s3checker/pkg/s3"
 )
 
 // Matches other definitions of this const.
@@ -143,6 +142,26 @@ func validateFlags(f flags) error {
 	return nil
 }
 
+func reportMissingPrefixes(
+	objDescriptor string,
+	wanted []string,
+	got map[string]s3.ObjInfo,
+) error {
+	var err error
+
+	for _, want := range wanted {
+		if _, ok := got[want]; !ok {
+			fmt.Printf("missing %s object for prefix %q\n", objDescriptor, want)
+
+			err = clues.Stack(
+				err,
+				clues.New("missing "+objDescriptor+" object prefix \""+want+"\""))
+		}
+	}
+
+	return err
+}
+
 func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 	if len(f.prefixes) == 0 {
 		return nil
@@ -154,7 +173,7 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 
 	cmd.SilenceUsage = true
 
-	fmt.Printf("%+v\n", f.prefixes)
+	fmt.Printf("Checking objects with prefix(es) %v\n", f.prefixes)
 
 	if err := config.InitFunc(cmd, args); err != nil {
 		return clues.Wrap(err, "setting viper")
@@ -207,18 +226,16 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 	// Reset error so we can return something at the end.
 	err = nil
 
-	if len(live) != len(prefixes) {
-		err = clues.Stack(err, "some live objects missing")
+	if err2 := reportMissingPrefixes("live", f.prefixes, live); err2 != nil {
+		err = clues.Stack(err, clues.New("some live objects missing"))
 	}
 
-	if len(dead) != len(prefixes) {
+	if f.withDeleted {
 		// Only print here because it's possible there aren't dead objects for the
 		// given prefix.
-		fmt.Printf("some dead objects not found")
+		//nolint:errcheck
+		reportMissingPrefixes("dead", f.prefixes, dead)
 	}
-
-	fmt.Printf("%+v\n", live)
-	fmt.Printf("%+v\n", dead)
 
 	now := time.Now()
 	retentionMode := minio.RetentionMode(f.retentionMode)
@@ -237,10 +254,9 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 		maps.Values(dead),
 		hasAtMostRetention(upperBound))
 
-	err = nil
-
 	if len(liveErrs) > 0 {
 		fmt.Printf("%d error(s) checking live object retention\n", len(liveErrs))
+
 		for i, err := range liveErrs {
 			fmt.Printf("\t%d: %s\n", i, err.Error())
 		}
@@ -252,6 +268,7 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 
 	if len(deadErrs) > 0 {
 		fmt.Printf("%d error(s) checking dead object retention\n", len(deadErrs))
+
 		for i, err := range deadErrs {
 			fmt.Printf("\t%d: %s\n", i, err.Error())
 		}
@@ -346,8 +363,6 @@ func checkObjsWithRetention(
 			errs = append(errs, clues.Stack(err))
 			continue
 		}
-
-		fmt.Printf("got mode %+v and expiry %+v\n", mode, expiry)
 
 		if err := checkFunc(mode, expiry); err != nil {
 			errs = append(errs, clues.Wrap(err, fmt.Sprintf(
