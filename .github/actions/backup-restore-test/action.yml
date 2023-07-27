@@ -94,11 +94,11 @@ runs:
         set -euo pipefail
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
         ./corso export '${{ inputs.service }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }} \
             --no-stats \
             --hide-progress \
             ${{ inputs.export-args }} \
-            --backup '${{ steps.backup.outputs.result }}' \
-            /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+            --backup '${{ steps.backup.outputs.result }}'
 
           cat /tmp/corsologs
 
@@ -125,12 +125,12 @@ runs:
         set -euo pipefail
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
         ./corso export '${{ inputs.service }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive \
             --no-stats \
             --hide-progress \
             --archive \
             ${{ inputs.export-args }} \
-            --backup '${{ steps.backup.outputs.result }}' \
-            /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive
+            --backup '${{ steps.backup.outputs.result }}'
 
           unzip /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive/*.zip \
             -d /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
