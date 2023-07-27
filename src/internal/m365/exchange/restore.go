@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -28,7 +29,7 @@ import (
 func ConsumeRestoreCollections(
 	ctx context.Context,
 	ac api.Client,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
@@ -39,15 +40,12 @@ func ConsumeRestoreCollections(
 	}
 
 	var (
-		userID         = dcs[0].FullPath().ResourceOwner()
+		resourceID     = rcc.ProtectedResource.ID()
 		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
 		handlers       = restoreHandlers(ac)
 		metrics        support.CollectionMetrics
 		el             = errs.Local()
 	)
-
-	// FIXME: should be user name
-	ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
 
 	for _, dc := range dcs {
 		if el.Failure() != nil {
@@ -69,7 +67,7 @@ func ConsumeRestoreCollections(
 		}
 
 		if directoryCache[category] == nil {
-			gcr := handler.newContainerCache(userID)
+			gcr := handler.newContainerCache(resourceID)
 			if err := gcr.Populate(ctx, errs, handler.defaultRootContainer()); err != nil {
 				return nil, clues.Wrap(err, "populating container cache")
 			}
@@ -80,8 +78,8 @@ func ConsumeRestoreCollections(
 		containerID, gcc, err := createDestination(
 			ictx,
 			handler,
-			handler.formatRestoreDestination(restoreCfg.Location, dc.FullPath()),
-			userID,
+			handler.formatRestoreDestination(rcc.RestoreConfig.Location, dc.FullPath()),
+			resourceID,
 			directoryCache[category],
 			errs)
 		if err != nil {
@@ -92,7 +90,7 @@ func ConsumeRestoreCollections(
 		directoryCache[category] = gcc
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
 
-		collisionKeyToItemID, err := handler.getItemsInContainerByCollisionKey(ctx, userID, containerID)
+		collisionKeyToItemID, err := handler.getItemsInContainerByCollisionKey(ctx, resourceID, containerID)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Wrap(err, "building item collision cache"))
 			continue
@@ -102,10 +100,10 @@ func ConsumeRestoreCollections(
 			ictx,
 			handler,
 			dc,
-			userID,
+			resourceID,
 			containerID,
 			collisionKeyToItemID,
-			restoreCfg.OnCollision,
+			rcc.RestoreConfig.OnCollision,
 			deets,
 			errs,
 			ctr)
@@ -126,7 +124,7 @@ func ConsumeRestoreCollections(
 		support.Restore,
 		len(dcs),
 		metrics,
-		restoreCfg.Location)
+		rcc.RestoreConfig.Location)
 
 	return status, el.Failure()
 }
@@ -136,7 +134,7 @@ func restoreCollection(
 	ctx context.Context,
 	ir itemRestorer,
 	dc data.RestoreCollection,
-	userID, destinationID string,
+	resourceID, destinationID string,
 	collisionKeyToItemID map[string]string,
 	collisionPolicy control.CollisionPolicy,
 	deets *details.Builder,
@@ -187,7 +185,7 @@ func restoreCollection(
 			info, err := ir.restore(
 				ictx,
 				body,
-				userID,
+				resourceID,
 				destinationID,
 				collisionKeyToItemID,
 				collisionPolicy,
@@ -240,7 +238,7 @@ func createDestination(
 	ctx context.Context,
 	ca containerAPI,
 	destination *path.Builder,
-	userID string,
+	resourceID string,
 	gcr graph.ContainerResolver,
 	errs *fault.Bus,
 ) (string, graph.ContainerResolver, error) {
@@ -264,7 +262,7 @@ func createDestination(
 			ca,
 			cache,
 			restoreLoc,
-			userID,
+			resourceID,
 			containerParentID,
 			container,
 			errs)
@@ -285,7 +283,7 @@ func getOrPopulateContainer(
 	ca containerAPI,
 	gcr graph.ContainerResolver,
 	restoreLoc *path.Builder,
-	userID, containerParentID, containerName string,
+	resourceID, containerParentID, containerName string,
 	errs *fault.Bus,
 ) (string, error) {
 	cached, ok := gcr.LocationInCache(restoreLoc.String())
@@ -293,7 +291,7 @@ func getOrPopulateContainer(
 		return cached, nil
 	}
 
-	c, err := ca.CreateContainer(ctx, userID, containerParentID, containerName)
+	c, err := ca.CreateContainer(ctx, resourceID, containerParentID, containerName)
 
 	// 409 handling case:
 	// attempt to fetch the container by name and add that result to the cache.
@@ -301,7 +299,7 @@ func getOrPopulateContainer(
 	// sometimes the backend will create the folder despite the 5xx response,
 	// leaving our local containerResolver with inconsistent state.
 	if graph.IsErrFolderExists(err) {
-		cc, e := ca.GetContainerByName(ctx, userID, containerParentID, containerName)
+		cc, e := ca.GetContainerByName(ctx, resourceID, containerParentID, containerName)
 		if e != nil {
 			err = clues.Stack(err, e)
 		} else {
@@ -327,7 +325,7 @@ func uploadAttachments(
 	ctx context.Context,
 	ap attachmentPoster,
 	as []models.Attachmentable,
-	userID, destinationID, itemID string,
+	resourceID, destinationID, itemID string,
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
@@ -340,7 +338,7 @@ func uploadAttachments(
 		err := uploadAttachment(
 			ctx,
 			ap,
-			userID,
+			resourceID,
 			destinationID,
 			itemID,
 			a)

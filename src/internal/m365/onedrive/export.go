@@ -131,9 +131,9 @@ func getItemName(
 	return "", clues.New("invalid item id").WithClues(ctx)
 }
 
-// ExportRestoreCollections will create the export collections for the
+// ProduceExportCollections will create the export collections for the
 // given restore collections.
-func ExportRestoreCollections(
+func ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,

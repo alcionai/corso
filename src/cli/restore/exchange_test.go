@@ -84,6 +84,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 
 				"--" + flags.CollisionsFN, testdata.Collisions,
 				"--" + flags.DestinationFN, testdata.Destination,
+				"--" + flags.ToResourceFN, testdata.ToResource,
 
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
@@ -125,6 +126,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 
 			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
 			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
+			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)

@@ -53,7 +53,7 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.Defaults())
+	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)

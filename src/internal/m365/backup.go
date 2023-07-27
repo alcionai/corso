@@ -2,7 +2,6 @@ package m365
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -44,7 +43,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 	ctx, end := diagnostics.Span(
 		ctx,
 		"m365:produceBackupCollections",
-		diagnostics.Index("service", sels.Service.String()))
+		diagnostics.Index("service", sels.PathService().String()))
 	defer end()
 
 	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
@@ -61,8 +60,8 @@ func (ctrl *Controller) ProduceBackupCollections(
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
 		ctrl.AC.Users(),
-		path.ServiceType(sels.Service),
-		sels.DiscreteOwner)
+		sels.PathService(),
+		owner.ID())
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -194,10 +193,8 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 		ids = siteIDs
 	}
 
-	resourceOwner := strings.ToLower(sels.DiscreteOwner)
-
-	if !filters.Equal(ids).Compare(resourceOwner) {
-		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_resource_owner", sels.DiscreteOwner)
+	if !filters.Contains(ids).Compare(sels.ID()) {
+		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_protected_resource", sels.DiscreteOwner)
 	}
 
 	return nil
