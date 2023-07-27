@@ -15,7 +15,6 @@ type Options struct {
 	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
 	Parallelism          Parallelism                        `json:"parallelism"`
 	Repo                 repository.Options                 `json:"repo"`
-	RestorePermissions   bool                               `json:"restorePermissions"`
 	SkipReduce           bool                               `json:"skipReduce"`
 	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
 }
@@ -38,8 +37,8 @@ const (
 	BestEffort FailurePolicy = "best-effort"
 )
 
-// Defaults provides an Options with the default values set.
-func Defaults() Options {
+// DefaultOptions provides an Options with the default values set.
+func DefaultOptions() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
 		DeltaPageSize:   500,

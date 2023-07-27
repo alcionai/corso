@@ -74,6 +74,12 @@ type Repository interface {
 		sel selectors.Selector,
 		restoreCfg control.RestoreConfig,
 	) (operations.RestoreOperation, error)
+	NewExport(
+		ctx context.Context,
+		backupID string,
+		sel selectors.Selector,
+		exportCfg control.ExportConfig,
+	) (operations.ExportOperation, error)
 	NewMaintenance(
 		ctx context.Context,
 		mOpts rep.Maintenance,
@@ -329,7 +335,7 @@ func (r repository) NewBackupWithLookup(
 		return operations.BackupOperation{}, clues.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	ownerID, ownerName, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, clues.Wrap(err, "resolving resource owner details")
 	}
@@ -346,6 +352,31 @@ func (r repository) NewBackupWithLookup(
 		r.Account,
 		sel,
 		sel, // the selector acts as an IDNamer for its discrete resource owner.
+		r.Bus)
+}
+
+// NewExport generates a exportOperation runner.
+func (r repository) NewExport(
+	ctx context.Context,
+	backupID string,
+	sel selectors.Selector,
+	exportCfg control.ExportConfig,
+) (operations.ExportOperation, error) {
+	ctrl, err := connectToM365(ctx, sel.PathService(), r.Account, r.Opts)
+	if err != nil {
+		return operations.ExportOperation{}, clues.Wrap(err, "connecting to m365")
+	}
+
+	return operations.NewExportOperation(
+		ctx,
+		r.Opts,
+		r.dataLayer,
+		store.NewKopiaStore(r.modelStore),
+		ctrl,
+		r.Account,
+		model.StableID(backupID),
+		sel,
+		exportCfg,
 		r.Bus)
 }
 
@@ -585,8 +616,13 @@ func deleteBackup(
 		}
 	}
 
-	if len(b.DetailsID) > 0 {
-		if err := kw.DeleteSnapshot(ctx, b.DetailsID); err != nil {
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
+		ssid = b.DetailsID
+	}
+
+	if len(ssid) > 0 {
+		if err := kw.DeleteSnapshot(ctx, ssid); err != nil {
 			return err
 		}
 	}

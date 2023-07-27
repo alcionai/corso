@@ -72,7 +72,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 				subject, body, body,
 				now, now, now, now)
 		},
-		control.Defaults(),
+		control.DefaultOptions(),
 		errs,
 		count.New())
 	if err != nil {
@@ -121,7 +121,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 				exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
 				exchMock.NoExceptionOccurrences)
 		},
-		control.Defaults(),
+		control.DefaultOptions(),
 		errs,
 		count.New())
 	if err != nil {
@@ -172,7 +172,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 				"123-456-7890",
 			)
 		},
-		control.Defaults(),
+		control.DefaultOptions(),
 		errs,
 		count.New())
 	if err != nil {

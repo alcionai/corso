@@ -362,7 +362,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.Defaults(),
+				control.DefaultOptions(),
 				kw,
 				sw,
 				ctrl,
@@ -1137,7 +1137,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.Defaults())
+	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -1147,7 +1147,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		sw   = &store.Wrapper{}
 		ctrl = &mock.Controller{}
 		acct = tconfig.NewM365Account(suite.T())
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 	)
 
 	table := []struct {
