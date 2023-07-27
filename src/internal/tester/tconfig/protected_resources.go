@@ -198,6 +198,17 @@ func GetM365SiteID(ctx context.Context) string {
 	return strings.ToLower(cfg[TestCfgSiteID])
 }
 
+// SecondaryM365SiteID returns a siteID string representing the secondarym365SiteID described
+// by either the env var CORSO_SECONDARY_M365_TEST_SITE_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func SecondaryM365SiteID(t *testing.T) string {
+	cfg, err := ReadTestConfig()
+	require.NoError(t, err, "retrieving secondary m365 site id from test configuration: %+v", clues.ToCore(err))
+
+	return strings.ToLower(cfg[TestCfgSecondarySiteID])
+}
+
 // UnlicensedM365UserID returns an userID string representing the m365UserID
 // described by either the env var CORSO_M365_TEST_UNLICENSED_USER, the
 // corso_test.toml config file or the default value (in that order of priority).

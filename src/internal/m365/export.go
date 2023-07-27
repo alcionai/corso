@@ -17,8 +17,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-// ExportRestoreCollections exports data from the specified collections
-func (ctrl *Controller) ExportRestoreCollections(
+// ProduceExportCollections exports data from the specified collections
+func (ctrl *Controller) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	sels selectors.Selector,
@@ -43,7 +43,7 @@ func (ctrl *Controller) ExportRestoreCollections(
 	switch sels.Service {
 	case selectors.ServiceOneDrive, selectors.ServiceSharePoint:
 		// OneDrive and SharePoint can share the code to create collections
-		expCollections, err = onedrive.ExportRestoreCollections(
+		expCollections, err = onedrive.ProduceExportCollections(
 			ctx,
 			backupVersion,
 			exportCfg,

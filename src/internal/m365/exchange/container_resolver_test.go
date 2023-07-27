@@ -699,7 +699,7 @@ func (suite *ContainerResolverSuite) SetupSuite() {
 }
 
 func (suite *ContainerResolverSuite) TestPopulate() {
-	ac, err := api.NewClient(suite.credentials, control.Defaults())
+	ac, err := api.NewClient(suite.credentials, control.DefaultOptions())
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	eventFunc := func(t *testing.T) graph.ContainerResolver {

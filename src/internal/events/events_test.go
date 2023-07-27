@@ -52,7 +52,7 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 	)
 	require.NoError(t, err, clues.ToCore(err))
 
-	b, err := events.NewBus(ctx, s, a.ID(), control.Defaults())
+	b, err := events.NewBus(ctx, s, a.ID(), control.DefaultOptions())
 	require.NotEmpty(t, b)
 	require.NoError(t, err, clues.ToCore(err))
 

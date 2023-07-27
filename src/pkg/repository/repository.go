@@ -335,7 +335,7 @@ func (r repository) NewBackupWithLookup(
 		return operations.BackupOperation{}, clues.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	ownerID, ownerName, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, clues.Wrap(err, "resolving resource owner details")
 	}
@@ -616,8 +616,13 @@ func deleteBackup(
 		}
 	}
 
-	if len(b.DetailsID) > 0 {
-		if err := kw.DeleteSnapshot(ctx, b.DetailsID); err != nil {
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
+		ssid = b.DetailsID
+	}
+
+	if len(ssid) > 0 {
+		if err := kw.DeleteSnapshot(ctx, ssid); err != nil {
 			return err
 		}
 	}
