@@ -447,7 +447,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	}
 
 	exportCfg := control.ExportConfig{}
-	ecs, err := ExportRestoreCollections(ctx, int(version.Backup), exportCfg, control.Options{}, dcs, nil, fault.New(true))
+	ecs, err := ProduceExportCollections(ctx, int(version.Backup), exportCfg, control.Options{}, dcs, nil, fault.New(true))
 	assert.NoError(t, err, "export collections error")
 
 	assert.Len(t, ecs, 1, "num of collections")

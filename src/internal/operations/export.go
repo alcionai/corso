@@ -343,7 +343,7 @@ func exportRestoreCollections(
 		close(complete)
 	}()
 
-	expCollections, err := ec.ExportRestoreCollections(
+	expCollections, err := ec.ProduceExportCollections(
 		ctx,
 		backupVersion,
 		sel,
