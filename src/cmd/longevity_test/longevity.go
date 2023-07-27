@@ -67,6 +67,9 @@ func deleteBackups(
 // pitrListBackups connects to the repository at the given point in time and
 // lists the backups for service. It then checks the list of backups contains
 // the backups in backupIDs.
+//
+//nolint:unused
+//lint:ignore U1000 Waiting for full support.
 func pitrListBackups(
 	ctx context.Context,
 	service path.ServiceType,
@@ -151,18 +154,8 @@ func main() {
 	}
 
 	_, err = deleteBackups(ctx, service, days)
-	// Get the time before we delete anything so we can open kopia at that time
-	// to ensure the PiTR function works.
-	beforeDel := time.Now()
-
-	deleted, err := deleteBackups(ctx, service, days)
 	if err != nil {
 		fatal(cc.Context(), "deleting backups", clues.Stack(err))
-	}
-
-	err = pitrListBackups(ctx, service, beforeDel, deleted)
-	if err != nil {
-		fatal(ctx, "looking for backups at previous point in time", err)
 	}
 }
 
