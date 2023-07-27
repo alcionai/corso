@@ -279,6 +279,8 @@ func (ac *autoCloser) Close() error {
 // ItemProgress tracks the display of an item in a folder by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
+// The progress bar will close automatically when the reader closes.  If an early
+// close is needed due to abort or other issue, the returned func can be used.
 func ItemProgress(
 	ctx context.Context,
 	rc io.ReadCloser,
