@@ -59,7 +59,7 @@ type (
 	}
 
 	ExportConsumer interface {
-		ExportRestoreCollections(
+		ProduceExportCollections(
 			ctx context.Context,
 			backupVersion int,
 			selector selectors.Selector,

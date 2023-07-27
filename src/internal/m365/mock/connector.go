@@ -74,7 +74,7 @@ func (ctrl Controller) ConsumeRestoreCollections(
 
 func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
 
-func (ctrl Controller) ExportRestoreCollections(
+func (ctrl Controller) ProduceExportCollections(
 	_ context.Context,
 	_ int,
 	_ selectors.Selector,
