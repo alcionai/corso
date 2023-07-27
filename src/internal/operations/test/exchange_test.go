@@ -952,6 +952,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		parentContainerIDs = map[path.CategoryType]string{
 			path.EmailCategory: api.MsgFolderRoot,
 		}
+		parentContainerNames = map[path.CategoryType][]string{
+			path.EmailCategory:    {api.MailInbox},
+			path.ContactsCategory: {},
+			path.EventsCategory:   {},
+		}
 
 		testCategories = map[path.CategoryType]clientItemPager{
 			path.ContactsCategory: suite.its.ac.Contacts(),
@@ -996,19 +1001,20 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 				ctx, flush := tester.NewContext(t)
 				defer flush()
 
+				containers := append([]string{restoreCfg.Location}, parentContainerNames[cat]...)
+
 				itemIDs[cat], collisionKeys[cat], containerIDs[cat] = getCollKeysAndItemIDs(
 					t,
 					ctx,
 					ac,
 					userID,
 					parentContainerIDs[cat],
-					restoreCfg.Location)
+					containers...)
+
+				countItemsInRestore += len(collisionKeys[cat])
 			})
 		}
 
-		countItemsInRestore = len(collisionKeys[path.ContactsCategory]) +
-			len(collisionKeys[path.EmailCategory]) +
-			len(collisionKeys[path.EventsCategory])
 		checkRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
 	})
 
@@ -1386,17 +1392,11 @@ func getCollKeysAndItemIDs(
 	var (
 		c   graph.Container
 		err error
-		cID string
+		cID = parentContainerID
 	)
 
 	for _, cn := range containerNames {
-		pcid := parentContainerID
-
-		if len(cID) != 0 {
-			pcid = cID
-		}
-
-		c, err = cip.GetContainerByName(ctx, userID, pcid, cn)
+		c, err = cip.GetContainerByName(ctx, userID, cID, cn)
 		require.NoError(t, err, clues.ToCore(err))
 
 		cID = ptr.Val(c.GetId())
