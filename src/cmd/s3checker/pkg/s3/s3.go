@@ -133,6 +133,10 @@ func (c *Client) ListUntilAllFound(
 			return notDeleted, deleted, clues.Wrap(err, "searching object list")
 		}
 
+		// Getting retention info for a deletion marker isn't allowed.
+		if obj.IsDeleteMarker {
+			continue
+		}
 
 		var (
 			matchesPrefix string
@@ -156,9 +160,9 @@ func (c *Client) ListUntilAllFound(
 			Version: obj.VersionID,
 		}
 
-		// If the item is the latest version then it's considered not deleted. If
-		// it's not the latest then it's likely deleted. Not asking for versions
-		// always sets IsLatest to false.
+		// Since we skip deletion markers above, if the item is the latest version
+		// then it's considered not deleted. If it's not the latest then it's likely
+		// deleted. Not asking for versions always sets IsLatest to false.
 		if !alsoFindDeleted || obj.IsLatest {
 			maybeAddObj(matchesPrefix, objI, notDeleted)
 		} else {
