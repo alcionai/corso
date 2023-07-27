@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	rep "github.com/alcionai/corso/src/pkg/control/repository"
+	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -206,7 +206,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 				account.Account{},
 				st,
 				control.DefaultOptions(),
-				rep.Retention{})
+				ctrlRepo.Retention{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

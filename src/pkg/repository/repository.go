@@ -25,7 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	rep "github.com/alcionai/corso/src/pkg/control/repository"
+	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -82,7 +82,7 @@ type Repository interface {
 	) (operations.ExportOperation, error)
 	NewMaintenance(
 		ctx context.Context,
-		mOpts rep.Maintenance,
+		mOpts ctrlRepo.Maintenance,
 	) (operations.MaintenanceOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
@@ -127,7 +127,7 @@ func Initialize(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-	retentionOpts rep.Retention,
+	retentionOpts ctrlRepo.Retention,
 ) (repo Repository, err error) {
 	ctx = clues.Add(
 		ctx,
@@ -410,7 +410,7 @@ func (r repository) NewRestore(
 
 func (r repository) NewMaintenance(
 	ctx context.Context,
-	mOpts rep.Maintenance,
+	mOpts ctrlRepo.Maintenance,
 ) (operations.MaintenanceOperation, error) {
 	return operations.NewMaintenanceOperation(
 		ctx,
