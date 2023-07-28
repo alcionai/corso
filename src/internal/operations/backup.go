@@ -127,7 +127,7 @@ type backupStats struct {
 // 1. new deets were produced during this operation
 // 2. we have a valid snapshot ID
 // 3. we don't have any non-recoverable errors
-// 4. we have recoverable errors
+// 4. we recorded recoverable errors
 func isAssistBackupOp(
 	newDeetsProduced bool,
 	snapshotID string,
@@ -374,8 +374,8 @@ func (op *BackupOperation) do(
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	// If new deets were produced during this backup, but we also ran into
-	// recoverable errors, mark this as an assist backup operation, so that
-	// we can persist an assist backup model for it later.
+	// recoverable errors, mark this as an assist backup operation. This is so
+	// that we can persist an assist backup model for it later.
 	// An assist backup model ensures that we don't lose these deets.
 	opStats.assistBackupOp = isAssistBackupOp(
 		newDeetsProduced,
@@ -729,7 +729,7 @@ func (op *BackupOperation) persistResults(
 	op.Status = Completed
 
 	// If there were failures during backup operation & the operation
-	// did not qualify as an assist backup op, mark it as failed.
+	// did not qualify as an assist backup op, mark status as failed.
 	if op.Errors.Failure() != nil && !opStats.assistBackupOp {
 		op.Status = Failed
 	}
@@ -772,7 +772,7 @@ func (op *BackupOperation) createBackupModels(
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
-	assistBackupOp bool,
+	isAssistBackup bool,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
@@ -803,18 +803,10 @@ func (op *BackupOperation) createBackupModels(
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
 
-	additionalTags := map[string]string{}
+	ctx = clues.Add(ctx, "is_assist_backup", isAssistBackup)
 
-	// If this was an assist backup operation, add appropriate tags to help
-	// 1. Filter assist backups by tag during base selection process
-	// 2. Differentiate assist backups from merge backups
-	if assistBackupOp {
-		additionalTags[model.AssistBackupTag] = ""
-	}
-
-	ctx = clues.Add(ctx, "assist_backup", assistBackupOp)
-
-	b := backup.New(
+	b, err := backup.CreateNewBackup(
+		ctx,
 		snapID, ssid,
 		op.Status.String(),
 		backupVersion,
@@ -825,7 +817,10 @@ func (op *BackupOperation) createBackupModels(
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 		op.Errors.Errors(),
-		additionalTags)
+		isAssistBackup)
+	if err != nil {
+		return clues.Wrap(err, "creating backup model").WithClues(ctx)
+	}
 
 	logger.Ctx(ctx).Infow("creating new backup")
 

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -71,7 +71,8 @@ type Backup struct {
 // interface compliance checks
 var _ print.Printable = &Backup{}
 
-func New(
+func CreateNewBackup(
+	ctx context.Context,
 	snapshotID, streamStoreID, status string,
 	version int,
 	id model.StableID,
@@ -80,8 +81,8 @@ func New(
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
-	additionalTags map[string]string,
-) *Backup {
+	isAssistBackup bool,
+) (*Backup, error) {
 	if fe == nil {
 		fe = &fault.Errors{}
 	}
@@ -113,13 +114,26 @@ func New(
 		}
 	}
 
-	tags := maps.Clone(additionalTags)
-	if tags == nil {
-		// Some platforms seem to return nil if the input is nil.
-		tags = map[string]string{}
+	ctx = clues.Add(ctx, "is_assist_backup", isAssistBackup)
+	ctx = clues.Add(ctx, "error_count", errCount)
+	ctx = clues.Add(ctx, "skip_count", skipCount)
+
+	tags := map[string]string{
+		model.ServiceTag: selector.PathService().String(),
 	}
 
-	tags[model.ServiceTag] = selector.PathService().String()
+	// Add tags to mark this backup as either assist or merge. This is used to:
+	// 1. Filter assist backups by tag during base selection process
+	// 2. Differentiate assist backups from merge backups
+	if isAssistBackup {
+		tags[model.AssistBackupTag] = ""
+	} else if errCount == 0 {
+		tags[model.MergeBackupTag] = ""
+	} else {
+		// This is an added sanity check to ensure that we don't persist backups
+		// with non zero error counts unless they are assist backups
+		return nil, clues.New("backup is neither assist nor merge").WithClues(ctx)
+	}
 
 	return &Backup{
 		BaseModel: model.BaseModel{
@@ -151,7 +165,7 @@ func New(
 			SkippedNotFound:           notFound,
 			SkippedInvalidOneNoteFile: invalidONFile,
 		},
-	}
+	}, nil
 }
 
 // --------------------------------------------------------------------------------
