@@ -311,12 +311,12 @@ func (b *baseFinder) findBasesInSet(
 			Reasons:  []Reasoner{reason},
 		}
 
-		// Find any partial backups associated with kopias assisted snapshots
-		pBup, err := b.getPartialBackupModels(ictx, reason, kopiaAssistSnaps)
+		// Find any assist backups associated with kopias assisted snapshots
+		assistBup, err := b.findAssistBackup(ictx, reason, kopiaAssistSnaps)
 		if err != nil {
-			logger.CtxErr(ictx, err).Info("getting partial backups")
+			logger.CtxErr(ictx, err).Info("getting assist backups")
 
-			pBup = nil
+			assistBup = nil
 		}
 
 		kopiaAssistSnaps = append(kopiaAssistSnaps, me)
@@ -327,7 +327,7 @@ func (b *baseFinder) findBasesInSet(
 			},
 			&me,
 			kopiaAssistSnaps,
-			pBup,
+			assistBup,
 			nil
 	}
 
@@ -336,19 +336,23 @@ func (b *baseFinder) findBasesInSet(
 	return nil, nil, kopiaAssistSnaps, nil, nil
 }
 
-// getPartialBackupModels returns the backup models for all partial backups
-// associated with the provided kopia assisted snapshots.
-// A partial backup must satisfy below conditions:
+// findAssistBackup returns the backup models for the most recent assist backup
+// associated with supplied kopia assisted snapshots.
+// An assist backup must satisfy below conditions:
 // 1) it must have a valid snapshot id
 // 2) it must have a valid streamstore id
 // 3) it must be tagged with models.AssistBackupTag
 // 4) it must be tagged with reasons
-func (b *baseFinder) getPartialBackupModels(
+// 5) it must have non zero error count
+// The most recent assist backup is returned if multiple backups satisfy above
+// conditions. If no assist backup is found, an error is returned.
+// It expects kopiaAssistSnaps to be sorted by time, with the most recent
+// snapshot at the beginning of the slice.
+func (b *baseFinder) findAssistBackup(
 	ctx context.Context,
 	r Reasoner,
 	kopiaAssistSnaps []ManifestEntry,
 ) (*BackupEntry, error) {
-	// TODO(pandeyabs): These should be sorted by time.
 	for _, snap := range kopiaAssistSnaps {
 		man := snap.Manifest
 
@@ -357,17 +361,42 @@ func (b *baseFinder) getPartialBackupModels(
 			continue
 		}
 
-		// Check if this backup has required tags
-		// TODO(pandeyabs): Also check for reasons tags
-		tags := bup.Tags
-		if _, ok := tags[model.AssistBackupTag]; !ok {
+		ctx = clues.Add(ctx, "search_backup_id", bup.ID)
+
+		allTags := map[string]string{
+			model.AssistBackupTag: "",
+		}
+
+		for _, k := range tagKeys(r) {
+			allTags[k] = ""
+		}
+
+		allTags = normalizeTagKVs(allTags)
+
+		// Check if this backup has all required tags
+		for k := range allTags {
+			if _, ok := bup.Tags[k]; !ok {
+				logger.Ctx(ctx).Info("missing required tag", "tag", k)
+
+				continue
+			}
+		}
+
+		// Check if it has a valid streamstore id and snapshot id
+		if len(bup.StreamStoreID) == 0 || len(bup.SnapshotID) == 0 {
+			logger.Ctx(ctx).Infow("empty ssid or snapshot id",
+				"ssid",
+				bup.StreamStoreID,
+				"snapshot_id",
+				bup.SnapshotID)
+
 			continue
 		}
 
-		// Check if this qualifies as a partial backup model
-		// This is unusual.
-		if len(bup.StreamStoreID) == 0 || len(bup.SnapshotID) == 0 {
-			logger.Ctx(ctx).Info("empty streamstore or snapshot id")
+		// Must have non zero error count
+		if bup.ErrorCount == 0 {
+			logger.Ctx(ctx).Info("zero error count")
+
 			continue
 		}
 
@@ -377,7 +406,7 @@ func (b *baseFinder) getPartialBackupModels(
 		}, nil
 	}
 
-	return nil, clues.New("partial backup models not found")
+	return nil, clues.New("assist backup not found")
 }
 
 func (b *baseFinder) getBase(
