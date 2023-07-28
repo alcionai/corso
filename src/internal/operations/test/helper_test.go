@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -101,7 +102,7 @@ func prepNewTestBackupOp(
 
 	k := kopia.NewConn(bod.st)
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
@@ -400,6 +401,7 @@ func generateContainerOfItems(
 
 	restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 	restoreCfg.Location = destFldr
+	restoreCfg.IncludePermissions = true
 
 	dataColls := buildCollections(
 		t,
@@ -408,15 +410,19 @@ func generateContainerOfItems(
 		restoreCfg,
 		collections)
 
-	opts := control.Defaults()
-	opts.RestorePermissions = true
+	opts := control.DefaultOptions()
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           opts,
+		ProtectedResource: sel,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
 
 	deets, err := ctrl.ConsumeRestoreCollections(
 		ctx,
-		backupVersion,
-		sel,
-		restoreCfg,
-		opts,
+		rcc,
 		dataColls,
 		fault.New(true),
 		count.New())
@@ -535,7 +541,7 @@ func ControllerWithSelector(
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
+	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -544,7 +550,7 @@ func ControllerWithSelector(
 		t.FailNow()
 	}
 
-	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -562,15 +568,19 @@ func ControllerWithSelector(
 // Suite Setup
 // ---------------------------------------------------------------------------
 
+type ids struct {
+	ID                string
+	DriveID           string
+	DriveRootFolderID string
+}
+
 type intgTesterSetup struct {
-	ac                    api.Client
-	gockAC                api.Client
-	userID                string
-	userDriveID           string
-	userDriveRootFolderID string
-	siteID                string
-	siteDriveID           string
-	siteDriveRootFolderID string
+	ac            api.Client
+	gockAC        api.Client
+	user          ids
+	secondaryUser ids
+	site          ids
+	secondarySite ids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -585,41 +595,56 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds, control.Defaults())
+	its.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.gockAC, err = mock.NewClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
-	// user drive
-
-	its.userID = tconfig.M365UserID(t)
-
-	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.userDriveID = ptr.Val(userDrive.GetId())
-
-	userDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.userDriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
-
-	its.siteID = tconfig.M365SiteID(t)
-
-	// site
-
-	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.siteID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.siteDriveID = ptr.Val(siteDrive.GetId())
-
-	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.siteDriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+	its.user = userIDs(t, tconfig.M365UserID(t), its.ac)
+	its.secondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.ac)
+	its.site = siteIDs(t, tconfig.M365SiteID(t), its.ac)
+	its.secondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.ac)
 
 	return its
+}
+
+func userIDs(t *testing.T, id string, ac api.Client) ids {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	r := ids{ID: id}
+
+	drive, err := ac.Users().GetDefaultDrive(ctx, id)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveID = ptr.Val(drive.GetId())
+
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+
+	return r
+}
+
+func siteIDs(t *testing.T, id string, ac api.Client) ids {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	r := ids{ID: id}
+
+	drive, err := ac.Sites().GetDefaultDrive(ctx, id)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveID = ptr.Val(drive.GetId())
+
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+
+	return r
 }
 
 func getTestExtensionFactories() []extensions.CreateItemExtensioner {

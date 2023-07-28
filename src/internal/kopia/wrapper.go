@@ -129,11 +129,6 @@ func (w *Wrapper) Close(ctx context.Context) error {
 	return nil
 }
 
-type IncrementalBase struct {
-	*snapshot.Manifest
-	SubtreePaths []*path.Builder
-}
-
 // ConsumeBackupCollections takes a set of collections and creates a kopia snapshot
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
@@ -143,7 +138,7 @@ type IncrementalBase struct {
 func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
 	backupReasons []Reasoner,
-	previousSnapshots []IncrementalBase,
+	bases BackupBases,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	additionalTags map[string]string,
@@ -172,15 +167,23 @@ func (w Wrapper) ConsumeBackupCollections(
 	// When running an incremental backup, we need to pass the prior
 	// snapshot bases into inflateDirTree so that the new snapshot
 	// includes historical data.
-	var base []IncrementalBase
-	if buildTreeWithBase {
-		base = previousSnapshots
+	var (
+		mergeBase  []ManifestEntry
+		assistBase []ManifestEntry
+	)
+
+	if bases != nil {
+		if buildTreeWithBase {
+			mergeBase = bases.MergeBases()
+		}
+
+		assistBase = bases.AssistBases()
 	}
 
 	dirTree, err := inflateDirTree(
 		ctx,
 		w.c,
-		base,
+		mergeBase,
 		collections,
 		globalExcludeSet,
 		progress)
@@ -203,7 +206,7 @@ func (w Wrapper) ConsumeBackupCollections(
 
 	s, err := w.makeSnapshotWithRoot(
 		ctx,
-		previousSnapshots,
+		assistBase,
 		dirTree,
 		tags,
 		progress)
@@ -216,7 +219,7 @@ func (w Wrapper) ConsumeBackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []IncrementalBase,
+	prevSnapEntries []ManifestEntry,
 	root fs.Directory,
 	addlTags map[string]string,
 	progress *corsoProgress,
@@ -236,8 +239,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 	ctx = clues.Add(
 		ctx,
-		"len_prev_base_snapshots", len(prevSnapEntries),
-		"assist_snap_ids", snapIDs,
+		"num_assist_snapshots", len(prevSnapEntries),
+		"assist_snapshot_ids", snapIDs,
 		"additional_tags", addlTags)
 
 	if len(snapIDs) > 0 {

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/mock"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -512,21 +513,25 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 
 			ctr := count.New()
 
+			rcc := inject.RestoreConsumerConfig{
+				BackupVersion: version.Backup,
+				Options:       control.DefaultOptions(),
+				RestoreConfig: restoreCfg,
+			}
+
 			_, skip, err := restoreItem(
 				ctx,
 				rh,
-				restoreCfg,
+				rcc,
 				mock.FetchItemByName{
 					Item: &mock.Data{
 						Reader: mock.FileRespReadCloser(mock.DriveFileMetaData),
 					},
 				},
-				version.Backup,
 				dp,
 				"",
 				make([]byte, graph.CopyBufferSize),
 				caches,
-				false,
 				&mock.Data{
 					ID:     uuid.NewString(),
 					Reader: mock.FileRespReadCloser(mock.DriveFilePayloadData),

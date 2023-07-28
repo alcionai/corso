@@ -365,7 +365,7 @@ func errData(err odataerrors.ODataErrorable) (string, []any, string) {
 		msgConcat += ptr.Val(d.GetMessage())
 	}
 
-	inner := mainErr.GetInnererror()
+	inner := mainErr.GetInnerError()
 	if inner != nil {
 		data = appendIf(data, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
 		data = appendIf(data, "odataerror_inner_req_id", inner.GetRequestId())

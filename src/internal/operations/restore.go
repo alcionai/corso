@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -172,7 +173,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		logger.CtxErr(ctx, err).Error("running restore")
 
 		if errors.Is(err, kopia.ErrNoRestorePath) {
-			op.Errors.Fail(clues.New("empty backup or unknown path provided"))
+			op.Errors.Fail(clues.Wrap(err, "empty backup or unknown path provided"))
 		}
 
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
@@ -217,7 +218,19 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
+	restoreToProtectedResource, err := chooseRestoreResource(ctx, op.rc, op.RestoreCfg, bup.Selector)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting destination protected resource")
+	}
+
+	ctx = clues.Add(
+		ctx,
+		"backup_protected_resource_id", bup.Selector.ID(),
+		"backup_protected_resource_name", clues.Hide(bup.Selector.Name()),
+		"restore_protected_resource_id", restoreToProtectedResource.ID(),
+		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
+
+	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))
 
 	paths, err := formatDetailsForRestoration(
 		ctx,
@@ -232,8 +245,6 @@ func (op *RestoreOperation) do(
 
 	ctx = clues.Add(
 		ctx,
-		"resource_owner_id", bup.Selector.ID(),
-		"resource_owner_name", clues.Hide(bup.Selector.Name()),
 		"details_entries", len(deets.Entries),
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
@@ -254,7 +265,12 @@ func (op *RestoreOperation) do(
 	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer close(kopiaComplete)
 
-	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
+	dcs, err := op.kopia.ProduceRestoreCollections(
+		ctx,
+		bup.SnapshotID,
+		paths,
+		opStats.bytesRead,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing collections to restore")
 	}
@@ -271,6 +287,7 @@ func (op *RestoreOperation) do(
 		ctx,
 		op.rc,
 		bup.Version,
+		restoreToProtectedResource,
 		op.Selectors,
 		op.RestoreCfg,
 		op.Options,
@@ -321,6 +338,24 @@ func (op *RestoreOperation) persistResults(
 	return op.Errors.Failure()
 }
 
+func chooseRestoreResource(
+	ctx context.Context,
+	pprian inject.PopulateProtectedResourceIDAndNamer,
+	restoreCfg control.RestoreConfig,
+	orig idname.Provider,
+) (idname.Provider, error) {
+	if len(restoreCfg.ProtectedResource) == 0 {
+		return orig, nil
+	}
+
+	id, name, err := pprian.PopulateProtectedResourceIDAndName(
+		ctx,
+		restoreCfg.ProtectedResource,
+		nil)
+
+	return idname.NewProvider(id, name), clues.Stack(err).OrNil()
+}
+
 // ---------------------------------------------------------------------------
 // Restorer funcs
 // ---------------------------------------------------------------------------
@@ -329,6 +364,7 @@ func consumeRestoreCollections(
 	ctx context.Context,
 	rc inject.RestoreConsumer,
 	backupVersion int,
+	toProtectedResource idname.Provider,
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 	opts control.Options,
@@ -342,15 +378,15 @@ func consumeRestoreCollections(
 		close(complete)
 	}()
 
-	deets, err := rc.ConsumeRestoreCollections(
-		ctx,
-		backupVersion,
-		sel,
-		restoreCfg,
-		opts,
-		dcs,
-		errs,
-		ctr)
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           opts,
+		ProtectedResource: toProtectedResource,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
+	deets, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
 	if err != nil {
 		return nil, clues.Wrap(err, "restoring collections")
 	}

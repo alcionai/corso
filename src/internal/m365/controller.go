@@ -24,6 +24,7 @@ import (
 var (
 	_ inject.BackupProducer  = &Controller{}
 	_ inject.RestoreConsumer = &Controller{}
+	_ inject.ExportConsumer  = &Controller{}
 )
 
 // Controller is a struct used to wrap the GraphServiceClient and
@@ -83,10 +84,11 @@ func NewController(
 		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
 
-		credentials: creds,
-		ownerLookup: rCli,
-		tenant:      acct.ID(),
-		wg:          &sync.WaitGroup{},
+		credentials:        creds,
+		ownerLookup:        rCli,
+		tenant:             acct.ID(),
+		wg:                 &sync.WaitGroup{},
+		backupDriveIDNames: idname.NewCache(nil),
 	}
 
 	return &ctrl, nil
@@ -149,10 +151,6 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 }
 
 func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
-	if ctrl.backupDriveIDNames == nil {
-		ctrl.backupDriveIDNames = idname.NewCache(map[string]string{})
-	}
-
 	if dii.SharePoint != nil {
 		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
 	}
@@ -248,15 +246,15 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 	return id, name, nil
 }
 
-// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// PopulateProtectedResourceIDAndName takes the provided owner identifier and produces
 // the owner's name and ID from that value.  Returns an error if the owner is
 // not recognized by the current tenant.
 //
-// The id-name swapper is optional.  Some processes will look up all owners in
+// The id-name cacher is optional.  Some processes will look up all owners in
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
 // data gets stored inside the controller instance for later re-use.
-func (ctrl *Controller) PopulateOwnerIDAndNamesFrom(
+func (ctrl *Controller) PopulateProtectedResourceIDAndName(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
 	ins idname.Cacher,

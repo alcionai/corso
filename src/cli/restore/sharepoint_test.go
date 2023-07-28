@@ -34,7 +34,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"restore onedrive", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
+		{"restore sharepoint", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -75,6 +75,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 				"--" + flags.CollisionsFN, testdata.Collisions,
 				"--" + flags.DestinationFN, testdata.Destination,
+				"--" + flags.ToResourceFN, testdata.ToResource,
 
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
@@ -85,6 +86,9 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+				// bool flags
+				"--" + flags.RestorePermissionsFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -111,6 +115,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
 			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
+			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
@@ -121,6 +126,9 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+			// bool flags
+			assert.True(t, flags.RestorePermissionsFV)
 		})
 	}
 }

@@ -47,7 +47,7 @@ func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
 
 	deets, err := generateAndRestoreDriveItems(
 		ctrl,
-		inp.ID(),
+		inp,
 		SecondaryUser,
 		strings.ToLower(SecondaryUser),
 		acct,

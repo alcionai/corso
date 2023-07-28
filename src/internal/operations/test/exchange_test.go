@@ -67,9 +67,9 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.its.userID
+				sel.DiscreteOwner = suite.its.user.ID
 
 				return sel
 			},
@@ -79,7 +79,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -89,7 +89,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.userID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -107,7 +107,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			var (
 				mb      = evmock.NewBus()
 				sel     = test.selector().Selector
-				opts    = control.Defaults()
+				opts    = control.DefaultOptions()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
@@ -258,9 +258,9 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		// later on during the tests.  Putting their identifiers into the selector
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
-		sel        = selectors.NewExchangeBackup([]string{suite.its.userID})
+		sel        = selectors.NewExchangeBackup([]string{suite.its.user.ID})
 		whatSet    = deeTD.CategoryFromRepoRef
-		opts       = control.Defaults()
+		opts       = control.DefaultOptions()
 	)
 
 	opts.ToggleFeatures = toggles
@@ -278,7 +278,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := api.NewClient(creds, control.Defaults())
+	ac, err := api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.
@@ -295,7 +295,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.MessageWith(
-			suite.its.userID, suite.its.userID, suite.its.userID,
+			suite.its.user.ID, suite.its.user.ID, suite.its.user.ID,
 			subject, body, body,
 			now, now, now, now)
 	}
@@ -312,7 +312,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.EventWith(
-			suite.its.userID, subject, body, body,
+			suite.its.user.ID, subject, body, body,
 			exchMock.NoOriginalStartDate, now, now,
 			exchMock.NoRecurrence, exchMock.NoAttendees,
 			exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
@@ -578,7 +578,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.userID, "", container3,
+						creds.AzureTenantID, suite.its.user.ID, "", container3,
 						2,
 						version.Backup,
 						gen.dbf)
@@ -889,6 +889,26 @@ func (suite *ExchangeRestoreIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
+type clientItemPager interface {
+	GetItemsInContainerByCollisionKeyer[string]
+	GetItemIDsInContainer(
+		ctx context.Context,
+		userID, containerID string,
+	) (map[string]struct{}, error)
+	GetContainerByName(
+		ctx context.Context,
+		userID, parentContainerID, containerName string,
+	) (graph.Container, error)
+	GetItemsInContainerByCollisionKey(
+		ctx context.Context,
+		userID, containerID string,
+	) (map[string]string, error)
+	CreateContainer(
+		ctx context.Context,
+		userID, parentContainerID, containerName string,
+	) (graph.Container, error)
+}
+
 func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptions() {
 	t := suite.T()
 
@@ -897,7 +917,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 	// a backup is required to run restores
 
-	baseSel := selectors.NewExchangeBackup([]string{suite.its.userID})
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
 	baseSel.Include(
 		// events cannot be run, for the same reason as incremental backups: the user needs
 		// to have their account recycled.
@@ -905,11 +925,11 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	baseSel.DiscreteOwner = suite.its.userID
+	baseSel.DiscreteOwner = suite.its.user.ID
 
 	var (
 		mb   = evmock.NewBus()
-		opts = control.Defaults()
+		opts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
@@ -921,25 +941,28 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		restoreCfg = ctrlTD.DefaultRestoreConfig("exchange_adv_restore")
-		sel        = rsel.Selector
-		userID     = sel.ID()
-		cIDs       = map[path.CategoryType]string{
-			path.ContactsCategory: "",
-			path.EmailCategory:    "",
-			path.EventsCategory:   "",
+		restoreCfg          = ctrlTD.DefaultRestoreConfig("exchange_adv_restore")
+		sel                 = rsel.Selector
+		userID              = sel.ID()
+		countItemsInRestore int
+
+		itemIDs            = map[path.CategoryType]map[string]struct{}{}
+		collisionKeys      = map[path.CategoryType]map[string]string{}
+		containerIDs       = map[path.CategoryType]string{}
+		parentContainerIDs = map[path.CategoryType]string{
+			path.EmailCategory: api.MsgFolderRoot,
 		}
-		collKeys               = map[path.CategoryType]map[string]string{}
-		countContactsInRestore int
-		acCont                 = suite.its.ac.Contacts()
-		contactIDs             map[string]struct{}
-		countEmailsInRestore   int
-		acMail                 = suite.its.ac.Mail()
-		mailIDs                map[string]struct{}
-		countItemsInRestore    int
-		// countEventsInRestore int
-		// acEvts   = suite.its.ac.Events()
-		// eventIDs = []string{}
+		parentContainerNames = map[path.CategoryType][]string{
+			path.EmailCategory:    {api.MailInbox},
+			path.ContactsCategory: {},
+			path.EventsCategory:   {},
+		}
+
+		testCategories = map[path.CategoryType]clientItemPager{
+			path.ContactsCategory: suite.its.ac.Contacts(),
+			path.EmailCategory:    suite.its.ac.Mail(),
+			// path.EventsCategory: suite.its.ac.Events(),
+		}
 	)
 
 	// initial restore
@@ -971,61 +994,27 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 		// get all files in folder, use these as the base
 		// set of files to compare against.
 
-		// --- contacts
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
 
-		contGC, err := acCont.GetContainerByName(ctx, userID, "", restoreCfg.Location)
-		require.NoError(t, err, clues.ToCore(err))
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-		cIDs[path.ContactsCategory] = ptr.Val(contGC.GetId())
+				containers := append([]string{restoreCfg.Location}, parentContainerNames[cat]...)
 
-		collKeys[path.ContactsCategory], err = acCont.GetItemsInContainerByCollisionKey(
-			ctx,
-			userID,
-			cIDs[path.ContactsCategory])
-		require.NoError(t, err, clues.ToCore(err))
-		countContactsInRestore = len(collKeys[path.ContactsCategory])
-		t.Log(countContactsInRestore, "contacts restored")
+				itemIDs[cat], collisionKeys[cat], containerIDs[cat] = getCollKeysAndItemIDs(
+					t,
+					ctx,
+					ac,
+					userID,
+					parentContainerIDs[cat],
+					containers...)
 
-		contactIDs, err = acCont.GetItemIDsInContainer(ctx, userID, cIDs[path.ContactsCategory])
-		require.NoError(t, err, clues.ToCore(err))
+				countItemsInRestore += len(collisionKeys[cat])
+			})
+		}
 
-		// --- events
-
-		// gc, err = acEvts.GetContainerByName(ctx, userID, "", restoreCfg.Location)
-		// require.NoError(t, err, clues.ToCore(err))
-
-		// restoredContainerID[path.EventsCategory] = ptr.Val(gc.GetId())
-
-		// collKeys[path.EventsCategory], err = acEvts.GetItemsInContainerByCollisionKey(
-		// 	ctx,
-		// 	userID,
-		// 	cIDs[path.EventsCategory])
-		// require.NoError(t, err, clues.ToCore(err))
-		// countEventsInRestore = len(collKeys[path.EventsCategory])
-		// t.Log(countContactsInRestore, "events restored")
-
-		mailGC, err := acMail.GetContainerByName(ctx, userID, api.MsgFolderRoot, restoreCfg.Location)
-		require.NoError(t, err, clues.ToCore(err))
-
-		mailGC, err = acMail.GetContainerByName(ctx, userID, ptr.Val(mailGC.GetId()), api.MailInbox)
-		require.NoError(t, err, clues.ToCore(err))
-
-		cIDs[path.EmailCategory] = ptr.Val(mailGC.GetId())
-
-		// --- mail
-
-		collKeys[path.EmailCategory], err = acMail.GetItemsInContainerByCollisionKey(
-			ctx,
-			userID,
-			cIDs[path.EmailCategory])
-		require.NoError(t, err, clues.ToCore(err))
-		countEmailsInRestore = len(collKeys[path.EmailCategory])
-		t.Log(countContactsInRestore, "emails restored")
-
-		mailIDs, err = acMail.GetItemIDsInContainer(ctx, userID, cIDs[path.EmailCategory])
-		require.NoError(t, err, clues.ToCore(err))
-
-		countItemsInRestore = countContactsInRestore + countEmailsInRestore // + countEventsInRestore
 		checkRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
 	})
 
@@ -1062,43 +1051,30 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 
 		checkRestoreCounts(t, ctr2, countItemsInRestore, 0, 0)
 
-		// --- contacts
+		result := map[string]string{}
 
-		// get all files in folder, use these as the base
-		// set of files to compare against.
-		result := filterCollisionKeyResults(
-			t,
-			ctx,
-			userID,
-			cIDs[path.ContactsCategory],
-			GetItemsInContainerByCollisionKeyer[string](acCont),
-			collKeys[path.ContactsCategory])
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
 
-		currentContactIDs, err := acCont.GetItemIDsInContainer(ctx, userID, cIDs[path.ContactsCategory])
-		require.NoError(t, err, clues.ToCore(err))
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-		assert.Equal(t, contactIDs, currentContactIDs, "ids are equal")
+				m := filterCollisionKeyResults(
+					t,
+					ctx,
+					userID,
+					containerIDs[cat],
+					GetItemsInContainerByCollisionKeyer[string](ac),
+					collisionKeys[cat])
+				maps.Copy(result, m)
 
-		// --- events
+				currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
+				require.NoError(t, err, clues.ToCore(err))
 
-		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
-		// maps.Copy(result, m)
-
-		// --- mail
-
-		m := filterCollisionKeyResults(
-			t,
-			ctx,
-			userID,
-			cIDs[path.EmailCategory],
-			GetItemsInContainerByCollisionKeyer[string](acMail),
-			collKeys[path.EmailCategory])
-		maps.Copy(result, m)
-
-		currentMailIDs, err := acMail.GetItemIDsInContainer(ctx, userID, cIDs[path.EmailCategory])
-		require.NoError(t, err, clues.ToCore(err))
-
-		assert.Equal(t, mailIDs, currentMailIDs, "ids are equal")
+				assert.Equal(t, itemIDs[cat], currentIDs, "ids are equal")
+			})
+		}
 
 		assert.Len(t, result, 0, "no new items should get added")
 	})
@@ -1136,59 +1112,39 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			}
 		}
 
-		assert.Len(
-			t,
-			filtEnts,
-			countItemsInRestore,
-			"every item should have been replaced")
-
-		// --- contacts
-
-		result := filterCollisionKeyResults(
-			t,
-			ctx,
-			userID,
-			cIDs[path.ContactsCategory],
-			GetItemsInContainerByCollisionKeyer[string](acCont),
-			collKeys[path.ContactsCategory])
-
-		currentContactIDs, err := acCont.GetItemIDsInContainer(ctx, userID, cIDs[path.ContactsCategory])
-		require.NoError(t, err, clues.ToCore(err))
-
-		assert.Equal(t, len(contactIDs), len(currentContactIDs), "count of ids are equal")
-		for orig := range contactIDs {
-			assert.NotContains(t, currentContactIDs, orig, "original item should not exist after replacement")
-		}
-
-		contactIDs = currentContactIDs
-
-		// --- events
-
-		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
-		// maps.Copy(result, m)
-
-		// --- mail
-
-		m := filterCollisionKeyResults(
-			t,
-			ctx,
-			userID,
-			cIDs[path.EmailCategory],
-			GetItemsInContainerByCollisionKeyer[string](acMail),
-			collKeys[path.EmailCategory])
-		maps.Copy(result, m)
+		assert.Len(t, filtEnts, countItemsInRestore, "every item should have been replaced")
 
 		checkRestoreCounts(t, ctr3, 0, countItemsInRestore, 0)
 
-		currentMailIDs, err := acMail.GetItemIDsInContainer(ctx, userID, cIDs[path.EmailCategory])
-		require.NoError(t, err, clues.ToCore(err))
+		result := map[string]string{}
 
-		assert.Equal(t, len(mailIDs), len(currentMailIDs), "count of ids are equal")
-		for orig := range mailIDs {
-			assert.NotContains(t, currentMailIDs, orig, "original item should not exist after replacement")
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
+
+				ctx, flush := tester.NewContext(t)
+				defer flush()
+
+				m := filterCollisionKeyResults(
+					t,
+					ctx,
+					userID,
+					containerIDs[cat],
+					GetItemsInContainerByCollisionKeyer[string](ac),
+					collisionKeys[cat])
+				maps.Copy(result, m)
+
+				currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
+				require.NoError(t, err, clues.ToCore(err))
+
+				assert.Equal(t, len(itemIDs[cat]), len(currentIDs), "count of ids are equal")
+				for orig := range itemIDs[cat] {
+					assert.NotContains(t, currentIDs, orig, "original item should not exist after replacement")
+				}
+
+				itemIDs[cat] = currentIDs
+			})
 		}
-
-		mailIDs = currentMailIDs
 
 		assert.Len(t, result, 0, "all items should have been replaced")
 	})
@@ -1226,49 +1182,231 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 			}
 		}
 
-		assert.Len(
-			t,
-			filtEnts,
-			countItemsInRestore,
-			"every item should have been copied")
+		assert.Len(t, filtEnts, countItemsInRestore, "every item should have been copied")
 
 		checkRestoreCounts(t, ctr4, 0, 0, countItemsInRestore)
 
-		result := filterCollisionKeyResults(
-			t,
-			ctx,
-			userID,
-			cIDs[path.ContactsCategory],
-			GetItemsInContainerByCollisionKeyer[string](acCont),
-			collKeys[path.ContactsCategory])
+		result := map[string]string{}
 
-		currentContactIDs, err := acCont.GetItemIDsInContainer(ctx, userID, cIDs[path.ContactsCategory])
-		require.NoError(t, err, clues.ToCore(err))
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
 
-		assert.Equal(t, 2*len(contactIDs), len(currentContactIDs), "count of ids should be double from before")
-		assert.Subset(t, maps.Keys(currentContactIDs), maps.Keys(contactIDs), "original item should exist after copy")
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-		// m = checkCollisionKeyResults(t, ctx, userID, cIDs[path.EventsCategory], acEvts, collKeys[path.EventsCategory])
-		// maps.Copy(result, m)
+				m := filterCollisionKeyResults(
+					t,
+					ctx,
+					userID,
+					containerIDs[cat],
+					GetItemsInContainerByCollisionKeyer[string](ac),
+					collisionKeys[cat])
+				maps.Copy(result, m)
 
-		m := filterCollisionKeyResults(
-			t,
-			ctx,
-			userID,
-			cIDs[path.EmailCategory],
-			GetItemsInContainerByCollisionKeyer[string](acMail),
-			collKeys[path.EmailCategory])
-		maps.Copy(result, m)
+				currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
+				require.NoError(t, err, clues.ToCore(err))
 
-		currentMailIDs, err := acMail.GetItemIDsInContainer(ctx, userID, cIDs[path.EmailCategory])
-		require.NoError(t, err, clues.ToCore(err))
-
-		assert.Equal(t, 2*len(mailIDs), len(currentMailIDs), "count of ids should be double from before")
-		assert.Subset(t, maps.Keys(currentMailIDs), maps.Keys(mailIDs), "original item should exist after copy")
+				assert.Equal(t, 2*len(itemIDs[cat]), len(currentIDs), "count of ids should be double from before")
+				assert.Subset(t, maps.Keys(currentIDs), maps.Keys(itemIDs[cat]), "original item should exist after copy")
+			})
+		}
 
 		// TODO: we have the option of modifying copy creations in exchange
 		// so that the results don't collide.  But we haven't made that
 		// decision yet.
 		assert.Len(t, result, 0, "no items should have been added as copies")
 	})
+}
+
+func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+	baseSel.Include(
+		// events cannot be run, for the same reason as incremental backups: the user needs
+		// to have their account recycled.
+		// base_sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
+		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+
+	baseSel.DiscreteOwner = suite.its.user.ID
+
+	var (
+		mb   = evmock.NewBus()
+		opts = control.DefaultOptions()
+	)
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	rsel, err := baseSel.ToExchangeRestore()
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		restoreCfg      = ctrlTD.DefaultRestoreConfig("exchange_restore_to_user")
+		sel             = rsel.Selector
+		userID          = suite.its.user.ID
+		secondaryUserID = suite.its.secondaryUser.ID
+		uid             = userID
+		acCont          = suite.its.ac.Contacts()
+		acMail          = suite.its.ac.Mail()
+		// acEvts   = suite.its.ac.Events()
+		firstCtr = count.New()
+	)
+
+	restoreCfg.OnCollision = control.Copy
+	mb = evmock.NewBus()
+
+	// first restore to the current user
+
+	ro1, _ := prepNewTestRestoreOp(
+		t,
+		ctx,
+		bod.st,
+		bo.Results.BackupID,
+		mb,
+		firstCtr,
+		sel,
+		opts,
+		restoreCfg)
+
+	runAndCheckRestore(t, ctx, &ro1, mb, false)
+
+	// get all files in folder, use these as the base
+	// set of files to compare against.
+
+	var (
+		userItemIDs       = map[path.CategoryType]map[string]struct{}{}
+		userCollisionKeys = map[path.CategoryType]map[string]string{}
+	)
+
+	// --- contacts
+	cat := path.ContactsCategory
+	userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acCont,
+		uid,
+		"",
+		restoreCfg.Location)
+
+	// --- events
+	// cat = path.EventsCategory
+	// userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+	// t,
+	// ctx,
+	// acEvts,
+	// uid,
+	// "",
+	// restoreCfg.Location)
+
+	// --- mail
+	cat = path.EmailCategory
+	userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acMail,
+		uid,
+		"",
+		restoreCfg.Location,
+		api.MailInbox)
+
+	// then restore to the secondary user
+
+	uid = secondaryUserID
+	mb = evmock.NewBus()
+	secondCtr := count.New()
+	restoreCfg.ProtectedResource = uid
+
+	ro2, _ := prepNewTestRestoreOp(
+		t,
+		ctx,
+		bod.st,
+		bo.Results.BackupID,
+		mb,
+		secondCtr,
+		sel,
+		opts,
+		restoreCfg)
+
+	runAndCheckRestore(t, ctx, &ro2, mb, false)
+
+	var (
+		secondaryItemIDs       = map[path.CategoryType]map[string]struct{}{}
+		secondaryCollisionKeys = map[path.CategoryType]map[string]string{}
+	)
+
+	// --- contacts
+	cat = path.ContactsCategory
+	secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acCont,
+		uid,
+		"",
+		restoreCfg.Location)
+
+	// --- events
+	// cat = path.EventsCategory
+	// secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+	// t,
+	// ctx,
+	// acEvts,
+	// uid,
+	// "",
+	// restoreCfg.Location)
+
+	// --- mail
+	cat = path.EmailCategory
+	secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acMail,
+		uid,
+		"",
+		restoreCfg.Location,
+		api.MailInbox)
+
+	// compare restore results
+	for _, cat := range []path.CategoryType{path.ContactsCategory, path.EmailCategory, path.EventsCategory} {
+		assert.Equal(t, len(userItemIDs[cat]), len(secondaryItemIDs[cat]))
+		assert.ElementsMatch(t, maps.Keys(userCollisionKeys[cat]), maps.Keys(secondaryCollisionKeys[cat]))
+	}
+}
+
+func getCollKeysAndItemIDs(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	cip clientItemPager,
+	userID, parentContainerID string,
+	containerNames ...string,
+) (map[string]struct{}, map[string]string, string) {
+	var (
+		c   graph.Container
+		err error
+		cID = parentContainerID
+	)
+
+	for _, cn := range containerNames {
+		c, err = cip.GetContainerByName(ctx, userID, cID, cn)
+		require.NoError(t, err, clues.ToCore(err))
+
+		cID = ptr.Val(c.GetId())
+	}
+
+	itemIDs, err := cip.GetItemIDsInContainer(ctx, userID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	collisionKeys, err := cip.GetItemsInContainerByCollisionKey(ctx, userID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return itemIDs, collisionKeys, cID
 }

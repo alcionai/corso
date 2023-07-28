@@ -74,7 +74,11 @@ func NewConn(s storage.Storage) *conn {
 	}
 }
 
-func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
+func (w *conn) Initialize(
+	ctx context.Context,
+	opts repository.Options,
+	retentionOpts repository.Retention,
+) error {
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -86,8 +90,23 @@ func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
 		return clues.Stack(err).WithClues(ctx)
 	}
 
-	// todo - issue #75: nil here should be a storage.NewRepoOptions()
-	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassphrase); err != nil {
+	rOpts := retention.NewOpts()
+	if err := rOpts.Set(retentionOpts); err != nil {
+		return clues.Wrap(err, "setting retention configuration").WithClues(ctx)
+	}
+
+	blobCfg, _, err := rOpts.AsConfigs(ctx)
+	if err != nil {
+		return clues.Stack(err)
+	}
+
+	// Minimal config for retention if caller requested it.
+	kopiaOpts := repo.NewRepositoryOptions{
+		RetentionMode:   blobCfg.RetentionMode,
+		RetentionPeriod: blobCfg.RetentionPeriod,
+	}
+
+	if err = repo.Initialize(ctx, bst, &kopiaOpts, cfg.CorsoPassphrase); err != nil {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
 			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
@@ -111,7 +130,10 @@ func (w *conn) Initialize(ctx context.Context, opts repository.Options) error {
 		return clues.Stack(err).WithClues(ctx)
 	}
 
-	return nil
+	// Calling with all parameters here will set extend object locks for
+	// maintenance. Parameters for actual retention should have been set during
+	// initialization and won't be updated again.
+	return clues.Stack(w.setRetentionParameters(ctx, retentionOpts)).OrNil()
 }
 
 func (w *conn) Connect(ctx context.Context, opts repository.Options) error {

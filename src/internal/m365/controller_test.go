@@ -12,15 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -223,7 +226,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 
 			ctrl := &Controller{ownerLookup: test.rc}
 
-			rID, rName, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
+			rID, rName, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.owner, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectID, rID, "id")
 			assert.Equal(t, test.expectName, rName, "name")
@@ -385,20 +388,24 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
+	restoreCfg.IncludePermissions = true
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     version.Backup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: sel,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
 	deets, err := suite.ctrl.ConsumeRestoreCollections(
 		ctx,
-		version.Backup,
-		sel,
-		restoreCfg,
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{},
-		},
+		rcc,
 		[]data.RestoreCollection{&dataMock.Collection{}},
 		fault.New(true),
 		count.New())
-	assert.Error(t, err, clues.ToCore(err))
-	assert.NotNil(t, deets)
+	assert.Error(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
+	assert.Nil(t, deets)
 
 	status := suite.ctrl.Wait()
 	assert.Equal(t, 0, status.Objects)
@@ -408,6 +415,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 	restoreCfg := testdata.DefaultRestoreConfig("")
+	restoreCfg.IncludePermissions = true
+
 	table := []struct {
 		name string
 		col  []data.RestoreCollection
@@ -464,15 +473,17 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			rcc := inject.RestoreConsumerConfig{
+				BackupVersion:     version.Backup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: test.sel,
+				RestoreConfig:     restoreCfg,
+				Selector:          test.sel,
+			}
+
 			deets, err := suite.ctrl.ConsumeRestoreCollections(
 				ctx,
-				version.Backup,
-				test.sel,
-				restoreCfg,
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				},
+				rcc,
 				test.col,
 				fault.New(true),
 				count.New())
@@ -503,12 +514,18 @@ func runRestore(
 
 	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
 	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: restoreSel,
+		RestoreConfig:     sci.RestoreCfg,
+		Selector:          restoreSel,
+	}
+
 	deets, err := restoreCtrl.ConsumeRestoreCollections(
 		ctx,
-		backupVersion,
-		restoreSel,
-		sci.RestoreCfg,
-		sci.Opts,
+		rcc,
 		collections,
 		fault.New(true),
 		count.New())
@@ -610,6 +627,7 @@ func runRestoreBackupTest(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
+	restoreCfg control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -620,7 +638,7 @@ func runRestoreBackupTest(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		RestoreCfg:     restoreCfg,
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
@@ -655,6 +673,7 @@ func runRestoreTestWithVersion(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
+	restoreCfg control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -665,7 +684,7 @@ func runRestoreTestWithVersion(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		RestoreCfg:     restoreCfg,
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
@@ -692,7 +711,7 @@ func runRestoreBackupTestVersions(
 	tenant string,
 	resourceOwners []string,
 	opts control.Options,
-	crc control.RestoreConfig,
+	restoreCfg control.RestoreConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -703,7 +722,7 @@ func runRestoreBackupTestVersions(
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
-		RestoreCfg:     crc,
+		RestoreCfg:     restoreCfg,
 	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
@@ -737,7 +756,7 @@ func runRestoreBackupTestVersions(
 		test.collectionsLatest)
 }
 
-func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
+func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
 
@@ -996,10 +1015,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup() {
 				test,
 				suite.ctrl.tenant,
 				[]string{suite.user},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				control.DefaultRestoreConfig(dttm.HumanReadableDriveItem))
 		})
 	}
 }
@@ -1080,6 +1097,8 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			for i, collection := range test.collections {
 				// Get a restoreCfg per collection so they're independent.
 				restoreCfg := testdata.DefaultRestoreConfig("")
+				restoreCfg.IncludePermissions = true
+
 				expectedDests = append(expectedDests, destAndCats{
 					resourceOwner: suite.user,
 					dest:          restoreCfg.Location,
@@ -1112,15 +1131,18 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				)
 
 				restoreCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
+
+				rcc := inject.RestoreConsumerConfig{
+					BackupVersion:     version.Backup,
+					Options:           control.DefaultOptions(),
+					ProtectedResource: restoreSel,
+					RestoreConfig:     restoreCfg,
+					Selector:          restoreSel,
+				}
+
 				deets, err := restoreCtrl.ConsumeRestoreCollections(
 					ctx,
-					version.Backup,
-					restoreSel,
-					restoreCfg,
-					control.Options{
-						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{},
-					},
+					rcc,
 					collections,
 					fault.New(true),
 					count.New())
@@ -1152,10 +1174,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				backupSel,
 				nil,
 				version.NoBackup,
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				},
+				control.DefaultOptions(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -1164,10 +1183,13 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			t.Log("Backup enumeration complete")
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			ci := stub.ConfigInfo{
-				Opts: control.Options{RestorePermissions: true},
+				Opts: control.DefaultOptions(),
 				// Alright to be empty, needed for OneDrive.
-				RestoreCfg: control.RestoreConfig{},
+				RestoreCfg: restoreCfg,
 			}
 
 			// Pull the data prior to waiting for the status as otherwise it will
@@ -1205,16 +1227,16 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 		},
 	}
 
+	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+	restoreCfg.IncludePermissions = true
+
 	runRestoreBackupTest(
 		suite.T(),
 		test,
 		suite.ctrl.tenant,
 		[]string{suite.user},
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{},
-		},
-	)
+		control.DefaultOptions(),
+		restoreCfg)
 }
 
 func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
@@ -1233,8 +1255,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				sel.Include(
 					sel.ContactFolders([]string{selectors.NoneTgt}),
 					sel.EventCalendars([]string{selectors.NoneTgt}),
-					sel.MailFolders([]string{selectors.NoneTgt}),
-				)
+					sel.MailFolders([]string{selectors.NoneTgt}))
 
 				return sel.Selector
 			},
@@ -1297,23 +1318,20 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				start      = time.Now()
 			)
 
-			id, name, err := backupCtrl.PopulateOwnerIDAndNamesFrom(ctx, backupSel.DiscreteOwner, nil)
+			id, name, err := backupCtrl.PopulateProtectedResourceIDAndName(ctx, backupSel.DiscreteOwner, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			backupSel.SetDiscreteOwnerIDName(id, name)
 
 			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
-				inMock.NewProvider(id, name),
+				idname.NewProvider(id, name),
 				backupSel,
 				nil,
 				version.NoBackup,
-				control.Options{
-					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{},
-				},
+				control.DefaultOptions(),
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
 			// No excludes yet because this isn't an incremental backup.
 			assert.True(t, excludes.Empty())

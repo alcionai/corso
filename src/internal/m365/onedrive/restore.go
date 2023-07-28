@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -38,114 +39,11 @@ const (
 	maxUploadRetries = 3
 )
 
-type driveInfo struct {
-	id           string
-	name         string
-	rootFolderID string
-}
-
-type restoreCaches struct {
-	BackupDriveIDName     idname.Cacher
-	collisionKeyToItemID  map[string]api.DriveItemIDType
-	DriveIDToDriveInfo    map[string]driveInfo
-	DriveNameToDriveInfo  map[string]driveInfo
-	Folders               *folderCache
-	OldLinkShareIDToNewID map[string]string
-	OldPermIDToNewID      map[string]string
-	ParentDirToMeta       map[string]metadata.Metadata
-
-	pool sync.Pool
-}
-
-func (rc *restoreCaches) AddDrive(
-	ctx context.Context,
-	md models.Driveable,
-	grf GetRootFolderer,
-) error {
-	di := driveInfo{
-		id:   ptr.Val(md.GetId()),
-		name: ptr.Val(md.GetName()),
-	}
-
-	ctx = clues.Add(ctx, "drive_info", di)
-
-	root, err := grf.GetRootFolder(ctx, di.id)
-	if err != nil {
-		return clues.Wrap(err, "getting drive root id")
-	}
-
-	di.rootFolderID = ptr.Val(root.GetId())
-
-	rc.DriveIDToDriveInfo[di.id] = di
-	rc.DriveNameToDriveInfo[di.name] = di
-
-	return nil
-}
-
-// Populate looks up drive items available to the protectedResource
-// and adds their info to the caches.
-func (rc *restoreCaches) Populate(
-	ctx context.Context,
-	gdparf GetDrivePagerAndRootFolderer,
-	protectedResourceID string,
-) error {
-	drives, err := api.GetAllDrives(
-		ctx,
-		gdparf.NewDrivePager(protectedResourceID, nil),
-		true,
-		maxDrivesRetries)
-	if err != nil {
-		return clues.Wrap(err, "getting drives")
-	}
-
-	for _, md := range drives {
-		if err := rc.AddDrive(ctx, md, gdparf); err != nil {
-			return clues.Wrap(err, "caching drive")
-		}
-	}
-
-	return nil
-}
-
-type GetDrivePagerAndRootFolderer interface {
-	GetRootFolderer
-	NewDrivePagerer
-}
-
-func NewRestoreCaches(
-	backupDriveIDNames idname.Cacher,
-) *restoreCaches {
-	// avoid nil panics
-	if backupDriveIDNames == nil {
-		backupDriveIDNames = idname.NewCache(nil)
-	}
-
-	return &restoreCaches{
-		BackupDriveIDName:     backupDriveIDNames,
-		collisionKeyToItemID:  map[string]api.DriveItemIDType{},
-		DriveIDToDriveInfo:    map[string]driveInfo{},
-		DriveNameToDriveInfo:  map[string]driveInfo{},
-		Folders:               NewFolderCache(),
-		OldLinkShareIDToNewID: map[string]string{},
-		OldPermIDToNewID:      map[string]string{},
-		ParentDirToMeta:       map[string]metadata.Metadata{},
-		// Buffer pool for uploads
-		pool: sync.Pool{
-			New: func() any {
-				b := make([]byte, graph.CopyBufferSize)
-				return &b
-			},
-		},
-	}
-}
-
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
 func ConsumeRestoreCollections(
 	ctx context.Context,
 	rh RestoreHandler,
-	backupVersion int,
-	restoreCfg control.RestoreConfig,
-	opts control.Options,
+	rcc inject.RestoreConsumerConfig,
 	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
@@ -153,16 +51,15 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		restoreMetrics      support.CollectionMetrics
-		el                  = errs.Local()
-		caches              = NewRestoreCaches(backupDriveIDNames)
-		protectedResourceID = dcs[0].FullPath().ResourceOwner()
-		fallbackDriveName   = restoreCfg.Location
+		restoreMetrics    support.CollectionMetrics
+		el                = errs.Local()
+		caches            = NewRestoreCaches(backupDriveIDNames)
+		fallbackDriveName = rcc.RestoreConfig.Location
 	)
 
-	ctx = clues.Add(ctx, "backup_version", backupVersion)
+	ctx = clues.Add(ctx, "backup_version", rcc.BackupVersion)
 
-	err := caches.Populate(ctx, rh, protectedResourceID)
+	err := caches.Populate(ctx, rh, rcc.ProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "initializing restore caches")
 	}
@@ -183,19 +80,16 @@ func ConsumeRestoreCollections(
 			ictx    = clues.Add(
 				ctx,
 				"category", dc.FullPath().Category(),
-				"resource_owner", clues.Hide(protectedResourceID),
 				"full_path", dc.FullPath())
 		)
 
 		metrics, err = RestoreCollection(
 			ictx,
 			rh,
-			restoreCfg,
-			backupVersion,
+			rcc,
 			dc,
 			caches,
 			deets,
-			opts.RestorePermissions,
 			fallbackDriveName,
 			errs,
 			ctr.Local())
@@ -215,7 +109,7 @@ func ConsumeRestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		restoreCfg.Location)
+		rcc.RestoreConfig.Location)
 
 	return status, el.Failure()
 }
@@ -228,26 +122,23 @@ func ConsumeRestoreCollections(
 func RestoreCollection(
 	ctx context.Context,
 	rh RestoreHandler,
-	restoreCfg control.RestoreConfig,
-	backupVersion int,
+	rcc inject.RestoreConsumerConfig,
 	dc data.RestoreCollection,
 	caches *restoreCaches,
 	deets *details.Builder,
-	restorePerms bool, // TODD: move into restoreConfig
 	fallbackDriveName string,
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
-		metrics             = support.CollectionMetrics{}
-		directory           = dc.FullPath()
-		protectedResourceID = directory.ResourceOwner()
-		el                  = errs.Local()
-		metricsObjects      int64
-		metricsBytes        int64
-		metricsSuccess      int64
-		wg                  sync.WaitGroup
-		complete            bool
+		metrics        = support.CollectionMetrics{}
+		directory      = dc.FullPath()
+		el             = errs.Local()
+		metricsObjects int64
+		metricsBytes   int64
+		metricsSuccess int64
+		wg             sync.WaitGroup
+		complete       bool
 	)
 
 	ctx, end := diagnostics.Span(ctx, "gc:drive:restoreCollection", diagnostics.Label("path", directory))
@@ -263,7 +154,7 @@ func RestoreCollection(
 		rh,
 		caches,
 		drivePath,
-		protectedResourceID,
+		rcc.ProtectedResource.ID(),
 		fallbackDriveName)
 	if err != nil {
 		return metrics, clues.Wrap(err, "ensuring drive exists")
@@ -281,8 +172,8 @@ func RestoreCollection(
 	// the drive into which this folder gets restored is tracked separately in drivePath.
 	restoreDir := &path.Builder{}
 
-	if len(restoreCfg.Location) > 0 {
-		restoreDir = restoreDir.Append(restoreCfg.Location)
+	if len(rcc.RestoreConfig.Location) > 0 {
+		restoreDir = restoreDir.Append(rcc.RestoreConfig.Location)
 	}
 
 	restoreDir = restoreDir.Append(drivePath.Folders...)
@@ -301,8 +192,8 @@ func RestoreCollection(
 		drivePath,
 		dc,
 		caches,
-		backupVersion,
-		restorePerms)
+		rcc.BackupVersion,
+		rcc.RestoreConfig.IncludePermissions)
 	if err != nil {
 		return metrics, clues.Wrap(err, "getting permissions").WithClues(ctx)
 	}
@@ -316,7 +207,7 @@ func RestoreCollection(
 		dc.FullPath(),
 		colMeta,
 		caches,
-		restorePerms)
+		rcc.RestoreConfig.IncludePermissions)
 	if err != nil {
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
@@ -390,14 +281,12 @@ func RestoreCollection(
 				itemInfo, skipped, err := restoreItem(
 					ictx,
 					rh,
-					restoreCfg,
+					rcc,
 					dc,
-					backupVersion,
 					drivePath,
 					restoreFolderID,
 					copyBuffer,
 					caches,
-					restorePerms,
 					itemData,
 					itemPath,
 					ctr)
@@ -440,14 +329,12 @@ func RestoreCollection(
 func restoreItem(
 	ctx context.Context,
 	rh RestoreHandler,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	fibn data.FetchItemByNamer,
-	backupVersion int,
 	drivePath *path.DrivePath,
 	restoreFolderID string,
 	copyBuffer []byte,
 	caches *restoreCaches,
-	restorePerms bool,
 	itemData data.Stream,
 	itemPath path.Path,
 	ctr *count.Bus,
@@ -455,11 +342,11 @@ func restoreItem(
 	itemUUID := itemData.UUID()
 	ctx = clues.Add(ctx, "item_id", itemUUID)
 
-	if backupVersion < version.OneDrive1DataAndMetaFiles {
+	if rcc.BackupVersion < version.OneDrive1DataAndMetaFiles {
 		itemInfo, err := restoreV0File(
 			ctx,
 			rh,
-			restoreCfg,
+			rcc.RestoreConfig,
 			drivePath,
 			fibn,
 			restoreFolderID,
@@ -468,7 +355,7 @@ func restoreItem(
 			itemData,
 			ctr)
 		if err != nil {
-			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
+			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
 			}
 
@@ -491,7 +378,7 @@ func restoreItem(
 		// Only the version.OneDrive1DataAndMetaFiles needed to deserialize the
 		// permission for child folders here. Later versions can request
 		// permissions inline when processing the collection.
-		if !restorePerms || backupVersion >= version.OneDrive4DirIncludesPermissions {
+		if !rcc.RestoreConfig.IncludePermissions || rcc.BackupVersion >= version.OneDrive4DirIncludesPermissions {
 			return details.ItemInfo{}, true, nil
 		}
 
@@ -511,22 +398,21 @@ func restoreItem(
 
 	// only items with DataFileSuffix from this point on
 
-	if backupVersion < version.OneDrive6NameInMeta {
+	if rcc.BackupVersion < version.OneDrive6NameInMeta {
 		itemInfo, err := restoreV1File(
 			ctx,
 			rh,
-			restoreCfg,
+			rcc,
 			drivePath,
 			fibn,
 			restoreFolderID,
 			copyBuffer,
-			restorePerms,
 			caches,
 			itemPath,
 			itemData,
 			ctr)
 		if err != nil {
-			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
+			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
 			}
 
@@ -541,18 +427,17 @@ func restoreItem(
 	itemInfo, err := restoreV6File(
 		ctx,
 		rh,
-		restoreCfg,
+		rcc,
 		drivePath,
 		fibn,
 		restoreFolderID,
 		copyBuffer,
-		restorePerms,
 		caches,
 		itemPath,
 		itemData,
 		ctr)
 	if err != nil {
-		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && restoreCfg.OnCollision == control.Skip {
+		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
 			return details.ItemInfo{}, true, nil
 		}
 
@@ -596,12 +481,11 @@ func restoreV0File(
 func restoreV1File(
 	ctx context.Context,
 	rh RestoreHandler,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	drivePath *path.DrivePath,
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
-	restorePerms bool,
 	caches *restoreCaches,
 	itemPath path.Path,
 	itemData data.Stream,
@@ -611,7 +495,7 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreFile(
 		ctx,
-		restoreCfg,
+		rcc.RestoreConfig,
 		rh,
 		fibn,
 		trimmedName,
@@ -627,7 +511,7 @@ func restoreV1File(
 
 	// Mark it as success without processing .meta
 	// file if we are not restoring permissions
-	if !restorePerms {
+	if !rcc.RestoreConfig.IncludePermissions {
 		return itemInfo, nil
 	}
 
@@ -657,12 +541,11 @@ func restoreV1File(
 func restoreV6File(
 	ctx context.Context,
 	rh RestoreHandler,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	drivePath *path.DrivePath,
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
 	copyBuffer []byte,
-	restorePerms bool,
 	caches *restoreCaches,
 	itemPath path.Path,
 	itemData data.Stream,
@@ -696,7 +579,7 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreFile(
 		ctx,
-		restoreCfg,
+		rcc.RestoreConfig,
 		rh,
 		fibn,
 		meta.FileName,
@@ -712,9 +595,11 @@ func restoreV6File(
 
 	// Mark it as success without processing .meta
 	// file if we are not restoring permissions
-	if !restorePerms {
+	if !rcc.RestoreConfig.IncludePermissions {
 		return itemInfo, nil
 	}
+
+	fmt.Printf("\n-----\nrestorev6 %+v\n-----\n", rcc.RestoreConfig.IncludePermissions)
 
 	err = RestorePermissions(
 		ctx,
@@ -764,6 +649,8 @@ func CreateRestoreFolders(
 	if !restorePerms {
 		return id, nil
 	}
+
+	fmt.Printf("\n-----\ncreatefolders %+v\n-----\n", restorePerms)
 
 	err = RestorePermissions(
 		ctx,

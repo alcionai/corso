@@ -94,6 +94,7 @@ jobs:
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-nightly.log
           LOG_GRAPH_REQUESTS: true
+          S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
         run: |
           set -euo pipefail
           go test       \
@@ -119,33 +120,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: SHA info
-        id: sha-info
+      - name: Notify failure in slack
         if: failure()
-        run: |
-          echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
-          echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
-          echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
-          echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
-
-      - name: Send Github Action failure to Slack
-        id: slack-notification
-        if: failure()
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: ./.github/actions/slack-message
         with:
-          payload: |
-            {
-              "text": "Nightly test failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "[FAILED] Nightly Checks :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          msg: "[FAILED] Nightly Checks"
+          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}

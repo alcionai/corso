@@ -35,6 +35,8 @@ const (
 	BackupEnd        = "Backup End"
 	RestoreStart     = "Restore Start"
 	RestoreEnd       = "Restore End"
+	ExportStart      = "Export Start"
+	ExportEnd        = "Export End"
 	MaintenanceStart = "Maintenance Start"
 	MaintenanceEnd   = "Maintenance End"
 
@@ -49,6 +51,7 @@ const (
 	ItemsWritten     = "items_written"
 	Resources        = "resources"
 	RestoreID        = "restore_id"
+	ExportID         = "export_id"
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"

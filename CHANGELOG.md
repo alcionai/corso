@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Restore commands now accept an optional resource override with the `--to-resource` flag.  This allows restores to recreate backup data within different mailboxes, sites, and users.  
+
 ### Fixed
 - SharePoint document libraries deleted after the last backup can now be restored.
+- Restore requires the protected resource to have access to the service being restored.
+
+### Added
+- Added option to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
 
 ## [v0.11.1] (beta) - 2023-07-20
 
