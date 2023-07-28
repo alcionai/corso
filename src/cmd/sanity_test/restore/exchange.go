@@ -12,7 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
-	"github.com/alcionai/corso/src/cmd/sanity_test/utils"
+	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
@@ -35,7 +35,7 @@ func CheckEmailRestoration(
 	for {
 		result, err := builder.Get(ctx, nil)
 		if err != nil {
-			utils.Fatal(ctx, "getting mail folders", err)
+			common.Fatal(ctx, "getting mail folders", err)
 		}
 
 		values := result.GetValue()
@@ -79,7 +79,7 @@ func CheckEmailRestoration(
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting restore folder child folders", err)
+		common.Fatal(ctx, "getting restore folder child folders", err)
 	}
 
 	for _, fld := range childFolder.GetValue() {
@@ -102,7 +102,7 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 	for fldName, expected := range messageCount {
 		got := restoreMessageCount[fldName]
 
-		utils.Assert(
+		common.Assert(
 			ctx,
 			func() bool { return expected == got },
 			fmt.Sprintf("Restore item counts do not match: %s", fldName),
@@ -142,7 +142,7 @@ func getAllMailSubFolders(
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
-		utils.Fatal(ctx, "getting mail subfolders", err)
+		common.Fatal(ctx, "getting mail subfolders", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
@@ -194,7 +194,7 @@ func checkAllSubFolder(
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
-		utils.Fatal(ctx, "getting mail subfolders", err)
+		common.Fatal(ctx, "getting mail subfolders", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
