@@ -25,7 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	rep "github.com/alcionai/corso/src/pkg/control/repository"
+	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -82,7 +82,7 @@ type Repository interface {
 	) (operations.ExportOperation, error)
 	NewMaintenance(
 		ctx context.Context,
-		mOpts rep.Maintenance,
+		mOpts ctrlRepo.Maintenance,
 	) (operations.MaintenanceOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
@@ -117,7 +117,8 @@ func (r repository) GetID() string {
 //   - validate the m365 account & secrets
 //   - connect to the m365 account to ensure communication capability
 //   - validate the provider config & secrets
-//   - initialize the kopia repo with the provider
+//   - initialize the kopia repo with the provider and retention parameters
+//   - update maintenance retention parameters as needed
 //   - store the configuration details
 //   - connect to the provider
 //   - return the connected repository
@@ -126,6 +127,7 @@ func Initialize(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
+	retentionOpts ctrlRepo.Retention,
 ) (repo Repository, err error) {
 	ctx = clues.Add(
 		ctx,
@@ -140,7 +142,7 @@ func Initialize(
 	}()
 
 	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Initialize(ctx, opts.Repo); err != nil {
+	if err := kopiaRef.Initialize(ctx, opts.Repo, retentionOpts); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
 			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
@@ -408,7 +410,7 @@ func (r repository) NewRestore(
 
 func (r repository) NewMaintenance(
 	ctx context.Context,
-	mOpts rep.Maintenance,
+	mOpts ctrlRepo.Maintenance,
 ) (operations.MaintenanceOperation, error) {
 	return operations.NewMaintenanceOperation(
 		ctx,

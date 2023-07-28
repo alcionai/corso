@@ -60,7 +60,12 @@ func (suite *RepositoryUnitSuite) TestInitialize() {
 			st, err := test.storage()
 			assert.NoError(t, err, clues.ToCore(err))
 
-			_, err = Initialize(ctx, test.account, st, control.DefaultOptions())
+			_, err = Initialize(
+				ctx,
+				test.account,
+				st,
+				control.DefaultOptions(),
+				ctrlRepo.Retention{})
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -137,7 +142,12 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			defer flush()
 
 			st := test.storage(t)
-			r, err := Initialize(ctx, test.account, st, control.DefaultOptions())
+			r, err := Initialize(
+				ctx,
+				test.account,
+				st,
+				control.DefaultOptions(),
+				ctrlRepo.Retention{})
 			if err == nil {
 				defer func() {
 					err := r.Close(ctx)
@@ -169,7 +179,7 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 	st.SessionName = "corso-repository-test"
 	st.SessionDuration = roleDuration.String()
 
-	r, err := Initialize(ctx, account.Account{}, st, control.Options{})
+	r, err := Initialize(ctx, account.Account{}, st, control.Options{}, ctrlRepo.Retention{})
 	require.NoError(suite.T(), err)
 
 	defer func() {
@@ -186,7 +196,12 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	repo, err := Initialize(ctx, account.Account{}, st, control.DefaultOptions())
+	repo, err := Initialize(
+		ctx,
+		account.Account{},
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
@@ -203,7 +218,12 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	r, err := Initialize(ctx, account.Account{}, st, control.DefaultOptions())
+	r, err := Initialize(
+		ctx,
+		account.Account{},
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	oldID := r.GetID()
@@ -228,7 +248,12 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	r, err := Initialize(ctx, acct, st, control.DefaultOptions())
+	r, err := Initialize(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
@@ -250,7 +275,12 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	r, err := Initialize(ctx, acct, st, control.DefaultOptions())
+	r, err := Initialize(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, restoreCfg)
@@ -269,7 +299,12 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	r, err := Initialize(ctx, acct, st, control.DefaultOptions())
+	r, err := Initialize(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	mo, err := r.NewMaintenance(ctx, ctrlRepo.Maintenance{})
@@ -286,7 +321,12 @@ func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	repo, err := Initialize(ctx, account.Account{}, st, control.DefaultOptions())
+	repo, err := Initialize(
+		ctx,
+		account.Account{},
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
 	require.NoError(t, err)
 
 	// now re-connect
@@ -350,7 +390,7 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			repo, err := Initialize(ctx, acct, st, test.opts())
+			repo, err := Initialize(ctx, acct, st, test.opts(), ctrlRepo.Retention{})
 			require.NoError(t, err)
 
 			r := repo.(*repository)

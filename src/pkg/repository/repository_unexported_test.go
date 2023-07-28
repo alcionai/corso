@@ -240,7 +240,7 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 
 	require.NotNil(t, k)
 
-	err = k.Initialize(ctx, rep.Options{})
+	err = k.Initialize(ctx, rep.Options{}, rep.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Connect(ctx, rep.Options{})
@@ -291,8 +291,11 @@ func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 		k = kopia.NewConn(s)
 	)
 
-	require.NoError(t, k.Initialize(ctx, rep.Options{}))
-	require.NoError(t, k.Connect(ctx, rep.Options{}))
+	err := k.Initialize(ctx, rep.Options{}, rep.Retention{})
+	require.NoError(t, err, "initializing repo: %v", clues.ToCore(err))
+
+	err = k.Connect(ctx, rep.Options{})
+	require.NoError(t, err, "connecting to repo: %v", clues.ToCore(err))
 
 	defer k.Close(ctx)
 

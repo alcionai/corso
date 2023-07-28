@@ -1,4 +1,4 @@
-package restore
+package export
 
 import (
 	"bytes"
@@ -34,7 +34,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"restore sharepoint", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
+		{"export sharepoint", exportCommand, expectUse, sharePointExportCmd().Short, exportSharePointCmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -59,6 +59,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			cmd.SetArgs([]string{
 				"sharepoint",
+				testdata.RestoreDestination,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
 				"--" + flags.LibraryFN, testdata.LibraryInput,
@@ -73,22 +74,14 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
 				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
 
-				"--" + flags.CollisionsFN, testdata.Collisions,
-				"--" + flags.DestinationFN, testdata.Destination,
-				"--" + flags.ToResourceFN, testdata.ToResource,
-
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
 				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
 
-				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
 				// bool flags
-				"--" + flags.RestorePermissionsFN,
+				"--" + flags.ArchiveFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -113,22 +106,13 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
 			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
 
-			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
-			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
-			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
+			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
 			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
 
-			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-
-			// bool flags
-			assert.True(t, flags.RestorePermissionsFV)
 		})
 	}
 }

@@ -1,4 +1,4 @@
-package restore
+package export
 
 import (
 	"bytes"
@@ -16,16 +16,16 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type SharePointUnitSuite struct {
+type OneDriveUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharePointUnitSuite(t *testing.T) {
-	suite.Run(t, &SharePointUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestOneDriveUnitSuite(t *testing.T) {
+	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
-	expectUse := sharePointServiceCommand + " " + sharePointServiceCommandUseSuffix
+func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
+	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
 
 	table := []struct {
 		name        string
@@ -34,7 +34,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"restore sharepoint", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
+		{"export onedrive", exportCommand, expectUse, oneDriveExportCmd().Short, exportOneDriveCmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -46,7 +46,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			// required to ensure a dry run.
 			flags.AddRunModeFlag(cmd, true)
 
-			c := addSharePointCommands(cmd)
+			c := addOneDriveCommands(cmd)
 			require.NotNil(t, c)
 
 			cmds := cmd.Commands()
@@ -58,37 +58,25 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 
 			cmd.SetArgs([]string{
-				"sharepoint",
+				"onedrive",
+				testdata.RestoreDestination,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
-				"--" + flags.LibraryFN, testdata.LibraryInput,
 				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
 				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
 				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
 				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
 				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
 				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
-				"--" + flags.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
-				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
-				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
-				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
-
-				"--" + flags.CollisionsFN, testdata.Collisions,
-				"--" + flags.DestinationFN, testdata.Destination,
-				"--" + flags.ToResourceFN, testdata.ToResource,
 
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
 				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
 
-				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
 				// bool flags
-				"--" + flags.RestorePermissionsFN,
+				"--" + flags.ArchiveFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -96,10 +84,9 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			err := cmd.Execute()
 			assert.NoError(t, err, clues.ToCore(err))
 
-			opts := utils.MakeSharePointOpts(cmd)
+			opts := utils.MakeOneDriveOpts(cmd)
 			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
-			assert.Equal(t, testdata.LibraryInput, opts.Library)
 			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
 			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
 			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
@@ -107,28 +94,13 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
 
-			assert.ElementsMatch(t, testdata.ListItemInput, opts.ListItem)
-			assert.ElementsMatch(t, testdata.ListFolderInput, opts.ListFolder)
-
-			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
-			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
-
-			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
-			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
-			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
+			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
 			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
 
-			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-
-			// bool flags
-			assert.True(t, flags.RestorePermissionsFV)
 		})
 	}
 }
