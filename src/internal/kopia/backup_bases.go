@@ -16,7 +16,7 @@ import (
 type BackupBases interface {
 	RemoveMergeBaseByManifestID(manifestID manifest.ID)
 	Backups() []BackupEntry
-	PartialBackups() []BackupEntry
+	AssistBackups() []BackupEntry
 	MinBackupVersion() int
 	MergeBases() []ManifestEntry
 	ClearMergeBases()
@@ -32,10 +32,10 @@ type BackupBases interface {
 type backupBases struct {
 	// backups and mergeBases should be modified together as they relate similar
 	// data.
-	backups        []BackupEntry
-	mergeBases     []ManifestEntry
-	assistBases    []ManifestEntry
-	partialBackups []BackupEntry
+	backups       []BackupEntry
+	mergeBases    []ManifestEntry
+	assistBases   []ManifestEntry
+	assistBackups []BackupEntry
 }
 
 func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
@@ -73,8 +73,8 @@ func (bb backupBases) Backups() []BackupEntry {
 	return slices.Clone(bb.backups)
 }
 
-func (bb backupBases) PartialBackups() []BackupEntry {
-	return slices.Clone(bb.partialBackups)
+func (bb backupBases) AssistBackups() []BackupEntry {
+	return slices.Clone(bb.assistBackups)
 }
 
 func (bb *backupBases) MinBackupVersion() int {
@@ -186,10 +186,10 @@ func (bb *backupBases) MergeBackupBases(
 	}
 
 	res := &backupBases{
-		backups:        bb.Backups(),
-		mergeBases:     bb.MergeBases(),
-		assistBases:    bb.AssistBases(),
-		partialBackups: bb.PartialBackups(),
+		backups:       bb.Backups(),
+		mergeBases:    bb.MergeBases(),
+		assistBases:   bb.AssistBases(),
+		assistBackups: bb.AssistBackups(),
 	}
 
 	// Add new mergeBases and backups.
@@ -212,7 +212,7 @@ func (bb *backupBases) MergeBackupBases(
 
 		res.backups = append(res.backups, bup)
 		res.mergeBases = append(res.mergeBases, man)
-		// TODO(pandeyabs): Merge partialBackups from UPN tagged backups.
+		// TODO(pandeyabs): Merge assistBackups from UPN tagged backups.
 		res.assistBases = append(res.assistBases, man)
 	}
 
