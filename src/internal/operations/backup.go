@@ -117,10 +117,26 @@ func (op BackupOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type backupStats struct {
-	k             *kopia.BackupStats
-	ctrl          *data.CollectionStats
-	resourceCount int
-	assistBackup  bool
+	k              *kopia.BackupStats
+	ctrl           *data.CollectionStats
+	resourceCount  int
+	assistBackupOp bool
+}
+
+// To qualify as an assist backup op, all of the following must be true:
+// 1. new deets were produced during this operation
+// 2. we have a valid snapshot ID
+// 3. we don't have any non-recoverable errors
+// 4. we have recoverable errors
+func isAssistBackupOp(
+	newDeetsProduced bool,
+	snapshotID string,
+	err *fault.Bus,
+) bool {
+	return newDeetsProduced &&
+		snapshotID != "" &&
+		err.Failure() == nil &&
+		len(err.Recovered()) > 0
 }
 
 // ---------------------------------------------------------------------------
@@ -240,38 +256,24 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return op.Errors.Failure()
 	}
 
-	// force exit without backup in certain cases.
-	// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
-	for _, e := range op.Errors.Recovered() {
-		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
-			// TODO(pandeyabs): Temporary hack. Better solution is to remove this label
-			// wherever it's no longer applicable.
-			// if !isPartialBackup {
-			// 	return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
-			// }
-			logger.Ctx(ctx).
-				With("error", e).
-				With(clues.InErr(err).Slice()...).
-				Infow("completed backup; conditional error forcing exit without model persistence",
-					"results", op.Results)
-		}
-	}
-
 	err = op.createBackupModels(
 		ctx,
 		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
 		op.BackupVersion,
-		deets.Details())
+		deets.Details(),
+		opStats.assistBackupOp)
 	if err != nil {
-		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
+		op.Errors.Fail(clues.Wrap(err, "persisting backup models"))
 		return op.Errors.Failure()
 	}
 
-	logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
+	if op.Errors.Failure() == nil {
+		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
+	}
 
-	return nil
+	return op.Errors.Failure()
 }
 
 // do is purely the action of running a backup.  All pre/post behavior
@@ -371,20 +373,14 @@ func (op *BackupOperation) do(
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
-	// If new deets were produced, but we also ran into errors, persist an
-	// assist backup model so that we don't lose the new deets.
-	// Conditions for this are:
-	// 1. new deets were produced
-	// 2. we have a valid snapshot ID
-	// 3. we don't have non-recoverable errors
-	// 4. we have recoverable errors
-	// TODO(pandeyabs): Move this to a helper function
-	if newDeetsProduced &&
-		writeStats.SnapshotID != "" &&
-		op.Errors.Failure() == nil &&
-		len(op.Errors.Recovered()) > 0 {
-		opStats.assistBackup = true
-	}
+	// If new deets were produced during this backup, but we also ran into
+	// recoverable errors, mark this as an assist backup operation, so that
+	// we can persist an assist backup model for it later.
+	// An assist backup model ensures that we don't lose these deets.
+	opStats.assistBackupOp = isAssistBackupOp(
+		newDeetsProduced,
+		opStats.k.SnapshotID,
+		op.Errors)
 
 	return deets, nil
 }
@@ -522,7 +518,8 @@ func consumeBackupCollections(
 	if kopiaStats.ErrorCount > 0 {
 		err = clues.New("building kopia snapshot").WithClues(ctx)
 	} else if kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount {
-		err = clues.New("downloading items for persistence").WithClues(ctx)
+		// err = clues.New("downloading items for persistence").WithClues(ctx)
+		logger.Ctx(ctx).Info("recoverable errors were encountered during backup")
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
@@ -732,7 +729,9 @@ func (op *BackupOperation) persistResults(
 
 	op.Status = Completed
 
-	if op.Errors.Failure() != nil {
+	// If there were failures during backup operation & the operation
+	// did not qualify as an assist backup op, mark it as failed.
+	if op.Errors.Failure() != nil && !opStats.assistBackupOp {
 		op.Status = Failed
 	}
 
@@ -759,6 +758,10 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ItemsRead = opStats.ctrl.Successes
 
+	if op.Status == Completed {
+		return nil
+	}
+
 	return op.Errors.Failure()
 }
 
@@ -770,6 +773,7 @@ func (op *BackupOperation) createBackupModels(
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
+	assistBackupOp bool,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
@@ -801,9 +805,14 @@ func (op *BackupOperation) createBackupModels(
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
 
 	additionalTags := map[string]string{}
-	// if op. {
-	// 	additionalTags[model.AssistBackupTag] = ""
-	// }
+
+	// If this was an assist backup operation, add the assist backup tag so
+	// that we can look up assist backups by tag during base selection process.
+	if assistBackupOp {
+		additionalTags[model.AssistBackupTag] = ""
+	}
+
+	ctx = clues.Add(ctx, "assist_backup", assistBackupOp)
 
 	b := backup.New(
 		snapID, ssid,
@@ -818,7 +827,7 @@ func (op *BackupOperation) createBackupModels(
 		op.Errors.Errors(),
 		additionalTags)
 
-	logger.Ctx(ctx).Info("creating new backup")
+	logger.Ctx(ctx).Infow("creating new backup")
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
