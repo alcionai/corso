@@ -341,7 +341,7 @@ func selectorAsIface[T any](s Selector) (T, error) {
 // Stringers and Concealers
 // ---------------------------------------------------------------------------
 
-var _ clues.PlainConcealer = &Selector{}
+var _ clues.Concealer = &Selector{}
 
 type loggableSelector struct {
 	Service        service             `json:"service,omitempty"`

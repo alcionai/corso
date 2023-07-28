@@ -563,8 +563,8 @@ func (b bulletf) String() string {
 // observe progress bar.  Logged values should only use
 // the fmt %v to ensure Concealers hide PII.
 func plainString(v any) string {
-	if ps, ok := v.(clues.PlainStringer); ok {
-		return ps.PlainString()
+	if c, ok := v.(clues.Concealer); ok {
+		return c.PlainString()
 	}
 
 	return fmt.Sprintf("%v", v)
