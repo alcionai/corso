@@ -374,7 +374,15 @@ func (op *BackupOperation) do(
 	// If new deets were produced during this backup, but we also ran into
 	// recoverable errors, mark this as an assist backup operation. This is so
 	// that we can persist an assist backup model for it later.
-	// An assist backup model ensures that we don't lose these deets.
+	// Primary reason for persisting assist backup models is to ensure we don't
+	// lose corso extension data(deets) for items which were downloaded and
+	// processed by kopia during this backup operation.
+	// Note: kopia.DetailsMergeInfoer may or may not be empty. It shouldn’t
+	// impact decision making for creating assist backups. It may be empty
+	// if it’s the very first backup so there is no merge base to source base
+	// details from, or non-empty, if there was a merge base.
+	// In summary, if there are no new deets, no new extension data was produced
+	// and hence no need to persist assist backup model.
 	opStats.assistBackupOp = isAssistBackupOp(
 		newDeetsProduced,
 		opStats.k.SnapshotID,
