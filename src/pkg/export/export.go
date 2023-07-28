@@ -7,7 +7,9 @@ import (
 
 // Collection is the interface that is returned to the SDK consumer
 type Collection interface {
-	// BasePath gets the base path of the collection
+	// BasePath gets the base path of the collection. This is derived
+	// from FullPath, but trim out thing like drive id or any other part
+	// that is not needed to show the path to the collection.
 	BasePath() string
 
 	// Items gets the items within the collection(folder)
