@@ -40,7 +40,7 @@ func (suite *RetentionConfigOpIntegrationSuite) TestRepoRetentionConfig() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	kw, err := kopia.NewWrapper(k)
@@ -57,7 +57,7 @@ func (suite *RetentionConfigOpIntegrationSuite) TestRepoRetentionConfig() {
 	// package.
 	rco, err := NewRetentionConfigOperation(
 		ctx,
-		control.Defaults(),
+		control.DefaultOptions(),
 		kw,
 		repository.Retention{
 			Extend: ptr.To(true),

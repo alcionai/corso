@@ -86,7 +86,7 @@ type Repository interface {
 	) (operations.MaintenanceOperation, error)
 	NewRetentionConfig(
 		ctx context.Context,
-		rcOpts rep.Retention,
+		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
 	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
@@ -426,7 +426,7 @@ func (r repository) NewMaintenance(
 
 func (r repository) NewRetentionConfig(
 	ctx context.Context,
-	rcOpts rep.Retention,
+	rcOpts ctrlRepo.Retention,
 ) (operations.RetentionConfigOperation, error) {
 	return operations.NewRetentionConfigOperation(
 		ctx,
