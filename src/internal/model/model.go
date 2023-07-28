@@ -39,10 +39,6 @@ const (
 	// 3. we don't have any non-recoverable errors
 	// 4. we have recoverable errors
 	AssistBackupTag = "assistBackup"
-	// A merge backup satisfies the following conditions:
-	// 1. Is not an assist backup
-	// 2. No primary or recoverable errors occurred during the backup operation
-	MergeBackupTag = "mergeBackup"
 )
 
 // Valid returns true if the ModelType value fits within the iota range.

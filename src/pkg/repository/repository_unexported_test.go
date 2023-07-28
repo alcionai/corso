@@ -336,8 +336,7 @@ func writeBackup(
 	ssid, err := sstore.Write(ctx, errs)
 	require.NoError(t, err, "writing to streamstore")
 
-	b, err := backup.CreateNewBackup(
-		ctx,
+	b := backup.New(
 		snapID, ssid,
 		operations.Completed.String(),
 		version.Backup,
@@ -348,7 +347,6 @@ func writeBackup(
 		stats.StartAndEndTime{},
 		fe,
 		false)
-	require.NoError(t, err, "creating backup")
 
 	err = sw.Put(ctx, model.BackupSchema, b)
 	require.NoError(t, err)

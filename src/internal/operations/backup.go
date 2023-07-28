@@ -810,9 +810,9 @@ func (op *BackupOperation) createBackupModels(
 	}
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
+	ctx = clues.Add(ctx, "is_assist_backup", isAssistBackup)
 
-	b, err := backup.CreateNewBackup(
-		ctx,
+	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
 		backupVersion,
@@ -824,9 +824,6 @@ func (op *BackupOperation) createBackupModels(
 		op.Results.StartAndEndTime,
 		op.Errors.Errors(),
 		isAssistBackup)
-	if err != nil {
-		return clues.Wrap(err, "creating backup model").WithClues(ctx)
-	}
 
 	logger.Ctx(ctx).Info("creating new backup")
 
