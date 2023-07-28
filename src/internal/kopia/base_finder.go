@@ -312,7 +312,6 @@ func (b *baseFinder) findBasesInSet(
 		}
 
 		// Find any partial backups associated with kopias assisted snapshots
-		// TODO(pandeyabs): Confirm if there can never be multiple partial backups?
 		pBup, err := b.getPartialBackupModels(ictx, reason, kopiaAssistSnaps)
 		if err != nil {
 			logger.CtxErr(ictx, err).Info("getting partial backups")
@@ -342,9 +341,8 @@ func (b *baseFinder) findBasesInSet(
 // A partial backup must satisfy below conditions:
 // 1) it must have a valid snapshot id
 // 2) it must have a valid streamstore id
-// 3) it must be tagged with models.partialBackup tag
+// 3) it must be tagged with models.AssistBackupTag
 // 4) it must be tagged with reasons
-// TODO(pandeyabs): See if 3 can be sourced from existing stats instead.
 func (b *baseFinder) getPartialBackupModels(
 	ctx context.Context,
 	r Reasoner,
@@ -362,7 +360,7 @@ func (b *baseFinder) getPartialBackupModels(
 		// Check if this backup has required tags
 		// TODO(pandeyabs): Also check for reasons tags
 		tags := bup.Tags
-		if _, ok := tags[model.PartialBackupTag]; !ok {
+		if _, ok := tags[model.AssistBackupTag]; !ok {
 			continue
 		}
 
@@ -420,7 +418,7 @@ func (b *baseFinder) FindBases(
 		// ManifestEntry so we have the reasons for selecting them to aid in
 		// debugging.
 		baseBups         = map[model.StableID]BackupEntry{}
-		partialBups      = map[model.StableID]BackupEntry{}
+		assistBups       = map[model.StableID]BackupEntry{}
 		baseSnaps        = map[manifest.ID]ManifestEntry{}
 		kopiaAssistSnaps = map[manifest.ID]ManifestEntry{}
 	)
@@ -478,7 +476,7 @@ func (b *baseFinder) FindBases(
 		}
 
 		if partialBackup != nil {
-			bs, ok := partialBups[partialBackup.ID]
+			bs, ok := assistBups[partialBackup.ID]
 			if ok {
 				bs.Reasons = append(bs.Reasons, baseSnap.Reasons...)
 			} else {
@@ -486,15 +484,15 @@ func (b *baseFinder) FindBases(
 			}
 
 			// Reassign since it's structs not pointers to structs.
-			partialBups[partialBackup.ID] = bs
+			assistBups[partialBackup.ID] = bs
 		}
 	}
 
 	res := &backupBases{
-		backups:        maps.Values(baseBups),
-		mergeBases:     maps.Values(baseSnaps),
-		assistBases:    maps.Values(kopiaAssistSnaps),
-		partialBackups: maps.Values(partialBups),
+		backups:       maps.Values(baseBups),
+		mergeBases:    maps.Values(baseSnaps),
+		assistBases:   maps.Values(kopiaAssistSnaps),
+		assistBackups: maps.Values(assistBups),
 	}
 
 	res.fixupAndVerify(ctx)

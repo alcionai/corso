@@ -186,10 +186,10 @@ func (bb *backupBases) MergeBackupBases(
 	}
 
 	res := &backupBases{
-		backups:        bb.Backups(),
-		mergeBases:     bb.MergeBases(),
-		assistBases:    bb.AssistBases(),
-		partialBackups: bb.PartialBackups(),
+		backups:       bb.Backups(),
+		mergeBases:    bb.MergeBases(),
+		assistBases:   bb.AssistBases(),
+		assistBackups: bb.AssistBackups(),
 	}
 
 	// Add new mergeBases and backups.
@@ -212,7 +212,7 @@ func (bb *backupBases) MergeBackupBases(
 
 		res.backups = append(res.backups, bup)
 		res.mergeBases = append(res.mergeBases, man)
-		// TODO(pandeyabs): Merge partialBackups from UPN tagged backups.
+		// TODO(pandeyabs): Merge assistBackups from UPN tagged backups.
 		res.assistBases = append(res.assistBases, man)
 	}
 
