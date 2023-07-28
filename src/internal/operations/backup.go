@@ -518,8 +518,7 @@ func consumeBackupCollections(
 	if kopiaStats.ErrorCount > 0 {
 		err = clues.New("building kopia snapshot").WithClues(ctx)
 	} else if kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount {
-		// err = clues.New("downloading items for persistence").WithClues(ctx)
-		logger.Ctx(ctx).Info("recoverable errors were encountered during backup")
+		logger.Ctx(ctx).Info("recoverable errors were seen during backup")
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
@@ -806,8 +805,9 @@ func (op *BackupOperation) createBackupModels(
 
 	additionalTags := map[string]string{}
 
-	// If this was an assist backup operation, add the assist backup tag so
-	// that we can look up assist backups by tag during base selection process.
+	// If this was an assist backup operation, add appropriate tags to help
+	// 1. Filter assist backups by tag during base selection process
+	// 2. Differentiate assist backups from merge backups
 	if assistBackupOp {
 		additionalTags[model.AssistBackupTag] = ""
 	}

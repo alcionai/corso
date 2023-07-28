@@ -279,7 +279,6 @@ func (b *Builder) Empty() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// TODO(pandeyabs): Check if this should include knownFolders check
 	return len(b.d.Entries) == 0
 }
 
