@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/config"
@@ -15,6 +16,51 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/store"
 )
+
+// deleteBackups connects to the repository and deletes all backups for
+// service that are at least deletionDays old. Returns the IDs of all backups
+// that were deleted.
+func deleteBackups(
+	ctx context.Context,
+	service path.ServiceType,
+	deletionDays int,
+) ([]string, error) {
+	ctx = clues.Add(ctx, "cutoff_days", deletionDays)
+
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, nil)
+	if err != nil {
+		return nil, clues.Wrap(err, "connecting to account").WithClues(ctx)
+	}
+
+	defer r.Close(ctx)
+
+	backups, err := r.BackupsByTag(ctx, store.Service(service))
+	if err != nil {
+		return nil, clues.Wrap(err, "listing backups").WithClues(ctx)
+	}
+
+	var (
+		deleted []string
+		cutoff  = time.Now().Add(-time.Hour * 24 * time.Duration(deletionDays))
+	)
+
+	for _, backup := range backups {
+		if backup.StartAndEndTime.CompletedAt.Before(cutoff) {
+			if err := r.DeleteBackup(ctx, backup.ID.String()); err != nil {
+				return nil, clues.Wrap(
+					err,
+					"deleting backup").
+					With("backup_id", backup.ID).
+					WithClues(ctx)
+			}
+
+			deleted = append(deleted, backup.ID.String())
+			logAndPrint(ctx, "Deleted backup %s", backup.ID.String())
+		}
+	}
+
+	return deleted, nil
+}
 
 func main() {
 	var (
@@ -39,31 +85,16 @@ func main() {
 		fatal(cc.Context(), "unknown service", nil)
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnect(cc.Context(), service, nil)
-	if err != nil {
-		fatal(cc.Context(), "unable to connect account", err)
-	}
-
-	defer r.Close(cc.Context())
-
-	backups, err := r.BackupsByTag(cc.Context(), store.Service(service))
-	if err != nil {
-		fatal(cc.Context(), "unable to find backups", err)
-	}
+	ctx := clues.Add(cc.Context(), "service", service)
 
 	days, err := strconv.Atoi(os.Getenv("DELETION_DAYS"))
 	if err != nil {
-		fatal(cc.Context(), "invalid no of days provided", nil)
+		fatal(ctx, "invalid number of days provided", nil)
 	}
 
-	for _, backup := range backups {
-		if backup.StartAndEndTime.CompletedAt.Before(time.Now().AddDate(0, 0, -days)) {
-			if err := r.DeleteBackup(cc.Context(), backup.ID.String()); err != nil {
-				fatal(cc.Context(), "deleting backup", err)
-			}
-
-			logAndPrint(cc.Context(), "Deleted backup %s", backup.ID.String())
-		}
+	_, err = deleteBackups(ctx, service, days)
+	if err != nil {
+		fatal(cc.Context(), "deleting backups", clues.Stack(err))
 	}
 }
 
