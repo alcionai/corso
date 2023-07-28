@@ -251,7 +251,9 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 		sl[i] = string(rdt)
 	}
 
-	logger.Ctx(context.Background()).Debugw("finished hashing file", "path", sl[2:])
+	logger.Ctx(cp.ctx).Debugw(
+		"finished hashing file",
+		"path", clues.Hide(path.Elements(sl[2:])))
 
 	atomic.AddInt64(&cp.totalBytes, bs)
 }
