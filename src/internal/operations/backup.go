@@ -120,6 +120,7 @@ type backupStats struct {
 	k             *kopia.BackupStats
 	ctrl          *data.CollectionStats
 	resourceCount int
+	assistBackup  bool
 }
 
 // ---------------------------------------------------------------------------
@@ -231,13 +232,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Persistence
 	// -----
 
-	// TODO(pandeyabs): See if we should also consider op.Failure()
-	isPartialBackup := deets != nil &&
-		!deets.Empty() &&
-		opStats.k.IgnoredErrorCount > 0
-
 	err = op.persistResults(startTime, &opStats)
-	if err != nil && !isPartialBackup {
+	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
 	}
@@ -246,23 +242,17 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
 	for _, e := range op.Errors.Recovered() {
 		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
+			// TODO(pandeyabs): Temporary hack. Better solution is to remove this label
+			// wherever it's no longer applicable.
+			// if !isPartialBackup {
+			// 	return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
+			// }
 			logger.Ctx(ctx).
 				With("error", e).
 				With(clues.InErr(err).Slice()...).
 				Infow("completed backup; conditional error forcing exit without model persistence",
 					"results", op.Results)
-
-			// TODO(pandeyabs): Temporary hack. Better solution is to remove this label
-			// wherever it's no longer applicable.
-			if !isPartialBackup {
-				return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
-			}
 		}
-	}
-
-	tags := map[string]string{}
-	if isPartialBackup {
-		tags[model.PartialBackupTag] = ""
 	}
 
 	err = op.createBackupModels(
@@ -271,8 +261,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
 		op.BackupVersion,
-		deets.Details(),
-		tags)
+		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
 		return op.Errors.Failure()
@@ -360,6 +349,7 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
+	newDeetsProduced := deets != nil && !deets.Empty()
 	opStats.k = writeStats
 
 	err = mergeDetails(
@@ -378,6 +368,21 @@ func (op *BackupOperation) do(
 	opStats.ctrl = op.bp.Wait()
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
+
+	// If new deets were produced, but we also ran into errors, persist an
+	// assist backup model so that we don't lose the new deets.
+	// Conditions for this are:
+	// 1. new deets were produced
+	// 2. we have a valid snapshot ID
+	// 3. we don't have non-recoverable errors
+	// 4. we have recoverable errors
+	// TODO(pandeyabs): Move this to a helper function
+	if newDeetsProduced &&
+		writeStats.SnapshotID != "" &&
+		op.Errors.Failure() == nil &&
+		len(op.Errors.Recovered()) > 0 {
+		opStats.assistBackup = true
+	}
 
 	return deets, nil
 }
@@ -764,7 +769,6 @@ func (op *BackupOperation) createBackupModels(
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
-	additionalTags map[string]string,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
@@ -794,6 +798,11 @@ func (op *BackupOperation) createBackupModels(
 	}
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
+
+	additionalTags := map[string]string{}
+	// if op. {
+	// 	additionalTags[model.AssistBackupTag] = ""
+	// }
 
 	b := backup.New(
 		snapID, ssid,
