@@ -852,6 +852,7 @@ func traverseBaseDir(
 	expectedDirPath *path.Builder,
 	dir fs.Directory,
 	roots map[string]*treeMap,
+	stats *mergeStats,
 ) error {
 	ctx = clues.Add(ctx,
 		"old_dir_path", oldDirPath,
@@ -889,9 +890,26 @@ func traverseBaseDir(
 		// This directory was deleted.
 		if upb == nil {
 			currentPath = nil
+			stats.del++
 		} else {
-			// This directory was moved/renamed and the new location is in upb.
+			// This directory was explicitly mentioned and the new (possibly
+			// unchanged) location is in upb.
 			currentPath = upb.ToBuilder()
+
+			if oldDirPath.String() == currentPath.String() {
+				stats.noMove++
+			} else {
+				stats.move++
+			}
+		}
+	} else {
+		// Just stats tracking stuff.
+		if currentPath == nil {
+			stats.recursiveDel++
+		} else if oldDirPath.String() == currentPath.String() {
+			stats.noMove++
+		} else {
+			stats.recursiveMove++
 		}
 	}
 
@@ -920,7 +938,8 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots)
+			roots,
+			stats)
 	})
 	if err != nil {
 		return clues.Wrap(err, "traversing base directory")
@@ -993,6 +1012,21 @@ func logBaseInfo(ctx context.Context, m ManifestEntry) {
 		"base_backup_id", mbID)
 }
 
+type mergeStats struct {
+	// noMove denotes an directory that wasn't moved at all.
+	noMove int
+	// move denotes an directory that was explicitly moved.
+	move int
+	// recursiveMove denotes an directory that moved because one or more or its
+	// ancestors moved and it wasn't explicitly mentioned.
+	recursiveMove int
+	// del denotes a directory that was explicitly deleted.
+	del int
+	// recursiveDel denotes a directory that was deleted because one or more of
+	// its ancestors was deleted and it wasn't explicitly mentioned.
+	recursiveDel int
+}
+
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
@@ -1058,9 +1092,12 @@ func inflateBaseTree(
 		// The prefix is the tenant/service/owner/category set, which remains
 		// otherwise unchecked in tree inflation below this point.
 		newSubtreePath := subtreePath.ToBuilder()
+
 		if p, ok := updatedPaths[subtreePath.String()]; ok {
 			newSubtreePath = p.ToBuilder()
 		}
+
+		stats := &mergeStats{}
 
 		if err = traverseBaseDir(
 			ictx,
@@ -1070,9 +1107,18 @@ func inflateBaseTree(
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
+			stats,
 		); err != nil {
 			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
+
+		logger.Ctx(ctx).Infow(
+			"merge subtree stats",
+			"not_moved", stats.noMove,
+			"explicitly_moved", stats.move,
+			"recursive_moved", stats.recursiveMove,
+			"explicitly_deleted", stats.del,
+			"recursive_deleted", stats.recursiveDel)
 	}
 
 	return nil
