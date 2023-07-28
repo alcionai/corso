@@ -336,7 +336,7 @@ func (b *baseFinder) findBasesInSet(
 	return nil, nil, kopiaAssistSnaps, nil, nil
 }
 
-// findAssistBackup returns the backup models for the most recent assist backup
+// findAssistBackup returns the most recent assist backup
 // associated with supplied kopia assisted snapshots.
 // An assist backup must satisfy below conditions:
 // 1) it must have a valid snapshot id
@@ -348,6 +348,9 @@ func (b *baseFinder) findBasesInSet(
 // conditions. If no assist backup is found, an error is returned.
 // It expects kopiaAssistSnaps to be sorted by time, with the most recent
 // snapshot at the beginning of the slice.
+// TODO(pandeyabs): Add checks to make sure we never continue past a complete
+// backup. It's unlikely since caller only sends us kopia assist snapshots,
+// but that would be a serious bug.
 func (b *baseFinder) findAssistBackup(
 	ctx context.Context,
 	r Reasoner,
