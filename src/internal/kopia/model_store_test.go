@@ -808,7 +808,7 @@ func openConnAndModelStore(
 	st := storeTD.NewPrefixedS3Storage(t)
 	c := NewConn(st)
 
-	err := c.Initialize(ctx, repository.Options{})
+	err := c.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {

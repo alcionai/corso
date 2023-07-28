@@ -243,7 +243,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
