@@ -6,7 +6,7 @@ import (
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
-	"github.com/alcionai/corso/src/cmd/sanity_test/utils"
+	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -23,7 +23,7 @@ func CheckSharePointRestoration(
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
-		utils.Fatal(ctx, "getting the drive:", err)
+		common.Fatal(ctx, "getting the drive:", err)
 	}
 
 	checkDriveRestoration(
