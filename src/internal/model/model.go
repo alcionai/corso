@@ -36,7 +36,7 @@ const (
 	// A backup is considered partial, if it has a valid snapshot id & a
 	// valid details streamstore id.
 	// It should never be used as a merge base
-	PartialBackupTag = "partialBackup"
+	AssistBackupTag = "assistBackup"
 )
 
 // Valid returns true if the ModelType value fits within the iota range.
