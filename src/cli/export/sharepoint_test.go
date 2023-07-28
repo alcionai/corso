@@ -16,16 +16,16 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type OneDriveUnitSuite struct {
+type SharePointUnitSuite struct {
 	tester.Suite
 }
 
-func TestOneDriveUnitSuite(t *testing.T) {
-	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestSharePointUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
-	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
+func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
+	expectUse := sharePointServiceCommand + " " + sharePointServiceCommandUseSuffix
 
 	table := []struct {
 		name        string
@@ -34,7 +34,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"export onedrive", exportCommand, expectUse, oneDriveExportCmd().Short, exportOneDriveCmd},
+		{"export sharepoint", exportCommand, expectUse, sharePointExportCmd().Short, exportSharePointCmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -46,7 +46,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			// required to ensure a dry run.
 			flags.AddRunModeFlag(cmd, true)
 
-			c := addOneDriveCommands(cmd)
+			c := addSharePointCommands(cmd)
 			require.NotNil(t, c)
 
 			cmds := cmd.Commands()
@@ -58,16 +58,21 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 
 			cmd.SetArgs([]string{
-				"onedrive",
+				"sharepoint",
 				testdata.RestoreDestination,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
+				"--" + flags.LibraryFN, testdata.LibraryInput,
 				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
 				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
 				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
 				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
 				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
 				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+				"--" + flags.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
+				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
+				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
+				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
 
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
@@ -84,15 +89,22 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			err := cmd.Execute()
 			assert.NoError(t, err, clues.ToCore(err))
 
-			opts := utils.MakeOneDriveOpts(cmd)
+			opts := utils.MakeSharePointOpts(cmd)
 			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
+			assert.Equal(t, testdata.LibraryInput, opts.Library)
 			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
 			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
 			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
 			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
 			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
+
+			assert.ElementsMatch(t, testdata.ListItemInput, opts.ListItem)
+			assert.ElementsMatch(t, testdata.ListFolderInput, opts.ListFolder)
+
+			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
+			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
 
 			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
 

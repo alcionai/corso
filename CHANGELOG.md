@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restore requires the protected resource to have access to the service being restored.
 
 ### Added
-- Added option to export data from OneDrive backups as individual files or as a single zip file.
+- Added option to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
 
 ## [v0.11.1] (beta) - 2023-07-20
 

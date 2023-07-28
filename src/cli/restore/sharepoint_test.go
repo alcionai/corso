@@ -34,7 +34,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 		expectShort string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
-		{"restore onedrive", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
+		{"restore sharepoint", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
