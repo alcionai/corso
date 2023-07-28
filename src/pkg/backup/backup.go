@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
 
 	"github.com/alcionai/corso/src/cli/print"
@@ -71,8 +70,7 @@ type Backup struct {
 // interface compliance checks
 var _ print.Printable = &Backup{}
 
-func CreateNewBackup(
-	ctx context.Context,
+func New(
 	snapshotID, streamStoreID, status string,
 	version int,
 	id model.StableID,
@@ -82,7 +80,7 @@ func CreateNewBackup(
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
 	isAssistBackup bool,
-) (*Backup, error) {
+) *Backup {
 	if fe == nil {
 		fe = &fault.Errors{}
 	}
@@ -114,10 +112,6 @@ func CreateNewBackup(
 		}
 	}
 
-	ctx = clues.Add(ctx, "is_assist_backup", isAssistBackup)
-	ctx = clues.Add(ctx, "error_count", errCount)
-	ctx = clues.Add(ctx, "skip_count", skipCount)
-
 	tags := map[string]string{
 		model.ServiceTag: selector.PathService().String(),
 	}
@@ -127,12 +121,6 @@ func CreateNewBackup(
 	// 2. Differentiate assist backups from merge backups
 	if isAssistBackup {
 		tags[model.AssistBackupTag] = ""
-	} else if errCount == 0 {
-		tags[model.MergeBackupTag] = ""
-	} else {
-		// This is an added sanity check to ensure that we don't persist backups
-		// with non zero error counts unless they are assist backups
-		return nil, clues.New("backup is neither assist nor merge").WithClues(ctx)
 	}
 
 	return &Backup{
@@ -165,7 +153,7 @@ func CreateNewBackup(
 			SkippedNotFound:           notFound,
 			SkippedInvalidOneNoteFile: invalidONFile,
 		},
-	}, nil
+	}
 }
 
 // --------------------------------------------------------------------------------
