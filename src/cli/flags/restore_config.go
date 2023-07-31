@@ -9,11 +9,13 @@ import (
 const (
 	CollisionsFN  = "collisions"
 	DestinationFN = "destination"
+	ToResourceFN  = "to-resource"
 )
 
 var (
 	CollisionsFV  string
 	DestinationFV string
+	ToResourceFV  string
 )
 
 // AddRestoreConfigFlags adds the restore config flag set.
@@ -25,5 +27,8 @@ func AddRestoreConfigFlags(cmd *cobra.Command) {
 		"Sets the behavior for existing item collisions: "+string(control.Skip)+", "+string(control.Copy)+", or "+string(control.Replace))
 	fs.StringVar(
 		&DestinationFV, DestinationFN, "",
-		"Overrides the destination where items get restored; '/' places items into their original location")
+		"Overrides the folder where items get restored; '/' places items into their original location")
+	fs.StringVar(
+		&ToResourceFV, ToResourceFN, "",
+		"Overrides the protected resource (mailbox, site, user, etc) where data gets restored")
 }

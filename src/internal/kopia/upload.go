@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -860,6 +861,7 @@ func traverseBaseDir(
 	expectedDirPath *path.Builder,
 	dir fs.Directory,
 	roots map[string]*treeMap,
+	stats *count.Bus,
 ) error {
 	ctx = clues.Add(ctx,
 		"old_dir_path", oldDirPath,
@@ -899,9 +901,27 @@ func traverseBaseDir(
 		// This directory was deleted.
 		if upb == nil {
 			currentPath = nil
+
+			stats.Inc(statDel)
 		} else {
-			// This directory was moved/renamed and the new location is in upb.
+			// This directory was explicitly mentioned and the new (possibly
+			// unchanged) location is in upb.
 			currentPath = upb.ToBuilder()
+
+			if oldDirPath.String() == currentPath.String() {
+				stats.Inc(statNoMove)
+			} else {
+				stats.Inc(statMove)
+			}
+		}
+	} else {
+		// Just stats tracking stuff.
+		if currentPath == nil {
+			stats.Inc(statRecursiveDel)
+		} else if oldDirPath.String() == currentPath.String() {
+			stats.Inc(statNoMove)
+		} else {
+			stats.Inc(statRecursiveMove)
 		}
 	}
 
@@ -930,7 +950,8 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots)
+			roots,
+			stats)
 	})
 	if err != nil {
 		return clues.Wrap(err, "traversing base directory").WithClues(ctx)
@@ -1003,6 +1024,21 @@ func logBaseInfo(ctx context.Context, m ManifestEntry) {
 		"base_backup_id", mbID)
 }
 
+const (
+	// statNoMove denotes an directory that wasn't moved at all.
+	statNoMove = "directories_not_moved"
+	// statMove denotes an directory that was explicitly moved.
+	statMove = "directories_explicitly_moved"
+	// statRecursiveMove denotes an directory that moved because one or more or
+	// its ancestors moved and it wasn't explicitly mentioned.
+	statRecursiveMove = "directories_recursively_moved"
+	// statDel denotes a directory that was explicitly deleted.
+	statDel = "directories_explicitly_deleted"
+	// statRecursiveDel denotes a directory that was deleted because one or more
+	// of its ancestors was deleted and it wasn't explicitly mentioned.
+	statRecursiveDel = "directories_recursively_deleted"
+)
+
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
@@ -1068,9 +1104,12 @@ func inflateBaseTree(
 		// The prefix is the tenant/service/owner/category set, which remains
 		// otherwise unchecked in tree inflation below this point.
 		newSubtreePath := subtreePath.ToBuilder()
+
 		if p, ok := updatedPaths[subtreePath.String()]; ok {
 			newSubtreePath = p.ToBuilder()
 		}
+
+		stats := count.New()
 
 		if err = traverseBaseDir(
 			ictx,
@@ -1080,9 +1119,18 @@ func inflateBaseTree(
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
+			stats,
 		); err != nil {
 			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
+
+		logger.Ctx(ctx).Infow(
+			"merge subtree stats",
+			statNoMove, stats.Get(statNoMove),
+			statMove, stats.Get(statMove),
+			statRecursiveMove, stats.Get(statRecursiveMove),
+			statDel, stats.Get(statDel),
+			statRecursiveDel, stats.Get(statRecursiveDel))
 	}
 
 	return nil

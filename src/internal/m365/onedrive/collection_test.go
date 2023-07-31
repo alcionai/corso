@@ -945,7 +945,7 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 				nil,
 			}
 
-			opts := control.Defaults()
+			opts := control.DefaultOptions()
 			opts.ItemExtensionFactory = append(
 				opts.ItemExtensionFactory,
 				test.factories...)

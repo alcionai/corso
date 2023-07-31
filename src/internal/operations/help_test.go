@@ -27,7 +27,7 @@ func ControllerWithSelector(
 	ins idname.Cacher,
 	onFail func(),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.Defaults())
+	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()
@@ -36,7 +36,7 @@ func ControllerWithSelector(
 		t.FailNow()
 	}
 
-	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()

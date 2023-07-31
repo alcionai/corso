@@ -28,6 +28,10 @@ type is struct {
 	name string
 }
 
+func NewProvider(id, name string) *is {
+	return &is{id, name}
+}
+
 func (is is) ID() string   { return is.id }
 func (is is) Name() string { return is.name }
 

@@ -18,9 +18,7 @@ jobs:
       - uses: actions/checkout@v3
 
       # sets the maximum time to now-30m.
-      # CI test have a 10 minute timeout.
-      # At 20 minutes ago, we should be safe from conflicts.
-      # The additional 10 minutes is just to be good citizens.
+      # CI test have a 20 minute timeout.
       - name: Set purge boundary
         run: echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
@@ -36,6 +34,13 @@ jobs:
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
 
+      - name: Notify failure in slack
+        if: failure()
+        uses: ./.github/actions/slack-message
+        with:
+          msg: "[FAILED] ${{ vars[matrix.user] }} CI Cleanup"
+          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
   Test-Site-Data-Cleanup:
     environment: Testing
     runs-on: ubuntu-latest
@@ -48,9 +53,7 @@ jobs:
       - uses: actions/checkout@v3
 
       # sets the maximum time to now-30m.
-      # CI test have a 10 minute timeout.
-      # At 20 minutes ago, we should be safe from conflicts.
-      # The additional 10 minutes is just to be good citizens.
+      # CI test have a 20 minute timeout.
       - name: Set purge boundary
         run: echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
@@ -67,3 +70,10 @@ jobs:
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+      - name: Notify failure in slack
+        if: failure()
+        uses: ./.github/actions/slack-message
+        with:
+          msg: "[FAILED] ${{ vars[matrix.site] }} CI Cleanup"
+          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}

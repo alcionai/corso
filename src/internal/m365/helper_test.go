@@ -796,8 +796,8 @@ func compareDriveItem(
 			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
 		}
 
-		if !mci.Opts.RestorePermissions {
-			assert.Equal(t, 0, len(itemMeta.Permissions))
+		if !mci.RestoreCfg.IncludePermissions {
+			assert.Empty(t, itemMeta.Permissions, "no permissions should be included in restore")
 			return true
 		}
 
