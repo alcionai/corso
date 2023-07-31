@@ -7,6 +7,7 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -212,7 +213,6 @@ func (bb *backupBases) MergeBackupBases(
 
 		res.backups = append(res.backups, bup)
 		res.mergeBases = append(res.mergeBases, man)
-		// TODO(pandeyabs): Merge assistBackups from UPN tagged backups.
 		res.assistBases = append(res.assistBases, man)
 	}
 
@@ -323,6 +323,48 @@ func getBackupByID(backups []BackupEntry, bID string) (BackupEntry, bool) {
 	return backups[idx], true
 }
 
+func findNonUniqueAssistBackups(
+	ctx context.Context,
+	backups []BackupEntry,
+) map[model.StableID]struct{} {
+	// ReasonKey -> backups with that reason.
+	reasons := map[string][]BackupEntry{}
+	toDrop := map[model.StableID]struct{}{}
+
+	for _, bup := range backups {
+		for _, reason := range bup.Reasons {
+			mapKey := reasonKey(reason)
+			reasons[mapKey] = append(reasons[mapKey], bup)
+		}
+	}
+
+	for reason, bups := range reasons {
+		ictx := clues.Add(ctx, "reason", reason)
+
+		if len(bups) == 0 {
+			// Not sure how this would happen but just in case...
+			continue
+		} else if len(bups) > 1 {
+			bIDs := make([]model.StableID, 0, len(bups))
+			for _, b := range bups {
+				toDrop[b.ID] = struct{}{}
+				bIDs = append(bIDs, b.ID)
+			}
+
+			// TODO(ashmrtn): We should actually just remove this reason from the
+			// backups and then if they have no reasons remaining drop them from
+			// the set.
+			logger.Ctx(ictx).Infow(
+				"dropping assist backups with duplicate reason",
+				"manifest_ids", bIDs)
+
+			continue
+		}
+	}
+
+	return toDrop
+}
+
 // fixupAndVerify goes through the set of backups and snapshots used for merging
 // and ensures:
 //   - the reasons for selecting merge snapshots are distinct
@@ -338,8 +380,9 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 	toDrop := findNonUniqueManifests(ctx, bb.mergeBases)
 
 	var (
-		backupsToKeep []BackupEntry
-		mergeToKeep   []ManifestEntry
+		backupsToKeep       []BackupEntry
+		assistBackupsToKeep []BackupEntry
+		mergeToKeep         []ManifestEntry
 	)
 
 	for _, man := range bb.mergeBases {
@@ -389,7 +432,41 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 		assistToKeep = append(assistToKeep, man)
 	}
 
+	// Now do the same for assist backups. Discard any that have overlapping
+	// reasons or that are not complete.
+	assistBackupDrops := findNonUniqueAssistBackups(ctx, bb.assistBackups)
+
+	for _, bup := range bb.assistBackups {
+		if _, ok := assistBackupDrops[bup.ID]; ok {
+			continue
+		}
+
+		// Sanity checks on assist backups
+		deetsID := bup.StreamStoreID
+		if len(deetsID) == 0 {
+			deetsID = bup.DetailsID
+		}
+
+		if len(bup.SnapshotID) == 0 || len(deetsID) == 0 {
+			assistBackupDrops[bup.ID] = struct{}{}
+
+			logger.Ctx(ctx).Info(
+				"dropping assist backup, invalid snapshot or details ID",
+				"backup_id", bup.ID)
+
+			continue
+		}
+
+		assistBackupsToKeep = append(assistBackupsToKeep, bup)
+	}
+
+	// TODO(pandeyabs): Go through all reasons & ensure that the assist backups
+	// are newer than the merge backups for that reason. Drop any assist
+	// backups which don't meet this criteria.
+	// This would be an additional sanity check but unlikely since assist backups
+	// get chosen before merge backups for a given reason.
 	bb.backups = backupsToKeep
 	bb.mergeBases = mergeToKeep
 	bb.assistBases = assistToKeep
+	bb.assistBackups = assistBackupsToKeep
 }
