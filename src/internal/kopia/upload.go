@@ -897,6 +897,8 @@ func traverseBaseDir(
 		currentPath = currentPath.Append(dirName)
 	}
 
+	var explicitMention bool
+
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
 		if upb == nil {
@@ -908,21 +910,16 @@ func traverseBaseDir(
 			// unchanged) location is in upb.
 			currentPath = upb.ToBuilder()
 
-			if oldDirPath.String() == currentPath.String() {
-				stats.Inc(statNoMove)
-			} else {
-				stats.Inc(statMove)
-			}
+			// Below we check if the collection was marked as new or DoNotMerge which
+			// disables merging behavior. That means we can't directly update stats
+			// here else we'll miss delta token refreshes and whatnot. Instead note
+			// that we did see the path explicitly so it's not counted as a recursive
+			// operation.
+			explicitMention = true
 		}
-	} else {
+	} else if currentPath == nil {
 		// Just stats tracking stuff.
-		if currentPath == nil {
-			stats.Inc(statRecursiveDel)
-		} else if oldDirPath.String() == currentPath.String() {
-			stats.Inc(statNoMove)
-		} else {
-			stats.Inc(statRecursiveMove)
-		}
+		stats.Inc(statRecursiveDel)
 	}
 
 	ctx = clues.Add(ctx, "new_path", currentPath)
@@ -981,7 +978,18 @@ func traverseBaseDir(
 		// directories. The expected usecase for this is delta token expiry in M365.
 		if node.collection != nil &&
 			(node.collection.DoNotMergeItems() || node.collection.State() == data.NewState) {
+			stats.Inc(statSkipMerge)
+
 			return nil
+		}
+
+		// Just stats tracking stuff.
+		if oldDirPath.String() == currentPath.String() {
+			stats.Inc(statNoMove)
+		} else if explicitMention {
+			stats.Inc(statMove)
+		} else {
+			stats.Inc(statRecursiveMove)
 		}
 
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)
@@ -1037,6 +1045,9 @@ const (
 	// statRecursiveDel denotes a directory that was deleted because one or more
 	// of its ancestors was deleted and it wasn't explicitly mentioned.
 	statRecursiveDel = "directories_recursively_deleted"
+	// statSkipMerge denotes the number of directories that weren't merged because
+	// they were marked either DoNotMerge or New.
+	statSkipMerge = "directories_skipped_merging"
 )
 
 func inflateBaseTree(
@@ -1130,7 +1141,8 @@ func inflateBaseTree(
 			statMove, stats.Get(statMove),
 			statRecursiveMove, stats.Get(statRecursiveMove),
 			statDel, stats.Get(statDel),
-			statRecursiveDel, stats.Get(statRecursiveDel))
+			statRecursiveDel, stats.Get(statRecursiveDel),
+			statSkipMerge, stats.Get(statSkipMerge))
 	}
 
 	return nil
