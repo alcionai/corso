@@ -252,7 +252,9 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 		sl[i] = string(rdt)
 	}
 
-	logger.Ctx(context.Background()).Debugw("finished hashing file", "path", sl[2:])
+	logger.Ctx(cp.ctx).Debugw(
+		"finished hashing file",
+		"path", clues.Hide(path.Elements(sl[2:])))
 
 	atomic.AddInt64(&cp.totalBytes, bs)
 }
@@ -442,12 +444,12 @@ func streamBaseEntries(
 
 	ctx = clues.Add(
 		ctx,
-		"current_item_path", curPath,
-		"longest_prefix", longest)
+		"current_directory_path", curPath,
+		"longest_prefix", path.LoggableDir(longest))
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
 		if err := innerCtx.Err(); err != nil {
-			return err
+			return clues.Stack(err).WithClues(ctx)
 		}
 
 		// Don't walk subdirectories in this function.
@@ -464,7 +466,9 @@ func streamBaseEntries(
 
 		entName, err := decodeElement(entry.Name())
 		if err != nil {
-			return clues.Wrap(err, "decoding entry name: "+entry.Name())
+			return clues.Wrap(err, "decoding entry name").
+				WithClues(ctx).
+				With("entry_name", entry.Name())
 		}
 
 		// This entry was marked as deleted by a service that can't tell us the
@@ -476,7 +480,7 @@ func streamBaseEntries(
 		// For now assuming that item IDs don't need escaping.
 		itemPath, err := curPath.AppendItem(entName)
 		if err != nil {
-			return clues.Wrap(err, "getting full item path for base entry")
+			return clues.Wrap(err, "getting full item path for base entry").WithClues(ctx)
 		}
 
 		// We need the previous path so we can find this item in the base snapshot's
@@ -485,7 +489,7 @@ func streamBaseEntries(
 		// to look for.
 		prevItemPath, err := prevPath.AppendItem(entName)
 		if err != nil {
-			return clues.Wrap(err, "getting previous full item path for base entry")
+			return clues.Wrap(err, "getting previous full item path for base entry").WithClues(ctx)
 		}
 
 		// Meta files aren't in backup details since it's the set of items the user
@@ -509,13 +513,15 @@ func streamBaseEntries(
 		}
 
 		if err := ctr(ctx, entry); err != nil {
-			return clues.Wrap(err, "executing callback on item").With("item_path", itemPath)
+			return clues.Wrap(err, "executing callback on item").
+				WithClues(ctx).
+				With("item_path", itemPath)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return clues.Wrap(err, "traversing items in base snapshot directory")
+		return clues.Wrap(err, "traversing items in base snapshot directory").WithClues(ctx)
 	}
 
 	return nil
@@ -826,7 +832,9 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			return nil, nil, clues.New("conflicting states for collection").With("changed_path", p)
+			return nil, nil, clues.New("conflicting states for collection").
+				WithClues(ctx).
+				With("changed_path", p)
 		}
 	}
 
@@ -860,7 +868,7 @@ func traverseBaseDir(
 		"expected_dir_path", expectedDirPath)
 
 	if depth >= maxInflateTraversalDepth {
-		return clues.New("base snapshot tree too tall")
+		return clues.New("base snapshot tree too tall").WithClues(ctx)
 	}
 
 	// Wrapper base64 encodes all file and folder names to avoid issues with
@@ -868,7 +876,9 @@ func traverseBaseDir(
 	// from kopia we need to do the decoding here.
 	dirName, err := decodeElement(dir.Name())
 	if err != nil {
-		return clues.Wrap(err, "decoding base directory name").With("dir_name", dir.Name())
+		return clues.Wrap(err, "decoding base directory name").
+			WithClues(ctx).
+			With("dir_name", clues.Hide(dir.Name()))
 	}
 
 	// Form the path this directory would be at if the hierarchy remained the same
@@ -941,7 +951,7 @@ func traverseBaseDir(
 			stats)
 	})
 	if err != nil {
-		return clues.Wrap(err, "traversing base directory")
+		return clues.Wrap(err, "traversing base directory").WithClues(ctx)
 	}
 
 	// We only need to add this base directory to the tree we're building if it
@@ -958,7 +968,7 @@ func traverseBaseDir(
 		// in the if-block though as that is an optimization.
 		node := getTreeNode(roots, currentPath.Elements())
 		if node == nil {
-			return clues.New("getting tree node")
+			return clues.New("getting tree node").WithClues(ctx)
 		}
 
 		// Now that we have the node we need to check if there is a collection
@@ -984,12 +994,12 @@ func traverseBaseDir(
 
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)
 		if err != nil {
-			return clues.New("converting current path to path.Path")
+			return clues.New("converting current path to path.Path").WithClues(ctx)
 		}
 
 		oldP, err := path.FromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
-			return clues.New("converting old path to path.Path")
+			return clues.New("converting old path to path.Path").WithClues(ctx)
 		}
 
 		node.baseDir = dir
@@ -1184,7 +1194,7 @@ func inflateDirTree(
 	}
 
 	if len(roots) > 1 {
-		return nil, clues.New("multiple root directories")
+		return nil, clues.New("multiple root directories").WithClues(ctx)
 	}
 
 	var res fs.Directory
