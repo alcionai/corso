@@ -764,13 +764,6 @@ func (op *BackupOperation) persistResults(
 		op.Status = Failed
 	}
 
-	// If recoverable errors were seen & failure policy is set to fail after recovery,
-	// mark the backup operation as failed.
-	if op.Options.FailureHandling == control.FailAfterRecovery &&
-		len(op.Errors.Recovered()) > 0 {
-		op.Status = Failed
-	}
-
 	if opStats.k == nil {
 		op.Status = Failed
 		return clues.New("backup persistence never completed")
