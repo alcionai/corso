@@ -257,7 +257,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
-	// finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
 	// -----
@@ -281,6 +280,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup models"))
 		return op.Errors.Failure()
 	}
+
+	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 
 	if op.Errors.Failure() == nil {
 		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
