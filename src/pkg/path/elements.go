@@ -53,10 +53,6 @@ var (
 	// interface compliance required for handling PII
 	_ clues.Concealer = &Elements{}
 	_ fmt.Stringer    = &Elements{}
-
-	// interface compliance for the observe package to display
-	// values without concealing PII.
-	_ clues.PlainStringer = &Elements{}
 )
 
 // Elements are a PII Concealer-compliant slice of elements within a path.

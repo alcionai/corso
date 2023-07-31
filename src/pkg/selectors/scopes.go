@@ -153,9 +153,6 @@ type (
 		// Primarily to ensure that root- or mid-tier scopes (such as folders)
 		// cascade 'Any' matching to more granular categories.
 		setDefaults()
-
-		// Scopes need to comply with PII printing controls.
-		clues.PlainConcealer
 	}
 	// scopeT is the generic type interface of a scoper.
 	scopeT interface {
