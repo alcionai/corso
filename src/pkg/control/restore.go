@@ -107,10 +107,6 @@ var (
 	// interface compliance required for handling PII
 	_ clues.Concealer = &RestoreConfig{}
 	_ fmt.Stringer    = &RestoreConfig{}
-
-	// interface compliance for the observe package to display
-	// values without concealing PII.
-	_ clues.PlainStringer = &RestoreConfig{}
 )
 
 func (rc RestoreConfig) marshal() string {

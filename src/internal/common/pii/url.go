@@ -78,6 +78,10 @@ func (u SafeURL) Format(fs fmt.State, _ rune) {
 	fmt.Fprint(fs, u.Conceal())
 }
 
+func (u SafeURL) PlainString() string {
+	return u.URL
+}
+
 // String complies with Stringer to ensure the Conceal() version
 // of the url is printed anytime it gets transformed to a string.
 func (u SafeURL) String() string {
