@@ -976,12 +976,10 @@ func traverseBaseDir(
 		// Just stats tracking stuff.
 		if oldDirPath.String() == currentPath.String() {
 			stats.Inc(statNoMove)
+		} else if explicitMention {
+			stats.Inc(statMove)
 		} else {
-			if explicitMention {
-				stats.Inc(statMove)
-			} else {
-				stats.Inc(statRecursiveMove)
-			}
+			stats.Inc(statRecursiveMove)
 		}
 
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)
