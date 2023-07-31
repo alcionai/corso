@@ -139,7 +139,7 @@ type backupStats struct {
 // merge base to source base details from, or non-empty, if there was a merge base.
 // In summary, if there are no new deets, no new extension data was produced
 // and hence no need to persist assist backup model.
-func tagAsAssistBackup(
+func isAssistBackup(
 	newDeetsProduced bool,
 	snapID, ssid string,
 	failurePolicy control.FailurePolicy,
@@ -151,6 +151,31 @@ func tagAsAssistBackup(
 		err.Failure() == nil &&
 		len(err.Recovered()) > 0 &&
 		failurePolicy != control.BestEffort
+}
+
+// To qualify as a merge backup, all of the following must be true:
+// 1. we have a valid snapshot ID
+// 2. valid ssid, details were persisted without error
+// 3. we don't have any non-recoverable errors
+// 4. no recoverable errors if not running in best effort mode
+func isMergeBackup(
+	snapID, ssid string,
+	failurePolicy control.FailurePolicy,
+	err *fault.Bus,
+) bool {
+	if snapID == "" || ssid == "" {
+		return false
+	}
+
+	if err.Failure() != nil {
+		return false
+	}
+
+	if failurePolicy == control.BestEffort {
+		return true
+	}
+
+	return len(err.Recovered()) == 0
 }
 
 // ---------------------------------------------------------------------------
@@ -787,7 +812,9 @@ func (op *BackupOperation) createBackupModels(
 		"snapshot_id",
 		snapID,
 		"backup_id",
-		backupID)
+		backupID,
+		"failure_policy",
+		op.Options.FailureHandling)
 
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
@@ -817,15 +844,6 @@ func (op *BackupOperation) createBackupModels(
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
 
-	isAssistBackup := tagAsAssistBackup(
-		opStats.hasNewDetailEntries,
-		snapID,
-		ssid,
-		op.Options.FailureHandling,
-		op.Errors)
-
-	ctx = clues.Add(ctx, "is_assist_backup", isAssistBackup)
-
 	tags := map[string]string{
 		model.ServiceTag: op.Selectors.PathService().String(),
 	}
@@ -833,11 +851,24 @@ func (op *BackupOperation) createBackupModels(
 	// Add tags to mark this backup as either assist or merge. This is used to:
 	// 1. Filter assist backups by tag during base selection process
 	// 2. Differentiate assist backups from merge backups
-	if isAssistBackup {
+	if isMergeBackup(
+		snapID,
+		ssid,
+		op.Options.FailureHandling,
+		op.Errors) {
+		tags[model.BackupTypeTag] = model.MergeBackup
+	} else if isAssistBackup(
+		opStats.hasNewDetailEntries,
+		snapID,
+		ssid,
+		op.Options.FailureHandling,
+		op.Errors) {
 		tags[model.BackupTypeTag] = model.AssistBackup
 	} else {
-		tags[model.BackupTypeTag] = model.MergeBackup
+		return clues.New("backup is neither assist nor merge").WithClues(ctx)
 	}
+
+	ctx = clues.Add(ctx, model.BackupTypeTag, tags[model.BackupTypeTag])
 
 	b := backup.New(
 		snapID, ssid,
