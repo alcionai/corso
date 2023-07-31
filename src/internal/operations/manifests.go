@@ -44,6 +44,8 @@ func produceManifestsAndMetadata(
 	// 2. the current reasons only contain an incomplete manifest, and the fallback
 	// can find a complete manifest.
 	// 3. the current reasons contain all the necessary manifests.
+	// Note: This is not relevant for assist backups, since they are newly introduced
+	// and they don't exist with fallback reasons.
 	bb = bb.MergeBackupBases(
 		ctx,
 		fbb,
