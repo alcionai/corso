@@ -121,9 +121,9 @@ func (rc RestoreConfig) marshal() string {
 func (rc RestoreConfig) concealed() RestoreConfig {
 	return RestoreConfig{
 		OnCollision:        rc.OnCollision,
-		ProtectedResource:  clues.Hide(rc.ProtectedResource).Conceal(),
+		ProtectedResource:  clues.Conceal(rc.ProtectedResource),
 		Location:           path.LoggableDir(rc.Location),
-		Drive:              clues.Hide(rc.Drive).Conceal(),
+		Drive:              clues.Conceal(rc.Drive),
 		IncludePermissions: rc.IncludePermissions,
 	}
 }
@@ -138,7 +138,7 @@ func (rc RestoreConfig) Conceal() string {
 // used within a PrintF, suitable for logging, storing in errors,
 // and other output.
 func (rc RestoreConfig) Format(fs fmt.State, _ rune) {
-	fmt.Fprint(fs, rc.concealed())
+	fmt.Fprint(fs, rc.concealed().marshal())
 }
 
 // String returns a plain text version of the restoreConfig.
