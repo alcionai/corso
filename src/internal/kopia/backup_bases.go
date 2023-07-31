@@ -433,7 +433,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 	}
 
 	// Now do the same for assist backups. Discard any that have overlapping
-	// reasons or that are not complete.
+	// reasons or if missing details or snapshot IDs.
 	assistBackupDrops := findNonUniqueAssistBackups(ctx, bb.assistBackups)
 
 	for _, bup := range bb.assistBackups {
