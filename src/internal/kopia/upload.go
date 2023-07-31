@@ -465,10 +465,9 @@ func streamBaseEntries(
 
 		entName, err := decodeElement(entry.Name())
 		if err != nil {
-			return clues.Wrap(
-				err,
-				"decoding entry name: "+clues.Hide(entry.Name()).Conceal(),
-			).WithClues(ctx)
+			return clues.Wrap(err, "decoding entry name").
+				WithClues(ctx).
+				With("entry_name", entry.Name())
 		}
 
 		// This entry was marked as deleted by a service that can't tell us the
