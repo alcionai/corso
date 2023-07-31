@@ -32,13 +32,10 @@ const (
 
 // common tags for filtering
 const (
-	ServiceTag = "service"
-	// An assist backup satisfies the following conditions:
-	// 1. new deets were produced during this operation
-	// 2. we have a valid snapshot ID
-	// 3. we don't have any non-recoverable errors
-	// 4. we have recoverable errors
-	AssistBackupTag = "assistBackup"
+	ServiceTag    = "service"
+	BackupTypeTag = "backup-type"
+	AssistBackup  = "assist-backup"
+	MergeBackup   = "merge-backup"
 )
 
 // Valid returns true if the ModelType value fits within the iota range.

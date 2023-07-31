@@ -79,7 +79,7 @@ func New(
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
-	isAssistBackup bool,
+	tags map[string]string,
 ) *Backup {
 	if fe == nil {
 		fe = &fault.Errors{}
@@ -110,17 +110,6 @@ func New(
 		default:
 			otherSkips++
 		}
-	}
-
-	tags := map[string]string{
-		model.ServiceTag: selector.PathService().String(),
-	}
-
-	// Add tags to mark this backup as either assist or merge. This is used to:
-	// 1. Filter assist backups by tag during base selection process
-	// 2. Differentiate assist backups from merge backups
-	if isAssistBackup {
-		tags[model.AssistBackupTag] = ""
 	}
 
 	return &Backup{
