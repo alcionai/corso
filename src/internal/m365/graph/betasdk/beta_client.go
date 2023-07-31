@@ -1,7 +1,6 @@
 package betasdk
 
 import (
-	absser "github.com/microsoft/kiota-abstractions-go"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	kioser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kform "github.com/microsoft/kiota-serialization-form-go"
@@ -55,22 +54,22 @@ func NewBetaClient(requestAdapter abstractions.RequestAdapter) *BetaClient {
 	m.pathParameters = make(map[string]string)
 	m.urlTemplate = "{+baseurl}"
 	m.requestAdapter = requestAdapter
-	absser.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
+	abstractions.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
 		return kw.NewJsonSerializationWriterFactory()
 	})
-	absser.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
+	abstractions.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
 		return ktext.NewTextSerializationWriterFactory()
 	})
-	absser.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
+	abstractions.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
 		return kform.NewFormSerializationWriterFactory()
 	})
-	absser.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
+	abstractions.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
 		return kw.NewJsonParseNodeFactory()
 	})
-	absser.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
+	abstractions.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
 		return ktext.NewTextParseNodeFactory()
 	})
-	absser.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
+	abstractions.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
 		return kform.NewFormParseNodeFactory()
 	})
 
