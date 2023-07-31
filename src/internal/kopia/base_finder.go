@@ -318,7 +318,7 @@ func (b *baseFinder) findBasesInSet(
 		if assistBackup == nil {
 			assistBackup = b.checkForAssistBackup(ictx, bup, reason)
 			if assistBackup != nil {
-				logger.CtxErr(ictx, err).Infow(
+				logger.Ctx(ictx).Infow(
 					"found assist backup",
 					"assist_backup_id", bup.ID)
 
