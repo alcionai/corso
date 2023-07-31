@@ -117,26 +117,40 @@ func (op BackupOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type backupStats struct {
-	k              *kopia.BackupStats
-	ctrl           *data.CollectionStats
-	resourceCount  int
-	assistBackupOp bool
+	k                   *kopia.BackupStats
+	ctrl                *data.CollectionStats
+	resourceCount       int
+	hasNewDetailEntries bool
 }
 
-// To qualify as an assist backup op, all of the following must be true:
-// 1. new deets were produced during this operation
-// 2. we have a valid snapshot ID
-// 3. we don't have any non-recoverable errors
-// 4. we recorded recoverable errors
-func isAssistBackupOp(
+// To qualify as an assist backup, all of the following must be true:
+// 1. new detail entries were produced during this operation
+// 2. The updated details file was persisted without error
+// 3. we have a valid snapshot ID
+// 4. we don't have any non-recoverable errors
+// 5. we recorded recoverable errors
+// 6. We are not running in best effort mode. Reason being that there is
+// no way to distinguish assist backups from merge backups in best effort mode
+// Primary reason for persisting assist backup models is to ensure we don't
+// lose corso extension data(deets) for items which were downloaded and
+// processed by kopia during this backup operation.
+// Note: kopia.DetailsMergeInfoer doesn't impact decision making for creating
+// assist backups. It may be empty if it’s the very first backup so there is no
+// merge base to source base details from, or non-empty, if there was a merge base.
+// In summary, if there are no new deets, no new extension data was produced
+// and hence no need to persist assist backup model.
+func tagAsAssistBackup(
 	newDeetsProduced bool,
-	snapshotID string,
+	snapID, ssid string,
+	failurePolicy control.FailurePolicy,
 	err *fault.Bus,
 ) bool {
 	return newDeetsProduced &&
-		snapshotID != "" &&
+		snapID != "" &&
+		ssid != "" &&
 		err.Failure() == nil &&
-		len(err.Recovered()) > 0
+		len(err.Recovered()) > 0 &&
+		failurePolicy != control.BestEffort
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +255,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
+	// finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
 	// -----
@@ -257,11 +271,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.createBackupModels(
 		ctx,
 		sstore,
-		opStats.k.SnapshotID,
+		opStats,
 		op.Results.BackupID,
 		op.BackupVersion,
-		deets.Details(),
-		opStats.assistBackupOp)
+		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup models"))
 		return op.Errors.Failure()
@@ -351,7 +364,7 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
-	newDeetsProduced := deets != nil && !deets.Empty()
+	opStats.hasNewDetailEntries = deets != nil && !deets.Empty()
 	opStats.k = writeStats
 
 	err = mergeDetails(
@@ -370,23 +383,6 @@ func (op *BackupOperation) do(
 	opStats.ctrl = op.bp.Wait()
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
-
-	// If new deets were produced during this backup, but we also ran into
-	// recoverable errors, mark this as an assist backup operation. This is so
-	// that we can persist an assist backup model for it later.
-	// Primary reason for persisting assist backup models is to ensure we don't
-	// lose corso extension data(deets) for items which were downloaded and
-	// processed by kopia during this backup operation.
-	// Note: kopia.DetailsMergeInfoer may or may not be empty. It shouldn’t
-	// impact decision making for creating assist backups. It may be empty
-	// if it’s the very first backup so there is no merge base to source base
-	// details from, or non-empty, if there was a merge base.
-	// In summary, if there are no new deets, no new extension data was produced
-	// and hence no need to persist assist backup model.
-	opStats.assistBackupOp = isAssistBackupOp(
-		newDeetsProduced,
-		opStats.k.SnapshotID,
-		op.Errors)
 
 	return deets, nil
 }
@@ -735,9 +731,16 @@ func (op *BackupOperation) persistResults(
 
 	op.Status = Completed
 
-	// If there were failures during backup operation & the operation
-	// did not qualify as an assist backup op, mark status as failed.
-	if op.Errors.Failure() != nil && !opStats.assistBackupOp {
+	// Non recoverable errors always result in a failed backup.
+	// This holds true for all FailurePolicy.
+	if op.Errors.Failure() != nil {
+		op.Status = Failed
+	}
+
+	// If recoverable errors were seen & failure policy is set to fail after recovery,
+	// mark the backup operation as failed.
+	if op.Options.FailureHandling == control.FailAfterRecovery &&
+		len(op.Errors.Recovered()) > 0 {
 		op.Status = Failed
 	}
 
@@ -764,10 +767,7 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ItemsRead = opStats.ctrl.Successes
 
-	if op.Status == Completed {
-		return nil
-	}
-
+	// Only return non-recoverable errors at this point.
 	return op.Errors.Failure()
 }
 
@@ -775,13 +775,18 @@ func (op *BackupOperation) persistResults(
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
 	sscw streamstore.CollectorWriter,
-	snapID string,
+	opStats backupStats,
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
-	isAssistBackup bool,
 ) error {
-	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
+	snapID := opStats.k.SnapshotID
+	ctx = clues.Add(ctx,
+		"snapshot_id",
+		snapID,
+		"backup_id",
+		backupID)
+
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
 	// are generated during the serialization process.
@@ -809,7 +814,28 @@ func (op *BackupOperation) createBackupModels(
 	}
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
+
+	isAssistBackup := tagAsAssistBackup(
+		opStats.hasNewDetailEntries,
+		snapID,
+		ssid,
+		op.Options.FailureHandling,
+		op.Errors)
+
 	ctx = clues.Add(ctx, "is_assist_backup", isAssistBackup)
+
+	tags := map[string]string{
+		model.ServiceTag: op.Selectors.PathService().String(),
+	}
+
+	// Add tags to mark this backup as either assist or merge. This is used to:
+	// 1. Filter assist backups by tag during base selection process
+	// 2. Differentiate assist backups from merge backups
+	if isAssistBackup {
+		tags[model.BackupTypeTag] = model.AssistBackup
+	} else {
+		tags[model.BackupTypeTag] = model.MergeBackup
+	}
 
 	b := backup.New(
 		snapID, ssid,
@@ -822,7 +848,7 @@ func (op *BackupOperation) createBackupModels(
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 		op.Errors.Errors(),
-		isAssistBackup)
+		tags)
 
 	logger.Ctx(ctx).Info("creating new backup")
 
