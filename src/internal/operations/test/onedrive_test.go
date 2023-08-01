@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -334,7 +335,7 @@ func runDriveIncrementalTest(
 		newFileName = "new_file.txt"
 		newFileID   string
 
-		permissionIDMappings = map[string]string{}
+		permissionIDMappings = xsync.NewMapOf[string]()
 		writePerm            = metadata.Permission{
 			ID:       "perm-id",
 			Roles:    []string{"write"},

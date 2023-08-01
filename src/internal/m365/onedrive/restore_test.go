@@ -682,12 +682,12 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_AddDrive() {
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if test.checkValues {
-				idResult := rc.DriveIDToDriveInfo[driveID]
+				idResult, _ := rc.DriveIDToDriveInfo.Load(driveID)
 				assert.Equal(t, driveID, idResult.id, "drive id")
 				assert.Equal(t, name, idResult.name, "drive name")
 				assert.Equal(t, test.expectID, idResult.rootFolderID, "root folder id")
 
-				nameResult := rc.DriveNameToDriveInfo[name]
+				nameResult, _ := rc.DriveNameToDriveInfo.Load(name)
 				assert.Equal(t, driveID, nameResult.id, "drive id")
 				assert.Equal(t, name, nameResult.name, "drive name")
 				assert.Equal(t, test.expectID, nameResult.rootFolderID, "root folder id")
@@ -787,12 +787,12 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 			assert.Len(t, rc.DriveNameToDriveInfo, test.expectLen)
 
 			if test.checkValues {
-				idResult := rc.DriveIDToDriveInfo[driveID]
+				idResult, _ := rc.DriveIDToDriveInfo.Load(driveID)
 				assert.Equal(t, driveID, idResult.id, "drive id")
 				assert.Equal(t, name, idResult.name, "drive name")
 				assert.Equal(t, rfID, idResult.rootFolderID, "root folder id")
 
-				nameResult := rc.DriveNameToDriveInfo[name]
+				nameResult, _ := rc.DriveNameToDriveInfo.Load(name)
 				assert.Equal(t, driveID, nameResult.id, "drive id")
 				assert.Equal(t, name, nameResult.name, "drive name")
 				assert.Equal(t, rfID, nameResult.rootFolderID, "root folder id")
@@ -868,8 +868,8 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			id:   id,
 			name: name,
 		}
-		rc.DriveIDToDriveInfo[id] = di
-		rc.DriveNameToDriveInfo[name] = di
+		rc.DriveIDToDriveInfo.Store(id, di)
+		rc.DriveNameToDriveInfo.Store(name, di)
 
 		return rc
 	}
@@ -883,8 +883,8 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			id:   "diff",
 			name: name,
 		}
-		rc.DriveIDToDriveInfo["diff"] = di
-		rc.DriveNameToDriveInfo[name] = di
+		rc.DriveIDToDriveInfo.Store("diff", di)
+		rc.DriveNameToDriveInfo.Store(name, di)
 
 		return rc
 	}
@@ -1050,7 +1050,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 				assert.Equal(t, test.expectName, di.name, "ensured drive has expected name")
 				assert.Equal(t, test.expectID, di.id, "ensured drive has expected id")
 
-				nameResult := rc.DriveNameToDriveInfo[test.expectName]
+				nameResult, _ := rc.DriveNameToDriveInfo.Load(test.expectName)
 				assert.Equal(t, test.expectName, nameResult.name, "found drive entry with expected name")
 			}
 		})
