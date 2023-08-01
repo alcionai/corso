@@ -243,7 +243,7 @@ jobs:
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive.txt
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
               done
 
           echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
@@ -253,7 +253,7 @@ jobs:
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive.txt
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
               done
 
 ##########################################################################################################################################
@@ -271,7 +271,7 @@ jobs:
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint.txt
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
               done
 
           echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
@@ -281,7 +281,7 @@ jobs:
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint.txt
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
               done
 
 ##########################################################################################################################################
