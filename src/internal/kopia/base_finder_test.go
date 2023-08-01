@@ -387,7 +387,6 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reasoner{
-				0: testUser1Mail,
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -422,7 +421,6 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				1: testUser1Mail,
 			},
 			expectedAssistManifestReasons: map[int][]Reasoner{
-				0: testUser1Mail,
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -569,7 +567,6 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			},
 			expectedAssistManifestReasons: map[int][]Reasoner{
 				0: testUser1Mail,
-				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
 				newBackupModel(testBackup1, true, true, false, nil),
@@ -635,10 +632,8 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{},
-			expectedAssistManifestReasons: map[int][]Reasoner{
-				1: testUser1Mail,
-			},
+			expectedBaseReasons:           map[int][]Reasoner{},
+			expectedAssistManifestReasons: map[int][]Reasoner{},
 			backupData: []backupInfo{
 				// Shouldn't be returned but have here just so we can see.
 				newBackupModel(testBackup1, true, true, false, nil),
