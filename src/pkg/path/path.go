@@ -120,10 +120,6 @@ type Path interface {
 	// is appropriately hidden from logging, errors, and other outputs.
 	clues.Concealer
 	fmt.Stringer
-
-	// In the rare case that the path needs to get printed as a plain string,
-	// without obscuring values for PII.
-	clues.PlainStringer
 }
 
 // interface compliance required for handling PII

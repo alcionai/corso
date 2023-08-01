@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -251,7 +252,9 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 		sl[i] = string(rdt)
 	}
 
-	logger.Ctx(context.Background()).Debugw("finished hashing file", "path", sl[2:])
+	logger.Ctx(cp.ctx).Debugw(
+		"finished hashing file",
+		"path", clues.Hide(path.Elements(sl[2:])))
 
 	atomic.AddInt64(&cp.totalBytes, bs)
 }
@@ -441,12 +444,12 @@ func streamBaseEntries(
 
 	ctx = clues.Add(
 		ctx,
-		"current_item_path", curPath,
-		"longest_prefix", longest)
+		"current_directory_path", curPath,
+		"longest_prefix", path.LoggableDir(longest))
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
 		if err := innerCtx.Err(); err != nil {
-			return err
+			return clues.Stack(err).WithClues(ctx)
 		}
 
 		// Don't walk subdirectories in this function.
@@ -463,7 +466,9 @@ func streamBaseEntries(
 
 		entName, err := decodeElement(entry.Name())
 		if err != nil {
-			return clues.Wrap(err, "decoding entry name: "+entry.Name())
+			return clues.Wrap(err, "decoding entry name").
+				WithClues(ctx).
+				With("entry_name", entry.Name())
 		}
 
 		// This entry was marked as deleted by a service that can't tell us the
@@ -475,7 +480,7 @@ func streamBaseEntries(
 		// For now assuming that item IDs don't need escaping.
 		itemPath, err := curPath.AppendItem(entName)
 		if err != nil {
-			return clues.Wrap(err, "getting full item path for base entry")
+			return clues.Wrap(err, "getting full item path for base entry").WithClues(ctx)
 		}
 
 		// We need the previous path so we can find this item in the base snapshot's
@@ -484,7 +489,7 @@ func streamBaseEntries(
 		// to look for.
 		prevItemPath, err := prevPath.AppendItem(entName)
 		if err != nil {
-			return clues.Wrap(err, "getting previous full item path for base entry")
+			return clues.Wrap(err, "getting previous full item path for base entry").WithClues(ctx)
 		}
 
 		// Meta files aren't in backup details since it's the set of items the user
@@ -508,13 +513,15 @@ func streamBaseEntries(
 		}
 
 		if err := ctr(ctx, entry); err != nil {
-			return clues.Wrap(err, "executing callback on item").With("item_path", itemPath)
+			return clues.Wrap(err, "executing callback on item").
+				WithClues(ctx).
+				With("item_path", itemPath)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return clues.Wrap(err, "traversing items in base snapshot directory")
+		return clues.Wrap(err, "traversing items in base snapshot directory").WithClues(ctx)
 	}
 
 	return nil
@@ -825,7 +832,9 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			return nil, nil, clues.New("conflicting states for collection").With("changed_path", p)
+			return nil, nil, clues.New("conflicting states for collection").
+				WithClues(ctx).
+				With("changed_path", p)
 		}
 	}
 
@@ -852,13 +861,14 @@ func traverseBaseDir(
 	expectedDirPath *path.Builder,
 	dir fs.Directory,
 	roots map[string]*treeMap,
+	stats *count.Bus,
 ) error {
 	ctx = clues.Add(ctx,
 		"old_dir_path", oldDirPath,
 		"expected_dir_path", expectedDirPath)
 
 	if depth >= maxInflateTraversalDepth {
-		return clues.New("base snapshot tree too tall")
+		return clues.New("base snapshot tree too tall").WithClues(ctx)
 	}
 
 	// Wrapper base64 encodes all file and folder names to avoid issues with
@@ -866,7 +876,9 @@ func traverseBaseDir(
 	// from kopia we need to do the decoding here.
 	dirName, err := decodeElement(dir.Name())
 	if err != nil {
-		return clues.Wrap(err, "decoding base directory name").With("dir_name", dir.Name())
+		return clues.Wrap(err, "decoding base directory name").
+			WithClues(ctx).
+			With("dir_name", clues.Hide(dir.Name()))
 	}
 
 	// Form the path this directory would be at if the hierarchy remained the same
@@ -885,14 +897,29 @@ func traverseBaseDir(
 		currentPath = currentPath.Append(dirName)
 	}
 
+	var explicitMention bool
+
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
 		if upb == nil {
 			currentPath = nil
+
+			stats.Inc(statDel)
 		} else {
-			// This directory was moved/renamed and the new location is in upb.
+			// This directory was explicitly mentioned and the new (possibly
+			// unchanged) location is in upb.
 			currentPath = upb.ToBuilder()
+
+			// Below we check if the collection was marked as new or DoNotMerge which
+			// disables merging behavior. That means we can't directly update stats
+			// here else we'll miss delta token refreshes and whatnot. Instead note
+			// that we did see the path explicitly so it's not counted as a recursive
+			// operation.
+			explicitMention = true
 		}
+	} else if currentPath == nil {
+		// Just stats tracking stuff.
+		stats.Inc(statRecursiveDel)
 	}
 
 	ctx = clues.Add(ctx, "new_path", currentPath)
@@ -920,10 +947,11 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots)
+			roots,
+			stats)
 	})
 	if err != nil {
-		return clues.Wrap(err, "traversing base directory")
+		return clues.Wrap(err, "traversing base directory").WithClues(ctx)
 	}
 
 	// We only need to add this base directory to the tree we're building if it
@@ -940,7 +968,7 @@ func traverseBaseDir(
 		// in the if-block though as that is an optimization.
 		node := getTreeNode(roots, currentPath.Elements())
 		if node == nil {
-			return clues.New("getting tree node")
+			return clues.New("getting tree node").WithClues(ctx)
 		}
 
 		// Now that we have the node we need to check if there is a collection
@@ -950,17 +978,28 @@ func traverseBaseDir(
 		// directories. The expected usecase for this is delta token expiry in M365.
 		if node.collection != nil &&
 			(node.collection.DoNotMergeItems() || node.collection.State() == data.NewState) {
+			stats.Inc(statSkipMerge)
+
 			return nil
+		}
+
+		// Just stats tracking stuff.
+		if oldDirPath.String() == currentPath.String() {
+			stats.Inc(statNoMove)
+		} else if explicitMention {
+			stats.Inc(statMove)
+		} else {
+			stats.Inc(statRecursiveMove)
 		}
 
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)
 		if err != nil {
-			return clues.New("converting current path to path.Path")
+			return clues.New("converting current path to path.Path").WithClues(ctx)
 		}
 
 		oldP, err := path.FromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
-			return clues.New("converting old path to path.Path")
+			return clues.New("converting old path to path.Path").WithClues(ctx)
 		}
 
 		node.baseDir = dir
@@ -992,6 +1031,24 @@ func logBaseInfo(ctx context.Context, m ManifestEntry) {
 		"categories", maps.Keys(cats),
 		"base_backup_id", mbID)
 }
+
+const (
+	// statNoMove denotes an directory that wasn't moved at all.
+	statNoMove = "directories_not_moved"
+	// statMove denotes an directory that was explicitly moved.
+	statMove = "directories_explicitly_moved"
+	// statRecursiveMove denotes an directory that moved because one or more or
+	// its ancestors moved and it wasn't explicitly mentioned.
+	statRecursiveMove = "directories_recursively_moved"
+	// statDel denotes a directory that was explicitly deleted.
+	statDel = "directories_explicitly_deleted"
+	// statRecursiveDel denotes a directory that was deleted because one or more
+	// of its ancestors was deleted and it wasn't explicitly mentioned.
+	statRecursiveDel = "directories_recursively_deleted"
+	// statSkipMerge denotes the number of directories that weren't merged because
+	// they were marked either DoNotMerge or New.
+	statSkipMerge = "directories_skipped_merging"
+)
 
 func inflateBaseTree(
 	ctx context.Context,
@@ -1058,9 +1115,12 @@ func inflateBaseTree(
 		// The prefix is the tenant/service/owner/category set, which remains
 		// otherwise unchecked in tree inflation below this point.
 		newSubtreePath := subtreePath.ToBuilder()
+
 		if p, ok := updatedPaths[subtreePath.String()]; ok {
 			newSubtreePath = p.ToBuilder()
 		}
+
+		stats := count.New()
 
 		if err = traverseBaseDir(
 			ictx,
@@ -1070,9 +1130,19 @@ func inflateBaseTree(
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
+			stats,
 		); err != nil {
 			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
+
+		logger.Ctx(ctx).Infow(
+			"merge subtree stats",
+			statNoMove, stats.Get(statNoMove),
+			statMove, stats.Get(statMove),
+			statRecursiveMove, stats.Get(statRecursiveMove),
+			statDel, stats.Get(statDel),
+			statRecursiveDel, stats.Get(statRecursiveDel),
+			statSkipMerge, stats.Get(statSkipMerge))
 	}
 
 	return nil
@@ -1124,7 +1194,7 @@ func inflateDirTree(
 	}
 
 	if len(roots) > 1 {
-		return nil, clues.New("multiple root directories")
+		return nil, clues.New("multiple root directories").WithClues(ctx)
 	}
 
 	var res fs.Directory

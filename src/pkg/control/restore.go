@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultRestoreLocation = "Corso_Restore_"
+	DefaultRestoreLocation = "Corso_Restore_"
 )
 
 // CollisionPolicy describes how the datalayer behaves in case of a collision.
@@ -70,12 +70,12 @@ type RestoreConfig struct {
 func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
 	return RestoreConfig{
 		OnCollision: Skip,
-		Location:    defaultRestoreLocation + dttm.FormatNow(timeFormat),
+		Location:    DefaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
 }
 
 func DefaultRestoreContainerName(timeFormat dttm.TimeFormat) string {
-	return defaultRestoreLocation + dttm.FormatNow(timeFormat)
+	return DefaultRestoreLocation + dttm.FormatNow(timeFormat)
 }
 
 // EnsureRestoreConfigDefaults sets all non-supported values in the config
@@ -107,10 +107,6 @@ var (
 	// interface compliance required for handling PII
 	_ clues.Concealer = &RestoreConfig{}
 	_ fmt.Stringer    = &RestoreConfig{}
-
-	// interface compliance for the observe package to display
-	// values without concealing PII.
-	_ clues.PlainStringer = &RestoreConfig{}
 )
 
 func (rc RestoreConfig) marshal() string {

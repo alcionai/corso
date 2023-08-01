@@ -19,6 +19,7 @@ type OneDriveOpts struct {
 	FileModifiedBefore string
 
 	RestoreCfg RestoreCfgOpts
+	ExportCfg  ExportCfgOpts
 
 	Populated flags.PopulatedFlags
 }
@@ -35,6 +36,7 @@ func MakeOneDriveOpts(cmd *cobra.Command) OneDriveOpts {
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
 		RestoreCfg: makeRestoreCfgOpts(cmd),
+		ExportCfg:  makeExportCfgOpts(cmd),
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate

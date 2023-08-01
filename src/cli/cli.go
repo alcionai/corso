@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/export"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/help"
 	"github.com/alcionai/corso/src/cli/print"
@@ -53,7 +54,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	avoidTheseCommands := []string{
-		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
+		"corso", "env", "help", "backup", "details", "list", "restore", "export", "delete", "repo", "init", "connect",
 	}
 
 	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
@@ -150,6 +151,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	repo.AddCommands(cmd)
 	backup.AddCommands(cmd)
 	restore.AddCommands(cmd)
+	export.AddCommands(cmd)
 	help.AddCommands(cmd)
 }
 

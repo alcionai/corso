@@ -133,6 +133,7 @@ func Complete() {
 const (
 	ItemBackupMsg  = "Backing up item"
 	ItemRestoreMsg = "Restoring item"
+	ItemExportMsg  = "Exporting item"
 	ItemQueueMsg   = "Queuing items"
 )
 
@@ -267,6 +268,51 @@ func ItemProgress(
 	}
 
 	bar := progress.New(totalBytes, mpb.NopStyle(), barOpts...)
+
+	go waitAndCloseBar(bar, func() {
+		// might be overly chatty, we can remove if needed.
+		log.Debug("done - " + header)
+	})()
+
+	abort := func() {
+		bar.SetTotal(-1, true)
+		bar.Abort(true)
+	}
+
+	return bar.ProxyReader(rc), abort
+}
+
+// ItemSpinner is similar to ItemProgress, but for use in cases where
+// we don't know the file size but want to show progress.
+func ItemSpinner(
+	ctx context.Context,
+	rc io.ReadCloser,
+	header string,
+	iname any,
+) (io.ReadCloser, func()) {
+	plain := plainString(iname)
+	log := logger.Ctx(ctx).With("item", iname)
+	log.Debug(header)
+
+	if cfg.hidden() || rc == nil {
+		defer log.Debug("done - " + header)
+		return rc, func() {}
+	}
+
+	wg.Add(1)
+
+	barOpts := []mpb.BarOption{
+		mpb.PrependDecorators(
+			decor.Name(header, decor.WCSyncSpaceR),
+			decor.Name(plain, decor.WCSyncSpaceR),
+			decor.CurrentKibiByte(" %.1f", decor.WC{W: 8})),
+	}
+
+	if !cfg.keepBarsAfterComplete {
+		barOpts = append(barOpts, mpb.BarRemoveOnComplete())
+	}
+
+	bar := progress.New(-1, mpb.NopStyle(), barOpts...)
 
 	go waitAndCloseBar(bar, func() {
 		// might be overly chatty, we can remove if needed.
@@ -517,8 +563,8 @@ func (b bulletf) String() string {
 // observe progress bar.  Logged values should only use
 // the fmt %v to ensure Concealers hide PII.
 func plainString(v any) string {
-	if ps, ok := v.(clues.PlainStringer); ok {
-		return ps.PlainString()
+	if c, ok := v.(clues.Concealer); ok {
+		return c.PlainString()
 	}
 
 	return fmt.Sprintf("%v", v)

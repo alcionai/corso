@@ -8,28 +8,28 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
-type MaintenanceOpIntegrationSuite struct {
+type RetentionConfigOpIntegrationSuite struct {
 	tester.Suite
 }
 
-func TestMaintenanceOpIntegrationSuite(t *testing.T) {
-	suite.Run(t, &MaintenanceOpIntegrationSuite{
+func TestRetentionConfigOpIntegrationSuite(t *testing.T) {
+	suite.Run(t, &RetentionConfigOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
+func (suite *RetentionConfigOpIntegrationSuite) TestRepoRetentionConfig() {
 	var (
 		t = suite.T()
 		// need to initialize the repository before we can test connecting to it.
@@ -52,16 +52,23 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 
 	defer kw.Close(ctx)
 
-	mo, err := NewMaintenanceOperation(
+	// Only set extend locks parameter as other retention options require a bucket
+	// with object locking enabled. There's more complete tests in the kopia
+	// package.
+	rco, err := NewRetentionConfigOperation(
 		ctx,
 		control.DefaultOptions(),
 		kw,
-		repository.Maintenance{
-			Type: repository.MetadataMaintenance,
+		repository.Retention{
+			Extend: ptr.To(true),
 		},
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = mo.Run(ctx)
+	err = rco.Run(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, Completed, rco.Status)
+	assert.NotZero(t, rco.Results.StartedAt)
+	assert.NotZero(t, rco.Results.CompletedAt)
+	assert.NotEqual(t, rco.Results.StartedAt, rco.Results.CompletedAt)
 }
