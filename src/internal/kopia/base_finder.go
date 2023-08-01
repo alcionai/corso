@@ -366,8 +366,6 @@ func (b *baseFinder) getAssistBackupModel(
 		model.BackupTypeTag: model.AssistBackup,
 	}
 
-	allTags = normalizeTagKVs(allTags)
-
 	for k, v := range allTags {
 		if bup.Tags[k] != v {
 			// This is not an assist backup so we can just exit here.
