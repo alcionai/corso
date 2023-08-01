@@ -210,14 +210,9 @@ type backupBase struct {
 }
 
 // findBasesInSet goes through manifest metadata entries and sees if they're
-// incomplete or not. Snapshots which don't have both an item data snapshot
-// and a backup details snashot are discarded, i.e. they are not considered
-// as kopia assist snapshots. Otherwise, fetch the backup model associated
-// with the snapshot & and see if it corresponds to a successful backup model.
-// If it does, first check if it qualifies as an assist backup model. Otherwise,
-// see if it qualifies as a merge backup model.
-// Return at most one merge base, at most one assist base, and a list of kopia
-// assisted snapshots, if any exist.
+// incomplete or not. Manifests which don't have an associated backup
+// are discarded as incomplete. Manifests are then checked to see if they
+// are associated with an assist backup or merge backup.
 func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
 	reason Reasoner,
@@ -283,14 +278,13 @@ func (b *baseFinder) findBasesInSet(
 		// If we've made it to this point then we're considering the backup
 		// complete as it has both an item data snapshot and a backup details
 		// snapshot.
-		// Check first if this is an assist model. Given we may have multiple
-		// assist models persisted, here are the rules for selecting one:
-		// 1. We must select at most one assist model per reason tuple.
-		// 2. It must be the most recent assist model for that reason.
-		// 3. It must be more recent than the merge model if a merge model
-		// exists.
-		// Note that this may force redownload of cached items in existing assist
-		// bases, which may not have their backups tagged with assist backup tag.
+		//
+		// Check first if this is an assist backup. Criteria for selecting an
+		// assist backup are:
+		// 1. most recent assist backup for that reason.
+		// 2. At most one assist backup per reason.
+		// 3. It must be more recent than the merge backup for the reason, if
+		// a merge backup exists.
 		if assistModel == nil {
 			assistModel = b.getAssistBackupModel(ictx, bup, reason)
 			if assistModel != nil {
@@ -315,13 +309,12 @@ func (b *baseFinder) findBasesInSet(
 		}
 
 		// Found the most recent merge backup. We can stop here.
+		//
 		// TODO(pandeyabs): Ideally we would do some sanity checks here, e.g.
-		// 1. Check for MergeBackup tag.
-		// 2. Check for ErrorCount == 0.
-		// 1 cannot be done yet since we may have merge backups with older version
-		// of corso which won't have the tag.
-		// 2 cannot be verified yet because we support BestEffort mode which
-		// persists backup even if recoverable errors are encountered.
+		// 1. Check for MergeBackup tag. Not safe, since we may have merge
+		// backups with older versions of corso which won't have the tag.
+		// 2. Check for ErrorCount == 0. We will enforce this after we remove
+		// support for BestEffort mode.
 		logger.Ctx(ictx).Infow("found complete backup", "base_backup_id", bup.ID)
 
 		mergeSnap := ManifestEntry{
@@ -329,9 +322,6 @@ func (b *baseFinder) findBasesInSet(
 			Reasons:  []Reasoner{reason},
 		}
 
-		// TODO(pandeyabs): Currently we add merge snapshot to the list of kopia
-		// assist snapshots. This is to maintain existing behavior during upload.
-		// We should remove this with an upload fix.
 		kopiaAssistSnaps = append(kopiaAssistSnaps, mergeSnap)
 
 		mergeModel := &BackupEntry{
@@ -352,7 +342,7 @@ func (b *baseFinder) findBasesInSet(
 	return mergeBackup, assistBackup, kopiaAssistSnaps, nil
 }
 
-// checkForAssistBackup checks if the provided backup is an assist backup.
+// getAssistBackupModel checks if the provided backup is an assist backup.
 func (b *baseFinder) getAssistBackupModel(
 	ctx context.Context,
 	bup *backup.Backup,
@@ -383,7 +373,7 @@ func (b *baseFinder) getAssistBackupModel(
 	// Check if it has a valid streamstore id and snapshot id.
 	if len(bup.StreamStoreID) == 0 || len(bup.SnapshotID) == 0 {
 		logger.Ctx(ctx).Infow(
-			"invalid ssid or snapshot id in assist backup",
+			"nil ssid or snapshot id in assist backup",
 			"ssid", bup.StreamStoreID,
 			"snapshot_id", bup.SnapshotID)
 
@@ -517,6 +507,7 @@ func (b *baseFinder) FindBases(
 
 	// TODO(pandeyabs): Fix the terminology used in backupBases to go with
 	// new definitions i.e. mergeSnaps instead of mergeBases, etc.
+	//
 	// Also, we lose the coupling between the backup model and the item data
 	// snapshot here. This is fine for now, but we should consider refactoring
 	// this to make the 1:1 mapping between the backup model and the snapshot
