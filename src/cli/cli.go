@@ -163,16 +163,15 @@ func BuildCommandTree(cmd *cobra.Command) {
 func Handle() {
 	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
+	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
 	ctx = print.SetRootCmd(ctx, corsoCmd)
-
-	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
+	ctx = observe.SeedObserver(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
 	BuildCommandTree(corsoCmd)
 
-	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
-
 	defer func() {
-		_ = log.Sync() // flush all logs in the buffer
+		observe.Flush(ctx) // flush the progress bars
+		_ = log.Sync()     // flush all logs in the buffer
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {

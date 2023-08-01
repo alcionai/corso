@@ -130,8 +130,6 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	ctx, end := diagnostics.Span(ctx, "operations:export:run")
 	defer func() {
 		end()
-		// wait for the progress display to clean up
-		observe.Complete()
 	}()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})

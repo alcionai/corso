@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -34,21 +35,14 @@ var (
 	testertons = "testertons"
 )
 
-func (suite *ObserveProgressUnitSuite) TestItemProgress() {
+func (suite *ObserveProgressUnitSuite) TestObserve_ItemProgress() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
-
-	defer func() {
-		// don't cross-contaminate other tests.
-		Complete()
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
+	ctx = SeedObserver(ctx, &recorder, config{})
 
 	from := make([]byte, 100)
 	prog, abort := ItemProgress(
@@ -94,14 +88,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 	ctx, cancel := context.WithCancel(ctx)
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
-
-	defer func() {
-		// don't cross-contaminate other tests.
-		Complete()
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
+	ctx = SeedObserver(ctx, &recorder, config{})
 
 	progCh := CollectionProgress(ctx, testcat, testertons)
 	require.NotNil(t, progCh)
@@ -125,14 +112,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	defer flush()
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
-
-	defer func() {
-		// don't cross-contaminate other tests.
-		Complete()
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
+	ctx = SeedObserver(ctx, &recorder, config{})
 
 	progCh := CollectionProgress(ctx, testcat, testertons)
 	require.NotNil(t, progCh)
@@ -147,88 +127,47 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	}()
 }
 
-func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
+func (suite *ObserveProgressUnitSuite) TestObserve_message() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
+	ctx = SeedObserver(ctx, &recorder, config{})
 
-	defer func() {
-		// don't cross-contaminate other tests.
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
-
-	message := "Test Message"
+	message := uuid.NewString()[:8]
 
 	Message(ctx, message)
-	Complete()
-	require.NotEmpty(t, recorder.String())
-	require.Contains(t, recorder.String(), message)
+	Flush(ctx)
+	assert.NotEmpty(t, recorder)
+	assert.Contains(t, recorder.String(), message)
 }
 
-func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
+func (suite *ObserveProgressUnitSuite) TestObserve_progressWithChannelClosed() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
+	ctx = SeedObserver(ctx, &recorder, config{})
 
-	defer func() {
-		// don't cross-contaminate other tests.
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
-
-	message := "Test Message"
-
-	ch := MessageWithCompletion(ctx, message)
-
-	// Trigger completion
-	ch <- struct{}{}
-
-	Complete()
-
-	require.NotEmpty(t, recorder.String())
-	require.Contains(t, recorder.String(), message)
-	require.Contains(t, recorder.String(), "done")
-}
-
-func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
-
-	defer func() {
-		// don't cross-contaminate other tests.
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
-
-	message := "Test Message"
+	message := uuid.NewString()[:8]
 
 	ch := MessageWithCompletion(ctx, message)
 
 	// Close channel without completing
 	close(ch)
 
-	Complete()
+	Flush(ctx)
 
-	require.NotEmpty(t, recorder.String())
-	require.Contains(t, recorder.String(), message)
-	require.Contains(t, recorder.String(), "done")
+	assert.NotEmpty(t, recorder.String())
+	assert.Contains(t, recorder.String(), message)
+	assert.Contains(t, recorder.String(), "done")
 }
 
-func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled() {
+func (suite *ObserveProgressUnitSuite) TestObserve_progressWithContextCancelled() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -237,44 +176,32 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 	ctx, cancel := context.WithCancel(ctx)
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
+	ctx = SeedObserver(ctx, &recorder, config{})
 
-	defer func() {
-		// don't cross-contaminate other tests.
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
-
-	message := "Test Message"
+	message := uuid.NewString()[:8]
 
 	_ = MessageWithCompletion(ctx, message)
 
 	// cancel context
 	cancel()
 
-	Complete()
+	Flush(ctx)
 
 	require.NotEmpty(t, recorder.String())
 	require.Contains(t, recorder.String(), message)
 }
 
-func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
+func (suite *ObserveProgressUnitSuite) TestObserve_progressWithCount() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
-
-	defer func() {
-		// don't cross-contaminate other tests.
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
+	ctx = SeedObserver(ctx, &recorder, config{})
 
 	header := "Header"
-	message := "Test Message"
+	message := uuid.NewString()[:8]
 	count := 3
 
 	ch := ProgressWithCount(ctx, header, message, int64(count))
@@ -283,41 +210,37 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 		ch <- struct{}{}
 	}
 
-	Complete()
+	close(ch)
 
-	require.NotEmpty(t, recorder.String())
-	require.Contains(t, recorder.String(), message)
-	require.Contains(t, recorder.String(), fmt.Sprintf("%d/%d", count, count))
+	Flush(ctx)
+
+	assert.NotEmpty(t, recorder.String())
+	assert.Contains(t, recorder.String(), message)
+	assert.Contains(t, recorder.String(), fmt.Sprintf("%d/%d", count, count))
 }
 
-func (suite *ObserveProgressUnitSuite) TestrogressWithCountChannelClosed() {
+func (suite *ObserveProgressUnitSuite) TestObserve_progressWithCountChannelClosed() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	recorder := strings.Builder{}
-	SeedWriter(ctx, &recorder, nil)
-
-	defer func() {
-		// don't cross-contaminate other tests.
-		//nolint:forbidigo
-		SeedWriter(context.Background(), nil, nil)
-	}()
+	ctx = SeedObserver(ctx, &recorder, config{})
 
 	header := "Header"
-	message := "Test Message"
+	message := uuid.NewString()[:8]
 	count := 3
 
 	ch := ProgressWithCount(ctx, header, message, int64(count))
 
 	close(ch)
 
-	Complete()
+	Flush(ctx)
 
-	require.NotEmpty(t, recorder.String())
-	require.Contains(t, recorder.String(), message)
-	require.Contains(t, recorder.String(), fmt.Sprintf("%d/%d", 0, count))
+	assert.NotEmpty(t, recorder.String())
+	assert.Contains(t, recorder.String(), message)
+	assert.Contains(t, recorder.String(), fmt.Sprintf("%d/%d", 0, count))
 }
 
 func (suite *ObserveProgressUnitSuite) TestListen() {
