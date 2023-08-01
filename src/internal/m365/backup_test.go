@@ -125,6 +125,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
 				bpc := inject.BackupProducerConfig{
+					// exchange doesn't have any changes based on backup version yet.
 					LastBackupVersion: version.NoBackup,
 					Options:           ctrlOpts,
 					ProtectedResource: uidn,
