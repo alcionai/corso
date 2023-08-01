@@ -23,21 +23,21 @@ const (
 // controller
 // ---------------------------------------------------------------------------
 
-func (c Client) Teams() Teams {
-	return Teams{c}
+func (c Client) Groups() Groups {
+	return Groups{c}
 }
 
 // On creation of each Teams team a corrsponding group gets created.
 // The group acts as the protected resource, and all teams data like events,
 // drive and mail messages are owned by that group.
 
-// Teams is an interface-compliant provider of the client.
-type Teams struct {
+// Groups is an interface-compliant provider of the client.
+type Groups struct {
 	Client
 }
 
-// GetAllTeams retrieves all groups.
-func (c Teams) GetAll(
+// GetAllGroups retrieves all groups.
+func (c Groups) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]models.Groupable, error) {
@@ -46,13 +46,26 @@ func (c Teams) GetAll(
 		return nil, err
 	}
 
-	return getGroups(ctx, true, errs, service)
+	return getGroups(ctx, func(ctx context.Context, g models.Groupable) bool { return true }, errs, service)
+}
+
+// GetTeams retrieves all Teams.
+func (c Groups) GetTeams(
+	ctx context.Context,
+	errs *fault.Bus,
+) ([]models.Groupable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	return getGroups(ctx, FetchOnlyTeams, errs, service)
 }
 
 // GetAll retrieves all groups.
 func getGroups(
 	ctx context.Context,
-	getOnlyTeams bool,
+	filterGroupsData func(ctx context.Context, g models.Groupable) bool,
 	errs *fault.Bus,
 	service graph.Servicer,
 ) ([]models.Groupable, error) {
@@ -64,7 +77,7 @@ func getGroups(
 	iter, err := msgraphgocore.NewPageIterator[models.Groupable](
 		resp,
 		service.Adapter(),
-		models.CreateTeamCollectionResponseFromDiscriminatorValue)
+		models.CreateGroupCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating groups iterator")
 	}
@@ -83,8 +96,7 @@ func getGroups(
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
-			isTeam := IsTeam(ctx, item)
-			if !getOnlyTeams || isTeam {
+			if filterGroupsData(ctx, item) {
 				groups = append(groups, item)
 			}
 		}
@@ -99,7 +111,7 @@ func getGroups(
 	return groups, el.Failure()
 }
 
-func IsTeam(ctx context.Context, g models.Groupable) bool {
+func FetchOnlyTeams(ctx context.Context, g models.Groupable) bool {
 	log := logger.Ctx(ctx)
 
 	if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
@@ -120,8 +132,8 @@ func IsTeam(ctx context.Context, g models.Groupable) bool {
 	return false
 }
 
-// GetID retrieves team by groupID/teamID.
-func (c Teams) GetByID(
+// GetID retrieves group by groupID.
+func (c Groups) GetByID(
 	ctx context.Context,
 	identifier string,
 ) (models.Groupable, error) {
@@ -137,7 +149,27 @@ func (c Teams) GetByID(
 		return nil, err
 	}
 
-	if !IsTeam(ctx, resp) {
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+// GetTeamByID retrieves group by groupID.
+func (c Groups) GetTeamByID(
+	ctx context.Context,
+	identifier string,
+) (models.Groupable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
+	if err != nil {
+		err := graph.Wrap(ctx, err, "getting group by id")
+
+		return nil, err
+	}
+
+	if !FetchOnlyTeams(ctx, resp) {
 		err := clues.New("given teamID is not related to any team")
 
 		return nil, err

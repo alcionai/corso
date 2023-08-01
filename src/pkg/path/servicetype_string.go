@@ -15,11 +15,13 @@ func _() {
 	_ = x[ExchangeMetadataService-4]
 	_ = x[OneDriveMetadataService-5]
 	_ = x[SharePointMetadataService-6]
+	_ = x[GroupsService-7]
+	_ = x[GroupsMetadataService-8]
 }
 
-const _ServiceType_name = "UnknownServiceexchangeonedrivesharepointexchangeMetadataonedriveMetadatasharepointMetadata"
+const _ServiceType_name = "UnknownServiceexchangeonedrivesharepointexchangeMetadataonedriveMetadatasharepointMetadatagroupsgroupsMetadata"
 
-var _ServiceType_index = [...]uint8{0, 14, 22, 30, 40, 56, 72, 90}
+var _ServiceType_index = [...]uint8{0, 14, 22, 30, 40, 56, 72, 90, 96, 110}
 
 func (i ServiceType) String() string {
 	if i < 0 || i >= ServiceType(len(_ServiceType_index)-1) {

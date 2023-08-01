@@ -135,7 +135,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	// teams
 	its.teamID = tconfig.M365TeamsID(t)
 
-	team, err := its.ac.Teams().GetByID(ctx, its.teamID)
+	team, err := its.ac.Groups().GetTeamByID(ctx, its.teamID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.teamID = ptr.Val(team.GetId())
