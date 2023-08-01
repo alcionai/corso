@@ -89,7 +89,7 @@ runs:
       id: export
       shell: bash
       working-directory: src
-      if: ${{ inputs.service == 'onedrive' }} # Export only available for OneDrive
+      if: ${{ inputs.service == 'onedrive' || inputs.service == 'sharepoint' }}
       run: |
         set -euo pipefail
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
@@ -105,7 +105,7 @@ runs:
     - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
       shell: bash
       working-directory: src
-      if: ${{ inputs.service == 'onedrive' }}
+      if: ${{ inputs.service == 'onedrive' || inputs.service == 'sharepoint' }}
       env:
         SANITY_TEST_KIND: export
         SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
