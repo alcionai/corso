@@ -391,6 +391,17 @@ func (b *Builder) addFolderEntries(
 	return nil
 }
 
+// UpdateEntry updates an existing entry with the new item info.
+func (b *Builder) UpdateEntry(
+	repoRef string,
+	newInfo ItemInfo,
+) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.d.updateEntry(repoRef, newInfo)
+}
+
 func (b *Builder) Details() *Details {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -403,6 +414,7 @@ func (b *Builder) Details() *Details {
 		DetailsModel{
 			Entries: append(ents, maps.Values(b.knownFolders)...),
 		},
+		nil,
 	}
 
 	return details
@@ -417,6 +429,7 @@ func (b *Builder) Details() *Details {
 // printing.
 type Details struct {
 	DetailsModel
+	repoRefToEntry map[string]*Entry `json:"-"`
 }
 
 func (d *Details) add(
@@ -470,9 +483,33 @@ func (d *Details) add(
 		entry.ItemRef = withoutMetadataSuffix(entry.ItemRef)
 	}
 
+	if d.repoRefToEntry == nil {
+		d.repoRefToEntry = make(map[string]*Entry)
+	}
+
+	d.repoRefToEntry[entry.RepoRef] = &entry
 	d.Entries = append(d.Entries, entry)
 
 	return entry, nil
+}
+
+func (d *Details) updateEntry(
+	repoRef string,
+	newInfo ItemInfo,
+) error {
+	if d.repoRefToEntry == nil {
+		d.repoRefToEntry = make(map[string]*Entry)
+	}
+
+	entry, ok := d.repoRefToEntry[repoRef]
+	if !ok {
+		return clues.New("entry not found").With("repo_ref", repoRef)
+	}
+
+	// Update the entry with the new info.
+	entry.ItemInfo = newInfo
+
+	return nil
 }
 
 // Marshal complies with the marshaller interface in streamStore.

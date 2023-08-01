@@ -398,6 +398,7 @@ func (op *BackupOperation) do(
 		ctx,
 		detailsStore,
 		mans.Backups(),
+		mans.AssistBackups(),
 		toMerge,
 		deets,
 		writeStats,
@@ -631,103 +632,109 @@ func getNewPathRefs(
 	return newPath, newLoc, updated, nil
 }
 
-func mergeDetails(
+// mergeDetailsFromAssistBackups merges the deets from the assist backups into
+// the current deets.
+func mergeDetailsFromAssistBackups(
 	ctx context.Context,
 	detailsStore streamstore.Streamer,
-	backups []kopia.BackupEntry,
-	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
-	writeStats *kopia.BackupStats,
+	assistBackups []kopia.BackupEntry,
+	serviceType path.ServiceType,
+	errs *fault.Bus,
+) (map[string]details.Entry, error) {
+	// If the backup operation did not produce any new details, or if we don't
+	// have any assist backups, we don't need to merge anything.
+	if deets.Empty() || len(assistBackups) == 0 {
+		logger.Ctx(ctx).Infow("no assist backups to merge",
+			"deets_empty", deets.Empty(),
+			"num_assist_backups", len(assistBackups))
+
+		return nil, nil
+	}
+
+	repoRefToAssistDeets := make(map[string]details.Entry)
+
+	for _, assistBackup := range assistBackups {
+		mctx := clues.Add(ctx, "assist_backup_id", assistBackup.ID)
+
+		baseDeets, err := getDetailsFromBackup(
+			mctx,
+			assistBackup.Backup,
+			detailsStore,
+			errs)
+		if err != nil {
+			return nil, clues.New("fetching details for assist backup")
+		}
+
+		for _, entry := range baseDeets.Items() {
+			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
+			if err != nil {
+				return nil, clues.New("parsing base item info path").
+					WithClues(mctx).
+					With("repo_ref", path.NewElements(entry.RepoRef))
+			}
+
+			// Although this assist base has an entry it may not be the most recent.
+			// Check the reasons a snapshot was returned to ensure we only choose the
+			// recent entries.
+			if !matchesReason(assistBackup.Reasons, rr) {
+				continue
+			}
+
+			repoRefToAssistDeets[entry.RepoRef] = *entry
+		}
+	}
+
+	// Walk through new deets and update items from assist deets if needed.
+	// There are 2 possibilities here.
+	// 1. The item doesn't exist in assist deets. Do nothing.
+	// 2. The item existed in the assist deets. Source it from assist deets
+	// if mod time hasn't changed. Otherwise do nothing.
+	for _, entry := range deets.Details().Items() {
+		assistDeets, ok := repoRefToAssistDeets[entry.RepoRef]
+		if !ok {
+			continue
+		}
+
+		// If the mod time hasn't changed, use the item info from assist deets.
+		if entry.ItemInfo.Modified() == assistDeets.ItemInfo.Modified() {
+			logger.Ctx(ctx).Infow("sourcing item info from assist backup",
+				"repo_ref", entry.RepoRef)
+
+			err := deets.UpdateEntry(entry.RepoRef, assistDeets.ItemInfo)
+			if err != nil {
+				return nil, clues.New("updating entry").
+					WithClues(ctx).
+					With("repo_ref", path.NewElements(entry.RepoRef))
+			}
+		}
+	}
+
+	return repoRefToAssistDeets, nil
+}
+
+func mergeDetailsFromBaseBackups(
+	ctx context.Context,
+	detailsStore streamstore.Streamer,
+	deets *details.Builder,
+	dataFromBackup kopia.DetailsMergeInfoer,
+	backups []kopia.BackupEntry,
+	repoRefToAssistDeets map[string]details.Entry,
 	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
-	detailsModel := deets.Details().DetailsModel
-
-	// getting the values in writeStats before anything else so that we don't get a return from
-	// conditions like no backup data.
-	writeStats.TotalNonMetaFileCount = len(detailsModel.FilterMetaFiles().Items())
-	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
-
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
 	}
 
-	var (
-		addedEntries int
-		excludeList  = make(map[string]struct{})
-	)
-
-	// Process partial backups first, as they are more recent
-	for _, partialBackup := range partialBackups {
-		err := mergeDetailsFromBackup(
-			ctx,
-			detailsStore,
-			partialBackup,
-			dataFromBackup,
-			deets,
-			&addedEntries,
-			errs,
-			nil)
-		if err != nil {
-			return clues.Wrap(err, "merging details from partial backup")
-		}
-
-		// TODO(pandeyabs): This doesn't handle folders yet.
-		for _, entry := range deets.Details().Entries {
-			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
-			if err != nil {
-				return clues.New("parsing deets item info path").
-					WithClues(ctx).
-					With("repo_ref", path.NewElements(entry.RepoRef))
-			}
-
-			excludeList[rr.ShortRef()] = struct{}{}
-		}
-	}
+	var addedEntries int
 
 	for _, baseBackup := range backups {
-		err := mergeDetailsFromBackup(
-			ctx,
-			detailsStore,
-			baseBackup,
-			dataFromBackup,
-			deets,
-			&addedEntries,
-			errs,
-			excludeList)
-		if err != nil {
-			return clues.Wrap(err, "merging details from base backup")
-		}
-	}
-
-	checkCount := dataFromBackup.ItemsToMerge()
-
-	if addedEntries != checkCount {
-		return clues.New("incomplete migration of backup details").
-			WithClues(ctx).
-			With(
-				"item_count", addedEntries,
-				"expected_item_count", checkCount)
-	}
-
-	return nil
-}
-
-func mergeDetailsFromBackup(
-	ctx context.Context,
-	detailsStore streamstore.Streamer,
-	baseBackup kopia.BackupEntry,
-	dataFromBackup kopia.DetailsMergeInfoer,
-	deets *details.Builder,
-	addedEntries *int,
-	errs *fault.Bus,
-	excludeList map[string]struct{},
-) error {
-	var (
-		mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
-		manifestAddedEntries int
-	)
+		var (
+			mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+			manifestAddedEntries int
+		)
 
 		baseDeets, err := getDetailsFromBackup(
 			mctx,
@@ -746,23 +753,27 @@ func mergeDetailsFromBackup(
 					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
-		// Although this base has an entry it may not be the most recent. Check
-		// the reasons a snapshot was returned to ensure we only choose the recent
-		// entries.
-		//
-		// TODO(ashmrtn): This logic will need expanded to cover entries from
-		// checkpoints if we start doing kopia-assisted incrementals for those.
-		if !matchesReason(baseBackup.Reasons, rr) {
-			continue
-		}
-
-		// If we've already added this entry from a more recent backup, skip it.
-		if _, ok := excludeList[rr.ShortRef()]; ok {
-			continue
-		}
+			// Although this base has an entry it may not be the most recent. Check
+			// the reasons a snapshot was returned to ensure we only choose the recent
+			// entries.
+			//
+			// TODO(ashmrtn): This logic will need expanded to cover entries from
+			// checkpoints if we start doing kopia-assisted incrementals for those.
+			if !matchesReason(baseBackup.Reasons, rr) {
+				continue
+			}
 
 			mctx = clues.Add(mctx, "repo_ref", rr)
+			mctx = clues.Add(mctx, "repo_ref", rr)
 
+			newPath, newLoc, locUpdated, err := getNewPathRefs(
+				dataFromBackup,
+				entry,
+				rr,
+				baseBackup.Version)
+			if err != nil {
+				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
+			}
 			newPath, newLoc, locUpdated, err := getNewPathRefs(
 				dataFromBackup,
 				entry,
@@ -780,6 +791,16 @@ func mergeDetailsFromBackup(
 			// Fixup paths in the item.
 			item := entry.ItemInfo
 			details.UpdateItem(&item, newLoc)
+
+			// If this item was modified in a later assist backup, update it
+			// with the assist backup's info.
+			assistDeets, ok := repoRefToAssistDeets[entry.RepoRef]
+			if ok && assistDeets.ItemInfo.Modified().After(item.Modified()) {
+				logger.Ctx(ctx).Infow("sourcing item info from assist backup",
+					"repo_ref", entry.RepoRef)
+
+				item = assistDeets.ItemInfo
+			}
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
@@ -814,6 +835,59 @@ func mergeDetailsFromBackup(
 			With(
 				"item_count", addedEntries,
 				"expected_item_count", checkCount)
+	}
+
+	return nil
+}
+
+func mergeDetails(
+	ctx context.Context,
+	detailsStore streamstore.Streamer,
+	backups []kopia.BackupEntry,
+	assistBackups []kopia.BackupEntry,
+	dataFromBackup kopia.DetailsMergeInfoer,
+	deets *details.Builder,
+	writeStats *kopia.BackupStats,
+	serviceType path.ServiceType,
+	errs *fault.Bus,
+) error {
+	detailsModel := deets.Details().DetailsModel
+
+	// getting the values in writeStats before anything else so that we don't get a return from
+	// conditions like no backup data.
+	writeStats.TotalNonMetaFileCount = len(detailsModel.FilterMetaFiles().Items())
+	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
+
+	// Merge deets with assist backups first, as they are guaranteed to be
+	// more recent than the base backups. repoRefToAssistDeets stores all assist
+	// deets, this is used later to update stale deets sourced from base backups.
+	repoRefToAssistDeets, err := mergeDetailsFromAssistBackups(
+		ctx,
+		detailsStore,
+		deets,
+		assistBackups,
+		serviceType,
+		errs)
+	if err != nil {
+		return clues.Wrap(err, "merging details from assist backup")
+	}
+
+	if repoRefToAssistDeets == nil {
+		repoRefToAssistDeets = map[string]details.Entry{}
+	}
+
+	// Merge deets with base backups.
+	err = mergeDetailsFromBaseBackups(
+		ctx,
+		detailsStore,
+		deets,
+		dataFromBackup,
+		backups,
+		repoRefToAssistDeets,
+		serviceType,
+		errs)
+	if err != nil {
+		return clues.Wrap(err, "merging details from base backup")
 	}
 
 	return nil
