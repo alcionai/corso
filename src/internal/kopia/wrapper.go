@@ -324,7 +324,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {
-		return nil, clues.Wrap(err, "kopia backup")
+		return nil, clues.Wrap(err, "kopia backup").WithClues(ctx)
 	}
 
 	res := manifestToStats(man, progress, bc)
@@ -369,7 +369,7 @@ func getDir(
 		encodeElements(dirPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
-			err = clues.Stack(data.ErrNotFound, err)
+			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
 		}
 
 		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
@@ -487,7 +487,7 @@ func (w Wrapper) ProduceRestoreCollections(
 	// load it here.
 	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
 	if err != nil {
-		return nil, clues.Wrap(err, "loading snapshot root")
+		return nil, clues.Wrap(err, "loading snapshot root").WithClues(ctx)
 	}
 
 	var (
@@ -507,8 +507,8 @@ func (w Wrapper) ProduceRestoreCollections(
 		// items from a single directory instance lower down.
 		ictx := clues.Add(
 			ctx,
-			"item_path", itemPaths.StoragePath.String(),
-			"restore_path", itemPaths.RestorePath.String())
+			"item_path", itemPaths.StoragePath,
+			"restore_path", itemPaths.RestorePath)
 
 		parentStoragePath, err := itemPaths.StoragePath.Dir()
 		if err != nil {
@@ -552,7 +552,7 @@ func (w Wrapper) ProduceRestoreCollections(
 	// then load the items from the directory.
 	res, err := loadDirsAndItems(ctx, snapshotRoot, bcounter, dirsToItems, errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "loading items")
+		return nil, clues.Wrap(err, "loading items").WithClues(ctx)
 	}
 
 	return res, el.Failure()
@@ -610,12 +610,12 @@ func (w Wrapper) RepoMaintenance(
 ) error {
 	kopiaSafety, err := translateSafety(opts.Safety)
 	if err != nil {
-		return clues.Wrap(err, "identifying safety level")
+		return clues.Wrap(err, "identifying safety level").WithClues(ctx)
 	}
 
 	mode, err := translateMode(opts.Type)
 	if err != nil {
-		return clues.Wrap(err, "identifying maintenance mode")
+		return clues.Wrap(err, "identifying maintenance mode").WithClues(ctx)
 	}
 
 	currentOwner := w.c.ClientOptions().UsernameAtHost()
