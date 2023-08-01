@@ -8,6 +8,10 @@ on:
       user:
         description: 'User to run longevity test on'
 
+  push:
+    branches:
+      - '3799-del-days'
+
 permissions:
   # required to retrieve AWS credentials
   id-token: write
