@@ -123,59 +123,43 @@ type backupStats struct {
 	hasNewDetailEntries bool
 }
 
-// To qualify as an assist backup, all of the following must be true:
-// 1. new detail entries were produced during this operation
-// 2. The updated details file was persisted without error
-// 3. we have a valid snapshot ID
-// 4. we don't have any non-recoverable errors
-// 5. we recorded recoverable errors
-// 6. We are not running in best effort mode. Reason being that there is
-// no way to distinguish assist backups from merge backups in best effort mode
+// An assist backup must meet the following criteria:
+// 1. new detail entries were produced
+// 2. valid details ssid & item snapshot ID
+// 3. No non-recoverable errors
+// 4. we observed recoverable errors
+//
 // Primary reason for persisting assist backup models is to ensure we don't
-// lose corso extension data(deets) for items which were downloaded and
-// processed by kopia during this backup operation.
+// lose corso extension data(deets) in the event of recoverable failures.
+//
 // Note: kopia.DetailsMergeInfoer doesn't impact decision making for creating
 // assist backups. It may be empty if it’s the very first backup so there is no
-// merge base to source base details from, or non-empty, if there was a merge base.
-// In summary, if there are no new deets, no new extension data was produced
+// merge base to source base details from, or non-empty, if there was a merge
+// base. In summary, if there are no new deets, no new extension data was produced
 // and hence no need to persist assist backup model.
 func isAssistBackup(
 	newDeetsProduced bool,
 	snapID, ssid string,
-	failurePolicy control.FailurePolicy,
 	err *fault.Bus,
 ) bool {
 	return newDeetsProduced &&
-		snapID != "" &&
-		ssid != "" &&
+		len(snapID) > 0 &&
+		len(ssid) > 0 &&
 		err.Failure() == nil &&
-		len(err.Recovered()) > 0 &&
-		failurePolicy != control.BestEffort
+		len(err.Recovered()) > 0
 }
 
-// To qualify as a merge backup, all of the following must be true:
-// 1. we have a valid snapshot ID
-// 2. valid ssid, details were persisted without error
-// 3. we don't have any non-recoverable errors
-// 4. no recoverable errors if not running in best effort mode
+// A merge backup must meet the following criteria:
+// 1. valid details ssid & item snapshot ID
+// 2. zero recoverable or non-recoverable errors
 func isMergeBackup(
 	snapID, ssid string,
-	failurePolicy control.FailurePolicy,
 	err *fault.Bus,
 ) bool {
-	if snapID == "" || ssid == "" {
-		return false
-	}
-
-	if err.Failure() != nil {
-		return false
-	}
-
-	if failurePolicy == control.BestEffort {
-		return true
-	}
-
-	return len(err.Recovered()) == 0
+	return len(snapID) > 0 &&
+		len(ssid) > 0 &&
+		err.Failure() == nil &&
+		len(err.Recovered()) == 0
 }
 
 // ---------------------------------------------------------------------------
@@ -802,12 +786,8 @@ func (op *BackupOperation) createBackupModels(
 ) error {
 	snapID := opStats.k.SnapshotID
 	ctx = clues.Add(ctx,
-		"snapshot_id",
-		snapID,
-		"backup_id",
-		backupID,
-		"failure_policy",
-		op.Options.FailureHandling)
+		"snapshot_id", snapID,
+		"backup_id", backupID)
 
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
@@ -847,14 +827,12 @@ func (op *BackupOperation) createBackupModels(
 	if isMergeBackup(
 		snapID,
 		ssid,
-		op.Options.FailureHandling,
 		op.Errors) {
 		tags[model.BackupTypeTag] = model.MergeBackup
 	} else if isAssistBackup(
 		opStats.hasNewDetailEntries,
 		snapID,
 		ssid,
-		op.Options.FailureHandling,
 		op.Errors) {
 		tags[model.BackupTypeTag] = model.AssistBackup
 	} else {
