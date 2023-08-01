@@ -53,8 +53,8 @@ github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1o
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
-github.com/alcionai/clues v0.0.0-20230630194723-e24d7940e07a h1:mtJyeK/FhArTn06M5Lfgxk/GWnu8yqCGNN1BY16vjaA=
-github.com/alcionai/clues v0.0.0-20230630194723-e24d7940e07a/go.mod h1:MLEWSZ0cjEMg6hiGCRvE7AtrOhs7deBcm7ZrJBpfGRM=
+github.com/alcionai/clues v0.0.0-20230728164842-7dc4795a43e4 h1:husF7eAYw2HEzgjfAmNy+ZLzyztJV2SyoUngSUo829Y=
+github.com/alcionai/clues v0.0.0-20230728164842-7dc4795a43e4/go.mod h1:MLEWSZ0cjEMg6hiGCRvE7AtrOhs7deBcm7ZrJBpfGRM=
 github.com/alcionai/kopia v0.12.2-0.20230713235606-4c85869e9377 h1:w50/aVU+zRP5lvE86TSSCCYrrEyuXOlJA06R5RdTS8Y=
 github.com/alcionai/kopia v0.12.2-0.20230713235606-4c85869e9377/go.mod h1:WH725ws0BYpZpTkVh4uqFHHPiiJuirl1Cm73jv5RYyA=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -66,8 +66,8 @@ github.com/andybalholm/brotli v1.0.4 h1:V7DdXeJtZscaqfNuAdSRuRFzuiKlHSC/Zh3zl9qY
 github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
 github.com/armon/go-metrics v0.4.1 h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJA=
 github.com/armon/go-metrics v0.4.1/go.mod h1:E6amYzXo6aW1tqzoZGT755KkbgrJsSdpwZ+3JqfkOG4=
-github.com/aws/aws-sdk-go v1.44.309 h1:IPJOFBzXekakxmEpDwd4RTKmmBR6LIAiXgNsM51bWbU=
-github.com/aws/aws-sdk-go v1.44.309/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.311 h1:60i8hyVMOXqabKJQPCq4qKRBQ6hRafI/WOcDxGM+J7Q=
+github.com/aws/aws-sdk-go v1.44.311/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-xray-sdk-go v1.8.1 h1:O4pXV+hnCskaamGsZnFpzHyAmgPGusBMN6i7nnsy0Fo=
 github.com/aws/aws-xray-sdk-go v1.8.1/go.mod h1:wMmVYzej3sykAttNBkXQHK/+clAPWTOrPiajEk7Cp3A=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
