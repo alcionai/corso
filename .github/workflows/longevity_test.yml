@@ -86,7 +86,7 @@ jobs:
             --no-stats \
             --hide-progress \
             --prefix ${{ env.PREFIX }} \
-            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
             --succeed-if-exists \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
 
@@ -104,7 +104,7 @@ jobs:
             --no-stats \
             --hide-progress \
             --prefix ${{ env.PREFIX }} \
-            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
 
           if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
