@@ -186,7 +186,7 @@ func (suite *m365UnitSuite) TestCheckUserHasDrives() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To(string(graph.MysiteNotFound)))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
@@ -202,7 +202,7 @@ func (suite *m365UnitSuite) TestCheckUserHasDrives() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To(string(graph.MysiteURLNotFound)))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
@@ -218,7 +218,7 @@ func (suite *m365UnitSuite) TestCheckUserHasDrives() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
@@ -234,7 +234,7 @@ func (suite *m365UnitSuite) TestCheckUserHasDrives() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To(string(graph.RequestResourceNotFound)))
 				merr.SetMessage(ptr.To("message"))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
@@ -250,7 +250,7 @@ func (suite *m365UnitSuite) TestCheckUserHasDrives() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To("message"))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
@@ -307,7 +307,7 @@ func (suite *m365UnitSuite) TestGetAllSites() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockGAS{nil, graph.Stack(ctx, odErr)}
 			},
@@ -322,7 +322,7 @@ func (suite *m365UnitSuite) TestGetAllSites() {
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To("message"))
-				odErr.SetError(merr)
+				odErr.SetErrorEscaped(merr)
 
 				return mockGAS{nil, graph.Stack(ctx, odErr)}
 			},

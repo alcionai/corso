@@ -82,9 +82,9 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 
 	// Sanitize recurrence timezone.
 	if orig.GetRecurrence() != nil {
-		recurrenceTimezone := ptr.Val(orig.GetRecurrence().GetRange().GetRecurrenceTimeZone())
+		recurrenceTimezone := ptr.Val(orig.GetRecurrence().GetRangeEscaped().GetRecurrenceTimeZone())
 		if len(recurrenceTimezone) == 0 {
-			orig.GetRecurrence().GetRange().SetRecurrenceTimeZone(nil)
+			orig.GetRecurrence().GetRangeEscaped().SetRecurrenceTimeZone(nil)
 		}
 	}
 
@@ -270,7 +270,7 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetReminderMinutesBeforeStart(orig.GetReminderMinutesBeforeStart())
 	newEvent.SetStart(orig.GetStart())
 	newEvent.SetSubject(orig.GetSubject())
-	newEvent.SetType(orig.GetType())
+	newEvent.SetTypeEscaped(orig.GetTypeEscaped())
 
 	// Sanitation NOTE
 	// isDraft and isOrganizer *bool ptr's have to be removed completely

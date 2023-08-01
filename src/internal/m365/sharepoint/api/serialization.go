@@ -148,7 +148,7 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetTerm(orig.GetTerm())
 	newColumn.SetText(orig.GetText())
 	newColumn.SetThumbnail(orig.GetThumbnail())
-	newColumn.SetType(orig.GetType())
+	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
 	newColumn.SetValidation(orig.GetValidation())
 
 	return newColumn

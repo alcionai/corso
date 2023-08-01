@@ -46,7 +46,7 @@ func odErr(code string) *odataerrors.ODataError {
 	odErr := odataerrors.NewODataError()
 	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(merr)
+	odErr.SetErrorEscaped(merr)
 
 	return odErr
 }

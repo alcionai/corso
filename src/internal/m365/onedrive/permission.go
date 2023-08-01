@@ -340,7 +340,7 @@ func UpdateLinkShares(
 		//   "retainInheritedPermissions": false
 		// }
 		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
-		lsbody.SetType(ptr.To(ls.Link.Type))
+		lsbody.SetTypeEscaped(ptr.To(ls.Link.Type))
 		lsbody.SetScope(ptr.To(ls.Link.Scope))
 		lsbody.SetExpirationDateTime(ls.Expiration)
 
@@ -375,7 +375,7 @@ func UpdateLinkShares(
 	// can recreate this by creating a link with no users and deleting it.
 	if len(lsRemoved) > 0 && len(lsAdded) == 0 {
 		lsbody := drives.NewItemItemsItemCreateLinkPostRequestBody()
-		lsbody.SetType(ptr.To("view"))
+		lsbody.SetTypeEscaped(ptr.To("view"))
 		// creating a `users` link without any users ensure that even
 		// if we fail to delete the link there are no links lying
 		// around that could be used to access this

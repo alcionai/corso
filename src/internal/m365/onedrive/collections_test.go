@@ -2476,7 +2476,7 @@ func coreItem(
 	case isFolder:
 		item.SetFolder(models.NewFolder())
 	case isPackage:
-		item.SetPackage(models.NewPackageEscaped())
+		item.SetPackageEscaped(models.NewPackageEscaped())
 	}
 
 	return item
@@ -2559,7 +2559,7 @@ func delItem(
 	case isFolder:
 		item.SetFolder(models.NewFolder())
 	case isPackage:
-		item.SetPackage(models.NewPackageEscaped())
+		item.SetPackageEscaped(models.NewPackageEscaped())
 	}
 
 	return item
@@ -2571,7 +2571,7 @@ func getDeltaError() error {
 	me.SetCode(&syncStateNotFound)
 
 	deltaError := odataerrors.NewODataError()
-	deltaError.SetError(me)
+	deltaError.SetErrorEscaped(me)
 
 	return deltaError
 }
