@@ -687,9 +687,10 @@ func mergeDetailsFromAssistBackups(
 
 	// Walk through new deets and update items from assist deets if needed.
 	// There are 2 possibilities here.
-	// 1. The item doesn't exist in assist deets. Do nothing.
+	// 1. The item didn't exist in assist deets. Do nothing.
 	// 2. The item existed in the assist deets. Source it from assist deets
-	// if mod time hasn't changed. Otherwise do nothing.
+	// if mod time hasn't changed. Otherwise current deets have the most
+	// recent info, do nothing.
 	for _, entry := range deets.Details().Items() {
 		assistDeets, ok := repoRefToAssistDeets[entry.RepoRef]
 		if !ok {
@@ -697,7 +698,7 @@ func mergeDetailsFromAssistBackups(
 		}
 
 		// If the mod time hasn't changed, use the item info from assist deets.
-		if entry.ItemInfo.Modified() == assistDeets.ItemInfo.Modified() {
+		if entry.ItemInfo.Modified().Equal(assistDeets.ItemInfo.Modified()) {
 			logger.Ctx(ctx).Infow("sourcing item info from assist backup",
 				"repo_ref", entry.RepoRef)
 
@@ -799,6 +800,10 @@ func mergeDetailsFromBaseBackups(
 				logger.Ctx(ctx).Infow("sourcing item info from assist backup",
 					"repo_ref", entry.RepoRef)
 
+				// If something is considered cached then we assume the mod time
+				// hasn’t changed. If the mod time hasn’t changed then we
+				// assume neither the item data nor metadata changed, hence it’s
+				// safe to source the item’s detail entry from assist deets.
 				item = assistDeets.ItemInfo
 			}
 
