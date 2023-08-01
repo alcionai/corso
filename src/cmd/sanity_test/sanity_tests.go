@@ -77,6 +77,8 @@ func main() {
 		switch testService {
 		case "onedrive":
 			export.CheckOneDriveExport(ctx, client, testUser, folder, dataFolder)
+		case "sharepoint":
+			export.CheckSharePointExport(ctx, client, testSite, folder, dataFolder)
 		default:
 			common.Fatal(ctx, "unknown service for export sanity tests", nil)
 		}
