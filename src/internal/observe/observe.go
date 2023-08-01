@@ -80,8 +80,12 @@ func PreloadFlags() config {
 
 // config handles observer configuration
 type config struct {
-	doNotDisplay          bool
+	// under certain conditions (ex: testing) we aren't outputting
+	// to a terminal.  When this happens the observe bars need to be
+	// given a specific optional value or they'll never flush the
+	// writer.
 	displayIsTerminal     bool
+	doNotDisplay          bool
 	keepBarsAfterComplete bool
 }
 
@@ -100,7 +104,7 @@ func (o observer) hidden() bool {
 	return o.cfg.doNotDisplay || o.w == nil
 }
 
-func (o *observer) cycleWriter(ctx context.Context) {
+func (o *observer) resetWriter(ctx context.Context) {
 	opts := []mpb.ContainerOption{
 		mpb.WithWidth(progressBarWidth),
 		mpb.WithWaitGroup(o.wg),
@@ -124,7 +128,7 @@ func SeedObserver(ctx context.Context, w io.Writer, cfg config) context.Context 
 		wg:  &sync.WaitGroup{},
 	}
 
-	obs.cycleWriter(ctx)
+	obs.resetWriter(ctx)
 
 	return setObserver(ctx, obs)
 }
@@ -151,7 +155,7 @@ func Flush(ctx context.Context) {
 		obs.mp.Wait()
 	}
 
-	obs.cycleWriter(ctx)
+	obs.resetWriter(ctx)
 }
 
 const (
