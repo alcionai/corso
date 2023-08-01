@@ -23,16 +23,6 @@ func TestRestoreUnitSuite(t *testing.T) {
 	suite.Run(t, &RestoreUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-// set the clues hashing to mask for the span of this suite
-func (suite *RestoreUnitSuite) SetupSuite() {
-	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
-}
-
-// revert clues hashing to plaintext for all other tests
-func (suite *RestoreUnitSuite) TeardownSuite() {
-	clues.SetHasher(clues.NoHash())
-}
-
 func (suite *RestoreUnitSuite) TestEnsureRestoreConfigDefaults() {
 	table := []struct {
 		name   string
@@ -114,10 +104,8 @@ func (suite *RestoreUnitSuite) TestEnsureRestoreConfigDefaults() {
 }
 
 func (suite *RestoreUnitSuite) TestRestoreConfig_piiHandling() {
-	t := suite.T()
-
 	p, err := path.Build("tid", "ro", path.ExchangeService, path.EmailCategory, true, "foo", "bar", "baz")
-	require.NoError(t, err, clues.ToCore(err))
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	cdrc := control.DefaultRestoreConfig(dttm.HumanReadable)
 
@@ -158,11 +146,15 @@ func (suite *RestoreUnitSuite) TestRestoreConfig_piiHandling() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
+
 			assert.Equal(t, test.expectSafe, test.rc.Conceal(), "conceal")
 			assert.Equal(t, test.expectPlain, test.rc.String(), "string")
 			assert.Equal(t, test.expectSafe, fmt.Sprintf("%s", test.rc), "fmt %%s")
 			assert.Equal(t, test.expectSafe, fmt.Sprintf("%+v", test.rc), "fmt %%+v")
 			assert.Equal(t, test.expectPlain, test.rc.PlainString(), "plain")
+
+			clues.SetHasher(clues.NoHash())
 		})
 	}
 }
