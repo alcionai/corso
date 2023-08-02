@@ -28,8 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Need these in the local env so that corso can read them
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
       AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
       AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
@@ -68,6 +66,15 @@ jobs:
       - run: go build -o corso
       
       - run: mkdir ${CORSO_LOG_DIR}
+
+        # Use shorter-lived credentials obtained from assume-role since these
+        # runs haven't been taking long.
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
 
 ##########################################################################################################################################
 
