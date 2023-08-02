@@ -138,6 +138,7 @@ type mockDetailsMergeInfoer struct {
 	locs     map[string]*path.Builder
 }
 
+// TODO(ashmrtn): Update this to take mod time?
 func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Builder) {
 	oldPB := oldRef.ToBuilder()
 	// Items are indexed individually.
@@ -149,6 +150,7 @@ func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Buil
 
 func (m *mockDetailsMergeInfoer) GetNewPathRefs(
 	oldRef *path.Builder,
+	_ time.Time,
 	_ details.LocationIDer,
 ) (path.Path, *path.Builder, error) {
 	return m.repoRefs[oldRef.ShortRef()], m.locs[oldRef.ShortRef()], nil
