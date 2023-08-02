@@ -930,10 +930,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				ctx,
 				mds,
 				test.inputBackups,
+				nil,
 				test.mdm,
 				&deets,
 				&writeStats,
-				path.OneDriveService,
 				fault.New(true))
 			test.errCheck(t, err, clues.ToCore(err))
 
@@ -1036,10 +1036,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		ctx,
 		mds,
 		[]kopia.BackupEntry{backup1},
+		nil,
 		mdm,
 		&deets,
 		&writeStats,
-		path.ExchangeService,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	compareDeetEntries(t, expectedEntries, deets.Details().Entries)

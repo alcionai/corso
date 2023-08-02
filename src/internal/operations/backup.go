@@ -402,7 +402,6 @@ func (op *BackupOperation) do(
 		toMerge,
 		deets,
 		writeStats,
-		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "merging details")
@@ -639,7 +638,6 @@ func mergeDetailsFromAssistBackups(
 	detailsStore streamstore.Streamer,
 	deets *details.Builder,
 	assistBackups []kopia.BackupEntry,
-	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) (map[string]details.Entry, error) {
 	// If the backup operation did not produce any new details, or if we don't
@@ -671,7 +669,7 @@ func mergeDetailsFromAssistBackups(
 			if err != nil {
 				return nil, clues.New("parsing base item info path").
 					WithClues(mctx).
-					With("repo_ref", path.NewElements(entry.RepoRef))
+					With("repo_ref", path.LoggableDir(entry.RepoRef))
 			}
 
 			// Although this assist base has an entry it may not be the most recent.
@@ -721,7 +719,6 @@ func mergeDetailsFromBaseBackups(
 	dataFromBackup kopia.DetailsMergeInfoer,
 	backups []kopia.BackupEntry,
 	repoRefToAssistDeets map[string]details.Entry,
-	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.
@@ -765,16 +762,7 @@ func mergeDetailsFromBaseBackups(
 			}
 
 			mctx = clues.Add(mctx, "repo_ref", rr)
-			mctx = clues.Add(mctx, "repo_ref", rr)
 
-			newPath, newLoc, locUpdated, err := getNewPathRefs(
-				dataFromBackup,
-				entry,
-				rr,
-				baseBackup.Version)
-			if err != nil {
-				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
-			}
 			newPath, newLoc, locUpdated, err := getNewPathRefs(
 				dataFromBackup,
 				entry,
@@ -853,7 +841,6 @@ func mergeDetails(
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	writeStats *kopia.BackupStats,
-	serviceType path.ServiceType,
 	errs *fault.Bus,
 ) error {
 	detailsModel := deets.Details().DetailsModel
@@ -871,7 +858,6 @@ func mergeDetails(
 		detailsStore,
 		deets,
 		assistBackups,
-		serviceType,
 		errs)
 	if err != nil {
 		return clues.Wrap(err, "merging details from assist backup")
@@ -889,7 +875,6 @@ func mergeDetails(
 		dataFromBackup,
 		backups,
 		repoRefToAssistDeets,
-		serviceType,
 		errs)
 	if err != nil {
 		return clues.Wrap(err, "merging details from base backup")
