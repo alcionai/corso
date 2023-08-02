@@ -616,7 +616,10 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	assert.Empty(t, cp.deets)
 
 	for _, expected := range expectedToMerge {
-		gotRef, _, _ := cp.toMerge.GetNewPathRefs(expected.oldRef, nil)
+		gotRef, _, _ := cp.toMerge.GetNewPathRefs(
+			expected.oldRef,
+			time.Now(),
+			nil)
 		if !assert.NotNil(t, gotRef) {
 			continue
 		}
