@@ -38,9 +38,9 @@ func AllMetadataFileNames() []string {
 }
 
 type QueryParams struct {
-	Category      path.CategoryType
-	ResourceOwner idname.Provider
-	TenantID      string
+	Category          path.CategoryType
+	ProtectedResource idname.Provider
+	TenantID          string
 }
 
 // ---------------------------------------------------------------------------

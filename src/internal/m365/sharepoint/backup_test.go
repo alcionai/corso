@@ -13,8 +13,10 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -204,13 +206,18 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	ac, err := api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion: version.NoBackup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: mock.NewProvider(siteID, siteID),
+	}
+
 	col, err := collectPages(
 		ctx,
+		bpc,
 		creds,
 		ac,
-		mock.NewProvider(siteID, siteID),
 		&MockGraphService{},
-		control.DefaultOptions(),
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, col)

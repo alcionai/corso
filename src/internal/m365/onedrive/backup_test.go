@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -85,7 +86,13 @@ func (suite *BackupUnitSuite) TestMigrationCollections() {
 				ToggleFeatures: control.Toggles{},
 			}
 
-			mc, err := migrationCollections(test.version, "t", u, nil, opts)
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: test.version,
+				Options:           opts,
+				ProtectedResource: u,
+			}
+
+			mc, err := migrationCollections(bpc, "t", nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			if test.expectLen == 0 {
