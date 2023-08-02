@@ -4,34 +4,36 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"net/http"
 	"syscall"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/network"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type readResp struct {
 	read int
-	err  error
+	// sticky denotes whether the error should continue to be returned until reset
+	// is called.
+	sticky bool
+	err    error
 }
 
 type mockReader struct {
 	r    io.Reader
 	data []byte
 	// Associate return values for Read with calls. Allows partial reads as well.
-	// A value of nil in this slice means completing the request completely with
-	// no errors (i.e. all bytes requested are returned or as many as possible and
-	// EOF).
-	resps     []*readResp
+	// If a value for a particular read call is not in the map that means
+	// completing the request completely with no errors (i.e. all bytes requested
+	// are returned or as many as possible and EOF).
+	resps     map[int]readResp
 	callCount int
+	stickyErr error
 }
 
 func (mr *mockReader) Read(p []byte) (int, error) {
@@ -43,24 +45,23 @@ func (mr *mockReader) Read(p []byte) (int, error) {
 		mr.reset(0)
 	}
 
-	if len(mr.resps) == 0 {
-		n, err := mr.r.Read(p)
-		return n, clues.Stack(err).OrNil()
+	if mr.stickyErr != nil {
+		return 0, clues.Wrap(mr.stickyErr, "sticky error")
 	}
 
-	resp := mr.resps[mr.callCount]
-	if resp == nil {
+	resp, ok := mr.resps[mr.callCount]
+	if !ok {
 		n, err := mr.r.Read(p)
 		return n, clues.Stack(err).OrNil()
-	}
-
-	if resp.read == 0 {
-		return resp.read, clues.Stack(resp.err).OrNil()
 	}
 
 	n, err := mr.r.Read(p[:resp.read])
 
 	if resp.err != nil {
+		if resp.sticky {
+			mr.stickyErr = resp.err
+		}
+
 		return n, clues.Stack(resp.err)
 	}
 
@@ -69,67 +70,49 @@ func (mr *mockReader) Read(p []byte) (int, error) {
 
 func (mr *mockReader) reset(n int) {
 	mr.r = bytes.NewBuffer(mr.data[n:])
+	mr.stickyErr = nil
 }
 
 type getterResp struct {
-	status int
 	offset int
 	err    error
 }
 
 type mockGetter struct {
-	t *testing.T
-	// We assume a single URL with possibly different headers for all calls.
-	expectURL     string
+	t             *testing.T
+	supportsRange bool
 	reader        *mockReader
-	resps         []*getterResp
-	expectHeaders []map[string]string
+	resps         map[int]getterResp
+	expectHeaders map[int]map[string]string
 	callCount     int
+}
+
+func (mg *mockGetter) SupportsRangeReq() bool {
+	return mg.supportsRange
 }
 
 func (mg *mockGetter) Get(
 	ctx context.Context,
-	url string,
 	headers map[string]string,
-) (*http.Response, error) {
+) (io.ReadCloser, error) {
 	defer func() {
 		mg.callCount++
 	}()
 
-	assert.Equal(mg.t, mg.expectURL, url)
-
-	expectHeaders := map[string]string{}
-	if len(mg.expectHeaders) > 0 {
-		expectHeaders = mg.expectHeaders[mg.callCount]
-	}
-
+	expectHeaders := mg.expectHeaders[mg.callCount]
 	if expectHeaders == nil {
 		expectHeaders = map[string]string{}
 	}
 
 	assert.Equal(mg.t, expectHeaders, headers)
 
-	resp := getterResp{}
-
-	if len(mg.resps) > 0 {
-		// Alright if we end up with the default for resp because we assume
-		// resetting the reader and returning no error is the usual.
-		resp = ptr.Val(mg.resps[mg.callCount])
-	}
-
-	if resp.status == 0 {
-		resp.status = http.StatusOK
-	}
+	resp := mg.resps[mg.callCount]
 
 	if resp.offset >= 0 {
-		mg.t.Logf("resetting reader to offset %d\n", resp.offset)
 		mg.reader.reset(resp.offset)
 	}
 
-	return &http.Response{
-		StatusCode: resp.status,
-		Body:       io.NopCloser(mg.reader),
-	}, clues.Stack(resp.err).OrNil()
+	return io.NopCloser(mg.reader), clues.Stack(resp.err).OrNil()
 }
 
 type ResetRetryHandlerUnitSuite struct {
@@ -142,281 +125,323 @@ func TestResetRetryHandlerUnitSuite(t *testing.T) {
 
 func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 	data := []byte("abcdefghijklmnopqrstuvwxyz")
-	url := "https://www.corsobackup.io"
 	// Pick a smaller read size so we can see how things will act if we have a
 	// "chunked" set of data.
 	readSize := 4
 
-	totalReadCalls := (len(data) / readSize) + 1
-	if len(data)%readSize != 0 {
-		totalReadCalls++
-	}
-
 	table := []struct {
-		name                string
-		supportsRange       bool
-		getterResps         []*getterResp
-		getterExpectHeaders []map[string]string
-		// First entry should represent the first read which is through the original
-		// underlying reader.
-		readerResps     []*readResp
-		expectData      []byte
-		hasErr          bool
-		expectErr       error
-		expectErrLabels []string
+		name          string
+		supportsRange bool
+		// 0th entry is the return data when trying to initialize the wrapper.
+		getterResps map[int]getterResp
+		// 0th entry is the return data when trying to initialize the wrapper.
+		getterExpectHeaders map[int]map[string]string
+		readerResps         map[int]readResp
+		expectData          []byte
+		expectErr           error
 	}{
 		{
-			name:       "NoErrorsNeverCallsGetter",
-			expectData: data,
-		},
-		{
-			name: "OnlyFirstReadErrors NoRangeSupport",
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls)
-				r[0] = &readResp{
-					read: 0,
-					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+			name: "OnlyFirstGetErrors NoRangeSupport",
+			getterResps: map[int]getterResp{
+				0: {
+					err: syscall.ECONNRESET,
+				},
+			},
 			expectData: data,
 		},
 		{
 			name:          "OnlyFirstReadErrors RangeSupport",
 			supportsRange: true,
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=0-"},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=0-"},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls)
-				r[0] = &readResp{
-					read: 0,
-					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+			getterResps: map[int]getterResp{
+				0: {
+					err: syscall.ECONNRESET,
+				},
+			},
 			expectData: data,
 		},
 		{
 			name: "ErrorInMiddle NoRangeSupport",
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+1)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data,
 		},
 		{
 			name:          "ErrorInMiddle RangeSupport",
 			supportsRange: true,
-			getterResps:   []*getterResp{{offset: 12}},
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=12-"},
+			getterResps: map[int]getterResp{
+				1: {offset: 12},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls)
-				r[3] = &readResp{
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=12-"},
+			},
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data,
 		},
 		{
 			name: "MultipleErrorsInMiddle NoRangeSupport",
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+3)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-				r[7] = &readResp{
+				},
+				7: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data,
 		},
 		{
 			name:          "MultipleErrorsInMiddle RangeSupport",
 			supportsRange: true,
-			getterResps: []*getterResp{
-				{offset: 12},
-				{offset: 20},
+			getterResps: map[int]getterResp{
+				1: {offset: 12},
+				2: {offset: 20},
 			},
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=12-"},
-				{"Range": "bytes=20-"},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=12-"},
+				2: {"Range": "bytes=20-"},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+1)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-				r[6] = &readResp{
+				},
+				6: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data,
 		},
 		{
 			name: "ShortReadWithError NoRangeSupport",
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+2)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: readSize / 2,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data,
 		},
 		{
 			name:          "ShortReadWithError RangeSupport",
 			supportsRange: true,
-			getterResps: []*getterResp{
-				{offset: 14},
+			getterResps: map[int]getterResp{
+				1: {offset: 14},
 			},
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=14-"},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=14-"},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+1)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: readSize / 2,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data,
 		},
 		{
 			name: "ErrorAtEndOfRead NoRangeSupport",
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+2)
-				r[3] = &readResp{
-					read: readSize,
-					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+			readerResps: map[int]readResp{
+				3: {
+					read:   readSize,
+					sticky: true,
+					err:    syscall.ECONNRESET,
+				},
+			},
 			expectData: data,
 		},
 		{
 			name:          "ErrorAtEndOfRead RangeSupport",
 			supportsRange: true,
-			getterResps: []*getterResp{
-				{offset: 16},
+			getterResps: map[int]getterResp{
+				1: {offset: 16},
 			},
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=16-"},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=16-"},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+1)
-				r[3] = &readResp{
-					read: readSize,
-					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
+			readerResps: map[int]readResp{
+				3: {
+					read:   readSize,
+					sticky: true,
+					err:    syscall.ECONNRESET,
+				},
+			},
 			expectData: data,
 		},
 		{
 			name: "UnexpectedError NoRangeSupport",
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+2)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  assert.AnError,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data[:12],
 			expectErr:  assert.AnError,
 		},
 		{
 			name:          "UnexpectedError RangeSupport",
 			supportsRange: true,
-			getterResps: []*getterResp{
-				{offset: 12},
+			getterResps: map[int]getterResp{
+				1: {offset: 12},
 			},
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=12-"},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=12-"},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+1)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  assert.AnError,
-				}
-
-				return r
-			}(),
+				},
+			},
 			expectData: data[:12],
 			expectErr:  assert.AnError,
 		},
 		{
-			name: "BadStatusCode NoRangeSupport",
-			getterResps: []*getterResp{
-				{status: http.StatusNotFound},
+			name: "ErrorWhileSeeking NoRangeSupport",
+			getterResps: map[int]getterResp{
+				1: {err: syscall.ECONNRESET},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+2)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
-			expectData: data[:12],
-			hasErr:     true,
-			expectErrLabels: []string{
-				graph.LabelStatus(http.StatusNotFound),
+				},
+				4: {
+					read: 0,
+					err:  syscall.ECONNRESET,
+				},
 			},
+			expectData: data,
 		},
 		{
-			name:          "BadStatusCode RangeSupport",
+			name: "ShortReadNoError NoRangeSupport",
+			readerResps: map[int]readResp{
+				3: {
+					read: readSize / 2,
+				},
+			},
+			expectData: data,
+		},
+		{
+			name:          "ShortReadNoError RangeSupport",
 			supportsRange: true,
-			getterResps: []*getterResp{
-				{status: http.StatusNotFound},
+			getterResps: map[int]getterResp{
+				1: {offset: 14},
 			},
-			getterExpectHeaders: []map[string]string{
-				{"Range": "bytes=12-"},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=14-"},
 			},
-			readerResps: func() []*readResp {
-				r := make([]*readResp, totalReadCalls+1)
-				r[3] = &readResp{
+			readerResps: map[int]readResp{
+				3: {
+					read: readSize / 2,
+				},
+			},
+			expectData: data,
+		},
+		{
+			name: "TooManyRetriesDuringRead NoRangeSupport",
+			// Fail the final reconnect attempt so we run out of retries. Otherwise we
+			// exit with a short read and successful reconnect.
+			getterResps: map[int]getterResp{
+				3: {err: syscall.ECONNRESET},
+			},
+			// Even numbered read requests are seeks to the proper offset.
+			readerResps: map[int]readResp{
+				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
-				}
-
-				return r
-			}(),
-			expectData: data[:12],
-			hasErr:     true,
-			expectErrLabels: []string{
-				graph.LabelStatus(http.StatusNotFound),
+				},
+				5: {
+					read: 1,
+					err:  syscall.ECONNRESET,
+				},
+				7: {
+					read: 1,
+					err:  syscall.ECONNRESET,
+				},
 			},
+			expectData: data[:14],
+			expectErr:  syscall.ECONNRESET,
+		},
+		{
+			name:          "TooManyRetriesDuringRead RangeSupport",
+			supportsRange: true,
+			getterResps: map[int]getterResp{
+				1: {offset: 12},
+				2: {offset: 12},
+				3: {err: syscall.ECONNRESET},
+			},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=12-"},
+				2: {"Range": "bytes=13-"},
+				3: {"Range": "bytes=14-"},
+			},
+			readerResps: map[int]readResp{
+				3: {
+					read: 0,
+					err:  syscall.ECONNRESET,
+				},
+				4: {
+					read: 1,
+					err:  syscall.ECONNRESET,
+				},
+				5: {
+					read: 1,
+					err:  syscall.ECONNRESET,
+				},
+			},
+			expectData: data[:14],
+			expectErr:  syscall.ECONNRESET,
+		},
+		{
+			name:          "TooManyRetriesDuringRead AlwaysReturnError RangeSupport",
+			supportsRange: true,
+			getterResps: map[int]getterResp{
+				1: {offset: -1},
+				2: {offset: -1},
+				3: {offset: -1},
+				4: {offset: -1},
+				5: {offset: -1},
+			},
+			getterExpectHeaders: map[int]map[string]string{
+				0: {"Range": "bytes=0-"},
+				1: {"Range": "bytes=0-"},
+				2: {"Range": "bytes=0-"},
+				3: {"Range": "bytes=0-"},
+				4: {"Range": "bytes=0-"},
+				5: {"Range": "bytes=0-"},
+			},
+			readerResps: map[int]readResp{
+				0: {
+					sticky: true,
+					err:    syscall.ECONNRESET,
+				},
+			},
+			expectData: []byte{},
+			expectErr:  io.ErrNoProgress,
 		},
 	}
 
@@ -434,7 +459,7 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 
 			getter := &mockGetter{
 				t:             t,
-				expectURL:     url,
+				supportsRange: test.supportsRange,
 				reader:        reader,
 				resps:         test.getterResps,
 				expectHeaders: test.getterExpectHeaders,
@@ -445,13 +470,10 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				n       int
 				offset  int
 				resData = make([]byte, len(data))
-				rrh     = network.NewRetryResetHandler(
-					ctx,
-					getter,
-					url,
-					io.NopCloser(reader),
-					test.supportsRange)
 			)
+
+			rrh, err := network.NewResetRetryHandler(ctx, getter)
+			require.NoError(t, err, "making reader wrapper: %v", clues.ToCore(err))
 
 			for err == nil && offset < len(data) {
 				end := offset + readSize
@@ -462,24 +484,16 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				n, err = rrh.Read(resData[offset:end])
 
 				offset = offset + n
-				t.Logf("read %d bytes\n", n)
 			}
 
 			assert.Equal(t, test.expectData, data[:offset])
 
-			if !test.hasErr && test.expectErr == nil {
+			if test.expectErr == nil {
 				assert.NoError(t, err, clues.ToCore(err))
 				return
-			} else if test.hasErr {
-				// We got an error but can't check for the exact type.
-				assert.Error(t, err)
-			} else {
-				assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 			}
 
-			for _, l := range test.expectErrLabels {
-				assert.True(t, clues.HasLabel(err, l), "expecting label %s in error", l)
-			}
+			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 		})
 	}
 }
