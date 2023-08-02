@@ -35,6 +35,8 @@ const (
 	BackupEnd        = "Backup End"
 	RestoreStart     = "Restore Start"
 	RestoreEnd       = "Restore End"
+	ExportStart      = "Export Start"
+	ExportEnd        = "Export End"
 	MaintenanceStart = "Maintenance Start"
 	MaintenanceEnd   = "Maintenance End"
 
@@ -49,6 +51,7 @@ const (
 	ItemsWritten     = "items_written"
 	Resources        = "resources"
 	RestoreID        = "restore_id"
+	ExportID         = "export_id"
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"
@@ -82,8 +85,8 @@ var (
 	RudderStackDataPlaneURL string
 )
 
-func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.Options) (Bus, error) {
-	if opts.DisableMetrics {
+func NewBus(ctx context.Context, s storage.Storage, tenID string, co control.Options) (Bus, error) {
+	if co.DisableMetrics {
 		return Bus{}, nil
 	}
 

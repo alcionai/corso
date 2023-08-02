@@ -7,14 +7,16 @@ import (
 
 // Options holds the optional configurations for a process
 type Options struct {
+	// DeltaPageSize controls the quantity of items fetched in each page
+	// during multi-page queries, such as graph api delta endpoints.
+	DeltaPageSize        int32                              `json:"deltaPageSize"`
 	DisableMetrics       bool                               `json:"disableMetrics"`
 	FailureHandling      FailurePolicy                      `json:"failureHandling"`
-	RestorePermissions   bool                               `json:"restorePermissions"`
-	SkipReduce           bool                               `json:"skipReduce"`
-	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
+	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
 	Parallelism          Parallelism                        `json:"parallelism"`
 	Repo                 repository.Options                 `json:"repo"`
-	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
+	SkipReduce           bool                               `json:"skipReduce"`
+	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
 }
 
 type Parallelism struct {
@@ -35,10 +37,11 @@ const (
 	BestEffort FailurePolicy = "best-effort"
 )
 
-// Defaults provides an Options with the default values set.
-func Defaults() Options {
+// DefaultOptions provides an Options with the default values set.
+func DefaultOptions() Options {
 	return Options{
 		FailureHandling: FailAfterRecovery,
+		DeltaPageSize:   500,
 		ToggleFeatures:  Toggles{},
 		Parallelism: Parallelism{
 			CollectionBuffer: 4,

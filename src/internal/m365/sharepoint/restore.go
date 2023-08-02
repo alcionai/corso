@@ -10,6 +10,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -17,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -29,20 +32,25 @@ import (
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
 func ConsumeRestoreCollections(
 	ctx context.Context,
-	backupVersion int,
+	rcc inject.RestoreConsumerConfig,
 	ac api.Client,
-	restoreCfg control.RestoreConfig,
-	opts control.Options,
+	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
+		lrh            = libraryRestoreHandler{ac}
 		restoreMetrics support.CollectionMetrics
-		caches         = onedrive.NewRestoreCaches()
+		caches         = onedrive.NewRestoreCaches(backupDriveIDNames)
 		el             = errs.Local()
 	)
+
+	err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
+	if err != nil {
+		return nil, clues.Wrap(err, "initializing restore caches")
+	}
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
@@ -60,7 +68,7 @@ func ConsumeRestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"restore_location", restoreCfg.Location,
+				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"full_path", dc.FullPath())
 		)
@@ -69,13 +77,12 @@ func ConsumeRestoreCollections(
 		case path.LibrariesCategory:
 			metrics, err = onedrive.RestoreCollection(
 				ictx,
-				libraryRestoreHandler{ac.Drives()},
-				restoreCfg,
-				backupVersion,
+				lrh,
+				rcc,
 				dc,
 				caches,
 				deets,
-				opts.RestorePermissions,
+				control.DefaultRestoreContainerName(dttm.HumanReadableDriveItem),
 				errs,
 				ctr)
 
@@ -84,7 +91,7 @@ func ConsumeRestoreCollections(
 				ictx,
 				ac.Stable,
 				dc,
-				restoreCfg.Location,
+				rcc.RestoreConfig.Location,
 				deets,
 				errs)
 
@@ -93,7 +100,7 @@ func ConsumeRestoreCollections(
 				ictx,
 				ac.Stable,
 				dc,
-				restoreCfg.Location,
+				rcc.RestoreConfig.Location,
 				deets,
 				errs)
 
@@ -117,7 +124,7 @@ func ConsumeRestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		restoreCfg.Location)
+		rcc.RestoreConfig.Location)
 
 	return status, el.Failure()
 }

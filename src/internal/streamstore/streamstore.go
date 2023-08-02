@@ -234,6 +234,7 @@ func write(
 	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,
+		nil,
 		dbcs,
 		prefixmatcher.NopReader[map[string]struct{}](),
 		nil,

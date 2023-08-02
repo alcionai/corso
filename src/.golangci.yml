@@ -3,14 +3,20 @@ run:
 
 linters:
   enable:
+    - errcheck
+    - forbidigo
     - gci
     - gofmt
     - gofumpt
-    - errcheck
-    - forbidigo
+    - gosimple
+    - govet
+    - ineffassign
     - lll
+    - loggercheck
     - misspell
     - revive
+    - unused
+    - usestdlibvars
     - wsl
 
   disable:

@@ -414,7 +414,7 @@ func (suite *BackupIntgSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds)
+	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID
@@ -466,7 +466,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ctrlOpts := control.Defaults()
+			ctrlOpts := control.DefaultOptions()
 			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
 
 			collections, err := createCollections(
@@ -554,7 +554,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.Defaults(),
+				control.DefaultOptions(),
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -587,7 +587,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				inMock.NewProvider(userID, userID),
 				test.scope,
 				dps,
-				control.Defaults(),
+				control.DefaultOptions(),
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -633,7 +633,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 		inMock.NewProvider(suite.user, suite.user),
 		sel.Scopes()[0],
 		DeltaPaths{},
-		control.Defaults(),
+		control.DefaultOptions(),
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -709,7 +709,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.Defaults(),
+				control.DefaultOptions(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -834,7 +834,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.Defaults(),
+				control.DefaultOptions(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -1995,7 +1995,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
-					ctrlOpts := control.Defaults()
+					ctrlOpts := control.DefaultOptions()
 					ctrlOpts.ToggleFeatures.DisableDelta = !deltaAfter
 
 					getter := test.getter

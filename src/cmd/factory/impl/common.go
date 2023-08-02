@@ -21,12 +21,12 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -104,7 +104,15 @@ func generateAndRestoreItems(
 
 	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, dataColls, errs, ctr)
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     version.Backup,
+		Options:           opts,
+		ProtectedResource: sel,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
+	return ctrl.ConsumeRestoreCollections(ctx, rcc, dataColls, errs, ctr)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -144,7 +152,7 @@ func getControllerAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
 
-	id, _, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, resourceOwner, nil)
+	id, _, err := ctrl.PopulateProtectedResourceIDAndName(ctx, resourceOwner, nil)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "verifying user")
 	}
@@ -216,7 +224,8 @@ var (
 
 func generateAndRestoreDriveItems(
 	ctrl *m365.Controller,
-	resourceOwner, secondaryUserID, secondaryUserName string,
+	protectedResource idname.Provider,
+	secondaryUserID, secondaryUserName string,
 	acct account.Account,
 	service path.ServiceType,
 	cat path.CategoryType,
@@ -240,14 +249,23 @@ func generateAndRestoreDriveItems(
 
 	switch service {
 	case path.SharePointService:
-		d, err := ctrl.AC.Stable.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := ctrl.AC.Stable.
+			Client().
+			Sites().
+			BySiteId(protectedResource.ID()).
+			Drive().
+			Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting site's default drive")
 		}
 
 		driveID = ptr.Val(d.GetId())
 	default:
-		d, err := ctrl.AC.Stable.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := ctrl.AC.Stable.Client().
+			Users().
+			ByUserId(protectedResource.ID()).
+			Drive().
+			Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user's default drive")
 		}
@@ -407,18 +425,16 @@ func generateAndRestoreDriveItems(
 	// 	input,
 	// 	version.Backup)
 
-	opts := control.Options{
-		RestorePermissions: true,
-		ToggleFeatures:     control.Toggles{},
-	}
+	opts := control.DefaultOptions()
+	restoreCfg.IncludePermissions = true
 
 	config := m365Stub.ConfigInfo{
 		Opts:           opts,
 		Resource:       resource.Users,
 		Service:        service,
 		Tenant:         tenantID,
-		ResourceOwners: []string{resourceOwner},
-		RestoreCfg:     testdata.DefaultRestoreConfig(""),
+		ResourceOwners: []string{protectedResource.ID()},
+		RestoreCfg:     restoreCfg,
 	}
 
 	_, _, collections, _, err := m365Stub.GetCollectionsAndExpected(
@@ -429,5 +445,13 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	return ctrl.ConsumeRestoreCollections(ctx, version.Backup, sel, restoreCfg, opts, collections, errs, ctr)
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     version.Backup,
+		Options:           opts,
+		ProtectedResource: protectedResource,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
+	return ctrl.ConsumeRestoreCollections(ctx, rcc, collections, errs, ctr)
 }

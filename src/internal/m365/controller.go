@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -23,6 +24,7 @@ import (
 var (
 	_ inject.BackupProducer  = &Controller{}
 	_ inject.RestoreConsumer = &Controller{}
+	_ inject.ExportConsumer  = &Controller{}
 )
 
 // Controller is a struct used to wrap the GraphServiceClient and
@@ -47,6 +49,11 @@ type Controller struct {
 	// mutex used to synchronize updates to `status`
 	mu     sync.Mutex
 	status support.ControllerOperationStatus // contains the status of the last run status
+
+	// backupDriveIDNames is populated on restore.  It maps the backup's
+	// drive names to their id. Primarily for use when creating or looking
+	// up a new drive.
+	backupDriveIDNames idname.CacheBuilder
 }
 
 func NewController(
@@ -63,7 +70,7 @@ func NewController(
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	ac, err := api.NewClient(creds)
+	ac, err := api.NewClient(creds, co)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
@@ -77,10 +84,11 @@ func NewController(
 		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
 
-		credentials: creds,
-		ownerLookup: rCli,
-		tenant:      acct.ID(),
-		wg:          &sync.WaitGroup{},
+		credentials:        creds,
+		ownerLookup:        rCli,
+		tenant:             acct.ID(),
+		wg:                 &sync.WaitGroup{},
+		backupDriveIDNames: idname.NewCache(nil),
 	}
 
 	return &ctrl, nil
@@ -140,6 +148,16 @@ func (ctrl *Controller) PrintableStatus() string {
 
 func (ctrl *Controller) incrementAwaitingMessages() {
 	ctrl.wg.Add(1)
+}
+
+func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
+	if dii.SharePoint != nil {
+		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
+	}
+
+	if dii.OneDrive != nil {
+		ctrl.backupDriveIDNames.Add(dii.OneDrive.DriveID, dii.OneDrive.DriveName)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -228,15 +246,15 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 	return id, name, nil
 }
 
-// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// PopulateProtectedResourceIDAndName takes the provided owner identifier and produces
 // the owner's name and ID from that value.  Returns an error if the owner is
 // not recognized by the current tenant.
 //
-// The id-name swapper is optional.  Some processes will look up all owners in
+// The id-name cacher is optional.  Some processes will look up all owners in
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
 // data gets stored inside the controller instance for later re-use.
-func (ctrl *Controller) PopulateOwnerIDAndNamesFrom(
+func (ctrl *Controller) PopulateProtectedResourceIDAndName(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
 	ins idname.Cacher,

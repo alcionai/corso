@@ -68,8 +68,7 @@ func GetCollectionsAndExpected(
 			owner,
 			config.RestoreCfg,
 			testCollections,
-			backupVersion,
-		)
+			backupVersion)
 		if err != nil {
 			return totalItems, totalKopiaItems, collections, expectedData, err
 		}

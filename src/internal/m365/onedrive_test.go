@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
@@ -22,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -222,9 +224,9 @@ func (suite *SharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *SharePointIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+func (suite *SharePointIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testPermissionsBackupAndNoRestore(suite, version.Backup)
+	testRestoreNoPermissionsAndBackup(suite, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
@@ -289,8 +291,8 @@ func (suite *OneDriveIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.Backup)
 }
 
-func (suite *OneDriveIntegrationSuite) TestPermissionsBackupAndNoRestore() {
-	testPermissionsBackupAndNoRestore(suite, version.Backup)
+func (suite *OneDriveIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
+	testRestoreNoPermissionsAndBackup(suite, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
@@ -353,8 +355,8 @@ func (suite *OneDriveNightlySuite) TestPermissionsRestoreAndBackup() {
 	testPermissionsRestoreAndBackup(suite, version.OneDrive1DataAndMetaFiles)
 }
 
-func (suite *OneDriveNightlySuite) TestPermissionsBackupAndNoRestore() {
-	testPermissionsBackupAndNoRestore(suite, version.OneDrive1DataAndMetaFiles)
+func (suite *OneDriveNightlySuite) TestRestoreNoPermissionsAndBackup() {
+	testRestoreNoPermissionsAndBackup(suite, version.OneDrive1DataAndMetaFiles)
 }
 
 func (suite *OneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
@@ -516,15 +518,17 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := testdata.DefaultRestoreConfig("od_restore_and_backup_multi")
+			restoreCfg.OnCollision = control.Replace
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -763,20 +767,22 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := testdata.DefaultRestoreConfig("perms_restore_and_backup")
+			restoreCfg.OnCollision = control.Replace
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
 
-func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
+func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -851,15 +857,19 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := testdata.DefaultRestoreConfig("perms_backup_no_restore")
+			restoreCfg.OnCollision = control.Replace
+			restoreCfg.IncludePermissions = false
+
+			fmt.Printf("\n-----\nrcfg %+v\n-----\n", restoreCfg.IncludePermissions)
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1054,15 +1064,17 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := testdata.DefaultRestoreConfig("perms_inherit_restore_and_backup")
+			restoreCfg.OnCollision = control.Replace
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1247,15 +1259,17 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := testdata.DefaultRestoreConfig("linkshares_inherit_restore_and_backup")
+			restoreCfg.OnCollision = control.Replace
+			restoreCfg.IncludePermissions = true
+
 			runRestoreBackupTestVersions(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				})
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }
@@ -1362,16 +1376,16 @@ func testRestoreFolderNamedFolderRegression(
 				collectionsLatest:   expected,
 			}
 
+			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg.IncludePermissions = true
+
 			runRestoreTestWithVersion(
 				t,
 				testData,
 				suite.Tenant(),
 				[]string{suite.ResourceOwner()},
-				control.Options{
-					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{},
-				},
-			)
+				control.DefaultOptions(),
+				restoreCfg)
 		})
 	}
 }

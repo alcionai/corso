@@ -4,15 +4,20 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-const teamService = "Team"
+const (
+	teamsAdditionalDataLabel    = "Team"
+	ResourceProvisioningOptions = "resourceProvisioningOptions"
+)
 
 // ---------------------------------------------------------------------------
 // controller
@@ -22,20 +27,18 @@ func (c Client) Groups() Groups {
 	return Groups{c}
 }
 
-// On creation of each Microsoft Teams a corrsponding group gets created from them.
-// Most of the information like events, drive and mail info will be fetched directly
-// from groups. So we pull in group and process only the once which are associated with
-// a team for further proccessing of teams.
+// On creation of each Teams team a corrsponding group gets created.
+// The group acts as the protected resource, and all teams data like events,
+// drive and mail messages are owned by that group.
 
-// Teams is an interface-compliant provider of the client.
+// Groups is an interface-compliant provider of the client.
 type Groups struct {
 	Client
 }
 
-// GetAll retrieves all groups.
+// GetAllGroups retrieves all groups.
 func (c Groups) GetAll(
 	ctx context.Context,
-	filterTeams bool,
 	errs *fault.Bus,
 ) ([]models.Groupable, error) {
 	service, err := c.Service()
@@ -43,17 +46,29 @@ func (c Groups) GetAll(
 		return nil, err
 	}
 
-	return getGroups(ctx, filterTeams, errs, service)
+	return getGroups(ctx, func(ctx context.Context, g models.Groupable) bool { return true }, errs, service)
+}
+
+// GetTeams retrieves all Teams.
+func (c Groups) GetTeams(
+	ctx context.Context,
+	errs *fault.Bus,
+) ([]models.Groupable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	return getGroups(ctx, FetchOnlyTeams, errs, service)
 }
 
 // GetAll retrieves all groups.
 func getGroups(
 	ctx context.Context,
-	filterTeams bool,
+	filterGroupsData func(ctx context.Context, g models.Groupable) bool,
 	errs *fault.Bus,
 	service graph.Servicer,
 ) ([]models.Groupable, error) {
-
 	resp, err := service.Client().Groups().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting all groups")
@@ -62,7 +77,7 @@ func getGroups(
 	iter, err := msgraphgocore.NewPageIterator[models.Groupable](
 		resp,
 		service.Adapter(),
-		models.CreateTeamCollectionResponseFromDiscriminatorValue)
+		models.CreateGroupCollectionResponseFromDiscriminatorValue)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating groups iterator")
 	}
@@ -81,8 +96,7 @@ func getGroups(
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
-			isTeam := IsTeam(item)
-			if !filterTeams || isTeam {
+			if filterGroupsData(ctx, item) {
 				groups = append(groups, item)
 			}
 		}
@@ -97,23 +111,28 @@ func getGroups(
 	return groups, el.Failure()
 }
 
-func IsTeam(g models.Groupable) bool {
-	if g.GetAdditionalData()["resourceProvisioningOptions"] != nil {
-		val, _ := tform.AnyValueToT[[]any]("resourceProvisioningOptions", g.GetAdditionalData())
+func FetchOnlyTeams(ctx context.Context, g models.Groupable) bool {
+	log := logger.Ctx(ctx)
+
+	if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
+		val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, g.GetAdditionalData())
 		for _, v := range val {
 			s, err := str.AnyToString(v)
 			if err != nil {
+				log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
 				return false
 			}
-			if s == teamService {
+
+			if s == teamsAdditionalDataLabel {
 				return true
 			}
 		}
 	}
+
 	return false
 }
 
-// GetID retrieves team by groupID/teamID.
+// GetID retrieves group by groupID.
 func (c Groups) GetByID(
 	ctx context.Context,
 	identifier string,
@@ -125,21 +144,38 @@ func (c Groups) GetByID(
 
 	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting group by ID")
-	}
-
-	if err != nil {
-		err := graph.Wrap(ctx, err, "getting teams by id")
-
-		// TODO: check if its applicable here
-		if graph.IsErrItemNotFound(err) {
-			err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
+		err := graph.Wrap(ctx, err, "getting group by id")
 
 		return nil, err
 	}
 
-	return resp, err
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+// GetTeamByID retrieves group by groupID.
+func (c Groups) GetTeamByID(
+	ctx context.Context,
+	identifier string,
+) (models.Groupable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
+	if err != nil {
+		err := graph.Wrap(ctx, err, "getting group by id")
+
+		return nil, err
+	}
+
+	if !FetchOnlyTeams(ctx, resp) {
+		err := clues.New("given teamID is not related to any team")
+
+		return nil, err
+	}
+
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +190,7 @@ func ValidateGroup(item models.Groupable) error {
 	}
 
 	if item.GetDisplayName() == nil {
-		return clues.New("missing principalName")
+		return clues.New("missing display name")
 	}
 
 	return nil

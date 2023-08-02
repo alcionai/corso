@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
@@ -82,6 +83,7 @@ type intgTesterSetup struct {
 	siteID                string
 	siteDriveID           string
 	siteDriveRootFolderID string
+	teamID                string
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -96,7 +98,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds)
+	its.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.gockAC, err = mock.NewClient(creds)
@@ -129,6 +131,14 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+
+	// teams
+	its.teamID = tconfig.M365TeamsID(t)
+
+	team, err := its.ac.Groups().GetTeamByID(ctx, its.teamID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	its.teamID = ptr.Val(team.GetId())
 
 	return its
 }

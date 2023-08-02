@@ -37,11 +37,11 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create exchange",
-			createCommand,
-			expectUse + " " + exchangeServiceCommandCreateUseSuffix,
-			exchangeCreateCmd().Short,
-			[]string{
+			name:        "create exchange",
+			use:         createCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandCreateUseSuffix,
+			expectShort: exchangeCreateCmd().Short,
+			flags: []string{
 				flags.UserFN,
 				flags.CategoryDataFN,
 				flags.DisableIncrementalsFN,
@@ -50,28 +50,29 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				flags.FetchParallelismFN,
 				flags.SkipReduceFN,
 				flags.NoStatsFN,
+				flags.DeltaPageSizeFN,
 			},
-			createExchangeCmd,
+			expectRunE: createExchangeCmd,
 		},
 		{
-			"list exchange",
-			listCommand,
-			expectUse,
-			exchangeListCmd().Short,
-			[]string{
+			name:        "list exchange",
+			use:         listCommand,
+			expectUse:   expectUse,
+			expectShort: exchangeListCmd().Short,
+			flags: []string{
 				flags.BackupFN,
 				flags.FailedItemsFN,
 				flags.SkippedItemsFN,
 				flags.RecoveredErrorsFN,
 			},
-			listExchangeCmd,
+			expectRunE: listExchangeCmd,
 		},
 		{
-			"details exchange",
-			detailsCommand,
-			expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
-			exchangeDetailsCmd().Short,
-			[]string{
+			name:        "details exchange",
+			use:         detailsCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
+			expectShort: exchangeDetailsCmd().Short,
+			flags: []string{
 				flags.BackupFN,
 				flags.ContactFN,
 				flags.ContactFolderFN,
@@ -90,7 +91,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				flags.EventStartsBeforeFN,
 				flags.EventSubjectFN,
 			},
-			detailsExchangeCmd,
+			expectRunE: detailsExchangeCmd,
 		},
 		{
 			"delete exchange",

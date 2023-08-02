@@ -23,8 +23,11 @@ const (
 
 	// M365 config
 	TestCfgAzureTenantID    = "azure_tenantid"
+	TestCfgSecondarySiteID  = "secondarym365siteid"
 	TestCfgSiteID           = "m365siteid"
 	TestCfgSiteURL          = "m365siteurl"
+	TestCfgTeamID           = "m365teamid"
+	TestCfgGroupID          = "m365groupid"
 	TestCfgUserID           = "m365userid"
 	TestCfgSecondaryUserID  = "secondarym365userid"
 	TestCfgTertiaryUserID   = "tertiarym365userid"
@@ -36,13 +39,16 @@ const (
 
 // test specific env vars
 const (
-	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
-	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
-	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
-	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
-	EnvCorsoTertiaryM365TestUserID   = "CORSO_TERTIARY_M365_TEST_USER_ID"
 	EnvCorsoM365LoadTestUserID       = "CORSO_M365_LOAD_TEST_USER_ID"
 	EnvCorsoM365LoadTestOrgUsers     = "CORSO_M365_LOAD_TEST_ORG_USERS"
+	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
+	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
+	EnvCorsoM365TestTeamID           = "CORSO_M365_TEST_TEAM_ID"
+	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_GROUP_ID"
+	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
+	EnvCorsoSecondaryM365TestSiteID  = "CORSO_SECONDARY_M365_TEST_SITE_ID"
+	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
+	EnvCorsoTertiaryM365TestUserID   = "CORSO_TERTIARY_M365_TEST_USER_ID"
 	EnvCorsoTestConfigFilePath       = "CORSO_TEST_CONFIG_FILE"
 	EnvCorsoUnlicensedM365TestUserID = "CORSO_M365_TEST_UNLICENSED_USER"
 )
@@ -108,7 +114,7 @@ func ReadTestConfig() (map[string]string, error) {
 	testEnv := map[string]string{}
 	fallbackTo(testEnv, TestCfgStorageProvider, vpr.GetString(TestCfgStorageProvider))
 	fallbackTo(testEnv, TestCfgAccountProvider, vpr.GetString(TestCfgAccountProvider))
-	fallbackTo(testEnv, TestCfgBucket, os.Getenv("S3_BUCKET"), vpr.GetString(TestCfgBucket), "test-corso-repo-init")
+	fallbackTo(testEnv, TestCfgBucket, os.Getenv("S3_BUCKET"), vpr.GetString(TestCfgBucket))
 	fallbackTo(testEnv, TestCfgEndpoint, vpr.GetString(TestCfgEndpoint), "s3.amazonaws.com")
 	fallbackTo(testEnv, TestCfgPrefix, vpr.GetString(TestCfgPrefix))
 	fallbackTo(testEnv, TestCfgAzureTenantID, os.Getenv(account.AzureTenantID), vpr.GetString(TestCfgAzureTenantID))
@@ -147,13 +153,31 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgSiteID,
 		os.Getenv(EnvCorsoM365TestSiteID),
 		vpr.GetString(TestCfgSiteID),
-		"10rqc2.sharepoint.com,4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
+		"4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
+	fallbackTo(
+		testEnv,
+		TestCfgTeamID,
+		os.Getenv(EnvCorsoM365TestTeamID),
+		vpr.GetString(TestCfgTeamID),
+		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
+	fallbackTo(
+		testEnv,
+		TestCfgGroupID,
+		os.Getenv(EnvCorsoM365TestGroupID),
+		vpr.GetString(TestCfgGroupID),
+		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,
 		os.Getenv(EnvCorsoM365TestSiteURL),
 		vpr.GetString(TestCfgSiteURL),
 		"https://10rqc2.sharepoint.com/sites/CorsoCI")
+	fallbackTo(
+		testEnv,
+		TestCfgSecondarySiteID,
+		os.Getenv(EnvCorsoSecondaryM365TestSiteID),
+		vpr.GetString(TestCfgSecondarySiteID),
+		"053684d8-ca6c-4376-a03e-2567816bb091,9b3e9abe-6a5e-4084-8b44-ea5a356fe02c")
 	fallbackTo(
 		testEnv,
 		TestCfgUnlicensedUserID,

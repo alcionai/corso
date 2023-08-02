@@ -70,7 +70,9 @@ func (mc *mergeCollection) Items(
 		for _, c := range mc.cols {
 			// Unfortunately doesn't seem to be a way right now to see if the
 			// iteration failed and we should be exiting early.
-			ictx := clues.Add(ctx, "merged_collection_storage_path", c.storagePath)
+			ictx := clues.Add(
+				ctx,
+				"merged_collection_storage_path", path.LoggableDir(c.storagePath))
 			logger.Ctx(ictx).Debug("sending items from merged collection")
 
 			for item := range c.Items(ictx, errs) {
@@ -95,7 +97,9 @@ func (mc *mergeCollection) FetchItemByName(
 		"merged_collection_count", len(mc.cols))
 
 	for _, c := range mc.cols {
-		ictx := clues.Add(ctx, "merged_collection_storage_path", c.storagePath)
+		ictx := clues.Add(
+			ctx,
+			"merged_collection_storage_path", path.LoggableDir(c.storagePath))
 
 		logger.Ctx(ictx).Debug("looking for item in merged collection")
 

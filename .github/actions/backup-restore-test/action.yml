@@ -24,6 +24,10 @@ inputs:
   log-dir:
     description: Folder to store test log files
     required: true
+  on-collision:
+    description: Value for the --collisions flag
+    requried: false
+    default: "replace"
 
 outputs:
   backup-id:
@@ -57,6 +61,7 @@ runs:
         ./corso restore '${{ inputs.service }}' \
             --no-stats \
             --hide-progress \
+            --collisions ${{ inputs.on-collision }} \
             ${{ inputs.restore-args }} \
             --backup '${{ steps.backup.outputs.result }}' \
             2>&1 |
@@ -67,12 +72,78 @@ runs:
 
             cat /tmp/corsologs
 
-    - name: Check ${{ inputs.service }} ${{ inputs.kind }}
+    - name: Check restore ${{ inputs.service }} ${{ inputs.kind }}
       shell: bash
       working-directory: src
       env:
-        SANITY_RESTORE_FOLDER: ${{ steps.restore.outputs.result }}
-        SANITY_RESTORE_SERVICE: ${{ inputs.service }}
+        SANITY_TEST_KIND: restore
+        SANITY_TEST_FOLDER: ${{ steps.restore.outputs.result }}
+        SANITY_TEST_SERVICE: ${{ inputs.service }}
+        TEST_DATA: ${{ inputs.test-folder }}
+        BASE_BACKUP: ${{ inputs.base-backup }}
+      run: |
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        ./sanity-test
+
+    - name: Export ${{ inputs.service }} ${{ inputs.kind }}
+      id: export
+      shell: bash
+      working-directory: src
+      if: ${{ inputs.service == 'onedrive' || inputs.service == 'sharepoint' }}
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso export '${{ inputs.service }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }} \
+            --no-stats \
+            --hide-progress \
+            ${{ inputs.export-args }} \
+            --backup '${{ steps.backup.outputs.result }}'
+
+          cat /tmp/corsologs
+
+    - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      if: ${{ inputs.service == 'onedrive' || inputs.service == 'sharepoint' }}
+      env:
+        SANITY_TEST_KIND: export
+        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+        SANITY_TEST_SERVICE: ${{ inputs.service }}
+        TEST_DATA: ${{ inputs.test-folder }}
+        BASE_BACKUP: ${{ inputs.base-backup }}
+      run: |
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        ./sanity-test
+
+    - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
+      id: export-archive
+      shell: bash
+      working-directory: src
+      if: ${{ inputs.service == 'onedrive' }} # Export only available for OneDrive
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso export '${{ inputs.service }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive \
+            --no-stats \
+            --hide-progress \
+            --archive \
+            ${{ inputs.export-args }} \
+            --backup '${{ steps.backup.outputs.result }}'
+
+          unzip /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive/*.zip \
+            -d /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+          cat /tmp/corsologs
+
+    - name: Check archive export ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      if: ${{ inputs.service == 'onedrive' }}
+      env:
+        SANITY_TEST_KIND: export
+        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+        SANITY_TEST_SERVICE: ${{ inputs.service }}
         TEST_DATA: ${{ inputs.test-folder }}
         BASE_BACKUP: ${{ inputs.base-backup }}
       run: |

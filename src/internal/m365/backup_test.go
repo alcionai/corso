@@ -57,7 +57,7 @@ func (suite *DataCollectionIntgSuite) SetupSuite() {
 
 	suite.tenantID = creds.AzureTenantID
 
-	suite.ac, err = api.NewClient(creds)
+	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -120,7 +120,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				sel := test.getSelector(t)
 				uidn := inMock.NewProvider(sel.ID(), sel.Name())
 
-				ctrlOpts := control.Defaults()
+				ctrlOpts := control.DefaultOptions()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
 				collections, excludes, canUsePreviousBackup, err := exchange.ProduceBackupCollections(
@@ -239,7 +239,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				test.getSelector(t),
 				nil,
 				version.NoBackup,
-				control.Defaults(),
+				control.DefaultOptions(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.False(t, canUsePreviousBackup, "can use previous backup")
@@ -296,7 +296,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				nil,
 				ctrl.credentials,
 				ctrl,
-				control.Defaults(),
+				control.DefaultOptions(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -367,7 +367,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -381,7 +381,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		sel.Selector,
 		nil,
 		version.NoBackup,
-		control.Defaults(),
+		control.DefaultOptions(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -414,7 +414,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -428,7 +428,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		sel.Selector,
 		nil,
 		version.NoBackup,
-		control.Defaults(),
+		control.DefaultOptions(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")

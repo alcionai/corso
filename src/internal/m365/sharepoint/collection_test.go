@@ -43,7 +43,7 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 
 	suite.creds = m365
 
-	ac, err := api.NewClient(m365)
+	ac, err := api.NewClient(m365, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ac = ac
@@ -168,7 +168,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				suite.ac,
 				test.category,
 				nil,
-				control.Defaults())
+				control.DefaultOptions())
 			col.data <- test.getItem(t, test.itemName)
 
 			readItems := []data.Stream{}

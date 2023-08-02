@@ -40,7 +40,7 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	kw, err := kopia.NewWrapper(k)
@@ -54,7 +54,7 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 
 	mo, err := NewMaintenanceOperation(
 		ctx,
-		control.Defaults(),
+		control.DefaultOptions(),
 		kw,
 		repository.Maintenance{
 			Type: repository.MetadataMaintenance,

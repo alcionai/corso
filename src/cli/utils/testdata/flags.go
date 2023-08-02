@@ -46,7 +46,12 @@ var (
 
 	Collisions         = "collisions"
 	Destination        = "destination"
+	ToResource         = "toResource"
 	RestorePermissions = true
+
+	DeltaPageSize = "deltaPageSize"
+
+	Archive = true
 
 	AzureClientID     = "testAzureClientId"
 	AzureTenantID     = "testAzureTenantId"
@@ -57,4 +62,6 @@ var (
 	AWSSessionToken    = "testAWSSessionToken"
 
 	CorsoPassphrase = "testCorsoPassphrase"
+
+	RestoreDestination = "test-restore-destination"
 )
