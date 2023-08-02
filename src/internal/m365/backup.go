@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -13,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/sharepoint"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -33,26 +32,24 @@ import (
 // prior history (ie, incrementals) and run a full backup.
 func (ctrl *Controller) ProduceBackupCollections(
 	ctx context.Context,
-	owner idname.Provider,
-	sels selectors.Selector,
-	metadata []data.RestoreCollection,
-	lastBackupVersion int,
-	ctrlOpts control.Options,
+	bpc inject.BackupProducerConfig,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+	service := bpc.Selector.PathService()
+
 	ctx, end := diagnostics.Span(
 		ctx,
 		"m365:produceBackupCollections",
-		diagnostics.Index("service", sels.PathService().String()))
+		diagnostics.Index("service", bpc.Selector.PathService().String()))
 	defer end()
 
-	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
+	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: service})
 
 	// Limit the max number of active requests to graph from this collection.
-	ctrlOpts.Parallelism.ItemFetch = graph.Parallelism(sels.PathService()).
-		ItemOverride(ctx, ctrlOpts.Parallelism.ItemFetch)
+	bpc.Options.Parallelism.ItemFetch = graph.Parallelism(service).
+		ItemOverride(ctx, bpc.Options.Parallelism.ItemFetch)
 
-	err := verifyBackupInputs(sels, ctrl.IDNameLookup.IDs())
+	err := verifyBackupInputs(bpc.Selector, ctrl.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, false, clues.Stack(err).WithClues(ctx)
 	}
@@ -60,8 +57,8 @@ func (ctrl *Controller) ProduceBackupCollections(
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
 		ctrl.AC.Users(),
-		sels.PathService(),
-		owner.ID())
+		service,
+		bpc.ProtectedResource.ID())
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -79,58 +76,48 @@ func (ctrl *Controller) ProduceBackupCollections(
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
 
-		ctrlOpts.ToggleFeatures.DisableDelta = true
+		bpc.Options.ToggleFeatures.DisableDelta = true
 	}
 
-	switch sels.Service {
-	case selectors.ServiceExchange:
+	switch service {
+	case path.ExchangeService:
 		colls, ssmb, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
 			ctx,
+			bpc,
 			ctrl.AC,
-			sels,
 			ctrl.credentials.AzureTenantID,
-			owner,
-			metadata,
 			ctrl.UpdateStatus,
-			ctrlOpts,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
-	case selectors.ServiceOneDrive:
+	case path.OneDriveService:
 		colls, ssmb, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
 			ctx,
+			bpc,
 			ctrl.AC,
-			sels,
-			owner,
-			metadata,
-			lastBackupVersion,
 			ctrl.credentials.AzureTenantID,
 			ctrl.UpdateStatus,
-			ctrlOpts,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
-	case selectors.ServiceSharePoint:
+	case path.SharePointService:
 		colls, ssmb, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
 			ctx,
+			bpc,
 			ctrl.AC,
-			sels,
-			owner,
-			metadata,
 			ctrl.credentials,
 			ctrl,
-			ctrlOpts,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
 	default:
-		return nil, nil, false, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 	}
 
 	for _, c := range colls {

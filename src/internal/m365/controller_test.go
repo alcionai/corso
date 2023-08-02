@@ -587,14 +587,17 @@ func runBackupAndCompare(
 	backupSel := backupSelectorForExpected(t, sci.Service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion: version.NoBackup,
+		Options:           sci.Opts,
+		ProtectedResource: backupSel,
+		Selector:          backupSel,
+	}
+
 	start := time.Now()
 	dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 		ctx,
-		backupSel,
-		backupSel,
-		nil,
-		version.NoBackup,
-		sci.Opts,
+		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -1168,13 +1171,16 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: backupSel,
+				Selector:          backupSel,
+			}
+
 			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
-				backupSel,
-				backupSel,
-				nil,
-				version.NoBackup,
-				control.DefaultOptions(),
+				bpc,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -1323,13 +1329,16 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 
 			backupSel.SetDiscreteOwnerIDName(id, name)
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: inMock.NewProvider(id, name),
+				Selector:          backupSel,
+			}
+
 			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
-				idname.NewProvider(id, name),
-				backupSel,
-				nil,
-				version.NoBackup,
-				control.DefaultOptions(),
+				bpc,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
