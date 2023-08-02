@@ -341,7 +341,7 @@ func TeamsCompat(ctx context.Context, acct account.Account) ([]*Team, error) {
 
 // Teams returns a list of teams in the specified M365 tenant
 func Teams(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Team, error) {
-	ac, err := makeAC(ctx, acct, path.TeamsService)
+	ac, err := makeAC(ctx, acct, path.GroupsService)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -365,17 +365,13 @@ func parseTeam(item models.Groupable) (*Team, error) {
 }
 
 type getAllGroupers interface {
-	GetAll(ctx context.Context, filterTeams bool, errs *fault.Bus) ([]models.Groupable, error)
+	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Groupable, error)
+	GetTeams(ctx context.Context, errs *fault.Bus) ([]models.Groupable, error)
 }
 
 func getAllTeams(ctx context.Context, gas getAllGroupers) ([]*Team, error) {
-	teams, err := gas.GetAll(ctx, true, fault.New(true))
-	// TODO: check this. Label has to be changed
+	teams, err := gas.GetTeams(ctx, fault.New(true))
 	if err != nil {
-		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			return nil, clues.Stack(graph.ErrServiceNotEnabled, err)
-		}
-
 		return nil, clues.Wrap(err, "retrieving teams")
 	}
 
