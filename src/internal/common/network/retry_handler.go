@@ -8,47 +8,78 @@ import (
 	"syscall"
 
 	"github.com/alcionai/clues"
-
-	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var _ io.ReadCloser = &resetRetryHandler{}
 
 const (
-	rangeHeaderKey               = "Range"
+	numMaxRetries  = 3
+	rangeHeaderKey = "Range"
+	// One-sided range like this is defined as starting at the given byte and
+	// extending to the end of the item.
 	rangeHeaderOneSidedValueTmpl = "bytes=%d-"
 )
 
-func NewRetryResetHandler(
+// Could make this per wrapper instance if we need additional flexibility
+// between callers.
+var retryErrs = []error{
+	syscall.ECONNRESET,
+}
+
+type Getter interface {
+	// SupportsRangeReq returns true if this Getter supports adding Range headers
+	// to the Get call. Otherwise returns false.
+	SupportsRangeReq() bool
+	// Get attempts to get another reader for the data this reader is returning.
+	// headers denotes any additional headers that should be added to the request,
+	// like a Range header.
+	//
+	// Don't allow passing a URL to Get so that we can hide the fact that some
+	// components may need to dynamically refresh the fetch URL (i.e. OneDrive)
+	// from this wrapper.
+	//
+	// Get should encapsulate all error handling and status code checking required
+	// for the component. This function is called both during NewResetRetryHandler
+	// and Read so it's possible to discover errors with the item prior to
+	// informing other components about it if desired.
+	Get(ctx context.Context, headers map[string]string) (io.ReadCloser, error)
+}
+
+func NewResetRetryHandler(
 	ctx context.Context,
-	getter api.Getter,
-	url string,
-	innerReader io.ReadCloser,
-	supportsRangeReq bool,
-) *resetRetryHandler {
-	return &resetRetryHandler{
-		ctx:              ctx,
-		getter:           getter,
-		url:              url,
-		innerReader:      innerReader,
-		supportsRangeReq: supportsRangeReq,
+	getter Getter,
+) (*resetRetryHandler, error) {
+	rrh := &resetRetryHandler{
+		ctx:    ctx,
+		getter: getter,
 	}
+
+	// Retry logic encapsulated in reconnect so no need for it here.
+	_, err := rrh.reconnect(numMaxRetries)
+
+	return rrh, clues.Wrap(err, "initializing reader").OrNil()
 }
 
 //nolint:unused
 type resetRetryHandler struct {
-	ctx              context.Context
-	getter           api.Getter
-	url              string
-	offset           int64
-	innerReader      io.ReadCloser
-	supportsRangeReq bool
-	// TODO(ashmrtn): Add some way to get an updated URL since they can expire?
-	// Unclear what the data consistency for that situation would be (i.e. could
-	// the item's content change between the old URL and the new one such that
-	// resuming the reads at the same offset with a new URL yields different data
-	// than we would have gotten at the same offset from the old URL).
+	ctx         context.Context
+	getter      Getter
+	innerReader io.ReadCloser
+	offset      int64
+}
+
+func isRetriable(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	for _, e := range retryErrs {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
@@ -56,66 +87,95 @@ func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
 		return 0, clues.New("not initialized")
 	}
 
-	n, err := rrh.innerReader.Read(p)
-	rrh.offset = rrh.offset + int64(n)
-
-	if err != nil {
-		// Some other error we're not handling here. Will handle EOF errors in the
-		// way we want as well.
-		if !errors.Is(err, syscall.ECONNRESET) {
-			return n, clues.Stack(err)
-		}
-
-		// Allow retry to reread as well just to simplify things.
-		var n2 int
-
-		n2, err = rrh.retry(p[n:])
-		rrh.offset = rrh.offset + int64(n2)
-		n = n + n2
-	}
-
-	return n, clues.Stack(err).OrNil()
-}
-
-func (rrh *resetRetryHandler) retry(p []byte) (int, error) {
 	var (
-		headers = map[string]string{}
-		skip    = rrh.offset
+		// Use separate error variable just to make other assignments in the loop a
+		// bit cleaner.
+		finalErr   error
+		read       int
+		numRetries int
 	)
 
-	if rrh.supportsRangeReq {
+	// Still need to check retry count in loop header so we don't go through one
+	// last time after failing to reconnect due to exhausting retries.
+	for numRetries < numMaxRetries {
+		n, err := rrh.innerReader.Read(p[read:])
+		rrh.offset = rrh.offset + int64(n)
+		read = read + n
+
+		// Catch short reads with no error and errors we don't know how to retry.
+		if !isRetriable(err) || numRetries >= numMaxRetries {
+			// Not everything knows how to handle a wrapped version of EOF (including
+			// io.ReadAll) so return the error itself here.
+			if errors.Is(err, io.EOF) {
+				return read, io.EOF
+			}
+
+			return read, clues.Stack(err).WithClues(rrh.ctx).OrNil()
+		}
+
+		attempts, err := rrh.reconnect(numMaxRetries - numRetries)
+		numRetries = numRetries + attempts
+		finalErr = err
+	}
+
+	// We couln't read anything through all the retries but never had an error
+	// getting another reader. Report this as an error so we don't get stuck in an
+	// infinite loop.
+	if read == 0 && finalErr == nil && numRetries >= numMaxRetries {
+		finalErr = clues.Wrap(io.ErrNoProgress, "unable to read data")
+	}
+
+	return read, clues.Stack(finalErr).OrNil()
+}
+
+// reconnect attempts to get another instance of the underlying reader and set
+// the reader to pickup where the previous reader left off.
+//
+// Since this function can be called by functions that also implement retries on
+// read errors pass an int in to denote how many times to attempt to reconnect.
+// This avoids mulplicative retries when called from other functions.
+func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
+	skip := rrh.offset
+	headers := map[string]string{}
+
+	if rrh.getter.SupportsRangeReq() {
 		headers[rangeHeaderKey] = fmt.Sprintf(
 			rangeHeaderOneSidedValueTmpl,
 			rrh.offset)
 		skip = 0
 	}
 
-	resp, err := rrh.getter.Get(rrh.ctx, rrh.url, headers)
-	if err != nil {
-		return 0, clues.Wrap(err, "retrying connection")
-	}
+	var (
+		attempts int
+		// This is annoying but we want the equivalent of a do-while loop.
+		err = retryErrs[0]
+	)
 
-	if resp != nil && (resp.StatusCode/100) != 2 {
-		// TODO(ashmrtn): Labeling should really be done in a different layer so
-		// this can be service-agnostic.
-		return 0, clues.Wrap(clues.New(resp.Status), "retrying connection").
-			Label(graph.LabelStatus(resp.StatusCode))
-	}
+	for attempts < maxRetries && isRetriable(err) {
+		attempts++
 
-	rrh.innerReader = resp.Body
+		var r io.ReadCloser
 
-	// If we can't request a specific range of content then read as many bytes as
-	// we've already processed into the equivalent of /dev/null so that the next
-	// read will get content we haven't seen before.
-	if skip > 0 {
-		if _, err := io.CopyN(io.Discard, rrh.innerReader, skip); err != nil {
-			return 0, clues.Wrap(err, "seeking to correct offset")
+		r, err = rrh.getter.Get(rrh.ctx, headers)
+		if err != nil {
+			err = clues.Wrap(err, "retrying connection").WithClues(rrh.ctx)
+			continue
+		}
+
+		rrh.innerReader = r
+
+		// If we can't request a specific range of content then read as many bytes
+		// as we've already processed into the equivalent of /dev/null so that the
+		// next read will get content we haven't seen before.
+		if skip > 0 {
+			_, err = io.CopyN(io.Discard, rrh.innerReader, skip)
+			if err != nil {
+				err = clues.Wrap(err, "seeking to correct offset").WithClues(rrh.ctx)
+			}
 		}
 	}
 
-	n, err := rrh.innerReader.Read(p)
-
-	return n, clues.Stack(err).OrNil()
+	return attempts, err
 }
 
 func (rrh *resetRetryHandler) Close() error {
