@@ -32,6 +32,7 @@ type SharePointOpts struct {
 	Page       []string
 
 	RestoreCfg RestoreCfgOpts
+	ExportCfg  ExportCfgOpts
 
 	Populated flags.PopulatedFlags
 }
@@ -56,6 +57,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		PageFolder: flags.PageFolderFV,
 
 		RestoreCfg: makeRestoreCfgOpts(cmd),
+		ExportCfg:  makeExportCfgOpts(cmd),
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate

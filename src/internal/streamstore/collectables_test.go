@@ -44,7 +44,8 @@ func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	st := storeTD.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx, repository.Options{}))
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kcloser = func() { k.Close(ctx) }
 

@@ -224,7 +224,8 @@ var (
 
 func generateAndRestoreDriveItems(
 	ctrl *m365.Controller,
-	resourceOwner, secondaryUserID, secondaryUserName string,
+	protectedResource idname.Provider,
+	secondaryUserID, secondaryUserName string,
 	acct account.Account,
 	service path.ServiceType,
 	cat path.CategoryType,
@@ -248,14 +249,23 @@ func generateAndRestoreDriveItems(
 
 	switch service {
 	case path.SharePointService:
-		d, err := ctrl.AC.Stable.Client().Sites().BySiteId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := ctrl.AC.Stable.
+			Client().
+			Sites().
+			BySiteId(protectedResource.ID()).
+			Drive().
+			Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting site's default drive")
 		}
 
 		driveID = ptr.Val(d.GetId())
 	default:
-		d, err := ctrl.AC.Stable.Client().Users().ByUserId(resourceOwner).Drive().Get(ctx, nil)
+		d, err := ctrl.AC.Stable.Client().
+			Users().
+			ByUserId(protectedResource.ID()).
+			Drive().
+			Get(ctx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting user's default drive")
 		}
@@ -423,7 +433,7 @@ func generateAndRestoreDriveItems(
 		Resource:       resource.Users,
 		Service:        service,
 		Tenant:         tenantID,
-		ResourceOwners: []string{resourceOwner},
+		ResourceOwners: []string{protectedResource.ID()},
 		RestoreCfg:     restoreCfg,
 	}
 
@@ -438,7 +448,7 @@ func generateAndRestoreDriveItems(
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     version.Backup,
 		Options:           opts,
-		ProtectedResource: sel,
+		ProtectedResource: protectedResource,
 		RestoreConfig:     restoreCfg,
 		Selector:          sel,
 	}

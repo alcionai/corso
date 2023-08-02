@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultRestoreLocation = "Corso_Restore_"
+	DefaultRestoreLocation = "Corso_Restore_"
 )
 
 // CollisionPolicy describes how the datalayer behaves in case of a collision.
@@ -70,12 +70,12 @@ type RestoreConfig struct {
 func DefaultRestoreConfig(timeFormat dttm.TimeFormat) RestoreConfig {
 	return RestoreConfig{
 		OnCollision: Skip,
-		Location:    defaultRestoreLocation + dttm.FormatNow(timeFormat),
+		Location:    DefaultRestoreLocation + dttm.FormatNow(timeFormat),
 	}
 }
 
 func DefaultRestoreContainerName(timeFormat dttm.TimeFormat) string {
-	return defaultRestoreLocation + dttm.FormatNow(timeFormat)
+	return DefaultRestoreLocation + dttm.FormatNow(timeFormat)
 }
 
 // EnsureRestoreConfigDefaults sets all non-supported values in the config
@@ -107,10 +107,6 @@ var (
 	// interface compliance required for handling PII
 	_ clues.Concealer = &RestoreConfig{}
 	_ fmt.Stringer    = &RestoreConfig{}
-
-	// interface compliance for the observe package to display
-	// values without concealing PII.
-	_ clues.PlainStringer = &RestoreConfig{}
 )
 
 func (rc RestoreConfig) marshal() string {
@@ -125,9 +121,9 @@ func (rc RestoreConfig) marshal() string {
 func (rc RestoreConfig) concealed() RestoreConfig {
 	return RestoreConfig{
 		OnCollision:        rc.OnCollision,
-		ProtectedResource:  clues.Hide(rc.ProtectedResource).Conceal(),
+		ProtectedResource:  clues.Conceal(rc.ProtectedResource),
 		Location:           path.LoggableDir(rc.Location),
-		Drive:              clues.Hide(rc.Drive).Conceal(),
+		Drive:              clues.Conceal(rc.Drive),
 		IncludePermissions: rc.IncludePermissions,
 	}
 }
@@ -142,7 +138,7 @@ func (rc RestoreConfig) Conceal() string {
 // used within a PrintF, suitable for logging, storing in errors,
 // and other output.
 func (rc RestoreConfig) Format(fs fmt.State, _ rune) {
-	fmt.Fprint(fs, rc.concealed())
+	fmt.Fprint(fs, rc.concealed().marshal())
 }
 
 // String returns a plain text version of the restoreConfig.

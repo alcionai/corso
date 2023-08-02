@@ -2,7 +2,6 @@ package path
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -54,10 +53,6 @@ var (
 	// interface compliance required for handling PII
 	_ clues.Concealer = &Elements{}
 	_ fmt.Stringer    = &Elements{}
-
-	// interface compliance for the observe package to display
-	// values without concealing PII.
-	_ clues.PlainStringer = &Elements{}
 )
 
 // Elements are a PII Concealer-compliant slice of elements within a path.
@@ -123,16 +118,8 @@ func (el Elements) Last() string {
 // LoggableDir takes in a path reference (of any structure) and conceals any
 // non-standard elements (ids, filenames, foldernames, etc).
 func LoggableDir(ref string) string {
-	r := ref
-	n := strings.TrimSuffix(r, string(PathSeparator))
-
-	for n != r {
-		r = n
-		n = strings.TrimSuffix(r, string(PathSeparator))
-	}
-
-	elems := Split(r)
-	elems = pii.ConcealElements(elems, piiSafePathElems)
-
-	return join(elems)
+	// Can't directly use Builder since that could return an error. Instead split
+	// into elements and use that.
+	split := Split(TrimTrailingSlash(ref))
+	return Elements(split).Conceal()
 }

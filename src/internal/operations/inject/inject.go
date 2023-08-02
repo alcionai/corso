@@ -22,11 +22,7 @@ type (
 	BackupProducer interface {
 		ProduceBackupCollections(
 			ctx context.Context,
-			resourceOwner idname.Provider,
-			sels selectors.Selector,
-			metadata []data.RestoreCollection,
-			lastBackupVersion int,
-			ctrlOpts control.Options,
+			bpc BackupProducerConfig,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
@@ -59,7 +55,7 @@ type (
 	}
 
 	ExportConsumer interface {
-		ExportRestoreCollections(
+		ProduceExportCollections(
 			ctx context.Context,
 			backupVersion int,
 			selector selectors.Selector,

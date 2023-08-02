@@ -501,7 +501,7 @@ func suffixed(target, input string) bool {
 // Printers and PII control
 // ----------------------------------------------------------------------------------------------------
 
-var _ clues.PlainConcealer = &Filter{}
+var _ clues.Concealer = &Filter{}
 
 var safeFilterValues = map[string]struct{}{"*": {}}
 
