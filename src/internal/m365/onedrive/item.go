@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/network"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -59,6 +60,45 @@ func downloadItem(
 	return rc, nil
 }
 
+type downloadGetter struct {
+	getter api.Getter
+	url    string
+}
+
+func (dg *downloadGetter) SupportsRangeReq() bool {
+	return true
+}
+
+func (dg *downloadGetter) Get(
+	ctx context.Context,
+	additionalHeaders map[string]string,
+) (io.ReadCloser, error) {
+	resp, err := dg.getter.Get(ctx, dg.url, additionalHeaders)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting file")
+	}
+
+	if graph.IsMalwareResp(ctx, resp) {
+		if resp != nil {
+			resp.Body.Close()
+		}
+
+		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
+	}
+
+	if resp != nil && (resp.StatusCode/100) != 2 {
+		resp.Body.Close()
+
+		// upstream error checks can compare the status with
+		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
+		return nil, clues.
+			Wrap(clues.New(resp.Status), "non-2xx http response").
+			Label(graph.LabelStatus(resp.StatusCode))
+	}
+
+	return resp.Body, nil
+}
+
 func downloadFile(
 	ctx context.Context,
 	ag api.Getter,
@@ -68,24 +108,14 @@ func downloadFile(
 		return nil, clues.New("empty file url")
 	}
 
-	resp, err := ag.Get(ctx, url, nil)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting file")
-	}
+	rc, err := network.NewResetRetryHandler(
+		ctx,
+		&downloadGetter{
+			getter: ag,
+			url:    url,
+		})
 
-	if graph.IsMalwareResp(ctx, resp) {
-		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
-	}
-
-	if resp != nil && (resp.StatusCode/100) != 2 {
-		// upstream error checks can compare the status with
-		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
-		return nil, clues.
-			Wrap(clues.New(resp.Status), "non-2xx http response").
-			Label(graph.LabelStatus(resp.StatusCode))
-	}
-
-	return resp.Body, nil
+	return rc, clues.Stack(err).OrNil()
 }
 
 func downloadItemMeta(

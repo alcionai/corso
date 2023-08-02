@@ -5,10 +5,12 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"syscall"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -437,4 +439,65 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			test.rcExpected(t, rc)
 		})
 	}
+}
+
+type errReader struct{}
+
+func (r errReader) Read(p []byte) (int, error) {
+	return 0, syscall.ECONNRESET
+}
+
+func (suite *ItemUnitTestSuite) TestDownloadItem_ConnectionResetErrorOnFirstRead() {
+	var (
+		callCount int
+
+		testData = []byte("test")
+		testRc   = io.NopCloser(bytes.NewReader(testData))
+		url      = "https://example.com"
+
+		itemFunc = func() models.DriveItemable {
+			di := newItem("test", false)
+			di.SetAdditionalData(map[string]any{
+				"@microsoft.graph.downloadUrl": url,
+			})
+
+			return di
+		}
+
+		GetFunc = func(ctx context.Context, url string) (*http.Response, error) {
+			defer func() {
+				callCount++
+			}()
+
+			if callCount == 0 {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(errReader{}),
+				}, nil
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       testRc,
+			}, nil
+		}
+		errorExpected = require.NoError
+		rcExpected    = require.NotNil
+	)
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	mg := mockGetter{
+		GetFunc: GetFunc,
+	}
+	rc, err := downloadItem(ctx, mg, itemFunc())
+	errorExpected(t, err, clues.ToCore(err))
+	rcExpected(t, rc)
+
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, testData, data)
 }
