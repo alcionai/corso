@@ -386,7 +386,9 @@ var finishedFileTable = []struct {
 	cachedItems        func(fname string, fpath path.Path) map[string]testInfo
 	expectedBytes      int64
 	expectedNumEntries int
-	err                error
+	// Non-folder items.
+	expectedNumItems int
+	err              error
 }{
 	{
 		name: "DetailsExist",
@@ -410,6 +412,7 @@ var finishedFileTable = []struct {
 		expectedBytes: 100,
 		// 1 file and 5 folders.
 		expectedNumEntries: 2,
+		expectedNumItems:   1,
 	},
 	{
 		name: "PendingNoDetails",
@@ -453,16 +456,35 @@ var finishedFileTable = []struct {
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	table := []struct {
-		name   string
-		cached bool
+		name                 string
+		cached               bool
+		differentPrevPath    bool
+		dropInfo             bool
+		expectToMergeEntries bool
 	}{
 		{
 			name:   "all updated",
 			cached: false,
 		},
 		{
-			name:   "all cached",
+			name:   "all cached from assist base",
 			cached: true,
+			// TODO(ashmrtn): Update to true when we add cached items to toMerge.
+			expectToMergeEntries: false,
+		},
+		{
+			name:                 "all cached from merge base",
+			cached:               true,
+			differentPrevPath:    true,
+			dropInfo:             true,
+			expectToMergeEntries: true,
+		},
+		{
+			name:                 "all not cached from merge base",
+			cached:               false,
+			differentPrevPath:    true,
+			dropInfo:             true,
+			expectToMergeEntries: true,
 		},
 	}
 
@@ -480,6 +502,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 						ctx:            ctx,
 						UploadProgress: &snapshotfs.NullUploadProgress{},
 						deets:          bd,
+						toMerge:        newMergeDetails(),
 						pending:        map[string]*itemDetails{},
 						errs:           fault.New(true),
 					}
@@ -487,6 +510,29 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 					ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
 
 					for k, v := range ci {
+						if v.info != nil {
+							v.info.prevPath = v.info.repoPath
+
+							if cachedTest.differentPrevPath {
+								// Doesn't really matter how we change the path as long as it's
+								// different somehow.
+								p, err := path.FromDataLayerPath(
+									suite.targetFilePath.String()+"2",
+									true)
+								require.NoError(
+									t,
+									err,
+									"making prevPath: %v",
+									clues.ToCore(err))
+
+								v.info.prevPath = p
+							}
+
+							if cachedTest.dropInfo {
+								v.info.info = nil
+							}
+						}
+
 						cp.put(k, v.info)
 					}
 
@@ -509,6 +555,17 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 					assert.Empty(t, cp.pending)
 
 					entries := bd.Details().Entries
+
+					if cachedTest.expectToMergeEntries {
+						assert.Equal(
+							t,
+							test.expectedNumItems,
+							cp.toMerge.ItemsToMerge(),
+							"merge entries")
+
+						return
+					}
+
 					assert.Len(t, entries, test.expectedNumEntries)
 
 					for _, entry := range entries {
