@@ -100,15 +100,6 @@ func New(opt *Options) (*Client, error) {
 	}, nil
 }
 
-func maybeAddObj(prefix string, obj ObjInfo, m map[string]ObjInfo) {
-	// We've already found an item to check.
-	if _, ok := m[prefix]; ok {
-		return
-	}
-
-	m[prefix] = obj
-}
-
 func (c *Client) ListUntilAllFound(
 	ctx context.Context,
 	wantedPrefixes []string,
@@ -163,10 +154,13 @@ func (c *Client) ListUntilAllFound(
 		// Since we skip deletion markers above, if the item is the latest version
 		// then it's considered not deleted. If it's not the latest then it's likely
 		// deleted. Not asking for versions always sets IsLatest to false.
+		//
+		// Doesn't really matter if we overwrite a previous selected item so long as
+		// we pick a matching item at some point along the way.
 		if !alsoFindDeleted || obj.IsLatest {
-			maybeAddObj(matchesPrefix, objI, notDeleted)
+			notDeleted[matchesPrefix] = objI
 		} else {
-			maybeAddObj(matchesPrefix, objI, deleted)
+			deleted[matchesPrefix] = objI
 		}
 
 		// Break if we've found all the non-deleted items we're looking for and
@@ -205,6 +199,8 @@ func (c *Client) ObjectRetention(
 	return mode, retainUntil, clues.Wrap(err, fmt.Sprintf(
 		"getting object (key) %q (versionID) %q",
 		obj.Key,
-		obj.Version),
-	).OrNil()
+		obj.Version,
+	)).
+		With("object_key", obj.Key, "object_version", obj.Version).
+		OrNil()
 }
