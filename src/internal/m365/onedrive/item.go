@@ -60,16 +60,16 @@ func downloadItem(
 	return rc, nil
 }
 
-type downloadGetter struct {
+type downloadWithRetries struct {
 	getter api.Getter
 	url    string
 }
 
-func (dg *downloadGetter) SupportsRangeReq() bool {
+func (dg *downloadWithRetries) SupportsRange() bool {
 	return true
 }
 
-func (dg *downloadGetter) Get(
+func (dg *downloadWithRetries) Get(
 	ctx context.Context,
 	additionalHeaders map[string]string,
 ) (io.ReadCloser, error) {
@@ -105,12 +105,12 @@ func downloadFile(
 	url string,
 ) (io.ReadCloser, error) {
 	if len(url) == 0 {
-		return nil, clues.New("empty file url")
+		return nil, clues.New("empty file url").WithClues(ctx)
 	}
 
 	rc, err := network.NewResetRetryHandler(
 		ctx,
-		&downloadGetter{
+		&downloadWithRetries{
 			getter: ag,
 			url:    url,
 		})
