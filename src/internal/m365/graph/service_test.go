@@ -20,7 +20,8 @@ import (
 
 type GraphIntgSuite struct {
 	tester.Suite
-	credentials account.M365Config
+	fakeCredentials account.M365Config
+	credentials     account.M365Config
 }
 
 func TestGraphIntgSuite(t *testing.T) {
@@ -33,19 +34,32 @@ func TestGraphIntgSuite(t *testing.T) {
 
 func (suite *GraphIntgSuite) SetupSuite() {
 	t := suite.T()
-	a := tconfig.NewFakeM365Account(t)
-	m365, err := a.M365Config()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	fakeAcct := tconfig.NewFakeM365Account(t)
+	acct := tconfig.NewM365Account(t)
+
+	m365, err := fakeAcct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.fakeCredentials = m365
+
+	m365, err = acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
+
+	InitializeConcurrencyLimiter(ctx, false, 0)
 }
 
 func (suite *GraphIntgSuite) TestCreateAdapter() {
 	t := suite.T()
 	adpt, err := CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret)
+		suite.fakeCredentials.AzureTenantID,
+		suite.fakeCredentials.AzureClientID,
+		suite.fakeCredentials.AzureClientSecret)
 
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, adpt)
@@ -87,9 +101,9 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 func (suite *GraphIntgSuite) TestSerializationEndPoint() {
 	t := suite.T()
 	adpt, err := CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret)
+		suite.fakeCredentials.AzureTenantID,
+		suite.fakeCredentials.AzureClientID,
+		suite.fakeCredentials.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	serv := NewService(adpt)
@@ -155,9 +169,9 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	}
 
 	adpt, err := CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
+		suite.fakeCredentials.AzureTenantID,
+		suite.fakeCredentials.AzureClientID,
+		suite.fakeCredentials.AzureClientSecret,
 		appendMiddleware(&alwaysECONNRESET))
 	require.NoError(t, err, clues.ToCore(err))
 
