@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	stdpath "path"
 	"testing"
 	"time"
@@ -1168,9 +1169,27 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				return
 			}
 
-			assert.ElementsMatch(t, test.expectedEntries, deets.Details().Items())
+			// Check the JSON output format of things because for some reason it's not
+			// using the proper comparison for time.Time and failing due to that.
+			checkJSONOutputs(t, test.expectedEntries, deets.Details().Items())
 		})
 	}
+}
+
+func checkJSONOutputs(
+	t *testing.T,
+	expected []*details.Entry,
+	got []*details.Entry,
+) {
+	t.Helper()
+
+	expectedJSON, err := json.Marshal(expected)
+	require.NoError(t, err, "marshalling expected data")
+
+	gotJSON, err := json.Marshal(got)
+	require.NoError(t, err, "marshalling got data")
+
+	assert.JSONEq(t, string(expectedJSON), string(gotJSON))
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
