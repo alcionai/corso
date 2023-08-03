@@ -5,33 +5,27 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func ProduceBackupCollections(
 	ctx context.Context,
+	bpc inject.BackupProducerConfig,
 	ac api.Client,
-	selector selectors.Selector,
-	user idname.Provider,
-	metadata []data.RestoreCollection,
-	lastBackupVersion int,
 	tenant string,
 	su support.StatusUpdater,
-	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
-	odb, err := selector.ToOneDriveBackup()
+	odb, err := bpc.Selector.ToOneDriveBackup()
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "parsing selector").WithClues(ctx)
 	}
@@ -56,11 +50,11 @@ func ProduceBackupCollections(
 		nc := NewCollections(
 			&itemBackupHandler{ac.Drives(), scope},
 			tenant,
-			user.ID(),
+			bpc.ProtectedResource.ID(),
 			su,
-			ctrlOpts)
+			bpc.Options)
 
-		odcs, canUsePreviousBackup, err = nc.Get(ctx, metadata, ssmb, errs)
+		odcs, canUsePreviousBackup, err = nc.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
@@ -70,12 +64,7 @@ func ProduceBackupCollections(
 		collections = append(collections, odcs...)
 	}
 
-	mcs, err := migrationCollections(
-		lastBackupVersion,
-		tenant,
-		user,
-		su,
-		ctrlOpts)
+	mcs, err := migrationCollections(bpc, tenant, su)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -87,7 +76,7 @@ func ProduceBackupCollections(
 			ctx,
 			collections,
 			tenant,
-			user.ID(),
+			bpc.ProtectedResource.ID(),
 			path.OneDriveService,
 			categories,
 			su,
@@ -104,18 +93,16 @@ func ProduceBackupCollections(
 
 // adds data migrations to the collection set.
 func migrationCollections(
-	lastBackupVersion int,
+	bpc inject.BackupProducerConfig,
 	tenant string,
-	user idname.Provider,
 	su support.StatusUpdater,
-	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
 	// assume a version < 0 implies no prior backup, thus nothing to migrate.
-	if version.IsNoBackup(lastBackupVersion) {
+	if version.IsNoBackup(bpc.LastBackupVersion) {
 		return nil, nil
 	}
 
-	if lastBackupVersion >= version.All8MigrateUserPNToID {
+	if bpc.LastBackupVersion >= version.All8MigrateUserPNToID {
 		return nil, nil
 	}
 
@@ -123,7 +110,7 @@ func migrationCollections(
 	// backup, onedrive needs to force the owner PN -> ID migration
 	mc, err := path.ServicePrefix(
 		tenant,
-		user.ID(),
+		bpc.ProtectedResource.ID(),
 		path.OneDriveService,
 		path.FilesCategory)
 	if err != nil {
@@ -132,7 +119,7 @@ func migrationCollections(
 
 	mpc, err := path.ServicePrefix(
 		tenant,
-		user.Name(),
+		bpc.ProtectedResource.Name(),
 		path.OneDriveService,
 		path.FilesCategory)
 	if err != nil {

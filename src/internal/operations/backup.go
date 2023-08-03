@@ -392,7 +392,7 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp inject.BackupProducer,
-	resourceOwner idname.Provider,
+	protectedResource idname.Provider,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
@@ -405,14 +405,15 @@ func produceBackupDataCollections(
 		close(complete)
 	}()
 
-	return bp.ProduceBackupCollections(
-		ctx,
-		resourceOwner,
-		sel,
-		metadata,
-		lastBackupVersion,
-		ctrlOpts,
-		errs)
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion:   lastBackupVersion,
+		MetadataCollections: metadata,
+		Options:             ctrlOpts,
+		ProtectedResource:   protectedResource,
+		Selector:            sel,
+	}
+
+	return bp.ProduceBackupCollections(ctx, bpc, errs)
 }
 
 // ---------------------------------------------------------------------------

@@ -16,8 +16,10 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -469,14 +471,19 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			ctrlOpts := control.DefaultOptions()
 			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           ctrlOpts,
+				ProtectedResource: inMock.NewProvider(userID, userID),
+			}
+
 			collections, err := createCollections(
 				ctx,
+				bpc,
 				handlers,
 				suite.tenantID,
-				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				ctrlOpts,
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -546,15 +553,20 @@ func (suite *BackupIntgSuite) TestDelta() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: inMock.NewProvider(userID, userID),
+			}
+
 			// get collections without providing any delta history (ie: full backup)
 			collections, err := createCollections(
 				ctx,
+				bpc,
 				handlers,
 				suite.tenantID,
-				inMock.NewProvider(userID, userID),
 				test.scope,
 				DeltaPaths{},
-				control.DefaultOptions(),
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -582,12 +594,11 @@ func (suite *BackupIntgSuite) TestDelta() {
 			// which should only contain the difference.
 			collections, err = createCollections(
 				ctx,
+				bpc,
 				handlers,
 				suite.tenantID,
-				inMock.NewProvider(userID, userID),
 				test.scope,
 				dps,
-				control.DefaultOptions(),
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -626,14 +637,20 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion: version.NoBackup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: inMock.NewProvider(suite.user, suite.user),
+		Selector:          sel.Selector,
+	}
+
 	collections, err := createCollections(
 		ctx,
+		bpc,
 		handlers,
 		suite.tenantID,
-		inMock.NewProvider(suite.user, suite.user),
 		sel.Scopes()[0],
 		DeltaPaths{},
-		control.DefaultOptions(),
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -702,14 +719,19 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 
 			var wg sync.WaitGroup
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: inMock.NewProvider(suite.user, suite.user),
+			}
+
 			edcs, err := createCollections(
 				ctx,
+				bpc,
 				handlers,
 				suite.tenantID,
-				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.DefaultOptions(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -827,14 +849,19 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 
 			var wg sync.WaitGroup
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: inMock.NewProvider(suite.user, suite.user),
+			}
+
 			collections, err := createCollections(
 				ctx,
+				bpc,
 				handlers,
 				suite.tenantID,
-				inMock.NewProvider(suite.user, suite.user),
 				test.scope,
 				DeltaPaths{},
-				control.DefaultOptions(),
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -893,9 +920,9 @@ func (suite *CollectionPopulationSuite) SetupSuite() {
 func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 	var (
 		qp = graph.QueryParams{
-			Category:      path.EmailCategory, // doesn't matter which one we use.
-			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-			TenantID:      suite.creds.AzureTenantID,
+			Category:          path.EmailCategory, // doesn't matter which one we use.
+			ProtectedResource: inMock.NewProvider("user_id", "user_name"),
+			TenantID:          suite.creds.AzureTenantID,
 		}
 		statusUpdater = func(*support.ControllerOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
@@ -1189,8 +1216,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 
 	var (
 		qp = graph.QueryParams{
-			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-			TenantID:      suite.creds.AzureTenantID,
+			ProtectedResource: inMock.NewProvider("user_id", "user_name"),
+			TenantID:          suite.creds.AzureTenantID,
 		}
 
 		statusUpdater = func(*support.ControllerOperationStatus) {}
@@ -1240,7 +1267,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	oldPath1 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := location.Append("1").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ResourceOwner.ID(),
+			qp.ProtectedResource.ID(),
 			path.ExchangeService,
 			cat,
 			false)
@@ -1252,7 +1279,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	oldPath2 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := location.Append("2").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ResourceOwner.ID(),
+			qp.ProtectedResource.ID(),
 			path.ExchangeService,
 			cat,
 			false)
@@ -1264,7 +1291,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	idPath1 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := path.Builder{}.Append("1").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ResourceOwner.ID(),
+			qp.ProtectedResource.ID(),
 			path.ExchangeService,
 			cat,
 			false)
@@ -1276,7 +1303,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	idPath2 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := path.Builder{}.Append("2").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ResourceOwner.ID(),
+			qp.ProtectedResource.ID(),
 			path.ExchangeService,
 			cat,
 			false)
@@ -1574,9 +1601,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 
 			var (
 				qp = graph.QueryParams{
-					Category:      path.EmailCategory, // doesn't matter which one we use.
-					ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-					TenantID:      suite.creds.AzureTenantID,
+					Category:          path.EmailCategory, // doesn't matter which one we use.
+					ProtectedResource: inMock.NewProvider("user_id", "user_name"),
+					TenantID:          suite.creds.AzureTenantID,
 				}
 				statusUpdater = func(*support.ControllerOperationStatus) {}
 				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
@@ -1594,8 +1621,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 				}
 			)
 
-			require.Equal(t, "user_id", qp.ResourceOwner.ID(), qp.ResourceOwner)
-			require.Equal(t, "user_name", qp.ResourceOwner.Name(), qp.ResourceOwner)
+			require.Equal(t, "user_id", qp.ProtectedResource.ID(), qp.ProtectedResource)
+			require.Equal(t, "user_name", qp.ProtectedResource.Name(), qp.ProtectedResource)
 
 			collections, err := populateCollections(
 				ctx,
@@ -1659,9 +1686,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 		tenantID = suite.creds.AzureTenantID
 		cat      = path.EmailCategory // doesn't matter which one we use,
 		qp       = graph.QueryParams{
-			Category:      cat,
-			ResourceOwner: inMock.NewProvider("user_id", "user_name"),
-			TenantID:      suite.creds.AzureTenantID,
+			Category:          cat,
+			ProtectedResource: inMock.NewProvider("user_id", "user_name"),
+			TenantID:          suite.creds.AzureTenantID,
 		}
 		statusUpdater = func(*support.ControllerOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]

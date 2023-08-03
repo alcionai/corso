@@ -695,7 +695,7 @@ func (c *Collections) UpdateCollections(
 			itemID   = ptr.Val(item.GetId())
 			itemName = ptr.Val(item.GetName())
 			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
-			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
+			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 		)
 
 		if item.GetMalware() != nil {
@@ -778,7 +778,7 @@ func (c *Collections) UpdateCollections(
 			}
 
 			colScope := CollectionScopeFolder
-			if item.GetPackage() != nil {
+			if item.GetPackageEscaped() != nil {
 				colScope = CollectionScopePackage
 			}
 

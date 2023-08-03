@@ -572,7 +572,7 @@ func checkEvent(
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
-	assert.Equal(t, ptr.Val(expected.GetType()), ptr.Val(got.GetType()), "Type")
+	assert.Equal(t, ptr.Val(expected.GetTypeEscaped()), ptr.Val(got.GetTypeEscaped()), "Type")
 }
 
 func compareExchangeEmail(

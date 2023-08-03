@@ -35,11 +35,7 @@ type Controller struct {
 
 func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
-	_ idname.Provider,
-	_ selectors.Selector,
-	_ []data.RestoreCollection,
-	_ int,
-	_ control.Options,
+	_ inject.BackupProducerConfig,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
