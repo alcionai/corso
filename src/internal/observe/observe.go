@@ -111,8 +111,9 @@ func (o *observer) resetWriter(ctx context.Context) {
 		mpb.WithOutput(o.w),
 	}
 
-	// if o.cfg.displayIsTerminal {
-	// 	opts = append(opts, mpb.WithManualRefresh())
+	// needed for tests to pass with mpb versions > 8.1.6
+	// if !o.cfg.displayIsTerminal {
+	// 	opts = append(opts, mpb.WithAutoRefresh())
 	// }
 
 	o.mp = mpb.NewWithContext(ctx, opts...)
