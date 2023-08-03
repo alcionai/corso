@@ -74,10 +74,12 @@ func downloadFile(
 	}
 
 	if graph.IsMalwareResp(ctx, resp) {
+		defer resp.Body.Close()
 		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 
 	if resp != nil && (resp.StatusCode/100) != 2 {
+		defer resp.Body.Close()
 		// upstream error checks can compare the status with
 		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
 		return nil, clues.
