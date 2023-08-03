@@ -126,8 +126,10 @@ type backupStats struct {
 // An assist backup must meet the following criteria:
 // 1. new detail entries were produced
 // 2. valid details ssid & item snapshot ID
-// 3. No non-recoverable errors
+// 3. no non-recoverable errors
 // 4. we observed recoverable errors
+// 5. not running in best effort mode. Reason being that there is
+// no way to distinguish assist backups from merge backups in best effort mode.
 //
 // Primary reason for persisting assist backup models is to ensure we don't
 // lose corso extension data(deets) in the event of recoverable failures.
@@ -140,26 +142,39 @@ type backupStats struct {
 func isAssistBackup(
 	newDeetsProduced bool,
 	snapID, ssid string,
+	failurePolicy control.FailurePolicy,
 	err *fault.Bus,
 ) bool {
 	return newDeetsProduced &&
 		len(snapID) > 0 &&
 		len(ssid) > 0 &&
+		failurePolicy != control.BestEffort &&
 		err.Failure() == nil &&
 		len(err.Recovered()) > 0
 }
 
 // A merge backup must meet the following criteria:
 // 1. valid details ssid & item snapshot ID
-// 2. zero recoverable or non-recoverable errors
+// 2. zero recoverable errors
+// 3. no recoverable errors if not running in best effort mode
 func isMergeBackup(
 	snapID, ssid string,
+	failurePolicy control.FailurePolicy,
 	err *fault.Bus,
 ) bool {
-	return len(snapID) > 0 &&
-		len(ssid) > 0 &&
-		err.Failure() == nil &&
-		len(err.Recovered()) == 0
+	if len(snapID) == 0 || len(ssid) == 0 {
+		return false
+	}
+
+	if err.Failure() != nil {
+		return false
+	}
+
+	if failurePolicy == control.BestEffort {
+		return true
+	}
+
+	return len(err.Recovered()) == 0
 }
 
 // ---------------------------------------------------------------------------
@@ -826,12 +841,14 @@ func (op *BackupOperation) createBackupModels(
 	if isMergeBackup(
 		snapID,
 		ssid,
+		op.Options.FailureHandling,
 		op.Errors) {
 		tags[model.BackupTypeTag] = model.MergeBackup
 	} else if isAssistBackup(
 		opStats.hasNewDetailEntries,
 		snapID,
 		ssid,
+		op.Options.FailureHandling,
 		op.Errors) {
 		tags[model.BackupTypeTag] = model.AssistBackup
 	} else {
