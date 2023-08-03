@@ -872,20 +872,20 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	}
 }
 
-type ExchangeRestoreIntgSuite struct {
+type ExchangeRestoreNightlyIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
 func TestExchangeRestoreIntgSuite(t *testing.T) {
-	suite.Run(t, &ExchangeRestoreIntgSuite{
-		Suite: tester.NewIntegrationSuite(
+	suite.Run(t, &ExchangeRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *ExchangeRestoreIntgSuite) SetupSuite() {
+func (suite *ExchangeRestoreNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
@@ -909,7 +909,7 @@ type clientItemPager interface {
 	) (graph.Container, error)
 }
 
-func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptions() {
+func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvancedOptions() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -1219,7 +1219,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 	})
 }
 
-func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
+func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
