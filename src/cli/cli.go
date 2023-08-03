@@ -171,7 +171,8 @@ func Handle() {
 
 	defer func() {
 		observe.Flush(ctx) // flush the progress bars
-		_ = log.Sync()     // flush all logs in the buffer
+
+		_ = log.Sync() // flush all logs in the buffer
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
