@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 var _ io.ReadCloser = &resetRetryHandler{}
@@ -27,9 +29,9 @@ var retryErrs = []error{
 }
 
 type Getter interface {
-	// SupportsRangeReq returns true if this Getter supports adding Range headers
-	// to the Get call. Otherwise returns false.
-	SupportsRangeReq() bool
+	// SupportsRange returns true if this Getter supports adding Range headers to
+	// the Get call. Otherwise returns false.
+	SupportsRange() bool
 	// Get attempts to get another reader for the data this reader is returning.
 	// headers denotes any additional headers that should be added to the request,
 	// like a Range header.
@@ -45,6 +47,13 @@ type Getter interface {
 	Get(ctx context.Context, headers map[string]string) (io.ReadCloser, error)
 }
 
+// NewResetRetryHandler returns an io.ReadCloser with the reader initialized to
+// the result of getter. The reader is eagerly initialized during this call so
+// if callers of this function want to delay initialization they should wrap
+// this reader in a lazy initializer.
+//
+// Selected errors that the reader hits during Read calls (e.x.
+// syscall.ECONNRESET) will be automatically retried by the returned reader.
 func NewResetRetryHandler(
 	ctx context.Context,
 	getter Getter,
@@ -103,10 +112,11 @@ func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
 		read = read + n
 
 		// Catch short reads with no error and errors we don't know how to retry.
-		if !isRetriable(err) || numRetries >= numMaxRetries {
+		if !isRetriable(err) {
 			// Not everything knows how to handle a wrapped version of EOF (including
 			// io.ReadAll) so return the error itself here.
 			if errors.Is(err, io.EOF) {
+				logger.CtxErr(rrh.ctx, err).Debug("dropping wrapped io.EOF")
 				return read, io.EOF
 			}
 
@@ -135,21 +145,20 @@ func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
 // read errors pass an int in to denote how many times to attempt to reconnect.
 // This avoids mulplicative retries when called from other functions.
 func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
-	skip := rrh.offset
-	headers := map[string]string{}
+	var (
+		attempts int
+		skip     = rrh.offset
+		headers  = map[string]string{}
+		// This is annoying but we want the equivalent of a do-while loop.
+		err = retryErrs[0]
+	)
 
-	if rrh.getter.SupportsRangeReq() {
+	if rrh.getter.SupportsRange() {
 		headers[rangeHeaderKey] = fmt.Sprintf(
 			rangeHeaderOneSidedValueTmpl,
 			rrh.offset)
 		skip = 0
 	}
-
-	var (
-		attempts int
-		// This is annoying but we want the equivalent of a do-while loop.
-		err = retryErrs[0]
-	)
 
 	for attempts < maxRetries && isRetriable(err) {
 		attempts++

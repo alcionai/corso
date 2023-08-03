@@ -87,7 +87,7 @@ type mockGetter struct {
 	callCount     int
 }
 
-func (mg *mockGetter) SupportsRangeReq() bool {
+func (mg *mockGetter) SupportsRange() bool {
 	return mg.supportsRange
 }
 
