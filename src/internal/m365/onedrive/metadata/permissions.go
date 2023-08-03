@@ -216,7 +216,7 @@ func FilterLinkShares(ctx context.Context, perms []models.Permissionable) []Link
 			ID: ptr.Val(p.GetId()),
 			Link: LinkShareLink{
 				Scope:            ptr.Val(link.GetScope()),
-				Type:             ptr.Val(link.GetType()),
+				Type:             ptr.Val(link.GetTypeEscaped()),
 				WebURL:           ptr.Val(link.GetWebUrl()),
 				PreventsDownload: ptr.Val(link.GetPreventsDownload()),
 			},

@@ -92,7 +92,7 @@ func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 			},
 
 			validateOutput: func(e models.Eventable) bool {
-				return e.GetRecurrence().GetRange().GetRecurrenceTimeZone() == nil
+				return e.GetRecurrence().GetRangeEscaped().GetRecurrenceTimeZone() == nil
 			},
 		},
 		{
@@ -105,7 +105,7 @@ func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 			},
 
 			validateOutput: func(e models.Eventable) bool {
-				return e.GetRecurrence().GetRange().GetRecurrenceTimeZone() == nil
+				return e.GetRecurrence().GetRangeEscaped().GetRecurrenceTimeZone() == nil
 			},
 		},
 		{
@@ -118,7 +118,7 @@ func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 			},
 
 			validateOutput: func(e models.Eventable) bool {
-				return ptr.Val(e.GetRecurrence().GetRange().GetRecurrenceTimeZone()) == "Pacific Standard Time"
+				return ptr.Val(e.GetRecurrence().GetRangeEscaped().GetRecurrenceTimeZone()) == "Pacific Standard Time"
 			},
 		},
 		{

@@ -111,7 +111,7 @@ func (p *testIDsPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 		ierr.SetCode(&p.errorCode)
 
 		err := odataerrors.NewODataError()
-		err.SetError(ierr)
+		err.SetErrorEscaped(ierr)
 
 		return nil, err
 	}

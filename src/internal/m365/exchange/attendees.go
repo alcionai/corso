@@ -37,7 +37,7 @@ func FormatAttendees(event models.Eventable, isHTML bool) string {
 			response: entry.GetStatus().GetResponse().String(),
 		}
 
-		switch ptr.Val(entry.GetType()) {
+		switch ptr.Val(entry.GetTypeEscaped()) {
 		case models.REQUIRED_ATTENDEETYPE:
 			required = append(required, temp)
 
@@ -81,7 +81,7 @@ func attendeeListToString(attendList []attendee, heading string, isHTML bool) st
 }
 
 func guardCheckForAttendee(attendee models.Attendeeable) bool {
-	if attendee.GetType() == nil ||
+	if attendee.GetTypeEscaped() == nil ||
 		attendee.GetStatus() == nil {
 		return true
 	}

@@ -19,7 +19,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.0.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.12.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.13.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v2 v2.4.1
