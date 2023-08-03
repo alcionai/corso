@@ -116,7 +116,12 @@ func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
 			// Not everything knows how to handle a wrapped version of EOF (including
 			// io.ReadAll) so return the error itself here.
 			if errors.Is(err, io.EOF) {
-				logger.CtxErr(rrh.ctx, err).Debug("dropping wrapped io.EOF")
+				// Log info about the error, but only if it's not directly an EOF.
+				// Otherwise this can be rather chatty and annoying to filter out.
+				if err != io.EOF {
+					logger.CtxErr(rrh.ctx, err).Debug("dropping wrapped io.EOF")
+				}
+
 				return read, io.EOF
 			}
 
@@ -160,14 +165,24 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 		skip = 0
 	}
 
+	ctx := clues.Add(
+		rrh.ctx,
+		"supports_range", rrh.getter.SupportsRange(),
+		"restart_at_offset", rrh.offset)
+
 	for attempts < maxRetries && isRetriable(err) {
 		attempts++
 
+		logger.Ctx(ctx).Infow("getting another reader", "attempt_num", attempts)
+
 		var r io.ReadCloser
 
-		r, err = rrh.getter.Get(rrh.ctx, headers)
+		r, err = rrh.getter.Get(ctx, headers)
 		if err != nil {
-			err = clues.Wrap(err, "retrying connection").WithClues(rrh.ctx)
+			err = clues.Wrap(err, "retrying connection").
+				WithClues(ctx).
+				With("attempt_num", attempts)
+
 			continue
 		}
 
@@ -179,7 +194,9 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 		if skip > 0 {
 			_, err = io.CopyN(io.Discard, rrh.innerReader, skip)
 			if err != nil {
-				err = clues.Wrap(err, "seeking to correct offset").WithClues(rrh.ctx)
+				err = clues.Wrap(err, "seeking to correct offset").
+					WithClues(ctx).
+					With("attempt_num", attempts)
 			}
 		}
 	}
