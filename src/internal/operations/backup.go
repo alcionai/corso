@@ -137,8 +137,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
 	defer func() {
 		end()
-		// wait for the progress display to clean up
-		observe.Complete()
 	}()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
@@ -399,11 +397,8 @@ func produceBackupDataCollections(
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	complete := observe.MessageWithCompletion(ctx, "Discovering items to backup")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	defer close(progressBar)
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion:   lastBackupVersion,
@@ -464,11 +459,8 @@ func consumeBackupCollections(
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	ctx = clues.Add(ctx, "collection_source", "operations")
 
-	complete := observe.MessageWithCompletion(ctx, "Backing up data")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	progressBar := observe.MessageWithCompletion(ctx, "Backing up data")
+	defer close(progressBar)
 
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),
