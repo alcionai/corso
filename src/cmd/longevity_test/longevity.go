@@ -67,6 +67,9 @@ func deleteBackups(
 // pitrListBackups connects to the repository at the given point in time and
 // lists the backups for service. It then checks the list of backups contains
 // the backups in backupIDs.
+//
+//nolint:unused
+//lint:ignore U1000 Waiting for full support.
 func pitrListBackups(
 	ctx context.Context,
 	service path.ServiceType,
@@ -150,15 +153,9 @@ func main() {
 		fatal(ctx, "invalid number of days provided", nil)
 	}
 
-	beforeDel := time.Now()
-
-	backups, err := deleteBackups(ctx, service, days)
+	_, err = deleteBackups(ctx, service, days)
 	if err != nil {
-		fatal(ctx, "deleting backups", clues.Stack(err))
-	}
-
-	if err := pitrListBackups(ctx, service, beforeDel, backups); err != nil {
-		fatal(ctx, "listing backups from point in time", clues.Stack(err))
+		fatal(cc.Context(), "deleting backups", clues.Stack(err))
 	}
 }
 
