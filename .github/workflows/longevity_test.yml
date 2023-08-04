@@ -250,6 +250,33 @@ jobs:
 
 ##########################################################################################################################################
 
+        # TODO(ashmrtn) Testing only, remove before merging.
+      - name: S3 retention check
+        id: s3-retention-check
+        run: |
+          # TODO(ashmrtn): We can also check that non-current versions of
+          # blobs don't have their retention extended if we want.
+          #
+          # Objects in S3 should have longer locking retention times now that
+          # we can explicitly check for.
+          #
+          # Blob prefixes are as follows:
+          #   - kopia.blobcfg - repo-wide config
+          #   - kopia.repository - repo-wide config
+          #   - p - data pack blobs (i.e. file data)
+          #   - q - metadata pack blobs (i.e. manifests, directory listings, etc)
+          #   - x - index blobs
+          ./s3checker \
+            --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
+            --bucket-prefix ${{ env.PREFIX }} \
+            --retention-mode ${{ env.RETENTION_MODE }} \
+            --live-retention-duration "$((${{ env.RETENTION_DURATION}}-1))h" \
+            --prefix "kopia.blobcfg" \
+            --prefix "kopia.repository" \
+            --prefix "p" \
+            --prefix "q" \
+            --prefix "x"
+
 # Export OneDrive Test
       - name: OneDrive Export test
         run: |
@@ -360,33 +387,6 @@ jobs:
               --prefix "q" \
               --prefix "x"
           fi
-
-        # TODO(ashmrtn) Testing only, remove before merging.
-      - name: S3 retention check
-        id: s3-retention-check
-        run: |
-          # TODO(ashmrtn): We can also check that non-current versions of
-          # blobs don't have their retention extended if we want.
-          #
-          # Objects in S3 should have longer locking retention times now that
-          # we can explicitly check for.
-          #
-          # Blob prefixes are as follows:
-          #   - kopia.blobcfg - repo-wide config
-          #   - kopia.repository - repo-wide config
-          #   - p - data pack blobs (i.e. file data)
-          #   - q - metadata pack blobs (i.e. manifests, directory listings, etc)
-          #   - x - index blobs
-          ./s3checker \
-            --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
-            --bucket-prefix ${{ env.PREFIX }} \
-            --retention-mode ${{ env.RETENTION_MODE }} \
-            --live-retention-duration "$((${{ env.RETENTION_DURATION}}-1))h" \
-            --prefix "kopia.blobcfg" \
-            --prefix "kopia.repository" \
-            --prefix "p" \
-            --prefix "q" \
-            --prefix "x"
 
 ##########################################################################################################################################
 
