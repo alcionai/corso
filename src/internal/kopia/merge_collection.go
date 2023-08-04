@@ -46,9 +46,9 @@ func (mc *mergeCollection) addCollection(
 	slices.SortStableFunc(mc.cols, func(a, b col) int {
 		switch true {
 		case a.storagePath < b.storagePath:
-			return 1
-		case a.storagePath > b.storagePath:
 			return -1
+		case a.storagePath > b.storagePath:
+			return 1
 		default:
 			return 0
 		}
