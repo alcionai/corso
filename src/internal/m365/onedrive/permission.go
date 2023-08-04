@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/puzpuzpuz/xsync/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -18,9 +19,9 @@ import (
 
 func getParentMetadata(
 	parentPath path.Path,
-	parentDirToMeta map[string]metadata.Metadata,
+	parentDirToMeta *xsync.MapOf[string, metadata.Metadata],
 ) (metadata.Metadata, error) {
-	parentMeta, ok := parentDirToMeta[parentPath.String()]
+	parentMeta, ok := parentDirToMeta.Load(parentPath.String())
 	if !ok {
 		drivePath, err := path.ToDrivePath(parentPath)
 		if err != nil {
@@ -88,7 +89,7 @@ func getCollectionMetadata(
 func computePreviousLinkShares(
 	ctx context.Context,
 	originDir path.Path,
-	parentMetas map[string]metadata.Metadata,
+	parentMetas *xsync.MapOf[string, metadata.Metadata],
 ) ([]metadata.LinkShare, error) {
 	linkShares := []metadata.LinkShare{}
 	ctx = clues.Add(ctx, "origin_dir", originDir)
@@ -110,7 +111,7 @@ func computePreviousLinkShares(
 			break
 		}
 
-		meta, ok := parentMetas[parent.String()]
+		meta, ok := parentMetas.Load(parent.String())
 		if !ok {
 			return nil, clues.New("no metadata found in parent").WithClues(ictx)
 		}
@@ -138,7 +139,7 @@ func computePreviousMetadata(
 	ctx context.Context,
 	originDir path.Path,
 	// map parent dir -> parent's metadata
-	parentMetas map[string]metadata.Metadata,
+	parentMetas *xsync.MapOf[string, metadata.Metadata],
 ) (metadata.Metadata, error) {
 	var (
 		parent path.Path
@@ -167,7 +168,7 @@ func computePreviousMetadata(
 			return metadata.Metadata{}, nil
 		}
 
-		meta, ok = parentMetas[parent.String()]
+		meta, ok = parentMetas.Load(parent.String())
 		if !ok {
 			return metadata.Metadata{}, clues.New("no metadata found for parent folder: " + parent.String()).WithClues(ictx)
 		}
@@ -191,7 +192,7 @@ func UpdatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
-	oldPermIDToNewID map[string]string,
+	oldPermIDToNewID *xsync.MapOf[string, string],
 ) error {
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
@@ -206,7 +207,7 @@ func UpdatePermissions(
 		// this is bad citizenship, and could end up consuming a lot of
 		// system resources if servicers leak client connections (sockets, etc).
 
-		pid, ok := oldPermIDToNewID[p.ID]
+		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
 			return clues.New("no new permission id").WithClues(ctx)
 		}
@@ -270,7 +271,7 @@ func UpdatePermissions(
 			return clues.Stack(err)
 		}
 
-		oldPermIDToNewID[p.ID] = ptr.Val(newPerm.GetValue()[0].GetId())
+		oldPermIDToNewID.Store(p.ID, ptr.Val(newPerm.GetValue()[0].GetId()))
 	}
 
 	return nil
@@ -287,7 +288,7 @@ func UpdateLinkShares(
 	driveID string,
 	itemID string,
 	lsAdded, lsRemoved []metadata.LinkShare,
-	oldLinkShareIDToNewID map[string]string,
+	oldLinkShareIDToNewID *xsync.MapOf[string, string],
 ) (bool, error) {
 	// You can only delete inherited sharing links the first time you
 	// create a sharing link which is done using
@@ -366,7 +367,7 @@ func UpdateLinkShares(
 			return alreadyDeleted, clues.Stack(err)
 		}
 
-		oldLinkShareIDToNewID[ls.ID] = ptr.Val(newLS.GetId())
+		oldLinkShareIDToNewID.Store(ls.ID, ptr.Val(newLS.GetId()))
 	}
 
 	// It is possible to have empty link shares even though we should

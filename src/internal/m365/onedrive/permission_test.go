@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -156,7 +157,12 @@ func runComputeParentPermissionsTest(
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			m, err := computePreviousMetadata(ctx, test.item, test.parentPerms)
+			input := xsync.NewMapOf[metadata.Metadata]()
+			for k, v := range test.parentPerms {
+				input.Store(k, v)
+			}
+
+			m, err := computePreviousMetadata(ctx, test.item, input)
 			require.NoError(t, err, "compute permissions")
 
 			assert.Equal(t, m, test.meta)
