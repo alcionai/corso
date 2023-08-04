@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/network"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -15,6 +16,11 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+)
+
+const (
+	acceptHeaderKey   = "Accept"
+	acceptHeaderValue = "*/*"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -73,7 +79,12 @@ func (dg *downloadWithRetries) Get(
 	ctx context.Context,
 	additionalHeaders map[string]string,
 ) (io.ReadCloser, error) {
-	resp, err := dg.getter.Get(ctx, dg.url, additionalHeaders)
+	headers := maps.Clone(additionalHeaders)
+	// Set the accept header like curl does. Local testing showed range headers
+	// wouldn't work without it (get 416 responses instead of 206).
+	headers[acceptHeaderKey] = acceptHeaderValue
+
+	resp, err := dg.getter.Get(ctx, dg.url, headers)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting file")
 	}
