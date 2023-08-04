@@ -209,7 +209,7 @@ jobs:
         id: delete-exchange-test
         env:
           SERVICE: "exchange"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup exchange \n" >> ${CORSO_LOG_FILE}
@@ -222,7 +222,7 @@ jobs:
         id: delete-onedrive-test
         env:
           SERVICE: "onedrive"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup onedrive \n" >> ${CORSO_LOG_FILE}
