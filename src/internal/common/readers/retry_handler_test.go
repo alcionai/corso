@@ -1,4 +1,4 @@
-package network_test
+package readers_test
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/network"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -472,7 +472,7 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				resData = make([]byte, len(data))
 			)
 
-			rrh, err := network.NewResetRetryHandler(ctx, getter)
+			rrh, err := readers.NewResetRetryHandler(ctx, getter)
 			require.NoError(t, err, "making reader wrapper: %v", clues.ToCore(err))
 
 			for err == nil && offset < len(data) {
