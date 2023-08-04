@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
-	rep "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -50,7 +49,10 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case initCommand:
-		c, fs = utils.AddCommand(cmd, s3InitCmd())
+		init := s3InitCmd()
+		flags.AddRetentionConfigFlags(init)
+		c, fs = utils.AddCommand(cmd, init)
+
 	case connectCommand:
 		c, fs = utils.AddCommand(cmd, s3ConnectCmd())
 	}
@@ -133,6 +135,11 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	opt := utils.ControlWithConfig(cfg)
 
+	retentionOpts, err := utils.MakeRetentionOpts(cmd)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
 	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
 	utils.SendStartCorsoEvent(
 		ctx,
@@ -159,13 +166,12 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	// TODO(ashmrtn): Wire to flags for retention during repo init.
 	r, err := repository.Initialize(
 		ctx,
 		cfg.Account,
 		cfg.Storage,
 		opt,
-		rep.Retention{})
+		retentionOpts)
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil

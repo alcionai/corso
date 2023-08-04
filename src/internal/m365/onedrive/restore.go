@@ -218,7 +218,7 @@ func RestoreCollection(
 	}
 
 	caches.collisionKeyToItemID = collisionKeyToItemID
-	caches.ParentDirToMeta[dc.FullPath().String()] = colMeta
+	caches.ParentDirToMeta.Store(dc.FullPath().String(), colMeta)
 	items := dc.Items(ctx, errs)
 
 	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).ItemUpload())
@@ -391,7 +391,7 @@ func restoreItem(
 		}
 
 		trimmedPath := strings.TrimSuffix(itemPath.String(), metadata.DirMetaFileSuffix)
-		caches.ParentDirToMeta[trimmedPath] = meta
+		caches.ParentDirToMeta.Store(trimmedPath, meta)
 
 		return details.ItemInfo{}, true, nil
 	}
@@ -680,10 +680,11 @@ func createRestoreFolders(
 	caches *restoreCaches,
 ) (string, error) {
 	var (
-		driveID        = drivePath.DriveID
-		folders        = restoreDir.Elements()
-		location       = path.Builder{}.Append(driveID)
-		parentFolderID = caches.DriveIDToDriveInfo[drivePath.DriveID].rootFolderID
+		driveID             = drivePath.DriveID
+		folders             = restoreDir.Elements()
+		location            = path.Builder{}.Append(driveID)
+		parentFolderMeta, _ = caches.DriveIDToDriveInfo.Load(drivePath.DriveID)
+		parentFolderID      = parentFolderMeta.rootFolderID
 	)
 
 	ctx = clues.Add(
@@ -1121,7 +1122,7 @@ func ensureDriveExists(
 	// the drive might already be cached by ID.  it's okay
 	// if the name has changed.  the ID is a better reference
 	// anyway.
-	if di, ok := caches.DriveIDToDriveInfo[driveID]; ok {
+	if di, ok := caches.DriveIDToDriveInfo.Load(driveID); ok {
 		return di, nil
 	}
 
@@ -1137,7 +1138,7 @@ func ensureDriveExists(
 	oldName, ok := caches.BackupDriveIDName.NameOf(driveID)
 	if ok {
 		// check for drives that currently have the same name
-		if di, ok := caches.DriveNameToDriveInfo[oldName]; ok {
+		if di, ok := caches.DriveNameToDriveInfo.Load(oldName); ok {
 			return di, nil
 		}
 
@@ -1172,5 +1173,7 @@ func ensureDriveExists(
 		return driveInfo{}, clues.Wrap(err, "adding drive to cache").OrNil()
 	}
 
-	return caches.DriveIDToDriveInfo[ptr.Val(newDrive.GetId())], nil
+	di, _ := caches.DriveIDToDriveInfo.Load(ptr.Val(newDrive.GetId()))
+
+	return di, nil
 }
