@@ -783,8 +783,8 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 			err := rc.Populate(ctx, gdparf, "shmoo")
 			test.expectErr(t, err, clues.ToCore(err))
 
-			assert.Len(t, rc.DriveIDToDriveInfo, test.expectLen)
-			assert.Len(t, rc.DriveNameToDriveInfo, test.expectLen)
+			assert.Equal(t, rc.DriveIDToDriveInfo.Size(), test.expectLen)
+			assert.Equal(t, rc.DriveNameToDriveInfo.Size(), test.expectLen)
 
 			if test.checkValues {
 				idResult, _ := rc.DriveIDToDriveInfo.Load(driveID)
