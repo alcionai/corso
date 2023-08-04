@@ -64,8 +64,8 @@ func (mc mergeCollection) FullPath() path.Path {
 func (mc *mergeCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
-) <-chan data.Stream {
-	res := make(chan data.Stream)
+) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)
@@ -98,7 +98,7 @@ func (mc *mergeCollection) Items(
 func (mc *mergeCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
-) (data.Stream, error) {
+) (data.Item, error) {
 	logger.Ctx(ctx).Infow(
 		"fetching item in merged collection",
 		"merged_collection_count", len(mc.cols))

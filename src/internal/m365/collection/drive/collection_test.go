@@ -174,7 +174,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			var (
 				wg         = sync.WaitGroup{}
 				collStatus = support.ControllerOperationStatus{}
-				readItems  = []data.Stream{}
+				readItems  = []data.Item{}
 			)
 
 			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/dir1/dir2/dir3")...)
@@ -250,10 +250,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			// Validate item info and data
 			readItem := readItems[0]
 
-			assert.Equal(t, stubItemID+metadata.DataFileSuffix, readItem.UUID())
-			require.Implements(t, (*data.StreamModTime)(nil), readItem)
+			assert.Equal(t, stubItemID+metadata.DataFileSuffix, readItem.ID())
+			require.Implements(t, (*data.ItemModTime)(nil), readItem)
 
-			mt := readItem.(data.StreamModTime)
+			mt := readItem.(data.ItemModTime)
 			assert.Equal(t, now, mt.ModTime())
 
 			readData, err := io.ReadAll(readItem.ToReader())
@@ -270,7 +270,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, stubItemContent, readData)
 
 			readItemMeta := readItems[1]
-			assert.Equal(t, stubItemID+metadata.MetaFileSuffix, readItemMeta.UUID())
+			assert.Equal(t, stubItemID+metadata.MetaFileSuffix, readItemMeta.ID())
 
 			readMeta := metadata.Metadata{}
 			err = json.NewDecoder(readItemMeta.ToReader()).Decode(&readMeta)
@@ -472,7 +472,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 
 	coll.handler = mbh
 
-	readItems := []data.Stream{}
+	readItems := []data.Item{}
 	for item := range coll.Items(ctx, fault.New(true)) {
 		readItems = append(readItems, item)
 	}
@@ -484,12 +484,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 	require.Equal(t, 1, collStatus.Metrics.Successes)
 
 	for _, i := range readItems {
-		if strings.HasSuffix(i.UUID(), metadata.MetaFileSuffix) {
+		if strings.HasSuffix(i.ID(), metadata.MetaFileSuffix) {
 			content, err := io.ReadAll(i.ToReader())
 			require.NoError(t, err, clues.ToCore(err))
 			require.Equal(t, `{"filename":"Fake Item","permissionMode":1}`, string(content))
 
-			im, ok := i.(data.StreamModTime)
+			im, ok := i.(data.ItemModTime)
 			require.Equal(t, ok, true, "modtime interface")
 			require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
 		}
@@ -978,7 +978,7 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 
 			wg.Wait()
 
-			ei, ok := collItem.(data.StreamInfo)
+			ei, ok := collItem.(data.ItemInfo)
 			assert.True(t, ok)
 			itemInfo := ei.Info()
 

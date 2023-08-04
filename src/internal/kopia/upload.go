@@ -349,7 +349,7 @@ func collectionEntries(
 				return seen, nil
 			}
 
-			encodedName := encodeAsPath(e.UUID())
+			encodedName := encodeAsPath(e.ID())
 
 			// Even if this item has been deleted and should not appear at all in
 			// the new snapshot we need to record that we've seen it here so we know
@@ -367,7 +367,7 @@ func collectionEntries(
 			seen[encodedName] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
-			itemPath, err := streamedEnts.FullPath().AppendItem(e.UUID())
+			itemPath, err := streamedEnts.FullPath().AppendItem(e.ID())
 			if err != nil {
 				err = clues.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(ctx, err)
@@ -384,7 +384,7 @@ func collectionEntries(
 			}
 
 			modTime := time.Now()
-			if smt, ok := e.(data.StreamModTime); ok {
+			if smt, ok := e.(data.ItemModTime); ok {
 				modTime = smt.ModTime()
 			}
 
@@ -393,7 +393,7 @@ func collectionEntries(
 			// used for restore. If progress does not contain information about a
 			// finished file it just returns without an error so it's safe to skip
 			// adding something to it.
-			ei, ok := e.(data.StreamInfo)
+			ei, ok := e.(data.ItemInfo)
 			if ok {
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race

@@ -136,17 +136,17 @@ func ConsumeRestoreCollections(
 func restoreListItem(
 	ctx context.Context,
 	service graph.Servicer,
-	itemData data.Stream,
+	itemData data.Item,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
-	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
 	defer end()
 
-	ctx = clues.Add(ctx, "list_item_id", itemData.UUID())
+	ctx = clues.Add(ctx, "list_item_id", itemData.ID())
 
 	var (
 		dii      = details.ItemInfo{}
-		listName = itemData.UUID()
+		listName = itemData.ID()
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
@@ -254,7 +254,7 @@ func RestoreListCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+			itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 			if err != nil {
 				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
@@ -334,7 +334,7 @@ func RestorePageCollection(
 
 			metrics.Bytes += itemInfo.SharePoint.Size
 
-			itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+			itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 			if err != nil {
 				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue

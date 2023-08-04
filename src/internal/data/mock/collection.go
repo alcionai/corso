@@ -14,13 +14,13 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// stream
+// Item
 // ---------------------------------------------------------------------------
 
-var _ data.Stream = &Stream{}
+var _ data.Item = &Item{}
 
-type Stream struct {
-	ID           string
+type Item struct {
+	ItemID       string
 	Reader       io.ReadCloser
 	ReadErr      error
 	ItemSize     int64
@@ -29,15 +29,15 @@ type Stream struct {
 	ItemInfo     details.ItemInfo
 }
 
-func (s *Stream) UUID() string {
-	return s.ID
+func (s *Item) ID() string {
+	return s.ItemID
 }
 
-func (s Stream) Deleted() bool {
+func (s Item) Deleted() bool {
 	return s.DeletedFlag
 }
 
-func (s *Stream) ToReader() io.ReadCloser {
+func (s *Item) ToReader() io.ReadCloser {
 	if s.ReadErr != nil {
 		return io.NopCloser(errReader{s.ReadErr})
 	}
@@ -45,15 +45,15 @@ func (s *Stream) ToReader() io.ReadCloser {
 	return s.Reader
 }
 
-func (s *Stream) Info() details.ItemInfo {
+func (s *Item) Info() details.ItemInfo {
 	return s.ItemInfo
 }
 
-func (s *Stream) Size() int64 {
+func (s *Item) Size() int64 {
 	return s.ItemSize
 }
 
-func (s *Stream) ModTime() time.Time {
+func (s *Item) ModTime() time.Time {
 	return s.ModifiedTime
 }
 
@@ -77,7 +77,7 @@ var (
 
 type Collection struct{}
 
-func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
+func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	return nil
 }
 
@@ -97,6 +97,6 @@ func (c Collection) DoNotMergeItems() bool {
 	return true
 }
 
-func (c Collection) FetchItemByName(ctx context.Context, name string) (data.Stream, error) {
-	return &Stream{}, clues.New("not implemented")
+func (c Collection) FetchItemByName(ctx context.Context, name string) (data.Item, error) {
+	return &Item{}, clues.New("not implemented")
 }

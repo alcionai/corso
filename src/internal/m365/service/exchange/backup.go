@@ -560,7 +560,7 @@ func parseMetadataCollections(
 					return nil, false, clues.New("decoding metadata json").WithClues(ctx)
 				}
 
-				switch item.UUID() {
+				switch item.ID() {
 				case graph.PreviousPathFileName:
 					if _, ok := found[category]["path"]; ok {
 						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)

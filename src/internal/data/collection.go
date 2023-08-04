@@ -5,26 +5,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-)
-
-// ------------------------------------------------------------------------------------------------
-// standard ifaces
-// ------------------------------------------------------------------------------------------------
-
-var ErrNotFound = clues.New("not found")
-
-type CollectionState int
-
-const (
-	NewState = CollectionState(iota)
-	NotMovedState
-	MovedState
-	DeletedState
 )
 
 // A Collection represents the set of data within a single logical location
@@ -34,7 +17,7 @@ type Collection interface {
 	// Each returned struct contains the next item in the collection
 	// The channel is closed when there are no more items in the collection or if
 	// an unrecoverable error caused an early termination in the sender.
-	Items(ctx context.Context, errs *fault.Bus) <-chan Stream
+	Items(ctx context.Context, errs *fault.Bus) <-chan Item
 	// FullPath returns a path struct that acts as a metadata tag for this
 	// Collection.
 	FullPath() path.Path
@@ -77,32 +60,15 @@ type FetchItemByNamer interface {
 	// Fetch retrieves an item with the given name from the Collection if it
 	// exists. Items retrieved with Fetch may still appear in the channel returned
 	// by Items().
-	FetchItemByName(ctx context.Context, name string) (Stream, error)
+	FetchItemByName(ctx context.Context, name string) (Item, error)
 }
 
-// NoFetchRestoreCollection is a wrapper for a Collection that returns
-// ErrNotFound for all Fetch calls.
-type NoFetchRestoreCollection struct {
-	Collection
-	FetchItemByNamer
-}
-
-func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Stream, error) {
-	return nil, ErrNotFound
-}
-
-type FetchRestoreCollection struct {
-	Collection
-	FetchItemByNamer
-}
-
-// Stream represents a single item within a Collection
-// that can be consumed as a stream (it embeds io.Reader)
-type Stream interface {
-	// ToReader returns an io.Reader for the DataStream
+// Item represents a single item within a Collection
+type Item interface {
+	// ToReader returns an io.Reader with the item's data
 	ToReader() io.ReadCloser
-	// UUID provides a unique identifier for this data
-	UUID() string
+	// ID provides a unique identifier for this item
+	ID() string
 	// Deleted returns true if the item represented by this Stream has been
 	// deleted and should be removed from the current in-progress backup.
 	Deleted() bool
@@ -125,40 +91,20 @@ type PreviousLocationPather interface {
 	PreviousLocationPath() details.LocationIDer
 }
 
-// StreamInfo is used to provide service specific
-// information about the Stream
-type StreamInfo interface {
+// ItemInfo returns the details.ItemInfo for the item.
+type ItemInfo interface {
 	Info() details.ItemInfo
 }
 
-// StreamSize is used to provide size
-// information about the Stream
-type StreamSize interface {
+// ItemSize returns the size of the item in bytes.
+type ItemSize interface {
 	Size() int64
 }
 
-// StreamModTime is used to provide the modified time of the stream's data.
+// ItemModTime provides the last modified time of the item.
 //
-// If an item implements StreamModTime and StreamInfo it should return the same
+// If an item implements ItemModTime and ItemInfo it should return the same
 // value here as in item.Info().Modified().
-type StreamModTime interface {
+type ItemModTime interface {
 	ModTime() time.Time
-}
-
-// StateOf lets us figure out the state of the collection from the
-// previous and current path
-func StateOf(prev, curr path.Path) CollectionState {
-	if curr == nil || len(curr.String()) == 0 {
-		return DeletedState
-	}
-
-	if prev == nil || len(prev.String()) == 0 {
-		return NewState
-	}
-
-	if curr.String() != prev.String() {
-		return MovedState
-	}
-
-	return NotMovedState
 }

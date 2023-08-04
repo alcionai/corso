@@ -323,19 +323,19 @@ func checkMetadataFilesExist(
 				itemNames := []string{}
 
 				for item := range col.Items(ctx, fault.New(true)) {
-					assert.Implements(t, (*data.StreamSize)(nil), item)
+					assert.Implements(t, (*data.ItemSize)(nil), item)
 
-					s := item.(data.StreamSize)
+					s := item.(data.ItemSize)
 					assert.Greaterf(
 						t,
 						s.Size(),
 						int64(0),
 						"empty metadata file: %s/%s",
 						col.FullPath(),
-						item.UUID(),
+						item.ID(),
 					)
 
-					itemNames = append(itemNames, item.UUID())
+					itemNames = append(itemNames, item.ID())
 				}
 
 				assert.ElementsMatchf(

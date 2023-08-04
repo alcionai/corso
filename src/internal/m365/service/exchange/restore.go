@@ -168,8 +168,8 @@ func restoreCollection(
 				return metrics, el.Failure()
 			}
 
-			ictx := clues.Add(ctx, "item_id", itemData.UUID())
-			trace.Log(ictx, "m365:exchange:restoreCollection:item", itemData.UUID())
+			ictx := clues.Add(ctx, "item_id", itemData.ID())
+			trace.Log(ictx, "m365:exchange:restoreCollection:item", itemData.ID())
 			metrics.Objects++
 
 			buf := &bytes.Buffer{}
@@ -204,7 +204,7 @@ func restoreCollection(
 
 			// FIXME: this may be the incorrect path.  If we restored within a top-level
 			// destination folder, then the restore path no longer matches the fullPath.
-			itemPath, err := fullPath.AppendItem(itemData.UUID())
+			itemPath, err := fullPath.AppendItem(itemData.ID())
 			if err != nil {
 				el.AddRecoverable(ctx, clues.Wrap(err, "adding item to collection path").WithClues(ctx))
 				continue

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -1545,9 +1546,9 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 func makeBackupCollection(
 	p path.Path,
 	locPath *path.Builder,
-	items []odMock.Data,
+	items []mockDriveItem,
 ) data.BackupCollection {
-	streams := make([]data.Stream, len(items))
+	streams := make([]data.Item, len(items))
 
 	for i := range items {
 		streams[i] = &items[i]
@@ -1587,27 +1588,36 @@ const (
 	folderID  = "folder-id"
 )
 
-func makeODMockData(
+type mockDriveItem struct {
+	dataMock.Item
+	DriveID       string
+	DriveName     string
+	ExtensionData *details.ExtensionData
+}
+
+func makeMockItem(
 	fileID string,
 	extData *details.ExtensionData,
 	modTime time.Time,
 	del bool,
 	readErr error,
-) odMock.Data {
+) mockDriveItem {
 	rc := odMock.FileRespReadCloser(odMock.DriveFilePayloadData)
 	if extData != nil {
 		rc = odMock.FileRespWithExtensions(odMock.DriveFilePayloadData, extData)
 	}
 
-	return odMock.Data{
-		ID:            fileID,
+	return mockDriveItem{
+		Item: dataMock.Item{
+			ItemID:       fileID,
+			Reader:       rc,
+			ReadErr:      readErr,
+			ItemSize:     100,
+			ModifiedTime: modTime,
+			DeletedFlag:  del,
+		},
 		DriveID:       driveID,
 		DriveName:     driveName,
-		Reader:        rc,
-		ReadErr:       readErr,
-		Sz:            100,
-		ModifiedTime:  modTime,
-		Del:           del,
 		ExtensionData: extData,
 	}
 }
@@ -1656,8 +1666,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", nil, time.Now(), false, nil),
+						[]mockDriveItem{
+							makeMockItem("file1", nil, time.Now(), false, nil),
 						}),
 				}
 
@@ -1678,8 +1688,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", nil, time.Now(), false, assert.AnError),
+						[]mockDriveItem{
+							makeMockItem("file1", nil, time.Now(), false, assert.AnError),
 						}),
 				}
 				return bc
@@ -1698,8 +1708,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", nil, time.Now(), false, nil),
+						[]mockDriveItem{
+							makeMockItem("file1", nil, time.Now(), false, nil),
 						}),
 				}
 
@@ -1733,8 +1743,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", nil, time.Now(), false, assert.AnError),
+						[]mockDriveItem{
+							makeMockItem("file1", nil, time.Now(), false, assert.AnError),
 						}),
 				}
 
@@ -1755,9 +1765,9 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", nil, time.Now(), false, nil),
-							makeODMockData("file2", nil, time.Now(), false, nil),
+						[]mockDriveItem{
+							makeMockItem("file1", nil, time.Now(), false, nil),
+							makeMockItem("file2", nil, time.Now(), false, nil),
 						}),
 				}
 
@@ -1791,9 +1801,9 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", nil, time.Now(), false, nil),
-							makeODMockData("file2", nil, time.Now(), false, assert.AnError),
+						[]mockDriveItem{
+							makeMockItem("file1", nil, time.Now(), false, nil),
+							makeMockItem("file2", nil, time.Now(), false, assert.AnError),
 						}),
 				}
 
@@ -1934,9 +1944,9 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", extData[0], T1, false, nil),
-							makeODMockData("file2", extData[1], T1, false, assert.AnError),
+						[]mockDriveItem{
+							makeMockItem("file1", extData[0], T1, false, nil),
+							makeMockItem("file2", extData[1], T1, false, assert.AnError),
 						}),
 				}
 
@@ -1961,10 +1971,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", extData[0], T1, false, nil),
-							makeODMockData("file2", extData[1], T2, false, nil),
-							makeODMockData("file3", extData[2], T2, false, assert.AnError),
+						[]mockDriveItem{
+							makeMockItem("file1", extData[0], T1, false, nil),
+							makeMockItem("file2", extData[1], T2, false, nil),
+							makeMockItem("file3", extData[2], T2, false, assert.AnError),
 						}),
 				}
 
@@ -1996,10 +2006,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", extData[0], T1, false, nil),
-							makeODMockData("file2", extData[1], T2, false, nil),
-							makeODMockData("file3", extData[2], T3, false, nil),
+						[]mockDriveItem{
+							makeMockItem("file1", extData[0], T1, false, nil),
+							makeMockItem("file2", extData[1], T2, false, nil),
+							makeMockItem("file3", extData[2], T3, false, nil),
 						}),
 				}
 
@@ -2035,10 +2045,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", extData[0], T1, true, nil),
-							makeODMockData("file2", extData[1], T2, true, nil),
-							makeODMockData("file3", extData[2], T3, true, nil),
+						[]mockDriveItem{
+							makeMockItem("file1", extData[0], T1, true, nil),
+							makeMockItem("file2", extData[1], T2, true, nil),
+							makeMockItem("file3", extData[2], T3, true, nil),
 						}),
 				}
 
@@ -2057,8 +2067,8 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", extData[0], T1, false, nil),
+						[]mockDriveItem{
+							makeMockItem("file1", extData[0], T1, false, nil),
 						}),
 				}
 
@@ -2088,10 +2098,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]odMock.Data{
-							makeODMockData("file1", extData[0], T1, false, nil),
-							makeODMockData("file2", extData[1], T2, false, nil),
-							makeODMockData("file3", extData[2], T3, false, assert.AnError),
+						[]mockDriveItem{
+							makeMockItem("file1", extData[0], T1, false, nil),
+							makeMockItem("file2", extData[1], T2, false, nil),
+							makeMockItem("file3", extData[2], T3, false, assert.AnError),
 						}),
 				}
 

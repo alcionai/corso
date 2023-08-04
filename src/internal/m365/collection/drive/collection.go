@@ -35,11 +35,11 @@ const (
 
 var (
 	_ data.BackupCollection = &Collection{}
-	_ data.Stream           = &Item{}
-	_ data.StreamInfo       = &Item{}
-	_ data.StreamModTime    = &Item{}
-	_ data.Stream           = &metadata.Item{}
-	_ data.StreamModTime    = &metadata.Item{}
+	_ data.Item             = &Item{}
+	_ data.ItemInfo         = &Item{}
+	_ data.ItemModTime      = &Item{}
+	_ data.Item             = &metadata.Item{}
+	_ data.ItemModTime      = &metadata.Item{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -47,7 +47,7 @@ type Collection struct {
 	handler BackupHandler
 
 	// data is used to share data streams with the collection consumer
-	data chan data.Stream
+	data chan data.Item
 	// folderPath indicates what level in the hierarchy this collection
 	// represents
 	folderPath path.Path
@@ -162,7 +162,7 @@ func newColl(
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
-		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
+		data:            make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, currPath),
@@ -207,7 +207,7 @@ func (oc *Collection) IsEmpty() bool {
 func (oc *Collection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
-) <-chan data.Stream {
+) <-chan data.Item {
 	go oc.populateItems(ctx, errs)
 	return oc.data
 }
@@ -256,7 +256,7 @@ type Item struct {
 // as deleted by adding them to the exclude list so this can always return
 // false.
 func (i Item) Deleted() bool            { return false }
-func (i *Item) UUID() string            { return i.id }
+func (i *Item) ID() string              { return i.id }
 func (i *Item) ToReader() io.ReadCloser { return i.data }
 func (i *Item) Info() details.ItemInfo  { return i.info }
 func (i *Item) ModTime() time.Time      { return i.info.Modified() }
@@ -582,8 +582,8 @@ func (oc *Collection) populateDriveItem(
 	})
 
 	oc.data <- &metadata.Item{
-		ID:   metaFileName + metaSuffix,
-		Data: metaReader,
+		ItemID: metaFileName + metaSuffix,
+		Data:   metaReader,
 		// Metadata file should always use the latest time as
 		// permissions change does not update mod time.
 		Mod: time.Now(),

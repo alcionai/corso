@@ -92,7 +92,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 	gotNames := []string{}
 
 	for s := range c.Items(ctx, fault.New(true)) {
-		gotNames = append(gotNames, s.UUID())
+		gotNames = append(gotNames, s.ID())
 
 		buf, err := io.ReadAll(s.ToReader())
 		if !assert.NoError(t, err, clues.ToCore(err)) {
@@ -181,7 +181,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 
 			itemCount := 0
 			for item := range col.Items(ctx, fault.New(true)) {
-				assert.Equal(t, test.metadata.fileName, item.UUID())
+				assert.Equal(t, test.metadata.fileName, item.ID())
 
 				gotMap := map[string]string{}
 				decoder := json.NewDecoder(item.ToReader())

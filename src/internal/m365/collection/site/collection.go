@@ -38,16 +38,16 @@ const (
 
 var (
 	_ data.BackupCollection = &Collection{}
-	_ data.Stream           = &Item{}
-	_ data.StreamInfo       = &Item{}
-	_ data.StreamModTime    = &Item{}
+	_ data.Item             = &Item{}
+	_ data.ItemInfo         = &Item{}
+	_ data.ItemModTime      = &Item{}
 )
 
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
 // by the oneDrive.Collection as the calls are identical for populating the Collection
 type Collection struct {
 	// data is the container for each individual SharePoint.List
-	data chan data.Stream
+	data chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
 	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
@@ -71,7 +71,7 @@ func NewCollection(
 	c := &Collection{
 		fullPath:      folderPath,
 		jobs:          make([]string, 0),
-		data:          make(chan data.Stream, collectionChannelBufferSize),
+		data:          make(chan data.Item, collectionChannelBufferSize),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
 		category:      category,
@@ -111,7 +111,7 @@ func (sc Collection) DoNotMergeItems() bool {
 func (sc *Collection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
-) <-chan data.Stream {
+) <-chan data.Item {
 	go sc.populate(ctx, errs)
 	return sc.data
 }
@@ -133,7 +133,7 @@ func NewItem(name string, d io.ReadCloser) *Item {
 	}
 }
 
-func (sd *Item) UUID() string {
+func (sd *Item) ID() string {
 	return sd.id
 }
 

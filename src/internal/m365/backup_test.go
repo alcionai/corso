@@ -457,7 +457,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		t.Logf("Path: %s\n", collection.FullPath().String())
 
 		for item := range collection.Items(ctx, fault.New(true)) {
-			t.Log("File: " + item.UUID())
+			t.Log("File: " + item.ID())
 
 			bs, err := io.ReadAll(item.ToReader())
 			require.NoError(t, err, clues.ToCore(err))

@@ -185,7 +185,7 @@ func RestoreCollection(
 			wg.Add(1)
 			semaphoreCh <- struct{}{}
 
-			go func(ctx context.Context, itemData data.Stream) {
+			go func(ctx context.Context, itemData data.Item) {
 				defer wg.Done()
 				defer func() { <-semaphoreCh }()
 
@@ -193,9 +193,9 @@ func RestoreCollection(
 				defer caches.pool.Put(copyBufferPtr)
 
 				copyBuffer := *copyBufferPtr
-				ictx := clues.Add(ctx, "restore_item_id", itemData.UUID())
+				ictx := clues.Add(ctx, "restore_item_id", itemData.ID())
 
-				itemPath, err := dc.FullPath().AppendItem(itemData.UUID())
+				itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 				if err != nil {
 					el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ictx))
 					return
@@ -258,11 +258,11 @@ func restoreItem(
 	restoreFolderID string,
 	copyBuffer []byte,
 	caches *restoreCaches,
-	itemData data.Stream,
+	itemData data.Item,
 	itemPath path.Path,
 	ctr *count.Bus,
 ) (details.ItemInfo, bool, error) {
-	itemUUID := itemData.UUID()
+	itemUUID := itemData.ID()
 	ctx = clues.Add(ctx, "item_id", itemUUID)
 
 	if rcc.BackupVersion < version.OneDrive1DataAndMetaFiles {
@@ -379,7 +379,7 @@ func restoreV0File(
 	restoreFolderID string,
 	copyBuffer []byte,
 	collisionKeyToItemID map[string]api.DriveItemIDType,
-	itemData data.Stream,
+	itemData data.Item,
 	ctr *count.Bus,
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreFile(
@@ -387,7 +387,7 @@ func restoreV0File(
 		restoreCfg,
 		rh,
 		fibn,
-		itemData.UUID(),
+		itemData.ID(),
 		itemData,
 		drivePath.DriveID,
 		restoreFolderID,
@@ -411,10 +411,10 @@ func restoreV1File(
 	copyBuffer []byte,
 	caches *restoreCaches,
 	itemPath path.Path,
-	itemData data.Stream,
+	itemData data.Item,
 	ctr *count.Bus,
 ) (details.ItemInfo, error) {
-	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
+	trimmedName := strings.TrimSuffix(itemData.ID(), metadata.DataFileSuffix)
 
 	itemID, itemInfo, err := restoreFile(
 		ctx,
@@ -471,10 +471,10 @@ func restoreV6File(
 	copyBuffer []byte,
 	caches *restoreCaches,
 	itemPath path.Path,
-	itemData data.Stream,
+	itemData data.Item,
 	ctr *count.Bus,
 ) (details.ItemInfo, error) {
-	trimmedName := strings.TrimSuffix(itemData.UUID(), metadata.DataFileSuffix)
+	trimmedName := strings.TrimSuffix(itemData.ID(), metadata.DataFileSuffix)
 
 	// Get metadata file so we can determine the file name.
 	metaName := trimmedName + metadata.MetaFileSuffix
@@ -702,26 +702,26 @@ type itemRestorer interface {
 	PostItemInContainerer
 }
 
-// restoreFile will create a new item in the specified `parentFolderID` and upload the data.Stream
+// restoreFile will create a new item in the specified `parentFolderID` and upload the data.Item
 func restoreFile(
 	ctx context.Context,
 	restoreCfg control.RestoreConfig,
 	ir itemRestorer,
 	fibn data.FetchItemByNamer,
 	name string,
-	itemData data.Stream,
+	itemData data.Item,
 	driveID, parentFolderID string,
 	collisionKeyToItemID map[string]api.DriveItemIDType,
 	copyBuffer []byte,
 	ctr *count.Bus,
 ) (string, details.ItemInfo, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.ID()))
 	defer end()
 
-	trace.Log(ctx, "gc:oneDrive:restoreItem", itemData.UUID())
+	trace.Log(ctx, "gc:oneDrive:restoreItem", itemData.ID())
 
 	// Get the stream size (needed to create the upload session)
-	ss, ok := itemData.(data.StreamSize)
+	ss, ok := itemData.(data.ItemSize)
 	if !ok {
 		return "", details.ItemInfo{}, clues.New("item does not implement DataStreamInfo").WithClues(ctx)
 	}
@@ -809,7 +809,7 @@ func restoreFile(
 			// If it is not the first try, we have to pull the file
 			// again from kopia. Ideally we could just seek the stream
 			// but we don't have a Seeker available here.
-			itemData, err := fibn.FetchItemByName(ctx, itemData.UUID())
+			itemData, err := fibn.FetchItemByName(ctx, itemData.ID())
 			if err != nil {
 				return "", details.ItemInfo{}, clues.Wrap(err, "get data file")
 			}
