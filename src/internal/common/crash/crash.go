@@ -61,7 +61,8 @@ func Recovery(ctx context.Context, r any, namespace string) error {
 
 	err = clues.Wrap(err, "panic recovery"+inFile).
 		WithClues(ctx).
-		With("stacktrace", string(debug.Stack()))
+		With("stacktrace", string(debug.Stack())).
+		WithTrace(2)
 	logger.CtxErr(ctx, err).Error(namespace + " panic")
 
 	return err

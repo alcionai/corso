@@ -2,11 +2,13 @@ package graph
 
 import (
 	"net/http"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -16,36 +18,54 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
-type GraphUnitSuite struct {
+type GraphIntgSuite struct {
 	tester.Suite
-	credentials account.M365Config
+	fakeCredentials account.M365Config
+	credentials     account.M365Config
 }
 
-func TestGraphUnitSuite(t *testing.T) {
-	suite.Run(t, &GraphUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestGraphIntgSuite(t *testing.T) {
+	suite.Run(t, &GraphIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs}),
+	})
 }
 
-func (suite *GraphUnitSuite) SetupSuite() {
+func (suite *GraphIntgSuite) SetupSuite() {
 	t := suite.T()
-	a := tconfig.NewFakeM365Account(t)
-	m365, err := a.M365Config()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	fakeAcct := tconfig.NewFakeM365Account(t)
+	acct := tconfig.NewM365Account(t)
+
+	m365, err := fakeAcct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.fakeCredentials = m365
+
+	m365, err = acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
+
+	InitializeConcurrencyLimiter(ctx, false, 0)
 }
 
-func (suite *GraphUnitSuite) TestCreateAdapter() {
+func (suite *GraphIntgSuite) TestCreateAdapter() {
 	t := suite.T()
 	adpt, err := CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret)
+		suite.fakeCredentials.AzureTenantID,
+		suite.fakeCredentials.AzureClientID,
+		suite.fakeCredentials.AzureClientSecret)
 
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, adpt)
 }
 
-func (suite *GraphUnitSuite) TestHTTPClient() {
+func (suite *GraphIntgSuite) TestHTTPClient() {
 	table := []struct {
 		name  string
 		opts  []Option
@@ -78,12 +98,12 @@ func (suite *GraphUnitSuite) TestHTTPClient() {
 	}
 }
 
-func (suite *GraphUnitSuite) TestSerializationEndPoint() {
+func (suite *GraphIntgSuite) TestSerializationEndPoint() {
 	t := suite.T()
 	adpt, err := CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret)
+		suite.fakeCredentials.AzureTenantID,
+		suite.fakeCredentials.AzureClientID,
+		suite.fakeCredentials.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	serv := NewService(adpt)
@@ -95,4 +115,75 @@ func (suite *GraphUnitSuite) TestSerializationEndPoint() {
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, byteArray)
 	t.Log(string(byteArray))
+}
+
+func (suite *GraphIntgSuite) TestAdapterWrap_catchesPanic() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	url := "https://graph.microsoft.com/fnords/beaux/regard"
+
+	// the panics should get caught and returned as errors
+	alwaysPanicMiddleware := mwForceResp{
+		alternate: func(req *http.Request) (bool, *http.Response, error) {
+			panic(clues.New("intentional panic"))
+		},
+	}
+
+	adpt, err := CreateAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+		appendMiddleware(&alwaysPanicMiddleware))
+	require.NoError(t, err, clues.ToCore(err))
+
+	// the query doesn't matter
+	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
+	require.Error(t, err, clues.ToCore(err))
+	require.Contains(t, err.Error(), "panic", clues.ToCore(err))
+
+	// the query doesn't matter
+	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+	require.Error(t, err, clues.ToCore(err))
+	require.Contains(t, err.Error(), "panic", clues.ToCore(err))
+}
+
+func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	url := "https://graph.microsoft.com/fnords/beaux/regard"
+	count := 0
+
+	// the panics should get caught and returned as errors
+	alwaysECONNRESET := mwForceResp{
+		err: syscall.ECONNRESET,
+		alternate: func(req *http.Request) (bool, *http.Response, error) {
+			count++
+			return false, nil, nil
+		},
+	}
+
+	adpt, err := CreateAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+		appendMiddleware(&alwaysECONNRESET))
+	require.NoError(t, err, clues.ToCore(err))
+
+	// the query doesn't matter
+	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
+	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
+	require.Equal(t, 12, count, "number of retries")
+
+	count = 0
+
+	// the query doesn't matter
+	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
+	require.Equal(t, 12, count, "number of retries")
 }
