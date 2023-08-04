@@ -169,21 +169,21 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	}
 
 	adpt, err := CreateAdapter(
-		suite.fakeCredentials.AzureTenantID,
-		suite.fakeCredentials.AzureClientID,
-		suite.fakeCredentials.AzureClientSecret,
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
 		appendMiddleware(&alwaysECONNRESET))
 	require.NoError(t, err, clues.ToCore(err))
 
 	// the query doesn't matter
 	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 3, count, "number of retries")
+	require.Equal(t, 12, count, "number of retries")
 
 	count = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 3, count, "number of retries")
+	require.Equal(t, 12, count, "number of retries")
 }

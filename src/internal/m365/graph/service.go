@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"net/http"
-	"syscall"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -14,7 +13,6 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -338,7 +336,7 @@ func (aw *adapterWrap) Send(
 
 		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
 		if err != nil &&
-			!(errors.Is(err, syscall.ECONNRESET) ||
+			!(IsErrConnectionReset(err) ||
 				connectionEnded.Compare(err.Error())) {
 			return nil, Stack(ictx, err)
 		}
