@@ -43,8 +43,15 @@ func (mc *mergeCollection) addCollection(
 	// Keep a stable sorting of this merged collection set so we can say there's
 	// some deterministic behavior when Fetch is called. We don't expect to have
 	// to merge many collections.
-	slices.SortStableFunc(mc.cols, func(a, b col) bool {
-		return a.storagePath < b.storagePath
+	slices.SortStableFunc(mc.cols, func(a, b col) int {
+		switch true {
+		case a.storagePath < b.storagePath:
+			return -1
+		case a.storagePath > b.storagePath:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return nil

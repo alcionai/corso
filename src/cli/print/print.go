@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
+
+	"github.com/alcionai/corso/src/internal/observe"
 )
 
 var (
@@ -83,38 +85,38 @@ func Only(ctx context.Context, e error) error {
 // if s is nil, prints nothing.
 // Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).ErrOrStderr(), s...)
+	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
 // Prepends the message with "Error: "
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	outf(getRootCmd(ctx).ErrOrStderr(), "\nError: \n\t"+tmpl+"\n", s...)
+	outf(ctx, getRootCmd(ctx).ErrOrStderr(), "\nError: \n\t"+tmpl+"\n", s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)
 // if s is nil, prints nothing.
 func Out(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).OutOrStdout(), s...)
+	out(ctx, getRootCmd(ctx).OutOrStdout(), s...)
 }
 
 // Out prints the formatted strings to cobra's output writer (stdOut by default)
 // if t is empty, prints nothing.
 func Outf(ctx context.Context, t string, s ...any) {
-	outf(getRootCmd(ctx).OutOrStdout(), t, s...)
+	outf(ctx, getRootCmd(ctx).OutOrStdout(), t, s...)
 }
 
 // Info prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
 func Info(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).ErrOrStderr(), s...)
+	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Info prints the formatted strings to cobra's error writer (stdErr by default)
 // if t is empty, prints nothing.
 func Infof(ctx context.Context, t string, s ...any) {
-	outf(getRootCmd(ctx).ErrOrStderr(), t, s...)
+	outf(ctx, getRootCmd(ctx).ErrOrStderr(), t, s...)
 }
 
 // PrettyJSON prettifies and prints the value.
@@ -127,20 +129,26 @@ func PrettyJSON(ctx context.Context, p minimumPrintabler) {
 }
 
 // out is the testable core of exported print funcs
-func out(w io.Writer, s ...any) {
+func out(ctx context.Context, w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
+
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
 
 	fmt.Fprint(w, s...)
 	fmt.Fprintf(w, "\n")
 }
 
 // outf is the testable core of exported print funcs
-func outf(w io.Writer, t string, s ...any) {
+func outf(ctx context.Context, w io.Writer, t string, s ...any) {
 	if len(t) == 0 {
 		return
 	}
+
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
 
 	fmt.Fprintf(w, t, s...)
 	fmt.Fprintf(w, "\n")

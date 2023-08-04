@@ -61,7 +61,13 @@ jobs:
         run: |
           echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
 
-      - run: git checkout ${{ steps.version.outputs.version }}
+      # Checkout the .github directory at the original branch's ref so we have a
+      # stable view of the actions.
+      - name: Code Checkout
+        working-directory: ${{ github.workspace }}
+        run: |
+          git checkout ${{ steps.version.outputs.version }}
+          git checkout ${{ github.ref }} -- .github
 
       - run: go build -o corso
       
@@ -203,7 +209,7 @@ jobs:
         id: delete-exchange-test
         env:
           SERVICE: "exchange"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup exchange \n" >> ${CORSO_LOG_FILE}
@@ -216,7 +222,7 @@ jobs:
         id: delete-onedrive-test
         env:
           SERVICE: "onedrive"
-          DELETION_DAYS: 5
+          DELETION_DAYS: 10
         run: |
           set -euo pipefail
           echo -e "\nDelete Backup onedrive \n" >> ${CORSO_LOG_FILE}

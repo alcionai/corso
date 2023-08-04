@@ -167,10 +167,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			ctx,
 			col.fullPath.Category().String(),
 			col.LocationPath().Elements())
-
-		defer func() {
-			close(colProgress)
-		}()
+		defer close(colProgress)
 	}
 
 	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
