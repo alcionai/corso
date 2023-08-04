@@ -319,9 +319,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 		},
 		{
 			name: "ErrorWhileSeeking NoRangeSupport",
-			getterResps: map[int]getterResp{
-				1: {err: syscall.ECONNRESET},
-			},
 			readerResps: map[int]readResp{
 				3: {
 					read: 0,
