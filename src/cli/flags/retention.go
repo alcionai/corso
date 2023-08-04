@@ -37,13 +37,14 @@ func AddRetentionConfigFlags(cmd *cobra.Command) {
 		&RetentionDurationFV,
 		RetentionDurationFN,
 		time.Duration(0),
-		"Set the amount of time individual objects in remote storage will be locked for")
+		"Set the amount of time to lock individual objects in remote storage")
 	cobra.CheckErr(fs.MarkHidden(RetentionDurationFN))
 
 	fs.BoolVar(
 		&ExtendRetentionFV,
 		ExtendRetentionFN,
 		false,
-		"Whether to extend object locks during maintenance")
+		"Extends object locks during maintenance. "+
+			"Extends locks by the most recently set value of "+RetentionDurationFN)
 	cobra.CheckErr(fs.MarkHidden(ExtendRetentionFN))
 }
