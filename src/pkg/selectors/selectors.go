@@ -23,6 +23,7 @@ const (
 	ServiceExchange                  // Exchange
 	ServiceOneDrive                  // OneDrive
 	ServiceSharePoint                // SharePoint
+	ServiceGroups                    // Groups
 )
 
 var serviceToPathType = map[service]path.ServiceType{

@@ -217,7 +217,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		bpc,
 		creds,
 		ac,
-		&MockGraphService{},
+		(&MockGraphService{}).UpdateStatus,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, col)

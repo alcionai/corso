@@ -307,7 +307,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				bpc,
 				suite.ac,
 				ctrl.credentials,
-				ctrl,
+				ctrl.UpdateStatus,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
