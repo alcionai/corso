@@ -964,24 +964,24 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 	}
 }
 
-type OneDriveRestoreIntgSuite struct {
+type OneDriveRestoreNightlyIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
 func TestOneDriveRestoreIntgSuite(t *testing.T) {
-	suite.Run(t, &OneDriveRestoreIntgSuite{
-		Suite: tester.NewIntegrationSuite(
+	suite.Run(t, &OneDriveRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *OneDriveRestoreIntgSuite) SetupSuite() {
+func (suite *OneDriveRestoreNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
+func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
 	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 	sel.DiscreteOwner = suite.its.user.ID
@@ -1251,7 +1251,7 @@ func runDriveRestoreWithAdvancedOptions(
 	})
 }
 
-func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveAlternateProtectedResource() {
+func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveAlternateProtectedResource() {
 	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 	sel.DiscreteOwner = suite.its.user.ID

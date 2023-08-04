@@ -61,7 +61,13 @@ jobs:
         run: |
           echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
 
-      - run: git checkout ${{ steps.version.outputs.version }}
+      # Checkout the .github directory at the original branch's ref so we have a
+      # stable view of the actions.
+      - name: Code Checkout
+        working-directory: ${{ github.workspace }}
+        run: |
+          git checkout ${{ steps.version.outputs.version }}
+          git checkout ${{ github.ref }} -- .github
 
       - run: go build -o corso
       
