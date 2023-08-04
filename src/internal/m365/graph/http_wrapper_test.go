@@ -49,8 +49,11 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 }
 
 type mwForceResp struct {
-	err       error
-	resp      *http.Response
+	err  error
+	resp *http.Response
+	// if alternate returns true, the middleware returns the
+	// response and error returned by the func instead of the
+	// resp and error saved in the struct.
 	alternate func(*http.Request) (bool, *http.Response, error)
 }
 
@@ -81,14 +84,8 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		uri  = "https://graph.microsoft.com"
-		path = "/fnords/beaux/regard"
-		url  = uri + path
-	)
+	url := "https://graph.microsoft.com/fnords/beaux/regard"
 
-	// can't use gock for this, or else it'll short-circuit the transport,
-	// and thus skip all the middleware
 	hdr := http.Header{}
 	hdr.Set("Location", "localhost:99999999/smarfs")
 
