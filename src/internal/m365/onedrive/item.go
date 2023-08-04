@@ -10,8 +10,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/network"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
@@ -119,7 +119,7 @@ func downloadFile(
 		return nil, clues.New("empty file url").WithClues(ctx)
 	}
 
-	rc, err := network.NewResetRetryHandler(
+	rc, err := readers.NewResetRetryHandler(
 		ctx,
 		&downloadWithRetries{
 			getter: ag,
