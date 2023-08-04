@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/puzpuzpuz/xsync/v2"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -23,12 +24,12 @@ type driveInfo struct {
 type restoreCaches struct {
 	BackupDriveIDName     idname.Cacher
 	collisionKeyToItemID  map[string]api.DriveItemIDType
-	DriveIDToDriveInfo    map[string]driveInfo
-	DriveNameToDriveInfo  map[string]driveInfo
+	DriveIDToDriveInfo    *xsync.MapOf[string, driveInfo]
+	DriveNameToDriveInfo  *xsync.MapOf[string, driveInfo]
 	Folders               *folderCache
-	OldLinkShareIDToNewID map[string]string
-	OldPermIDToNewID      map[string]string
-	ParentDirToMeta       map[string]metadata.Metadata
+	OldLinkShareIDToNewID *xsync.MapOf[string, string]
+	OldPermIDToNewID      *xsync.MapOf[string, string]
+	ParentDirToMeta       *xsync.MapOf[string, metadata.Metadata]
 
 	pool sync.Pool
 }
@@ -52,8 +53,8 @@ func (rc *restoreCaches) AddDrive(
 
 	di.rootFolderID = ptr.Val(root.GetId())
 
-	rc.DriveIDToDriveInfo[di.id] = di
-	rc.DriveNameToDriveInfo[di.name] = di
+	rc.DriveIDToDriveInfo.Store(di.id, di)
+	rc.DriveNameToDriveInfo.Store(di.name, di)
 
 	return nil
 }
@@ -99,12 +100,12 @@ func NewRestoreCaches(
 	return &restoreCaches{
 		BackupDriveIDName:     backupDriveIDNames,
 		collisionKeyToItemID:  map[string]api.DriveItemIDType{},
-		DriveIDToDriveInfo:    map[string]driveInfo{},
-		DriveNameToDriveInfo:  map[string]driveInfo{},
+		DriveIDToDriveInfo:    xsync.NewMapOf[driveInfo](),
+		DriveNameToDriveInfo:  xsync.NewMapOf[driveInfo](),
 		Folders:               NewFolderCache(),
-		OldLinkShareIDToNewID: map[string]string{},
-		OldPermIDToNewID:      map[string]string{},
-		ParentDirToMeta:       map[string]metadata.Metadata{},
+		OldLinkShareIDToNewID: xsync.NewMapOf[string](),
+		OldPermIDToNewID:      xsync.NewMapOf[string](),
+		ParentDirToMeta:       xsync.NewMapOf[metadata.Metadata](),
 		// Buffer pool for uploads
 		pool: sync.Pool{
 			New: func() any {
