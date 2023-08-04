@@ -38,6 +38,11 @@ jobs:
       RESTORE_DEST_PFX: Corso_Test_Longevity_
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       PREFIX: 'longevity'
+
+      # Options for retention.
+      RETENTION_MODE: GOVERNANCE
+      # Time to retain blobs for in hours.
+      RETENTION_DURATION: 216
     defaults:
       run:
         working-directory: src
@@ -54,7 +59,9 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: go build -o longevity-test ./cmd/longevity_test
+      - run: |
+          go build -o longevity-test ./cmd/longevity_test
+          go build -o s3checker ./cmd/s3checker
 
       - name: Get version string
         id: version
@@ -319,7 +326,6 @@ jobs:
       - name: Maintenance test Weekly
         id: maintenance-test-weekly
         run: |
-
           if [[ $(date +%A) == "Saturday" ]]; then
             set -euo pipefail
             echo -e "\n Maintenance test Weekly\n" >> ${CORSO_LOG_FILE}
@@ -330,6 +336,29 @@ jobs:
             --force \
             --json \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_complete.txt 
+
+            # TODO(ashmrtn): We can also check that non-current versions of
+            # blobs don't have their retention extended if we want.
+            #
+            # Objects in S3 should have longer locking retention times now that
+            # we can explicitly check for.
+            #
+            # Blob prefixes are as follows:
+            #   - kopia.blobcfg - repo-wide config
+            #   - kopia.repository - repo-wide config
+            #   - p - data pack blobs (i.e. file data)
+            #   - q - metadata pack blobs (i.e. manifests, directory listings, etc)
+            #   - x - index blobs
+            ./s3checker \
+              --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
+              --bucket-prefix ${{ env.PREFIX }} \
+              --retention-mode ${{ env.RETENTION_MODE }} \
+              --live-retention-duration "$((${{ env.RETENTION_DURATION}}-1))h" \
+              --prefix "kopia.blobcfg" \
+              --prefix "kopia.repository" \
+              --prefix "p" \
+              --prefix "q" \
+              --prefix "x"
           fi
 
 ##########################################################################################################################################
