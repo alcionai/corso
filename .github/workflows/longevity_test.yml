@@ -342,7 +342,7 @@ jobs:
 
       - name: Notify failure in slack
         if: failure()
-        uses: ./.github/actions/slack-message
+        uses: ./.github/actions/slack-message@main
         with:
           msg: "[FAILED] Longevity Test"
           slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
