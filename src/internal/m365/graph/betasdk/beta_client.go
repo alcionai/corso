@@ -1,12 +1,11 @@
 package betasdk
 
 import (
-	absser "github.com/microsoft/kiota-abstractions-go"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	kioser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kform "github.com/microsoft/kiota-serialization-form-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	ktext "github.com/microsoft/kiota-serialization-text-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
 	i1a3c1a5501c5e41b7fd169f2d4c768dce9b096ac28fb5431bf02afcc57295411 "github.com/alcionai/corso/src/internal/m365/graph/betasdk/sites"
 )
@@ -43,34 +42,34 @@ type BetaClient struct {
 	// Path parameters for the request
 	pathParameters map[string]string
 	// The request adapter to use to execute the requests.
-	requestAdapter *msgraphsdk.GraphRequestAdapter
+	requestAdapter abstractions.RequestAdapter
 	// Url template to use to build the URL for the current request builder
 	urlTemplate string
 }
 
 // NewBetaClient instantiates a new BetaClient and sets the default values.
 // func NewBetaClient(requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter)(*BetaClient) {
-func NewBetaClient(requestAdapter *msgraphsdk.GraphRequestAdapter) *BetaClient {
+func NewBetaClient(requestAdapter abstractions.RequestAdapter) *BetaClient {
 	m := &BetaClient{}
 	m.pathParameters = make(map[string]string)
 	m.urlTemplate = "{+baseurl}"
 	m.requestAdapter = requestAdapter
-	absser.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
+	abstractions.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
 		return kw.NewJsonSerializationWriterFactory()
 	})
-	absser.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
+	abstractions.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
 		return ktext.NewTextSerializationWriterFactory()
 	})
-	absser.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
+	abstractions.RegisterDefaultSerializer(func() kioser.SerializationWriterFactory {
 		return kform.NewFormSerializationWriterFactory()
 	})
-	absser.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
+	abstractions.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
 		return kw.NewJsonParseNodeFactory()
 	})
-	absser.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
+	abstractions.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
 		return ktext.NewTextParseNodeFactory()
 	})
-	absser.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
+	abstractions.RegisterDefaultDeserializer(func() kioser.ParseNodeFactory {
 		return kform.NewFormParseNodeFactory()
 	})
 
@@ -93,6 +92,6 @@ func (m *BetaClient) SitesById(id string) *i1a3c1a5501c5e41b7fd169f2d4c768dce9b0
 }
 
 // Adapter() helper method to export Adapter for iterating
-func (m *BetaClient) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (m *BetaClient) Adapter() abstractions.RequestAdapter {
 	return m.requestAdapter
 }

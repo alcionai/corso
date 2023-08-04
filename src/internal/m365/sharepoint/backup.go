@@ -58,10 +58,10 @@ func ProduceBackupCollections(
 			break
 		}
 
-		foldersComplete := observe.MessageWithCompletion(
+		progressBar := observe.MessageWithCompletion(
 			ctx,
 			observe.Bulletf("%s", scope.Category().PathType()))
-		defer close(foldersComplete)
+		defer close(progressBar)
 
 		var spcs []data.BackupCollection
 
@@ -117,7 +117,6 @@ func ProduceBackupCollections(
 		}
 
 		collections = append(collections, spcs...)
-		foldersComplete <- struct{}{}
 
 		categories[scope.Category().PathType()] = struct{}{}
 	}

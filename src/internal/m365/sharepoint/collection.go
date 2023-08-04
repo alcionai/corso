@@ -190,10 +190,7 @@ func (sc *Collection) runPopulate(
 		ctx,
 		sc.fullPath.Category().String(),
 		sc.fullPath.Folders())
-
-	defer func() {
-		close(colProgress)
-	}()
+	defer close(colProgress)
 
 	// Switch retrieval function based on category
 	switch sc.category {
