@@ -611,127 +611,89 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 		assert.False)
 }
 
-// Check that in the same connection we can create a repo, set and then update
-// the retention period, and run full maintenance to extend object locks.
 func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunMaintenance() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err, clues.ToCore(err))
-
-	w := &Wrapper{k}
-
-	mOpts := repository.Maintenance{
-		Safety: repository.FullMaintenanceSafety,
-		Type:   repository.CompleteMaintenance,
+	table := []struct {
+		name   string
+		reopen bool
+	}{
+		{
+			// Check that in the same connection we can create a repo, set and then
+			// update the retention period, and run full maintenance to extend object
+			// locks.
+			name: "SameConnection",
+		},
+		{
+			// Test that even if the retention configuration change is done from a
+			// different repo connection that we still can extend the object locking
+			// duration and run maintenance successfully.
+			name:   "ReopenToReconfigure",
+			reopen: true,
+		},
 	}
 
-	// This will set common maintenance config parameters. There's some interplay
-	// between the maintenance schedule and retention period that we want to check
-	// below.
-	err = w.RepoMaintenance(ctx, mOpts)
-	require.NoError(t, err, clues.ToCore(err))
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	// Enable retention.
-	err = w.SetRetentionParameters(ctx, repository.Retention{
-		Mode:     ptr.To(repository.GovernanceRetention),
-		Duration: ptr.To(time.Hour * 48),
-		Extend:   ptr.To(true),
-	})
-	require.NoError(t, err, clues.ToCore(err))
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	checkRetentionParams(
-		t,
-		ctx,
-		k,
-		blob.Governance,
-		time.Hour*48,
-		assert.True)
+			k, err := openKopiaRepo(t, ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
-	// Change retention duration without updating mode.
-	err = w.SetRetentionParameters(ctx, repository.Retention{
-		Duration: ptr.To(time.Hour * 96),
-	})
-	require.NoError(t, err, clues.ToCore(err))
+			w := &Wrapper{k}
 
-	checkRetentionParams(
-		t,
-		ctx,
-		k,
-		blob.Governance,
-		time.Hour*96,
-		assert.True)
+			mOpts := repository.Maintenance{
+				Safety: repository.FullMaintenanceSafety,
+				Type:   repository.CompleteMaintenance,
+			}
 
-	// Run full maintenance again. This should extend object locks for things if
-	// they exist.
-	err = w.RepoMaintenance(ctx, mOpts)
-	require.NoError(t, err, clues.ToCore(err))
-}
+			// This will set common maintenance config parameters. There's some interplay
+			// between the maintenance schedule and retention period that we want to check
+			// below.
+			err = w.RepoMaintenance(ctx, mOpts)
+			require.NoError(t, err, clues.ToCore(err))
 
-// Test that even if the retention configuration change is done from a different
-// repo connection that we still can extend the object locking duration and run
-// maintenance successfully.
-func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunMaintenance2() {
-	t := suite.T()
+			// Enable retention.
+			err = w.SetRetentionParameters(ctx, repository.Retention{
+				Mode:     ptr.To(repository.GovernanceRetention),
+				Duration: ptr.To(time.Hour * 48),
+				Extend:   ptr.To(true),
+			})
+			require.NoError(t, err, clues.ToCore(err))
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+			checkRetentionParams(
+				t,
+				ctx,
+				k,
+				blob.Governance,
+				time.Hour*48,
+				assert.True)
 
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err, clues.ToCore(err))
+			if test.reopen {
+				mustReopen(t, ctx, w)
+			}
 
-	w := &Wrapper{k}
+			// Change retention duration without updating mode.
+			err = w.SetRetentionParameters(ctx, repository.Retention{
+				Duration: ptr.To(time.Hour * 96),
+			})
+			require.NoError(t, err, clues.ToCore(err))
 
-	mOpts := repository.Maintenance{
-		Safety: repository.FullMaintenanceSafety,
-		Type:   repository.CompleteMaintenance,
+			checkRetentionParams(
+				t,
+				ctx,
+				k,
+				blob.Governance,
+				time.Hour*96,
+				assert.True)
+
+			// Run full maintenance again. This should extend object locks for things if
+			// they exist.
+			err = w.RepoMaintenance(ctx, mOpts)
+			require.NoError(t, err, clues.ToCore(err))
+		})
 	}
-
-	// This will set common maintenance config parameters. There's some interplay
-	// between the maintenance schedule and retention period that we want to check
-	// below.
-	err = w.RepoMaintenance(ctx, mOpts)
-	require.NoError(t, err, clues.ToCore(err))
-
-	// Enable retention.
-	err = w.SetRetentionParameters(ctx, repository.Retention{
-		Mode:     ptr.To(repository.GovernanceRetention),
-		Duration: ptr.To(time.Hour * 48),
-		Extend:   ptr.To(true),
-	})
-	require.NoError(t, err, clues.ToCore(err))
-
-	checkRetentionParams(
-		t,
-		ctx,
-		k,
-		blob.Governance,
-		time.Hour*48,
-		assert.True)
-
-	mustReopen(t, ctx, w)
-
-	// Change retention duration without updating mode.
-	err = w.SetRetentionParameters(ctx, repository.Retention{
-		Duration: ptr.To(time.Hour * 96),
-	})
-	require.NoError(t, err, clues.ToCore(err))
-
-	checkRetentionParams(
-		t,
-		ctx,
-		k,
-		blob.Governance,
-		time.Hour*96,
-		assert.True)
-
-	// Run full maintenance again. This should extend object locks for things if
-	// they exist.
-	err = w.RepoMaintenance(ctx, mOpts)
-	require.NoError(t, err, clues.ToCore(err))
 }
 
 // ---------------
