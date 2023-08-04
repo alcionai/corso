@@ -863,7 +863,11 @@ func restoreFile(
 		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
 	}
 
-	var written int64
+	var (
+		written          int64
+		progReader       io.ReadCloser
+		closeProgressBar func()
+	)
 
 	// This is just to retry file upload, the uploadSession creation is
 	// not retried here We need extra logic to retry file upload as we
@@ -889,7 +893,7 @@ func restoreFile(
 			iReader = itemData.ToReader()
 		}
 
-		progReader, abort := observe.ItemProgress(
+		progReader, closeProgressBar = observe.ItemProgress(
 			ctx,
 			iReader,
 			observe.ItemRestoreMsg,
@@ -902,8 +906,8 @@ func restoreFile(
 			break
 		}
 
-		// clear out the bar if err
-		abort()
+		// clear out the progress bar immediately on error
+		closeProgressBar()
 
 		// refresh the io.Writer to restart the upload
 		// TODO: @vkamra verify if var session is the desired input
@@ -913,6 +917,8 @@ func restoreFile(
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
+
+	defer closeProgressBar()
 
 	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
 
