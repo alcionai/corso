@@ -46,7 +46,7 @@ func (c Groups) GetAll(
 		return nil, err
 	}
 
-	return getGroups(ctx, func(ctx context.Context, g models.Groupable) bool { return true }, errs, service)
+	return getGroups(ctx, errs, service)
 }
 
 // GetTeams retrieves all Teams.
@@ -59,13 +59,17 @@ func (c Groups) GetTeams(
 		return nil, err
 	}
 
-	return getGroups(ctx, FetchOnlyTeams, errs, service)
+	groups, err := getGroups(ctx, errs, service)
+	if err != nil {
+		return nil, err
+	}
+
+	return FetchOnlyTeams(ctx, groups), nil
 }
 
 // GetAll retrieves all groups.
 func getGroups(
 	ctx context.Context,
-	filterGroupsData func(ctx context.Context, g models.Groupable) bool,
 	errs *fault.Bus,
 	service graph.Servicer,
 ) ([]models.Groupable, error) {
@@ -96,9 +100,7 @@ func getGroups(
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
-			if filterGroupsData(ctx, item) {
-				groups = append(groups, item)
-			}
+			groups = append(groups, item)
 		}
 
 		return true
@@ -111,25 +113,28 @@ func getGroups(
 	return groups, el.Failure()
 }
 
-func FetchOnlyTeams(ctx context.Context, g models.Groupable) bool {
+func FetchOnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
 	log := logger.Ctx(ctx)
+	var teams []models.Groupable
 
-	if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
-		val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, g.GetAdditionalData())
-		for _, v := range val {
-			s, err := str.AnyToString(v)
-			if err != nil {
-				log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
-				return false
-			}
+	for _, g := range groups {
+		if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
+			val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, g.GetAdditionalData())
+			for _, v := range val {
+				s, err := str.AnyToString(v)
+				if err != nil {
+					log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
+					continue
+				}
 
-			if s == teamsAdditionalDataLabel {
-				return true
+				if s == teamsAdditionalDataLabel {
+					teams = append(teams, g)
+				}
 			}
 		}
 	}
 
-	return false
+	return teams
 }
 
 // GetID retrieves group by groupID.
@@ -169,7 +174,9 @@ func (c Groups) GetTeamByID(
 		return nil, err
 	}
 
-	if !FetchOnlyTeams(ctx, resp) {
+	groups := []models.Groupable{resp}
+
+	if len(FetchOnlyTeams(ctx, groups)) == 0 {
 		err := clues.New("given teamID is not related to any team")
 
 		return nil, err

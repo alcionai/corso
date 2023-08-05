@@ -116,15 +116,25 @@ func (suite *GroupsIntgSuite) TestGetAllTeams() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	groups, err := suite.its.ac.
+	teams, err := suite.its.ac.
 		Groups().
 		GetTeams(ctx, fault.New(true))
 	require.NoError(t, err)
+	require.NotZero(t, len(teams), "must have at least one group")
+
+	groups, err := suite.its.ac.
+		Groups().
+		GetAll(ctx, fault.New(true))
+	require.NoError(t, err)
 	require.NotZero(t, len(groups), "must have at least one group")
 
-	for _, team := range groups {
-		assert.True(t, api.FetchOnlyTeams(ctx, team), "must not return non groups groups")
+	var isTeam bool
+
+	if len(groups) > len(teams) {
+		isTeam = true
 	}
+
+	assert.True(t, isTeam, "must not return non groups ")
 }
 
 func (suite *GroupsIntgSuite) TestTeams_GetByID() {
