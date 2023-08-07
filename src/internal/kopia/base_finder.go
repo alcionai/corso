@@ -205,8 +205,8 @@ func (b *baseFinder) getBackupModel(
 }
 
 type backupBase struct {
-	*BackupEntry
-	*ManifestEntry
+	backup   BackupEntry
+	manifest ManifestEntry
 }
 
 // findBasesInSet goes through manifest metadata entries and sees if they're
@@ -217,7 +217,7 @@ func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
 	reason Reasoner,
 	metas []*manifest.EntryMetadata,
-) (*backupBase, *backupBase, []ManifestEntry, error) {
+) (*backupBase, *backupBase, error) {
 	// Sort manifests by time so we can go through them sequentially. The code in
 	// kopia appears to sort them already, but add sorting here just so we're not
 	// reliant on undocumented behavior.
@@ -226,10 +226,9 @@ func (b *baseFinder) findBasesInSet(
 	})
 
 	var (
-		mergeBackup      *backupBase
-		assistBackup     *backupBase
-		assistModel      *BackupEntry
-		kopiaAssistSnaps []ManifestEntry
+		mergeBase   *backupBase
+		assistBase  *backupBase
+		assistModel *BackupEntry
 	)
 
 	for i := len(metas) - 1; i >= 0; i-- {
@@ -279,77 +278,76 @@ func (b *baseFinder) findBasesInSet(
 		// complete as it has both an item data snapshot and a backup details
 		// snapshot.
 		//
-		// Check first if this is an assist backup. Criteria for selecting an
-		// assist backup are:
-		// 1. most recent assist backup for that reason.
-		// 2. At most one assist backup per reason.
-		// 3. It must be more recent than the merge backup for the reason, if
+		// Check first if this is an assist base. Criteria for selecting an
+		// assist base are:
+		// 1. most recent assist base for the reason.
+		// 2. at most one assist base per reason.
+		// 3. it must be more recent than the merge backup for the reason, if
 		// a merge backup exists.
-		if assistModel == nil {
-			assistModel = b.getAssistBackupModel(ictx, bup, reason)
-			if assistModel != nil {
+
+		if b.isAssistBackupModel(ictx, bup) {
+			if assistModel == nil {
+				assistModel = &BackupEntry{
+					Backup:  bup,
+					Reasons: []Reasoner{reason},
+				}
 				assistSnap := ManifestEntry{
 					Manifest: man,
 					Reasons:  []Reasoner{reason},
 				}
-				kopiaAssistSnaps = append(kopiaAssistSnaps, assistSnap)
 
-				assistBackup = &backupBase{
-					BackupEntry:   assistModel,
-					ManifestEntry: &assistSnap,
+				assistBase = &backupBase{
+					backup:   *assistModel,
+					manifest: assistSnap,
 				}
 
 				logger.Ctx(ictx).Infow(
-					"found assist backup",
-					"assist_backup_id", bup.ID,
+					"found assist base",
+					"search_backup_id", bup.ID,
+					"search_snapshot_id", meta.ID,
 					"ssid", ssid)
-
-				continue
 			}
+
+			// Skip if an assist base has already been selected.
+			continue
 		}
 
-		// Found the most recent merge backup. We can stop here.
-		//
-		// TODO(pandeyabs): Ideally we would do some sanity checks here, e.g.
-		// 1. Check for MergeBackup tag. Not safe, since we may have merge
-		// backups with older versions of corso which won't have the tag.
-		// 2. Check for ErrorCount == 0. We will enforce this after we remove
-		// support for BestEffort mode.
-		logger.Ctx(ictx).Infow("found complete backup", "base_backup_id", bup.ID)
+		logger.Ctx(ictx).Infow("found merge base",
+			"search_backup_id", bup.ID,
+			"search_snapshot_id", meta.ID,
+			"ssid", ssid)
 
 		mergeSnap := ManifestEntry{
 			Manifest: man,
 			Reasons:  []Reasoner{reason},
 		}
-
-		kopiaAssistSnaps = append(kopiaAssistSnaps, mergeSnap)
-
-		mergeModel := &BackupEntry{
+		mergeModel := BackupEntry{
 			Backup:  bup,
 			Reasons: []Reasoner{reason},
 		}
 
-		mergeBackup = &backupBase{
-			BackupEntry:   mergeModel,
-			ManifestEntry: &mergeSnap,
+		mergeBase = &backupBase{
+			backup:   mergeModel,
+			manifest: mergeSnap,
 		}
 
 		break
 	}
 
-	logger.Ctx(ctx).Info("no merge or assist backup for reason")
+	if mergeBase == nil && assistBase == nil {
+		logger.Ctx(ctx).Info("no merge or assist base found for reason")
+	}
 
-	return mergeBackup, assistBackup, kopiaAssistSnaps, nil
+	return mergeBase, assistBase, nil
 }
 
-// getAssistBackupModel checks if the provided backup is an assist backup.
-func (b *baseFinder) getAssistBackupModel(
+// isAssistBackupModel checks if the provided backup is an assist backup.
+func (b *baseFinder) isAssistBackupModel(
 	ctx context.Context,
 	bup *backup.Backup,
-	r Reasoner,
-) *BackupEntry {
+) bool {
 	if bup == nil {
-		return nil
+		return false
 	}
 
 	allTags := map[string]string{
@@ -360,37 +358,34 @@ func (b *baseFinder) getAssistBackupModel(
 		if bup.Tags[k] != v {
 			// This is not an assist backup so we can just exit here.
 			logger.Ctx(ctx).Debugw(
-				"assist backup does not have expected tag",
+				"assist backup model missing tags",
 				"backup_id", bup.ID,
 				"tag", k,
 				"expected_value", v,
 				"actual_value", bup.Tags[k])
 
-			return nil
+			return false
 		}
 	}
 
 	// Check if it has a valid streamstore id and snapshot id.
 	if len(bup.StreamStoreID) == 0 || len(bup.SnapshotID) == 0 {
 		logger.Ctx(ctx).Infow(
-			"nil ssid or snapshot id in assist backup",
+			"nil ssid or snapshot id in assist base",
 			"ssid", bup.StreamStoreID,
 			"snapshot_id", bup.SnapshotID)
 
-		return nil
+		return false
 	}
 
-	return &BackupEntry{
-		Backup:  bup,
-		Reasons: []Reasoner{r},
-	}
+	return true
 }
 
 func (b *baseFinder) getBase(
 	ctx context.Context,
 	r Reasoner,
 	tags map[string]string,
-) (*backupBase, *backupBase, []ManifestEntry, error) {
+) (*backupBase, *backupBase, error) {
 	allTags := map[string]string{}
 
 	for _, k := range tagKeys(r) {
@@ -402,12 +397,12 @@ func (b *baseFinder) getBase(
 
 	metas, err := b.sm.FindManifests(ctx, allTags)
 	if err != nil {
-		return nil, nil, nil, clues.Wrap(err, "getting snapshots")
+		return nil, nil, clues.Wrap(err, "getting snapshots")
 	}
 
 	// No snapshots means no backups so we can just exit here.
 	if len(metas) == 0 {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 
 	return b.findBasesInSet(ctx, r, metas)
@@ -423,10 +418,10 @@ func (b *baseFinder) FindBases(
 		// the reason for selecting something. Kopia assisted snapshots also use
 		// ManifestEntry so we have the reasons for selecting them to aid in
 		// debugging.
-		mergeBups        = map[model.StableID]BackupEntry{}
-		assistBups       = map[model.StableID]BackupEntry{}
-		mergeSnaps       = map[manifest.ID]ManifestEntry{}
-		kopiaAssistSnaps = map[manifest.ID]ManifestEntry{}
+		mergeBups   = map[model.StableID]BackupEntry{}
+		assistBups  = map[model.StableID]BackupEntry{}
+		mergeSnaps  = map[manifest.ID]ManifestEntry{}
+		assistSnaps = map[manifest.ID]ManifestEntry{}
 	)
 
 	for _, searchReason := range reasons {
@@ -436,7 +431,7 @@ func (b *baseFinder) FindBases(
 			"search_category", searchReason.Category().String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 
-		mergeBase, assistBase, assistSnaps, err := b.getBase(
+		mergeBase, assistBase, err := b.getBase(
 			ictx,
 			searchReason,
 			tags)
@@ -449,74 +444,61 @@ func (b *baseFinder) FindBases(
 		}
 
 		if mergeBase != nil {
-			mergeBackup := mergeBase.BackupEntry
-			mergeSnap := mergeBase.ManifestEntry
+			mergeSnap := mergeBase.manifest
 
-			if mergeBackup != nil {
-				mBup, ok := mergeBups[mergeBackup.ID]
-				if ok {
-					mBup.Reasons = append(mBup.Reasons, mergeSnap.Reasons...)
-				} else {
-					mBup = *mergeBackup
-				}
-
-				// Reassign since it's structs not pointers to structs.
-				mergeBups[mergeBackup.ID] = mBup
+			ms, ok := mergeSnaps[mergeSnap.ID]
+			if ok {
+				ms.Reasons = append(ms.Reasons, mergeSnap.Reasons...)
+			} else {
+				ms = mergeSnap
 			}
 
-			if mergeSnap != nil {
-				bs, ok := mergeSnaps[mergeSnap.ID]
-				if ok {
-					bs.Reasons = append(bs.Reasons, mergeSnap.Reasons...)
-				} else {
-					bs = *mergeSnap
-				}
+			mergeSnaps[mergeSnap.ID] = ms
 
-				// Reassign since it's structs not pointers to structs.
-				mergeSnaps[mergeSnap.ID] = bs
+			mergeBackup := mergeBase.backup
+			mb, ok := mergeBups[mergeBackup.ID]
+			if ok {
+				mb.Reasons = append(mb.Reasons, mergeSnap.Reasons...)
+			} else {
+				mb = mergeBackup
 			}
+
+			mergeBups[mergeBackup.ID] = mb
 		}
 
 		if assistBase != nil {
-			assistBackup := assistBase.BackupEntry
-			assistSnap := assistBase.ManifestEntry
+			assistSnap := assistBase.manifest
 
-			aBup, ok := assistBups[assistBackup.ID]
+			as, ok := assistSnaps[assistSnap.ID]
 			if ok {
-				aBup.Reasons = append(aBup.Reasons, assistSnap.Reasons...)
+				as.Reasons = append(as.Reasons, assistSnap.Reasons...)
 			} else {
-				aBup = *assistBackup
+				as = assistSnap
 			}
 
-			// Reassign since it's structs not pointers to structs.
-			assistBups[assistBackup.ID] = aBup
-		}
+			assistSnaps[assistSnap.ID] = as
 
-		for _, s := range assistSnaps {
-			bs, ok := kopiaAssistSnaps[s.ID]
+			assistBackup := assistBase.backup
+
+			ab, ok := assistBups[assistBackup.ID]
 			if ok {
-				bs.Reasons = append(bs.Reasons, s.Reasons...)
+				ab.Reasons = append(ab.Reasons, assistBackup.Reasons...)
 			} else {
-				bs = s
+				ab = assistBackup
 			}
 
-			// Reassign since it's structs not pointers to structs.
-			kopiaAssistSnaps[s.ID] = bs
+			assistBups[assistBackup.ID] = ab
 		}
+
 	}
 
 	// TODO(pandeyabs): Fix the terminology used in backupBases to go with
 	// new definitions i.e. mergeSnaps instead of mergeBases, etc.
-	//
-	// Also, we lose the coupling between the backup model and the item data
-	// snapshot here. This is fine for now, but we should consider refactoring
-	// this to make the 1:1 mapping between the backup model and the snapshot
-	// explicit for both merge & assist backups.
 	res := &backupBases{
 		backups:       maps.Values(mergeBups),
 		assistBackups: maps.Values(assistBups),
 		mergeBases:    maps.Values(mergeSnaps),
-		assistBases:   maps.Values(kopiaAssistSnaps),
+		assistBases:   maps.Values(assistSnaps),
 	}
 
 	res.fixupAndVerify(ctx)

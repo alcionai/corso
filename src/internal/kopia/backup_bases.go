@@ -7,7 +7,6 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -35,8 +34,8 @@ type backupBases struct {
 	// data.
 	backups       []BackupEntry
 	mergeBases    []ManifestEntry
-	assistBases   []ManifestEntry
 	assistBackups []BackupEntry
+	assistBases   []ManifestEntry
 }
 
 func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
@@ -216,8 +215,8 @@ func (bb *backupBases) MergeBackupBases(
 
 		res.backups = append(res.backups, bup)
 		res.mergeBases = append(res.mergeBases, man)
-		// TODO(pandeyabs): This should be removed once issue #3943 is fixed i.e.
-		// we remove overlap between merge and assist bases.
+		// TODO(pandeyabs): Remove this once we remove overlap between
+		// between merge and assist bases as part of #3943.
 		res.assistBases = append(res.assistBases, man)
 	}
 
@@ -298,48 +297,6 @@ func getBackupByID(backups []BackupEntry, bID string) (BackupEntry, bool) {
 	return backups[idx], true
 }
 
-func findNonUniqueAssistBackups(
-	ctx context.Context,
-	backups []BackupEntry,
-) map[model.StableID]struct{} {
-	// ReasonKey -> backups with that reason.
-	reasons := map[string][]BackupEntry{}
-	toDrop := map[model.StableID]struct{}{}
-
-	for _, bup := range backups {
-		for _, reason := range bup.Reasons {
-			mapKey := reasonKey(reason)
-			reasons[mapKey] = append(reasons[mapKey], bup)
-		}
-	}
-
-	for reason, bups := range reasons {
-		ictx := clues.Add(ctx, "reason", reason)
-
-		if len(bups) == 0 {
-			// Not sure how this would happen but just in case...
-			continue
-		} else if len(bups) > 1 {
-			bIDs := make([]model.StableID, 0, len(bups))
-			for _, b := range bups {
-				toDrop[b.ID] = struct{}{}
-				bIDs = append(bIDs, b.ID)
-			}
-
-			// TODO(ashmrtn): We should actually just remove this reason from the
-			// backups and then if they have no reasons remaining drop them from
-			// the set.
-			logger.Ctx(ictx).Infow(
-				"dropping assist backups with duplicate reason",
-				"manifest_ids", bIDs)
-
-			continue
-		}
-	}
-
-	return toDrop
-}
-
 // fixupAndVerify goes through the set of backups and snapshots used for merging
 // and ensures:
 //   - the reasons for selecting merge snapshots are distinct
@@ -351,6 +308,8 @@ func findNonUniqueAssistBackups(
 // pull. On the other hand, *not* dropping them is unsafe as it will muck up
 // merging when we add stuff to kopia (possibly multiple entries for the same
 // item etc).
+//
+// TODO(pandeyabs): Refactor common code into a helper as part of #3943.
 func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 	toDrop := findNonUniqueManifests(ctx, bb.mergeBases)
 
@@ -399,6 +358,8 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 
 	var assistToKeep []ManifestEntry
 
+	// Every merge base is also a kopia assist base.
+	// TODO(pandeyabs): This should be removed as part of #3943.
 	for _, man := range bb.assistBases {
 		if _, ok := toDrop[man.ID]; ok {
 			continue
@@ -407,32 +368,44 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 		assistToKeep = append(assistToKeep, man)
 	}
 
-	// Now do the same for assist backups. Discard any that have overlapping
-	// reasons or if missing details or snapshot IDs.
-	assistBackupDrops := findNonUniqueAssistBackups(ctx, bb.assistBackups)
+	// Drop assist snapshots with overlapping reasons.
+	toDropAssists := findNonUniqueManifests(ctx, bb.assistBases)
 
-	for _, bup := range bb.assistBackups {
-		if _, ok := assistBackupDrops[bup.ID]; ok {
+	for _, man := range bb.assistBases {
+		if _, ok := toDropAssists[man.ID]; ok {
 			continue
 		}
 
-		// Sanity checks on assist backups
+		bID, _ := man.GetTag(TagBackupID)
+
+		bup, ok := getBackupByID(bb.assistBackups, bID)
+		if !ok {
+			toDrop[man.ID] = struct{}{}
+
+			logger.Ctx(ctx).Info(
+				"dropping manifest due to missing backup",
+				"manifest_id", man.ID)
+
+			continue
+		}
+
 		deetsID := bup.StreamStoreID
 		if len(deetsID) == 0 {
 			deetsID = bup.DetailsID
 		}
 
 		if len(bup.SnapshotID) == 0 || len(deetsID) == 0 {
-			assistBackupDrops[bup.ID] = struct{}{}
+			toDrop[man.ID] = struct{}{}
 
 			logger.Ctx(ctx).Info(
-				"dropping assist backup, invalid snapshot or details ID",
-				"backup_id", bup.ID)
+				"dropping manifest due to invalid backup",
+				"manifest_id", man.ID)
 
 			continue
 		}
 
-		assistBackupsToKeep = append(assistBackupsToKeep, bup)
+		assistBackupsToKeep = append(backupsToKeep, bup)
+		assistToKeep = append(assistToKeep, man)
 	}
 
 	// TODO(pandeyabs): Go through all reasons & ensure that the assist backups
