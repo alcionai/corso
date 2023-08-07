@@ -445,6 +445,7 @@ func (b *baseFinder) FindBases(
 
 		if mergeBase != nil {
 			mergeSnap := mergeBase.manifest
+			mergeBackup := mergeBase.backup
 
 			ms, ok := mergeSnaps[mergeSnap.ID]
 			if ok {
@@ -455,7 +456,6 @@ func (b *baseFinder) FindBases(
 
 			mergeSnaps[mergeSnap.ID] = ms
 
-			mergeBackup := mergeBase.backup
 			mb, ok := mergeBups[mergeBackup.ID]
 			if ok {
 				mb.Reasons = append(mb.Reasons, mergeSnap.Reasons...)
@@ -468,6 +468,7 @@ func (b *baseFinder) FindBases(
 
 		if assistBase != nil {
 			assistSnap := assistBase.manifest
+			assistBackup := assistBase.backup
 
 			as, ok := assistSnaps[assistSnap.ID]
 			if ok {
@@ -478,8 +479,6 @@ func (b *baseFinder) FindBases(
 
 			assistSnaps[assistSnap.ID] = as
 
-			assistBackup := assistBase.backup
-
 			ab, ok := assistBups[assistBackup.ID]
 			if ok {
 				ab.Reasons = append(ab.Reasons, assistBackup.Reasons...)
@@ -489,7 +488,6 @@ func (b *baseFinder) FindBases(
 
 			assistBups[assistBackup.ID] = ab
 		}
-
 	}
 
 	// TODO(pandeyabs): Fix the terminology used in backupBases to go with

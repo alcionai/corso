@@ -360,7 +360,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 
 	// Every merge base is also a kopia assist base.
 	// TODO(pandeyabs): This should be removed as part of #3943.
-	for _, man := range bb.assistBases {
+	for _, man := range bb.mergeBases {
 		if _, ok := toDrop[man.ID]; ok {
 			continue
 		}
@@ -404,7 +404,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 			continue
 		}
 
-		assistBackupsToKeep = append(backupsToKeep, bup)
+		assistBackupsToKeep = append(assistBackupsToKeep, bup)
 		assistToKeep = append(assistToKeep, man)
 	}
 
