@@ -21,18 +21,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type statusUpdater interface {
-	UpdateStatus(status *support.ControllerOperationStatus)
-}
-
-// ProduceBackupCollections returns a set of DataCollection which represents the SharePoint data
-// for the specified user
 func ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	creds account.M365Config,
-	su statusUpdater,
+	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	b, err := bpc.Selector.ToSharePointBackup()
@@ -129,7 +123,7 @@ func ProduceBackupCollections(
 			bpc.ProtectedResource.ID(),
 			path.SharePointService,
 			categories,
-			su.UpdateStatus,
+			su,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
@@ -146,7 +140,7 @@ func collectLists(
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	tenantID string,
-	updater statusUpdater,
+	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
@@ -181,7 +175,7 @@ func collectLists(
 			dir,
 			ac,
 			List,
-			updater.UpdateStatus,
+			su,
 			bpc.Options)
 		collection.AddJob(tuple.id)
 
@@ -200,7 +194,7 @@ func collectLibraries(
 	tenantID string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	scope selectors.SharePointScope,
-	updater statusUpdater,
+	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
@@ -211,7 +205,7 @@ func collectLibraries(
 			&libraryBackupHandler{ad, scope},
 			tenantID,
 			bpc.ProtectedResource.ID(),
-			updater.UpdateStatus,
+			su,
 			bpc.Options)
 	)
 
@@ -230,7 +224,7 @@ func collectPages(
 	bpc inject.BackupProducerConfig,
 	creds account.M365Config,
 	ac api.Client,
-	updater statusUpdater,
+	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Pages collections")
@@ -277,7 +271,7 @@ func collectPages(
 			dir,
 			ac,
 			Pages,
-			updater.UpdateStatus,
+			su,
 			bpc.Options)
 		collection.betaService = betaService
 		collection.AddJob(tuple.ID)
