@@ -38,6 +38,11 @@ jobs:
       RESTORE_DEST_PFX: Corso_Test_Longevity_
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       PREFIX: 'longevity'
+
+      # Options for retention.
+      RETENTION_MODE: GOVERNANCE
+      # Time to retain blobs for in hours.
+      RETENTION_DURATION: 216
     defaults:
       run:
         working-directory: src
@@ -54,7 +59,9 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: go build -o longevity-test ./cmd/longevity_test
+      - run: |
+          go build -o longevity-test ./cmd/longevity_test
+          go build -o s3checker ./cmd/s3checker
 
       - name: Get version string
         id: version
@@ -243,59 +250,61 @@ jobs:
 
 ##########################################################################################################################################
 
+# skipped until supported
 # Export OneDrive Test
-      - name: OneDrive Export test
-        run: |
-          set -euo pipefail
-          echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
+      # - name: OneDrive Export test
+      #   run: |
+      #     set -euo pipefail
+      #     echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
 
-          echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
-              while read -r line; do
-                  ./corso export onedrive \
-                    "/tmp/corso-export--$line" \
-                    --no-stats \
-                    --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
-              done
+      #     echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
+      #     ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+      #         while read -r line; do
+      #             ./corso export onedrive \
+      #               "/tmp/corso-export--$line" \
+      #               --no-stats \
+      #               --backup "$line" \
+      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
+      #         done
 
-          echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
-              while read -r line; do
-                  ./corso export onedrive \
-                    "/tmp/corso-export--$line" \
-                    --no-stats \
-                    --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
-              done
+      #     echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
+      #     ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
+      #         while read -r line; do
+      #             ./corso export onedrive \
+      #               "/tmp/corso-export--$line" \
+      #               --no-stats \
+      #               --backup "$line" \
+      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
+      #         done
 
 ##########################################################################################################################################
 
+# skipped until supported
 # Export SharePoint Test
-      - name: SharePoint Export test
-        run: |
-          set -euo pipefail
-          echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
+      # - name: SharePoint Export test
+      #   run: |
+      #     set -euo pipefail
+      #     echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
 
-          echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
-              while read -r line; do
-                  ./corso export sharepoint \
-                    "/tmp/corso-export--$line" \
-                    --no-stats \
-                    --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
-              done
+      #     echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
+      #     ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+      #         while read -r line; do
+      #             ./corso export sharepoint \
+      #               "/tmp/corso-export--$line" \
+      #               --no-stats \
+      #               --backup "$line" \
+      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
+      #         done
 
-          echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
-              while read -r line; do
-                  ./corso export sharepoint \
-                    "/tmp/corso-export--$line" \
-                    --no-stats \
-                    --backup "$line" \
-                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
-              done
+      #     echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
+      #     ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
+      #         while read -r line; do
+      #             ./corso export sharepoint \
+      #               "/tmp/corso-export--$line" \
+      #               --no-stats \
+      #               --backup "$line" \
+      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
+      #         done
 
 ##########################################################################################################################################
 
@@ -319,7 +328,6 @@ jobs:
       - name: Maintenance test Weekly
         id: maintenance-test-weekly
         run: |
-
           if [[ $(date +%A) == "Saturday" ]]; then
             set -euo pipefail
             echo -e "\n Maintenance test Weekly\n" >> ${CORSO_LOG_FILE}
@@ -330,6 +338,36 @@ jobs:
             --force \
             --json \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_complete.txt 
+
+            # TODO(ashmrtn): We can also check that non-current versions of
+            # blobs don't have their retention extended if we want.
+            #
+            # Assuming no failures during full maintenance, current versions of
+            # objects with the below versions should have retention times that
+            # are roughly (now + RETENTION_DURATION). We can explicitly check
+            # for this, but leave a little breathing room since maintenance may
+            # take some time to run.
+            #
+            # If we pick a live-retention-duration that is too small then we'll
+            # start seeing failures. The check for live objects is a lower bound
+            # check.
+            #
+            # Blob prefixes are as follows:
+            #   - kopia.blobcfg - repo-wide config
+            #   - kopia.repository - repo-wide config
+            #   - p - data pack blobs (i.e. file data)
+            #   - q - metadata pack blobs (i.e. manifests, directory listings, etc)
+            #   - x - index blobs
+            ./s3checker \
+              --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
+              --bucket-prefix ${{ env.PREFIX }} \
+              --retention-mode ${{ env.RETENTION_MODE }} \
+              --live-retention-duration "$((${{ env.RETENTION_DURATION}}-1))h" \
+              --prefix "kopia.blobcfg" \
+              --prefix "kopia.repository" \
+              --prefix "p" \
+              --prefix "q" \
+              --prefix "x"
           fi
 
 ##########################################################################################################################################
