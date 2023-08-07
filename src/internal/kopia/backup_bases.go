@@ -331,7 +331,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 			toDrop[man.ID] = struct{}{}
 
 			logger.Ctx(ctx).Info(
-				"dropping manifest due to missing backup",
+				"dropping merge base due to missing backup",
 				"manifest_id", man.ID)
 
 			continue
@@ -346,7 +346,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 			toDrop[man.ID] = struct{}{}
 
 			logger.Ctx(ctx).Info(
-				"dropping manifest due to invalid backup",
+				"dropping merge base due to invalid backup",
 				"manifest_id", man.ID)
 
 			continue
@@ -383,7 +383,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 			toDrop[man.ID] = struct{}{}
 
 			logger.Ctx(ctx).Info(
-				"dropping manifest due to missing backup",
+				"dropping assist base due to missing backup",
 				"manifest_id", man.ID)
 
 			continue
@@ -398,7 +398,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 			toDrop[man.ID] = struct{}{}
 
 			logger.Ctx(ctx).Info(
-				"dropping manifest due to invalid backup",
+				"dropping assist base due to invalid backup",
 				"manifest_id", man.ID)
 
 			continue

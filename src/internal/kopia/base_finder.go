@@ -226,9 +226,8 @@ func (b *baseFinder) findBasesInSet(
 	})
 
 	var (
-		mergeBase   *backupBase
-		assistBase  *backupBase
-		assistModel *BackupEntry
+		mergeBase  *backupBase
+		assistBase *backupBase
 	)
 
 	for i := len(metas) - 1; i >= 0; i-- {
@@ -286,8 +285,8 @@ func (b *baseFinder) findBasesInSet(
 		// a merge backup exists.
 
 		if b.isAssistBackupModel(ictx, bup) {
-			if assistModel == nil {
-				assistModel = &BackupEntry{
+			if assistBase == nil {
+				assistModel := BackupEntry{
 					Backup:  bup,
 					Reasons: []Reasoner{reason},
 				}
@@ -297,7 +296,7 @@ func (b *baseFinder) findBasesInSet(
 				}
 
 				assistBase = &backupBase{
-					backup:   *assistModel,
+					backup:   assistModel,
 					manifest: assistSnap,
 				}
 
@@ -346,10 +345,6 @@ func (b *baseFinder) isAssistBackupModel(
 	ctx context.Context,
 	bup *backup.Backup,
 ) bool {
-	if bup == nil {
-		return false
-	}
-
 	allTags := map[string]string{
 		model.BackupTypeTag: model.AssistBackup,
 	}

@@ -1036,6 +1036,38 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					nil),
 			},
 		},
+		{
+			name:  "Merge base with tag",
+			input: testUser1Mail,
+			manifestData: []manifestInfo{
+				newManifestInfo(
+					testID2,
+					testT2,
+					testCompleteMan,
+					testBackup2,
+					nil,
+					testMail,
+					testUser1,
+				),
+			},
+			expectedBaseReasons: map[int][]Reasoner{
+				0: testUser1Mail,
+			},
+			expectedAssistManifestReasons: map[int][]Reasoner{
+				0: testUser1Mail,
+			},
+			expectedAssistReasons: map[int][]Reasoner{},
+			backupData: []backupInfo{
+				newBackupModel(testBackup2, true, true, false, nil, nil),
+				newBackupModel(
+					testBackup1,
+					true,
+					true,
+					false,
+					map[string]string{model.BackupTypeTag: model.MergeBackup},
+					nil),
+			},
+		},
 	}
 
 	for _, test := range table {
