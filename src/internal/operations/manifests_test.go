@@ -254,6 +254,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		rp          mockRestoreProducer
 		reasons     []kopia.Reasoner
 		getMeta     bool
+		getAssist   bool
 		assertErr   assert.ErrorAssertionFunc
 		assertB     assert.BoolAssertionFunc
 		expectDCS   []mockColl
@@ -265,6 +266,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			rp:         mockRestoreProducer{},
 			reasons:    []kopia.Reasoner{},
 			getMeta:    false,
+			getAssist:  true,
 			assertErr:  assert.NoError,
 			assertB:    assert.False,
 			expectDCS:  nil,
@@ -284,6 +286,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   false,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
 			expectDCS: nil,
@@ -305,6 +308,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			// Doesn't matter if it's true or false as merge/assist bases are
 			// distinct. A future PR can go and remove the requirement to pass the
@@ -334,6 +338,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}},
@@ -381,6 +386,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}},
@@ -389,6 +395,36 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			).WithAssistBases(
 				makeMan("id2", "checkpoint", path.EmailCategory),
 			),
+		},
+		{
+			name: "one valid man, extra incomplete man, no assist bases",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().WithMergeBases(
+						makeMan("id1", "", path.EmailCategory),
+					).WithAssistBases(
+						makeMan("id2", "checkpoint", path.EmailCategory),
+					),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					"id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
+					"id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
+				},
+			},
+			reasons: []kopia.Reasoner{
+				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+			},
+			getMeta:   true,
+			getAssist: false,
+			assertErr: assert.NoError,
+			assertB:   assert.True,
+			expectDCS: []mockColl{{id: "id1"}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				makeMan("id1", "", path.EmailCategory),
+			).
+				ClearMockAssistBases(),
 		},
 		{
 			name: "multiple valid mans",
@@ -410,6 +446,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "id2"}},
@@ -432,6 +469,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:    true,
+			getAssist:  true,
 			assertErr:  assert.Error,
 			assertB:    assert.False,
 			expectDCS:  nil,
@@ -452,7 +490,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				&test.rp,
 				test.reasons, nil,
 				tid,
-				test.getMeta)
+				test.getMeta,
+				test.getAssist)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
@@ -551,6 +590,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		reasons         []kopia.Reasoner
 		fallbackReasons []kopia.Reasoner
 		getMeta         bool
+		getAssist       bool
 		assertErr       assert.ErrorAssertionFunc
 		assertB         assert.BoolAssertionFunc
 		expectDCS       []mockColl
@@ -570,6 +610,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			rp:              mockRestoreProducer{},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         false,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.False,
 			expectDCS:       nil,
@@ -595,6 +636,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
@@ -603,6 +645,35 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			).WithBackups(
 				makeBackup(fbro, "fb_id1", path.EmailCategory),
 			),
+		},
+		{
+			name: "only fallbacks, no assist",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					fbro: kopia.NewMockBackupBases().WithMergeBases(
+						makeMan(fbro, "fb_id1", "", path.EmailCategory),
+					).WithBackups(
+						makeBackup(fbro, "fb_id1", path.EmailCategory),
+					),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+				},
+			},
+			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			getMeta:         true,
+			getAssist:       false,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: "fb_id1"}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				makeMan(fbro, "fb_id1", "", path.EmailCategory),
+			).WithBackups(
+				makeBackup(fbro, "fb_id1", path.EmailCategory),
+			).
+				ClearMockAssistBases(),
 		},
 		{
 			name: "complete mans and fallbacks",
@@ -627,6 +698,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "id1"}},
@@ -655,6 +727,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       nil,
@@ -691,6 +764,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "id1"}},
@@ -723,6 +797,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
@@ -733,6 +808,40 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			).WithAssistBases(
 				makeMan(ro, "id2", "checkpoint", path.EmailCategory),
 			),
+		},
+		{
+			name: "incomplete mans and complete fallbacks, no assist bases",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().WithAssistBases(
+						makeMan(ro, "id2", "checkpoint", path.EmailCategory),
+					),
+					fbro: kopia.NewMockBackupBases().WithMergeBases(
+						makeMan(fbro, "fb_id1", "", path.EmailCategory),
+					).WithBackups(
+						makeBackup(fbro, "fb_id1", path.EmailCategory),
+					),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					"id2":    {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
+					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
+				},
+			},
+			reasons:         []kopia.Reasoner{emailReason},
+			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			getMeta:         true,
+			getAssist:       false,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: "fb_id1"}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				makeMan(fbro, "fb_id1", "", path.EmailCategory),
+			).WithBackups(
+				makeBackup(fbro, "fb_id1", path.EmailCategory),
+			).
+				ClearMockAssistBases(),
 		},
 		{
 			name: "complete mans and incomplete fallbacks",
@@ -755,6 +864,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
+			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "id1"}},
@@ -791,6 +901,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}},
@@ -823,6 +934,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "fb_id1"}},
@@ -862,6 +974,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
+			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "fb_id1"}},
@@ -887,7 +1000,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				&test.rp,
 				test.reasons, test.fallbackReasons,
 				tid,
-				test.getMeta)
+				test.getMeta,
+				test.getAssist)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
