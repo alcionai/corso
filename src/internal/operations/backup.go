@@ -57,6 +57,9 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
+	// When true, allows for kopia-assisted incremental backups instead of
+	// downloading and hashing all item data.
+	assistBackup bool
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -86,6 +89,7 @@ func NewBackupOperation(
 		BackupVersion: version.Backup,
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
+		assistBackup:  !opts.ToggleFeatures.DisableAssistCaching,
 		bp:            bp,
 	}
 
@@ -180,7 +184,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
-		"incremental", op.incremental)
+		"incremental", op.incremental,
+		"assist_backup", op.assistBackup)
 
 	op.bus.Event(
 		ctx,
@@ -301,7 +306,8 @@ func (op *BackupOperation) do(
 		op.kopia,
 		reasons, fallbackReasons,
 		op.account.ID(),
-		op.incremental)
+		op.incremental,
+		op.assistBackup)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
@@ -312,6 +318,10 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
+	// TODO(ashmrtn): This should probably just return a collection that deletes
+	// the entire subtree instead of returning an additional bool. That way base
+	// selection is controlled completely by flags and merging is controlled
+	// completely by collections.
 	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
 		ctx,
 		op.bp,

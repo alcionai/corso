@@ -25,7 +25,7 @@ func produceManifestsAndMetadata(
 	rp inject.RestoreProducer,
 	reasons, fallbackReasons []kopia.Reasoner,
 	tenantID string,
-	getMetadata bool,
+	getMetadata, getAssistBases bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
 	var (
 		tags          = map[string]string{kopia.TagBackupCategory: ""}
