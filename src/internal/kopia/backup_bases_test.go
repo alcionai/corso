@@ -206,35 +206,24 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 	ro := "resource_owner"
 
 	type testInput struct {
-		id         int
-		incomplete bool
-		cat        []path.CategoryType
+		id  int
+		cat []path.CategoryType
 	}
 
 	// Make a function so tests can modify things without messing with each other.
-	makeBackupBases := func(ti []testInput) *backupBases {
+	makeBackupBases := func(mergeInputs []testInput, assistInputs []testInput) *backupBases {
 		res := &backupBases{}
 
-		for _, i := range ti {
+		for _, i := range mergeInputs {
 			baseID := fmt.Sprintf("id%d", i.id)
-			ir := ""
-
-			if i.incomplete {
-				ir = "checkpoint"
-			}
-
 			reasons := make([]Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
 				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
 			}
 
-			m := makeManifest(baseID, ir, "b"+baseID, reasons...)
+			m := makeManifest(baseID, "", "b"+baseID, reasons...)
 			res.assistBases = append(res.assistBases, m)
-
-			if i.incomplete {
-				continue
-			}
 
 			b := BackupEntry{
 				Backup: &backup.Backup{
@@ -249,192 +238,223 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			res.mergeBases = append(res.mergeBases, m)
 		}
 
+		for _, i := range assistInputs {
+			baseID := fmt.Sprintf("id%d", i.id)
+
+			reasons := make([]Reasoner, 0, len(i.cat))
+
+			for _, c := range i.cat {
+				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
+			}
+
+			m := makeManifest(baseID, "", "b"+baseID, reasons...)
+
+			b := BackupEntry{
+				Backup: &backup.Backup{
+					BaseModel: model.BaseModel{
+						ID:   model.StableID("a" + baseID),
+						Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
+					},
+					SnapshotID:    baseID,
+					StreamStoreID: "ss" + baseID,
+				},
+				Reasons: reasons,
+			}
+
+			res.assistBackups = append(res.assistBackups, b)
+			res.assistBases = append(res.assistBases, m)
+		}
+
 		return res
 	}
 
 	table := []struct {
-		name   string
-		bb     []testInput
-		other  []testInput
-		expect []testInput
+		name        string
+		merge       []testInput
+		assist      []testInput
+		otherMerge  []testInput
+		otherAssist []testInput
+		expect      func() *backupBases
 	}{
 		{
 			name: "Other Empty",
-			bb: []testInput{
+			merge: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
 			},
-			expect: []testInput{
+			assist: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
+			},
+			expect: func() *backupBases {
+				bs := makeBackupBases([]testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+				}, []testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+				})
+
+				return bs
 			},
 		},
 		{
-			name: "BB Empty",
-			other: []testInput{
+			name: "current Empty",
+			otherMerge: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
 			},
-			expect: []testInput{
+			otherAssist: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
+			},
+			expect: func() *backupBases {
+				bs := makeBackupBases([]testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+				}, []testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+				})
+
+				return bs
 			},
 		},
 		{
-			name: "Other overlaps Complete And Incomplete",
-			bb: []testInput{
+			name: "Other overlaps Complete",
+			merge: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
 				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
+					id:  1,
+					cat: []path.CategoryType{path.EmailCategory},
 				},
 			},
-			other: []testInput{
+			assist: []testInput{
+				{cat: []path.CategoryType{path.EmailCategory}},
+				{
+					id:  4,
+					cat: []path.CategoryType{path.EmailCategory},
+				},
+			},
+			otherMerge: []testInput{
 				{
 					id:  2,
 					cat: []path.CategoryType{path.EmailCategory},
 				},
 				{
-					id:         3,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
+					id:  3,
+					cat: []path.CategoryType{path.EmailCategory},
 				},
 			},
-			expect: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
+			otherAssist: []testInput{
 				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
+					id:  5,
+					cat: []path.CategoryType{path.EmailCategory},
 				},
+			},
+			expect: func() *backupBases {
+				bs := makeBackupBases([]testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+					{
+						id:  1,
+						cat: []path.CategoryType{path.EmailCategory},
+					},
+				}, []testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+					{
+						id:  4,
+						cat: []path.CategoryType{path.EmailCategory},
+					},
+				})
+
+				return bs
 			},
 		},
 		{
 			name: "Other Overlaps Complete",
-			bb: []testInput{
+			merge: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
 			},
-			other: []testInput{
+			otherMerge: []testInput{
 				{
 					id:  2,
 					cat: []path.CategoryType{path.EmailCategory},
 				},
 			},
-			expect: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
+			expect: func() *backupBases {
+				bs := makeBackupBases([]testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+				}, nil)
+
+				return bs
 			},
 		},
 		{
-			name: "Other Overlaps Incomplete",
-			bb: []testInput{
+			name: "Current assist overlaps with Other merge",
+			assist: []testInput{
 				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
+					id:  3,
+					cat: []path.CategoryType{path.EmailCategory},
 				},
 			},
-			other: []testInput{
+			otherMerge: []testInput{
+				{
+					id:  1,
+					cat: []path.CategoryType{path.EmailCategory},
+				},
+			},
+			otherAssist: []testInput{
 				{
 					id:  2,
 					cat: []path.CategoryType{path.EmailCategory},
 				},
-				{
-					id:         3,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
-				},
 			},
-			expect: []testInput{
-				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
-				},
-				{
-					id:  2,
-					cat: []path.CategoryType{path.EmailCategory},
-				},
+
+			expect: func() *backupBases {
+				bs := makeBackupBases([]testInput{
+					{
+						id:  1,
+						cat: []path.CategoryType{path.EmailCategory},
+					},
+				}, []testInput{
+					{
+						id:  3,
+						cat: []path.CategoryType{path.EmailCategory},
+					},
+				})
+
+				return bs
 			},
 		},
 		{
 			name: "Other Disjoint",
-			bb: []testInput{
+			merge: []testInput{
 				{cat: []path.CategoryType{path.EmailCategory}},
 				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
+					id:  1,
+					cat: []path.CategoryType{path.EmailCategory},
 				},
 			},
-			other: []testInput{
+			otherMerge: []testInput{
 				{
 					id:  2,
 					cat: []path.CategoryType{path.ContactsCategory},
 				},
 				{
-					id:         3,
-					cat:        []path.CategoryType{path.ContactsCategory},
-					incomplete: true,
-				},
-			},
-			expect: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
-				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
-				},
-				{
-					id:  2,
+					id:  3,
 					cat: []path.CategoryType{path.ContactsCategory},
 				},
-				{
-					id:         3,
-					cat:        []path.CategoryType{path.ContactsCategory},
-					incomplete: true,
-				},
 			},
-		},
-		{
-			name: "Other Reduced Reasons",
-			bb: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
-				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
-				},
-			},
-			other: []testInput{
-				{
-					id: 2,
-					cat: []path.CategoryType{
-						path.EmailCategory,
-						path.ContactsCategory,
+			expect: func() *backupBases {
+				bs := makeBackupBases([]testInput{
+					{cat: []path.CategoryType{path.EmailCategory}},
+					{
+						id:  1,
+						cat: []path.CategoryType{path.EmailCategory},
 					},
-				},
-				{
-					id: 3,
-					cat: []path.CategoryType{
-						path.EmailCategory,
-						path.ContactsCategory,
+					{
+						id:  2,
+						cat: []path.CategoryType{path.ContactsCategory},
 					},
-					incomplete: true,
-				},
-			},
-			expect: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
-				{
-					id:         1,
-					cat:        []path.CategoryType{path.EmailCategory},
-					incomplete: true,
-				},
-				{
-					id:  2,
-					cat: []path.CategoryType{path.ContactsCategory},
-				},
-				{
-					id:         3,
-					cat:        []path.CategoryType{path.ContactsCategory},
-					incomplete: true,
-				},
+					{
+						id:  3,
+						cat: []path.CategoryType{path.ContactsCategory},
+					},
+				}, nil)
+
+				return bs
 			},
 		},
 	}
@@ -443,9 +463,9 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			bb := makeBackupBases(test.bb)
-			other := makeBackupBases(test.other)
-			expect := makeBackupBases(test.expect)
+			bb := makeBackupBases(test.merge, test.assist)
+			other := makeBackupBases(test.otherMerge, test.otherAssist)
+			expected := test.expect()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
@@ -456,7 +476,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 				func(r Reasoner) string {
 					return r.Service().String() + r.Category().String()
 				})
-			AssertBackupBasesEqual(t, expect, got)
+			AssertBackupBasesEqual(t, expected, got)
 		})
 	}
 }
