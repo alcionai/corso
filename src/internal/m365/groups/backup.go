@@ -56,8 +56,7 @@ func ProduceBackupCollections(
 		var dbcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
-		case path.LibrariesCategory:
-			// TODO
+		case path.LibrariesCategory: // TODO
 		}
 
 		collections = append(collections, dbcs...)
