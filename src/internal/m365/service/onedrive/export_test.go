@@ -13,6 +13,7 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -82,7 +83,7 @@ func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Item, err
 	if name == fd.id {
 		return &dataMock.Item{
 			ItemID: fd.id,
-			Reader: io.NopCloser(bytes.NewBufferString(`{"filename": "` + name + `"}`)),
+			Reader: io.NopCloser(bytes.NewBufferString(`{"filename": "` + fd.name + `"}`)),
 		}, nil
 	}
 
@@ -141,8 +142,7 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 				ctx,
 				test.id,
 				test.backupVersion,
-				test.fin,
-			)
+				test.fin)
 			test.errFunc(t, err)
 
 			assert.Equal(t, test.name, name, "name")
@@ -317,7 +317,6 @@ func (suite *ExportUnitSuite) TestGetItems() {
 					items: []*dataMock.Item{
 						{
 							ItemID: "missing.data",
-							Reader: io.NopCloser(bytes.NewBufferString("body1")),
 						},
 						{
 							ItemID: "id1.data",
@@ -426,7 +425,22 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	dpb := odConsts.DriveFolderPrefixBuilder("driveID1")
+	var (
+		exportCfg     = control.ExportConfig{}
+		dpb           = odConsts.DriveFolderPrefixBuilder("driveID1")
+		dii           = odStub.DriveItemInfo()
+		expectedItems = []export.Item{
+			{
+				ID: "id1.data",
+				Data: export.ItemData{
+					Name: "name1",
+					Body: io.NopCloser((bytes.NewBufferString("body1"))),
+				},
+			},
+		}
+	)
+
+	dii.OneDrive.ItemName = "name1"
 
 	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
 	assert.NoError(t, err, "build path")
@@ -437,8 +451,9 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				path: p,
 				items: []*dataMock.Item{
 					{
-						ItemID: "id1.data",
-						Reader: io.NopCloser(bytes.NewBufferString("body1")),
+						ItemID:   "id1.data",
+						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
+						ItemInfo: dii,
 					},
 				},
 			},
@@ -446,26 +461,19 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		},
 	}
 
-	expectedItems := []export.Item{
-		{
-			ID: "id1.data",
-			Data: export.ItemData{
-				Name: "name1",
-				Body: io.NopCloser((bytes.NewBufferString("body1"))),
-			},
-		},
-	}
-
-	exportCfg := control.ExportConfig{}
-	ecs, err := ProduceExportCollections(ctx, int(version.Backup), exportCfg, control.Options{}, dcs, nil, fault.New(true))
+	ecs, err := ProduceExportCollections(
+		ctx,
+		int(version.Backup),
+		exportCfg,
+		control.DefaultOptions(),
+		dcs,
+		nil,
+		fault.New(true))
 	assert.NoError(t, err, "export collections error")
-
 	assert.Len(t, ecs, 1, "num of collections")
 
-	items := ecs[0].Items(ctx)
-
 	fitems := []export.Item{}
-	for item := range items {
+	for item := range ecs[0].Items(ctx) {
 		fitems = append(fitems, item)
 	}
 

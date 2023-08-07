@@ -20,13 +20,13 @@ import (
 var _ data.Item = &Item{}
 
 type Item struct {
+	DeletedFlag  bool
 	ItemID       string
-	Reader       io.ReadCloser
-	ReadErr      error
+	ItemInfo     details.ItemInfo
 	ItemSize     int64
 	ModifiedTime time.Time
-	DeletedFlag  bool
-	ItemInfo     details.ItemInfo
+	Reader       io.ReadCloser
+	ReadErr      error
 }
 
 func (s *Item) ID() string {
