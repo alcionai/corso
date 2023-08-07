@@ -110,7 +110,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 			bpc,
 			ctrl.AC,
 			ctrl.credentials,
-			ctrl,
+			ctrl.UpdateStatus,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
