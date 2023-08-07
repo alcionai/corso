@@ -93,6 +93,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddDataFlag(c, []string{dataLibraries}, true)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
+		flags.AddDisableAssistCachingFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())

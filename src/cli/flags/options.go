@@ -9,6 +9,7 @@ const (
 	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
 	DisableDeltaFN              = "disable-delta"
 	DisableIncrementalsFN       = "disable-incrementals"
+	DisableAssistCachingFN      = "disable-caching"
 	EnableImmutableIDFN         = "enable-immutable-id"
 	FailFastFN                  = "fail-fast"
 	FailedItemsFN               = "failed-items"
@@ -26,6 +27,7 @@ var (
 	DisableConcurrencyLimiterFV bool
 	DisableDeltaFV              bool
 	DisableIncrementalsFV       bool
+	DisableAssistCachingFV      bool
 	EnableImmutableIDFV         bool
 	FailFastFV                  bool
 	FetchParallelismFV          int
@@ -108,6 +110,18 @@ func AddDisableIncrementalsFlag(cmd *cobra.Command) {
 		false,
 		"Disable incremental data retrieval in backups.")
 	cobra.CheckErr(fs.MarkHidden(DisableIncrementalsFN))
+}
+
+// Adds the hidden '--disable-caching' cli flag which, when set, disables
+// kopia-assisted incremental backups.
+func AddDisableAssistCachingFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&DisableAssistCachingFV,
+		DisableAssistCachingFN,
+		false,
+		"Disable cached data checks in backups to force item redownloads.")
+	cobra.CheckErr(fs.MarkHidden(DisableAssistCachingFN))
 }
 
 // Adds the hidden '--disable-delta' cli flag which, when set, disables

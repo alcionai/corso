@@ -78,6 +78,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
+		flags.AddDisableAssistCachingFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
