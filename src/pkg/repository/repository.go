@@ -481,8 +481,8 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 
 // backupsByTag returns all backups matching all provided tags.
 //
-// TODO(ashmrtn): This exists mostly for testing, but we should really
-// restructure the code in this file so there's a more elegant mocking solution.
+// TODO(ashmrtn): This exists mostly for testing, but we could restructure the
+// code in this file so there's a more elegant mocking solution.
 func backupsByTag(
 	ctx context.Context,
 	sw store.BackupWrapper,
