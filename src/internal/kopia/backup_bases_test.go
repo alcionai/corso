@@ -486,8 +486,20 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 			mergeBases: []ManifestEntry{
 				makeMan(path.EmailCategory, "id1", "", "bid1"),
 			},
+			assistBackups: []BackupEntry{
+				{
+					Backup: &backup.Backup{
+						BaseModel: model.BaseModel{
+							ID:   "bid2",
+							Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
+						},
+						SnapshotID:    "id2",
+						StreamStoreID: "ssid2",
+					},
+				},
+			},
 			assistBases: []ManifestEntry{
-				makeMan(path.EmailCategory, "id1", "", "bid1"),
+				makeMan(path.EmailCategory, "id2", "", "bid2"),
 			},
 		}
 	}
@@ -509,21 +521,74 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 
 				return res
 			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.mergeBases = nil
+				res.backups = nil
+
+				return res
+			}(),
 		},
 		{
-			name: "Backup Missing Snapshot ID",
+			name: "Merge Backup Missing Snapshot ID",
 			bb: func() *backupBases {
 				res := validMail1()
 				res.backups[0].SnapshotID = ""
 
 				return res
 			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.mergeBases = nil
+				res.backups = nil
+
+				return res
+			}(),
 		},
 		{
-			name: "Backup Missing Deets ID",
+			name: "Assist backup missing snapshot ID",
+			bb: func() *backupBases {
+				res := validMail1()
+				res.assistBackups[0].SnapshotID = ""
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.assistBases = res.mergeBases
+				res.assistBackups = nil
+
+				return res
+			}(),
+		},
+		{
+			name: "Merge backup missing deets ID",
 			bb: func() *backupBases {
 				res := validMail1()
 				res.backups[0].StreamStoreID = ""
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.mergeBases = nil
+				res.backups = nil
+
+				return res
+			}(),
+		},
+		{
+			name: "Assist backup missing deets ID",
+			bb: func() *backupBases {
+				res := validMail1()
+				res.assistBackups[0].StreamStoreID = ""
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.assistBases = res.mergeBases
+				res.assistBackups = nil
 
 				return res
 			}(),
@@ -545,15 +610,22 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
 					res.mergeBases[0].Reasons[0])
-				res.assistBases = res.mergeBases
 
+				res.assistBases[0].Reasons = append(
+					res.assistBases[0].Reasons,
+					res.assistBases[0].Reasons[0])
 				return res
 			}(),
 		},
 		{
-			name:   "Single Valid Entry",
-			bb:     validMail1(),
-			expect: validMail1(),
+			name: "Single Valid Entry",
+			bb:   validMail1(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.assistBases = append(res.mergeBases, res.assistBases...)
+
+				return res
+			}(),
 		},
 		{
 			name: "Single Valid Entry With Incomplete Assist With Same Reason",
@@ -561,16 +633,14 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.assistBases = append(
 					res.assistBases,
-					makeMan(path.EmailCategory, "id2", "checkpoint", "bid2"))
+					makeMan(path.EmailCategory, "id3", "checkpoint", "bid3"))
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
-				res.assistBases = append(
-					res.assistBases,
-					makeMan(path.EmailCategory, "id2", "checkpoint", "bid2"))
 
+				res.assistBases = append(res.mergeBases, res.assistBases...)
 				return res
 			}(),
 		},
@@ -587,6 +657,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.backups[0].DetailsID = res.backups[0].StreamStoreID
 				res.backups[0].StreamStoreID = ""
+				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
@@ -598,7 +669,10 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
 					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
-				res.assistBases = res.mergeBases
+
+				res.assistBases[0].Reasons = append(
+					res.assistBases[0].Reasons,
+					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 
 				return res
 			}(),
@@ -607,7 +681,12 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
 					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
-				res.assistBases = res.mergeBases
+
+				res.assistBases[0].Reasons = append(
+					res.assistBases[0].Reasons,
+					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+
+				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
@@ -618,14 +697,17 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases = append(
 					res.mergeBases,
-					makeMan(path.EmailCategory, "id2", "", "bid2"))
-				res.assistBases = res.mergeBases
+					makeMan(path.EmailCategory, "id3", "", "bid3"))
+
+				res.assistBases = append(
+					res.assistBases,
+					makeMan(path.EmailCategory, "id4", "", "bid4"))
 
 				return res
 			}(),
 		},
 		{
-			name: "Three Entries One Invalid",
+			name: "Merge Backup, Three Entries One Invalid",
 			bb: func() *backupBases {
 				res := validMail1()
 				res.backups = append(
@@ -633,24 +715,23 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 					BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
-								ID: "bid2",
+								ID: "bid3",
 							},
 						},
 					},
 					BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
-								ID: "bid3",
+								ID: "bid4",
 							},
-							SnapshotID:    "id3",
-							StreamStoreID: "ssid3",
+							SnapshotID:    "id4",
+							StreamStoreID: "ssid4",
 						},
 					})
 				res.mergeBases = append(
 					res.mergeBases,
-					makeMan(path.ContactsCategory, "id2", "checkpoint", "bid2"),
-					makeMan(path.EventsCategory, "id3", "", "bid3"))
-				res.assistBases = res.mergeBases
+					makeMan(path.ContactsCategory, "id3", "checkpoint", "bid3"),
+					makeMan(path.EventsCategory, "id4", "", "bid4"))
 
 				return res
 			}(),
@@ -661,16 +742,70 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 					BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
-								ID: "bid3",
+								ID: "bid4",
 							},
-							SnapshotID:    "id3",
-							StreamStoreID: "ssid3",
+							SnapshotID:    "id4",
+							StreamStoreID: "ssid4",
 						},
 					})
 				res.mergeBases = append(
 					res.mergeBases,
-					makeMan(path.EventsCategory, "id3", "", "bid3"))
-				res.assistBases = res.mergeBases
+					makeMan(path.EventsCategory, "id4", "", "bid4"))
+				res.assistBases = append(res.mergeBases, res.assistBases...)
+
+				return res
+			}(),
+		},
+		{
+			name: "Assist Backup, Three Entries One Invalid",
+			bb: func() *backupBases {
+				res := validMail1()
+				res.assistBackups = append(
+					res.assistBackups,
+					BackupEntry{
+						Backup: &backup.Backup{
+							BaseModel: model.BaseModel{
+								ID:   "bid3",
+								Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
+							},
+						},
+					},
+					BackupEntry{
+						Backup: &backup.Backup{
+							BaseModel: model.BaseModel{
+								ID:   "bid4",
+								Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
+							},
+							SnapshotID:    "id4",
+							StreamStoreID: "ssid4",
+						},
+					})
+				res.assistBases = append(
+					res.assistBases,
+					makeMan(path.ContactsCategory, "id3", "checkpoint", "bid3"),
+					makeMan(path.EventsCategory, "id4", "", "bid4"))
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.assistBackups = append(
+					res.assistBackups,
+					BackupEntry{
+						Backup: &backup.Backup{
+							BaseModel: model.BaseModel{
+								ID:   "bid4",
+								Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
+							},
+							SnapshotID:    "id4",
+							StreamStoreID: "ssid4",
+						},
+					})
+				res.assistBases = append(
+					res.assistBases,
+					makeMan(path.EventsCategory, "id4", "", "bid4"))
+
+				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
