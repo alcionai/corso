@@ -8,12 +8,19 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+)
+
+const (
+	acceptHeaderKey   = "Accept"
+	acceptHeaderValue = "*/*"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -59,25 +66,42 @@ func downloadItem(
 	return rc, nil
 }
 
-func downloadFile(
-	ctx context.Context,
-	ag api.Getter,
-	url string,
-) (io.ReadCloser, error) {
-	if len(url) == 0 {
-		return nil, clues.New("empty file url")
-	}
+type downloadWithRetries struct {
+	getter api.Getter
+	url    string
+}
 
-	resp, err := ag.Get(ctx, url, nil)
+func (dg *downloadWithRetries) SupportsRange() bool {
+	return true
+}
+
+func (dg *downloadWithRetries) Get(
+	ctx context.Context,
+	additionalHeaders map[string]string,
+) (io.ReadCloser, error) {
+	headers := maps.Clone(additionalHeaders)
+	// Set the accept header like curl does. Local testing showed range headers
+	// wouldn't work without it (get 416 responses instead of 206).
+	headers[acceptHeaderKey] = acceptHeaderValue
+
+	resp, err := dg.getter.Get(ctx, dg.url, headers)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting file")
 	}
 
 	if graph.IsMalwareResp(ctx, resp) {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+
 		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 
 	if resp != nil && (resp.StatusCode/100) != 2 {
+		if resp.Body != nil {
+			resp.Body.Close()
+		}
+
 		// upstream error checks can compare the status with
 		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
 		return nil, clues.
@@ -86,6 +110,25 @@ func downloadFile(
 	}
 
 	return resp.Body, nil
+}
+
+func downloadFile(
+	ctx context.Context,
+	ag api.Getter,
+	url string,
+) (io.ReadCloser, error) {
+	if len(url) == 0 {
+		return nil, clues.New("empty file url").WithClues(ctx)
+	}
+
+	rc, err := readers.NewResetRetryHandler(
+		ctx,
+		&downloadWithRetries{
+			getter: ag,
+			url:    url,
+		})
+
+	return rc, clues.Stack(err).OrNil()
 }
 
 func downloadItemMeta(
