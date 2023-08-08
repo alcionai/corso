@@ -152,10 +152,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 		{
 			name:          "OnlyFirstReadErrors RangeSupport",
 			supportsRange: true,
-			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
-				1: {"Range": "bytes=0-"},
-			},
 			getterResps: map[int]getterResp{
 				0: {
 					err: syscall.ECONNRESET,
@@ -180,7 +176,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				1: {offset: 12},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=12-"},
 			},
 			readerResps: map[int]readResp{
@@ -213,7 +208,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				2: {offset: 20},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=12-"},
 				2: {"Range": "bytes=20-"},
 			},
@@ -246,7 +240,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				1: {offset: 14},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=14-"},
 			},
 			readerResps: map[int]readResp{
@@ -275,7 +268,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				1: {offset: 16},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=16-"},
 			},
 			readerResps: map[int]readResp{
@@ -305,7 +297,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				1: {offset: 12},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=12-"},
 			},
 			readerResps: map[int]readResp{
@@ -347,7 +338,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				1: {offset: 14},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=14-"},
 			},
 			readerResps: map[int]readResp{
@@ -391,7 +381,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				3: {err: syscall.ECONNRESET},
 			},
 			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
 				1: {"Range": "bytes=12-"},
 				2: {"Range": "bytes=13-"},
 				3: {"Range": "bytes=14-"},
@@ -422,14 +411,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				3: {offset: -1},
 				4: {offset: -1},
 				5: {offset: -1},
-			},
-			getterExpectHeaders: map[int]map[string]string{
-				0: {"Range": "bytes=0-"},
-				1: {"Range": "bytes=0-"},
-				2: {"Range": "bytes=0-"},
-				3: {"Range": "bytes=0-"},
-				4: {"Range": "bytes=0-"},
-				5: {"Range": "bytes=0-"},
 			},
 			readerResps: map[int]readResp{
 				0: {
