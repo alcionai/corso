@@ -90,7 +90,7 @@ func (dg *downloadWithRetries) Get(
 	}
 
 	if graph.IsMalwareResp(ctx, resp) {
-		if resp != nil {
+		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
 		}
 
@@ -98,7 +98,9 @@ func (dg *downloadWithRetries) Get(
 	}
 
 	if resp != nil && (resp.StatusCode/100) != 2 {
-		resp.Body.Close()
+		if resp.Body != nil {
+			resp.Body.Close()
+		}
 
 		// upstream error checks can compare the status with
 		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
