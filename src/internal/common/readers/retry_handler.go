@@ -196,6 +196,10 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 			continue
 		}
 
+		if rrh.innerReader != nil {
+			rrh.innerReader.Close()
+		}
+
 		rrh.innerReader = r
 
 		// If we can't request a specific range of content then read as many bytes
