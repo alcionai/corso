@@ -16,6 +16,7 @@ import (
 type BackupBases interface {
 	RemoveMergeBaseByManifestID(manifestID manifest.ID)
 	Backups() []BackupEntry
+	AssistBackups() []BackupEntry
 	MinBackupVersion() int
 	MergeBases() []ManifestEntry
 	ClearMergeBases()
@@ -31,9 +32,10 @@ type BackupBases interface {
 type backupBases struct {
 	// backups and mergeBases should be modified together as they relate similar
 	// data.
-	backups     []BackupEntry
-	mergeBases  []ManifestEntry
-	assistBases []ManifestEntry
+	backups       []BackupEntry
+	mergeBases    []ManifestEntry
+	assistBases   []ManifestEntry
+	assistBackups []BackupEntry
 }
 
 func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
@@ -69,6 +71,10 @@ func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
 
 func (bb backupBases) Backups() []BackupEntry {
 	return slices.Clone(bb.backups)
+}
+
+func (bb backupBases) AssistBackups() []BackupEntry {
+	return slices.Clone(bb.assistBackups)
 }
 
 func (bb *backupBases) MinBackupVersion() int {
