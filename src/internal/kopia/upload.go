@@ -231,7 +231,6 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	err = cp.deets.Add(
 		d.repoPath,
 		d.locationPath,
-		!d.cached,
 		*d.info)
 	if err != nil {
 		cp.errs.AddRecoverable(cp.ctx, clues.New("adding item to details").

@@ -26,7 +26,6 @@ func (b *Builder) Empty() bool {
 func (b *Builder) Add(
 	repoRef path.Path,
 	locationRef *path.Builder,
-	updated bool,
 	info ItemInfo,
 ) error {
 	b.mu.Lock()
@@ -35,7 +34,6 @@ func (b *Builder) Add(
 	entry, err := b.d.add(
 		repoRef,
 		locationRef,
-		updated,
 		info)
 	if err != nil {
 		return clues.Wrap(err, "adding entry to details")
@@ -117,7 +115,6 @@ func (b *Builder) addFolderEntries(
 		}
 
 		folder.Folder.Size += entry.size()
-		folder.Updated = folder.Updated || entry.Updated
 
 		itemModified := entry.Modified()
 		if folder.Folder.Modified.Before(itemModified) {

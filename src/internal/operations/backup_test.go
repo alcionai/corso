@@ -285,7 +285,6 @@ func makeDetailsEntry(
 		ItemRef:     p.Item(),
 		LocationRef: lr,
 		ItemInfo:    details.ItemInfo{},
-		Updated:     updated,
 	}
 
 	switch p.Service() {
