@@ -167,7 +167,9 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 		err = retryErrs[0]
 	)
 
-	if rrh.getter.SupportsRange() {
+	// Only set the range header if we've already read data. Otherwise we could
+	// get 416 (range not satisfiable) if the file is empty.
+	if rrh.getter.SupportsRange() && rrh.offset > 0 {
 		headers[rangeHeaderKey] = fmt.Sprintf(
 			rangeHeaderOneSidedValueTmpl,
 			rrh.offset)
