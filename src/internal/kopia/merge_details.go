@@ -14,8 +14,8 @@ type DetailsMergeInfoer interface {
 	// ItemsToMerge returns the number of items that need to be merged.
 	ItemsToMerge() int
 	// GetNewPathRefs takes the old RepoRef and old LocationRef of an item and
-	// returns the new RepoRef, the new location of the item, and the mod time of
-	// the item if available. If the item shouldn't be merged nils are returned.
+	// returns the new RepoRef and the new location of the item the item. If the
+	// item shouldn't be merged nils are returned.
 	GetNewPathRefs(
 		oldRef *path.Builder,
 		modTime time.Time,
@@ -42,6 +42,9 @@ func (m *mergeDetails) ItemsToMerge() int {
 	return len(m.repoRefs)
 }
 
+// addRepoRef adds an entry in mergeDetails that can be looked up later. If
+// modTime is non-nil then it's checked during lookup. If it is nil then the
+// mod time provided during lookup is ignored.
 func (m *mergeDetails) addRepoRef(
 	oldRef *path.Builder,
 	modTime *time.Time,

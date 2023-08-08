@@ -153,8 +153,8 @@ type corsoProgress struct {
 	// deets contains entries that are complete and don't need merged with base
 	// backup data at all.
 	deets *details.Builder
-	// toMerge represents items that we either don't have in-memory item info for
-	// or that need sourced from a base backup due to caching etc.
+	// toMerge represents items that we either don't have in-memory item info or
+	// that need sourced from a base backup due to caching etc.
 	toMerge    *mergeDetails
 	mu         sync.RWMutex
 	totalBytes int64
