@@ -1,0 +1,29 @@
+ntolia:
+  name: Niraj Tolia
+  title: Founder and CEO
+  url: https://github.com/ntolia
+  image_url: https://github.com/ntolia.png
+
+nica:
+  name: Nočnica Mellifera
+  title: Head of Developer Advocacy
+  url: https://github.com/serverless-mom
+  image_url: https://github.com/serverless-mom.png
+
+kias:
+  name: Kias Hanifa
+  title: CTO at Fonicom
+  url: https://www.fonicom.com/about/#
+  image_url: ./images/kias.png
+
+gmatev:
+  name: Georgi Matev
+  title: Head of Product
+  url: https://github.com/gmatev
+  image_url: https://github.com/gmatev.png
+
+amartinez:
+  name: Ashlie Martinez
+  title: Member of Technical Staff
+  url: https://github.com/ashmrtn
+  image_url: ./images/ashlie.png

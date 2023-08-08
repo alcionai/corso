@@ -1,0 +1,341 @@
+name: Sanity Testing
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      user:
+        description: 'User to run sanity test on'
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
+  Sanity-Tests:
+    needs: [ SetM365App ]
+    environment: Testing
+    runs-on: ubuntu-latest
+    env:
+      # Need these in the local env so that corso can read them
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      # re-used values
+      CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
+      RESTORE_DEST_PFX: Corso_Test_Sanity_
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+
+    defaults:
+      run:
+        working-directory: src
+        
+##########################################################################################################################################
+
+# setup
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: go build -o corso
+      - run: go build -o sanity-test ./cmd/sanity_test
+
+      - run: mkdir ${CORSO_LOG_DIR}
+
+##########################################################################################################################################
+
+# Pre-Run cleanup
+
+      # unlike CI tests, sanity tests are not expected to run concurrently.
+      # however, the sanity yaml concurrency is set to a maximum of 1 run, preferring
+      # the latest release.  If we wait to clean up the production til after the tests
+      # It would be possible to complete all the testing but cancel the run before
+      # cleanup occurs.  Setting the cleanup before the tests ensures we always begin
+      # with a clean slate, and cannot compound data production.
+      - name: Set purge boundary
+        if: always()
+        run: |
+          echo "NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+
+      - name: Purge CI-Produced Folders for Users
+        uses: ./.github/actions/purge-m365-data
+        with:
+          user: ${{ env.TEST_USER }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+      - name: Purge CI-Produced Folders for Sites
+        if: always()
+        uses: ./.github/actions/purge-m365-data
+        with:
+          site: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
+          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+##########################################################################################################################################
+
+# Repository commands
+
+      - name: Version Test
+        run: |
+          ./corso --version | grep -c 'Corso version:'
+
+      - name: Repo init test
+        id: repo-init
+        run: |
+          set -euo pipefail
+          prefix=$(date +"%Y-%m-%d-%T")
+          echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo init s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix $prefix \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+
+          if ! grep -q 'Initialized a S3 repository within bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+          then
+            echo "Repo could not be initialized"
+            exit 1
+          fi
+
+          echo result="$prefix" >> $GITHUB_OUTPUT
+
+      - name: Repo connect test
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo connect s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ steps.repo-init.outputs.result }} \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+          then
+            echo "Repo could not be connected"
+            exit 1
+          fi
+
+##########################################################################################################################################
+
+# Exchange
+
+      # generate new entries to roll into the next load test
+      # only runs if the test was successful
+      - name: Exchange - Create new data
+        working-directory: ./src/cmd/factory
+        run: |
+          go run . exchange emails \
+          --user ${{ env.TEST_USER }} \
+          --tenant ${{ secrets.TENANT_ID }} \
+          --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }} \
+          --count 4
+
+      - name: Exchange - Backup
+        id: exchange-backup
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: initial
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      - name: Exchange - Incremental backup
+        id: exchange-backup-incremental
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: incremental
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      - name: Exchange - Non delta backup
+        id: exchange-backup-non-delta
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: non-delta
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      - name: Exchange - Incremental backup after non-delta
+        id: exchange-backup-incremental-after-non-delta
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: non-delta-incremental
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          base-backup: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+
+##########################################################################################################################################
+
+# Onedrive
+
+      # generate new entries for test
+      - name: OneDrive - Create new data
+        id: new-data-creation-onedrive
+        working-directory: ./src/cmd/factory
+        run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+
+          go run . onedrive files  \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4
+
+          echo result="${suffix}" >> $GITHUB_OUTPUT
+
+      - name: OneDrive - Backup
+        id: onedrive-backup
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: onedrive
+          kind: initial
+          backup-args: '--user "${{ env.TEST_USER }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      # generate some more enteries for incremental check
+      - name: OneDrive - Create new data (for incremental)
+        working-directory: ./src/cmd/factory
+        run: |
+          go run . onedrive files  \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} \
+            --count 4
+
+      - name: OneDrive - Incremental backup
+        id: onedrive-incremental
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: onedrive
+          kind: incremental
+          backup-args: '--user "${{ env.TEST_USER }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+##########################################################################################################################################
+
+# Sharepoint
+
+      # generate new entries for test
+      - name: SharePoint - Create new data
+        id: new-data-creation-sharepoint
+        working-directory: ./src/cmd/factory
+        run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+
+          go run . sharepoint files  \
+            --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4
+
+          echo result="${suffix}" >> $GITHUB_OUTPUT
+
+      - name: SharePoint - Backup
+        id: sharepoint-backup
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: sharepoint
+          kind: initial
+          backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      # generate some more enteries for incremental check
+      - name: SharePoint - Create new data (for incremental)
+        working-directory: ./src/cmd/factory
+        run: |
+          go run . sharepoint files  \
+            --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
+            --count 4
+
+      - name: SharePoint - Incremental backup
+        id: sharepoint-incremental
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: sharepoint
+          kind: incremental
+          backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+##########################################################################################################################################
+
+# Logging & Notifications
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: sanity-test-log
+          path: ${{ env.CORSO_LOG_DIR }}/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Notify failure in slack
+        if: failure()
+        uses: ./.github/actions/slack-message
+        with:
+          msg: "[FAILED] Sanity Tests"
+          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}

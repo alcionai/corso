@@ -1,0 +1,132 @@
+name: Backup Restore Test
+
+inputs:
+  service:
+    description: Service to test
+    required: true
+  kind:
+    description: Kind of test
+    required: true
+  backup-args:
+    description: Arguments to pass for backup
+    required: false
+    default: ""
+  restore-args:
+    description: Arguments to pass for restore
+    required: false
+    default: ""
+  test-folder:
+    description: Folder to use for testing
+    required: true
+  base-backup:
+    description: Base backup to use for testing
+    required: false
+  log-dir:
+    description: Folder to store test log files
+    required: true
+  on-collision:
+    description: Value for the --collisions flag
+    requried: false
+    default: "replace"
+
+outputs:
+  backup-id:
+    value: ${{ steps.backup.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Backup ${{ inputs.service }} ${{ inputs.kind }}
+      id: backup
+      shell: bash
+      working-directory: src
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso backup create '${{ inputs.service }}' \
+            --no-stats --hide-progress --json \
+            ${{ inputs.backup-args }} |
+            tee /dev/stderr | # for printing logs
+            jq -r '.[0] | .id' |
+            sed 's/^/result=/' |
+            tee $GITHUB_OUTPUT
+
+    - name: Restore ${{ inputs.service }} ${{ inputs.kind }}
+      id: restore
+      shell: bash
+      working-directory: src
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso restore '${{ inputs.service }}' \
+            --no-stats \
+            --hide-progress \
+            --collisions ${{ inputs.on-collision }} \
+            ${{ inputs.restore-args }} \
+            --backup '${{ steps.backup.outputs.result }}' \
+            2>&1 |
+            tee /tmp/corsologs |
+            grep -i -e 'Restoring to folder ' |
+            sed "s/Restoring to folder /result=/" |
+            tee $GITHUB_OUTPUT
+
+            cat /tmp/corsologs
+
+    - name: Check ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      env:
+        SANITY_RESTORE_FOLDER: ${{ steps.restore.outputs.result }}
+        SANITY_RESTORE_SERVICE: ${{ inputs.service }}
+        TEST_DATA: ${{ inputs.test-folder }}
+        BASE_BACKUP: ${{ inputs.base-backup }}
+      run: |
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        ./sanity-test
+
+    - name: List ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso backup list ${{ inputs.service }} \
+          --no-stats \
+          --hide-progress \
+          2>&1 |
+          tee /tmp/corso-backup-list.log
+
+        if ! grep -q  ${{ steps.backup.outputs.result }} /tmp/corso-backup-list.log 
+        then
+          echo "Unable to find backup from previous run in backup list"
+          exit 1
+        fi
+
+    - name: List item ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      run: |
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-single-${{ inputs.service }}-${{inputs.kind }}.log
+        ./corso backup list ${{ inputs.service }} \
+          --no-stats \
+          --hide-progress \
+          --backup "${{ steps.backup.outputs.result }}" \
+          2>&1 |
+          tee /tmp/corso-backup-list-item.log
+
+        if ! grep -q  ${{ steps.backup.outputs.result }} /tmp/corso-backup-list-item.log 
+        then
+          echo "Unable to list previous backup"
+          exit 1
+        fi
+
+    # Upload the original go test output as an artifact for later review.
+    - name: Upload test log
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: "${{ inputs.service }}-${{ inputs.kind }}-logs"
+        path: ${{ inputs.log-dir }}/*
+        if-no-files-found: error
+        retention-days: 14

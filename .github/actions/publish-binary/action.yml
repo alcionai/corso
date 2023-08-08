@@ -1,0 +1,110 @@
+name: Publish Binary
+
+inputs:
+  version:
+    description: Corso version to use for publishing
+    required: true
+  github_token:
+    description: GitHub token for publishing
+    required: true
+  rudderstack_write_key:
+    description: Write key for RudderStack
+    required: true
+  rudderstack_data_plane_url:
+    description: Data plane URL for RudderStack
+    required: true
+  slack_webhook_url:
+    description: Slack webhook url
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # needed to pull changelog
+
+    - name: Setup Golang with cache
+      uses: magnetikonline/action-golang-cache@v4
+      with:
+        go-version-file: src/go.mod
+
+    - name: Mark snapshot release
+      shell: bash
+      if: ${{ !startsWith(github.ref , 'refs/tags/') }}
+      run: |
+        echo "grflags=--snapshot" >> $GITHUB_ENV
+
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v4
+      with:
+        version: latest
+        args: release --clean --timeout 500m --parallelism 1 ${{ env.grflags }}
+        workdir: src
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        RUDDERSTACK_CORSO_WRITE_KEY: ${{ inputs.rudderstack_write_key }}
+        RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ inputs.rudderstack_data_plane_url }}
+        CORSO_VERSION: ${{ inputs.version }}
+
+    - name: Upload darwin arm64
+      uses: actions/upload-artifact@v3
+      with:
+        name: corso_Darwin_arm64
+        path: src/dist/corso_darwin_arm64/corso
+
+    - name: Upload linux arm64
+      uses: actions/upload-artifact@v3
+      with:
+        name: corso_Linux_arm64
+        path: src/dist/corso_linux_arm64/corso
+
+    - name: Upload darwin amd64
+      uses: actions/upload-artifact@v3
+      with:
+        name: corso_Darwin_amd64
+        path: src/dist/corso_darwin_amd64_v1/corso
+
+    - name: Upload linux amd64
+      uses: actions/upload-artifact@v3
+      with:
+        name: corso_Linux_amd64
+        path: src/dist/corso_linux_amd64_v1/corso
+
+    - name: Upload windows amd64
+      uses: actions/upload-artifact@v3
+      with:
+        name: corso_Windows_amd64
+        path: src/dist/corso_windows_amd64_v1/corso.exe
+
+    - name: SHA info
+      shell: bash
+      id: sha-info
+      if: failure()
+      run: |
+        echo ${GITHUB_REF#refs/heads/}-${GITHUB_SHA}
+        echo SHA=${GITHUB_REF#refs/heads/}-${GITHUB_SHA} >> $GITHUB_OUTPUT
+        echo RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}  >> $GITHUB_OUTPUT
+        echo COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA} >> $GITHUB_OUTPUT
+
+    - name: Send Github Action failure to Slack
+      id: slack-notification
+      if: failure()
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        payload: |
+          {
+            "text": "Publish failure - build: ${{ job.status }} - SHA: ${{  steps.sha-info.outputs.SHA }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "[FAILED] Publishing Binary :: <${{  steps.sha-info.outputs.RUN_URL }}|[Logs]> <${{ steps.sha-info.outputs.COMMIT_URL }}|[Base]>\nCommit: <${{  steps.sha-info.outputs.COMMIT_URL }}|${{  steps.sha-info.outputs.SHA }}>"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ inputs.slack_webhook_url }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

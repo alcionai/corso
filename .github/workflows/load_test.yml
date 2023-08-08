@@ -1,0 +1,157 @@
+name: Nightly Load Testing
+on:
+  schedule:
+    # every day at 03:59 GMT (roughly 8pm PST)
+    - cron: "59 3 * * *"
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: load_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Load-Tests:
+    environment: Load Testing
+    runs-on: ubuntu-latest
+    # Skipping load testing for now.  They need some love to get up and
+    # running properly, and it's better to not fight for resources with
+    # tests that are guaranteed to fail.
+    if: false
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build the otel-daemon
+        run: make build-otel-daemon
+
+      # TODO: write logs to a file in src/testlog for archival
+      - name: Run the otel-daemon
+        run: make otel-daemon
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir ${{ github.workspace }}/testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # run the tests
+      - name: Integration Tests
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_LOAD_TESTS: true 
+          CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-load.log
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          IGNORE_LOAD_TEST_USER_ID: ${{ vars.EXT_SDK_TEST_USER_ID }}
+          LOG_GRAPH_REQUESTS: true
+        run: |
+          set -euo pipefail
+          go test       \
+          -count=1      \
+          -json         \
+          -v            \
+          --timeout 12h \
+          -blockprofile=block.prof \
+          -cpuprofile=cpu.prof     \
+          -memprofile=mem.prof     \
+          -mutexprofile=mutex.prof \
+          -trace=trace.out         \
+          -outputdir=testlog  \
+          ./pkg/repository/repository_load_test.go \
+          2>&1 | tee ${{ github.workspace }}/testlog/gotest-load.log | gotestfmt -hide successful-tests
+
+      # generate new entries to roll into the next load test
+      # only runs if the test was successful
+      - name: New Data Creation
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+        run: |
+          go run . exchange emails \
+          --mailbox ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+          go run . exchange contacts \
+          --mailbox ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+          go run . exchange events \
+          --mailbox ${{ env.CORSO_M365_LOAD_TEST_USER_ID }} \
+          --destination lt_${{ env.NOW }} \
+          --count 10
+
+      - name: Put Down the Daemons Arisen
+        if: always()
+        run: docker kill otel-daemon
+
+      # package all artifacts for later review
+      - name: Upload Log, Profilers, Traces
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-profiling
+          path: ${{ github.workspace }}/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+  
+  setup:
+    environment: Load Testing
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: build
+        run: |
+          u=$(echo "${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}" | sed 's/\[/["/g' | sed 's/\]/"]/g' | sed 's/|/","/g')
+          marr=$(cat <<-end
+            { "user": $u }
+          end
+          )
+          m=$(echo $marr | jq -c .)
+          echo "matrix=$m" >> $GITHUB_OUTPUT
+
+  purge-load-test-user-data:
+    needs: [setup, Load-Tests]
+    if: always()
+    environment: Load Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        user: [ CORSO_M365_LOAD_TEST_USER_ID, '' ]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set folder boundary datetime
+        run: |
+          echo "NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+      - name: Purge Load-Test-Produced Folders
+        uses: ./.github/actions/purge-m365-data
+        with:
+          user: ${{ secrets[matrix.user] }}
+          folder-prefix: ${{ vars.CORSO_M365_TEST_PREFIXES }}
+          older-than: ${{ env.HALF_HOUR_AGO }}
+          azure-client-id: ${{ secrets.CLIENT_ID }}
+          azure-client-secret: ${{ secrets.CLIENT_SECRET }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}

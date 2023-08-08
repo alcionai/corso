@@ -1,0 +1,128 @@
+name: Nightly Test Corso
+on:
+  workflow_dispatch:
+
+  schedule:
+    # Run every day at 04:00 GMT (roughly 8pm PST)
+    - cron: "0 4 * * *"
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+  packages: write
+  pull-requests: read
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------------------------------------
+  # --- Checkouts ------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Checkout:
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      # single setup and sum cache handling here.
+      # the results will cascade onto both testing and linting.
+      - name: Setup Golang with cache
+        uses: ./.github/actions/go-setup-cache
+        with:
+          go-version-file: src/go.mod
+
+  # SetM365App will decide which M365 app to use for this CI run
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
+  # ----------------------------------------------------------------------------------------------------
+  # --- Nightly Testing -------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+  Test-Suite-Trusted:
+    needs: [ Checkout, SetM365App] 
+    environment: Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    env:
+      # Resolve the name of the secret that contains the Azure client ID/secret
+      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
+      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
+      CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      # run the tests
+      - name: Integration Tests
+        env:
+          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_NIGHTLY_TESTS: true
+          CORSO_E2E_TESTS: true
+          CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
+          CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-nightly.log
+          LOG_GRAPH_REQUESTS: true
+          S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+        run: |
+          set -euo pipefail
+          go test       \
+          -tags testing \
+          -json         \
+          -v            \
+          -failfast     \
+          -p 1          \
+          -timeout 15m  \
+          ./... 2>&1 | tee ./testlog/gotest-nightly.log | gotestfmt -hide successful-tests
+
+##########################################################################################################################################
+
+# Logging & Notifications
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: nightly-test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Notify failure in slack
+        if: failure()
+        uses: ./.github/actions/slack-message
+        with:
+          msg: "[FAILED] Nightly Checks"
+          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}

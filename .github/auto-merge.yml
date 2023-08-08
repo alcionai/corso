@@ -1,0 +1,4 @@
+# auto-merge config file (see https://github.com/marketplace/actions/dependabot-auto-merge#configuration-file-syntax)
+- match:
+    dependency_type: all
+    update_type: "semver:minor" # includes patch updates!
