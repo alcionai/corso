@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"syscall"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -15,6 +16,7 @@ import (
 var _ io.ReadCloser = &resetRetryHandler{}
 
 const (
+	minSleepTime   = 3
 	numMaxRetries  = 3
 	rangeHeaderKey = "Range"
 	// One-sided range like this is defined as starting at the given byte and
@@ -178,9 +180,10 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 		"restart_at_offset", rrh.offset)
 
 	for attempts < maxRetries && isRetriable(err) {
-		attempts++
+		// Attempts will be 0 the first time through so it won't sleep then.
+		time.Sleep(time.Duration(attempts*minSleepTime) * time.Second)
 
-		logger.Ctx(ctx).Infow("getting another reader", "attempt_num", attempts)
+		attempts++
 
 		var r io.ReadCloser
 
