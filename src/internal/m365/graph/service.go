@@ -120,7 +120,7 @@ func CreateAdapter(
 		return nil, err
 	}
 
-	httpClient := KiotaHTTPClient(opts...)
+	httpClient, cc := KiotaHTTPClient(opts...)
 
 	adpt, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
@@ -130,7 +130,7 @@ func CreateAdapter(
 		return nil, clues.Stack(err)
 	}
 
-	return wrapAdapter(adpt), nil
+	return wrapAdapter(adpt, cc), nil
 }
 
 func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityAuthenticationProvider, error) {
@@ -158,7 +158,7 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func KiotaHTTPClient(opts ...Option) *http.Client {
+func KiotaHTTPClient(opts ...Option) (*http.Client, *clientConfig) {
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(opts...)
@@ -170,7 +170,7 @@ func KiotaHTTPClient(opts ...Option) *http.Client {
 
 	cc.apply(httpClient)
 
-	return httpClient
+	return httpClient, cc
 }
 
 // ---------------------------------------------------------------------------
@@ -179,11 +179,14 @@ func KiotaHTTPClient(opts ...Option) *http.Client {
 
 type clientConfig struct {
 	noTimeout bool
-	// MaxRetries before failure
+	// MaxConnectionRetries is the number of connection-level retries that
+	// attempt to re-run the request due to a broken or closed connection.
+	maxConnectionRetries int
+	// MaxRetries is the number of middleware retires attempted
+	// before returning with failure
 	maxRetries int
 	// The minimum delay in seconds between retries
-	minDelay           time.Duration
-	overrideRetryCount bool
+	minDelay time.Duration
 
 	appendMiddleware []khttp.Middleware
 }
@@ -193,8 +196,9 @@ type Option func(*clientConfig)
 // populate constructs a clientConfig according to the provided options.
 func populateConfig(opts ...Option) *clientConfig {
 	cc := clientConfig{
-		maxRetries: defaultMaxRetries,
-		minDelay:   defaultDelay,
+		maxConnectionRetries: defaultMaxRetries,
+		maxRetries:           defaultMaxRetries,
+		minDelay:             defaultDelay,
 	}
 
 	for _, opt := range opts {
@@ -227,14 +231,25 @@ func NoTimeout() Option {
 
 func MaxRetries(max int) Option {
 	return func(c *clientConfig) {
-		c.overrideRetryCount = true
+		if max < 0 {
+			max = 0
+		} else if max > 5 {
+			max = 5
+		}
+
 		c.maxRetries = max
 	}
 }
 
-func MinimumBackoff(dur time.Duration) Option {
+func MinimumBackoff(min time.Duration) Option {
 	return func(c *clientConfig) {
-		c.minDelay = dur
+		if min < 100*time.Millisecond {
+			min = 100 * time.Millisecond
+		} else if min > 5*time.Second {
+			min = 5 * time.Second
+		}
+
+		c.minDelay = min
 	}
 }
 
@@ -243,6 +258,18 @@ func appendMiddleware(mw ...khttp.Middleware) Option {
 		if len(mw) > 0 {
 			c.appendMiddleware = mw
 		}
+	}
+}
+
+func MaxConnectionRetries(max int) Option {
+	return func(c *clientConfig) {
+		if max < 0 {
+			max = 0
+		} else if max > 5 {
+			max = 5
+		}
+
+		c.maxConnectionRetries = max
 	}
 }
 
@@ -302,10 +329,11 @@ var _ abstractions.RequestAdapter = &adapterWrap{}
 // 3. Error and debug conditions are logged.
 type adapterWrap struct {
 	abstractions.RequestAdapter
+	config *clientConfig
 }
 
-func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter) *adapterWrap {
-	return &adapterWrap{gra}
+func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapterWrap {
+	return &adapterWrap{gra, cc}
 }
 
 var connectionEnded = filters.Contains([]string{
@@ -331,7 +359,7 @@ func (aw *adapterWrap) Send(
 	// retry wrapper is unsophisticated, but should only
 	// retry in the event of a `stream error`, which is not
 	// a common expectation.
-	for i := 0; i < 3; i++ {
+	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
 		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
