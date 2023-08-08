@@ -128,6 +128,13 @@ func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
 			return read, clues.Stack(err).WithClues(rrh.ctx).OrNil()
 		}
 
+		logger.Ctx(rrh.ctx).Infow(
+			"restarting reader",
+			"supports_range", rrh.getter.SupportsRange(),
+			"restart_at_offset", rrh.offset,
+			"retries_remaining", numMaxRetries-numRetries,
+			"retriable_error", err)
+
 		attempts, err := rrh.reconnect(numMaxRetries - numRetries)
 		numRetries = numRetries + attempts
 		finalErr = err
