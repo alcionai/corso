@@ -70,7 +70,7 @@ func (r reason) Category() path.CategoryType {
 }
 
 func (r reason) SubtreePath() (path.Path, error) {
-	p, err := path.ServicePrefix(
+	p, err := path.BuildPrefix(
 		r.Tenant(),
 		r.ProtectedResource(),
 		r.Service(),

@@ -347,7 +347,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		// },
 	}
 
-	rrPfx, err := path.ServicePrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
+	rrPfx, err := path.BuildPrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// strip the category from the prefix; we primarily want the tenant and resource owner.

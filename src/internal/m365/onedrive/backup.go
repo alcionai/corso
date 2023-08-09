@@ -108,7 +108,7 @@ func migrationCollections(
 
 	// unlike exchange, which enumerates all folders on every
 	// backup, onedrive needs to force the owner PN -> ID migration
-	mc, err := path.ServicePrefix(
+	mc, err := path.BuildPrefix(
 		tenant,
 		bpc.ProtectedResource.ID(),
 		path.OneDriveService,
@@ -117,7 +117,7 @@ func migrationCollections(
 		return nil, clues.Wrap(err, "creating user id migration path")
 	}
 
-	mpc, err := path.ServicePrefix(
+	mpc, err := path.BuildPrefix(
 		tenant,
 		bpc.ProtectedResource.Name(),
 		path.OneDriveService,
