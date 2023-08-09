@@ -315,6 +315,36 @@ func (oc *Collection) getDriveItemContent(
 	return itemData, nil
 }
 
+func getItemMetadata(
+	ctx context.Context,
+	handler BackupHandler,
+	driveID string,
+	item models.DriveItemable,
+	errs *fault.Bus,
+) (io.ReadCloser, int, error) {
+	var (
+		itemID   = ptr.Val(item.GetId())
+		itemName = ptr.Val(item.GetName())
+	)
+
+	itemMeta, itemMetaSize, err := downloadItemMeta(ctx, handler, driveID, item)
+	if err != nil {
+		// Skip deleted items
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
+			errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
+
+			return nil, 0, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
+		}
+
+		errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+
+		return nil, 0, err
+	}
+
+	return itemMeta, itemMetaSize, nil
+}
+
 type itemAndAPIGetter interface {
 	GetItemer
 	api.Getter
@@ -483,11 +513,8 @@ func (oc *Collection) populateDriveItem(
 		itemName     = ptr.Val(item.GetName())
 		itemSize     = ptr.Val(item.GetSize())
 		itemInfo     details.ItemInfo
-		itemMeta     io.ReadCloser
-		itemMetaSize int
 		metaFileName string
 		metaSuffix   string
-		err          error
 	)
 
 	ctx = clues.Add(
@@ -512,15 +539,7 @@ func (oc *Collection) populateDriveItem(
 		metaSuffix = metadata.DirMetaFileSuffix
 	}
 
-	// Fetch metadata for the file
-	itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
-	if err != nil {
-		errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
-		return
-	}
-
 	itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
-
 	ctx = clues.Add(ctx, "item_info", itemInfo)
 
 	if isFile {
@@ -568,12 +587,18 @@ func (oc *Collection) populateDriveItem(
 	}
 
 	metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+		itemMeta, itemMetaSize, err := getItemMetadata(ctx, oc.handler, oc.driveID, item, errs)
+		if err != nil {
+			return nil, err
+		}
+
 		progReader, _ := observe.ItemProgress(
 			ctx,
 			itemMeta,
 			observe.ItemBackupMsg,
 			clues.Hide(itemName+metaSuffix),
 			int64(itemMetaSize))
+
 		return progReader, nil
 	})
 
