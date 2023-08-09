@@ -23,6 +23,7 @@ func Control() control.Options {
 	opt.DisableMetrics = flags.NoStatsFV
 	opt.SkipReduce = flags.SkipReduceFV
 	opt.ToggleFeatures.DisableIncrementals = flags.DisableIncrementalsFV
+	opt.ToggleFeatures.ForceItemDataDownload = flags.ForceItemDataDownloadFV
 	opt.ToggleFeatures.DisableDelta = flags.DisableDeltaFV
 	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
 	opt.ToggleFeatures.DisableConcurrencyLimiter = flags.DisableConcurrencyLimiterFV
