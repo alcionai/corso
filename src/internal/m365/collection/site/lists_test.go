@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -28,6 +29,11 @@ func (suite *ListsUnitSuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
+
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 }
 
 func TestListsUnitSuite(t *testing.T) {

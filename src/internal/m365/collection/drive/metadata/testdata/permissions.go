@@ -6,7 +6,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 )
 
 func AssertMetadataEqual(t *testing.T, expect, got metadata.Metadata) {

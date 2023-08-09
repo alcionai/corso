@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -413,7 +413,7 @@ func formatDetailsForRestoration(
 	}
 
 	if sel.Service == selectors.ServiceOneDrive || sel.Service == selectors.ServiceSharePoint {
-		paths, err = drive.AugmentRestorePaths(backupVersion, paths)
+		paths, err = onedrive.AugmentRestorePaths(backupVersion, paths)
 		if err != nil {
 			return nil, clues.Wrap(err, "augmenting paths")
 		}

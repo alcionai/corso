@@ -20,9 +20,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
-	metaTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata/testdata"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"

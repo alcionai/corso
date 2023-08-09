@@ -17,10 +17,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
-	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -737,7 +737,7 @@ func compareDriveItem(
 	)
 
 	if !isMeta {
-		oitem := item.(*onedrive.Item)
+		oitem := item.(*drive.Item)
 		info := oitem.Info()
 
 		if info.OneDrive != nil {

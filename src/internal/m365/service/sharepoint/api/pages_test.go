@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -108,7 +108,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	//nolint:lll
 	byteArray := spMock.Page("Byte Test")
 
-	pageData := sharepoint.NewItem(
+	pageData := site.NewItem(
 		testName,
 		io.NopCloser(bytes.NewReader(byteArray)),
 	)

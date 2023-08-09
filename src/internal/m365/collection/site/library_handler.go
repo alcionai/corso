@@ -25,6 +25,10 @@ type libraryBackupHandler struct {
 	scope selectors.SharePointScope
 }
 
+func NewLibraryBackupHandler(ac api.Drives, scope selectors.SharePointScope) libraryBackupHandler {
+	return libraryBackupHandler{ac, scope}
+}
+
 func (h libraryBackupHandler) Get(
 	ctx context.Context,
 	url string,

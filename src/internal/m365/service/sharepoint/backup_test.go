@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/idname/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -50,12 +51,12 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 	const (
 		tenantID = "tenant"
-		site     = "site"
+		siteID   = "site"
 		driveID  = "driveID1"
 	)
 
 	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
-	ep, err := libraryBackupHandler{}.CanonicalPath(pb, tenantID, site)
+	ep, err := site.NewLibraryBackupHandler(api.Drives{}, nil).CanonicalPath(pb, tenantID, siteID)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
@@ -99,15 +100,15 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				itemColls = map[string]map[string]string{
 					driveID: {},
 				}
-				collMap = map[string]map[string]*onedrive.Collection{
+				collMap = map[string]map[string]*drive.Collection{
 					driveID: {},
 				}
 			)
 
-			c := onedrive.NewCollections(
-				&libraryBackupHandler{api.Drives{}, test.scope},
+			c := drive.NewCollections(
+				site.NewLibraryBackupHandler(api.Drives{}, test.scope),
 				tenantID,
-				site,
+				siteID,
 				nil,
 				control.DefaultOptions())
 
@@ -212,7 +213,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ProtectedResource: mock.NewProvider(siteID, siteID),
 	}
 
-	col, err := collectPages(
+	col, err := site.CollectPages(
 		ctx,
 		bpc,
 		creds,
