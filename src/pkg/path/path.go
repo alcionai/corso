@@ -82,7 +82,7 @@ type Path interface {
 	Service() ServiceType
 	Category() CategoryType
 	Tenant() string
-	ResourceOwner() string
+	ProtectedResource() string
 	Folder(escaped bool) string
 	Folders() Elements
 	Item() string
@@ -132,7 +132,7 @@ type RestorePaths struct {
 // ---------------------------------------------------------------------------
 
 func Build(
-	tenant, resourceOwner string,
+	tenant, protectedResource string,
 	service ServiceType,
 	category CategoryType,
 	hasItem bool,
@@ -141,13 +141,13 @@ func Build(
 	b := Builder{}.Append(elements...)
 
 	return b.ToDataLayerPath(
-		tenant, resourceOwner,
+		tenant, protectedResource,
 		service, category,
 		hasItem)
 }
 
 func BuildPrefix(
-	tenant, resourceOwner string,
+	tenant, protectedResource string,
 	s ServiceType,
 	c CategoryType,
 ) (Path, error) {
@@ -157,12 +157,12 @@ func BuildPrefix(
 		return nil, err
 	}
 
-	if err := verifyInputValues(tenant, resourceOwner); err != nil {
+	if err := verifyInputValues(tenant, protectedResource); err != nil {
 		return nil, err
 	}
 
 	return &dataLayerResourcePath{
-		Builder:  *pb.withPrefix(tenant, s.String(), resourceOwner, c.String()),
+		Builder:  *pb.withPrefix(tenant, s.String(), protectedResource, c.String()),
 		service:  s,
 		category: c,
 		hasItem:  false,
@@ -290,13 +290,13 @@ func Split(segment string) []string {
 // Unexported Helpers
 // ---------------------------------------------------------------------------
 
-func verifyInputValues(tenant, resourceOwner string) error {
+func verifyInputValues(tenant, protectedResource string) error {
 	if len(tenant) == 0 {
 		return clues.Stack(errMissingSegment, clues.New("tenant"))
 	}
 
-	if len(resourceOwner) == 0 {
-		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
+	if len(protectedResource) == 0 {
+		return clues.Stack(errMissingSegment, clues.New("protected resource"))
 	}
 
 	return nil

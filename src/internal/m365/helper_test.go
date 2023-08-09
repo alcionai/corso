@@ -942,7 +942,7 @@ func checkHasCollections(
 
 		p, err := loc.ToDataLayerPath(
 			fp.Tenant(),
-			fp.ResourceOwner(),
+			fp.ProtectedResource(),
 			fp.Service(),
 			fp.Category(),
 			false)

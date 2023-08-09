@@ -37,7 +37,7 @@ var (
 			rest:   rest,
 		},
 		{
-			name:   "NoResourceOwner",
+			name:   "NoProtectedResource",
 			tenant: testTenant,
 			user:   "",
 			rest:   rest,
@@ -404,7 +404,7 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					assert.Equal(t, testTenant, p.Tenant())
 					assert.Equal(t, path.ExchangeService, p.Service())
 					assert.Equal(t, test.category, p.Category())
-					assert.Equal(t, testUser, p.ResourceOwner())
+					assert.Equal(t, testUser, p.ProtectedResource())
 					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder(false))
 					assert.Equal(t, path.Elements(m.expectedFolders), p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
@@ -471,12 +471,12 @@ func (suite *PopulatedDataLayerResourcePath) TestCategory() {
 	}
 }
 
-func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
+func (suite *PopulatedDataLayerResourcePath) TestProtectedResource() {
 	for _, m := range modes {
 		suite.Run(m.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, testUser, suite.paths[m.isItem].ResourceOwner())
+			assert.Equal(t, testUser, suite.paths[m.isItem].ProtectedResource())
 		})
 	}
 }

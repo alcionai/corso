@@ -201,10 +201,10 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	return res
 }
 
-// verifyPrefix ensures that the tenant and resourceOwner are valid
+// verifyPrefix ensures that the tenant and protectedResource are valid
 // values, and that the builder has some directory structure.
-func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
-	if err := verifyInputValues(tenant, resourceOwner); err != nil {
+func (pb Builder) verifyPrefix(tenant, protectedResource string) error {
+	if err := verifyInputValues(tenant, protectedResource); err != nil {
 		return err
 	}
 

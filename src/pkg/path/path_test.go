@@ -407,7 +407,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 							assert.Equal(t, service, p.Service(), "service")
 							assert.Equal(t, cat, p.Category(), "category")
 							assert.Equal(t, testTenant, p.Tenant(), "tenant")
-							assert.Equal(t, testUser, p.ResourceOwner(), "resource owner")
+							assert.Equal(t, testUser, p.ProtectedResource(), "protected resource")
 
 							fld := p.Folder(false)
 							escfld := p.Folder(true)
@@ -438,7 +438,7 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 		service   ServiceType
 		category  CategoryType
 		tenant    string
-		owner     string
+		resource  string
 		expect    string
 		expectErr require.ErrorAssertionFunc
 	}{
@@ -447,7 +447,7 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 			service:   ExchangeService,
 			category:  ContactsCategory,
 			tenant:    "t",
-			owner:     "ro",
+			resource:  "ro",
 			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String()}),
 			expectErr: require.NoError,
 		},
@@ -456,7 +456,7 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 			service:   ExchangeService,
 			category:  FilesCategory,
 			tenant:    "t",
-			owner:     "ro",
+			resource:  "ro",
 			expectErr: require.Error,
 		},
 		{
@@ -464,15 +464,15 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 			service:   ExchangeService,
 			category:  ContactsCategory,
 			tenant:    "",
-			owner:     "ro",
+			resource:  "ro",
 			expectErr: require.Error,
 		},
 		{
-			name:      "bad owner",
+			name:      "bad resource",
 			service:   ExchangeService,
 			category:  ContactsCategory,
 			tenant:    "t",
-			owner:     "",
+			resource:  "",
 			expectErr: require.Error,
 		},
 	}
@@ -480,7 +480,7 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			r, err := BuildPrefix(test.tenant, test.owner, test.service, test.category)
+			r, err := BuildPrefix(test.tenant, test.resource, test.service, test.category)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if r == nil {

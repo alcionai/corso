@@ -219,7 +219,7 @@ func (sc *Collection) retrieveLists(
 	lists, err := loadSiteLists(
 		ctx,
 		sc.client.Stable,
-		sc.fullPath.ResourceOwner(),
+		sc.fullPath.ProtectedResource(),
 		sc.jobs,
 		errs)
 	if err != nil {
@@ -282,14 +282,14 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := as.GetByID(ctx, sc.fullPath.ResourceOwner())
+	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource())
 	if err != nil {
 		return metrics, err
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), sc.jobs, errs)
 	if err != nil {
 		return metrics, err
 	}

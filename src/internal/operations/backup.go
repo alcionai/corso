@@ -482,7 +482,7 @@ func consumeBackupCollections(
 
 func matchesReason(reasons []identity.Reasoner, p path.Path) bool {
 	for _, reason := range reasons {
-		if p.ResourceOwner() == reason.ProtectedResource() &&
+		if p.ProtectedResource() == reason.ProtectedResource() &&
 			p.Service() == reason.Service() &&
 			p.Category() == reason.Category() {
 			return true

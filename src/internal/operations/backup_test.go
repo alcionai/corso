@@ -538,12 +538,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 		pathReason1 = kopia.NewReason(
 			"",
-			itemPath1.ResourceOwner(),
+			itemPath1.ProtectedResource(),
 			itemPath1.Service(),
 			itemPath1.Category())
 		pathReason3 = kopia.NewReason(
 			"",
-			itemPath3.ResourceOwner(),
+			itemPath3.ProtectedResource(),
 			itemPath3.Service(),
 			itemPath3.Category())
 	)
@@ -685,7 +685,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 										[]string{
 											itemPath1.Tenant(),
 											itemPath1.Service().String(),
-											itemPath1.ResourceOwner(),
+											itemPath1.ProtectedResource(),
 											path.UnknownCategory.String(),
 										},
 										itemPath1.Folders()...,
@@ -714,7 +714,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					[]string{
 						itemPath1.Tenant(),
 						path.OneDriveService.String(),
-						itemPath1.ResourceOwner(),
+						itemPath1.ProtectedResource(),
 						path.FilesCategory.String(),
 						"personal",
 						"item1",
@@ -973,7 +973,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 		pathReason1 = kopia.NewReason(
 			"",
-			itemPath1.ResourceOwner(),
+			itemPath1.ProtectedResource(),
 			itemPath1.Service(),
 			itemPath1.Category())
 

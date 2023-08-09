@@ -183,7 +183,7 @@ func backupOutputPathFromRestore(
 
 	return path.Build(
 		inputPath.Tenant(),
-		inputPath.ResourceOwner(),
+		inputPath.ProtectedResource(),
 		inputPath.Service(),
 		inputPath.Category(),
 		false,

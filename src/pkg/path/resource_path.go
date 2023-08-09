@@ -10,7 +10,7 @@ import (
 // dataLayerResourcePath with invalid service/category combinations.
 //
 // All dataLayerResourcePaths start with the same prefix:
-// <tenant ID>/<service>/<resource owner ID>/<category>
+// <tenant ID>/<service>/<protected resource ID>[/<subService>/<protected resource ID>]/<category>
 // which allows extracting high-level information from the path. The path
 // elements after this prefix represent zero or more folders and, if the path
 // refers to a file or item, an item ID. A valid dataLayerResourcePath must have
@@ -38,9 +38,9 @@ func (rp dataLayerResourcePath) Category() CategoryType {
 	return rp.category
 }
 
-// ResourceOwner returns the user ID or group ID embedded in the
+// ProtectedResource returns the resource ID embedded in the
 // dataLayerResourcePath.
-func (rp dataLayerResourcePath) ResourceOwner() string {
+func (rp dataLayerResourcePath) ProtectedResource() string {
 	return rp.Builder.elements[2]
 }
 

@@ -50,7 +50,7 @@ func mustGetDefaultDriveID(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	ac api.Client,
 	service path.ServiceType,
-	resourceOwner string,
+	protectedResource string,
 ) string {
 	var (
 		err error
@@ -59,9 +59,9 @@ func mustGetDefaultDriveID(
 
 	switch service {
 	case path.OneDriveService:
-		d, err = ac.Users().GetDefaultDrive(ctx, resourceOwner)
+		d, err = ac.Users().GetDefaultDrive(ctx, protectedResource)
 	case path.SharePointService:
-		d, err = ac.Sites().GetDefaultDrive(ctx, resourceOwner)
+		d, err = ac.Sites().GetDefaultDrive(ctx, protectedResource)
 	default:
 		assert.FailNowf(t, "unknown service type %s", service.String())
 	}
@@ -86,10 +86,10 @@ type suiteInfo interface {
 	PrimaryUser() (string, string)
 	SecondaryUser() (string, string)
 	TertiaryUser() (string, string)
-	// ResourceOwner returns the resource owner to run the backup/restore
+	// ProtectedResource returns the resource owner to run the backup/restore
 	// with. This can be different from the values used for permissions and it can
 	// also be a site.
-	ResourceOwner() string
+	ProtectedResource() string
 	Service() path.ServiceType
 	Resource() resource.Category
 }
@@ -100,23 +100,23 @@ type oneDriveSuite interface {
 }
 
 type suiteInfoImpl struct {
-	ac               api.Client
-	controller       *Controller
-	resourceOwner    string
-	resourceCategory resource.Category
-	secondaryUser    string
-	secondaryUserID  string
-	service          path.ServiceType
-	tertiaryUser     string
-	tertiaryUserID   string
-	user             string
-	userID           string
+	ac                api.Client
+	controller        *Controller
+	protectedResource string
+	resourceCategory  resource.Category
+	secondaryUser     string
+	secondaryUserID   string
+	service           path.ServiceType
+	tertiaryUser      string
+	tertiaryUserID    string
+	user              string
+	userID            string
 }
 
 func NewSuiteInfoImpl(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	resourceOwner string,
+	protectedResource string,
 	service path.ServiceType,
 ) suiteInfoImpl {
 	rsc := resource.Users
@@ -127,14 +127,14 @@ func NewSuiteInfoImpl(
 	ctrl := newController(ctx, t, rsc, path.OneDriveService)
 
 	return suiteInfoImpl{
-		ac:               ctrl.AC,
-		controller:       ctrl,
-		resourceOwner:    resourceOwner,
-		resourceCategory: rsc,
-		secondaryUser:    tconfig.SecondaryM365UserID(t),
-		service:          service,
-		tertiaryUser:     tconfig.TertiaryM365UserID(t),
-		user:             tconfig.M365UserID(t),
+		ac:                ctrl.AC,
+		controller:        ctrl,
+		protectedResource: protectedResource,
+		resourceCategory:  rsc,
+		secondaryUser:     tconfig.SecondaryM365UserID(t),
+		service:           service,
+		tertiaryUser:      tconfig.TertiaryM365UserID(t),
+		user:              tconfig.M365UserID(t),
 	}
 }
 
@@ -158,8 +158,8 @@ func (si suiteInfoImpl) TertiaryUser() (string, string) {
 	return si.tertiaryUser, si.tertiaryUserID
 }
 
-func (si suiteInfoImpl) ResourceOwner() string {
-	return si.resourceOwner
+func (si suiteInfoImpl) ProtectedResource() string {
+	return si.protectedResource
 }
 
 func (si suiteInfoImpl) Service() path.ServiceType {
@@ -388,7 +388,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		ctx,
 		suite.APIClient(),
 		suite.Service(),
-		suite.ResourceOwner())
+		suite.ProtectedResource())
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -526,7 +526,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				t,
 				testData,
 				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
+				[]string{suite.ProtectedResource()},
 				control.DefaultOptions(),
 				restoreCfg)
 		})
@@ -547,7 +547,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		ctx,
 		suite.APIClient(),
 		suite.Service(),
-		suite.ResourceOwner())
+		suite.ProtectedResource())
 
 	fileName2 := "test-file2.txt"
 	folderCName := "folder-c"
@@ -775,7 +775,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				t,
 				testData,
 				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
+				[]string{suite.ProtectedResource()},
 				control.DefaultOptions(),
 				restoreCfg)
 		})
@@ -796,7 +796,7 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 		ctx,
 		suite.APIClient(),
 		suite.Service(),
-		suite.ResourceOwner())
+		suite.ProtectedResource())
 
 	inputCols := []stub.ColInfo{
 		{
@@ -867,7 +867,7 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 				t,
 				testData,
 				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
+				[]string{suite.ProtectedResource()},
 				control.DefaultOptions(),
 				restoreCfg)
 		})
@@ -891,7 +891,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		ctx,
 		suite.APIClient(),
 		suite.Service(),
-		suite.ResourceOwner())
+		suite.ProtectedResource())
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -1072,7 +1072,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				t,
 				testData,
 				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
+				[]string{suite.ProtectedResource()},
 				control.DefaultOptions(),
 				restoreCfg)
 		})
@@ -1094,7 +1094,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 		ctx,
 		suite.APIClient(),
 		suite.Service(),
-		suite.ResourceOwner())
+		suite.ProtectedResource())
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -1267,7 +1267,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 				t,
 				testData,
 				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
+				[]string{suite.ProtectedResource()},
 				control.DefaultOptions(),
 				restoreCfg)
 		})
@@ -1289,7 +1289,7 @@ func testRestoreFolderNamedFolderRegression(
 		ctx,
 		suite.APIClient(),
 		suite.Service(),
-		suite.ResourceOwner())
+		suite.ProtectedResource())
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -1383,7 +1383,7 @@ func testRestoreFolderNamedFolderRegression(
 				t,
 				testData,
 				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
+				[]string{suite.ProtectedResource()},
 				control.DefaultOptions(),
 				restoreCfg)
 		})

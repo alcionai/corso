@@ -69,7 +69,7 @@ func ConsumeRestoreCollections(
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"resource_owner", clues.Hide(dc.FullPath().ProtectedResource()),
 				"full_path", dc.FullPath())
 		)
 
@@ -219,7 +219,7 @@ func RestoreListCollection(
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
-		siteID    = directory.ResourceOwner()
+		siteID    = directory.ProtectedResource()
 		items     = dc.Items(ctx, errs)
 		el        = errs.Local()
 	)
@@ -292,7 +292,7 @@ func RestorePageCollection(
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
-		siteID    = directory.ResourceOwner()
+		siteID    = directory.ProtectedResource()
 	)
 
 	trace.Log(ctx, "m365:sharepoint:restorePageCollection", directory.String())
