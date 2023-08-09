@@ -449,7 +449,7 @@ func getBackup(
 	return b, nil
 }
 
-// BackupsByID lists backups by ID. Returns as many backups as possible with
+// Backups lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
 func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus) {
 	var (
@@ -472,10 +472,38 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 	return bups, errs
 }
 
-// backups lists backups in a repository
+// BackupsByTag lists all backups in a repository that contain all the tags
+// specified.
 func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetBackups(ctx, fs...)
+	return backupsByTag(ctx, sw, fs)
+}
+
+// backupsByTag returns all backups matching all provided tags.
+//
+// TODO(ashmrtn): This exists mostly for testing, but we could restructure the
+// code in this file so there's a more elegant mocking solution.
+func backupsByTag(
+	ctx context.Context,
+	sw store.BackupWrapper,
+	fs []store.FilterOption,
+) ([]*backup.Backup, error) {
+	bs, err := sw.GetBackups(ctx, fs...)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	// Filter out assist backup bases as they're considered incomplete and we
+	// haven't been displaying them before now.
+	res := make([]*backup.Backup, 0, len(bs))
+
+	for _, b := range bs {
+		if t := b.Tags[model.BackupTypeTag]; t != model.AssistBackup {
+			res = append(res, b)
+		}
+	}
+
+	return res, nil
 }
 
 // BackupDetails returns the specified backup.Details
