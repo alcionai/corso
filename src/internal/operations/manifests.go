@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -23,7 +24,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
 	rp inject.RestoreProducer,
-	reasons, fallbackReasons []kopia.Reasoner,
+	reasons, fallbackReasons []identity.Reasoner,
 	tenantID string,
 	getMetadata bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
@@ -47,7 +48,7 @@ func produceManifestsAndMetadata(
 	bb = bb.MergeBackupBases(
 		ctx,
 		fbb,
-		func(r kopia.Reasoner) string {
+		func(r identity.Reasoner) string {
 			return r.Service().String() + r.Category().String()
 		})
 

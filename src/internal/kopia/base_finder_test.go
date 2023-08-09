@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -39,7 +40,7 @@ var (
 	testUser2 = "user2"
 	testUser3 = "user3"
 
-	testAllUsersAllCats = []Reasoner{
+	testAllUsersAllCats = []identity.Reasoner{
 		// User1 email and events.
 		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 		NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
@@ -50,12 +51,12 @@ var (
 		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 		NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 	}
-	testAllUsersMail = []Reasoner{
+	testAllUsersMail = []identity.Reasoner{
 		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
 		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
 	}
-	testUser1Mail = []Reasoner{
+	testUser1Mail = []identity.Reasoner{
 		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 	}
 )
@@ -285,7 +286,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		sm: mockEmptySnapshotManager{},
 		bg: mockEmptyModelGetter{},
 	}
-	reasons := []Reasoner{
+	reasons := []identity.Reasoner{
 		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
 	}
 
@@ -304,7 +305,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		sm: &mockSnapshotManager{findErr: assert.AnError},
 		bg: mockEmptyModelGetter{},
 	}
-	reasons := []Reasoner{
+	reasons := []identity.Reasoner{
 		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
 	}
 
@@ -316,14 +317,14 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 func (suite *BaseFinderUnitSuite) TestGetBases() {
 	table := []struct {
 		name         string
-		input        []Reasoner
+		input        []identity.Reasoner
 		manifestData []manifestInfo
 		// Use this to denote the Reasons a base backup or base manifest is
 		// selected. The int maps to the index of the backup or manifest in data.
-		expectedBaseReasons map[int][]Reasoner
+		expectedBaseReasons map[int][]identity.Reasoner
 		// Use this to denote the Reasons a kopia assised incrementals manifest is
 		// selected. The int maps to the index of the manifest in data.
-		expectedAssistManifestReasons map[int][]Reasoner
+		expectedAssistManifestReasons map[int][]identity.Reasoner
 		backupData                    []backupInfo
 	}{
 		{
@@ -349,10 +350,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -383,10 +384,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 				1: testUser1Mail,
 			},
@@ -418,10 +419,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 				1: testUser1Mail,
 			},
@@ -447,10 +448,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser3,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -474,10 +475,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser3,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testAllUsersAllCats,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testAllUsersAllCats,
 			},
 			backupData: []backupInfo{
@@ -512,7 +513,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser3,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: {
 					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
@@ -524,7 +525,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
 				},
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: {
 					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
 					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
@@ -564,10 +565,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 				1: testUser1Mail,
 			},
@@ -600,10 +601,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -635,8 +636,8 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{},
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -659,10 +660,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -694,10 +695,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					testUser1,
 				),
 			},
-			expectedBaseReasons: map[int][]Reasoner{
+			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
-			expectedAssistManifestReasons: map[int][]Reasoner{
+			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 			backupData: []backupInfo{
@@ -764,17 +765,17 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 
 	table := []struct {
 		name  string
-		input []Reasoner
+		input []identity.Reasoner
 		tags  map[string]string
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and
 		// expected.
-		expectedIdxs map[int][]Reasoner
+		expectedIdxs map[int][]identity.Reasoner
 	}{
 		{
 			name: "no tags specified",
 			tags: nil,
-			expectedIdxs: map[int][]Reasoner{
+			expectedIdxs: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -784,14 +785,14 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 				"fnords": "",
 				"smarf":  "",
 			},
-			expectedIdxs: map[int][]Reasoner{
+			expectedIdxs: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
 		{
 			name: "subset of custom tags",
 			tags: map[string]string{"fnords": ""},
-			expectedIdxs: map[int][]Reasoner{
+			expectedIdxs: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -832,7 +833,7 @@ func checkManifestEntriesMatch(
 	t *testing.T,
 	retSnaps []ManifestEntry,
 	allExpected []manifestInfo,
-	expectedIdxsAndReasons map[int][]Reasoner,
+	expectedIdxsAndReasons map[int][]identity.Reasoner,
 ) {
 	// Check the proper snapshot manifests were returned.
 	expected := make([]*snapshot.Manifest, 0, len(expectedIdxsAndReasons))
@@ -848,7 +849,7 @@ func checkManifestEntriesMatch(
 	assert.ElementsMatch(t, expected, got)
 
 	// Check the reasons for selecting each manifest are correct.
-	expectedReasons := make(map[manifest.ID][]Reasoner, len(expectedIdxsAndReasons))
+	expectedReasons := make(map[manifest.ID][]identity.Reasoner, len(expectedIdxsAndReasons))
 	for idx, reasons := range expectedIdxsAndReasons {
 		expectedReasons[allExpected[idx].man.ID] = reasons
 	}
@@ -874,7 +875,7 @@ func checkBackupEntriesMatch(
 	t *testing.T,
 	retBups []BackupEntry,
 	allExpected []backupInfo,
-	expectedIdxsAndReasons map[int][]Reasoner,
+	expectedIdxsAndReasons map[int][]identity.Reasoner,
 ) {
 	// Check the proper snapshot manifests were returned.
 	expected := make([]*backup.Backup, 0, len(expectedIdxsAndReasons))
@@ -890,7 +891,7 @@ func checkBackupEntriesMatch(
 	assert.ElementsMatch(t, expected, got)
 
 	// Check the reasons for selecting each manifest are correct.
-	expectedReasons := make(map[model.StableID][]Reasoner, len(expectedIdxsAndReasons))
+	expectedReasons := make(map[model.StableID][]identity.Reasoner, len(expectedIdxsAndReasons))
 	for idx, reasons := range expectedIdxsAndReasons {
 		expectedReasons[allExpected[idx].b.ID] = reasons
 	}

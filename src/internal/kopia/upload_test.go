@@ -24,6 +24,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -951,7 +952,7 @@ func makeManifestEntry(
 	service path.ServiceType,
 	categories ...path.CategoryType,
 ) ManifestEntry {
-	var reasons []Reasoner
+	var reasons []identity.Reasoner
 
 	for _, c := range categories {
 		reasons = append(reasons, NewReason(tenant, resourceOwner, service, c))

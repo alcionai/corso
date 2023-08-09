@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -47,7 +48,7 @@ type mockBackupFinder struct {
 
 func (bf *mockBackupFinder) FindBases(
 	_ context.Context,
-	reasons []kopia.Reasoner,
+	reasons []identity.Reasoner,
 	_ map[string]string,
 ) kopia.BackupBases {
 	if len(reasons) == 0 {
@@ -102,7 +103,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 	table := []struct {
 		name        string
 		manID       string
-		reasons     []kopia.Reasoner
+		reasons     []identity.Reasoner
 		fileNames   []string
 		expectPaths func(*testing.T, []string) []path.Path
 		expectErr   error
@@ -110,7 +111,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		{
 			name:  "single reason, single file",
 			manID: "single single",
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 			},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
@@ -129,7 +130,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		{
 			name:  "single reason, multiple files",
 			manID: "single multi",
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 			},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
@@ -148,7 +149,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		{
 			name:  "multiple reasons, single file",
 			manID: "multi single",
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
 			},
@@ -171,7 +172,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		{
 			name:  "multiple reasons, multiple file",
 			manID: "multi multi",
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
 			},
@@ -219,8 +220,8 @@ func buildReasons(
 	ro string,
 	service path.ServiceType,
 	cats ...path.CategoryType,
-) []kopia.Reasoner {
-	var reasons []kopia.Reasoner
+) []identity.Reasoner {
+	var reasons []identity.Reasoner
 
 	for _, cat := range cats {
 		reasons = append(
@@ -252,7 +253,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		name        string
 		bf          *mockBackupFinder
 		rp          mockRestoreProducer
-		reasons     []kopia.Reasoner
+		reasons     []identity.Reasoner
 		getMeta     bool
 		assertErr   assert.ErrorAssertionFunc
 		assertB     assert.BoolAssertionFunc
@@ -263,7 +264,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name:       "don't get metadata, no mans",
 			rp:         mockRestoreProducer{},
-			reasons:    []kopia.Reasoner{},
+			reasons:    []identity.Reasoner{},
 			getMeta:    false,
 			assertErr:  assert.NoError,
 			assertB:    assert.False,
@@ -280,7 +281,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			rp: mockRestoreProducer{},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   false,
@@ -301,7 +302,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			rp: mockRestoreProducer{},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
@@ -329,7 +330,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					"id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id1"}}},
 				},
 			},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
 			},
@@ -377,7 +378,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					"id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
 				},
 			},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
@@ -406,7 +407,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					"id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "id2"}}},
 				},
 			},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
@@ -428,7 +429,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			rp: mockRestoreProducer{err: assert.AnError},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:    true,
@@ -548,8 +549,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		name            string
 		bf              *mockBackupFinder
 		rp              mockRestoreProducer
-		reasons         []kopia.Reasoner
-		fallbackReasons []kopia.Reasoner
+		reasons         []identity.Reasoner
+		fallbackReasons []identity.Reasoner
 		getMeta         bool
 		assertErr       assert.ErrorAssertionFunc
 		assertB         assert.BoolAssertionFunc
@@ -568,7 +569,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				},
 			},
 			rp:              mockRestoreProducer{},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         false,
 			assertErr:       assert.NoError,
 			assertB:         assert.False,
@@ -593,7 +594,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
@@ -624,8 +625,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
-			reasons:         []kopia.Reasoner{emailReason},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
@@ -652,8 +653,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
 				},
 			},
-			reasons:         []kopia.Reasoner{emailReason},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
@@ -688,8 +689,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
 				},
 			},
-			reasons:         []kopia.Reasoner{emailReason},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
@@ -720,8 +721,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
-			reasons:         []kopia.Reasoner{emailReason},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
@@ -752,8 +753,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id2": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id2"}}},
 				},
 			},
-			reasons:         []kopia.Reasoner{emailReason},
-			fallbackReasons: []kopia.Reasoner{fbEmailReason},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
 			getMeta:         true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
@@ -782,11 +783,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				emailReason,
 				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
 			},
-			fallbackReasons: []kopia.Reasoner{
+			fallbackReasons: []identity.Reasoner{
 				fbEmailReason,
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
@@ -818,8 +819,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
-			reasons: []kopia.Reasoner{emailReason},
-			fallbackReasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
@@ -853,11 +854,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					"fb_id1": {data.NoFetchRestoreCollection{Collection: mockColl{id: "fb_id1"}}},
 				},
 			},
-			reasons: []kopia.Reasoner{
+			reasons: []identity.Reasoner{
 				emailReason,
 				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
 			},
-			fallbackReasons: []kopia.Reasoner{
+			fallbackReasons: []identity.Reasoner{
 				fbEmailReason,
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},

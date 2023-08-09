@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -367,7 +368,7 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
-func makeFallbackReasons(tenant string, sel selectors.Selector) []kopia.Reasoner {
+func makeFallbackReasons(tenant string, sel selectors.Selector) []identity.Reasoner {
 	if sel.PathService() != path.SharePointService &&
 		sel.DiscreteOwner != sel.DiscreteOwnerName {
 		return selectorToReasons(tenant, sel, true)
@@ -419,9 +420,9 @@ func selectorToReasons(
 	tenant string,
 	sel selectors.Selector,
 	useOwnerNameForID bool,
-) []kopia.Reasoner {
+) []identity.Reasoner {
 	service := sel.PathService()
-	reasons := []kopia.Reasoner{}
+	reasons := []identity.Reasoner{}
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
@@ -449,7 +450,7 @@ func consumeBackupCollections(
 	ctx context.Context,
 	bc kinject.BackupConsumer,
 	tenantID string,
-	reasons []kopia.Reasoner,
+	reasons []identity.Reasoner,
 	bbs kopia.BackupBases,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
@@ -501,7 +502,7 @@ func consumeBackupCollections(
 	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
-func matchesReason(reasons []kopia.Reasoner, p path.Path) bool {
+func matchesReason(reasons []identity.Reasoner, p path.Path) bool {
 	for _, reason := range reasons {
 		if p.ResourceOwner() == reason.ProtectedResource() &&
 			p.Service() == reason.Service() &&
