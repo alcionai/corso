@@ -542,7 +542,10 @@ func getNewPathRefs(
 	// able to assume we always have the location in the previous entry. We'll end
 	// up doing some extra parsing, but it will simplify this code.
 	if repoRef.Service() == path.ExchangeService {
-		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), nil)
+		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
+			repoRef.ToBuilder(),
+			entry.Modified(),
+			nil)
 		if err != nil {
 			return nil, nil, false, clues.Wrap(err, "getting new paths")
 		} else if newPath == nil {
@@ -575,7 +578,10 @@ func getNewPathRefs(
 		return nil, nil, false, clues.New("entry with empty LocationRef")
 	}
 
-	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), locRef)
+	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
+		repoRef.ToBuilder(),
+		entry.Modified(),
+		locRef)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "getting new paths with old location")
 	} else if newPath == nil {

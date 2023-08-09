@@ -2,13 +2,10 @@ package onedrive
 
 import (
 	"context"
-	"strings"
 
-	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -147,106 +144,4 @@ func newItem(name string, folder bool) *models.DriveItem {
 	}
 
 	return itemToCreate
-}
-
-type Displayable struct {
-	models.DriveItemable
-}
-
-func (op *Displayable) GetDisplayName() *string {
-	return op.GetName()
-}
-
-// GetAllFolders returns all folders in all drives for the given user. If a
-// prefix is given, returns all folders with that prefix, regardless of if they
-// are a subfolder or top-level folder in the hierarchy.
-func GetAllFolders(
-	ctx context.Context,
-	bh BackupHandler,
-	pager api.DrivePager,
-	prefix string,
-	errs *fault.Bus,
-) ([]*Displayable, error) {
-	ds, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting OneDrive folders")
-	}
-
-	var (
-		folders = map[string]*Displayable{}
-		el      = errs.Local()
-	)
-
-	for _, drive := range ds {
-		if el.Failure() != nil {
-			break
-		}
-
-		var (
-			id   = ptr.Val(drive.GetId())
-			name = ptr.Val(drive.GetName())
-		)
-
-		ictx := clues.Add(ctx, "drive_id", id, "drive_name", clues.Hide(name))
-		collector := func(
-			_ context.Context,
-			_, _ string,
-			items []models.DriveItemable,
-			_ map[string]string,
-			_ map[string]string,
-			_ map[string]struct{},
-			_ map[string]map[string]string,
-			_ bool,
-			_ *fault.Bus,
-		) error {
-			for _, item := range items {
-				// Skip the root item.
-				if item.GetRoot() != nil {
-					continue
-				}
-
-				// Only selecting folders right now, not packages.
-				if item.GetFolder() == nil {
-					continue
-				}
-
-				itemID := ptr.Val(item.GetId())
-				if len(itemID) == 0 {
-					logger.Ctx(ctx).Info("folder missing ID")
-					continue
-				}
-
-				if !strings.HasPrefix(ptr.Val(item.GetName()), prefix) {
-					continue
-				}
-
-				// Add the item instead of the folder because the item has more
-				// functionality.
-				folders[itemID] = &Displayable{item}
-			}
-
-			return nil
-		}
-
-		_, _, _, err = collectItems(
-			ictx,
-			bh.NewItemPager(id, "", nil),
-			id,
-			name,
-			collector,
-			map[string]string{},
-			"",
-			errs)
-		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "enumerating items in drive"))
-		}
-	}
-
-	res := make([]*Displayable, 0, len(folders))
-
-	for _, f := range folders {
-		res = append(res, f)
-	}
-
-	return res, el.Failure()
 }

@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -13,17 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -315,113 +310,6 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 
 	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
-}
-
-func (suite *OneDriveIntgSuite) TestCreateGetDeleteFolder() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		folderIDs      = []string{}
-		folderName1    = "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
-		folderElements = []string{folderName1}
-	)
-
-	pager := suite.ac.Drives().NewUserDrivePager(suite.userID, nil)
-
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, drives)
-
-	// TODO: Verify the intended drive
-	driveID := ptr.Val(drives[0].GetId())
-
-	defer func() {
-		for _, id := range folderIDs {
-			ictx := clues.Add(ctx, "folder_id", id)
-
-			// deletes require unique http clients
-			// https://github.com/alcionai/corso/issues/2707
-			err := suite.ac.Drives().DeleteItem(ictx, driveID, id)
-			if err != nil {
-				logger.CtxErr(ictx, err).Errorw("deleting folder")
-			}
-		}
-	}()
-
-	rootFolder, err := suite.ac.Drives().GetRootFolder(ctx, driveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	restoreDir := path.Builder{}.Append(folderElements...)
-	drivePath := path.DrivePath{
-		DriveID: driveID,
-		Root:    "root:",
-		Folders: folderElements,
-	}
-
-	caches := NewRestoreCaches(nil)
-	caches.DriveIDToDriveInfo.Store(driveID, driveInfo{rootFolderID: ptr.Val(rootFolder.GetId())})
-
-	rh := NewRestoreHandler(suite.ac)
-
-	folderID, err := createRestoreFolders(ctx, rh, &drivePath, restoreDir, caches)
-	require.NoError(t, err, clues.ToCore(err))
-
-	folderIDs = append(folderIDs, folderID)
-
-	folderName2 := "Corso_Folder_Test_" + dttm.FormatNow(dttm.SafeForTesting)
-	restoreDir = restoreDir.Append(folderName2)
-
-	folderID, err = createRestoreFolders(ctx, rh, &drivePath, restoreDir, caches)
-	require.NoError(t, err, clues.ToCore(err))
-
-	folderIDs = append(folderIDs, folderID)
-
-	table := []struct {
-		name   string
-		prefix string
-	}{
-		{
-			name:   "NoPrefix",
-			prefix: "",
-		},
-		{
-			name:   "Prefix",
-			prefix: "Corso_Folder_Test",
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-			bh := itemBackupHandler{
-				suite.ac.Drives(),
-				(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
-			}
-			pager := suite.ac.Drives().NewUserDrivePager(suite.userID, nil)
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			allFolders, err := GetAllFolders(ctx, bh, pager, test.prefix, fault.New(true))
-			require.NoError(t, err, clues.ToCore(err))
-
-			foundFolderIDs := []string{}
-
-			for _, f := range allFolders {
-
-				if ptr.Val(f.GetName()) == folderName1 || ptr.Val(f.GetName()) == folderName2 {
-					foundFolderIDs = append(foundFolderIDs, ptr.Val(f.GetId()))
-				}
-
-				assert.True(t, strings.HasPrefix(ptr.Val(f.GetName()), test.prefix), "folder prefix")
-			}
-
-			assert.ElementsMatch(t, folderIDs, foundFolderIDs)
-		})
-	}
 }
 
 func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
