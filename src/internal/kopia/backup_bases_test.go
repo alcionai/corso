@@ -13,10 +13,11 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makeManifest(id, incmpl, bID string, reasons ...Reasoner) ManifestEntry {
+func makeManifest(id, incmpl, bID string, reasons ...identity.Reasoner) ManifestEntry {
 	bIDKey, _ := makeTagKV(TagBackupID)
 
 	return ManifestEntry{
@@ -216,7 +217,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 
 		for _, i := range mergeInputs {
 			baseID := fmt.Sprintf("id%d", i.id)
-			reasons := make([]Reasoner, 0, len(i.cat))
+			reasons := make([]identity.Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
 				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
@@ -241,7 +242,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 		for _, i := range assistInputs {
 			baseID := fmt.Sprintf("id%d", i.id)
 
-			reasons := make([]Reasoner, 0, len(i.cat))
+			reasons := make([]identity.Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
 				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
@@ -467,7 +468,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			got := bb.MergeBackupBases(
 				ctx,
 				other,
-				func(r Reasoner) string {
+				func(r identity.Reasoner) string {
 					return r.Service().String() + r.Category().String()
 				})
 			AssertBackupBasesEqual(t, expected, got)
