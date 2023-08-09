@@ -15,11 +15,44 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
-// TODO(ashmrtn): Make this a helper function that always returns as much as
-// possible and call in another function that drops metadata and/or
-// kopia-assisted incremental bases based on flag values.
 func produceManifestsAndMetadata(
+	ctx context.Context,
+	bf inject.BaseFinder,
+	rp inject.RestoreProducer,
+	reasons, fallbackReasons []kopia.Reasoner,
+	tenantID string,
+	getMetadata, dropAssistBases bool,
+) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
+	bb, meta, useMergeBases, err := getManifestsAndMetadata(
+		ctx,
+		bf,
+		rp,
+		reasons,
+		fallbackReasons,
+		tenantID,
+		getMetadata)
+	if err != nil {
+		return nil, nil, false, clues.Stack(err)
+	}
+
+	if !useMergeBases || !getMetadata {
+		logger.Ctx(ctx).Debug("full backup requested, dropping merge bases")
+
+		bb.ClearMergeBases()
+	}
+
+	if dropAssistBases {
+		logger.Ctx(ctx).Debug("no caching requested, dropping assist bases")
+
+		bb.ClearAssistBases()
+	}
+
+	return bb, meta, useMergeBases, nil
+}
+
+// getManifestsAndMetadata calls kopia to retrieve prior backup manifests,
+// metadata collections to supply backup heuristics.
+func getManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
 	rp inject.RestoreProducer,
@@ -54,12 +87,6 @@ func produceManifestsAndMetadata(
 		})
 
 	if !getMetadata {
-		logger.Ctx(ctx).Debug("full backup requested, dropping merge bases")
-
-		// TODO(ashmrtn): If this function is moved to be a helper function then
-		// move this change to the bases to the caller of this function.
-		bb.ClearMergeBases()
-
 		return bb, nil, false, nil
 	}
 
