@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -85,6 +86,14 @@ type selectorPathCategories struct {
 
 type pathCategorier interface {
 	PathCategories() selectorPathCategories
+}
+
+type pathServicer interface {
+	PathService() path.ServiceType
+}
+
+type reasoner interface {
+	Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner
 }
 
 // ---------------------------------------------------------------------------
@@ -273,7 +282,7 @@ func (s Selector) Reduce(
 	return r.Reduce(ctx, deets, errs), nil
 }
 
-// returns the sets of path categories identified in each scope set.
+// PathCategories returns the sets of path categories identified in each scope set.
 func (s Selector) PathCategories() (selectorPathCategories, error) {
 	ro, err := selectorAsIface[pathCategorier](s)
 	if err != nil {
@@ -281,6 +290,18 @@ func (s Selector) PathCategories() (selectorPathCategories, error) {
 	}
 
 	return ro.PathCategories(), nil
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s Selector) Reasons(tenantID string, useOwnerNameForID bool) ([]identity.Reasoner, error) {
+	ro, err := selectorAsIface[reasoner](s)
+	if err != nil {
+		return nil, err
+	}
+
+	return ro.Reasons(tenantID, useOwnerNameForID), nil
 }
 
 // transformer for arbitrary selector interfaces
