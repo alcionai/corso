@@ -14,8 +14,8 @@ import (
 	"github.com/pkg/profile"
 )
 
-var profileTicker = time.NewTicker(600 * time.Second)
-var printTicker = time.NewTicker(60 * time.Second)
+var profileTicker = time.NewTicker(300 * time.Second)
+var printTicker = time.NewTicker(10 * time.Second)
 var profileCounter = 0
 
 func main() {

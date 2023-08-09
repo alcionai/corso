@@ -468,7 +468,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	wg.Wait()
 
 	// free up memory
-	oc.driveItems = nil
+	oc.driveItems = make(map[string]models.DriveItemable)
 	oc.reportAsCompleted(ctx, int(stats.itemsFound), int(stats.itemsRead), stats.byteCount)
 }
 
