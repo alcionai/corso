@@ -270,27 +270,18 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 	table := []struct {
 		name  string
 		entry Entry
-		// shortRefEqual allows checking that OneDrive and SharePoint have their
-		// ShortRef updated in the returned entry.
-		//
-		// TODO(ashmrtn): Remove this when we don't need extra munging for
-		// OneDrive/SharePoint file name changes.
-		shortRefEqual assert.ComparisonAssertionFunc
 	}{
 		{
-			name:          "Exchange Email",
-			entry:         exchangeEntry(t, itemID, 42, ExchangeMail),
-			shortRefEqual: assert.Equal,
+			name:  "Exchange Email",
+			entry: exchangeEntry(t, itemID, 42, ExchangeMail),
 		},
 		{
-			name:          "OneDrive File",
-			entry:         oneDriveishEntry(t, itemID, 42, OneDriveItem),
-			shortRefEqual: assert.NotEqual,
+			name:  "OneDrive File",
+			entry: oneDriveishEntry(t, itemID, 42, OneDriveItem),
 		},
 		{
-			name:          "SharePoint File",
-			entry:         oneDriveishEntry(t, itemID, 42, SharePointLibrary),
-			shortRefEqual: assert.NotEqual,
+			name:  "SharePoint File",
+			entry: oneDriveishEntry(t, itemID, 42, SharePointLibrary),
 		},
 		{
 			name: "Legacy SharePoint File",
@@ -300,7 +291,6 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 
 				return res
 			}(),
-			shortRefEqual: assert.NotEqual,
 		},
 	}
 
@@ -334,7 +324,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 			got.ShortRef = ""
 
 			assert.Equal(t, localItem, got, "DetailsEntry")
-			test.shortRefEqual(t, expectedShortRef, gotShortRef, "ShortRef")
+			assert.Equal(t, expectedShortRef, gotShortRef, "ShortRef")
 		})
 	}
 }
