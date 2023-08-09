@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	stdpath "path"
 	"testing"
 	"time"
@@ -1530,7 +1529,7 @@ func (mbp *mockBackupProducer) ProduceBackupCollections(
 	*fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	if mbp.injectNonRecoverableErr {
-		return nil, nil, false, errors.New("non-recoverable error")
+		return nil, nil, false, clues.New("non-recoverable error")
 	}
 
 	return mbp.colls, nil, true, nil
@@ -1649,12 +1648,11 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	table := []struct {
 		name                    string
 		collFunc                func() []data.BackupCollection
-		metadataCollFunc        func() []graph.MetadataCollectionEntry
 		injectNonRecoverableErr bool
 		failurePolicy           control.FailurePolicy
 		expectRunErr            assert.ErrorAssertionFunc
 		expectBackupTag         string
-		expectFaults            func(errs *fault.Bus) bool
+		expectFaults            func(t *testing.T, errs *fault.Bus)
 	}{
 		{
 			name: "fail fast, no errors",
@@ -1670,14 +1668,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url/1", driveID, folderID, tmp)
-			},
 			failurePolicy:   control.FailFast,
 			expectRunErr:    assert.NoError,
 			expectBackupTag: model.MergeBackup,
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() == nil && len(errs.Recovered()) == 0
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
 			},
 		},
 		{
@@ -1693,14 +1689,11 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				}
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url/2", driveID, folderID, tmp)
-			},
 			failurePolicy:   control.FailFast,
 			expectRunErr:    assert.Error,
 			expectBackupTag: "",
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() != nil
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
 			},
 		},
 		{
@@ -1717,14 +1710,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url/1", driveID, folderID, tmp)
-			},
 			failurePolicy:   control.BestEffort,
 			expectRunErr:    assert.NoError,
 			expectBackupTag: model.MergeBackup,
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() == nil && len(errs.Recovered()) == 0
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
 			},
 		},
 		{
@@ -1732,15 +1723,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			collFunc: func() []data.BackupCollection {
 				return nil
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return nil
-			},
 			injectNonRecoverableErr: true,
 			failurePolicy:           control.BestEffort,
 			expectRunErr:            assert.Error,
 			expectBackupTag:         "",
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() != nil
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
 			},
 		},
 		{
@@ -1757,14 +1745,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url/1", driveID, folderID, tmp)
-			},
 			failurePolicy:   control.BestEffort,
 			expectRunErr:    assert.NoError,
 			expectBackupTag: model.MergeBackup,
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() == nil && len(errs.Recovered()) > 0
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
 			},
 		},
 		{
@@ -1782,14 +1768,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url/1", driveID, folderID, tmp)
-			},
 			failurePolicy:   control.FailAfterRecovery,
 			expectRunErr:    assert.NoError,
 			expectBackupTag: model.MergeBackup,
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() == nil && len(errs.Recovered()) == 0
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
 			},
 		},
 		{
@@ -1797,17 +1781,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			collFunc: func() []data.BackupCollection {
 				return nil
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return nil
-			},
 			injectNonRecoverableErr: true,
 			failurePolicy:           control.FailAfterRecovery,
 			expectRunErr:            assert.Error,
 			expectBackupTag:         "",
-			expectFaults: func(errs *fault.Bus) bool {
-				// Also add a recoverable error, since setFailure will copy
-				// additional non recoverable errors to recoverable slice.
-				return errs.Failure() != nil
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
 			},
 		},
 		{
@@ -1825,14 +1804,12 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url/1", driveID, folderID, tmp)
-			},
 			failurePolicy:   control.FailAfterRecovery,
 			expectRunErr:    assert.Error,
 			expectBackupTag: model.AssistBackup,
-			expectFaults: func(errs *fault.Bus) bool {
-				return errs.Failure() != nil && len(errs.Recovered()) > 0
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
 			},
 		},
 	}
@@ -1850,7 +1827,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
-				test.metadataCollFunc(),
+				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -1859,6 +1836,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				colls:                   cs,
 				injectNonRecoverableErr: test.injectNonRecoverableErr,
 			}
+
+			opts.FailureHandling = test.failurePolicy
 
 			bo, err := NewBackupOperation(
 				ctx,
@@ -1872,23 +1851,24 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				evmock.NewBus())
 			require.NoError(t, err, clues.ToCore(err))
 
-			bo.Options.FailureHandling = test.failurePolicy
-
 			err = bo.Run(ctx)
 			test.expectRunErr(t, err, clues.ToCore(err))
-			// TODO: check status
-			if len(test.expectBackupTag) > 0 {
-				bID := bo.Results.BackupID
-				require.NotEmpty(t, bID)
 
-				bup := backup.Backup{}
-				err := suite.ms.Get(ctx, model.BackupSchema, bID, &bup)
-				require.NoError(t, err, clues.ToCore(err))
+			test.expectFaults(t, bo.Errors)
 
-				require.Equal(t, test.expectBackupTag, bup.Tags[model.BackupTypeTag])
+			if len(test.expectBackupTag) == 0 {
+				return
 			}
 
-			require.True(t, test.expectFaults(bo.Errors))
+			bID := bo.Results.BackupID
+			require.NotEmpty(t, bID)
+
+			bup := backup.Backup{}
+
+			err = suite.ms.Get(ctx, model.BackupSchema, bID, &bup)
+			require.NoError(t, err, clues.ToCore(err))
+
+			require.Equal(t, test.expectBackupTag, bup.Tags[model.BackupTypeTag])
 		})
 	}
 }
@@ -1947,11 +1927,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 	locPath := path.Builder{}.Append(tmp.Folders()...)
 
 	table := []struct {
-		name             string
-		collFunc         func() []data.BackupCollection
-		metadataCollFunc func() []graph.MetadataCollectionEntry
-		expectRunErr     assert.ErrorAssertionFunc
-		validateDeets    func(gotDeets details.Details)
+		name          string
+		collFunc      func() []data.BackupCollection
+		expectRunErr  assert.ErrorAssertionFunc
+		validateDeets func(t *testing.T, gotDeets details.Details)
 	}{
 		{
 			name: "Assist backup, 1 new deets",
@@ -1968,19 +1947,16 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url", driveID, folderID, tmp)
-			},
 			expectRunErr: assert.Error,
-			validateDeets: func(d details.Details) {
+			validateDeets: func(t *testing.T, d details.Details) {
 				files := selectFilesFromDeets(d)
-				require.Len(suite.T(), files, 1)
+				require.Len(t, files, 1)
 
 				f := files["file1"]
-				require.NotNil(suite.T(), f)
+				require.NotNil(t, f)
 
-				require.Equal(suite.T(), T1, f.OneDrive.Modified)
-				require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+				require.Equal(t, T1, f.OneDrive.Modified)
+				require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 			},
 		},
 		{
@@ -1999,24 +1975,21 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url", driveID, folderID, tmp)
-			},
 			expectRunErr: assert.Error,
-			validateDeets: func(d details.Details) {
+			validateDeets: func(t *testing.T, d details.Details) {
 				files := selectFilesFromDeets(d)
-				require.Len(suite.T(), files, 2)
+				require.Len(t, files, 2)
 
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(suite.T(), T1, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T1, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					case "file2":
-						require.Equal(suite.T(), T2, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T2, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
-						require.Fail(suite.T(), "unexpected file", f.ItemRef)
+						require.Fail(t, "unexpected file", f.ItemRef)
 					}
 				}
 			},
@@ -2037,27 +2010,24 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url", driveID, folderID, tmp)
-			},
 			expectRunErr: assert.NoError,
-			validateDeets: func(d details.Details) {
+			validateDeets: func(t *testing.T, d details.Details) {
 				files := selectFilesFromDeets(d)
-				require.Len(suite.T(), files, 3)
+				require.Len(t, files, 3)
 
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(suite.T(), T1, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T1, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					case "file2":
-						require.Equal(suite.T(), T2, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T2, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					case "file3":
-						require.Equal(suite.T(), T3, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T3, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
-						require.Fail(suite.T(), "unexpected file", f.ItemRef)
+						require.Fail(t, "unexpected file", f.ItemRef)
 					}
 				}
 			},
@@ -2079,13 +2049,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url", driveID, folderID, tmp)
-			},
 			expectRunErr: assert.NoError,
-			validateDeets: func(d details.Details) {
+			validateDeets: func(t *testing.T, d details.Details) {
 				files := selectFilesFromDeets(d)
-				require.Len(suite.T(), files, 0)
+				require.Len(t, files, 0)
 			},
 		},
 		{
@@ -2096,27 +2063,24 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 						tmp,
 						locPath,
 						[]odMock.Data{
-							makeODMockData("file4", extData[0], T1, false, nil),
+							makeODMockData("file1", extData[0], T1, false, nil),
 						}),
 				}
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url", driveID, folderID, tmp)
-			},
 			expectRunErr: assert.NoError,
-			validateDeets: func(d details.Details) {
+			validateDeets: func(t *testing.T, d details.Details) {
 				files := selectFilesFromDeets(d)
-				require.Len(suite.T(), files, 1)
+				require.Len(t, files, 1)
 
 				for _, f := range files {
 					switch f.ItemRef {
-					case "file4":
-						require.Equal(suite.T(), T1, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+					case "file1":
+						require.Equal(t, T1, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
-						require.Fail(suite.T(), "unexpected file", f.ItemRef)
+						require.Fail(t, "unexpected file", f.ItemRef)
 					}
 				}
 			},
@@ -2130,7 +2094,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 						tmp,
 						locPath,
 						[]odMock.Data{
-							makeODMockData("file4", extData[0], T1, false, nil),
+							makeODMockData("file1", extData[0], T1, false, nil),
 							makeODMockData("file2", extData[1], T2, false, nil),
 							makeODMockData("file3", extData[2], T3, false, assert.AnError),
 						}),
@@ -2138,25 +2102,22 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 				return bc
 			},
-			metadataCollFunc: func() []graph.MetadataCollectionEntry {
-				return makeMetadataCollectionEntries("url", driveID, folderID, tmp)
-			},
 			expectRunErr: assert.Error,
-			validateDeets: func(d details.Details) {
+			validateDeets: func(t *testing.T, d details.Details) {
 				files := selectFilesFromDeets(d)
-				require.Len(suite.T(), files, 2)
+				require.Len(t, files, 2)
 
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(suite.T(), T1, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T1, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 
 					case "file2":
-						require.Equal(suite.T(), T2, f.OneDrive.Modified)
-						require.NotZero(suite.T(), f.Extension.Data[extensions.KNumBytes])
+						require.Equal(t, T2, f.OneDrive.Modified)
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
-						require.Fail(suite.T(), "unexpected file", f.ItemRef)
+						require.Fail(t, "unexpected file", f.ItemRef)
 					}
 				}
 			},
@@ -2180,7 +2141,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
-				test.metadataCollFunc(),
+				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -2220,8 +2181,9 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				sss)
 			assert.NotNil(t, deets)
 
-			test.validateDeets(deets)
+			test.validateDeets(t, deets)
 
+			// Clear extension data between test runs
 			for i := 0; i < 3; i++ {
 				d := make(map[string]any)
 				extData[i] = &details.ExtensionData{
