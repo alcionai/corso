@@ -915,6 +915,17 @@ func (i *ExchangeInfo) updateFolder(f *FolderInfo) error {
 	return nil
 }
 
+// ChannelsInfo describes an exchange item
+type ChannelsInfo struct {
+	ItemType   ItemType  `json:"itemType,omitempty"`
+	Sender     string    `json:"sender,omitempty"`
+	ParentPath string    `json:"parentPath,omitempty"`
+	Received   time.Time `json:"received,omitempty"`
+	Created    time.Time `json:"created,omitempty"`
+	Modified   time.Time `json:"modified,omitempty"`
+	Size       int64     `json:"size,omitempty"`
+}
+
 // SharePointInfo describes a sharepoint item
 type SharePointInfo struct {
 	Created    time.Time `json:"created,omitempty"`
