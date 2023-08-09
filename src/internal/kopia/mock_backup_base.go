@@ -16,7 +16,6 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 		assert.Empty(t, got.MergeBases(), "merge bases")
 		assert.Empty(t, got.AssistBackups(), "assist backups")
 		assert.Empty(t, got.AssistBases(), "assist bases")
-		assert.Empty(t, got.AssistBackups(), "assist backups")
 
 		return
 	}
@@ -36,7 +35,6 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 	assert.ElementsMatch(t, expect.MergeBases(), got.MergeBases(), "merge bases")
 	assert.ElementsMatch(t, expect.AssistBackups(), got.AssistBackups(), "assist backups")
 	assert.ElementsMatch(t, expect.AssistBases(), got.AssistBases(), "assist bases")
-	assert.ElementsMatch(t, expect.AssistBackups(), got.AssistBackups(), "assist backups")
 }
 
 func NewMockBackupBases() *MockBackupBases {
