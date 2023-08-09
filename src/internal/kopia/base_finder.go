@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -29,23 +30,11 @@ const (
 	userTagPrefix = "tag:"
 )
 
-// TODO(ashmrtn): Move this into some inject package. Here to avoid import
-// cycles.
-type Reasoner interface {
-	Tenant() string
-	ProtectedResource() string
-	Service() path.ServiceType
-	Category() path.CategoryType
-	// SubtreePath returns the path prefix for data in existing backups that have
-	// parameters (tenant, protected resourced, etc) that match this Reasoner.
-	SubtreePath() (path.Path, error)
-}
-
 func NewReason(
 	tenant, resource string,
 	service path.ServiceType,
 	category path.CategoryType,
-) Reasoner {
+) identity.Reasoner {
 	return reason{
 		tenant:   tenant,
 		resource: resource,
@@ -90,7 +79,7 @@ func (r reason) SubtreePath() (path.Path, error) {
 	return p, clues.Wrap(err, "building path").OrNil()
 }
 
-func tagKeys(r Reasoner) []string {
+func tagKeys(r identity.Reasoner) []string {
 	return []string{
 		r.ProtectedResource(),
 		serviceCatString(r.Service(), r.Category()),
@@ -98,13 +87,13 @@ func tagKeys(r Reasoner) []string {
 }
 
 // reasonKey returns the concatenation of the ProtectedResource, Service, and Category.
-func reasonKey(r Reasoner) string {
+func reasonKey(r identity.Reasoner) string {
 	return r.ProtectedResource() + r.Service().String() + r.Category().String()
 }
 
 type BackupEntry struct {
 	*backup.Backup
-	Reasons []Reasoner
+	Reasons []identity.Reasoner
 }
 
 type ManifestEntry struct {
@@ -116,7 +105,7 @@ type ManifestEntry struct {
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)
 	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
-	Reasons []Reasoner
+	Reasons []identity.Reasoner
 }
 
 func (me ManifestEntry) GetTag(key string) (string, bool) {
@@ -215,7 +204,7 @@ type backupBase struct {
 // are associated with an assist backup or merge backup.
 func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
-	reason Reasoner,
+	reason identity.Reasoner,
 	metas []*manifest.EntryMetadata,
 ) (*backupBase, *backupBase, error) {
 	// Sort manifests by time so we can go through them sequentially. The code in
@@ -288,11 +277,11 @@ func (b *baseFinder) findBasesInSet(
 			if assistBase == nil {
 				assistModel := BackupEntry{
 					Backup:  bup,
-					Reasons: []Reasoner{reason},
+					Reasons: []identity.Reasoner{reason},
 				}
 				assistSnap := ManifestEntry{
 					Manifest: man,
-					Reasons:  []Reasoner{reason},
+					Reasons:  []identity.Reasoner{reason},
 				}
 
 				assistBase = &backupBase{
@@ -318,11 +307,12 @@ func (b *baseFinder) findBasesInSet(
 
 		mergeSnap := ManifestEntry{
 			Manifest: man,
-			Reasons:  []Reasoner{reason},
+			Reasons:  []identity.Reasoner{reason},
 		}
+
 		mergeModel := BackupEntry{
 			Backup:  bup,
-			Reasons: []Reasoner{reason},
+			Reasons: []identity.Reasoner{reason},
 		}
 
 		mergeBase = &backupBase{
@@ -378,7 +368,7 @@ func (b *baseFinder) isAssistBackupModel(
 
 func (b *baseFinder) getBase(
 	ctx context.Context,
-	r Reasoner,
+	r identity.Reasoner,
 	tags map[string]string,
 ) (*backupBase, *backupBase, error) {
 	allTags := map[string]string{}
@@ -405,7 +395,7 @@ func (b *baseFinder) getBase(
 
 func (b *baseFinder) FindBases(
 	ctx context.Context,
-	reasons []Reasoner,
+	reasons []identity.Reasoner,
 	tags map[string]string,
 ) BackupBases {
 	var (
