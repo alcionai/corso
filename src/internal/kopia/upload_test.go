@@ -2865,16 +2865,16 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 		migratedUser = "user_migrate"
 	)
 
-	oldPrefixPathEmail, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	oldPrefixPathEmail, err := path.BuildPrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newPrefixPathEmail, err := path.ServicePrefix(testTenant, migratedUser, path.ExchangeService, path.EmailCategory)
+	newPrefixPathEmail, err := path.BuildPrefix(testTenant, migratedUser, path.ExchangeService, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	oldPrefixPathCont, err := path.ServicePrefix(testTenant, testUser, path.ExchangeService, path.ContactsCategory)
+	oldPrefixPathCont, err := path.BuildPrefix(testTenant, testUser, path.ExchangeService, path.ContactsCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newPrefixPathCont, err := path.ServicePrefix(testTenant, migratedUser, path.ExchangeService, path.ContactsCategory)
+	newPrefixPathCont, err := path.BuildPrefix(testTenant, migratedUser, path.ExchangeService, path.ContactsCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
