@@ -1,4 +1,4 @@
-package sharepoint
+package site
 
 import (
 	"context"
@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -42,7 +41,7 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		lrh            = site.NewLibraryRestoreHandler(ac)
+		lrh            = libraryRestoreHandler{ac}
 		restoreMetrics support.CollectionMetrics
 		caches         = drive.NewRestoreCaches(backupDriveIDNames)
 		el             = errs.Local()
@@ -201,7 +200,7 @@ func restoreListItem(
 		}
 	}
 
-	dii.SharePoint = site.ListToSPInfo(restoredList, int64(len(byteArray)))
+	dii.SharePoint = ListToSPInfo(restoredList, int64(len(byteArray)))
 
 	return dii, nil
 }

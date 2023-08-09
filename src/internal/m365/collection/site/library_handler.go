@@ -1,4 +1,4 @@
-package sharepoint
+package site
 
 import (
 	"context"
@@ -158,6 +158,10 @@ var _ drive.RestoreHandler = &libraryRestoreHandler{}
 
 type libraryRestoreHandler struct {
 	ac api.Client
+}
+
+func NewLibraryRestoreHandler(ac api.Client) libraryRestoreHandler {
+	return libraryRestoreHandler{ac}
 }
 
 func (h libraryRestoreHandler) PostDrive(

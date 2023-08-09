@@ -1,4 +1,4 @@
-package sharepoint
+package site
 
 import (
 	"bytes"
@@ -254,7 +254,7 @@ func (sc *Collection) retrieveLists(
 			sc.data <- &Item{
 				id:      ptr.Val(lst.GetId()),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    listToSPInfo(lst, size),
+				info:    ListToSPInfo(lst, size),
 				modTime: t,
 			}
 

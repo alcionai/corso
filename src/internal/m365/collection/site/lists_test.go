@@ -1,4 +1,4 @@
-package sharepoint
+package site
 
 import (
 	"testing"
@@ -98,7 +98,7 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 			t := suite.T()
 
 			list, expected := test.listAndDeets()
-			info := listToSPInfo(list, 10)
+			info := ListToSPInfo(list, 10)
 			assert.Equal(t, expected.ItemType, info.ItemType)
 			assert.Equal(t, expected.ItemName, info.ItemName)
 			assert.Equal(t, expected.WebURL, info.WebURL)

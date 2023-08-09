@@ -1,4 +1,4 @@
-package sharepoint
+package site
 
 import (
 	"context"
@@ -14,9 +14,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
-// listToSPInfo translates models.Listable metadata into searchable content
+// ListToSPInfo translates models.Listable metadata into searchable content
 // List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
-func listToSPInfo(lst models.Listable, size int64) *details.SharePointInfo {
+func ListToSPInfo(lst models.Listable, size int64) *details.SharePointInfo {
 	var (
 		name     = ptr.Val(lst.GetDisplayName())
 		webURL   = ptr.Val(lst.GetWebUrl())

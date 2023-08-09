@@ -1,4 +1,4 @@
-package sharepoint
+package site
 
 import (
 	"testing"
