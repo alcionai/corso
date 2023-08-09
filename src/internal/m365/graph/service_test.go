@@ -111,7 +111,8 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 				MinimumBackoff(0),
 			},
 			check: func(t *testing.T, c *http.Client) {
-				assert.Equal(t, defaultHTTPClientTimeout, c.Timeout, "default timeout")
+				// FIXME: Change to 0 one upstream issue is fixed
+				assert.Equal(t, time.Duration(48*time.Hour), c.Timeout, "unlimited timeout")
 			},
 			checkConfig: func(t *testing.T, c *clientConfig) {
 				assert.Equal(t, 100*time.Millisecond, c.minDelay, "minimum delay")
@@ -128,7 +129,8 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 				MinimumBackoff(999 * time.Second),
 			},
 			check: func(t *testing.T, c *http.Client) {
-				assert.Equal(t, defaultHTTPClientTimeout, c.Timeout, "default timeout")
+				// FIXME: Change to 0 one upstream issue is fixed
+				assert.Equal(t, time.Duration(48*time.Hour), c.Timeout, "unlimited timeout")
 			},
 			checkConfig: func(t *testing.T, c *clientConfig) {
 				assert.Equal(t, 5*time.Second, c.minDelay, "minimum delay")
