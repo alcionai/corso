@@ -141,9 +141,10 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			cli, _ := KiotaHTTPClient(test.opts...)
+			cli, cc := KiotaHTTPClient(test.opts...)
 			assert.NotNil(t, cli)
 			test.check(t, cli)
+			test.checkConfig(t, cc)
 		})
 	}
 }
