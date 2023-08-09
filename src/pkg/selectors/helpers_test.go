@@ -167,6 +167,8 @@ func (s mockScope) PlainString() string         { return plainString(s) }
 // selectors
 // ---------------------------------------------------------------------------
 
+var _ servicerCategorizerProvider = &mockSel{}
+
 type mockSel struct {
 	Selector
 }
@@ -181,6 +183,10 @@ func stubSelector(resourceOwners []string) mockSel {
 			Includes:       []scope{scope(stubScope(""))},
 		},
 	}
+}
+
+func (m mockSel) PathCategories() selectorPathCategories {
+	return m.PathCategories()
 }
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -40,6 +41,7 @@ type (
 var (
 	_ Reducer        = &GroupsRestore{}
 	_ pathCategorier = &GroupsRestore{}
+	_ reasoner       = &GroupsRestore{}
 )
 
 // NewGroupsBackup produces a new Selector with the service set to ServiceGroups.
@@ -117,6 +119,13 @@ func (s groups) PathCategories() selectorPathCategories {
 		Filters:  pathCategoriesIn[GroupsScope, groupsCategory](s.Filters),
 		Includes: pathCategoriesIn[GroupsScope, groupsCategory](s.Includes),
 	}
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s groups) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
 }
 
 // ---------------------------------------------------------------------------
