@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -25,7 +26,7 @@ type BackupBases interface {
 	MergeBackupBases(
 		ctx context.Context,
 		other BackupBases,
-		reasonToKey func(Reasoner) string,
+		reasonToKey func(identity.Reasoner) string,
 	) BackupBases
 }
 
@@ -131,7 +132,7 @@ func (bb *backupBases) ClearAssistBases() {
 func (bb *backupBases) MergeBackupBases(
 	ctx context.Context,
 	other BackupBases,
-	reasonToKey func(reason Reasoner) string,
+	reasonToKey func(reason identity.Reasoner) string,
 ) BackupBases {
 	if other == nil || (len(other.MergeBases()) == 0 && len(other.AssistBases()) == 0) {
 		return bb
@@ -165,7 +166,7 @@ func (bb *backupBases) MergeBackupBases(
 
 	// Calculate the set of mergeBases to pull from other into this one.
 	for _, m := range other.MergeBases() {
-		useReasons := []Reasoner{}
+		useReasons := []identity.Reasoner{}
 
 		for _, r := range m.Reasons {
 			k := reasonToKey(r)
