@@ -57,6 +57,9 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
+	// When true, disables kopia-assisted incremental backups. This forces
+	// downloading and hashing all item data for items not in the merge base(s).
+	disableAssistBackup bool
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -79,14 +82,15 @@ func NewBackupOperation(
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:     newOperation(opts, bus, count.New(), kw, sw),
-		ResourceOwner: owner,
-		Selectors:     selector,
-		Version:       "v0",
-		BackupVersion: version.Backup,
-		account:       acct,
-		incremental:   useIncrementalBackup(selector, opts),
-		bp:            bp,
+		operation:           newOperation(opts, bus, count.New(), kw, sw),
+		ResourceOwner:       owner,
+		Selectors:           selector,
+		Version:             "v0",
+		BackupVersion:       version.Backup,
+		account:             acct,
+		incremental:         useIncrementalBackup(selector, opts),
+		disableAssistBackup: opts.ToggleFeatures.ForceItemDataDownload,
+		bp:                  bp,
 	}
 
 	if err := op.validate(); err != nil {
@@ -180,7 +184,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
-		"incremental", op.incremental)
+		"incremental", op.incremental,
+		"disable_assist_backup", op.disableAssistBackup)
 
 	op.bus.Event(
 		ctx,
@@ -301,7 +306,8 @@ func (op *BackupOperation) do(
 		op.kopia,
 		reasons, fallbackReasons,
 		op.account.ID(),
-		op.incremental)
+		op.incremental,
+		op.disableAssistBackup)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
@@ -312,6 +318,10 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
+	// TODO(ashmrtn): This should probably just return a collection that deletes
+	// the entire subtree instead of returning an additional bool. That way base
+	// selection is controlled completely by flags and merging is controlled
+	// completely by collections.
 	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
@@ -532,7 +542,10 @@ func getNewPathRefs(
 	// able to assume we always have the location in the previous entry. We'll end
 	// up doing some extra parsing, but it will simplify this code.
 	if repoRef.Service() == path.ExchangeService {
-		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), nil)
+		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
+			repoRef.ToBuilder(),
+			entry.Modified(),
+			nil)
 		if err != nil {
 			return nil, nil, false, clues.Wrap(err, "getting new paths")
 		} else if newPath == nil {
@@ -565,7 +578,10 @@ func getNewPathRefs(
 		return nil, nil, false, clues.New("entry with empty LocationRef")
 	}
 
-	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), locRef)
+	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
+		repoRef.ToBuilder(),
+		entry.Modified(),
+		locRef)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "getting new paths with old location")
 	} else if newPath == nil {
