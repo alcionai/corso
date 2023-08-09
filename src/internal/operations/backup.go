@@ -389,7 +389,8 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
-	opStats.hasNewDetailEntries = deets != nil && !deets.Empty()
+	opStats.hasNewDetailEntries = (deets != nil && !deets.Empty()) ||
+		(toMerge != nil && toMerge.ItemsToMerge() > 0)
 	opStats.k = writeStats
 
 	err = mergeDetails(
