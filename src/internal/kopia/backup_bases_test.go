@@ -247,7 +247,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
 			}
 
-			m := makeManifest(baseID, "", "b"+baseID, reasons...)
+			m := makeManifest(baseID, "", "a"+baseID, reasons...)
 
 			b := BackupEntry{
 				Backup: &backup.Backup{
@@ -313,16 +313,14 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			},
 		},
 		{
-			name: "Other overlaps Complete",
+			name: "Other overlaps merge and assist",
 			merge: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
 				{
 					id:  1,
 					cat: []path.CategoryType{path.EmailCategory},
 				},
 			},
 			assist: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
 				{
 					id:  4,
 					cat: []path.CategoryType{path.EmailCategory},
@@ -346,13 +344,11 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			},
 			expect: func() *backupBases {
 				bs := makeBackupBases([]testInput{
-					{cat: []path.CategoryType{path.EmailCategory}},
 					{
 						id:  1,
 						cat: []path.CategoryType{path.EmailCategory},
 					},
 				}, []testInput{
-					{cat: []path.CategoryType{path.EmailCategory}},
 					{
 						id:  4,
 						cat: []path.CategoryType{path.EmailCategory},
@@ -363,9 +359,12 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			},
 		},
 		{
-			name: "Other Overlaps Complete",
+			name: "Other overlaps merge",
 			merge: []testInput{
-				{cat: []path.CategoryType{path.EmailCategory}},
+				{
+					id:  1,
+					cat: []path.CategoryType{path.EmailCategory},
+				},
 			},
 			otherMerge: []testInput{
 				{
@@ -375,7 +374,10 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			},
 			expect: func() *backupBases {
 				bs := makeBackupBases([]testInput{
-					{cat: []path.CategoryType{path.EmailCategory}},
+					{
+						id:  1,
+						cat: []path.CategoryType{path.EmailCategory},
+					},
 				}, nil)
 
 				return bs
@@ -432,10 +434,6 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 					id:  2,
 					cat: []path.CategoryType{path.ContactsCategory},
 				},
-				{
-					id:  3,
-					cat: []path.CategoryType{path.ContactsCategory},
-				},
 			},
 			expect: func() *backupBases {
 				bs := makeBackupBases([]testInput{
@@ -446,10 +444,6 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 					},
 					{
 						id:  2,
-						cat: []path.CategoryType{path.ContactsCategory},
-					},
-					{
-						id:  3,
 						cat: []path.CategoryType{path.ContactsCategory},
 					},
 				}, nil)
@@ -671,12 +665,19 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.backups[0].DetailsID = res.backups[0].StreamStoreID
 				res.backups[0].StreamStoreID = ""
 
+				res.assistBackups[0].DetailsID = res.assistBackups[0].StreamStoreID
+				res.assistBackups[0].StreamStoreID = ""
+
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
 				res.backups[0].DetailsID = res.backups[0].StreamStoreID
 				res.backups[0].StreamStoreID = ""
+
+				res.assistBackups[0].DetailsID = res.assistBackups[0].StreamStoreID
+				res.assistBackups[0].StreamStoreID = ""
+
 				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
