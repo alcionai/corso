@@ -57,9 +57,9 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
-	// When true, allows for kopia-assisted incremental backups instead of
-	// downloading and hashing all item data.
-	assistBackup bool
+	// When true, disables kopia-assisted incremental backups. This forces
+	// downloading and hashing all item data for items not in the merge base(s).
+	disableAssistBackup bool
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -82,15 +82,15 @@ func NewBackupOperation(
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:     newOperation(opts, bus, count.New(), kw, sw),
-		ResourceOwner: owner,
-		Selectors:     selector,
-		Version:       "v0",
-		BackupVersion: version.Backup,
-		account:       acct,
-		incremental:   useIncrementalBackup(selector, opts),
-		assistBackup:  !opts.ToggleFeatures.DisableAssistCaching,
-		bp:            bp,
+		operation:           newOperation(opts, bus, count.New(), kw, sw),
+		ResourceOwner:       owner,
+		Selectors:           selector,
+		Version:             "v0",
+		BackupVersion:       version.Backup,
+		account:             acct,
+		incremental:         useIncrementalBackup(selector, opts),
+		disableAssistBackup: opts.ToggleFeatures.ForceItemDataDownload,
+		bp:                  bp,
 	}
 
 	if err := op.validate(); err != nil {
@@ -185,7 +185,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
 		"incremental", op.incremental,
-		"assist_backup", op.assistBackup)
+		"disable_assist_backup", op.disableAssistBackup)
 
 	op.bus.Event(
 		ctx,
@@ -307,7 +307,7 @@ func (op *BackupOperation) do(
 		reasons, fallbackReasons,
 		op.account.ID(),
 		op.incremental,
-		op.assistBackup)
+		op.disableAssistBackup)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}

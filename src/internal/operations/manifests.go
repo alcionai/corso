@@ -21,7 +21,7 @@ func produceManifestsAndMetadata(
 	rp inject.RestoreProducer,
 	reasons, fallbackReasons []kopia.Reasoner,
 	tenantID string,
-	getMetadata, getAssistBases bool,
+	getMetadata, dropAssistBases bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
 	bb, meta, useMergeBases, err := getManifestsAndMetadata(
 		ctx,
@@ -32,7 +32,7 @@ func produceManifestsAndMetadata(
 		tenantID,
 		getMetadata)
 	if err != nil {
-		return nil, nil, false, clues.Stack(err).OrNil()
+		return nil, nil, false, clues.Stack(err)
 	}
 
 	if !useMergeBases || !getMetadata {
@@ -41,7 +41,7 @@ func produceManifestsAndMetadata(
 		bb.ClearMergeBases()
 	}
 
-	if !getAssistBases {
+	if dropAssistBases {
 		logger.Ctx(ctx).Debug("no caching requested, dropping assist bases")
 
 		bb.ClearAssistBases()
