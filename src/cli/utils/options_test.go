@@ -29,6 +29,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		Run: func(cmd *cobra.Command, args []string) {
 			assert.True(t, flags.FailFastFV, flags.FailFastFN)
 			assert.True(t, flags.DisableIncrementalsFV, flags.DisableIncrementalsFN)
+			assert.True(t, flags.ForceItemDataDownloadFV, flags.ForceItemDataDownloadFN)
 			assert.True(t, flags.DisableDeltaFV, flags.DisableDeltaFN)
 			assert.True(t, flags.NoStatsFV, flags.NoStatsFN)
 			assert.True(t, flags.RestorePermissionsFV, flags.RestorePermissionsFN)
@@ -44,6 +45,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 
 	flags.AddFailFastFlag(cmd)
 	flags.AddDisableIncrementalsFlag(cmd)
+	flags.AddForceItemDataDownloadFlag(cmd)
 	flags.AddDisableDeltaFlag(cmd)
 	flags.AddRestorePermissionsFlag(cmd)
 	flags.AddSkipReduceFlag(cmd)
@@ -56,6 +58,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		"test",
 		"--" + flags.FailFastFN,
 		"--" + flags.DisableIncrementalsFN,
+		"--" + flags.ForceItemDataDownloadFN,
 		"--" + flags.DisableDeltaFN,
 		"--" + flags.NoStatsFN,
 		"--" + flags.RestorePermissionsFN,
