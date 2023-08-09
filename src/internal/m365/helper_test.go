@@ -17,9 +17,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
-	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
+	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"

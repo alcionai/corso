@@ -7,9 +7,9 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/mock"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"

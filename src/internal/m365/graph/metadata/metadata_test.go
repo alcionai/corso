@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
-	odmetadata "github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	odmetadata "github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
