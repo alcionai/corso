@@ -34,9 +34,9 @@ func ListToSPInfo(lst models.Listable, size int64) *details.SharePointInfo {
 	}
 }
 
-type listTuple struct {
-	name string
-	id   string
+type ListTuple struct {
+	ID   string
+	Name string
 }
 
 func preFetchListOptions() *sites.ItemListsRequestBuilderGetRequestConfiguration {
@@ -51,15 +51,15 @@ func preFetchListOptions() *sites.ItemListsRequestBuilderGetRequestConfiguration
 	return options
 }
 
-func preFetchLists(
+func PreFetchLists(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,
-) ([]listTuple, error) {
+) ([]ListTuple, error) {
 	var (
 		builder    = gs.Client().Sites().BySiteId(siteID).Lists()
 		options    = preFetchListOptions()
-		listTuples = make([]listTuple, 0)
+		listTuples = make([]ListTuple, 0)
 	)
 
 	for {
@@ -72,11 +72,11 @@ func preFetchLists(
 			var (
 				id   = ptr.Val(entry.GetId())
 				name = ptr.Val(entry.GetDisplayName())
-				temp = listTuple{id: id, name: name}
+				temp = ListTuple{ID: id, Name: name}
 			)
 
 			if len(name) == 0 {
-				temp.name = id
+				temp.Name = id
 			}
 
 			listTuples = append(listTuples, temp)

@@ -81,6 +81,10 @@ func NewCollection(
 	return c
 }
 
+func (sc *Collection) SetBetaService(betaService *betaAPI.BetaService) {
+	sc.betaService = betaService
+}
+
 // AddJob appends additional objectID to job field
 func (sc *Collection) AddJob(objID string) {
 	sc.jobs = append(sc.jobs, objID)

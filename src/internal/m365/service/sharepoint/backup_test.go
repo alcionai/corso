@@ -213,7 +213,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ProtectedResource: mock.NewProvider(siteID, siteID),
 	}
 
-	col, err := site.CollectPages(
+	col, err := collectPages(
 		ctx,
 		bpc,
 		creds,

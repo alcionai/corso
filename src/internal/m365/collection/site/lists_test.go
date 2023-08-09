@@ -63,10 +63,10 @@ func (suite *ListsUnitSuite) TestLoadList() {
 	defer flush()
 
 	service := createTestService(t, suite.creds)
-	tuples, err := preFetchLists(ctx, service, "root")
+	tuples, err := PreFetchLists(ctx, service, "root")
 	require.NoError(t, err, clues.ToCore(err))
 
-	job := []string{tuples[0].id}
+	job := []string{tuples[0].ID}
 	lists, err := loadSiteLists(ctx, service, "root", job, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.Greater(t, len(lists), 0)
