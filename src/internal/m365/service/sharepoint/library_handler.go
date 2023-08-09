@@ -9,7 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -18,7 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var _ onedrive.BackupHandler = &libraryBackupHandler{}
+var _ drive.BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
 	ac    api.Drives
@@ -154,7 +154,7 @@ func (h libraryBackupHandler) IncludesDir(dir string) bool {
 // Restore
 // ---------------------------------------------------------------------------
 
-var _ onedrive.RestoreHandler = &libraryRestoreHandler{}
+var _ drive.RestoreHandler = &libraryRestoreHandler{}
 
 type libraryRestoreHandler struct {
 	ac api.Client

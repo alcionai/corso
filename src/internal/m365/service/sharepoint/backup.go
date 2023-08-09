@@ -7,8 +7,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -201,7 +201,7 @@ func collectLibraries(
 
 	var (
 		collections = []data.BackupCollection{}
-		colls       = onedrive.NewCollections(
+		colls       = drive.NewCollections(
 			&libraryBackupHandler{ad, scope},
 			tenantID,
 			bpc.ProtectedResource.ID(),

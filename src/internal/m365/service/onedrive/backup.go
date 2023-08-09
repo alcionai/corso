@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -47,8 +48,8 @@ func ProduceBackupCollections(
 
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
-		nc := NewCollections(
-			&itemBackupHandler{ac.Drives(), scope},
+		nc := drive.NewCollections(
+			drive.NewItemBackupHandler(ac.Drives(), scope),
 			tenant,
 			bpc.ProtectedResource.ID(),
 			su,

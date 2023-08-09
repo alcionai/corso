@@ -15,8 +15,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -43,7 +43,7 @@ func ConsumeRestoreCollections(
 	var (
 		lrh            = libraryRestoreHandler{ac}
 		restoreMetrics support.CollectionMetrics
-		caches         = onedrive.NewRestoreCaches(backupDriveIDNames)
+		caches         = drive.NewRestoreCaches(backupDriveIDNames)
 		el             = errs.Local()
 	)
 
@@ -75,7 +75,7 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, err = onedrive.RestoreCollection(
+			metrics, err = drive.RestoreCollection(
 				ictx,
 				lrh,
 				rcc,

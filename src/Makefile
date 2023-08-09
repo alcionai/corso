@@ -10,6 +10,7 @@ BAD_LINT_MSG := "Missing golangci-lint version $(WANTED_LINT_VERSION). Visit $(I
 
 build:
 	go build -o corso
+	echo Build complete
 
 lint: check-lint-version
 	golangci-lint run

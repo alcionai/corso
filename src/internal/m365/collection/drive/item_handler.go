@@ -1,4 +1,4 @@
-package onedrive
+package drive
 
 import (
 	"context"
@@ -27,6 +27,10 @@ var _ BackupHandler = &itemBackupHandler{}
 type itemBackupHandler struct {
 	ac    api.Drives
 	scope selectors.OneDriveScope
+}
+
+func NewItemBackupHandler(ac api.Drives, scope selectors.OneDriveScope) *itemBackupHandler {
+	return &itemBackupHandler{ac, scope}
 }
 
 func (h itemBackupHandler) Get(

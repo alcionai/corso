@@ -1,4 +1,4 @@
-package onedrive
+package drive
 
 import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"

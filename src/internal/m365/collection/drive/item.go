@@ -1,4 +1,4 @@
-package onedrive
+package drive
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
