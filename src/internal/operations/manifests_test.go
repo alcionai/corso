@@ -254,7 +254,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		rp          mockRestoreProducer
 		reasons     []kopia.Reasoner
 		getMeta     bool
-		getAssist   bool
+		dropAssist  bool
 		assertErr   assert.ErrorAssertionFunc
 		assertB     assert.BoolAssertionFunc
 		expectDCS   []mockColl
@@ -266,7 +266,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			rp:         mockRestoreProducer{},
 			reasons:    []kopia.Reasoner{},
 			getMeta:    false,
-			getAssist:  true,
 			assertErr:  assert.NoError,
 			assertB:    assert.False,
 			expectDCS:  nil,
@@ -286,7 +285,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   false,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
 			expectDCS: nil,
@@ -308,7 +306,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			// Doesn't matter if it's true or false as merge/assist bases are
 			// distinct. A future PR can go and remove the requirement to pass the
@@ -338,7 +335,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}},
@@ -386,7 +382,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}},
@@ -416,11 +411,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			reasons: []kopia.Reasoner{
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
-			getMeta:   true,
-			getAssist: false,
-			assertErr: assert.NoError,
-			assertB:   assert.True,
-			expectDCS: []mockColl{{id: "id1"}},
+			getMeta:    true,
+			dropAssist: true,
+			assertErr:  assert.NoError,
+			assertB:    assert.True,
+			expectDCS:  []mockColl{{id: "id1"}},
 			expectMans: kopia.NewMockBackupBases().WithMergeBases(
 				makeMan("id1", "", path.EmailCategory),
 			).
@@ -446,7 +441,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "id2"}},
@@ -469,7 +463,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
 			},
 			getMeta:    true,
-			getAssist:  true,
 			assertErr:  assert.Error,
 			assertB:    assert.False,
 			expectDCS:  nil,
@@ -491,7 +484,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				test.reasons, nil,
 				tid,
 				test.getMeta,
-				test.getAssist)
+				test.dropAssist)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
@@ -590,7 +583,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		reasons         []kopia.Reasoner
 		fallbackReasons []kopia.Reasoner
 		getMeta         bool
-		getAssist       bool
+		dropAssist      bool
 		assertErr       assert.ErrorAssertionFunc
 		assertB         assert.BoolAssertionFunc
 		expectDCS       []mockColl
@@ -610,7 +603,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			rp:              mockRestoreProducer{},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         false,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.False,
 			expectDCS:       nil,
@@ -636,7 +628,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
@@ -664,7 +655,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       false,
+			dropAssist:      true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
@@ -698,7 +689,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "id1"}},
@@ -727,7 +717,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       nil,
@@ -764,7 +753,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "id1"}},
@@ -797,7 +785,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
@@ -832,7 +819,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       false,
+			dropAssist:      true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
@@ -864,7 +851,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			reasons:         []kopia.Reasoner{emailReason},
 			fallbackReasons: []kopia.Reasoner{fbEmailReason},
 			getMeta:         true,
-			getAssist:       true,
 			assertErr:       assert.NoError,
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "id1"}},
@@ -901,7 +887,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}},
@@ -934,7 +919,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "fb_id1"}},
@@ -974,7 +958,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
 			},
 			getMeta:   true,
-			getAssist: true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "fb_id1"}},
@@ -1001,7 +984,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				test.reasons, test.fallbackReasons,
 				tid,
 				test.getMeta,
-				test.getAssist)
+				test.dropAssist)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
