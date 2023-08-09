@@ -640,11 +640,11 @@ func mergeItemsFromBase(
 		// the reasons a snapshot was returned to ensure we only choose the recent
 		// entries.
 		//
-		// We only really want to do this check for assist bases though because
+		// We only really want to do this check for merge bases though because
 		// kopia won't abide by reasons when determining if an item's cached. This
 		// leaves us in a bit of a pickle if the user has run any concurrent backups
-		// with overlapping reasons, but the modTime check in DetailsMergeInfoer
-		// should handle that.
+		// with overlapping reasons that then turn into assist bases, but the
+		// modTime check in DetailsMergeInfoer should handle that.
 		if checkReason && !matchesReason(baseBackup.Reasons, rr) {
 			continue
 		}
@@ -654,7 +654,7 @@ func mergeItemsFromBase(
 			continue
 		}
 
-		ctx = clues.Add(ctx, "repo_ref", rr)
+		ictx := clues.Add(ctx, "repo_ref", rr)
 
 		newPath, newLoc, locUpdated, err := getNewPathRefs(
 			dataFromBackup,
@@ -663,7 +663,7 @@ func mergeItemsFromBase(
 			baseBackup.Version)
 		if err != nil {
 			return manifestAddedEntries,
-				clues.Wrap(err, "getting updated info for entry").WithClues(ctx)
+				clues.Wrap(err, "getting updated info for entry").WithClues(ictx)
 		}
 
 		// This entry isn't merged.
@@ -685,7 +685,7 @@ func mergeItemsFromBase(
 			item)
 		if err != nil {
 			return manifestAddedEntries,
-				clues.Wrap(err, "adding item to details").WithClues(ctx)
+				clues.Wrap(err, "adding item to details").WithClues(ictx)
 		}
 
 		// Make sure we won't add this again in another base.
@@ -698,8 +698,8 @@ func mergeItemsFromBase(
 
 	logger.Ctx(ctx).Infow(
 		"merged details with base manifest",
-		"base_item_count_unfiltered", totalBaseItems,
-		"base_item_count_added", manifestAddedEntries)
+		"count_base_item_unfiltered", totalBaseItems,
+		"count_base_item_added", manifestAddedEntries)
 
 	return manifestAddedEntries, nil
 }
@@ -735,15 +735,15 @@ func mergeDetails(
 		alreadySeenEntries = map[string]struct{}{}
 	)
 
-	// Just to be on the safe side merge details from assist bases first. It
-	// shouldn't technically matter since the DetailsMergeInfoer should take into
-	// account the modTime of items, but just to be on the safe side.
+	// Merge details from assist bases first. It shouldn't technically matter
+	// since the DetailsMergeInfoer should take into account the modTime of items,
+	// but just to be on the safe side.
 	//
 	// We don't want to match entries based on Reason for assist bases because
 	// kopia won't abide by Reasons when determining if an item's cached. This
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
-	// with overlapping Reasons, but the modTime check in DetailsMergeInfoer
-	// should handle that.
+	// with overlapping Reasons that turn into assist bases, but the modTime check
+	// in DetailsMergeInfoer should handle that.
 	for _, base := range bases.AssistBackups() {
 		added, err := mergeItemsFromBase(
 			ctx,
