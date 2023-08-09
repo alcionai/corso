@@ -317,6 +317,7 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 		backupsToKeep       []BackupEntry
 		assistBackupsToKeep []BackupEntry
 		mergeToKeep         []ManifestEntry
+		assistToKeep        []ManifestEntry
 	)
 
 	for _, man := range bb.mergeBases {
@@ -355,8 +356,6 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 		backupsToKeep = append(backupsToKeep, bup)
 		mergeToKeep = append(mergeToKeep, man)
 	}
-
-	var assistToKeep []ManifestEntry
 
 	// Every merge base is also a kopia assist base.
 	// TODO(pandeyabs): This should be removed as part of #3943.
@@ -408,11 +407,6 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 		assistToKeep = append(assistToKeep, man)
 	}
 
-	// TODO(pandeyabs): Go through all reasons & ensure that the assist backups
-	// are newer than the merge backups for that reason. Drop any assist
-	// backups which don't meet this criteria.
-	// This would be an additional sanity check but unlikely since assist backups
-	// get chosen before merge backups for a given reason.
 	bb.backups = backupsToKeep
 	bb.mergeBases = mergeToKeep
 	bb.assistBases = assistToKeep
