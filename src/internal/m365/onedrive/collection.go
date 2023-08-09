@@ -515,7 +515,14 @@ func (oc *Collection) populateDriveItem(
 	// Fetch metadata for the file
 	itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 	if err != nil {
-		errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+		// Skip deleted items
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
+			errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, oc.driveID, itemID, itemName, graph.ItemInfo(item)))
+		} else {
+			errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+		}
+
 		return
 	}
 
