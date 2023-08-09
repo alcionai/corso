@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -1473,7 +1472,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -1521,11 +1520,7 @@ type mockBackupProducer struct {
 
 func (mbp *mockBackupProducer) ProduceBackupCollections(
 	context.Context,
-	idname.Provider,
-	selectors.Selector,
-	[]data.RestoreCollection,
-	int,
-	control.Options,
+	inject.BackupProducerConfig,
 	*fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	if mbp.injectNonRecoverableErr {
@@ -1632,7 +1627,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
 		tenantID = acct.Config[config.AzureTenantIDKey]
-		opts     = control.Defaults()
+		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 	)
 
@@ -1895,7 +1890,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
 		tenantID = acct.Config[config.AzureTenantIDKey]
-		opts     = control.Defaults()
+		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients
 		failurePolicy = control.FailAfterRecovery
