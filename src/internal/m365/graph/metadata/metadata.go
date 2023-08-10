@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
