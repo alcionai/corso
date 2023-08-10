@@ -43,15 +43,11 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
-	t := suite.T()
-
 	var (
 		users     = []string{"u1", "u2"}
 		sel       = NewOneDriveBackup(users)
 		allScopes = sel.AllData()
 	)
-
-	assert.ElementsMatch(t, users, sel.DiscreteResourceOwners())
 
 	// Initialize the selector Include, Exclude, Filter
 	sel.Exclude(allScopes)

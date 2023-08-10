@@ -69,7 +69,7 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 }
 
 func (s ExchangeBackup) SplitByResourceOwner(users []string) []ExchangeBackup {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+	sels := splitByProtectedResource[ExchangeScope](s.Selector, users, ExchangeUser)
 
 	ss := make([]ExchangeBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -103,7 +103,7 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 }
 
 func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore {
-	sels := splitByResourceOwner[ExchangeScope](sr.Selector, users, ExchangeUser)
+	sels := splitByProtectedResource[ExchangeScope](sr.Selector, users, ExchangeUser)
 
 	ss := make([]ExchangeRestore, 0, len(sels))
 	for _, sel := range sels {

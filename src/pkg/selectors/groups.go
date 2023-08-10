@@ -66,7 +66,7 @@ func (s Selector) ToGroupsBackup() (*GroupsBackup, error) {
 }
 
 func (s GroupsBackup) SplitByResourceOwner(resources []string) []GroupsBackup {
-	sels := splitByResourceOwner[GroupsScope](s.Selector, resources, GroupsGroup)
+	sels := splitByProtectedResource[GroupsScope](s.Selector, resources, GroupsGroup)
 
 	ss := make([]GroupsBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -100,7 +100,7 @@ func (s Selector) ToGroupsRestore() (*GroupsRestore, error) {
 }
 
 func (s GroupsRestore) SplitByResourceOwner(resources []string) []GroupsRestore {
-	sels := splitByResourceOwner[GroupsScope](s.Selector, resources, GroupsGroup)
+	sels := splitByProtectedResource[GroupsScope](s.Selector, resources, GroupsGroup)
 
 	ss := make([]GroupsRestore, 0, len(sels))
 	for _, sel := range sels {

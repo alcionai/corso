@@ -68,7 +68,7 @@ func (s Selector) ToSharePointBackup() (*SharePointBackup, error) {
 }
 
 func (s SharePointBackup) SplitByResourceOwner(sites []string) []SharePointBackup {
-	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
+	sels := splitByProtectedResource[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -102,7 +102,7 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 }
 
 func (s SharePointRestore) SplitByResourceOwner(sites []string) []SharePointRestore {
-	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
+	sels := splitByProtectedResource[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointRestore, 0, len(sels))
 	for _, sel := range sels {
