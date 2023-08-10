@@ -308,7 +308,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			)
 			require.NoError(t, err, clues.ToCore(err))
 
-			cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NoFetchRestoreCollection{Collection: coll},
 			})
 			test.expectError(t, err, clues.ToCore(err))
@@ -368,7 +368,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections_ReadFailure(
 
 	fc := failingColl{t}
 
-	_, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{fc})
+	_, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{fc})
 	require.NoError(t, err)
 	require.False(t, canUsePreviousBackup)
 }
@@ -477,7 +477,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 				ProtectedResource: inMock.NewProvider(userID, userID),
 			}
 
-			collections, err := createCollections(
+			collections, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -560,7 +560,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 			}
 
 			// get collections without providing any delta history (ie: full backup)
-			collections, err := createCollections(
+			collections, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -582,7 +582,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
-			cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NoFetchRestoreCollection{Collection: metadata},
 			})
 			require.NoError(t, err, clues.ToCore(err))
@@ -592,7 +592,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 
 			// now do another backup with the previous delta tokens,
 			// which should only contain the difference.
-			collections, err = createCollections(
+			collections, err = CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -644,7 +644,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 		Selector:          sel.Selector,
 	}
 
-	collections, err := createCollections(
+	collections, err := CreateCollections(
 		ctx,
 		bpc,
 		handlers,
@@ -725,7 +725,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 				ProtectedResource: inMock.NewProvider(suite.user, suite.user),
 			}
 
-			edcs, err := createCollections(
+			edcs, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -855,7 +855,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 				ProtectedResource: inMock.NewProvider(suite.user, suite.user),
 			}
 
-			collections, err := createCollections(
+			collections, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -1198,7 +1198,7 @@ func checkMetadata(
 	expect DeltaPaths,
 	c data.BackupCollection,
 ) {
-	catPaths, _, err := parseMetadataCollections(
+	catPaths, _, err := ParseMetadataCollections(
 		ctx,
 		[]data.RestoreCollection{data.NoFetchRestoreCollection{Collection: c}})
 	if !assert.NoError(t, err, "getting metadata", clues.ToCore(err)) {

@@ -804,10 +804,10 @@ func runCreateDestinationTest(
 
 	var (
 		svc = path.ExchangeService
-		gcc = handler.newContainerCache(userID)
+		gcc = handler.NewContainerCache(userID)
 	)
 
-	err := gcc.Populate(ctx, fault.New(true), handler.defaultRootContainer())
+	err := gcc.Populate(ctx, fault.New(true), handler.DefaultRootContainer())
 	require.NoError(t, err, clues.ToCore(err))
 
 	path1, err := path.Build(
@@ -819,10 +819,10 @@ func runCreateDestinationTest(
 		containerNames1...)
 	require.NoError(t, err, clues.ToCore(err))
 
-	containerID, gcc, err := createDestination(
+	containerID, gcc, err := CreateDestination(
 		ctx,
 		handler,
-		handler.formatRestoreDestination(destinationName, path1),
+		handler.FormatRestoreDestination(destinationName, path1),
 		userID,
 		gcc,
 		fault.New(true))
@@ -840,10 +840,10 @@ func runCreateDestinationTest(
 		containerNames2...)
 	require.NoError(t, err, clues.ToCore(err))
 
-	containerID, gcc, err = createDestination(
+	containerID, gcc, err = CreateDestination(
 		ctx,
 		handler,
-		handler.formatRestoreDestination(destinationName, path2),
+		handler.FormatRestoreDestination(destinationName, path2),
 		userID,
 		gcc,
 		fault.New(true))

@@ -166,7 +166,7 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 	t := suite.T()
 
-	handlers := restoreHandlers(suite.ac)
+	handlers := RestoreHandlers(suite.ac)
 
 	userID := tconfig.M365UserID(suite.T())
 

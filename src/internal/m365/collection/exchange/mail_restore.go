@@ -32,7 +32,7 @@ func newMailRestoreHandler(
 	}
 }
 
-func (h mailRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
+func (h mailRestoreHandler) NewContainerCache(userID string) graph.ContainerResolver {
 	return &mailContainerCache{
 		userID: userID,
 		enumer: h.ac,
@@ -40,7 +40,7 @@ func (h mailRestoreHandler) newContainerCache(userID string) graph.ContainerReso
 	}
 }
 
-func (h mailRestoreHandler) formatRestoreDestination(
+func (h mailRestoreHandler) FormatRestoreDestination(
 	destinationContainerName string,
 	collectionFullPath path.Path,
 ) *path.Builder {
@@ -65,7 +65,7 @@ func (h mailRestoreHandler) GetContainerByName(
 	return h.ac.GetContainerByName(ctx, userID, parentContainerID, containerName)
 }
 
-func (h mailRestoreHandler) defaultRootContainer() string {
+func (h mailRestoreHandler) DefaultRootContainer() string {
 	return api.MsgFolderRoot
 }
 
@@ -216,7 +216,7 @@ func setMessageSVEPs(msg models.Messageable) models.Messageable {
 	return msg
 }
 
-func (h mailRestoreHandler) getItemsInContainerByCollisionKey(
+func (h mailRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
 ) (map[string]string, error) {
