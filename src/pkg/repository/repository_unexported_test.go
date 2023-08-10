@@ -559,6 +559,10 @@ func writeBackup(
 	ssid, err := sstore.Write(ctx, errs)
 	require.NoError(t, err, "writing to streamstore")
 
+	tags := map[string]string{
+		model.ServiceTag: sel.PathService().String(),
+	}
+
 	b := backup.New(
 		snapID, ssid,
 		operations.Completed.String(),
@@ -568,7 +572,8 @@ func writeBackup(
 		ownerID, ownerName,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
-		fe)
+		fe,
+		tags)
 
 	err = sw.Put(ctx, model.BackupSchema, b)
 	require.NoError(t, err)
