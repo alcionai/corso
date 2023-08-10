@@ -965,9 +965,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			collections:           collections,
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
-			deetsUpdated:          assert.False,
-			hashedBytesCheck:      assert.Zero,
-			uploadedBytes:         []int64{4000, 6000},
+			// Entries go to details merger since cached files are merged too.
+			expectMerge:      true,
+			deetsUpdated:     assert.False,
+			hashedBytesCheck: assert.Zero,
+			uploadedBytes:    []int64{4000, 6000},
 		},
 		{
 			name: "Kopia Assist And Merge No Files Changed",
@@ -999,6 +1001,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			collections:           collections,
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
+			expectMerge:           true,
 			deetsUpdated:          assert.False,
 			hashedBytesCheck:      assert.Zero,
 			uploadedBytes:         []int64{4000, 6000},

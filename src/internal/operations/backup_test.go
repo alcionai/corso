@@ -945,7 +945,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 						pathReason3,
 					},
@@ -989,7 +989,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
