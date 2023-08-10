@@ -203,28 +203,30 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 
 // verifyPrefix ensures that the tenant and resourceOwner are valid
 // values, and that the builder has some directory structure.
-func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
-	if err := verifyInputValues(tenant, resourceOwner); err != nil {
-		return err
-	}
+// func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+// 	if err := verifyPrefixValues(tenant, resourceOwner); err != nil {
+// 		return err
+// 	}
 
-	if len(pb.elements) == 0 {
-		return clues.New("missing path beyond prefix")
-	}
+// 	if len(pb.elements) == 0 {
+// 		return clues.New("missing path beyond prefix")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // ---------------------------------------------------------------------------
 // Data Layer Path Transformers
 // ---------------------------------------------------------------------------
 
 func (pb Builder) ToStreamStorePath(
-	tenant, purpose string,
-	service ServiceType,
+	tenant string,
+	srs []ServiceResource,
 	isItem bool,
 ) (Path, error) {
-	if err := verifyInputValues(tenant, purpose); err != nil {
+	cat := DetailsCategory
+
+	if err := verifyPrefixValues(tenant, srs, cat); err != nil {
 		return nil, err
 	}
 
@@ -232,40 +234,18 @@ func (pb Builder) ToStreamStorePath(
 		return nil, clues.New("missing path beyond prefix")
 	}
 
-	metadataService := UnknownService
+	dlrp := newDataLayerResourcePath(pb, tenant, toMetadataServices(srs), cat, isItem)
 
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			metadataService.String(),
-			purpose,
-			DetailsCategory.String()),
-		service:  metadataService,
-		category: DetailsCategory,
-		hasItem:  isItem,
-	}, nil
+	return &dlrp, nil
 }
 
 func (pb Builder) ToServiceCategoryMetadataPath(
-	tenant, user string,
-	service ServiceType,
-	category CategoryType,
+	tenant string,
+	srs []ServiceResource,
+	cat CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := ValidateServiceAndCategory(service, category); err != nil {
-		return nil, err
-	}
-
-	if err := verifyInputValues(tenant, user); err != nil {
+	if err := verifyPrefixValues(tenant, srs, cat); err != nil {
 		return nil, err
 	}
 
@@ -273,81 +253,68 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		return nil, clues.New("missing path beyond prefix")
 	}
 
-	metadataService := UnknownService
+	dlrp := newDataLayerResourcePath(pb, tenant, toMetadataServices(srs), cat, isItem)
 
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			metadataService.String(),
-			user,
-			category.String(),
-		),
-		service:  metadataService,
-		category: category,
-		hasItem:  isItem,
-	}, nil
+	return &dlrp, nil
 }
 
 func (pb Builder) ToDataLayerPath(
-	tenant, user string,
-	service ServiceType,
-	category CategoryType,
+	tenant string,
+	srs []ServiceResource,
+	cat CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := ValidateServiceAndCategory(service, category); err != nil {
+	if err := verifyPrefixValues(tenant, srs, cat); err != nil {
 		return nil, err
 	}
 
-	if err := pb.verifyPrefix(tenant, user); err != nil {
-		return nil, err
-	}
+	dlrp := newDataLayerResourcePath(pb, tenant, srs, cat, isItem)
 
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			service.String(),
-			user,
-			category.String()),
-		service:  service,
-		category: category,
-		hasItem:  isItem,
-	}, nil
+	return &dlrp, nil
 }
 
 // TODO: remove this. https://github.com/alcionai/corso/issues/4025
 func (pb Builder) ToDataLayerExchangePathForCategory(
-	tenant, user string,
+	tenant, mailboxID string,
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	return pb.ToDataLayerPath(tenant, user, ExchangeService, category, isItem)
+	srs, err := NewServiceResources(ExchangeService, mailboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.ToDataLayerPath(tenant, srs, category, isItem)
 }
 
 // TODO: remove this. https://github.com/alcionai/corso/issues/4025
 func (pb Builder) ToDataLayerOneDrivePath(
-	tenant, user string,
+	tenant, userID string,
 	isItem bool,
 ) (Path, error) {
-	return pb.ToDataLayerPath(tenant, user, OneDriveService, FilesCategory, isItem)
+	srs, err := NewServiceResources(OneDriveService, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.ToDataLayerPath(tenant, srs, FilesCategory, isItem)
 }
 
 // TODO: remove this. https://github.com/alcionai/corso/issues/4025
 func (pb Builder) ToDataLayerSharePointPath(
-	tenant, site string,
+	tenant, siteID string,
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
+	srs, err := NewServiceResources(SharePointService, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.ToDataLayerPath(tenant, srs, category, isItem)
 }
+
+// TODO: ToDataLayerGroupsPath()
 
 // ---------------------------------------------------------------------------
 // Stringers and PII Concealer Compliance

@@ -46,7 +46,10 @@ func (suite *BuilderUnitSuite) TestAppend() {
 func (suite *BuilderUnitSuite) TestAppendItem() {
 	t := suite.T()
 
-	p, err := Build("t", "ro", ExchangeService, EmailCategory, false, "foo", "bar")
+	srs, err := NewServiceResources(ExchangeService, "ro")
+	require.NoError(t, err, clues.ToCore(err))
+
+	p, err := Build("t", srs, EmailCategory, false, "foo", "bar")
 	require.NoError(t, err, clues.ToCore(err))
 
 	pb := p.ToBuilder()
@@ -339,8 +342,13 @@ func (suite *BuilderUnitSuite) TestFolder() {
 }
 
 func (suite *BuilderUnitSuite) TestPIIHandling() {
-	p, err := Build("t", "ro", ExchangeService, EventsCategory, true, "dir", "item")
-	require.NoError(suite.T(), err)
+	t := suite.T()
+
+	srs, err := NewServiceResources(ExchangeService, "ro")
+	require.NoError(t, err, clues.ToCore(err))
+
+	p, err := Build("t", srs, EventsCategory, true, "dir", "item")
+	require.NoError(t, err)
 
 	table := []struct {
 		name        string

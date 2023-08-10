@@ -85,6 +85,40 @@ func ServiceResourcesToElements(srs []ServiceResource) Elements {
 	return es
 }
 
+// ElementsToServiceResources turns as many pairs of elems as possible
+// into ServiceResource tuples.  Elems must begin with a service, but
+// may contain more entries than there are service/resource pairs.
+// This transformer will continue consuming elements until it finds an
+// even-numbered index that cannot be cast to a ServiceType.
+// Returns the serviceResource pairs, the first index containing element
+// that is not part of a service/resource pair, and an error if elems is
+// len==0 or contains no services.
+func ElementsToServiceResources(elems Elements) ([]ServiceResource, int, error) {
+	if len(elems) == 0 {
+		return nil, -1, clues.Wrap(errMissingSegment, "service")
+	}
+
+	var (
+		srs = make([]ServiceResource, 0)
+		i   int
+	)
+
+	for j := 1; i < len(elems); i, j = i+2, j+2 {
+		service := toServiceType(elems[i])
+		if service == UnknownService {
+			if i == 0 {
+				return nil, -1, clues.Wrap(errMissingSegment, "service")
+			}
+
+			break
+		}
+
+		srs = append(srs, ServiceResource{service, elems[j]})
+	}
+
+	return srs, i, nil
+}
+
 // checks for the following:
 // 1. each ServiceResource is valid
 // 2. if len(srs) > 1, srs[i], srs[i+1] pass subservice checks.
@@ -111,4 +145,30 @@ func validateServiceResources(srs []ServiceResource) error {
 	}
 
 	return nil
+}
+
+// makes a copy of the slice with all of the Services swapped for their
+// metadata service countterparts.
+func toMetadataServices(srs []ServiceResource) []ServiceResource {
+	msrs := make([]ServiceResource, 0, len(srs))
+
+	for _, sr := range srs {
+		msr := sr
+		metadataService := UnknownService
+
+		switch sr.Service {
+		case ExchangeService:
+			metadataService = ExchangeMetadataService
+		case OneDriveService:
+			metadataService = OneDriveMetadataService
+		case SharePointService:
+			metadataService = SharePointMetadataService
+			// TODO: add groups
+		}
+
+		msr.Service = metadataService
+		msrs = append(msrs, msr)
+	}
+
+	return msrs
 }

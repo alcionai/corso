@@ -75,24 +75,6 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	},
 }
 
-func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
-	service := toServiceType(s)
-	if service == UnknownService {
-		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("service", fmt.Sprintf("%q", s))
-	}
-
-	category := ToCategoryType(c)
-	if category == UnknownCategory {
-		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("category", fmt.Sprintf("%q", c))
-	}
-
-	if err := ValidateServiceAndCategory(service, category); err != nil {
-		return UnknownService, UnknownCategory, err
-	}
-
-	return service, category, nil
-}
-
 func ValidateServiceAndCategory(service ServiceType, category CategoryType) error {
 	cats, ok := serviceCategories[service]
 	if !ok {

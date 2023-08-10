@@ -256,10 +256,10 @@ func (suite *DataLayerResourcePath) TestDir() {
 
 func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 	tenant := "a-tenant"
-	user := "a-user"
+	resource := "a-resource"
 	table := []struct {
 		name            string
-		service         path.ServiceType
+		srs             []path.ServiceResource
 		category        path.CategoryType
 		postfix         []string
 		expectedService path.ServiceType
@@ -267,14 +267,14 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 	}{
 		{
 			name:            "NoPostfixPasses",
-			service:         path.ExchangeService,
+			srs:             []path.ServiceResource{{path.ExchangeService, resource}},
 			category:        path.EmailCategory,
 			expectedService: path.ExchangeMetadataService,
 			check:           assert.NoError,
 		},
 		{
 			name:            "PostfixPasses",
-			service:         path.ExchangeService,
+			srs:             []path.ServiceResource{{path.ExchangeService, resource}},
 			category:        path.EmailCategory,
 			postfix:         []string{"a", "b"},
 			expectedService: path.ExchangeMetadataService,
@@ -282,48 +282,48 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 		},
 		{
 			name:     "Fails",
-			service:  path.ExchangeService,
+			srs:      []path.ServiceResource{{path.ExchangeService, resource}},
 			category: path.FilesCategory,
 			check:    assert.Error,
 		},
 		{
 			name:            "Passes",
-			service:         path.ExchangeService,
+			srs:             []path.ServiceResource{{path.ExchangeService, resource}},
 			category:        path.ContactsCategory,
 			expectedService: path.ExchangeMetadataService,
 			check:           assert.NoError,
 		},
 		{
 			name:            "Passes",
-			service:         path.ExchangeService,
+			srs:             []path.ServiceResource{{path.ExchangeService, resource}},
 			category:        path.EventsCategory,
 			expectedService: path.ExchangeMetadataService,
 			check:           assert.NoError,
 		},
 		{
 			name:            "Passes",
-			service:         path.OneDriveService,
+			srs:             []path.ServiceResource{{path.OneDriveService, resource}},
 			category:        path.FilesCategory,
 			expectedService: path.OneDriveMetadataService,
 			check:           assert.NoError,
 		},
 		{
 			name:            "Passes",
-			service:         path.SharePointService,
+			srs:             []path.ServiceResource{{path.SharePointService, resource}},
 			category:        path.LibrariesCategory,
 			expectedService: path.SharePointMetadataService,
 			check:           assert.NoError,
 		},
 		{
 			name:            "Passes",
-			service:         path.SharePointService,
+			srs:             []path.ServiceResource{{path.SharePointService, resource}},
 			category:        path.ListsCategory,
 			expectedService: path.SharePointMetadataService,
 			check:           assert.NoError,
 		},
 		{
 			name:            "Passes",
-			service:         path.SharePointService,
+			srs:             []path.ServiceResource{{path.SharePointService, resource}},
 			category:        path.PagesCategory,
 			expectedService: path.SharePointMetadataService,
 			check:           assert.NoError,
@@ -331,27 +331,26 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 	}
 
 	for _, test := range table {
-		suite.Run(strings.Join([]string{
+		name := strings.Join([]string{
 			test.name,
-			test.service.String(),
+			test.srs[0].Service.String(),
 			test.category.String(),
-		}, "_"), func() {
+		}, "_")
+
+		suite.Run(name, func() {
 			t := suite.T()
 			pb := path.Builder{}.Append(test.postfix...)
 
 			p, err := pb.ToServiceCategoryMetadataPath(
 				tenant,
-				user,
-				test.service,
+				test.srs,
 				test.category,
 				false)
 			test.check(t, err, clues.ToCore(err))
 
-			if err != nil {
-				return
+			if err == nil {
+				assert.Equal(t, test.expectedService, p.ServiceResources()[0])
 			}
-
-			assert.Equal(t, test.expectedService, p.Service())
 		})
 	}
 }
@@ -402,9 +401,9 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					}
 
 					assert.Equal(t, testTenant, p.Tenant())
-					assert.Equal(t, path.ExchangeService, p.Service())
+					assert.Equal(t, path.ExchangeService, p.ServiceResources()[0].Service)
 					assert.Equal(t, test.category, p.Category())
-					assert.Equal(t, testUser, p.ResourceOwner())
+					assert.Equal(t, testUser, p.ServiceResources()[0].ProtectedResource)
 					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder(false))
 					assert.Equal(t, path.Elements(m.expectedFolders), p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
@@ -456,7 +455,10 @@ func (suite *PopulatedDataLayerResourcePath) TestService() {
 		suite.Run(m.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, path.ExchangeService, suite.paths[m.isItem].Service())
+			assert.Equal(
+				t,
+				path.ExchangeService,
+				suite.paths[m.isItem].ServiceResources()[0].Service)
 		})
 	}
 }
@@ -476,7 +478,10 @@ func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
 		suite.Run(m.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, testUser, suite.paths[m.isItem].ResourceOwner())
+			assert.Equal(
+				t,
+				testUser,
+				suite.paths[m.isItem].ServiceResources()[0].ProtectedResource)
 		})
 	}
 }

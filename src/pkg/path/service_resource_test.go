@@ -125,7 +125,7 @@ func (suite *ServiceResourceUnitSuite) TestValidateServiceResources() {
 	}
 }
 
-func (suite *ServiceResourceUnitSuite) TestServiceResourceElements() {
+func (suite *ServiceResourceUnitSuite) TestServiceResourceToElements() {
 	table := []struct {
 		name   string
 		srs    []ServiceResource
@@ -161,6 +161,83 @@ func (suite *ServiceResourceUnitSuite) TestServiceResourceElements() {
 
 			// not ElementsMatch, order matters
 			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *ServiceResourceUnitSuite) TestElementsToServiceResource() {
+	table := []struct {
+		name      string
+		elems     Elements
+		expectErr assert.ErrorAssertionFunc
+		expectIdx int
+		expectSRS []ServiceResource
+	}{
+		{
+			name:      "empty",
+			elems:     Elements{},
+			expectErr: assert.Error,
+			expectIdx: -1,
+			expectSRS: nil,
+		},
+		{
+			name:      "nil",
+			elems:     nil,
+			expectErr: assert.Error,
+			expectIdx: -1,
+			expectSRS: nil,
+		},
+		{
+			name:      "non-service 0th elem",
+			elems:     Elements{"fnords"},
+			expectErr: assert.Error,
+			expectIdx: -1,
+			expectSRS: nil,
+		},
+		{
+			name:      "non-service 2nd elem",
+			elems:     Elements{ExchangeService.String(), "fnords", "smarf"},
+			expectErr: assert.Error,
+			expectIdx: -1,
+			expectSRS: nil,
+		},
+		{
+			name:      "single serviceResource",
+			elems:     Elements{ExchangeService.String(), "fnords"},
+			expectErr: assert.NoError,
+			expectIdx: 2,
+			expectSRS: []ServiceResource{{ExchangeService, "fnords"}},
+		},
+		{
+			name:      "single serviceResource and extra value",
+			elems:     Elements{ExchangeService.String(), "fnords", "smarf"},
+			expectErr: assert.NoError,
+			expectIdx: 2,
+			expectSRS: []ServiceResource{{ExchangeService, "fnords"}},
+		},
+		{
+			name:      "multiple serviceResource",
+			elems:     Elements{ExchangeService.String(), "fnords", OneDriveService.String(), "smarf"},
+			expectErr: assert.NoError,
+			expectIdx: 4,
+			expectSRS: []ServiceResource{{ExchangeService, "fnords"}, {OneDriveService, "smarf"}},
+		},
+		{
+			name:      "multiple serviceResource and extra value",
+			elems:     Elements{ExchangeService.String(), "fnords", OneDriveService.String(), "smarf", "flaboigans"},
+			expectErr: assert.NoError,
+			expectIdx: 4,
+			expectSRS: []ServiceResource{{ExchangeService, "fnords"}, {OneDriveService, "smarf"}},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			srs, idx, err := ElementsToServiceResources(test.elems)
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expectIdx, idx)
+			assert.Equal(t, test.expectSRS, srs)
 		})
 	}
 }
