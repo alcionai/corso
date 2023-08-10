@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	stdpath "path"
 	"testing"
 	"time"
@@ -137,9 +138,9 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 type mockDetailsMergeInfoer struct {
 	repoRefs map[string]path.Path
 	locs     map[string]*path.Builder
+	modTimes map[string]time.Time
 }
 
-// TODO(ashmrtn): Update this to take mod time?
 func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Builder) {
 	oldPB := oldRef.ToBuilder()
 	// Items are indexed individually.
@@ -149,11 +150,31 @@ func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Buil
 	m.locs[oldPB.ShortRef()] = newLoc
 }
 
+func (m *mockDetailsMergeInfoer) addWithModTime(
+	oldRef path.Path,
+	modTime time.Time,
+	newRef path.Path,
+	newLoc *path.Builder,
+) {
+	oldPB := oldRef.ToBuilder()
+	// Items are indexed individually.
+	m.repoRefs[oldPB.ShortRef()] = newRef
+	m.modTimes[oldPB.ShortRef()] = modTime
+
+	// Locations are indexed by directory.
+	m.locs[oldPB.ShortRef()] = newLoc
+}
+
 func (m *mockDetailsMergeInfoer) GetNewPathRefs(
 	oldRef *path.Builder,
-	_ time.Time,
+	modTime time.Time,
 	_ details.LocationIDer,
 ) (path.Path, *path.Builder, error) {
+	// Return no match if the modTime was set and it wasn't what was passed in.
+	if mt, ok := m.modTimes[oldRef.ShortRef()]; ok && !mt.Equal(modTime) {
+		return nil, nil, nil
+	}
+
 	return m.repoRefs[oldRef.ShortRef()], m.locs[oldRef.ShortRef()], nil
 }
 
@@ -169,6 +190,7 @@ func newMockDetailsMergeInfoer() *mockDetailsMergeInfoer {
 	return &mockDetailsMergeInfoer{
 		repoRefs: map[string]path.Path{},
 		locs:     map[string]*path.Builder{},
+		modTimes: map[string]time.Time{},
 	}
 }
 
@@ -290,6 +312,30 @@ func makeDetailsEntry(
 			t,
 			"service %s not supported in helper function",
 			p.Service().String())
+	}
+
+	return res
+}
+
+func makeDetailsEntryWithModTime(
+	t *testing.T,
+	p path.Path,
+	l *path.Builder,
+	size int,
+	updated bool,
+	modTime time.Time,
+) *details.Entry {
+	t.Helper()
+
+	res := makeDetailsEntry(t, p, l, size, updated)
+
+	switch {
+	case res.Exchange != nil:
+		res.Exchange.Modified = modTime
+	case res.OneDrive != nil:
+		res.OneDrive.Modified = modTime
+	case res.SharePoint != nil:
+		res.SharePoint.Modified = modTime
 	}
 
 	return res
@@ -548,6 +594,9 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			itemPath3.ResourceOwner(),
 			itemPath3.Service(),
 			itemPath3.Category())
+
+		time1 = time.Now()
+		time2 = time1.Add(time.Hour)
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
@@ -556,10 +605,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	itemParents1String := itemParents1.String()
 
 	table := []struct {
-		name             string
-		populatedDetails map[string]*details.Details
-		inputBackups     []kopia.BackupEntry
-		mdm              *mockDetailsMergeInfoer
+		name               string
+		populatedDetails   map[string]*details.Details
+		inputBackups       []kopia.BackupEntry
+		inputAssistBackups []kopia.BackupEntry
+		mdm                *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.Entry
@@ -610,39 +660,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				return res
 			}(),
 			inputBackups: []kopia.BackupEntry{
-				{
-					Backup: &backup1,
-					Reasons: []identity.Reasoner{
-						pathReason1,
-					},
-				},
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.Entry{
-							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.Error,
-		},
-		{
-			name: "TooManyItems",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
-
-				return res
-			}(),
-			inputBackups: []kopia.BackupEntry{
-				{
-					Backup: &backup1,
-					Reasons: []identity.Reasoner{
-						pathReason1,
-					},
-				},
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -916,6 +933,210 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
 			},
 		},
+		{
+			name: "MergeAndAssistBases SameItems",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time1, itemPath1, locationPath1)
+				res.addWithModTime(itemPath3, time2, itemPath3, locationPath3)
+
+				return res
+			}(),
+			inputBackups: []kopia.BackupEntry{
+				{
+					Backup: &backup1,
+					Reasons: []identity.Reasoner{
+						pathReason1,
+						pathReason3,
+					},
+				},
+			},
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+							*makeDetailsEntryWithModTime(suite.T(), itemPath3, locationPath3, 37, false, time2),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+							*makeDetailsEntryWithModTime(suite.T(), itemPath3, locationPath3, 37, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+				makeDetailsEntryWithModTime(suite.T(), itemPath3, locationPath3, 37, false, time2),
+			},
+		},
+		{
+			name: "MergeAndAssistBases AssistBaseHasNewerItems",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time2, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputBackups: []kopia.BackupEntry{
+				{
+					Backup: &backup1,
+					Reasons: []identity.Reasoner{
+						pathReason1,
+					},
+				},
+			},
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+			},
+		},
+		{
+			name: "AssistBases ConcurrentAssistBasesPicksMatchingVersion1",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time2, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+			},
+		},
+		{
+			name: "AssistBases ConcurrentAssistBasesPicksMatchingVersion2",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time1, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+			},
+		},
+		{
+			name: "AssistBases SameItemVersion",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time1, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+			},
+		},
+		{
+			name: "AssistBase ItemDeleted",
+			mdm: func() *mockDetailsMergeInfoer {
+				return newMockDetailsMergeInfoer()
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+			},
+			errCheck:        assert.NoError,
+			expectedEntries: []*details.Entry{},
+		},
 	}
 
 	for _, test := range table {
@@ -929,10 +1150,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			deets := details.Builder{}
 			writeStats := kopia.BackupStats{}
 
+			bb := kopia.NewMockBackupBases().
+				WithBackups(test.inputBackups...).
+				WithAssistBackups(test.inputAssistBackups...)
+
 			err := mergeDetails(
 				ctx,
 				mds,
-				test.inputBackups,
+				bb,
 				test.mdm,
 				&deets,
 				&writeStats,
@@ -944,9 +1169,27 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				return
 			}
 
-			assert.ElementsMatch(t, test.expectedEntries, deets.Details().Items())
+			// Check the JSON output format of things because for some reason it's not
+			// using the proper comparison for time.Time and failing due to that.
+			checkJSONOutputs(t, test.expectedEntries, deets.Details().Items())
 		})
 	}
+}
+
+func checkJSONOutputs(
+	t *testing.T,
+	expected []*details.Entry,
+	got []*details.Entry,
+) {
+	t.Helper()
+
+	expectedJSON, err := json.Marshal(expected)
+	require.NoError(t, err, "marshalling expected data")
+
+	gotJSON, err := json.Marshal(got)
+	require.NoError(t, err, "marshalling got data")
+
+	assert.JSONEq(t, string(expectedJSON), string(gotJSON))
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
@@ -1038,7 +1281,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	err := mergeDetails(
 		ctx,
 		mds,
-		[]kopia.BackupEntry{backup1},
+		kopia.NewMockBackupBases().WithBackups(backup1),
 		mdm,
 		&deets,
 		&writeStats,

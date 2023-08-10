@@ -468,10 +468,9 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 			cached: false,
 		},
 		{
-			name:   "all cached from assist base",
-			cached: true,
-			// TODO(ashmrtn): Update to true when we add cached items to toMerge.
-			expectToMergeEntries: false,
+			name:                 "all cached from assist base",
+			cached:               true,
+			expectToMergeEntries: true,
 		},
 		{
 			name:                 "all cached from merge base",
