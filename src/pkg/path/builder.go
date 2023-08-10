@@ -201,20 +201,6 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	return res
 }
 
-// verifyPrefix ensures that the tenant and resourceOwner are valid
-// values, and that the builder has some directory structure.
-// func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
-// 	if err := verifyPrefixValues(tenant, resourceOwner); err != nil {
-// 		return err
-// 	}
-
-// 	if len(pb.elements) == 0 {
-// 		return clues.New("missing path beyond prefix")
-// 	}
-
-// 	return nil
-// }
-
 // ---------------------------------------------------------------------------
 // Data Layer Path Transformers
 // ---------------------------------------------------------------------------

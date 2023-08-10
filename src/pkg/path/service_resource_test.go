@@ -3,10 +3,10 @@ package path
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -240,4 +240,25 @@ func (suite *ServiceResourceUnitSuite) TestElementsToServiceResource() {
 			assert.Equal(t, test.expectSRS, srs)
 		})
 	}
+}
+
+func (suite *ServiceResourceUnitSuite) TestToMetadataServices() {
+	srs := []ServiceResource{
+		{ExchangeService, "mailbox"},
+		{OneDriveService, "user"},
+		{SharePointService, "site"},
+		{GroupsService, "group"},
+	}
+
+	expect := []ServiceResource{
+		{ExchangeMetadataService, "mailbox"},
+		{OneDriveMetadataService, "user"},
+		{SharePointMetadataService, "site"},
+		{GroupsMetadataService, "group"},
+	}
+
+	assert.Equal(
+		suite.T(),
+		expect,
+		toMetadataServices(srs))
 }
