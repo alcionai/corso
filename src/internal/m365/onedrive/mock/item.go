@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/extensions"
 )
 
 // ---------------------------------------------------------------------------
@@ -16,21 +17,22 @@ import (
 
 var _ data.Stream = &Data{}
 
-// TODO: move to data/mock for service-agnostic mocking
-// Data represents a single item retrieved from, or restored to, onedrive
 type Data struct {
-	ID           string
-	Reader       io.ReadCloser
-	ReadErr      error
-	size         int64
-	modifiedTime time.Time
-	deleted      bool
+	ID            string
+	DriveID       string
+	DriveName     string
+	Reader        io.ReadCloser
+	ReadErr       error
+	Sz            int64
+	ModifiedTime  time.Time
+	Del           bool
+	ExtensionData *details.ExtensionData
 }
 
 func (d *Data) UUID() string       { return d.ID }
-func (d *Data) Deleted() bool      { return d.deleted }
-func (d *Data) Size() int64        { return d.size }
-func (d *Data) ModTime() time.Time { return d.modifiedTime }
+func (d *Data) Deleted() bool      { return d.Del }
+func (d *Data) Size() int64        { return d.Sz }
+func (d *Data) ModTime() time.Time { return d.ModifiedTime }
 
 func (d *Data) ToReader() io.ReadCloser {
 	if d.ReadErr != nil {
@@ -43,10 +45,14 @@ func (d *Data) ToReader() io.ReadCloser {
 func (d *Data) Info() details.ItemInfo {
 	return details.ItemInfo{
 		OneDrive: &details.OneDriveInfo{
-			ItemType: details.OneDriveItem,
-			ItemName: "test.txt",
-			Size:     1,
+			ItemType:  details.OneDriveItem,
+			ItemName:  "test.txt",
+			Size:      d.Sz,
+			DriveID:   d.DriveID,
+			DriveName: d.DriveName,
+			Modified:  d.ModifiedTime,
 		},
+		Extension: d.ExtensionData,
 	}
 }
 
@@ -79,6 +85,18 @@ func (f FetchItemByName) FetchItemByName(context.Context, string) (data.Stream, 
 
 func FileRespReadCloser(pl string) io.ReadCloser {
 	return io.NopCloser(bytes.NewReader([]byte(pl)))
+}
+
+func FileRespWithExtensions(pl string, extData *details.ExtensionData) io.ReadCloser {
+	rc := FileRespReadCloser(pl)
+
+	me := &extensions.MockExtension{
+		Ctx:     context.Background(),
+		InnerRc: rc,
+		ExtData: extData,
+	}
+
+	return io.NopCloser(me)
 }
 
 const (

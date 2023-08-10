@@ -67,9 +67,10 @@ func (suite *GraphIntgSuite) TestCreateAdapter() {
 
 func (suite *GraphIntgSuite) TestHTTPClient() {
 	table := []struct {
-		name  string
-		opts  []Option
-		check func(*testing.T, *http.Client)
+		name        string
+		opts        []Option
+		check       func(*testing.T, *http.Client)
+		checkConfig func(*testing.T, *clientConfig)
 	}{
 		{
 			name: "no options",
@@ -77,13 +78,64 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 			check: func(t *testing.T, c *http.Client) {
 				assert.Equal(t, defaultHTTPClientTimeout, c.Timeout, "default timeout")
 			},
+			checkConfig: func(t *testing.T, c *clientConfig) {
+				assert.Equal(t, defaultDelay, c.minDelay, "default delay")
+				assert.Equal(t, defaultMaxRetries, c.maxRetries, "max retries")
+				assert.Equal(t, defaultMaxRetries, c.maxConnectionRetries, "max connection retries")
+			},
 		},
 		{
-			name: "no timeout",
-			opts: []Option{NoTimeout()},
+			name: "configured options",
+			opts: []Option{
+				NoTimeout(),
+				MaxRetries(4),
+				MaxConnectionRetries(2),
+				MinimumBackoff(999 * time.Millisecond),
+			},
 			check: func(t *testing.T, c *http.Client) {
 				// FIXME: Change to 0 one upstream issue is fixed
 				assert.Equal(t, time.Duration(48*time.Hour), c.Timeout, "unlimited timeout")
+			},
+			checkConfig: func(t *testing.T, c *clientConfig) {
+				assert.Equal(t, 999*time.Millisecond, c.minDelay, "minimum delay")
+				assert.Equal(t, 4, c.maxRetries, "max retries")
+				assert.Equal(t, 2, c.maxConnectionRetries, "max connection retries")
+			},
+		},
+		{
+			name: "below minimums",
+			opts: []Option{
+				NoTimeout(),
+				MaxRetries(-1),
+				MaxConnectionRetries(-1),
+				MinimumBackoff(0),
+			},
+			check: func(t *testing.T, c *http.Client) {
+				// FIXME: Change to 0 one upstream issue is fixed
+				assert.Equal(t, time.Duration(48*time.Hour), c.Timeout, "unlimited timeout")
+			},
+			checkConfig: func(t *testing.T, c *clientConfig) {
+				assert.Equal(t, 100*time.Millisecond, c.minDelay, "minimum delay")
+				assert.Equal(t, 0, c.maxRetries, "max retries")
+				assert.Equal(t, 0, c.maxConnectionRetries, "max connection retries")
+			},
+		},
+		{
+			name: "above maximums",
+			opts: []Option{
+				NoTimeout(),
+				MaxRetries(9001),
+				MaxConnectionRetries(9001),
+				MinimumBackoff(999 * time.Second),
+			},
+			check: func(t *testing.T, c *http.Client) {
+				// FIXME: Change to 0 one upstream issue is fixed
+				assert.Equal(t, time.Duration(48*time.Hour), c.Timeout, "unlimited timeout")
+			},
+			checkConfig: func(t *testing.T, c *clientConfig) {
+				assert.Equal(t, 5*time.Second, c.minDelay, "minimum delay")
+				assert.Equal(t, 5, c.maxRetries, "max retries")
+				assert.Equal(t, 5, c.maxConnectionRetries, "max connection retries")
 			},
 		},
 	}
@@ -91,9 +143,10 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			cli := KiotaHTTPClient(test.opts...)
+			cli, cc := KiotaHTTPClient(test.opts...)
 			assert.NotNil(t, cli)
 			test.check(t, cli)
+			test.checkConfig(t, cc)
 		})
 	}
 }
@@ -178,12 +231,12 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	// the query doesn't matter
 	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 12, count, "number of retries")
+	require.Equal(t, 16, count, "number of retries")
 
 	count = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 12, count, "number of retries")
+	require.Equal(t, 16, count, "number of retries")
 }

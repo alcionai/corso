@@ -401,7 +401,7 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
-			nonMetaItemsWritten: 1, // the file for which permission was updated
+			nonMetaItemsWritten: 0, // none because the file is considered cached instead of written.
 		},
 		{
 			name: "remove permission from new file",
@@ -419,7 +419,7 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
-			nonMetaItemsWritten: 1, //.data file for newitem
+			nonMetaItemsWritten: 0, // none because the file is considered cached instead of written.
 		},
 		{
 			name: "add permission to container",
@@ -518,7 +518,7 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        4, // .data and .meta for newitem, .dirmeta for parent
-			nonMetaItemsWritten: 1, // .data file for new item
+			nonMetaItemsWritten: 1, // .data file for moved item
 		},
 		{
 			name: "boomerang a file",
@@ -550,7 +550,7 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
-			nonMetaItemsWritten: 1, // .data file for new item
+			nonMetaItemsWritten: 0, // non because the file is considered cached instead of written.
 		},
 		{
 			name: "delete file",

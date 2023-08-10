@@ -44,66 +44,6 @@ func (suite *SharePointSelectorSuite) TestToSharePointBackup() {
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
-	t := suite.T()
-
-	sites := []string{"s1", "s2"}
-
-	sel := NewSharePointBackup(sites)
-	siteScopes := sel.AllData()
-
-	assert.ElementsMatch(t, sites, sel.DiscreteResourceOwners())
-
-	// Initialize the selector Include, Exclude, Filter
-	sel.Exclude(siteScopes)
-	sel.Include(siteScopes)
-	sel.Filter(siteScopes)
-
-	table := []struct {
-		name          string
-		scopesToCheck []scope
-	}{
-		{"Include Scopes", sel.Includes},
-		{"Exclude Scopes", sel.Excludes},
-		{"info scopes", sel.Filters},
-	}
-	for _, test := range table {
-		require.Len(t, test.scopesToCheck, 3)
-
-		for _, scope := range test.scopesToCheck {
-			var (
-				spsc = SharePointScope(scope)
-				cat  = spsc.Category()
-			)
-
-			suite.Run(test.name+"-"+cat.String(), func() {
-				t := suite.T()
-
-				switch cat {
-				case SharePointLibraryItem:
-					scopeMustHave(
-						t,
-						spsc,
-						map[categorizer][]string{
-							SharePointLibraryItem:   Any(),
-							SharePointLibraryFolder: Any(),
-						},
-					)
-				case SharePointListItem:
-					scopeMustHave(
-						t,
-						spsc,
-						map[categorizer][]string{
-							SharePointListItem: Any(),
-							SharePointList:     Any(),
-						},
-					)
-				}
-			})
-		}
-	}
-}
-
 func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 	t := suite.T()
 

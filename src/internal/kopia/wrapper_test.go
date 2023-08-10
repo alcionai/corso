@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -800,7 +801,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		"brunhilda": "",
 	}
 
-	reasons := []Reasoner{
+	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
 			suite.storePath1.ResourceOwner(),
@@ -964,9 +965,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			collections:           collections,
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
-			deetsUpdated:          assert.False,
-			hashedBytesCheck:      assert.Zero,
-			uploadedBytes:         []int64{4000, 6000},
+			// Entries go to details merger since cached files are merged too.
+			expectMerge:      true,
+			deetsUpdated:     assert.False,
+			hashedBytesCheck: assert.Zero,
+			uploadedBytes:    []int64{4000, 6000},
 		},
 		{
 			name: "Kopia Assist And Merge No Files Changed",
@@ -998,6 +1001,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			collections:           collections,
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
+			expectMerge:           true,
 			deetsUpdated:          assert.False,
 			hashedBytesCheck:      assert.Zero,
 			uploadedBytes:         []int64{4000, 6000},
@@ -1072,7 +1076,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		"brunhilda": "",
 	}
 
-	reasons := []Reasoner{
+	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
 			storePath.ResourceOwner(),
@@ -1267,7 +1271,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
-		[]Reasoner{r},
+		[]identity.Reasoner{r},
 		nil,
 		[]data.BackupCollection{dc1, dc2},
 		nil,
@@ -1296,6 +1300,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	testForFiles(t, ctx, expected, result)
 }
 
+// TODO(pandeyabs): Switch to m365/mock/BackupCollection.
 type mockBackupCollection struct {
 	path    path.Path
 	loc     *path.Builder
@@ -1385,7 +1390,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
-		[]Reasoner{r},
+		[]identity.Reasoner{r},
 		nil,
 		collections,
 		nil,
@@ -1618,7 +1623,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
-		[]Reasoner{r},
+		[]identity.Reasoner{r},
 		nil,
 		collections,
 		nil,
@@ -1745,11 +1750,11 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
-				[]Reasoner{r},
+				[]identity.Reasoner{r},
 				NewMockBackupBases().WithMergeBases(
 					ManifestEntry{
 						Manifest: man,
-						Reasons:  []Reasoner{r},
+						Reasons:  []identity.Reasoner{r},
 					},
 				),
 				test.cols(),

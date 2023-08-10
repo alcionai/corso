@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -15,7 +16,7 @@ type (
 	BackupConsumer interface {
 		ConsumeBackupCollections(
 			ctx context.Context,
-			backupReasons []kopia.Reasoner,
+			backupReasons []identity.Reasoner,
 			bases kopia.BackupBases,
 			cs []data.BackupCollection,
 			pmr prefixmatcher.StringSetReader,
@@ -38,7 +39,7 @@ type (
 	BaseFinder interface {
 		FindBases(
 			ctx context.Context,
-			reasons []kopia.Reasoner,
+			reasons []identity.Reasoner,
 			tags map[string]string,
 		) kopia.BackupBases
 	}
