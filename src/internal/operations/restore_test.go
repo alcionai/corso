@@ -50,7 +50,7 @@ func TestRestoreOpUnitSuite(t *testing.T) {
 func (suite *RestoreOpUnitSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw         = &kopia.Wrapper{}
-		sw         = &store.Wrapper{}
+		sw         = store.NewWrapper(&kopia.ModelStore{})
 		ctrl       = &mock.Controller{}
 		now        = time.Now()
 		restoreCfg = testdata.DefaultRestoreConfig("")
@@ -216,7 +216,7 @@ type RestoreOpIntegrationSuite struct {
 	kopiaCloser func(ctx context.Context)
 	acct        account.Account
 	kw          *kopia.Wrapper
-	sw          *store.Wrapper
+	sw          store.BackupStorer
 	ms          *kopia.ModelStore
 }
 
@@ -260,7 +260,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 
 	suite.ms = ms
 
-	sw := store.NewKopiaStore(ms)
+	sw := store.NewWrapper(ms)
 	suite.sw = sw
 }
 
@@ -284,7 +284,7 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	var (
 		kw         = &kopia.Wrapper{}
-		sw         = &store.Wrapper{}
+		sw         = store.NewWrapper(&kopia.ModelStore{})
 		ctrl       = &mock.Controller{}
 		restoreCfg = testdata.DefaultRestoreConfig("")
 		opts       = control.DefaultOptions()
@@ -293,7 +293,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	table := []struct {
 		name     string
 		kw       *kopia.Wrapper
-		sw       *store.Wrapper
+		sw       store.BackupStorer
 		rc       inject.RestoreConsumer
 		targets  []string
 		errCheck assert.ErrorAssertionFunc

@@ -57,7 +57,7 @@ type operation struct {
 
 	bus   events.Eventer
 	kopia *kopia.Wrapper
-	store *store.Wrapper
+	store store.BackupStorer
 }
 
 func newOperation(
@@ -65,7 +65,7 @@ func newOperation(
 	bus events.Eventer,
 	ctr *count.Bus,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
