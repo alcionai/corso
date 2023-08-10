@@ -7,18 +7,14 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -62,7 +58,7 @@ func ProduceBackupCollections(
 
 		switch scope.Category().PathType() {
 		case path.ListsCategory:
-			spcs, err = collectLists(
+			spcs, err = site.CollectLists(
 				ctx,
 				bpc,
 				ac,
@@ -79,7 +75,7 @@ func ProduceBackupCollections(
 			canUsePreviousBackup = true
 
 		case path.LibrariesCategory:
-			spcs, canUsePreviousBackup, err = collectLibraries(
+			spcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				bpc,
 				ac.Drives(),
@@ -94,7 +90,7 @@ func ProduceBackupCollections(
 			}
 
 		case path.PagesCategory:
-			spcs, err = collectPages(
+			spcs, err = site.CollectPages(
 				ctx,
 				bpc,
 				creds,
@@ -134,151 +130,4 @@ func ProduceBackupCollections(
 	}
 
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
-}
-
-// collectLibraries constructs a onedrive Collections struct and Get()s
-// all the drives associated with the site.
-func collectLibraries(
-	ctx context.Context,
-	bpc inject.BackupProducerConfig,
-	ad api.Drives,
-	tenantID string,
-	ssmb *prefixmatcher.StringSetMatchBuilder,
-	scope selectors.SharePointScope,
-	su support.StatusUpdater,
-	errs *fault.Bus,
-) ([]data.BackupCollection, bool, error) {
-	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
-
-	var (
-		collections = []data.BackupCollection{}
-		colls       = drive.NewCollections(
-			drive.NewLibraryBackupHandler(ad, scope),
-			tenantID,
-			bpc.ProtectedResource.ID(),
-			su,
-			bpc.Options)
-	)
-
-	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
-	if err != nil {
-		return nil, false, graph.Wrap(ctx, err, "getting library")
-	}
-
-	return append(collections, odcs...), canUsePreviousBackup, nil
-}
-
-// collectPages constructs a sharepoint Collections struct and Get()s the associated
-// M365 IDs for the associated Pages.
-func collectPages(
-	ctx context.Context,
-	bpc inject.BackupProducerConfig,
-	creds account.M365Config,
-	ac api.Client,
-	su support.StatusUpdater,
-	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
-	logger.Ctx(ctx).Debug("creating SharePoint Pages collections")
-
-	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
-	)
-
-	// make the betaClient
-	// Need to receive From DataCollection Call
-	adpt, err := graph.CreateAdapter(
-		creds.AzureTenantID,
-		creds.AzureClientID,
-		creds.AzureClientSecret)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating azure client adapter")
-	}
-
-	betaService := betaAPI.NewBetaService(adpt)
-
-	tuples, err := betaAPI.FetchPages(ctx, betaService, bpc.ProtectedResource.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	for _, tuple := range tuples {
-		if el.Failure() != nil {
-			break
-		}
-
-		dir, err := path.Build(
-			creds.AzureTenantID,
-			bpc.ProtectedResource.ID(),
-			path.SharePointService,
-			path.PagesCategory,
-			false,
-			tuple.Name)
-		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "creating page collection path").WithClues(ctx))
-		}
-
-		collection := site.NewCollection(
-			dir,
-			ac,
-			site.Pages,
-			su,
-			bpc.Options)
-		collection.SetBetaService(betaService)
-		collection.AddJob(tuple.ID)
-
-		spcs = append(spcs, collection)
-	}
-
-	return spcs, el.Failure()
-}
-
-func collectLists(
-	ctx context.Context,
-	bpc inject.BackupProducerConfig,
-	ac api.Client,
-	tenantID string,
-	su support.StatusUpdater,
-	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
-	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
-
-	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
-	)
-
-	lists, err := site.PreFetchLists(ctx, ac.Stable, bpc.ProtectedResource.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	for _, tuple := range lists {
-		if el.Failure() != nil {
-			break
-		}
-
-		dir, err := path.Build(
-			tenantID,
-			bpc.ProtectedResource.ID(),
-			path.SharePointService,
-			path.ListsCategory,
-			false,
-			tuple.Name)
-		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "creating list collection path").WithClues(ctx))
-		}
-
-		collection := site.NewCollection(
-			dir,
-			ac,
-			site.List,
-			su,
-			bpc.Options)
-		collection.AddJob(tuple.ID)
-
-		spcs = append(spcs, collection)
-	}
-
-	return spcs, el.Failure()
 }
