@@ -33,7 +33,7 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		lrh            = site.NewLibraryRestoreHandler(ac)
+		lrh            = drive.NewLibraryRestoreHandler(ac)
 		restoreMetrics support.CollectionMetrics
 		caches         = drive.NewRestoreCaches(backupDriveIDNames)
 		el             = errs.Local()

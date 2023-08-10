@@ -153,7 +153,7 @@ func collectLibraries(
 	var (
 		collections = []data.BackupCollection{}
 		colls       = drive.NewCollections(
-			site.NewLibraryBackupHandler(ad, scope),
+			drive.NewLibraryBackupHandler(ad, scope),
 			tenantID,
 			bpc.ProtectedResource.ID(),
 			su,

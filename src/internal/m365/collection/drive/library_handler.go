@@ -1,4 +1,4 @@
-package site
+package drive
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -18,7 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var _ drive.BackupHandler = &libraryBackupHandler{}
+var _ BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
 	ac    api.Drives
@@ -82,7 +81,7 @@ func (h libraryBackupHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, item, size, parentPath)
+	return augmentLibraryItemInfo(dii, item, size, parentPath)
 }
 
 // constructWebURL is a helper function for recreating the webURL
@@ -158,7 +157,7 @@ func (h libraryBackupHandler) IncludesDir(dir string) bool {
 // Restore
 // ---------------------------------------------------------------------------
 
-var _ drive.RestoreHandler = &libraryRestoreHandler{}
+var _ RestoreHandler = &libraryRestoreHandler{}
 
 type libraryRestoreHandler struct {
 	ac api.Client
@@ -175,10 +174,6 @@ func (h libraryRestoreHandler) PostDrive(
 	return h.ac.Lists().PostDrive(ctx, siteID, driveName)
 }
 
-func NewRestoreHandler(ac api.Client) *libraryRestoreHandler {
-	return &libraryRestoreHandler{ac}
-}
-
 func (h libraryRestoreHandler) NewDrivePager(
 	resourceOwner string,
 	fields []string,
@@ -192,7 +187,7 @@ func (h libraryRestoreHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, item, size, parentPath)
+	return augmentLibraryItemInfo(dii, item, size, parentPath)
 }
 
 func (h libraryRestoreHandler) DeleteItem(
@@ -271,7 +266,7 @@ func (h libraryRestoreHandler) GetRootFolder(
 // Common
 // ---------------------------------------------------------------------------
 
-func augmentItemInfo(
+func augmentLibraryItemInfo(
 	dii details.ItemInfo,
 	item models.DriveItemable,
 	size int64,

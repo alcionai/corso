@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -75,7 +74,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
-		return site.NewRestoreHandler(ac)
+		return drive.NewLibraryRestoreHandler(ac)
 	}
 
 	runDriveIncrementalTest(

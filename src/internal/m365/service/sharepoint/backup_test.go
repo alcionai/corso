@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -56,7 +55,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 	)
 
 	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
-	ep, err := site.NewLibraryBackupHandler(api.Drives{}, nil).CanonicalPath(pb, tenantID, siteID)
+	ep, err := drive.NewLibraryBackupHandler(api.Drives{}, nil).CanonicalPath(pb, tenantID, siteID)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
@@ -106,7 +105,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			)
 
 			c := drive.NewCollections(
-				site.NewLibraryBackupHandler(api.Drives{}, test.scope),
+				drive.NewLibraryBackupHandler(api.Drives{}, test.scope),
 				tenantID,
 				siteID,
 				nil,
