@@ -1300,6 +1300,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	testForFiles(t, ctx, expected, result)
 }
 
+// TODO(pandeyabs): Switch to m365/mock/BackupCollection.
 type mockBackupCollection struct {
 	path    path.Path
 	loc     *path.Builder
