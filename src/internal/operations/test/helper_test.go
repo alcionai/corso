@@ -32,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -251,7 +252,7 @@ func checkBackupIsInManifests(
 			bf, err := kw.NewBaseFinder(sw)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mans := bf.FindBases(ctx, []kopia.Reasoner{r}, tags)
+			mans := bf.FindBases(ctx, []identity.Reasoner{r}, tags)
 			for _, man := range mans.MergeBases() {
 				bID, ok := man.GetTag(kopia.TagBackupID)
 				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {

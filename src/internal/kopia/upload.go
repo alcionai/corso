@@ -198,10 +198,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
-	//
-	// TODO(ashmrtn): When we're ready to merge with cached items add cached as a
-	// condition here.
-	if d.info == nil {
+	if d.info == nil || d.cached {
 		if d.prevPath == nil {
 			cp.errs.AddRecoverable(cp.ctx, clues.New("item sourced from previous backup with no previous path").
 				With(
