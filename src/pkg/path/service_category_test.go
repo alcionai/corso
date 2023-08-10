@@ -20,118 +20,76 @@ func TestServiceCategoryUnitSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategoryBadStringErrors() {
+func (suite *ServiceCategoryUnitSuite) TestVerifyPrefixValues() {
 	table := []struct {
 		name     string
-		service  string
-		category string
-	}{
-		{
-			name:     "Service",
-			service:  "foo",
-			category: EmailCategory.String(),
-		},
-		{
-			name:     "Category",
-			service:  ExchangeService.String(),
-			category: "foo",
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			_, _, err := validateServiceAndCategoryStrings(test.service, test.category)
-			assert.Error(suite.T(), err)
-		})
-	}
-}
-
-func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
-	table := []struct {
-		name             string
-		service          string
-		category         string
-		expectedService  ServiceType
-		expectedCategory CategoryType
-		check            assert.ErrorAssertionFunc
+		service  ServiceType
+		category CategoryType
+		check    assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "UnknownService",
-			service:  UnknownService.String(),
-			category: EmailCategory.String(),
+			service:  UnknownService,
+			category: EmailCategory,
 			check:    assert.Error,
 		},
 		{
 			name:     "UnknownCategory",
-			service:  ExchangeService.String(),
-			category: UnknownCategory.String(),
+			service:  ExchangeService,
+			category: UnknownCategory,
 			check:    assert.Error,
 		},
 		{
-			name:     "BadServiceString",
-			service:  "foo",
-			category: EmailCategory.String(),
+			name:     "BadServiceType",
+			service:  ServiceType(-1),
+			category: EmailCategory,
 			check:    assert.Error,
 		},
 		{
-			name:     "BadCategoryString",
-			service:  ExchangeService.String(),
-			category: "foo",
+			name:     "BadCategoryType",
+			service:  ExchangeService,
+			category: CategoryType(-1),
 			check:    assert.Error,
 		},
 		{
-			name:             "ExchangeEmail",
-			service:          ExchangeService.String(),
-			category:         EmailCategory.String(),
-			expectedService:  ExchangeService,
-			expectedCategory: EmailCategory,
-			check:            assert.NoError,
+			name:     "ExchangeEmail",
+			service:  ExchangeService,
+			category: EmailCategory,
+			check:    assert.NoError,
 		},
 		{
-			name:             "ExchangeContacts",
-			service:          ExchangeService.String(),
-			category:         ContactsCategory.String(),
-			expectedService:  ExchangeService,
-			expectedCategory: ContactsCategory,
-			check:            assert.NoError,
+			name:     "ExchangeContacts",
+			service:  ExchangeService,
+			category: ContactsCategory,
+			check:    assert.NoError,
 		},
 		{
-			name:             "ExchangeEvents",
-			service:          ExchangeService.String(),
-			category:         EventsCategory.String(),
-			expectedService:  ExchangeService,
-			expectedCategory: EventsCategory,
-			check:            assert.NoError,
+			name:     "ExchangeEvents",
+			service:  ExchangeService,
+			category: EventsCategory,
+			check:    assert.NoError,
 		},
 		{
-			name:             "OneDriveFiles",
-			service:          OneDriveService.String(),
-			category:         FilesCategory.String(),
-			expectedService:  OneDriveService,
-			expectedCategory: FilesCategory,
-			check:            assert.NoError,
+			name:     "OneDriveFiles",
+			service:  OneDriveService,
+			category: FilesCategory,
+			check:    assert.NoError,
 		},
 		{
-			name:             "SharePointLibraries",
-			service:          SharePointService.String(),
-			category:         LibrariesCategory.String(),
-			expectedService:  SharePointService,
-			expectedCategory: LibrariesCategory,
-			check:            assert.NoError,
+			name:     "SharePointLibraries",
+			service:  SharePointService,
+			category: LibrariesCategory,
+			check:    assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			s, c, err := validateServiceAndCategoryStrings(test.service, test.category)
+			srs := []ServiceResource{{test.service, "resource"}}
+
+			err := verifyPrefixValues("tid", srs, test.category)
 			test.check(t, err, clues.ToCore(err))
-
-			if err != nil {
-				return
-			}
-
-			assert.Equal(t, test.expectedService, s)
-			assert.Equal(t, test.expectedCategory, c)
 		})
 	}
 }

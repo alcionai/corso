@@ -18,9 +18,28 @@ import (
 // element after the prefix.
 type dataLayerResourcePath struct {
 	Builder
-	category CategoryType
-	service  ServiceType
-	hasItem  bool
+	category         CategoryType
+	serviceResources []ServiceResource
+	hasItem          bool
+}
+
+// performs no validation, assumes the caller has validated the inputs.
+func newDataLayerResourcePath(
+	pb Builder,
+	tenant string,
+	srs []ServiceResource,
+	cat CategoryType,
+	isItem bool,
+) dataLayerResourcePath {
+	pfx := append([]string{tenant}, ServiceResourcesToElements(srs)...)
+	pfx = append(pfx, cat.String())
+
+	return dataLayerResourcePath{
+		Builder:          *pb.withPrefix(pfx...),
+		serviceResources: srs,
+		category:         cat,
+		hasItem:          isItem,
+	}
 }
 
 // Tenant returns the tenant ID embedded in the dataLayerResourcePath.
@@ -28,9 +47,8 @@ func (rp dataLayerResourcePath) Tenant() string {
 	return rp.Builder.elements[0]
 }
 
-// Service returns the ServiceType embedded in the dataLayerResourcePath.
-func (rp dataLayerResourcePath) Service() ServiceType {
-	return rp.service
+func (rp dataLayerResourcePath) ServiceResources() []ServiceResource {
+	return rp.serviceResources
 }
 
 // Category returns the CategoryType embedded in the dataLayerResourcePath.
@@ -95,15 +113,18 @@ func (rp dataLayerResourcePath) Item() string {
 // Dir removes the last element from the path.  If this would remove a
 // value that is part of the standard prefix structure, an error is returned.
 func (rp dataLayerResourcePath) Dir() (Path, error) {
-	if len(rp.elements) <= 4 {
+	// Dir is not allowed to slice off any prefix values.
+	// The prefix len is determined by the length of the number of
+	// service+resource tuples, plus 2 (tenant and category).
+	if len(rp.elements) <= 2+(2*len(rp.serviceResources)) {
 		return nil, clues.New("unable to shorten path").With("path", rp)
 	}
 
 	return &dataLayerResourcePath{
-		Builder:  *rp.Builder.Dir(),
-		service:  rp.service,
-		category: rp.category,
-		hasItem:  false,
+		Builder:          *rp.Builder.Dir(),
+		serviceResources: rp.serviceResources,
+		category:         rp.category,
+		hasItem:          false,
 	}, nil
 }
 
@@ -116,10 +137,10 @@ func (rp dataLayerResourcePath) Append(
 	}
 
 	return &dataLayerResourcePath{
-		Builder:  *rp.Builder.Append(elems...),
-		service:  rp.service,
-		category: rp.category,
-		hasItem:  isItem,
+		Builder:          *rp.Builder.Append(elems...),
+		serviceResources: rp.serviceResources,
+		category:         rp.category,
+		hasItem:          isItem,
 	}, nil
 }
 

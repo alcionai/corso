@@ -79,10 +79,12 @@ var (
 // string.
 type Path interface {
 	String() string
-	Service() ServiceType
+	// ServiceResources produces all of the services and subservices, along with
+	// the protected resource paired with the service, as contained in the path,
+	// in their order of appearance.
+	ServiceResources() []ServiceResource
 	Category() CategoryType
 	Tenant() string
-	ResourceOwner() string
 	Folder(escaped bool) string
 	Folders() Elements
 	Item() string
@@ -132,41 +134,29 @@ type RestorePaths struct {
 // ---------------------------------------------------------------------------
 
 func Build(
-	tenant, resourceOwner string,
-	service ServiceType,
+	tenant string,
+	srs []ServiceResource,
 	category CategoryType,
 	hasItem bool,
 	elements ...string,
 ) (Path, error) {
-	b := Builder{}.Append(elements...)
-
-	return b.ToDataLayerPath(
-		tenant, resourceOwner,
-		service, category,
-		hasItem)
+	return Builder{}.
+		Append(elements...).
+		ToDataLayerPath(tenant, srs, category, hasItem)
 }
 
 func BuildPrefix(
-	tenant, resourceOwner string,
-	s ServiceType,
-	c CategoryType,
+	tenant string,
+	srs []ServiceResource,
+	cat CategoryType,
 ) (Path, error) {
-	pb := Builder{}
-
-	if err := ValidateServiceAndCategory(s, c); err != nil {
+	if err := verifyPrefixValues(tenant, srs, cat); err != nil {
 		return nil, err
 	}
 
-	if err := verifyInputValues(tenant, resourceOwner); err != nil {
-		return nil, err
-	}
+	dlrp := newDataLayerResourcePath(Builder{}, tenant, srs, cat, false)
 
-	return &dataLayerResourcePath{
-		Builder:  *pb.withPrefix(tenant, s.String(), resourceOwner, c.String()),
-		service:  s,
-		category: c,
-		hasItem:  false,
-	}, nil
+	return &dlrp, nil
 }
 
 // FromDataLayerPath parses the escaped path p, validates the elements in p
@@ -186,24 +176,37 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}
 
+	// initial check for minimum required elements:
+	// tenant, service, resource, category, container/item
 	if len(pb.elements) < 5 {
 		return nil, clues.New("path has too few segments").With("path_string", p)
 	}
 
-	service, category, err := validateServiceAndCategoryStrings(
-		pb.elements[1],
-		pb.elements[3],
-	)
+	srs, catIdx, err := ElementsToServiceResources(pb.elements[1:])
 	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	// follow-up check: if more than one service exists, revisit the len check.
+	if len(srs) > 1 && len(pb.elements) < 3+(2*len(srs)) {
+		return nil, clues.New("path has too few segments").With("path_string", p)
+	}
+
+	// +1 to account for slicing the tenant when calling the transformer func.
+	category := ToCategoryType(pb.elements[catIdx+1])
+
+	if err := verifyPrefixValues(pb.elements[0], srs, category); err != nil {
 		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}
 
-	return &dataLayerResourcePath{
-		Builder:  *pb,
-		service:  service,
-		category: category,
-		hasItem:  isItem,
-	}, nil
+	dlrp := dataLayerResourcePath{
+		Builder:          *pb,
+		serviceResources: srs,
+		category:         category,
+		hasItem:          isItem,
+	}
+
+	return &dlrp, nil
 }
 
 // TrimTrailingSlash takes an escaped path element and returns an escaped path
@@ -290,16 +293,21 @@ func Split(segment string) []string {
 // Unexported Helpers
 // ---------------------------------------------------------------------------
 
-func verifyInputValues(tenant, resourceOwner string) error {
+func verifyPrefixValues(
+	tenant string,
+	srs []ServiceResource,
+	cat CategoryType,
+) error {
 	if len(tenant) == 0 {
 		return clues.Stack(errMissingSegment, clues.New("tenant"))
 	}
 
-	if len(resourceOwner) == 0 {
-		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
+	if err := validateServiceResources(srs); err != nil {
+		return err
 	}
 
-	return nil
+	// only the final service is checked for its category validity
+	return ValidateServiceAndCategory(srs[len(srs)-1].Service, cat)
 }
 
 // escapeElement takes a single path element and escapes all characters that

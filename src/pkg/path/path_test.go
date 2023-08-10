@@ -334,14 +334,12 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 				testUser,
 				testElement1,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -351,8 +349,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -366,14 +363,12 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 				testUser,
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -383,8 +378,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -393,21 +387,27 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	}
 
 	for service, cats := range serviceCategories {
+
 		for cat := range cats {
+
 			for _, item := range isItem {
 				suite.Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func() {
+
 					for _, test := range table {
 						suite.Run(test.name, func() {
-							t := suite.T()
-							testPath := fmt.Sprintf(test.unescapedPath, service, cat)
+							var (
+								t        = suite.T()
+								testPath = fmt.Sprintf(test.unescapedPath, service, cat)
+								sr       = ServiceResource{service, testUser}
+							)
 
 							p, err := FromDataLayerPath(testPath, item.isItem)
 							require.NoError(t, err, clues.ToCore(err))
 
-							assert.Equal(t, service, p.Service(), "service")
+							assert.Len(t, p.ServiceResources(), 1, "service resources")
+							assert.Equal(t, sr, p.ServiceResources()[0], "service resource")
 							assert.Equal(t, cat, p.Category(), "category")
 							assert.Equal(t, testTenant, p.Tenant(), "tenant")
-							assert.Equal(t, testUser, p.ResourceOwner(), "resource owner")
 
 							fld := p.Folder(false)
 							escfld := p.Folder(true)
@@ -435,44 +435,74 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 func (suite *PathUnitSuite) TestBuildPrefix() {
 	table := []struct {
 		name      string
-		service   ServiceType
-		category  CategoryType
 		tenant    string
-		owner     string
+		srs       []ServiceResource
+		category  CategoryType
 		expect    string
 		expectErr require.ErrorAssertionFunc
 	}{
 		{
 			name:      "ok",
-			service:   ExchangeService,
-			category:  ContactsCategory,
 			tenant:    "t",
-			owner:     "ro",
-			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String()}),
+			srs:       []ServiceResource{{ExchangeService, "roo"}},
+			category:  ContactsCategory,
+			expect:    join([]string{"t", ExchangeService.String(), "roo", ContactsCategory.String()}),
+			expectErr: require.NoError,
+		},
+		{
+			name:   "ok with subservice",
+			tenant: "t",
+			srs: []ServiceResource{
+				{GroupsService, "roo"},
+				{SharePointService, "oor"},
+			},
+			category: LibrariesCategory,
+			expect: join([]string{
+				"t",
+				GroupsService.String(), "roo",
+				SharePointService.String(), "oor",
+				LibrariesCategory.String()}),
 			expectErr: require.NoError,
 		},
 		{
 			name:      "bad category",
-			service:   ExchangeService,
+			srs:       []ServiceResource{{ExchangeService, "roo"}},
 			category:  FilesCategory,
 			tenant:    "t",
-			owner:     "ro",
 			expectErr: require.Error,
 		},
 		{
 			name:      "bad tenant",
-			service:   ExchangeService,
-			category:  ContactsCategory,
 			tenant:    "",
-			owner:     "ro",
+			srs:       []ServiceResource{{ExchangeService, "roo"}},
+			category:  ContactsCategory,
 			expectErr: require.Error,
 		},
 		{
-			name:      "bad owner",
-			service:   ExchangeService,
-			category:  ContactsCategory,
+			name:      "bad resource",
 			tenant:    "t",
-			owner:     "",
+			srs:       []ServiceResource{{ExchangeService, ""}},
+			category:  ContactsCategory,
+			expectErr: require.Error,
+		},
+		{
+			name:   "bad subservice",
+			tenant: "t",
+			srs: []ServiceResource{
+				{ExchangeService, "roo"},
+				{OneDriveService, "oor"},
+			},
+			category:  FilesCategory,
+			expectErr: require.Error,
+		},
+		{
+			name:   "bad subservice resource",
+			tenant: "t",
+			srs: []ServiceResource{
+				{GroupsService, "roo"},
+				{SharePointService, ""},
+			},
+			category:  LibrariesCategory,
 			expectErr: require.Error,
 		},
 	}
@@ -480,7 +510,7 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			r, err := BuildPrefix(test.tenant, test.owner, test.service, test.category)
+			r, err := BuildPrefix(test.tenant, test.srs, test.category)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if r == nil {
