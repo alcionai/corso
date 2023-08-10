@@ -79,7 +79,13 @@ func BaseCollections(
 	for cat := range categories {
 		ictx := clues.Add(ctx, "base_service", service, "base_category", cat)
 
-		full, err := path.BuildPrefix(tenant, rOwner, service, cat)
+		full, err := path.BuildPrefix(
+			tenant,
+			[]path.ServiceResource{{
+				Service:           service,
+				ProtectedResource: rOwner,
+			}},
+			cat)
 		if err != nil {
 			// Shouldn't happen.
 			err = clues.Wrap(err, "making path").WithClues(ictx)

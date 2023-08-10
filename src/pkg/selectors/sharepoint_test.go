@@ -417,10 +417,12 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			srs, err := path.NewServiceResources(path.SharePointService, "site")
+			require.NoError(t, err, clues.ToCore(err))
+
 			itemPath, err := path.Build(
 				"tenant",
-				"site",
-				path.SharePointService,
+				srs,
 				test.sc.PathType(),
 				true,
 				test.pathElems...)

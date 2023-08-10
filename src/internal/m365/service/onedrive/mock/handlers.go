@@ -161,8 +161,10 @@ type pathPrefixer func(tID, ro, driveID string) (path.Path, error)
 var defaultOneDrivePathPrefixer = func(tID, ro, driveID string) (path.Path, error) {
 	return path.Build(
 		tID,
-		ro,
-		path.OneDriveService,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: ro,
+		}},
 		path.FilesCategory,
 		false,
 		odConsts.DrivesPathDir,
@@ -173,8 +175,10 @@ var defaultOneDrivePathPrefixer = func(tID, ro, driveID string) (path.Path, erro
 var defaultSharePointPathPrefixer = func(tID, ro, driveID string) (path.Path, error) {
 	return path.Build(
 		tID,
-		ro,
-		path.SharePointService,
+		[]path.ServiceResource{{
+			Service:           path.SharePointService,
+			ProtectedResource: ro,
+		}},
 		path.LibrariesCategory,
 		false,
 		odConsts.DrivesPathDir,

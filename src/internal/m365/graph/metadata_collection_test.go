@@ -30,8 +30,10 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 
 	p, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"foo")
@@ -72,8 +74,10 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 
 	p, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"foo")

@@ -812,8 +812,10 @@ func runCreateDestinationTest(
 
 	path1, err := path.Build(
 		tenantID,
-		userID,
-		svc,
+		[]path.ServiceResource{{
+			Service:           svc,
+			ProtectedResource: userID,
+		}},
 		category,
 		false,
 		containerNames1...)
@@ -833,8 +835,10 @@ func runCreateDestinationTest(
 
 	path2, err := path.Build(
 		tenantID,
-		userID,
-		svc,
+		[]path.ServiceResource{{
+			Service:           svc,
+			ProtectedResource: userID,
+		}},
 		category,
 		false,
 		containerNames2...)

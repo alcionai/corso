@@ -75,8 +75,10 @@ func MakeMetadataCollection(
 
 	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
 		tenant,
-		resourceOwner,
-		service,
+		[]path.ServiceResource{{
+			Service:           service,
+			ProtectedResource: resourceOwner,
+		}},
 		cat,
 		false)
 	if err != nil {

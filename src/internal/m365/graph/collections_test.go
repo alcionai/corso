@@ -24,16 +24,44 @@ func (suite *CollectionsUnitSuite) TestNewPrefixCollection() {
 	serv := path.OneDriveService
 	cat := path.FilesCategory
 
-	p1, err := path.BuildPrefix("t", "ro1", serv, cat)
+	p1, err := path.BuildPrefix(
+		"t",
+		[]path.ServiceResource{{
+			Service:           serv,
+			ProtectedResource: "ro1",
+		}},
+		cat)
 	require.NoError(t, err, clues.ToCore(err))
 
-	p2, err := path.BuildPrefix("t", "ro2", serv, cat)
+	p2, err := path.BuildPrefix(
+		"t",
+		[]path.ServiceResource{{
+			Service:           serv,
+			ProtectedResource: "ro2",
+		}},
+		cat)
 	require.NoError(t, err, clues.ToCore(err))
 
-	items, err := path.Build("t", "ro", serv, cat, true, "fld", "itm")
+	items, err := path.Build(
+		"t",
+		[]path.ServiceResource{{
+			Service:           serv,
+			ProtectedResource: "ro",
+		}},
+		cat,
+		true,
+		"fld", "itm")
 	require.NoError(t, err, clues.ToCore(err))
 
-	folders, err := path.Build("t", "ro", serv, cat, false, "fld")
+	folders, err := path.Build(
+		"t",
+		[]path.ServiceResource{{
+			Service:           serv,
+			ProtectedResource: "ro",
+		}},
+		cat,
+		false,
+		"fld")
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {

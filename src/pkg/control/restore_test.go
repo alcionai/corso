@@ -104,7 +104,17 @@ func (suite *RestoreUnitSuite) TestEnsureRestoreConfigDefaults() {
 }
 
 func (suite *RestoreUnitSuite) TestRestoreConfig_piiHandling() {
-	p, err := path.Build("tid", "ro", path.ExchangeService, path.EmailCategory, true, "foo", "bar", "baz")
+	p, err := path.Build(
+		"tid",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "ro",
+		}},
+		path.EmailCategory,
+		true,
+		"foo",
+		"bar",
+		"baz")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	cdrc := control.DefaultRestoreConfig(dttm.HumanReadable)

@@ -291,11 +291,15 @@ func checkMetadataFilesExist(
 
 			paths := []path.RestorePaths{}
 			pathsByRef := map[string][]string{}
+			srs := []path.ServiceResource{{
+				Service:           service,
+				ProtectedResource: resourceOwner,
+			}}
 
 			for _, fName := range files {
 				p, err := path.Builder{}.
 					Append(fName).
-					ToServiceCategoryMetadataPath(tenant, resourceOwner, service, category, true)
+					ToServiceCategoryMetadataPath(tenant, srs, category, true)
 				if !assert.NoError(t, err, "bad metadata path", clues.ToCore(err)) {
 					continue
 				}

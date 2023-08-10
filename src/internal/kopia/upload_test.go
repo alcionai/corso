@@ -364,8 +364,10 @@ func TestCorsoProgressUnitSuite(t *testing.T) {
 func (suite *CorsoProgressUnitSuite) SetupSuite() {
 	p, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: testUser,
+		}},
 		path.EmailCategory,
 		true,
 		testInboxDir, "testFile")
@@ -2865,16 +2867,40 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 		migratedUser = "user_migrate"
 	)
 
-	oldPrefixPathEmail, err := path.BuildPrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	oldPrefixPathEmail, err := path.BuildPrefix(
+		testTenant,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: testUser,
+		}},
+		path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newPrefixPathEmail, err := path.BuildPrefix(testTenant, migratedUser, path.ExchangeService, path.EmailCategory)
+	newPrefixPathEmail, err := path.BuildPrefix(
+		testTenant,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: migratedUser,
+		}},
+		path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	oldPrefixPathCont, err := path.BuildPrefix(testTenant, testUser, path.ExchangeService, path.ContactsCategory)
+	oldPrefixPathCont, err := path.BuildPrefix(
+		testTenant,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: testUser,
+		}},
+		path.ContactsCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newPrefixPathCont, err := path.BuildPrefix(testTenant, migratedUser, path.ExchangeService, path.ContactsCategory)
+	newPrefixPathCont, err := path.BuildPrefix(
+		testTenant,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: migratedUser,
+		}},
+		path.ContactsCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (

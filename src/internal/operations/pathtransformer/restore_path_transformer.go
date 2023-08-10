@@ -44,8 +44,7 @@ func basicLocationPath(repoRef path.Path, locRef *path.Builder) (path.Path, erro
 	if len(locRef.Elements()) == 0 {
 		res, err := path.BuildPrefix(
 			repoRef.Tenant(),
-			repoRef.ResourceOwner(),
-			repoRef.Service(),
+			repoRef.ServiceResources(),
 			repoRef.Category())
 		if err != nil {
 			return nil, clues.Wrap(err, "getting prefix for empty location")
@@ -56,8 +55,7 @@ func basicLocationPath(repoRef path.Path, locRef *path.Builder) (path.Path, erro
 
 	return locRef.ToDataLayerPath(
 		repoRef.Tenant(),
-		repoRef.ResourceOwner(),
-		repoRef.Service(),
+		repoRef.ServiceResources(),
 		repoRef.Category(),
 		false)
 }

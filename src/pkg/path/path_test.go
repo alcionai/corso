@@ -387,12 +387,9 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	}
 
 	for service, cats := range serviceCategories {
-
 		for cat := range cats {
-
 			for _, item := range isItem {
 				suite.Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func() {
-
 					for _, test := range table {
 						suite.Run(test.name, func() {
 							var (
@@ -461,7 +458,8 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 				"t",
 				GroupsService.String(), "roo",
 				SharePointService.String(), "oor",
-				LibrariesCategory.String()}),
+				LibrariesCategory.String(),
+			}),
 			expectErr: require.NoError,
 		},
 		{

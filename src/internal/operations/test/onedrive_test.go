@@ -213,7 +213,13 @@ func runDriveIncrementalTest(
 		}
 	)
 
-	rrPfx, err := path.BuildPrefix(atid, roidn.ID(), service, category)
+	rrPfx, err := path.BuildPrefix(
+		atid,
+		[]path.ServiceResource{{
+			Service:           service,
+			ProtectedResource: roidn.ID(),
+		}},
+		category)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// strip the category from the prefix; we primarily want the tenant and resource owner.

@@ -343,8 +343,10 @@ func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Ite
 func (f failingColl) FullPath() path.Path {
 	tmp, err := path.Build(
 		"tenant",
-		"user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "user",
+		}},
 		path.EmailCategory,
 		false,
 		"inbox")
@@ -1267,8 +1269,10 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	oldPath1 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := location.Append("1").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ProtectedResource.ID(),
-			path.ExchangeService,
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: qp.ProtectedResource.ID(),
+			}},
 			cat,
 			false)
 		require.NoError(t, err, clues.ToCore(err))
@@ -1279,8 +1283,10 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	oldPath2 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := location.Append("2").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ProtectedResource.ID(),
-			path.ExchangeService,
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: qp.ProtectedResource.ID(),
+			}},
 			cat,
 			false)
 		require.NoError(t, err, clues.ToCore(err))
@@ -1291,8 +1297,10 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	idPath1 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := path.Builder{}.Append("1").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ProtectedResource.ID(),
-			path.ExchangeService,
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: qp.ProtectedResource.ID(),
+			}},
 			cat,
 			false)
 		require.NoError(t, err, clues.ToCore(err))
@@ -1303,8 +1311,10 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 	idPath2 := func(t *testing.T, cat path.CategoryType) path.Path {
 		res, err := path.Builder{}.Append("2").ToDataLayerPath(
 			suite.creds.AzureTenantID,
-			qp.ProtectedResource.ID(),
-			path.ExchangeService,
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: qp.ProtectedResource.ID(),
+			}},
 			cat,
 			false)
 		require.NoError(t, err, clues.ToCore(err))
@@ -1706,7 +1716,15 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 	)
 
 	prevPath := func(t *testing.T, at ...string) path.Path {
-		p, err := path.Build(tenantID, userID, path.ExchangeService, cat, false, at...)
+		p, err := path.Build(
+			tenantID,
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: userID,
+			}},
+			cat,
+			false,
+			at...)
 		require.NoError(t, err, clues.ToCore(err))
 
 		return p

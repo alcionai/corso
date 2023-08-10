@@ -220,8 +220,10 @@ func makeMetadataBasePath(
 
 	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
 		tenant,
-		resourceOwner,
-		service,
+		[]path.ServiceResource{{
+			Service:           service,
+			ProtectedResource: resourceOwner,
+		}},
 		category,
 		false)
 	require.NoError(t, err, clues.ToCore(err))
@@ -1641,7 +1643,15 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 	pathElements := []string{odConsts.DrivesPathDir, "drive-id", odConsts.RootPathDir, folderID}
 
-	tmp, err := path.Build(tenantID, userID, path.OneDriveService, path.FilesCategory, false, pathElements...)
+	tmp, err := path.Build(
+		tenantID,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: userID,
+		}},
+		path.FilesCategory,
+		false,
+		pathElements...)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	locPath := path.Builder{}.Append(tmp.Folders()...)
@@ -1921,7 +1931,15 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 	pathElements := []string{odConsts.DrivesPathDir, "drive-id", odConsts.RootPathDir, folderID}
 
-	tmp, err := path.Build(tenantID, userID, path.OneDriveService, path.FilesCategory, false, pathElements...)
+	tmp, err := path.Build(
+		tenantID,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: userID,
+		}},
+		path.FilesCategory,
+		false,
+		pathElements...)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	locPath := path.Builder{}.Append(tmp.Folders()...)

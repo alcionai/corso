@@ -19,7 +19,15 @@ const itemID = "item_id"
 
 var (
 	err         error
-	itemPath, _ = path.Build("tid", "own", path.ExchangeService, path.ContactsCategory, false, "foo")
+	itemPath, _ = path.Build(
+		"tid",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "own",
+		}},
+		path.ContactsCategory,
+		false,
+		"foo")
 )
 
 // ---------------------------------------------------------------------------

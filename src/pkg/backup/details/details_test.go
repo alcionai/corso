@@ -1053,8 +1053,10 @@ func makeItemPath(
 
 	p, err := path.Build(
 		tenant,
-		resourceOwner,
-		service,
+		[]path.ServiceResource{{
+			Service:           service,
+			ProtectedResource: resourceOwner,
+		}},
 		category,
 		true,
 		elems...)

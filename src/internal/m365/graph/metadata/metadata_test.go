@@ -92,8 +92,10 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_MetaSuffixes() {
 
 				p, err := path.Build(
 					tenant,
-					user,
-					test.service,
+					[]path.ServiceResource{{
+						Service:           test.service,
+						ProtectedResource: user,
+					}},
 					test.category,
 					true,
 					"file"+ext)
@@ -113,8 +115,10 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_NotMetaSuffixes() {
 
 				p, err := path.Build(
 					tenant,
-					user,
-					test.service,
+					[]path.ServiceResource{{
+						Service:           test.service,
+						ProtectedResource: user,
+					}},
 					test.category,
 					true,
 					"file"+ext)
@@ -136,8 +140,10 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Directories() {
 
 				p, err := path.Build(
 					tenant,
-					user,
-					test.service,
+					[]path.ServiceResource{{
+						Service:           test.service,
+						ProtectedResource: user,
+					}},
 					test.category,
 					false,
 					"file"+ext)
