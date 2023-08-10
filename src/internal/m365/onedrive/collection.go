@@ -516,7 +516,7 @@ func (oc *Collection) populateDriveItem(
 	itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 	if err != nil {
 		// Skip deleted items
-		if !clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+		if !clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) && !graph.IsErrDeletedInFlight(err) {
 			errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 		}
 
