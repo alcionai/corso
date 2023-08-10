@@ -120,7 +120,7 @@ func (suite *GroupsIntgSuite) TestGetAllTeams() {
 		Groups().
 		GetTeams(ctx, fault.New(true))
 	require.NoError(t, err)
-	require.NotZero(t, len(teams), "must have at least one group")
+	require.NotZero(t, len(teams), "must have at least one teams")
 
 	groups, err := suite.its.ac.
 		Groups().

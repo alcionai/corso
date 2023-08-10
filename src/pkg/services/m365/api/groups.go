@@ -64,7 +64,7 @@ func (c Groups) GetTeams(
 		return nil, err
 	}
 
-	return FetchOnlyTeams(ctx, groups), nil
+	return OnlyTeams(ctx, groups), nil
 }
 
 // GetAll retrieves all groups.
@@ -113,9 +113,11 @@ func getGroups(
 	return groups, el.Failure()
 }
 
-func FetchOnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
-	log := logger.Ctx(ctx)
-	var teams []models.Groupable
+func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
+	var (
+		log   = logger.Ctx(ctx)
+		teams []models.Groupable
+	)
 
 	for _, g := range groups {
 		if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
@@ -176,7 +178,7 @@ func (c Groups) GetTeamByID(
 
 	groups := []models.Groupable{resp}
 
-	if len(FetchOnlyTeams(ctx, groups)) == 0 {
+	if len(OnlyTeams(ctx, groups)) == 0 {
 		err := clues.New("given teamID is not related to any team")
 
 		return nil, err
