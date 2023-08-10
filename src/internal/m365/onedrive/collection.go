@@ -512,14 +512,11 @@ func (oc *Collection) populateDriveItem(
 		metaSuffix = metadata.DirMetaFileSuffix
 	}
 
-	// Fetch metadata for the file
+	// Fetch metadata for the item
 	itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 	if err != nil {
 		// Skip deleted items
-		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
-			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
-			errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, oc.driveID, itemID, itemName, graph.ItemInfo(item)))
-		} else {
+		if !clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 		}
 
