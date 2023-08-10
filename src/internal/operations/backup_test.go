@@ -1950,7 +1950,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				f := files["file1"]
 				require.NotNil(t, f)
 
-				require.Equal(t, T1, f.OneDrive.Modified)
+				require.True(t, T1.Equal(f.Modified()))
 				require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 			},
 		},
@@ -1978,10 +1978,10 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(t, T1, f.OneDrive.Modified)
+						require.True(t, T1.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					case "file2":
-						require.Equal(t, T2, f.OneDrive.Modified)
+						require.True(t, T2.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
 						require.Fail(t, "unexpected file", f.ItemRef)
@@ -2013,13 +2013,13 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(t, T1, f.OneDrive.Modified)
+						require.True(t, T1.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					case "file2":
-						require.Equal(t, T2, f.OneDrive.Modified)
+						require.True(t, T2.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					case "file3":
-						require.Equal(t, T3, f.OneDrive.Modified)
+						require.True(t, T3.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
 						require.Fail(t, "unexpected file", f.ItemRef)
@@ -2072,7 +2072,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(t, T1, f.OneDrive.Modified)
+						require.True(t, T1.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
 						require.Fail(t, "unexpected file", f.ItemRef)
@@ -2105,11 +2105,11 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				for _, f := range files {
 					switch f.ItemRef {
 					case "file1":
-						require.Equal(t, T1, f.OneDrive.Modified)
+						require.True(t, T1.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 
 					case "file2":
-						require.Equal(t, T2, f.OneDrive.Modified)
+						require.True(t, T2.Equal(f.Modified()))
 						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
 					default:
 						require.Fail(t, "unexpected file", f.ItemRef)
