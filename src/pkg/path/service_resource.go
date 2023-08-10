@@ -157,13 +157,13 @@ func toMetadataServices(srs []ServiceResource) []ServiceResource {
 		metadataService := UnknownService
 
 		switch sr.Service {
+		// TODO: add groups
 		case ExchangeService:
 			metadataService = ExchangeMetadataService
 		case OneDriveService:
 			metadataService = OneDriveMetadataService
 		case SharePointService:
 			metadataService = SharePointMetadataService
-			// TODO: add groups
 		}
 
 		msr.Service = metadataService

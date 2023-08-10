@@ -1111,9 +1111,11 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				})
 
 				totalItems, _, collections, expectedData, err := stub.CollectionsForInfo(
-					test.service,
 					suite.ctrl.tenant,
-					suite.user,
+					[]path.ServiceResource{{
+						Service:           test.service,
+						ProtectedResource: suite.user,
+					}},
 					restoreCfg,
 					[]stub.ColInfo{collection},
 					version.Backup,

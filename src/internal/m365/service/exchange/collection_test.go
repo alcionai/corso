@@ -89,8 +89,10 @@ func (suite *CollectionSuite) TestColleciton_FullPath() {
 
 	fullPath, err := path.Build(
 		tenant,
-		user,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: user,
+		}},
 		path.EmailCategory,
 		false,
 		folder)
@@ -113,8 +115,10 @@ func (suite *CollectionSuite) TestCollection_NewCollection() {
 
 	fullPath, err := path.Build(
 		tenant,
-		user,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: user,
+		}},
 		path.EmailCategory,
 		false,
 		folder)
@@ -129,9 +133,25 @@ func (suite *CollectionSuite) TestCollection_NewCollection() {
 }
 
 func (suite *CollectionSuite) TestNewCollection_state() {
-	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
+	fooP, err := path.Build(
+		"t",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "u",
+		}},
+		path.EmailCategory,
+		false,
+		"foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
-	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
+	barP, err := path.Build(
+		"t",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "u",
+		}},
+		path.EmailCategory,
+		false,
+		"bar")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	locPB := path.Builder{}.Append("human-readable")

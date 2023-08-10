@@ -78,8 +78,10 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 
 	pth, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data")
@@ -330,8 +332,10 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 
 	pth, err := path.Build(
 		tenant,
-		user,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: user,
+		}},
 		category,
 		false,
 		folder1, folder2)

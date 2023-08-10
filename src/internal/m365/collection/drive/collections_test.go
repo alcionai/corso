@@ -1248,8 +1248,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 
 	metadataPath, err := path.Builder{}.ToServiceCategoryMetadataPath(
 		tenant,
-		user,
-		path.OneDriveService,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: user,
+		}},
 		path.FilesCategory,
 		false)
 	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))

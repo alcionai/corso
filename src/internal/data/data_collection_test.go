@@ -21,11 +21,35 @@ func TestDataCollectionSuite(t *testing.T) {
 }
 
 func (suite *DataCollectionSuite) TestStateOf() {
-	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
+	fooP, err := path.Build(
+		"t",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "u",
+		}},
+		path.EmailCategory,
+		false,
+		"foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
-	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
+	barP, err := path.Build(
+		"t",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "u",
+		}},
+		path.EmailCategory,
+		false,
+		"bar")
 	require.NoError(suite.T(), err, clues.ToCore(err))
-	preP, err := path.Build("_t", "_u", path.ExchangeService, path.EmailCategory, false, "foo")
+	preP, err := path.Build(
+		"_t",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "u",
+		}},
+		path.EmailCategory,
+		false,
+		"foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {

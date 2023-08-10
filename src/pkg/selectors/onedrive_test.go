@@ -314,7 +314,15 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	shortRef := "short"
 	elems := []string{odConsts.DrivesPathDir, "driveID", odConsts.RootPathDir, "dir1.d", "dir2.d", fileID}
 
-	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
+	filePath, err := path.Build(
+		"tenant",
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: "user",
+		}},
+		path.FilesCategory,
+		true,
+		elems...)
 	require.NoError(t, err, clues.ToCore(err))
 
 	fileLoc := path.Builder{}.Append("dir1", "dir2")
@@ -351,8 +359,10 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 
 			itemPath, err := path.Build(
 				"tenant",
-				"site",
-				path.OneDriveService,
+				[]path.ServiceResource{{
+					Service:           path.OneDriveService,
+					ProtectedResource: "site",
+				}},
 				path.FilesCategory,
 				true,
 				test.pathElems...)

@@ -42,8 +42,10 @@ func runComputeParentPermissionsTest(
 
 	entry, err := path.Build(
 		"tenant",
-		resourceOwner,
-		service,
+		[]path.ServiceResource{{
+			Service:           service,
+			ProtectedResource: resourceOwner,
+		}},
 		category,
 		false,
 		strings.Split(entryPath, "/")...)
@@ -51,8 +53,10 @@ func runComputeParentPermissionsTest(
 
 	rootEntry, err := path.Build(
 		"tenant",
-		resourceOwner,
-		service,
+		[]path.ServiceResource{{
+			Service:           service,
+			ProtectedResource: resourceOwner,
+		}},
 		category,
 		false,
 		strings.Split(rootEntryPath, "/")...)

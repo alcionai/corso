@@ -177,7 +177,7 @@ type collection struct {
 
 func buildCollections(
 	service path.ServiceType,
-	tenant, user string,
+	tenant, protectedResource string,
 	restoreCfg control.RestoreConfig,
 	colls []collection,
 ) ([]data.RestoreCollection, error) {
@@ -186,8 +186,10 @@ func buildCollections(
 	for _, c := range colls {
 		pth, err := path.Build(
 			tenant,
-			user,
-			service,
+			[]path.ServiceResource{{
+				Service:           service,
+				ProtectedResource: protectedResource,
+			}},
 			c.category,
 			false,
 			c.PathElements...)

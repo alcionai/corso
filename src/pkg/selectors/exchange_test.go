@@ -816,7 +816,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 
 		joinedFldrs := strings.Join(newElems, "/")
 
-		return stubRepoRef(p.Service(), p.Category(), p.ResourceOwner(), joinedFldrs, p.Item())
+		sr0 := p.ServiceResources()[0]
+
+		return stubRepoRef(sr0.Service, p.Category(), sr0.ProtectedResource, joinedFldrs, p.Item())
 	}
 
 	makeDeets := func(refs ...path.Path) *details.Details {

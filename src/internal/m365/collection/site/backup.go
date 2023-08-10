@@ -93,8 +93,10 @@ func CollectPages(
 
 		dir, err := path.Build(
 			creds.AzureTenantID,
-			bpc.ProtectedResource.ID(),
-			path.SharePointService,
+			[]path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: bpc.ProtectedResource.ID(),
+			}},
 			path.PagesCategory,
 			false,
 			tuple.Name)
@@ -144,8 +146,10 @@ func CollectLists(
 
 		dir, err := path.Build(
 			tenantID,
-			bpc.ProtectedResource.ID(),
-			path.SharePointService,
+			[]path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: bpc.ProtectedResource.ID(),
+			}},
 			path.ListsCategory,
 			false,
 			tuple.Name)

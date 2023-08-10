@@ -84,8 +84,8 @@ func GetCollectionsAndExpected(
 }
 
 func CollectionsForInfo(
-	service path.ServiceType,
-	tenant, user string,
+	tenant string,
+	srs []path.ServiceResource,
 	restoreCfg control.RestoreConfig,
 	allInfo []ColInfo,
 	backupVersion int,
@@ -100,8 +100,7 @@ func CollectionsForInfo(
 	for _, info := range allInfo {
 		pth, err := path.Build(
 			tenant,
-			user,
-			service,
+			srs,
 			info.Category,
 			false,
 			info.PathElements...)

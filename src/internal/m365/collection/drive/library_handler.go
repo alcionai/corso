@@ -41,8 +41,10 @@ func (h libraryBackupHandler) PathPrefix(
 ) (path.Path, error) {
 	return path.Build(
 		tenantID,
-		resourceOwner,
-		path.SharePointService,
+		[]path.ServiceResource{{
+			Service:           path.SharePointService,
+			ProtectedResource: resourceOwner,
+		}},
 		path.LibrariesCategory,
 		false,
 		odConsts.DrivesPathDir,

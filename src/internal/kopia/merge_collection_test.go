@@ -32,8 +32,10 @@ func (suite *MergeCollectionUnitSuite) TestReturnsPath() {
 
 	pth, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data")
@@ -61,8 +63,10 @@ func (suite *MergeCollectionUnitSuite) TestItems() {
 
 	pth, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data")
@@ -101,8 +105,10 @@ func (suite *MergeCollectionUnitSuite) TestAddCollection_DifferentPathFails() {
 
 	pth1, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data")
@@ -110,8 +116,10 @@ func (suite *MergeCollectionUnitSuite) TestAddCollection_DifferentPathFails() {
 
 	pth2, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data2")
@@ -142,8 +150,10 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 
 	pth, err := path.Build(
 		"a-tenant",
-		"a-user",
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: "a-user",
+		}},
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data")

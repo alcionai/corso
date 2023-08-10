@@ -111,8 +111,10 @@ func migrationCollections(
 	// backup, onedrive needs to force the owner PN -> ID migration
 	mc, err := path.BuildPrefix(
 		tenant,
-		bpc.ProtectedResource.ID(),
-		path.OneDriveService,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: bpc.ProtectedResource.ID(),
+		}},
 		path.FilesCategory)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating user id migration path")
@@ -120,8 +122,10 @@ func migrationCollections(
 
 	mpc, err := path.BuildPrefix(
 		tenant,
-		bpc.ProtectedResource.Name(),
-		path.OneDriveService,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: bpc.ProtectedResource.Name(),
+		}},
 		path.FilesCategory)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating user name migration path")

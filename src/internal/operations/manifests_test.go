@@ -344,7 +344,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					assert.Equal(
 						t,
 						path.ExchangeMetadataService,
-						p.Service(),
+						p.ServiceResources()[0].Service,
 						"read data service")
 
 					assert.Contains(
@@ -354,8 +354,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 							path.ContactsCategory,
 						},
 						p.Category(),
-						"read data category doesn't match a given reason",
-					)
+						"read data category doesn't match a given reason")
 				}
 			},
 			expectMans: kopia.NewMockBackupBases().WithMergeBases(

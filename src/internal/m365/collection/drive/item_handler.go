@@ -46,8 +46,10 @@ func (h itemBackupHandler) PathPrefix(
 ) (path.Path, error) {
 	return path.Build(
 		tenantID,
-		resourceOwner,
-		path.OneDriveService,
+		[]path.ServiceResource{{
+			Service:           path.OneDriveService,
+			ProtectedResource: resourceOwner,
+		}},
 		path.FilesCategory,
 		false,
 		odConsts.DrivesPathDir,

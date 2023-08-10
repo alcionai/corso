@@ -95,8 +95,10 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
-					user,
-					path.SharePointService,
+					[]path.ServiceResource{{
+						Service:           path.SharePointService,
+						ProtectedResource: user,
+					}},
 					path.ListsCategory,
 					false,
 					dirRoot)
@@ -131,8 +133,10 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
-					user,
-					path.SharePointService,
+					[]path.ServiceResource{{
+						Service:           path.SharePointService,
+						ProtectedResource: user,
+					}},
 					path.PagesCategory,
 					false,
 					dirRoot)

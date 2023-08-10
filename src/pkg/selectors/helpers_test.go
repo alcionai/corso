@@ -213,7 +213,15 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer][]string) {
 // stubPath ensures test path production matches that of fullPath design,
 // stubbing out static values where necessary.
 func stubPath(t *testing.T, user string, s []string, cat path.CategoryType) path.Path {
-	pth, err := path.Build("tid", user, path.ExchangeService, cat, true, s...)
+	pth, err := path.Build(
+		"tid",
+		[]path.ServiceResource{{
+			Service:           path.ExchangeService,
+			ProtectedResource: user,
+		}},
+		cat,
+		true,
+		s...)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return pth
