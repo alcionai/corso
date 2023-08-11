@@ -7,8 +7,10 @@ import (
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/net/http2"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -115,4 +117,71 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 	require.NotNil(t, resp)
 	// require.Equal(t, 1, calledCorrectly, "test server was called with expected path")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() {
+	var (
+		url       = "https://graph.microsoft.com/fnords/beaux/regard"
+		streamErr = http2.StreamError{
+			StreamID: 1,
+			Code:     http2.ErrCodeEnhanceYourCalm,
+			Cause:    assert.AnError,
+		}
+	)
+
+	table := []struct {
+		name          string
+		retries       int
+		expectRetries int
+	}{
+		{
+			name:          "zero retries",
+			retries:       0,
+			expectRetries: 0,
+		},
+		{
+			name:          "negative max",
+			retries:       -1,
+			expectRetries: 0,
+		},
+		{
+			name:          "upper limit",
+			retries:       9001,
+			expectRetries: 5,
+		},
+		{
+			name:          "four",
+			retries:       4,
+			expectRetries: 4,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			// -1 to account for the first try,
+			// which isn't a retry.
+			tries := -1
+
+			mwResp := mwForceResp{
+				err: streamErr,
+				alternate: func(*http.Request) (bool, *http.Response, error) {
+					tries++
+					return false, nil, nil
+				},
+			}
+
+			hw := NewHTTPWrapper(
+				appendMiddleware(&mwResp),
+				MaxConnectionRetries(test.retries))
+
+			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
+			require.ErrorAs(t, err, &http2.StreamError{}, clues.ToCore(err))
+
+			require.Equal(t, test.expectRetries, tries, "count of retries")
+		})
+	}
 }

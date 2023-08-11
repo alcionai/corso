@@ -138,6 +138,9 @@ type StreamSize interface {
 }
 
 // StreamModTime is used to provide the modified time of the stream's data.
+//
+// If an item implements StreamModTime and StreamInfo it should return the same
+// value here as in item.Info().Modified().
 type StreamModTime interface {
 	ModTime() time.Time
 }

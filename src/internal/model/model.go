@@ -32,7 +32,10 @@ const (
 
 // common tags for filtering
 const (
-	ServiceTag = "service"
+	ServiceTag    = "service"
+	BackupTypeTag = "backup-type"
+	AssistBackup  = "assist-backup"
+	MergeBackup   = "merge-backup"
 )
 
 // Valid returns true if the ModelType value fits within the iota range.

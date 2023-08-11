@@ -33,7 +33,7 @@ func CreateAdapter(
 		return nil, err
 	}
 
-	httpClient := graph.KiotaHTTPClient(opts...)
+	httpClient, _ := graph.KiotaHTTPClient(opts...)
 
 	// This makes sure that we are able to intercept any requests via
 	// gock. Only necessary for testing.

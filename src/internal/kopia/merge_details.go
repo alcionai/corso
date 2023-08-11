@@ -1,6 +1,8 @@
 package kopia
 
 import (
+	"time"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
@@ -12,14 +14,11 @@ type DetailsMergeInfoer interface {
 	// ItemsToMerge returns the number of items that need to be merged.
 	ItemsToMerge() int
 	// GetNewPathRefs takes the old RepoRef and old LocationRef of an item and
-	// returns the new RepoRef, a prefix of the old LocationRef to replace, and
-	// the new LocationRefPrefix of the item if the item should be merged. If the
+	// returns the new RepoRef and the new location of the item the item. If the
 	// item shouldn't be merged nils are returned.
-	//
-	// If the returned old LocationRef prefix is equal to the old LocationRef then
-	// the entire LocationRef should be replaced with the returned value.
 	GetNewPathRefs(
 		oldRef *path.Builder,
+		modTime time.Time,
 		oldLoc details.LocationIDer,
 	) (path.Path, *path.Builder, error)
 }
@@ -27,6 +26,7 @@ type DetailsMergeInfoer interface {
 type prevRef struct {
 	repoRef path.Path
 	locRef  *path.Builder
+	modTime *time.Time
 }
 
 type mergeDetails struct {
@@ -42,8 +42,12 @@ func (m *mergeDetails) ItemsToMerge() int {
 	return len(m.repoRefs)
 }
 
+// addRepoRef adds an entry in mergeDetails that can be looked up later. If
+// modTime is non-nil then it's checked during lookup. If it is nil then the
+// mod time provided during lookup is ignored.
 func (m *mergeDetails) addRepoRef(
 	oldRef *path.Builder,
+	modTime *time.Time,
 	newRef path.Path,
 	newLocRef *path.Builder,
 ) error {
@@ -58,6 +62,7 @@ func (m *mergeDetails) addRepoRef(
 	pr := prevRef{
 		repoRef: newRef,
 		locRef:  newLocRef,
+		modTime: modTime,
 	}
 
 	m.repoRefs[oldRef.ShortRef()] = pr
@@ -67,10 +72,19 @@ func (m *mergeDetails) addRepoRef(
 
 func (m *mergeDetails) GetNewPathRefs(
 	oldRef *path.Builder,
+	modTime time.Time,
 	oldLoc details.LocationIDer,
 ) (path.Path, *path.Builder, error) {
 	pr, ok := m.repoRefs[oldRef.ShortRef()]
 	if !ok {
+		return nil, nil, nil
+	}
+
+	// ModTimes don't match which means we're attempting to merge a different
+	// version of the item (i.e. an older version from an assist base). We
+	// shouldn't return a match because it could cause us to source out-of-date
+	// details for the item.
+	if pr.modTime != nil && !pr.modTime.Equal(modTime) {
 		return nil, nil, nil
 	}
 

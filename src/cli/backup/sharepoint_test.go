@@ -163,12 +163,11 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 	)
 
 	table := []struct {
-		name            string
-		site            []string
-		weburl          []string
-		data            []string
-		expect          []string
-		expectScopesLen int
+		name   string
+		site   []string
+		weburl []string
+		data   []string
+		expect []string
 	}{
 		{
 			name:   "no sites or urls",
@@ -181,63 +180,54 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 			expect: selectors.None(),
 		},
 		{
-			name:            "site wildcard",
-			site:            []string{flags.Wildcard},
-			expect:          bothIDs,
-			expectScopesLen: 2,
+			name:   "site wildcard",
+			site:   []string{flags.Wildcard},
+			expect: bothIDs,
 		},
 		{
-			name:            "url wildcard",
-			weburl:          []string{flags.Wildcard},
-			expect:          bothIDs,
-			expectScopesLen: 2,
+			name:   "url wildcard",
+			weburl: []string{flags.Wildcard},
+			expect: bothIDs,
 		},
 		{
-			name:            "sites",
-			site:            []string{id1, id2},
-			expect:          []string{id1, id2},
-			expectScopesLen: 2,
+			name:   "sites",
+			site:   []string{id1, id2},
+			expect: []string{id1, id2},
 		},
 		{
-			name:            "urls",
-			weburl:          []string{url1, url2},
-			expect:          []string{url1, url2},
-			expectScopesLen: 2,
+			name:   "urls",
+			weburl: []string{url1, url2},
+			expect: []string{url1, url2},
 		},
 		{
-			name:            "mix sites and urls",
-			site:            []string{id1},
-			weburl:          []string{url2},
-			expect:          []string{id1, url2},
-			expectScopesLen: 2,
+			name:   "mix sites and urls",
+			site:   []string{id1},
+			weburl: []string{url2},
+			expect: []string{id1, url2},
 		},
 		{
-			name:            "duplicate sites and urls",
-			site:            []string{id1, id2},
-			weburl:          []string{url1, url2},
-			expect:          []string{id1, id2, url1, url2},
-			expectScopesLen: 2,
+			name:   "duplicate sites and urls",
+			site:   []string{id1, id2},
+			weburl: []string{url1, url2},
+			expect: []string{id1, id2, url1, url2},
 		},
 		{
-			name:            "unnecessary site wildcard",
-			site:            []string{id1, flags.Wildcard},
-			weburl:          []string{url1, url2},
-			expect:          bothIDs,
-			expectScopesLen: 2,
+			name:   "unnecessary site wildcard",
+			site:   []string{id1, flags.Wildcard},
+			weburl: []string{url1, url2},
+			expect: bothIDs,
 		},
 		{
-			name:            "unnecessary url wildcard",
-			site:            []string{id1},
-			weburl:          []string{url1, flags.Wildcard},
-			expect:          bothIDs,
-			expectScopesLen: 2,
+			name:   "unnecessary url wildcard",
+			site:   []string{id1},
+			weburl: []string{url1, flags.Wildcard},
+			expect: bothIDs,
 		},
 		{
-			name:            "Pages",
-			site:            bothIDs,
-			data:            []string{dataPages},
-			expect:          bothIDs,
-			expectScopesLen: 1,
+			name:   "Pages",
+			site:   bothIDs,
+			data:   []string{dataPages},
+			expect: bothIDs,
 		},
 	}
 	for _, test := range table {
@@ -249,7 +239,7 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 
 			sel, err := sharePointBackupCreateSelectors(ctx, ins, test.site, test.weburl, test.data)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.ElementsMatch(t, test.expect, sel.DiscreteResourceOwners())
+			assert.ElementsMatch(t, test.expect, sel.ResourceOwners.Targets)
 		})
 	}
 }

@@ -79,6 +79,7 @@ func New(
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
+	tags map[string]string,
 ) *Backup {
 	if fe == nil {
 		fe = &fault.Errors{}
@@ -113,10 +114,8 @@ func New(
 
 	return &Backup{
 		BaseModel: model.BaseModel{
-			ID: id,
-			Tags: map[string]string{
-				model.ServiceTag: selector.PathService().String(),
-			},
+			ID:   id,
+			Tags: tags,
 		},
 
 		ResourceOwnerID:   ownerID,

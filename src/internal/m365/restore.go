@@ -7,10 +7,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
-	"github.com/alcionai/corso/src/internal/m365/sharepoint"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -71,7 +72,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	case path.OneDriveService:
 		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
-			onedrive.NewRestoreHandler(ctrl.AC),
+			drive.NewRestoreHandler(ctrl.AC),
 			rcc,
 			ctrl.backupDriveIDNames,
 			dcs,

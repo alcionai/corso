@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/m365/resource"
-	"github.com/alcionai/corso/src/internal/m365/sharepoint"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -307,7 +307,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				bpc,
 				suite.ac,
 				ctrl.credentials,
-				ctrl,
+				ctrl.UpdateStatus,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
