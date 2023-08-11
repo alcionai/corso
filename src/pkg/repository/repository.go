@@ -89,7 +89,7 @@ type Repository interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
-	DeleteBackup(ctx context.Context, id string) error
+	DeleteBackup(ctx context.Context, ids ...string) error
 	BackupGetter
 	// ConnectToM365 establishes graph api connections
 	// and initializes api client configurations.
@@ -630,40 +630,50 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
-// DeleteBackup removes the backup from both the model store and the backup storage.
-func (r repository) DeleteBackup(ctx context.Context, id string) error {
-	return deleteBackup(ctx, id, store.NewWrapper(r.modelStore))
+// DeleteBackup removes the backups from both the model store and the backup
+// storage.
+//
+// All backups are delete as an atomic unit so any failures will result in no
+// deletions.
+func (r repository) DeleteBackup(ctx context.Context, ids ...string) error {
+	return deleteBackup(ctx, store.NewWrapper(r.modelStore), ids...)
 }
 
 // deleteBackup handles the processing for Backup.
 func deleteBackup(
 	ctx context.Context,
-	id string,
 	sw store.BackupGetterModelDeleter,
+	ids ...string,
 ) error {
-	b, err := sw.GetBackup(ctx, model.StableID(id))
-	if err != nil {
-		return clues.Stack(errWrapper(err)).WithClues(ctx)
-	}
-
 	// Although we haven't explicitly stated it, snapshots are technically
 	// manifests in kopia. This means we can use the same delete API to remove
 	// them and backup models. Deleting all of them together gives us both
 	// atomicity guarantees (around when data will be flushed) and helps reduce
 	// the number of manifest blobs that kopia will create.
-	toDelete := []manifest.ID{manifest.ID(b.ModelStoreID)}
+	var toDelete []manifest.ID
 
-	if len(b.SnapshotID) > 0 {
-		toDelete = append(toDelete, manifest.ID(b.SnapshotID))
-	}
+	for _, id := range ids {
+		b, err := sw.GetBackup(ctx, model.StableID(id))
+		if err != nil {
+			return clues.Stack(errWrapper(err)).
+				WithClues(ctx).
+				With("delete_backup_id", id)
+		}
 
-	ssid := b.StreamStoreID
-	if len(ssid) == 0 {
-		ssid = b.DetailsID
-	}
+		toDelete = append(toDelete, b.ModelStoreID)
 
-	if len(ssid) > 0 {
-		toDelete = append(toDelete, manifest.ID(ssid))
+		if len(b.SnapshotID) > 0 {
+			toDelete = append(toDelete, manifest.ID(b.SnapshotID))
+		}
+
+		ssid := b.StreamStoreID
+		if len(ssid) == 0 {
+			ssid = b.DetailsID
+		}
+
+		if len(ssid) > 0 {
+			toDelete = append(toDelete, manifest.ID(ssid))
+		}
 	}
 
 	return sw.DeleteWithModelStoreIDs(ctx, toDelete...)
