@@ -57,7 +57,7 @@ func NewExportOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	ec inject.ExportConsumer,
 	acct account.Account,
 	backupID model.StableID,

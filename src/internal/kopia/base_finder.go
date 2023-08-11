@@ -10,11 +10,11 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 const (
@@ -155,19 +155,19 @@ func normalizeTagKVs(tags map[string]string) map[string]string {
 
 type baseFinder struct {
 	sm snapshotManager
-	bg inject.GetBackuper
+	bg store.BackupGetter
 }
 
 func newBaseFinder(
 	sm snapshotManager,
-	bg inject.GetBackuper,
+	bg store.BackupGetter,
 ) (*baseFinder, error) {
 	if sm == nil {
 		return nil, clues.New("nil snapshotManager")
 	}
 
 	if bg == nil {
-		return nil, clues.New("nil GetBackuper")
+		return nil, clues.New("nil BackupGetter")
 	}
 
 	return &baseFinder{
