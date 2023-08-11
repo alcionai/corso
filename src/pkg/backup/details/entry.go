@@ -50,10 +50,6 @@ type Entry struct {
 	// are only as unique as m365 mail item IDs themselves.
 	ItemRef string `json:"itemRef,omitempty"`
 
-	// Indicates the item was added or updated in this backup
-	// Always `true` for full backups
-	Updated bool `json:"updated"`
-
 	ItemInfo
 }
 

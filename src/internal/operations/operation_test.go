@@ -32,12 +32,12 @@ func (suite *OperationSuite) TestNewOperation() {
 
 func (suite *OperationSuite) TestOperation_Validate() {
 	kwStub := &kopia.Wrapper{}
-	swStub := &store.Wrapper{}
+	swStub := store.NewWrapper(&kopia.ModelStore{})
 
 	table := []struct {
 		name     string
 		kw       *kopia.Wrapper
-		sw       *store.Wrapper
+		sw       store.BackupStorer
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{"good", kwStub, swStub, assert.NoError},

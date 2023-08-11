@@ -13,7 +13,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/pkg/store"
 )
+
+var _ store.Storer = &ModelStore{}
 
 const (
 	stableIDKey        = "stableID"

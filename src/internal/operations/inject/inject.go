@@ -6,8 +6,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -91,12 +89,5 @@ type (
 
 	RepoMaintenancer interface {
 		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
-	}
-
-	GetBackuper interface {
-		GetBackup(
-			ctx context.Context,
-			backupID model.StableID,
-		) (*backup.Backup, error)
 	}
 )
