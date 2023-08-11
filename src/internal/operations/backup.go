@@ -75,7 +75,7 @@ func NewBackupOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	bp inject.BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,

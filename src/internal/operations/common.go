@@ -16,7 +16,7 @@ import (
 func getBackupAndDetailsFromID(
 	ctx context.Context,
 	backupID model.StableID,
-	ms *store.Wrapper,
+	ms store.BackupStorer,
 	detailsStore streamstore.Reader,
 	errs *fault.Bus,
 ) (*backup.Backup, *details.Details, error) {

@@ -36,7 +36,7 @@ type restoreOpDependencies struct {
 	sel  selectors.Selector
 	sss  streamstore.Streamer
 	st   storage.Storage
-	sw   *store.Wrapper
+	sw   store.BackupStorer
 
 	closer func()
 }
@@ -105,7 +105,7 @@ func prepNewTestRestoreOp(
 		return operations.RestoreOperation{}, rod
 	}
 
-	rod.sw = store.NewKopiaStore(rod.kms)
+	rod.sw = store.NewWrapper(rod.kms)
 
 	connectorResource := resource.Users
 	if sel.Service == selectors.ServiceSharePoint {

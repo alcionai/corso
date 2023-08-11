@@ -347,7 +347,7 @@ func (r repository) NewBackupWithLookup(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		ctrl,
 		r.Account,
 		sel,
@@ -371,7 +371,7 @@ func (r repository) NewExport(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		ctrl,
 		r.Account,
 		model.StableID(backupID),
@@ -396,7 +396,7 @@ func (r repository) NewRestore(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		ctrl,
 		r.Account,
 		model.StableID(backupID),
@@ -432,7 +432,7 @@ func (r repository) NewRetentionConfig(
 
 // Backup retrieves a backup by id.
 func (r repository) Backup(ctx context.Context, id string) (*backup.Backup, error) {
-	return getBackup(ctx, id, store.NewKopiaStore(r.modelStore))
+	return getBackup(ctx, id, store.NewWrapper(r.modelStore))
 }
 
 // getBackup handles the processing for Backup.
@@ -455,7 +455,7 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 	var (
 		bups []*backup.Backup
 		errs = fault.New(false)
-		sw   = store.NewKopiaStore(r.modelStore)
+		sw   = store.NewWrapper(r.modelStore)
 	)
 
 	for _, id := range ids {
@@ -475,7 +475,7 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 // BackupsByTag lists all backups in a repository that contain all the tags
 // specified.
 func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
-	sw := store.NewKopiaStore(r.modelStore)
+	sw := store.NewWrapper(r.modelStore)
 	return backupsByTag(ctx, sw, fs)
 }
 
@@ -518,7 +518,7 @@ func (r repository) GetBackupDetails(
 		backupID,
 		r.Account.ID(),
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		errs)
 
 	return deets, bup, errs.Fail(err)
@@ -588,7 +588,7 @@ func (r repository) GetBackupErrors(
 		backupID,
 		r.Account.ID(),
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		errs)
 
 	return fe, bup, errs.Fail(err)
@@ -635,7 +635,7 @@ type snapshotDeleter interface {
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
 func (r repository) DeleteBackup(ctx context.Context, id string) error {
-	return deleteBackup(ctx, id, r.dataLayer, store.NewKopiaStore(r.modelStore))
+	return deleteBackup(ctx, id, r.dataLayer, store.NewWrapper(r.modelStore))
 }
 
 // deleteBackup handles the processing for Backup.

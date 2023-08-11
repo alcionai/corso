@@ -59,7 +59,7 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	rc inject.RestoreConsumer,
 	acct account.Account,
 	backupID model.StableID,
