@@ -23,8 +23,8 @@ type prefixCollection struct {
 	state data.CollectionState
 }
 
-func (c prefixCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Stream {
-	res := make(chan data.Stream)
+func (c prefixCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Item {
+	res := make(chan data.Item)
 	close(res)
 
 	s := support.CreateStatus(ctx, support.Backup, 0, support.CollectionMetrics{}, "")

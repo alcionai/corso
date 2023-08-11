@@ -12,6 +12,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -354,4 +355,14 @@ func ItemWithMetadata(
 		Data:      testMetaJSON,
 		LookupKey: lookupKey,
 	}, nil
+}
+
+func DriveItemInfo() details.ItemInfo {
+	return details.ItemInfo{
+		OneDrive: &details.OneDriveInfo{
+			ItemType: details.OneDriveItem,
+			ItemName: "test.txt",
+			Size:     1,
+		},
+	}
 }

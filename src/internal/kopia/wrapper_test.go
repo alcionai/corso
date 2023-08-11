@@ -24,7 +24,7 @@ import (
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/data/mock"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -79,7 +79,7 @@ func testForFiles(
 		for s := range c.Items(ctx, fault.New(true)) {
 			count++
 
-			fullPath, err := c.FullPath().AppendItem(s.UUID())
+			fullPath, err := c.FullPath().AppendItem(s.ID())
 			require.NoError(t, err, clues.ToCore(err))
 
 			expected, ok := expected[fullPath.String()]
@@ -89,9 +89,9 @@ func testForFiles(
 			require.NoError(t, err, "reading collection item", fullPath, clues.ToCore(err))
 			assert.Equal(t, expected, buf, "comparing collection item", fullPath)
 
-			require.Implements(t, (*data.StreamSize)(nil), s)
+			require.Implements(t, (*data.ItemSize)(nil), s)
 
-			ss := s.(data.StreamSize)
+			ss := s.(data.ItemSize)
 			assert.Equal(t, len(buf), int(ss.Size()))
 		}
 	}
@@ -1108,7 +1108,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			numDeetsEntries: 3,
 			hasMetaDeets:    true,
 			cols: func() []data.BackupCollection {
-				streams := []data.Stream{}
+				streams := []data.Item{}
 				fileNames := []string{
 					testFileName,
 					testFileName + metadata.MetaFileSuffix,
@@ -1119,8 +1119,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					info := baseOneDriveItemInfo
 					info.ItemName = name
 
-					ms := &mock.Stream{
-						ID:       name,
+					ms := &dataMock.Item{
+						ItemID:   name,
 						Reader:   io.NopCloser(&bytes.Buffer{}),
 						ItemSize: 0,
 						ItemInfo: details.ItemInfo{OneDrive: &info},
@@ -1149,8 +1149,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				info := baseOneDriveItemInfo
 				info.ItemName = testFileName
 
-				ms := &mock.Stream{
-					ID:       testFileName,
+				ms := &dataMock.Item{
+					ItemID:   testFileName,
 					Reader:   io.NopCloser(&bytes.Buffer{}),
 					ItemSize: 0,
 					ItemInfo: details.ItemInfo{OneDrive: &info},
@@ -1159,7 +1159,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				mc := &mockBackupCollection{
 					path:    storePath,
 					loc:     locPath,
-					streams: []data.Stream{ms},
+					streams: []data.Item{ms},
 					state:   data.NotMovedState,
 				}
 
@@ -1298,12 +1298,12 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 type mockBackupCollection struct {
 	path    path.Path
 	loc     *path.Builder
-	streams []data.Stream
+	streams []data.Item
 	state   data.CollectionState
 }
 
-func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
-	res := make(chan data.Stream)
+func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)
@@ -1347,36 +1347,42 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		&mockBackupCollection{
 			path: suite.storePath1,
 			loc:  loc1,
-			streams: []data.Stream{
-				&exchMock.Data{
-					ID:     testFileName,
-					Reader: io.NopCloser(bytes.NewReader(testFileData)),
+			streams: []data.Item{
+				&dataMock.Item{
+					ItemID:   testFileName,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:     testFileName2,
-					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
+				&dataMock.Item{
+					ItemID:   testFileName2,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData2)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
 			},
 		},
 		&mockBackupCollection{
 			path: suite.storePath2,
 			loc:  loc2,
-			streams: []data.Stream{
-				&exchMock.Data{
-					ID:     testFileName3,
-					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
+			streams: []data.Item{
+				&dataMock.Item{
+					ItemID:   testFileName3,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:      testFileName4,
-					ReadErr: assert.AnError,
+				&dataMock.Item{
+					ItemID:   testFileName4,
+					ReadErr:  assert.AnError,
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:     testFileName5,
-					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
+				&dataMock.Item{
+					ItemID:   testFileName5,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData5)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:     testFileName6,
-					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
+				&dataMock.Item{
+					ItemID:   testFileName6,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData6)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
 			},
 		},
@@ -1603,9 +1609,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		for _, item := range suite.files[parent.String()] {
 			collection.streams = append(
 				collection.streams,
-				&exchMock.Data{
-					ID:     item.itemPath.Item(),
-					Reader: io.NopCloser(bytes.NewReader(item.data)),
+				&dataMock.Item{
+					ItemID:   item.itemPath.Item(),
+					Reader:   io.NopCloser(bytes.NewReader(item.data)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
 			)
 		}

@@ -4,65 +4,11 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"time"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/extensions"
 )
-
-// ---------------------------------------------------------------------------
-// data.Stream
-// ---------------------------------------------------------------------------
-
-var _ data.Stream = &Data{}
-
-type Data struct {
-	ID            string
-	DriveID       string
-	DriveName     string
-	Reader        io.ReadCloser
-	ReadErr       error
-	Sz            int64
-	ModifiedTime  time.Time
-	Del           bool
-	ExtensionData *details.ExtensionData
-}
-
-func (d *Data) UUID() string       { return d.ID }
-func (d *Data) Deleted() bool      { return d.Del }
-func (d *Data) Size() int64        { return d.Sz }
-func (d *Data) ModTime() time.Time { return d.ModifiedTime }
-
-func (d *Data) ToReader() io.ReadCloser {
-	if d.ReadErr != nil {
-		return io.NopCloser(errReader{d.ReadErr})
-	}
-
-	return d.Reader
-}
-
-func (d *Data) Info() details.ItemInfo {
-	return details.ItemInfo{
-		OneDrive: &details.OneDriveInfo{
-			ItemType:  details.OneDriveItem,
-			ItemName:  "test.txt",
-			Size:      d.Sz,
-			DriveID:   d.DriveID,
-			DriveName: d.DriveName,
-			Modified:  d.ModifiedTime,
-		},
-		Extension: d.ExtensionData,
-	}
-}
-
-type errReader struct {
-	readErr error
-}
-
-func (er errReader) Read([]byte) (int, error) {
-	return 0, er.readErr
-}
 
 // ---------------------------------------------------------------------------
 // FetchItemByNamer
@@ -71,11 +17,11 @@ func (er errReader) Read([]byte) (int, error) {
 var _ data.FetchItemByNamer = &FetchItemByName{}
 
 type FetchItemByName struct {
-	Item data.Stream
+	Item data.Item
 	Err  error
 }
 
-func (f FetchItemByName) FetchItemByName(context.Context, string) (data.Stream, error) {
+func (f FetchItemByName) FetchItemByName(context.Context, string) (data.Item, error) {
 	return f.Item, f.Err
 }
 

@@ -90,7 +90,7 @@ func (suite *MergeCollectionUnitSuite) TestItems() {
 	gotItemNames := []string{}
 
 	for item := range dc.Items(ctx, fault.New(true)) {
-		gotItemNames = append(gotItemNames, item.UUID())
+		gotItemNames = append(gotItemNames, item.ID())
 	}
 
 	assert.ElementsMatch(t, expectedItemNames, gotItemNames)

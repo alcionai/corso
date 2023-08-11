@@ -43,15 +43,15 @@ type Metadata struct {
 }
 
 type Item struct {
-	ID   string
-	Data io.ReadCloser
-	Mod  time.Time
+	ItemID string
+	Data   io.ReadCloser
+	Mod    time.Time
 }
 
 // Deleted implements an interface function. However, OneDrive items are marked
 // as deleted by adding them to the exclude list so this can always return
 // false.
 func (i *Item) Deleted() bool           { return false }
-func (i *Item) UUID() string            { return i.ID }
+func (i *Item) ID() string              { return i.ItemID }
 func (i *Item) ToReader() io.ReadCloser { return i.Data }
 func (i *Item) ModTime() time.Time      { return i.Mod }

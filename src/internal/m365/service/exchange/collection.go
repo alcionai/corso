@@ -26,9 +26,9 @@ import (
 
 var (
 	_ data.BackupCollection = &Collection{}
-	_ data.Stream           = &Stream{}
-	_ data.StreamInfo       = &Stream{}
-	_ data.StreamModTime    = &Stream{}
+	_ data.Item             = &Item{}
+	_ data.ItemInfo         = &Item{}
+	_ data.ItemModTime      = &Item{}
 )
 
 const (
@@ -41,7 +41,7 @@ const (
 type Collection struct {
 	// M365 user
 	user string // M365 user
-	data chan data.Stream
+	data chan data.Item
 
 	// added is a list of existing item IDs that were added to a container
 	added map[string]struct{}
@@ -92,7 +92,7 @@ func NewCollection(
 		added:           make(map[string]struct{}, 0),
 		category:        category,
 		ctrl:            ctrlOpts,
-		data:            make(chan data.Stream, collectionChannelBufferSize),
+		data:            make(chan data.Item, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
 		fullPath:        curr,
 		items:           items,
@@ -109,7 +109,7 @@ func NewCollection(
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
+func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.data
 }
@@ -183,7 +183,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			col.data <- &Stream{
+			col.data <- &Item{
 				id:      id,
 				modTime: time.Now().UTC(), // removed items have no modTime entry.
 				deleted: true,
@@ -247,7 +247,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 			info.ParentPath = col.locationPath.String()
 
-			col.data <- &Stream{
+			col.data <- &Item{
 				id:      id,
 				message: data,
 				info:    info,
@@ -292,8 +292,8 @@ func (col *Collection) finishPopulation(
 	col.statusUpdater(status)
 }
 
-// Stream represents a single item retrieved from exchange
-type Stream struct {
+// Item represents a single item retrieved from exchange
+type Item struct {
 	id string
 	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
 	// going forward. Using []byte for now but I assume we'll have
@@ -308,29 +308,33 @@ type Stream struct {
 	deleted bool
 }
 
-func (od *Stream) UUID() string {
-	return od.id
+func (i *Item) ID() string {
+	return i.id
 }
 
-func (od *Stream) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(od.message))
+func (i *Item) ToReader() io.ReadCloser {
+	return io.NopCloser(bytes.NewReader(i.message))
 }
 
-func (od Stream) Deleted() bool {
-	return od.deleted
+func (i Item) Deleted() bool {
+	return i.deleted
 }
 
-func (od *Stream) Info() details.ItemInfo {
-	return details.ItemInfo{Exchange: od.info}
+func (i *Item) Info() details.ItemInfo {
+	return details.ItemInfo{Exchange: i.info}
 }
 
-func (od *Stream) ModTime() time.Time {
-	return od.modTime
+func (i *Item) ModTime() time.Time {
+	return i.modTime
 }
 
-// NewStream constructor for exchange.Stream object
-func NewStream(identifier string, dataBytes []byte, detail details.ExchangeInfo, modTime time.Time) Stream {
-	return Stream{
+func NewItem(
+	identifier string,
+	dataBytes []byte,
+	detail details.ExchangeInfo,
+	modTime time.Time,
+) Item {
+	return Item{
 		id:      identifier,
 		message: dataBytes,
 		info:    &detail,
