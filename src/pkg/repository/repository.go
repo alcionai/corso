@@ -630,10 +630,6 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
-type snapshotDeleter interface {
-	DeleteSnapshot(ctx context.Context, snapshotID string) error
-}
-
 // DeleteBackup removes the backup from both the model store and the backup storage.
 func (r repository) DeleteBackup(ctx context.Context, id string) error {
 	return deleteBackup(ctx, id, store.NewWrapper(r.modelStore))
