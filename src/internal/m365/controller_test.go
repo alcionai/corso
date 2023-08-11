@@ -1249,11 +1249,11 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 
 func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 	table := []struct {
-		name         string
-		resourceCat  resource.Category
-		selectorFunc func(t *testing.T) selectors.Selector
-		service      path.ServiceType
-		categories   []string
+		name             string
+		resourceCat      resource.Category
+		selectorFunc     func(t *testing.T) selectors.Selector
+		metadataServices []path.ServiceType
+		categories       []string
 	}{
 		{
 			name:        "Exchange",
@@ -1267,7 +1267,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 
 				return sel.Selector
 			},
-			service: path.ExchangeService,
+			metadataServices: []path.ServiceType{path.ExchangeMetadataService},
 			categories: []string{
 				path.EmailCategory.String(),
 				path.ContactsCategory.String(),
@@ -1283,7 +1283,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 
 				return sel.Selector
 			},
-			service: path.OneDriveService,
+			metadataServices: []path.ServiceType{path.OneDriveMetadataService},
 			categories: []string{
 				path.FilesCategory.String(),
 			},
@@ -1302,7 +1302,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 
 				return sel.Selector
 			},
-			service: path.SharePointService,
+			metadataServices: []path.ServiceType{path.SharePointMetadataService},
 			categories: []string{
 				path.LibrariesCategory.String(),
 				// not yet in use
@@ -1365,7 +1365,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 
 				// Ignore metadata collections.
 				fullPath := col.FullPath()
-				if fullPath.Service() != test.service {
+				if path.ServiceResourcesMatchServices(fullPath.ServiceResources(), test.metadataServices) {
 					continue
 				}
 

@@ -491,7 +491,9 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			for _, c := range collections {
-				if c.FullPath().Service() == path.ExchangeMetadataService {
+				if path.ServiceResourcesMatchServices(
+					c.FullPath().ServiceResources(),
+					[]path.ServiceType{path.ExchangeMetadataService}) {
 					continue
 				}
 
@@ -577,7 +579,9 @@ func (suite *BackupIntgSuite) TestDelta() {
 			var metadata data.BackupCollection
 
 			for _, coll := range collections {
-				if coll.FullPath().Service() == path.ExchangeMetadataService {
+				if path.ServiceResourcesMatchServices(
+					coll.FullPath().ServiceResources(),
+					[]path.ServiceType{path.ExchangeMetadataService}) {
 					metadata = coll
 				}
 			}
@@ -611,7 +615,9 @@ func (suite *BackupIntgSuite) TestDelta() {
 			// Delta usage is commented out at the moment, anyway.  So this is currently
 			// a sanity check that the minimum behavior won't break.
 			for _, coll := range collections {
-				if coll.FullPath().Service() != path.ExchangeMetadataService {
+				if !path.ServiceResourcesMatchServices(
+					coll.FullPath().ServiceResources(),
+					[]path.ServiceType{path.ExchangeMetadataService}) {
 					ec, ok := coll.(*Collection)
 					require.True(t, ok, "collection is *Collection")
 					assert.NotNil(t, ec)
@@ -666,7 +672,9 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
+			isMetadata := path.ServiceResourcesMatchServices(
+				edc.FullPath().ServiceResources(),
+				[]path.ServiceType{path.ExchangeMetadataService})
 			streamChannel := edc.Items(ctx, fault.New(true))
 
 			// Verify that each message can be restored
@@ -744,7 +752,9 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 			require.GreaterOrEqual(t, 2, len(edcs), "expected 1 <= num collections <= 2")
 
 			for _, edc := range edcs {
-				isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
+				isMetadata := path.ServiceResourcesMatchServices(
+					edc.FullPath().ServiceResources(),
+					[]path.ServiceType{path.ExchangeMetadataService})
 				count := 0
 
 				for stream := range edc.Items(ctx, fault.New(true)) {
@@ -874,7 +884,10 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			for _, edc := range collections {
 				var isMetadata bool
 
-				if edc.FullPath().Service() != path.ExchangeMetadataService {
+				// FIXME: this doesn't seem right, it's saying "if not metadata, isMetadata = true"
+				if !path.ServiceResourcesMatchServices(
+					edc.FullPath().ServiceResources(),
+					[]path.ServiceType{path.ExchangeMetadataService}) {
 					isMetadata = true
 					assert.Equal(t, test.expected, edc.FullPath().Folder(false))
 				} else {
@@ -1140,7 +1153,9 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 
 				deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
 				for _, c := range collections {
-					if c.FullPath().Service() == path.ExchangeMetadataService {
+					if path.ServiceResourcesMatchServices(
+						c.FullPath().ServiceResources(),
+						[]path.ServiceType{path.ExchangeMetadataService}) {
 						metadatas++
 						continue
 					}
@@ -1491,7 +1506,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 							continue
 						}
 
-						if c.FullPath().Service() == path.ExchangeMetadataService {
+						if path.ServiceResourcesMatchServices(
+							c.FullPath().ServiceResources(),
+							[]path.ServiceType{path.ExchangeMetadataService}) {
 							metadatas++
 							checkMetadata(t, ctx, qp.Category, test.expectMetadata(t, qp.Category), c)
 							continue
@@ -1650,7 +1667,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 
 			deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
 			for _, c := range collections {
-				if c.FullPath().Service() == path.ExchangeMetadataService {
+				if path.ServiceResourcesMatchServices(
+					c.FullPath().ServiceResources(),
+					[]path.ServiceType{path.ExchangeMetadataService}) {
 					metadatas++
 					continue
 				}
@@ -2082,7 +2101,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 
 						require.NotNil(t, p)
 
-						if p.Service() == path.ExchangeMetadataService {
+						if path.ServiceResourcesMatchServices(
+							c.FullPath().ServiceResources(),
+							[]path.ServiceType{path.ExchangeMetadataService}) {
 							metadatas++
 							continue
 						}

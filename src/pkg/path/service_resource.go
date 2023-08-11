@@ -2,6 +2,7 @@ package path
 
 import (
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
@@ -84,11 +85,13 @@ func ServiceResourcesToResources(srs []ServiceResource) []string {
 	return prs
 }
 
-// ---------------------------------------------------------------------------
-// Unexported Helpers
-// ---------------------------------------------------------------------------
+func ServiceResourcesMatchServices(srs []ServiceResource, sts []ServiceType) bool {
+	return slices.EqualFunc(srs, sts, func(sr ServiceResource, st ServiceType) bool {
+		return sr.Service == st
+	})
+}
 
-func serviceResourcesToElements(srs []ServiceResource) Elements {
+func ServiceResourcesToElements(srs []ServiceResource) Elements {
 	es := make(Elements, 0, len(srs)*2)
 
 	for _, tuple := range srs {
@@ -98,6 +101,10 @@ func serviceResourcesToElements(srs []ServiceResource) Elements {
 
 	return es
 }
+
+// ---------------------------------------------------------------------------
+// Unexported Helpers
+// ---------------------------------------------------------------------------
 
 // elementsToServiceResources turns as many pairs of elems as possible
 // into ServiceResource tuples.  Elems must begin with a service, but

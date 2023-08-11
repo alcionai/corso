@@ -515,7 +515,7 @@ func streamBaseEntries(
 		// TODO(ashmrtn): We may eventually want to make this a function that is
 		// passed in so that we can more easily switch it between different external
 		// service provider implementations.
-		if !metadata.IsMetadataFile(itemPath) {
+		if !metadata.IsMetadataFilePath(itemPath) {
 			// All items have item info in the base backup. However, we need to make
 			// sure we have enough metadata to find those entries. To do that we add
 			// the item to progress and having progress aggregate everything for

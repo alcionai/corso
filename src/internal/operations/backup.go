@@ -566,7 +566,10 @@ func getNewPathRefs(
 	// TODO(ashmrtn): In the future we can remove this first check as we'll be
 	// able to assume we always have the location in the previous entry. We'll end
 	// up doing some extra parsing, but it will simplify this code.
-	if repoRef.Service() == path.ExchangeService {
+	//
+	// Currently safe to check only the 0th SR, since exchange had no subservices
+	// at the time of the locations addition.
+	if repoRef.ServiceResources()[0].Service == path.ExchangeService {
 		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
 			repoRef.ToBuilder(),
 			entry.Modified(),

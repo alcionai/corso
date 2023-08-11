@@ -218,12 +218,16 @@ func (sc *Collection) retrieveLists(
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
+		// todo: pass in the resourceOwner as an idname.Provider
+		srs = sc.fullPath.ServiceResources()
+		// take the last resource in srs, since that should be the data owner
+		protectedResource = srs[len(srs)-1].ProtectedResource
 	)
 
 	lists, err := loadSiteLists(
 		ctx,
 		sc.client.Stable,
-		sc.fullPath.ResourceOwner(),
+		protectedResource,
 		sc.jobs,
 		errs)
 	if err != nil {
@@ -279,6 +283,10 @@ func (sc *Collection) retrievePages(
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
+		// todo: pass in the resourceOwner as an idname.Provider
+		srs = sc.fullPath.ServiceResources()
+		// take the last resource in srs, since that should be the data owner
+		protectedResource = srs[len(srs)-1].ProtectedResource
 	)
 
 	betaService := sc.betaService
@@ -286,14 +294,14 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := as.GetByID(ctx, sc.fullPath.ResourceOwner())
+	parent, err := as.GetByID(ctx, protectedResource)
 	if err != nil {
 		return metrics, err
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	pages, err := betaAPI.GetSitePages(ctx, betaService, protectedResource, sc.jobs, errs)
 	if err != nil {
 		return metrics, err
 	}

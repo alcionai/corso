@@ -57,7 +57,9 @@ func ConsumeRestoreCollections(
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
-				"protected_resource", clues.Hide(dc.FullPath().ResourceOwner()),
+				"resource_owners", clues.Hide(
+					path.ServiceResourcesToResources(
+						dc.FullPath().ServiceResources())),
 				"full_path", dc.FullPath())
 		)
 

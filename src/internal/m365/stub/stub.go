@@ -7,7 +7,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
@@ -63,9 +63,11 @@ func GetCollectionsAndExpected(
 
 	for _, owner := range config.ResourceOwners {
 		numItems, kopiaItems, ownerCollections, userExpectedData, err := CollectionsForInfo(
-			config.Service,
 			config.Tenant,
-			owner,
+			[]path.ServiceResource{{
+				Service:           config.Service,
+				ProtectedResource: owner,
+			}},
 			config.RestoreCfg,
 			testCollections,
 			backupVersion)
@@ -128,9 +130,7 @@ func CollectionsForInfo(
 			baseExpected[info.Items[i].LookupKey] = info.Items[i].Data
 
 			// We do not count metadata files against item count
-			if backupVersion > 0 &&
-				(service == path.OneDriveService || service == path.SharePointService) &&
-				metadata.HasMetaSuffix(info.Items[i].Name) {
+			if backupVersion > 0 && metadata.IsMetadataFile(srs, info.Category, info.Items[i].Name) {
 				continue
 			}
 
@@ -165,9 +165,13 @@ func backupOutputPathFromRestore(
 	inputPath path.Path,
 ) (path.Path, error) {
 	base := []string{restoreCfg.Location}
+	srs := inputPath.ServiceResources()
+	// only the last service is checked, because that should be the service
+	// whose data is stored..
+	lastService := srs[len(srs)-1].Service
 
 	// OneDrive has leading information like the drive ID.
-	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
+	if lastService == path.OneDriveService || lastService == path.SharePointService {
 		folders := inputPath.Folders()
 		base = append(append([]string{}, folders[:3]...), restoreCfg.Location)
 
@@ -176,14 +180,13 @@ func backupOutputPathFromRestore(
 		}
 	}
 
-	if inputPath.Service() == path.ExchangeService && inputPath.Category() == path.EmailCategory {
+	if lastService == path.ExchangeService && inputPath.Category() == path.EmailCategory {
 		base = append(base, inputPath.Folders()...)
 	}
 
 	return path.Build(
 		inputPath.Tenant(),
-		inputPath.ResourceOwner(),
-		inputPath.Service(),
+		inputPath.ServiceResources(),
 		inputPath.Category(),
 		false,
 		base...)

@@ -198,8 +198,13 @@ func collect(
 	service path.ServiceType,
 	col Collectable,
 ) (data.BackupCollection, error) {
+	srs := []path.ServiceResource{{
+		Service:           service,
+		ProtectedResource: col.purpose,
+	}}
+
 	// construct the path of the container
-	p, err := path.Builder{}.ToStreamStorePath(tenantID, col.purpose, service, false)
+	p, err := path.Builder{}.ToStreamStorePath(tenantID, srs, false)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -257,10 +262,15 @@ func read(
 	rer inject.RestoreProducer,
 	errs *fault.Bus,
 ) error {
+	srs := []path.ServiceResource{{
+		Service:           service,
+		ProtectedResource: col.purpose,
+	}}
+
 	// construct the path of the container
 	p, err := path.Builder{}.
 		Append(col.itemName).
-		ToStreamStorePath(tenantID, col.purpose, service, true)
+		ToStreamStorePath(tenantID, srs, true)
 	if err != nil {
 		return clues.Stack(err).WithClues(ctx)
 	}

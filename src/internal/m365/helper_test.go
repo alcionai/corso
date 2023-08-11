@@ -865,7 +865,6 @@ func compareItem(
 	t *testing.T,
 	colPath path.Path,
 	expected map[string][]byte,
-	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
 	mci m365Stub.ConfigInfo,
@@ -875,7 +874,11 @@ func compareItem(
 		assert.NotZero(t, mt.ModTime())
 	}
 
-	switch service {
+	// assume the last service in the path is the data owner
+	srs := colPath.ServiceResources()
+	lastService := srs[len(srs)-1].Service
+
+	switch lastService {
 	case path.ExchangeService:
 		switch category {
 		case path.EmailCategory:
@@ -900,7 +903,7 @@ func compareItem(
 		return compareDriveItem(t, expected, item, mci, rootDir)
 
 	default:
-		assert.FailNowf(t, "unexpected service: %s", service.String())
+		assert.FailNowf(t, "unexpected service: %s", lastService.String())
 	}
 
 	return true
@@ -929,9 +932,12 @@ func checkHasCollections(
 
 		fp := g.FullPath()
 		loc := g.(data.LocationPather).LocationPath()
+		// take the last service, since it should be the one owning data
+		srs := fp.ServiceResources()
+		service := srs[len(srs)-1].Service
 
-		if fp.Service() == path.OneDriveService ||
-			(fp.Service() == path.SharePointService && fp.Category() == path.LibrariesCategory) {
+		if service == path.OneDriveService ||
+			(service == path.SharePointService && fp.Category() == path.LibrariesCategory) {
 			dp, err := path.ToDrivePath(fp)
 			if !assert.NoError(t, err, clues.ToCore(err)) {
 				continue
@@ -971,11 +977,12 @@ func checkCollections(
 	for _, returned := range got {
 		var (
 			hasItems        bool
-			service         = returned.FullPath().Service()
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
 			rootDir         = folders[len(folders)-1] == mci.RestoreCfg.Location
+			srs             = returned.FullPath().ServiceResources()
+			lastService     = srs[len(srs)-1].Service
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -987,9 +994,9 @@ func checkCollections(
 			// is for actual pull items.
 			// TODO(ashmrtn): Should probably eventually check some data in metadata
 			// collections.
-			if service == path.ExchangeMetadataService ||
-				service == path.OneDriveMetadataService ||
-				service == path.SharePointMetadataService {
+			if lastService == path.ExchangeMetadataService ||
+				lastService == path.OneDriveMetadataService ||
+				lastService == path.SharePointMetadataService {
 				skipped++
 				continue
 			}
@@ -1005,7 +1012,6 @@ func checkCollections(
 				t,
 				returned.FullPath(),
 				expectedColData,
-				service,
 				category,
 				item,
 				mci,

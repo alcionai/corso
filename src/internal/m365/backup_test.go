@@ -403,17 +403,19 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	// No excludes yet as this isn't an incremental backup.
 	assert.True(t, excludes.Empty())
 
+	// assume the last service in the path is sharepoint.
+	srs := cols[0].FullPath().ServiceResources()
+	service := srs[len(srs)-1].Service
+
 	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
-	assert.Equal(
-		t,
-		path.SharePointMetadataService.String(),
-		cols[0].FullPath().Service().String())
+	assert.Equal(t, path.SharePointMetadataService, service)
+
+	// assume the last service in the path is sharepoint.
+	srs = cols[1].FullPath().ServiceResources()
+	service = srs[len(srs)-1].Service
 
 	t.Logf("cols[1] Path: %s\n", cols[1].FullPath().String())
-	assert.Equal(
-		t,
-		path.SharePointService.String(),
-		cols[1].FullPath().Service().String())
+	assert.Equal(t, path.SharePointService, service)
 }
 
 func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {

@@ -69,7 +69,9 @@ func ConsumeRestoreCollections(
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"resource_owners", clues.Hide(
+					path.ServiceResourcesToResources(
+						dc.FullPath().ServiceResources())),
 				"full_path", dc.FullPath())
 		)
 
@@ -219,9 +221,12 @@ func RestoreListCollection(
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
-		siteID    = directory.ResourceOwner()
 		items     = dc.Items(ctx, errs)
 		el        = errs.Local()
+		// todo: pass in the resourceOwner as an idname.Provider
+		srs = directory.ServiceResources()
+		// take the last resource in srs, since that should be the data owner
+		protectedResource = srs[len(srs)-1].ProtectedResource
 	)
 
 	trace.Log(ctx, "m365:sharepoint:restoreListCollection", directory.String())
@@ -245,7 +250,7 @@ func RestoreListCollection(
 				ctx,
 				service,
 				itemData,
-				siteID,
+				protectedResource,
 				restoreContainerName)
 			if err != nil {
 				el.AddRecoverable(ctx, err)
@@ -292,7 +297,10 @@ func RestorePageCollection(
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
-		siteID    = directory.ResourceOwner()
+		// todo: pass in the resourceOwner as an idname.Provider
+		srs = directory.ServiceResources()
+		// take the last resource in srs, since that should be the data owner
+		protectedResource = srs[len(srs)-1].ProtectedResource
 	)
 
 	trace.Log(ctx, "m365:sharepoint:restorePageCollection", directory.String())
@@ -325,7 +333,7 @@ func RestorePageCollection(
 				ctx,
 				service,
 				itemData,
-				siteID,
+				protectedResource,
 				restoreContainerName)
 			if err != nil {
 				el.AddRecoverable(ctx, err)

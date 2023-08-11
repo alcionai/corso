@@ -266,6 +266,7 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 	return p
 }
 
+// FIXME: out of date, does not contain sharepoint support
 func makeDetailsEntry(
 	t *testing.T,
 	p path.Path,
@@ -290,7 +291,10 @@ func makeDetailsEntry(
 		Updated:     updated,
 	}
 
-	switch p.Service() {
+	srs := p.ServiceResources()
+	lastService := srs[len(srs)-1].Service
+
+	switch lastService {
 	case path.ExchangeService:
 		if p.Category() != path.EmailCategory {
 			assert.FailNowf(
@@ -321,7 +325,7 @@ func makeDetailsEntry(
 		assert.FailNowf(
 			t,
 			"service %s not supported in helper function",
-			p.Service().String())
+			lastService.String())
 	}
 
 	return res
@@ -529,6 +533,23 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		fault.New(true))
 }
 
+// makeElements allows creation of repoRefs that wouldn't
+// pass paths package validators.
+func makeElements(
+	tenant string,
+	srs []path.ServiceResource,
+	cat path.CategoryType,
+	suffix ...string,
+) path.Elements {
+	elems := append(
+		path.Elements{tenant},
+		path.ServiceResourcesToElements(srs)...)
+	elems = append(elems, cat.String())
+	elems = append(elems, suffix...)
+
+	return elems
+}
+
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	var (
 		tenant = "a-tenant"
@@ -709,17 +730,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					DetailsModel: details.DetailsModel{
 						Entries: []details.Entry{
 							{
-								RepoRef: stdpath.Join(
-									append(
-										[]string{
-											itemPath1.Tenant(),
-											itemPath1.Service().String(),
-											itemPath1.ResourceOwner(),
-											path.UnknownCategory.String(),
-										},
-										itemPath1.Folders()...,
-									)...,
-								),
+								RepoRef: stdpath.Join(makeElements(
+									itemPath1.Tenant(),
+									itemPath1.ServiceResources(),
+									path.UnknownCategory,
+									itemPath1.Folders()...)...),
 								ItemInfo: details.ItemInfo{
 									OneDrive: &details.OneDriveInfo{
 										ItemType:   details.OneDriveItem,
@@ -740,16 +755,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				res := newMockDetailsMergeInfoer()
 				p := makePath(
 					suite.T(),
-					[]string{
+					makeElements(
 						itemPath1.Tenant(),
-						path.OneDriveService.String(),
-						itemPath1.ResourceOwner(),
-						path.FilesCategory.String(),
+						itemPath1.ServiceResources(),
+						path.FilesCategory,
 						"personal",
-						"item1",
-					},
-					true,
-				)
+						"item1"),
+					true)
 
 				res.add(itemPath1, p, nil)
 

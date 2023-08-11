@@ -1,7 +1,7 @@
 package metadata_test
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -18,7 +18,7 @@ import (
 type boolfAssertionFunc func(assert.TestingT, bool, string, ...any) bool
 
 type testCase struct {
-	service  path.ServiceType
+	srs      []path.ServiceResource
 	category path.CategoryType
 	expected boolfAssertionFunc
 }
@@ -39,39 +39,88 @@ var (
 
 	cases = []testCase{
 		{
-			service:  path.ExchangeService,
+			srs: []path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: user,
+			}},
 			category: path.EmailCategory,
 			expected: assert.Falsef,
 		},
 		{
-			service:  path.ExchangeService,
+			srs: []path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: user,
+			}},
 			category: path.ContactsCategory,
 			expected: assert.Falsef,
 		},
 		{
-			service:  path.ExchangeService,
+			srs: []path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: user,
+			}},
 			category: path.EventsCategory,
 			expected: assert.Falsef,
 		},
 		{
-			service:  path.OneDriveService,
+			srs: []path.ServiceResource{{
+				Service:           path.OneDriveService,
+				ProtectedResource: user,
+			}},
 			category: path.FilesCategory,
 			expected: assert.Truef,
 		},
 		{
-			service:  path.SharePointService,
+			srs: []path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: user,
+			}},
 			category: path.LibrariesCategory,
 			expected: assert.Truef,
 		},
 		{
-			service:  path.SharePointService,
+			srs: []path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: user,
+			}},
 			category: path.ListsCategory,
 			expected: assert.Falsef,
 		},
 		{
-			service:  path.SharePointService,
+			srs: []path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: user,
+			}},
 			category: path.PagesCategory,
 			expected: assert.Falsef,
+		},
+		{
+			srs: []path.ServiceResource{
+				{
+					Service:           path.OneDriveService,
+					ProtectedResource: user,
+				},
+				{
+					Service:           path.ExchangeService,
+					ProtectedResource: user,
+				},
+			},
+			category: path.EventsCategory,
+			expected: assert.Falsef,
+		},
+		{
+			srs: []path.ServiceResource{
+				{
+					Service:           path.ExchangeService,
+					ProtectedResource: user,
+				},
+				{
+					Service:           path.OneDriveService,
+					ProtectedResource: user,
+				},
+			},
+			category: path.FilesCategory,
+			expected: assert.Truef,
 		},
 	}
 )
@@ -87,21 +136,26 @@ func TestMetadataUnitSuite(t *testing.T) {
 func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_MetaSuffixes() {
 	for _, test := range cases {
 		for _, ext := range metaSuffixes {
-			suite.Run(fmt.Sprintf("%s %s %s", test.service, test.category, ext), func() {
+			name := []string{}
+
+			for _, sr := range test.srs {
+				name = append(name, sr.Service.String())
+			}
+
+			name = append(name, test.category.String(), ext)
+
+			suite.Run(strings.Join(name, " "), func() {
 				t := suite.T()
 
 				p, err := path.Build(
 					tenant,
-					[]path.ServiceResource{{
-						Service:           test.service,
-						ProtectedResource: user,
-					}},
+					test.srs,
 					test.category,
 					true,
 					"file"+ext)
 				require.NoError(t, err, clues.ToCore(err))
 
-				test.expected(t, metadata.IsMetadataFile(p), "extension %s", ext)
+				test.expected(t, metadata.IsMetadataFilePath(p), "extension %s", ext)
 			})
 		}
 	}
@@ -110,21 +164,26 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_MetaSuffixes() {
 func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_NotMetaSuffixes() {
 	for _, test := range cases {
 		for _, ext := range notMetaSuffixes {
-			suite.Run(fmt.Sprintf("%s %s %s", test.service, test.category, ext), func() {
+			name := []string{}
+
+			for _, sr := range test.srs {
+				name = append(name, sr.Service.String())
+			}
+
+			name = append(name, test.category.String(), ext)
+
+			suite.Run(strings.Join(name, " "), func() {
 				t := suite.T()
 
 				p, err := path.Build(
 					tenant,
-					[]path.ServiceResource{{
-						Service:           test.service,
-						ProtectedResource: user,
-					}},
+					test.srs,
 					test.category,
 					true,
 					"file"+ext)
 				require.NoError(t, err, clues.ToCore(err))
 
-				assert.Falsef(t, metadata.IsMetadataFile(p), "extension %s", ext)
+				assert.Falsef(t, metadata.IsMetadataFilePath(p), "extension %s", ext)
 			})
 		}
 	}
@@ -135,21 +194,26 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Directories() {
 
 	for _, test := range cases {
 		for _, ext := range suffixes {
-			suite.Run(fmt.Sprintf("%s %s %s", test.service, test.category, ext), func() {
+			name := []string{}
+
+			for _, sr := range test.srs {
+				name = append(name, sr.Service.String())
+			}
+
+			name = append(name, test.category.String(), ext)
+
+			suite.Run(strings.Join(name, " "), func() {
 				t := suite.T()
 
 				p, err := path.Build(
 					tenant,
-					[]path.ServiceResource{{
-						Service:           test.service,
-						ProtectedResource: user,
-					}},
+					test.srs,
 					test.category,
 					false,
 					"file"+ext)
 				require.NoError(t, err, clues.ToCore(err))
 
-				assert.Falsef(t, metadata.IsMetadataFile(p), "extension %s", ext)
+				assert.Falsef(t, metadata.IsMetadataFilePath(p), "extension %s", ext)
 			})
 		}
 	}
