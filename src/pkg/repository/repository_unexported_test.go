@@ -320,14 +320,6 @@ func (suite *RepositoryBackupsUnitSuite) TestBackupsByTag() {
 	}
 }
 
-type mockSSDeleter struct {
-	err error
-}
-
-func (sd mockSSDeleter) DeleteSnapshot(_ context.Context, _ string) error {
-	return sd.err
-}
-
 func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 	bup := &backup.Backup{
 		BaseModel: model.BaseModel{
@@ -342,7 +334,6 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 	table := []struct {
 		name      string
 		sw        mock.BackupWrapper
-		kw        mockSSDeleter
 		expectErr func(t *testing.T, result error)
 		expectID  model.StableID
 	}{
@@ -353,7 +344,6 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 				GetErr:    nil,
 				DeleteErr: nil,
 			},
-			kw: mockSSDeleter{},
 			expectErr: func(t *testing.T, result error) {
 				assert.NoError(t, result, clues.ToCore(result))
 			},
@@ -366,7 +356,6 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 				GetErr:    data.ErrNotFound,
 				DeleteErr: nil,
 			},
-			kw: mockSSDeleter{},
 			expectErr: func(t *testing.T, result error) {
 				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
@@ -380,20 +369,6 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 				GetErr:    nil,
 				DeleteErr: assert.AnError,
 			},
-			kw: mockSSDeleter{},
-			expectErr: func(t *testing.T, result error) {
-				assert.ErrorIs(t, result, assert.AnError, clues.ToCore(result))
-			},
-			expectID: bup.ID,
-		},
-		{
-			name: "snapshot delete error",
-			sw: mock.BackupWrapper{
-				Backup:    bup,
-				GetErr:    nil,
-				DeleteErr: nil,
-			},
-			kw: mockSSDeleter{assert.AnError},
 			expectErr: func(t *testing.T, result error) {
 				assert.ErrorIs(t, result, assert.AnError, clues.ToCore(result))
 			},
@@ -406,7 +381,6 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 				GetErr:    nil,
 				DeleteErr: nil,
 			},
-			kw: mockSSDeleter{assert.AnError},
 			expectErr: func(t *testing.T, result error) {
 				assert.NoError(t, result, clues.ToCore(result))
 			},
@@ -420,7 +394,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.kw, test.sw)
+			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.sw)
 			test.expectErr(t, err)
 		})
 	}
