@@ -200,8 +200,7 @@ func (c Channels) PatchChannel(
 // items
 // ---------------------------------------------------------------------------
 
-// GetItem retrieves a Messageable item.  If the item contains an attachment, that
-// attachment is also downloaded.
+// GetItem retrieves a Messageable item.
 func (c Channels) GetItem(
 	ctx context.Context,
 	teamID, channelID, itemID string,
@@ -218,9 +217,9 @@ func (c Channels) GetItem(
 		Teams().
 		ByTeamId(teamID).
 		Channels().
-		ByChannelId(itemID).
+		ByChannelId(channelID).
 		Messages().
-		ByChatMessageId("").
+		ByChatMessageId(itemID).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -272,6 +271,87 @@ func (c Channels) DeleteItem(
 		ByChannelId(containerID).
 		Messages().
 		ByChatMessageId(itemID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting mail message")
+	}
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// replies
+// ---------------------------------------------------------------------------
+
+// GetItem retrieves a Messageable item.
+func (c Channels) GetReplies(
+	ctx context.Context,
+	teamID, channelID, itemID string,
+) (serialization.Parsable, error) {
+	replies, err := c.Stable.
+		Client().
+		Teams().
+		ByTeamId(teamID).
+		Channels().
+		ByChannelId(channelID).
+		Messages().
+		ByChatMessageId(itemID).
+		Replies().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return replies, nil
+}
+
+func (c Channels) PostReply(
+	ctx context.Context,
+	teamID, containerID, messageID string,
+	body models.ChatMessageable,
+) (models.ChatMessageable, error) {
+	itm, err := c.Stable.
+		Client().
+		Teams().
+		ByTeamId(teamID).
+		Channels().
+		ByChannelId(containerID).
+		Messages().
+		ByChatMessageId(messageID).
+		Replies().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating reply message")
+	}
+
+	if itm == nil {
+		return nil, clues.New("nil response reply to message creation").WithClues(ctx)
+	}
+
+	return itm, nil
+}
+
+func (c Channels) DeleteReply(
+	ctx context.Context,
+	teamID, itemID, containerID, replyID string,
+) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := NewService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.
+		Client().
+		Teams().
+		ByTeamId(teamID).
+		Channels().
+		ByChannelId(containerID).
+		Messages().
+		ByChatMessageId(itemID).
+		Replies().
+		ByChatMessageId1(replyID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting mail message")
