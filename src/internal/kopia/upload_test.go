@@ -569,8 +569,6 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 					assert.Len(t, entries, test.expectedNumEntries)
 
 					for _, entry := range entries {
-						assert.Equal(t, !cachedTest.cached, entry.Updated)
-
 						foundItems[entry.ItemRef] = true
 					}
 

@@ -29,7 +29,6 @@ type Details struct {
 func (d *Details) add(
 	repoRef path.Path,
 	locationRef *path.Builder,
-	updated bool,
 	info ItemInfo,
 ) (Entry, error) {
 	if locationRef == nil {
@@ -42,7 +41,6 @@ func (d *Details) add(
 		ParentRef:   repoRef.ToBuilder().Dir().ShortRef(),
 		LocationRef: locationRef.String(),
 		ItemRef:     repoRef.Item(),
-		Updated:     updated,
 		ItemInfo:    info,
 	}
 

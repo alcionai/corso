@@ -40,7 +40,7 @@ func TestExportOpSuite(t *testing.T) {
 func (suite *ExportOpSuite) TestExportOperation_PersistResults() {
 	var (
 		kw        = &kopia.Wrapper{}
-		sw        = &store.Wrapper{}
+		sw        = store.NewWrapper(&kopia.ModelStore{})
 		ctrl      = &mock.Controller{}
 		now       = time.Now()
 		exportCfg = control.DefaultExportConfig()

@@ -287,7 +287,6 @@ func makeDetailsEntry(
 		ItemRef:     p.Item(),
 		LocationRef: lr,
 		ItemInfo:    details.ItemInfo{},
-		Updated:     updated,
 	}
 
 	switch p.Service() {
@@ -366,7 +365,7 @@ func TestBackupOpUnitSuite(t *testing.T) {
 func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
-		sw   = &store.Wrapper{}
+		sw   = store.NewWrapper(&kopia.ModelStore{})
 		ctrl = &mock.Controller{}
 		acct = account.Account{}
 		now  = time.Now()
@@ -1400,7 +1399,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	var (
 		kw   = &kopia.Wrapper{}
-		sw   = &store.Wrapper{}
+		sw   = store.NewWrapper(&kopia.ModelStore{})
 		ctrl = &mock.Controller{}
 		acct = tconfig.NewM365Account(suite.T())
 		opts = control.DefaultOptions()
@@ -1409,7 +1408,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	table := []struct {
 		name     string
 		kw       *kopia.Wrapper
-		sw       *store.Wrapper
+		sw       store.BackupStorer
 		bp       inject.BackupProducer
 		acct     account.Account
 		targets  []string
@@ -1449,7 +1448,7 @@ type AssistBackupIntegrationSuite struct {
 	kopiaCloser func(ctx context.Context)
 	acct        account.Account
 	kw          *kopia.Wrapper
-	sw          *store.Wrapper
+	sw          store.BackupStorer
 	ms          *kopia.ModelStore
 }
 
@@ -1491,7 +1490,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.ms = ms
 
-	sw := store.NewKopiaStore(ms)
+	sw := store.NewWrapper(ms)
 	suite.sw = sw
 }
 

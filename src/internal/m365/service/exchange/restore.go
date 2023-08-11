@@ -215,7 +215,6 @@ func restoreCollection(
 			err = deets.Add(
 				itemPath,
 				locationRef,
-				true,
 				details.ItemInfo{
 					Exchange: info,
 				})

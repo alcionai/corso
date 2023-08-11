@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
@@ -28,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 const (
@@ -590,7 +590,7 @@ func (w Wrapper) DeleteSnapshot(
 	return nil
 }
 
-func (w Wrapper) NewBaseFinder(bg inject.GetBackuper) (*baseFinder, error) {
+func (w Wrapper) NewBaseFinder(bg store.BackupGetter) (*baseFinder, error) {
 	return newBaseFinder(w.c, bg)
 }
 

@@ -263,7 +263,6 @@ func RestoreListCollection(
 			err = deets.Add(
 				itemPath,
 				&path.Builder{}, // TODO: implement locationRef
-				true,
 				itemInfo)
 			if err != nil {
 				// Not critical enough to need to stop restore operation.
@@ -343,7 +342,6 @@ func RestorePageCollection(
 			err = deets.Add(
 				itemPath,
 				&path.Builder{}, // TODO: implement locationRef
-				true,
 				itemInfo)
 			if err != nil {
 				// Not critical enough to need to stop restore operation.

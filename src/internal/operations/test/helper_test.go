@@ -60,7 +60,7 @@ type backupOpDependencies struct {
 	sel  selectors.Selector
 	sss  streamstore.Streamer
 	st   storage.Storage
-	sw   *store.Wrapper
+	sw   store.BackupStorer
 
 	closer func()
 }
@@ -130,7 +130,7 @@ func prepNewTestBackupOp(
 		return operations.BackupOperation{}, nil
 	}
 
-	bod.sw = store.NewKopiaStore(bod.kms)
+	bod.sw = store.NewWrapper(bod.kms)
 
 	connectorResource := resource.Users
 	if sel.Service == selectors.ServiceSharePoint {
@@ -235,7 +235,7 @@ func checkBackupIsInManifests(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	bo *operations.BackupOperation,
 	sel selectors.Selector,
 	resourceOwner string,

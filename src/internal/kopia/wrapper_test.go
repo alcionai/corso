@@ -924,10 +924,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 					// 47 file and 2 folder entries.
 					test.expectedUploadedFiles+test.expectedCachedFiles+2,
 				)
-
-				for _, entry := range details {
-					test.deetsUpdated(t, entry.Updated)
-				}
 			}
 
 			checkSnapshotTags(
@@ -1207,8 +1203,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			)
 
 			for _, entry := range details {
-				assert.True(t, entry.Updated)
-
 				if test.hasMetaDeets {
 					continue
 				}

@@ -434,7 +434,7 @@ type RepositoryModelIntgSuite struct {
 	tester.Suite
 	kw          *kopia.Wrapper
 	ms          *kopia.ModelStore
-	sw          *store.Wrapper
+	sw          store.BackupStorer
 	kopiaCloser func(ctx context.Context)
 }
 
@@ -476,7 +476,7 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 	suite.ms, err = kopia.NewModelStore(k)
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.sw = store.NewKopiaStore(suite.ms)
+	suite.sw = store.NewWrapper(suite.ms)
 }
 
 func (suite *RepositoryModelIntgSuite) TearDownSuite() {
@@ -537,7 +537,7 @@ func writeBackup(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	tID, snapID, backupID string,
 	sel selectors.Selector,
 	ownerID, ownerName string,
@@ -599,7 +599,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, info))
 
 	table := []struct {
 		name       string
@@ -680,7 +680,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, info))
 
 	table := []struct {
 		name         string
