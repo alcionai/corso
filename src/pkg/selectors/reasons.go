@@ -38,7 +38,7 @@ func (br backupReason) Category() path.CategoryType {
 }
 
 func (br backupReason) SubtreePath() (path.Path, error) {
-	return path.ServicePrefix(
+	return path.BuildPrefix(
 		br.tenant,
 		br.resource,
 		br.service,

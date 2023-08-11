@@ -2,6 +2,7 @@ package path
 
 import "github.com/alcionai/clues"
 
+// TODO: Move this into m365/collection/drive
 // drivePath is used to represent path components
 // of an item within the drive i.e.
 // Given `drives/b!X_8Z2zuXpkKkXZsr7gThk9oJpuj0yXVGnK5_VjRRPK-q725SX_8ZQJgFDK8PlFxA/root:/Folder1/Folder2/file`

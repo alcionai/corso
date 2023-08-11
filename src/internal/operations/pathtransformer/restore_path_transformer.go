@@ -42,7 +42,7 @@ func locationRef(
 
 func basicLocationPath(repoRef path.Path, locRef *path.Builder) (path.Path, error) {
 	if len(locRef.Elements()) == 0 {
-		res, err := path.ServicePrefix(
+		res, err := path.BuildPrefix(
 			repoRef.Tenant(),
 			repoRef.ResourceOwner(),
 			repoRef.Service(),
