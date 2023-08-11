@@ -1612,6 +1612,8 @@ func makeMockItem(
 
 	dmi.ItemInfo.OneDrive.DriveID = driveID
 	dmi.ItemInfo.OneDrive.DriveName = driveName
+	dmi.ItemInfo.OneDrive.Modified = modTime
+	dmi.ItemInfo.Extension = extData
 
 	return dmi
 }
