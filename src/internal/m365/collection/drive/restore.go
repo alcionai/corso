@@ -153,13 +153,12 @@ func RestoreCollection(
 		ctx context.Context,
 		repoRef path.Path,
 		locationRef *path.Builder,
-		updated bool,
 		info details.ItemInfo,
 	) {
 		deetsLock.Lock()
 		defer deetsLock.Unlock()
 
-		err = deets.Add(repoRef, locationRef, updated, info)
+		err = deets.Add(repoRef, locationRef, info)
 		if err != nil {
 			// Not critical enough to need to stop restore operation.
 			logger.CtxErr(ctx, err).Infow("adding restored item to details")
@@ -231,7 +230,7 @@ func RestoreCollection(
 				}
 
 				// TODO: implement locationRef
-				updateDeets(ictx, itemPath, &path.Builder{}, true, itemInfo)
+				updateDeets(ictx, itemPath, &path.Builder{}, itemInfo)
 
 				atomic.AddInt64(&metricsSuccess, 1)
 			}(ctx, itemData)

@@ -580,7 +580,7 @@ func getNewPathRefs(
 	entry *details.Entry,
 	repoRef path.Path,
 	backupVersion int,
-) (path.Path, *path.Builder, bool, error) {
+) (path.Path, *path.Builder, error) {
 	// Right now we can't guarantee that we have an old location in the
 	// previous details entry so first try a lookup without a location to see
 	// if it matches so we don't need to try parsing from the old entry.
@@ -594,35 +594,25 @@ func getNewPathRefs(
 			entry.Modified(),
 			nil)
 		if err != nil {
-			return nil, nil, false, clues.Wrap(err, "getting new paths")
+			return nil, nil, clues.Wrap(err, "getting new paths")
 		} else if newPath == nil {
 			// This entry doesn't need merging.
-			return nil, nil, false, nil
+			return nil, nil, nil
 		} else if newLoc == nil {
-			return nil, nil, false, clues.New("unable to find new exchange location")
+			return nil, nil, clues.New("unable to find new exchange location")
 		}
 
-		// This is kind of jank cause we're in a transitionary period, but even if
-		// we're consesrvative here about marking something as updated the RepoRef
-		// comparison in the caller should catch the change. Calendars is the only
-		// exception, since it uses IDs for folders, but we should already be
-		// populating the LocationRef for them.
-		//
-		// Without this, all OneDrive items will be marked as updated the first time
-		// around because OneDrive hasn't been persisting LocationRef before now.
-		updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
-
-		return newPath, newLoc, updated, nil
+		return newPath, newLoc, nil
 	}
 
 	// We didn't have an exact entry, so retry with a location.
 	locRef, err := entry.ToLocationIDer(backupVersion)
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting previous item location")
+		return nil, nil, clues.Wrap(err, "getting previous item location")
 	}
 
 	if locRef == nil {
-		return nil, nil, false, clues.New("entry with empty LocationRef")
+		return nil, nil, clues.New("entry with empty LocationRef")
 	}
 
 	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
@@ -630,16 +620,14 @@ func getNewPathRefs(
 		entry.Modified(),
 		locRef)
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting new paths with old location")
+		return nil, nil, clues.Wrap(err, "getting new paths with old location")
 	} else if newPath == nil {
-		return nil, nil, false, nil
+		return nil, nil, nil
 	} else if newLoc == nil {
-		return nil, nil, false, clues.New("unable to get new paths")
+		return nil, nil, clues.New("unable to get new paths")
 	}
 
-	updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
-
-	return newPath, newLoc, updated, nil
+	return newPath, newLoc, nil
 }
 
 func mergeItemsFromBase(
@@ -702,7 +690,7 @@ func mergeItemsFromBase(
 
 		ictx := clues.Add(ctx, "repo_ref", rr)
 
-		newPath, newLoc, locUpdated, err := getNewPathRefs(
+		newPath, newLoc, err := getNewPathRefs(
 			dataFromBackup,
 			entry,
 			rr,
@@ -721,13 +709,9 @@ func mergeItemsFromBase(
 		item := entry.ItemInfo
 		details.UpdateItem(&item, newLoc)
 
-		// TODO(ashmrtn): This can most likely be removed altogether.
-		itemUpdated := newPath.String() != rr.String() || locUpdated
-
 		err = deets.Add(
 			newPath,
 			newLoc,
-			itemUpdated,
 			item)
 		if err != nil {
 			return manifestAddedEntries,

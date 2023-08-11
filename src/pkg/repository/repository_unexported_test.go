@@ -599,7 +599,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, info))
 
 	table := []struct {
 		name       string
@@ -680,7 +680,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, info))
 
 	table := []struct {
 		name         string
