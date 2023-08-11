@@ -27,7 +27,7 @@ type Builder struct {
 	elements Elements
 }
 
-// Append creates a copy of this Builder and adds the given elements them to the
+// Append creates a copy of this Builder and adds the given elements to the
 // end of the new Builder. Elements are added in the order they are passed.
 func (pb Builder) Append(elements ...string) *Builder {
 	res := &Builder{elements: make([]string, len(pb.elements))}
@@ -323,6 +323,7 @@ func (pb Builder) ToDataLayerPath(
 	}, nil
 }
 
+// TODO: remove this. https://github.com/alcionai/corso/issues/4025
 func (pb Builder) ToDataLayerExchangePathForCategory(
 	tenant, user string,
 	category CategoryType,
@@ -331,6 +332,7 @@ func (pb Builder) ToDataLayerExchangePathForCategory(
 	return pb.ToDataLayerPath(tenant, user, ExchangeService, category, isItem)
 }
 
+// TODO: remove this. https://github.com/alcionai/corso/issues/4025
 func (pb Builder) ToDataLayerOneDrivePath(
 	tenant, user string,
 	isItem bool,
@@ -338,6 +340,7 @@ func (pb Builder) ToDataLayerOneDrivePath(
 	return pb.ToDataLayerPath(tenant, user, OneDriveService, FilesCategory, isItem)
 }
 
+// TODO: remove this. https://github.com/alcionai/corso/issues/4025
 func (pb Builder) ToDataLayerSharePointPath(
 	tenant, site string,
 	category CategoryType,
@@ -363,8 +366,7 @@ func (pb Builder) Format(fs fmt.State, _ rune) {
 	fmt.Fprint(fs, pb.Conceal())
 }
 
-// String returns a string that contains all path elements joined together.
-// Elements of the path that need escaping are escaped.
+// String returns all path elements escaped and joined together as a single string.
 // The result is not concealed, and is not suitable for logging or structured
 // errors.
 func (pb Builder) String() string {
