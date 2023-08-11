@@ -1447,7 +1447,7 @@ type AssistBackupIntegrationSuite struct {
 	kopiaCloser func(ctx context.Context)
 	acct        account.Account
 	kw          *kopia.Wrapper
-	sw          *store.Wrapper
+	sw          store.BackupStorer
 	ms          *kopia.ModelStore
 }
 
@@ -1489,7 +1489,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.ms = ms
 
-	sw := store.NewKopiaStore(ms)
+	sw := store.NewWrapper(ms)
 	suite.sw = sw
 }
 
