@@ -8,7 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"

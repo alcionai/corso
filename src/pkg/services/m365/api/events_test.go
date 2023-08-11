@@ -13,8 +13,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"

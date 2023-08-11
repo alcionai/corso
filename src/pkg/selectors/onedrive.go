@@ -68,7 +68,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 }
 
 func (s OneDriveBackup) SplitByResourceOwner(users []string) []OneDriveBackup {
-	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
+	sels := splitByProtectedResource[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -102,7 +102,7 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 }
 
 func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore {
-	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
+	sels := splitByProtectedResource[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveRestore, 0, len(sels))
 	for _, sel := range sels {

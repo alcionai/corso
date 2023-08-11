@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	stdpath "path"
 	"testing"
 	"time"
@@ -12,25 +13,34 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
-	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
+	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -107,7 +117,7 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 
 type mockBackupConsumer struct {
 	checkFunc func(
-		backupReasons []kopia.Reasoner,
+		backupReasons []identity.Reasoner,
 		bases kopia.BackupBases,
 		cs []data.BackupCollection,
 		tags map[string]string,
@@ -116,7 +126,7 @@ type mockBackupConsumer struct {
 
 func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
-	backupReasons []kopia.Reasoner,
+	backupReasons []identity.Reasoner,
 	bases kopia.BackupBases,
 	cs []data.BackupCollection,
 	excluded prefixmatcher.StringSetReader,
@@ -136,6 +146,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 type mockDetailsMergeInfoer struct {
 	repoRefs map[string]path.Path
 	locs     map[string]*path.Builder
+	modTimes map[string]time.Time
 }
 
 func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Builder) {
@@ -147,10 +158,31 @@ func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Buil
 	m.locs[oldPB.ShortRef()] = newLoc
 }
 
+func (m *mockDetailsMergeInfoer) addWithModTime(
+	oldRef path.Path,
+	modTime time.Time,
+	newRef path.Path,
+	newLoc *path.Builder,
+) {
+	oldPB := oldRef.ToBuilder()
+	// Items are indexed individually.
+	m.repoRefs[oldPB.ShortRef()] = newRef
+	m.modTimes[oldPB.ShortRef()] = modTime
+
+	// Locations are indexed by directory.
+	m.locs[oldPB.ShortRef()] = newLoc
+}
+
 func (m *mockDetailsMergeInfoer) GetNewPathRefs(
 	oldRef *path.Builder,
+	modTime time.Time,
 	_ details.LocationIDer,
 ) (path.Path, *path.Builder, error) {
+	// Return no match if the modTime was set and it wasn't what was passed in.
+	if mt, ok := m.modTimes[oldRef.ShortRef()]; ok && !mt.Equal(modTime) {
+		return nil, nil, nil
+	}
+
 	return m.repoRefs[oldRef.ShortRef()], m.locs[oldRef.ShortRef()], nil
 }
 
@@ -166,6 +198,7 @@ func newMockDetailsMergeInfoer() *mockDetailsMergeInfoer {
 	return &mockDetailsMergeInfoer{
 		repoRefs: map[string]path.Path{},
 		locs:     map[string]*path.Builder{},
+		modTimes: map[string]time.Time{},
 	}
 }
 
@@ -292,6 +325,30 @@ func makeDetailsEntry(
 	return res
 }
 
+func makeDetailsEntryWithModTime(
+	t *testing.T,
+	p path.Path,
+	l *path.Builder,
+	size int,
+	updated bool,
+	modTime time.Time,
+) *details.Entry {
+	t.Helper()
+
+	res := makeDetailsEntry(t, p, l, size, updated)
+
+	switch {
+	case res.Exchange != nil:
+		res.Exchange.Modified = modTime
+	case res.OneDrive != nil:
+		res.OneDrive.Modified = modTime
+	case res.SharePoint != nil:
+		res.SharePoint.Modified = modTime
+	}
+
+	return res
+}
+
 // ---------------------------------------------------------------------------
 // unit tests
 // ---------------------------------------------------------------------------
@@ -406,7 +463,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			path.ExchangeService,
 			path.ContactsCategory)
 
-		reasons = []kopia.Reasoner{
+		reasons = []identity.Reasoner{
 			emailReason,
 			contactsReason,
 		}
@@ -421,13 +478,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		bases = kopia.NewMockBackupBases().WithMergeBases(
 			kopia.ManifestEntry{
 				Manifest: manifest1,
-				Reasons: []kopia.Reasoner{
+				Reasons: []identity.Reasoner{
 					emailReason,
 				},
 			}).WithAssistBases(
 			kopia.ManifestEntry{
 				Manifest: manifest2,
-				Reasons: []kopia.Reasoner{
+				Reasons: []identity.Reasoner{
 					contactsReason,
 				},
 			})
@@ -441,7 +498,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 
 	mbu := &mockBackupConsumer{
 		checkFunc: func(
-			backupReasons []kopia.Reasoner,
+			backupReasons []identity.Reasoner,
 			gotBases kopia.BackupBases,
 			cs []data.BackupCollection,
 			gotTags map[string]string,
@@ -545,6 +602,9 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			itemPath3.ResourceOwner(),
 			itemPath3.Service(),
 			itemPath3.Category())
+
+		time1 = time.Now()
+		time2 = time1.Add(time.Hour)
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
@@ -553,10 +613,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	itemParents1String := itemParents1.String()
 
 	table := []struct {
-		name             string
-		populatedDetails map[string]*details.Details
-		inputBackups     []kopia.BackupEntry
-		mdm              *mockDetailsMergeInfoer
+		name               string
+		populatedDetails   map[string]*details.Details
+		inputBackups       []kopia.BackupEntry
+		inputAssistBackups []kopia.BackupEntry
+		mdm                *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.Entry
@@ -590,7 +651,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 						},
 						DetailsID: "foo",
 					},
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -609,40 +670,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
-						pathReason1,
-					},
-				},
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.Entry{
-							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.Error,
-		},
-		{
-			name: "TooManyItems",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
-
-				return res
-			}(),
-			inputBackups: []kopia.BackupEntry{
-				{
-					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
-						pathReason1,
-					},
-				},
-				{
-					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -669,7 +697,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -728,7 +756,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -755,7 +783,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -785,7 +813,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -815,7 +843,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -846,7 +874,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
@@ -877,13 +905,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputBackups: []kopia.BackupEntry{
 				{
 					Backup: &backup1,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason1,
 					},
 				},
 				{
 					Backup: &backup2,
-					Reasons: []kopia.Reasoner{
+					Reasons: []identity.Reasoner{
 						pathReason3,
 					},
 				},
@@ -913,6 +941,210 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
 			},
 		},
+		{
+			name: "MergeAndAssistBases SameItems",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time1, itemPath1, locationPath1)
+				res.addWithModTime(itemPath3, time2, itemPath3, locationPath3)
+
+				return res
+			}(),
+			inputBackups: []kopia.BackupEntry{
+				{
+					Backup: &backup1,
+					Reasons: []identity.Reasoner{
+						pathReason1,
+						pathReason3,
+					},
+				},
+			},
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+							*makeDetailsEntryWithModTime(suite.T(), itemPath3, locationPath3, 37, false, time2),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+							*makeDetailsEntryWithModTime(suite.T(), itemPath3, locationPath3, 37, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+				makeDetailsEntryWithModTime(suite.T(), itemPath3, locationPath3, 37, false, time2),
+			},
+		},
+		{
+			name: "MergeAndAssistBases AssistBaseHasNewerItems",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time2, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputBackups: []kopia.BackupEntry{
+				{
+					Backup: &backup1,
+					Reasons: []identity.Reasoner{
+						pathReason1,
+					},
+				},
+			},
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+			},
+		},
+		{
+			name: "AssistBases ConcurrentAssistBasesPicksMatchingVersion1",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time2, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+			},
+		},
+		{
+			name: "AssistBases ConcurrentAssistBasesPicksMatchingVersion2",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time1, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 84, false, time2),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+			},
+		},
+		{
+			name: "AssistBases SameItemVersion",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.addWithModTime(itemPath1, time1, itemPath1, locationPath1)
+
+				return res
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+				{Backup: &backup2},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+				backup2.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+			},
+		},
+		{
+			name: "AssistBase ItemDeleted",
+			mdm: func() *mockDetailsMergeInfoer {
+				return newMockDetailsMergeInfoer()
+			}(),
+			inputAssistBackups: []kopia.BackupEntry{
+				{Backup: &backup1},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntryWithModTime(suite.T(), itemPath1, locationPath1, 42, false, time1),
+						},
+					},
+				},
+			},
+			errCheck:        assert.NoError,
+			expectedEntries: []*details.Entry{},
+		},
 	}
 
 	for _, test := range table {
@@ -926,10 +1158,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			deets := details.Builder{}
 			writeStats := kopia.BackupStats{}
 
+			bb := kopia.NewMockBackupBases().
+				WithBackups(test.inputBackups...).
+				WithAssistBackups(test.inputAssistBackups...)
+
 			err := mergeDetails(
 				ctx,
 				mds,
-				test.inputBackups,
+				bb,
 				test.mdm,
 				&deets,
 				&writeStats,
@@ -941,9 +1177,27 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				return
 			}
 
-			assert.ElementsMatch(t, test.expectedEntries, deets.Details().Items())
+			// Check the JSON output format of things because for some reason it's not
+			// using the proper comparison for time.Time and failing due to that.
+			checkJSONOutputs(t, test.expectedEntries, deets.Details().Items())
 		})
 	}
+}
+
+func checkJSONOutputs(
+	t *testing.T,
+	expected []*details.Entry,
+	got []*details.Entry,
+) {
+	t.Helper()
+
+	expectedJSON, err := json.Marshal(expected)
+	require.NoError(t, err, "marshalling expected data")
+
+	gotJSON, err := json.Marshal(got)
+	require.NoError(t, err, "marshalling got data")
+
+	assert.JSONEq(t, string(expectedJSON), string(gotJSON))
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
@@ -983,7 +1237,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 				},
 				DetailsID: "did1",
 			},
-			Reasons: []kopia.Reasoner{
+			Reasons: []identity.Reasoner{
 				pathReason1,
 			},
 		}
@@ -1035,7 +1289,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	err := mergeDetails(
 		ctx,
 		mds,
-		[]kopia.BackupEntry{backup1},
+		kopia.NewMockBackupBases().WithBackups(backup1),
 		mdm,
 		&deets,
 		&writeStats,
@@ -1184,6 +1438,753 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				sel,
 				evmock.NewBus())
 			test.errCheck(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+type AssistBackupIntegrationSuite struct {
+	tester.Suite
+	kopiaCloser func(ctx context.Context)
+	acct        account.Account
+	kw          *kopia.Wrapper
+	sw          *store.Wrapper
+	ms          *kopia.ModelStore
+}
+
+func TestAssistBackupIntegrationSuite(t *testing.T) {
+	suite.Run(t, &AssistBackupIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
+	})
+}
+
+func (suite *AssistBackupIntegrationSuite) SetupSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		st = storeTD.NewPrefixedS3Storage(t)
+		k  = kopia.NewConn(st)
+	)
+
+	suite.acct = tconfig.NewM365Account(t)
+
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.kopiaCloser = func(ctx context.Context) {
+		k.Close(ctx)
+	}
+
+	kw, err := kopia.NewWrapper(k)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.kw = kw
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.ms = ms
+
+	sw := store.NewKopiaStore(ms)
+	suite.sw = sw
+}
+
+func (suite *AssistBackupIntegrationSuite) TearDownSuite() {
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	if suite.ms != nil {
+		suite.ms.Close(ctx)
+	}
+
+	if suite.kw != nil {
+		suite.kw.Close(ctx)
+	}
+
+	if suite.kopiaCloser != nil {
+		suite.kopiaCloser(ctx)
+	}
+}
+
+var _ inject.BackupProducer = &mockBackupProducer{}
+
+type mockBackupProducer struct {
+	colls                   []data.BackupCollection
+	dcs                     data.CollectionStats
+	injectNonRecoverableErr bool
+}
+
+func (mbp *mockBackupProducer) ProduceBackupCollections(
+	context.Context,
+	inject.BackupProducerConfig,
+	*fault.Bus,
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+	if mbp.injectNonRecoverableErr {
+		return nil, nil, false, clues.New("non-recoverable error")
+	}
+
+	return mbp.colls, nil, true, nil
+}
+
+func (mbp *mockBackupProducer) IsBackupRunnable(
+	context.Context,
+	path.ServiceType,
+	string,
+) (bool, error) {
+	return true, nil
+}
+
+func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
+	return &mbp.dcs
+}
+
+func makeBackupCollection(
+	p path.Path,
+	locPath *path.Builder,
+	items []odMock.Data,
+) data.BackupCollection {
+	streams := make([]data.Stream, len(items))
+
+	for i := range items {
+		streams[i] = &items[i]
+	}
+
+	return &mock.BackupCollection{
+		Path:    p,
+		Loc:     locPath,
+		Streams: streams,
+	}
+}
+
+func makeMetadataCollectionEntries(
+	deltaURL, driveID, folderID string,
+	p path.Path,
+) []graph.MetadataCollectionEntry {
+	return []graph.MetadataCollectionEntry{
+		graph.NewMetadataEntry(
+			graph.DeltaURLsFileName,
+			map[string]string{driveID: deltaURL},
+		),
+		graph.NewMetadataEntry(
+			graph.PreviousPathFileName,
+			map[string]map[string]string{
+				driveID: {
+					folderID: p.PlainString(),
+				},
+			},
+		),
+	}
+}
+
+const (
+	userID    = "user-id"
+	driveID   = "drive-id"
+	driveName = "drive-name"
+	folderID  = "folder-id"
+)
+
+func makeODMockData(
+	fileID string,
+	extData *details.ExtensionData,
+	modTime time.Time,
+	del bool,
+	readErr error,
+) odMock.Data {
+	rc := odMock.FileRespReadCloser(odMock.DriveFilePayloadData)
+	if extData != nil {
+		rc = odMock.FileRespWithExtensions(odMock.DriveFilePayloadData, extData)
+	}
+
+	return odMock.Data{
+		ID:            fileID,
+		DriveID:       driveID,
+		DriveName:     driveName,
+		Reader:        rc,
+		ReadErr:       readErr,
+		Sz:            100,
+		ModifiedTime:  modTime,
+		Del:           del,
+		ExtensionData: extData,
+	}
+}
+
+// Check what kind of backup is produced for a given failurePolicy/observed fault
+// bus combination.
+//
+// It's currently using errors generated during mockBackupProducer phase.
+// Ideally we would test with errors generated in various phases of backup, but
+// that needs putting produceManifestsAndMetadata and mergeDetails behind mockable
+// interfaces.
+//
+// Note: Tests are incremental since we are reusing kopia repo between tests,
+// but this is irrelevant here.
+
+func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
+	var (
+		acct     = tconfig.NewM365Account(suite.T())
+		tenantID = acct.Config[config.AzureTenantIDKey]
+		opts     = control.DefaultOptions()
+		osel     = selectors.NewOneDriveBackup([]string{userID})
+	)
+
+	osel.Include(selTD.OneDriveBackupFolderScope(osel))
+
+	pathElements := []string{odConsts.DrivesPathDir, "drive-id", odConsts.RootPathDir, folderID}
+
+	tmp, err := path.Build(tenantID, userID, path.OneDriveService, path.FilesCategory, false, pathElements...)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	locPath := path.Builder{}.Append(tmp.Folders()...)
+
+	table := []struct {
+		name                    string
+		collFunc                func() []data.BackupCollection
+		injectNonRecoverableErr bool
+		failurePolicy           control.FailurePolicy
+		expectRunErr            assert.ErrorAssertionFunc
+		expectBackupTag         string
+		expectFaults            func(t *testing.T, errs *fault.Bus)
+	}{
+		{
+			name: "fail fast, no errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", nil, time.Now(), false, nil),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.FailFast,
+			expectRunErr:    assert.NoError,
+			expectBackupTag: model.MergeBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
+			},
+		},
+		{
+			name: "fail fast, any errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", nil, time.Now(), false, assert.AnError),
+						}),
+				}
+				return bc
+			},
+			failurePolicy:   control.FailFast,
+			expectRunErr:    assert.Error,
+			expectBackupTag: "",
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			},
+		},
+		{
+			name: "best effort, no errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", nil, time.Now(), false, nil),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.BestEffort,
+			expectRunErr:    assert.NoError,
+			expectBackupTag: model.MergeBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
+			},
+		},
+		{
+			name: "best effort, non-recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				return nil
+			},
+			injectNonRecoverableErr: true,
+			failurePolicy:           control.BestEffort,
+			expectRunErr:            assert.Error,
+			expectBackupTag:         "",
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			},
+		},
+		{
+			name: "best effort, recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", nil, time.Now(), false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.BestEffort,
+			expectRunErr:    assert.NoError,
+			expectBackupTag: model.MergeBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
+			},
+		},
+		{
+			name: "fail after recovery, no errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", nil, time.Now(), false, nil),
+							makeODMockData("file2", nil, time.Now(), false, nil),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.FailAfterRecovery,
+			expectRunErr:    assert.NoError,
+			expectBackupTag: model.MergeBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
+			},
+		},
+		{
+			name: "fail after recovery, non-recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				return nil
+			},
+			injectNonRecoverableErr: true,
+			failurePolicy:           control.FailAfterRecovery,
+			expectRunErr:            assert.Error,
+			expectBackupTag:         "",
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			},
+		},
+		{
+			name: "fail after recovery, recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", nil, time.Now(), false, nil),
+							makeODMockData("file2", nil, time.Now(), false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.FailAfterRecovery,
+			expectRunErr:    assert.Error,
+			expectBackupTag: model.AssistBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			cs := test.collFunc()
+
+			mc, err := graph.MakeMetadataCollection(
+				tenantID,
+				userID,
+				path.OneDriveService,
+				path.FilesCategory,
+				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
+				func(*support.ControllerOperationStatus) {})
+			require.NoError(t, err, clues.ToCore(err))
+
+			cs = append(cs, mc)
+			bp := &mockBackupProducer{
+				colls:                   cs,
+				injectNonRecoverableErr: test.injectNonRecoverableErr,
+			}
+
+			opts.FailureHandling = test.failurePolicy
+
+			bo, err := NewBackupOperation(
+				ctx,
+				opts,
+				suite.kw,
+				suite.sw,
+				bp,
+				acct,
+				osel.Selector,
+				selectors.Selector{DiscreteOwner: userID},
+				evmock.NewBus())
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = bo.Run(ctx)
+			test.expectRunErr(t, err, clues.ToCore(err))
+
+			test.expectFaults(t, bo.Errors)
+
+			if len(test.expectBackupTag) == 0 {
+				return
+			}
+
+			bID := bo.Results.BackupID
+			require.NotEmpty(t, bID)
+
+			bup := backup.Backup{}
+
+			err = suite.ms.Get(ctx, model.BackupSchema, bID, &bup)
+			require.NoError(t, err, clues.ToCore(err))
+
+			require.Equal(t, test.expectBackupTag, bup.Tags[model.BackupTypeTag])
+		})
+	}
+}
+
+func selectFilesFromDeets(d details.Details) map[string]details.Entry {
+	files := make(map[string]details.Entry)
+
+	for _, ent := range d.Entries {
+		if ent.Folder != nil {
+			continue
+		}
+
+		files[ent.ItemRef] = ent
+	}
+
+	return files
+}
+
+// TestExtensionsIncrementals tests presence of corso extension data in details
+// Note that since we are mocking out backup producer here, corso extensions can't be
+// attached as they would in prod. However, this is fine here, since we are more interested
+// in testing whether deets get carried over correctly for various scenarios.
+func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
+	var (
+		acct     = tconfig.NewM365Account(suite.T())
+		tenantID = acct.Config[config.AzureTenantIDKey]
+		opts     = control.DefaultOptions()
+		osel     = selectors.NewOneDriveBackup([]string{userID})
+		// Default policy used by SDK clients
+		failurePolicy = control.FailAfterRecovery
+		T1            = time.Now().Truncate(0)
+		T2            = T1.Add(time.Hour).Truncate(0)
+		T3            = T2.Add(time.Hour).Truncate(0)
+		extData       = make(map[int]*details.ExtensionData)
+	)
+
+	for i := 0; i < 3; i++ {
+		d := make(map[string]any)
+		extData[i] = &details.ExtensionData{
+			Data: d,
+		}
+	}
+
+	osel.Include(selTD.OneDriveBackupFolderScope(osel))
+
+	sss := streamstore.NewStreamer(
+		suite.kw,
+		suite.acct.ID(),
+		osel.PathService())
+
+	pathElements := []string{odConsts.DrivesPathDir, "drive-id", odConsts.RootPathDir, folderID}
+
+	tmp, err := path.Build(tenantID, userID, path.OneDriveService, path.FilesCategory, false, pathElements...)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	locPath := path.Builder{}.Append(tmp.Folders()...)
+
+	table := []struct {
+		name          string
+		collFunc      func() []data.BackupCollection
+		expectRunErr  assert.ErrorAssertionFunc
+		validateDeets func(t *testing.T, gotDeets details.Details)
+	}{
+		{
+			name: "Assist backup, 1 new deets",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", extData[0], T1, false, nil),
+							makeODMockData("file2", extData[1], T1, false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			expectRunErr: assert.Error,
+			validateDeets: func(t *testing.T, d details.Details) {
+				files := selectFilesFromDeets(d)
+				require.Len(t, files, 1)
+
+				f := files["file1"]
+				require.NotNil(t, f)
+
+				require.True(t, T1.Equal(f.Modified()))
+				require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+			},
+		},
+		{
+			name: "Assist backup after assist backup, 1 existing, 1 new deets",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", extData[0], T1, false, nil),
+							makeODMockData("file2", extData[1], T2, false, nil),
+							makeODMockData("file3", extData[2], T2, false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			expectRunErr: assert.Error,
+			validateDeets: func(t *testing.T, d details.Details) {
+				files := selectFilesFromDeets(d)
+				require.Len(t, files, 2)
+
+				for _, f := range files {
+					switch f.ItemRef {
+					case "file1":
+						require.True(t, T1.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					case "file2":
+						require.True(t, T2.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					default:
+						require.Fail(t, "unexpected file", f.ItemRef)
+					}
+				}
+			},
+		},
+		{
+			name: "Merge backup, 2 existing deets, 1 new deet",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", extData[0], T1, false, nil),
+							makeODMockData("file2", extData[1], T2, false, nil),
+							makeODMockData("file3", extData[2], T3, false, nil),
+						}),
+				}
+
+				return bc
+			},
+			expectRunErr: assert.NoError,
+			validateDeets: func(t *testing.T, d details.Details) {
+				files := selectFilesFromDeets(d)
+				require.Len(t, files, 3)
+
+				for _, f := range files {
+					switch f.ItemRef {
+					case "file1":
+						require.True(t, T1.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					case "file2":
+						require.True(t, T2.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					case "file3":
+						require.True(t, T3.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					default:
+						require.Fail(t, "unexpected file", f.ItemRef)
+					}
+				}
+			},
+		},
+		{
+			// Reset state so we can reuse the same test data
+			name: "All files deleted",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", extData[0], T1, true, nil),
+							makeODMockData("file2", extData[1], T2, true, nil),
+							makeODMockData("file3", extData[2], T3, true, nil),
+						}),
+				}
+
+				return bc
+			},
+			expectRunErr: assert.NoError,
+			validateDeets: func(t *testing.T, d details.Details) {
+				files := selectFilesFromDeets(d)
+				require.Len(t, files, 0)
+			},
+		},
+		{
+			name: "Merge backup, 1 new deets",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", extData[0], T1, false, nil),
+						}),
+				}
+
+				return bc
+			},
+			expectRunErr: assert.NoError,
+			validateDeets: func(t *testing.T, d details.Details) {
+				files := selectFilesFromDeets(d)
+				require.Len(t, files, 1)
+
+				for _, f := range files {
+					switch f.ItemRef {
+					case "file1":
+						require.True(t, T1.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					default:
+						require.Fail(t, "unexpected file", f.ItemRef)
+					}
+				}
+			},
+		},
+		// This test fails currently, need to rerun with Ashlie's PR.
+		{
+			name: "Assist backup after merge backup, 1 new deets, 1 existing deet",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]odMock.Data{
+							makeODMockData("file1", extData[0], T1, false, nil),
+							makeODMockData("file2", extData[1], T2, false, nil),
+							makeODMockData("file3", extData[2], T3, false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			expectRunErr: assert.Error,
+			validateDeets: func(t *testing.T, d details.Details) {
+				files := selectFilesFromDeets(d)
+				require.Len(t, files, 2)
+
+				for _, f := range files {
+					switch f.ItemRef {
+					case "file1":
+						require.True(t, T1.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+
+					case "file2":
+						require.True(t, T2.Equal(f.Modified()))
+						require.NotZero(t, f.Extension.Data[extensions.KNumBytes])
+					default:
+						require.Fail(t, "unexpected file", f.ItemRef)
+					}
+				}
+			},
+		},
+
+		// TODO(pandeyabs): Remaining tests.
+		// 1. Deets updated in assist backup. Following backup should have updated deets.
+		// 2. Concurrent overlapping reasons.
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			cs := test.collFunc()
+
+			mc, err := graph.MakeMetadataCollection(
+				tenantID,
+				userID,
+				path.OneDriveService,
+				path.FilesCategory,
+				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
+				func(*support.ControllerOperationStatus) {})
+			require.NoError(t, err, clues.ToCore(err))
+
+			cs = append(cs, mc)
+			bp := &mockBackupProducer{
+				colls: cs,
+			}
+
+			opts.FailureHandling = failurePolicy
+
+			bo, err := NewBackupOperation(
+				ctx,
+				opts,
+				suite.kw,
+				suite.sw,
+				bp,
+				acct,
+				osel.Selector,
+				selectors.Selector{DiscreteOwner: userID},
+				evmock.NewBus())
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = bo.Run(ctx)
+			test.expectRunErr(t, err, clues.ToCore(err))
+
+			assert.NotEmpty(t, bo.Results.BackupID)
+
+			deets, _ := deeTD.GetDeetsInBackup(
+				t,
+				ctx,
+				bo.Results.BackupID,
+				tenantID,
+				userID,
+				path.OneDriveService,
+				deeTD.DriveIDFromRepoRef,
+				suite.ms,
+				sss)
+			assert.NotNil(t, deets)
+
+			test.validateDeets(t, deets)
+
+			// Clear extension data between test runs
+			for i := 0; i < 3; i++ {
+				d := make(map[string]any)
+				extData[i] = &details.ExtensionData{
+					Data: d,
+				}
+			}
 		})
 	}
 }

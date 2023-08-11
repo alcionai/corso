@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -137,7 +138,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // complete backup of all data.
 func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
-	backupReasons []Reasoner,
+	backupReasons []identity.Reasoner,
 	bases BackupBases,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,

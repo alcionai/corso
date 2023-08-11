@@ -23,6 +23,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -74,16 +75,16 @@ func (rw *backupStreamReader) Close() error {
 
 	rw.combined = nil
 
-	var outerErr error
+	var errs *clues.Err
 
 	for _, r := range rw.readers {
 		err := r.Close()
 		if err != nil {
-			outerErr = clues.Stack(err, clues.New("closing reader"))
+			errs = clues.Stack(clues.Wrap(err, "closing reader"), errs)
 		}
 	}
 
-	return outerErr
+	return errs.OrNil()
 }
 
 // restoreStreamReader is a wrapper around the io.Reader that kopia returns when
@@ -137,6 +138,7 @@ type itemDetails struct {
 	prevPath     path.Path
 	locationPath *path.Builder
 	cached       bool
+	modTime      *time.Time
 }
 
 type corsoProgress struct {
@@ -148,9 +150,11 @@ type corsoProgress struct {
 
 	snapshotfs.UploadProgress
 	pending map[string]*itemDetails
-	deets   *details.Builder
-	// toMerge represents items that we don't have in-memory item info for. The
-	// item info for these items should be sourced from a base snapshot later on.
+	// deets contains entries that are complete and don't need merged with base
+	// backup data at all.
+	deets *details.Builder
+	// toMerge represents items that we either don't have in-memory item info or
+	// that need sourced from a base backup due to caching etc.
 	toMerge    *mergeDetails
 	mu         sync.RWMutex
 	totalBytes int64
@@ -194,7 +198,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
-	if d.info == nil {
+	if d.info == nil || d.cached {
 		if d.prevPath == nil {
 			cp.errs.AddRecoverable(cp.ctx, clues.New("item sourced from previous backup with no previous path").
 				With(
@@ -208,7 +212,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath, d.locationPath)
+		err := cp.toMerge.addRepoRef(
+			d.prevPath.ToBuilder(),
+			d.modTime,
+			d.repoPath,
+			d.locationPath)
 		if err != nil {
 			cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "adding item to merge list").
 				With(
@@ -375,6 +383,11 @@ func collectionEntries(
 				continue
 			}
 
+			modTime := time.Now()
+			if smt, ok := e.(data.StreamModTime); ok {
+				modTime = smt.ModTime()
+			}
+
 			// Not all items implement StreamInfo. For example, the metadata files
 			// do not because they don't contain information directly backed up or
 			// used for restore. If progress does not contain information about a
@@ -391,16 +404,20 @@ func collectionEntries(
 				// info nil.
 				itemInfo := ei.Info()
 				d := &itemDetails{
-					info:         &itemInfo,
-					repoPath:     itemPath,
+					info:     &itemInfo,
+					repoPath: itemPath,
+					// Also use the current path as the previous path for this item. This
+					// is so that if the item is marked as cached and we need to merge
+					// details with an assist backup base which sourced the cached item we
+					// can find it with the lookup in DetailsMergeInfoer.
+					//
+					// This all works out because cached item checks in kopia are direct
+					// path + metadata comparisons.
+					prevPath:     itemPath,
 					locationPath: locationPath,
+					modTime:      &modTime,
 				}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
-			}
-
-			modTime := time.Now()
-			if smt, ok := e.(data.StreamModTime); ok {
-				modTime = smt.ModTime()
 			}
 
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
@@ -508,6 +525,7 @@ func streamBaseEntries(
 				repoPath:     itemPath,
 				prevPath:     prevItemPath,
 				locationPath: locationPath,
+				modTime:      ptr.To(entry.ModTime()),
 			}
 			progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 		}

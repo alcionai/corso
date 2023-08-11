@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -43,15 +43,11 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
-	t := suite.T()
-
 	var (
 		users     = []string{"u1", "u2"}
 		sel       = NewOneDriveBackup(users)
 		allScopes = sel.AllData()
 	)
-
-	assert.ElementsMatch(t, users, sel.DiscreteResourceOwners())
 
 	// Initialize the selector Include, Exclude, Filter
 	sel.Exclude(allScopes)

@@ -255,7 +255,7 @@ func (c Drives) GetItemPermission(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
+		return nil, graph.Wrap(ctx, err, "getting item permission").With("item_id", itemID)
 	}
 
 	return perm, nil

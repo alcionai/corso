@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -47,10 +48,10 @@ func (suite *DetailsMergeInfoerUnitSuite) TestAddRepoRef_DuplicateFails() {
 
 	dm := newMergeDetails()
 
-	err := dm.addRepoRef(oldRef1.ToBuilder(), oldRef1, nil)
+	err := dm.addRepoRef(oldRef1.ToBuilder(), nil, oldRef1, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = dm.addRepoRef(oldRef1.ToBuilder(), oldRef1, nil)
+	err = dm.addRepoRef(oldRef1.ToBuilder(), nil, oldRef1, nil)
 	require.Error(t, err, clues.ToCore(err))
 }
 
@@ -58,6 +59,10 @@ func (suite *DetailsMergeInfoerUnitSuite) TestAddRepoRef_DuplicateFails() {
 // for stored RepoRefs.
 func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	t := suite.T()
+
+	t1 := time.Now()
+	t2 := t1.Add(time.Second * 30)
+
 	oldRef1 := makePath(
 		t,
 		[]string{
@@ -110,10 +115,13 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 
 	dm := newMergeDetails()
 
-	err := dm.addRepoRef(oldRef1.ToBuilder(), newRef1, newLoc1)
+	err := dm.addRepoRef(oldRef1.ToBuilder(), &t1, newRef1, newLoc1)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = dm.addRepoRef(oldRef2.ToBuilder(), newRef2, nil)
+	err = dm.addRepoRef(oldRef2.ToBuilder(), &t2, newRef2, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = dm.addRepoRef(newRef1.ToBuilder(), nil, oldRef1, oldLoc1)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Add prefix matcher entry.
@@ -121,58 +129,89 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
-		name        string
-		searchRef   *path.Builder
-		searchLoc   mockLocationIDer
-		errCheck    require.ErrorAssertionFunc
-		expectedRef path.Path
-		expectedLoc *path.Builder
+		name          string
+		searchRef     *path.Builder
+		searchModTime time.Time
+		searchLoc     mockLocationIDer
+		errCheck      require.ErrorAssertionFunc
+		expectFound   bool
+		expectedRef   path.Path
+		expectedLoc   *path.Builder
 	}{
 		{
-			name:        "Exact Match With Loc",
-			searchRef:   oldRef1.ToBuilder(),
-			searchLoc:   searchLoc1,
-			errCheck:    require.NoError,
-			expectedRef: newRef1,
-			expectedLoc: newLoc1,
+			name:          "Exact Match With Loc",
+			searchRef:     oldRef1.ToBuilder(),
+			searchModTime: t1,
+			searchLoc:     searchLoc1,
+			errCheck:      require.NoError,
+			expectFound:   true,
+			expectedRef:   newRef1,
+			expectedLoc:   newLoc1,
 		},
 		{
-			name:        "Exact Match Without Loc",
-			searchRef:   oldRef1.ToBuilder(),
-			errCheck:    require.NoError,
-			expectedRef: newRef1,
-			expectedLoc: newLoc1,
+			name:          "Exact Match Without Loc",
+			searchRef:     oldRef1.ToBuilder(),
+			searchModTime: t1,
+			errCheck:      require.NoError,
+			expectFound:   true,
+			expectedRef:   newRef1,
+			expectedLoc:   newLoc1,
 		},
 		{
-			name:        "Prefix Match",
-			searchRef:   oldRef2.ToBuilder(),
-			searchLoc:   searchLoc2,
-			errCheck:    require.NoError,
-			expectedRef: newRef2,
-			expectedLoc: newLoc2,
+			name:          "Exact Match Without Loc ModTime Not In Merger",
+			searchRef:     newRef1.ToBuilder(),
+			searchModTime: time.Now(),
+			errCheck:      require.NoError,
+			expectFound:   true,
+			expectedRef:   oldRef1,
+			expectedLoc:   oldLoc1,
 		},
 		{
-			name:      "Would Be Prefix Match Without Old Loc Errors",
-			searchRef: oldRef2.ToBuilder(),
-			errCheck:  require.Error,
+			name:          "Prefix Match",
+			searchRef:     oldRef2.ToBuilder(),
+			searchModTime: t2,
+			searchLoc:     searchLoc2,
+			errCheck:      require.NoError,
+			expectFound:   true,
+			expectedRef:   newRef2,
+			expectedLoc:   newLoc2,
 		},
 		{
-			name:      "Not Found With Old Loc",
-			searchRef: newRef1.ToBuilder(),
-			searchLoc: searchLoc2,
-			errCheck:  require.NoError,
+			name:          "Would Be Prefix Match Without Old Loc Errors",
+			searchRef:     oldRef2.ToBuilder(),
+			searchModTime: t2,
+			errCheck:      require.Error,
 		},
 		{
-			name:      "Not Found Without Old Loc",
-			searchRef: newRef1.ToBuilder(),
-			errCheck:  require.NoError,
+			name:          "Not Found With Old Loc",
+			searchRef:     newRef2.ToBuilder(),
+			searchModTime: t1,
+			searchLoc:     searchLoc2,
+			errCheck:      require.NoError,
+		},
+		{
+			name:          "Not Found Without Old Loc",
+			searchRef:     newRef2.ToBuilder(),
+			searchModTime: t1,
+			errCheck:      require.NoError,
+		},
+		{
+			name:          "Not Found Due To Mod Time",
+			searchRef:     oldRef1.ToBuilder(),
+			searchModTime: time.Now(),
+			searchLoc:     searchLoc1,
+			errCheck:      require.NoError,
 		},
 	}
+
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			newRef, newLoc, err := dm.GetNewPathRefs(test.searchRef, test.searchLoc)
+			newRef, newLoc, err := dm.GetNewPathRefs(
+				test.searchRef,
+				test.searchModTime,
+				test.searchLoc)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedRef, newRef, "RepoRef")

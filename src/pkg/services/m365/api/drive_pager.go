@@ -13,7 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	onedrive "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
+	onedrive "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 

@@ -11,9 +11,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
 	"github.com/alcionai/corso/src/internal/m365/resource"
-	"github.com/alcionai/corso/src/internal/m365/sharepoint"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -123,15 +124,20 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				ctrlOpts := control.DefaultOptions()
 				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
+				bpc := inject.BackupProducerConfig{
+					// exchange doesn't have any changes based on backup version yet.
+					LastBackupVersion: version.NoBackup,
+					Options:           ctrlOpts,
+					ProtectedResource: uidn,
+					Selector:          sel,
+				}
+
 				collections, excludes, canUsePreviousBackup, err := exchange.ProduceBackupCollections(
 					ctx,
+					bpc,
 					suite.ac,
-					sel,
 					suite.tenantID,
-					uidn,
-					nil,
 					ctrl.UpdateStatus,
-					ctrlOpts,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
 				assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -233,13 +239,15 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			bpc := inject.BackupProducerConfig{
+				LastBackupVersion: version.NoBackup,
+				Options:           control.DefaultOptions(),
+				ProtectedResource: test.getSelector(t),
+			}
+
 			collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 				ctx,
-				test.getSelector(t),
-				test.getSelector(t),
-				nil,
-				version.NoBackup,
-				control.DefaultOptions(),
+				bpc,
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.False(t, canUsePreviousBackup, "can use previous backup")
@@ -288,15 +296,18 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			sel := test.getSelector()
 
+			bpc := inject.BackupProducerConfig{
+				Options:           control.DefaultOptions(),
+				ProtectedResource: sel,
+				Selector:          sel,
+			}
+
 			collections, excludes, canUsePreviousBackup, err := sharepoint.ProduceBackupCollections(
 				ctx,
+				bpc,
 				suite.ac,
-				sel,
-				sel,
-				nil,
 				ctrl.credentials,
-				ctrl,
-				control.DefaultOptions(),
+				ctrl.UpdateStatus,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -375,13 +386,16 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion: version.NoBackup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: inMock.NewProvider(id, name),
+		Selector:          sel.Selector,
+	}
+
 	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
-		inMock.NewProvider(id, name),
-		sel.Selector,
-		nil,
-		version.NoBackup,
-		control.DefaultOptions(),
+		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -422,13 +436,16 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 
 	sel.SetDiscreteOwnerIDName(id, name)
 
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion: version.NoBackup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: inMock.NewProvider(id, name),
+		Selector:          sel.Selector,
+	}
+
 	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
-		inMock.NewProvider(id, name),
-		sel.Selector,
-		nil,
-		version.NoBackup,
-		control.DefaultOptions(),
+		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")

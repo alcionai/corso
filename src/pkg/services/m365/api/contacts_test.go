@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"

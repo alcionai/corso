@@ -240,7 +240,7 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 		return false
 	}
 
-	code, ok := ptr.ValOK(oDataError.GetError().GetCode())
+	code, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetCode())
 	if !ok {
 		return false
 	}
@@ -349,7 +349,7 @@ func errData(err odataerrors.ODataErrorable) (string, []any, string) {
 	data := make([]any, 0)
 
 	// Get MainError
-	mainErr := err.GetError()
+	mainErr := err.GetErrorEscaped()
 	mainMsg := ptr.Val(mainErr.GetMessage())
 
 	data = appendIf(data, "odataerror_code", mainErr.GetCode())

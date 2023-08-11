@@ -1,18 +1,24 @@
 package graph
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/clues"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kauth "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -38,9 +44,9 @@ func AllMetadataFileNames() []string {
 }
 
 type QueryParams struct {
-	Category      path.CategoryType
-	ResourceOwner idname.Provider
-	TenantID      string
+	Category          path.CategoryType
+	ProtectedResource idname.Provider
+	TenantID          string
 }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +59,7 @@ type Servicer interface {
 	Client() *msgraphsdkgo.GraphServiceClient
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
-	Adapter() *msgraphsdkgo.GraphRequestAdapter
+	Adapter() abstractions.RequestAdapter
 }
 
 // ---------------------------------------------------------------------------
@@ -63,18 +69,18 @@ type Servicer interface {
 var _ Servicer = &Service{}
 
 type Service struct {
-	adapter *msgraphsdkgo.GraphRequestAdapter
+	adapter abstractions.RequestAdapter
 	client  *msgraphsdkgo.GraphServiceClient
 }
 
-func NewService(adapter *msgraphsdkgo.GraphRequestAdapter) *Service {
+func NewService(adapter abstractions.RequestAdapter) *Service {
 	return &Service{
 		adapter: adapter,
 		client:  msgraphsdkgo.NewGraphServiceClient(adapter),
 	}
 }
 
-func (s Service) Adapter() *msgraphsdkgo.GraphRequestAdapter {
+func (s Service) Adapter() abstractions.RequestAdapter {
 	return s.adapter
 }
 
@@ -104,22 +110,27 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
-// to create  *msgraphsdk.GraphServiceClient
+// to create a graph api client connection.
 func CreateAdapter(
 	tenant, client, secret string,
 	opts ...Option,
-) (*msgraphsdkgo.GraphRequestAdapter, error) {
+) (abstractions.RequestAdapter, error) {
 	auth, err := GetAuth(tenant, client, secret)
 	if err != nil {
 		return nil, err
 	}
 
-	httpClient := KiotaHTTPClient(opts...)
+	httpClient, cc := KiotaHTTPClient(opts...)
 
-	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+	adpt, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
 		nil, nil,
 		httpClient)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return wrapAdapter(adpt, cc), nil
 }
 
 func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityAuthenticationProvider, error) {
@@ -147,7 +158,7 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func KiotaHTTPClient(opts ...Option) *http.Client {
+func KiotaHTTPClient(opts ...Option) (*http.Client, *clientConfig) {
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(opts...)
@@ -159,7 +170,7 @@ func KiotaHTTPClient(opts ...Option) *http.Client {
 
 	cc.apply(httpClient)
 
-	return httpClient
+	return httpClient, cc
 }
 
 // ---------------------------------------------------------------------------
@@ -168,11 +179,14 @@ func KiotaHTTPClient(opts ...Option) *http.Client {
 
 type clientConfig struct {
 	noTimeout bool
-	// MaxRetries before failure
+	// MaxConnectionRetries is the number of connection-level retries that
+	// attempt to re-run the request due to a broken or closed connection.
+	maxConnectionRetries int
+	// MaxRetries is the number of middleware retires attempted
+	// before returning with failure
 	maxRetries int
 	// The minimum delay in seconds between retries
-	minDelay           time.Duration
-	overrideRetryCount bool
+	minDelay time.Duration
 
 	appendMiddleware []khttp.Middleware
 }
@@ -182,8 +196,9 @@ type Option func(*clientConfig)
 // populate constructs a clientConfig according to the provided options.
 func populateConfig(opts ...Option) *clientConfig {
 	cc := clientConfig{
-		maxRetries: defaultMaxRetries,
-		minDelay:   defaultDelay,
+		maxConnectionRetries: defaultMaxRetries,
+		maxRetries:           defaultMaxRetries,
+		minDelay:             defaultDelay,
 	}
 
 	for _, opt := range opts {
@@ -216,14 +231,25 @@ func NoTimeout() Option {
 
 func MaxRetries(max int) Option {
 	return func(c *clientConfig) {
-		c.overrideRetryCount = true
+		if max < 0 {
+			max = 0
+		} else if max > 5 {
+			max = 5
+		}
+
 		c.maxRetries = max
 	}
 }
 
-func MinimumBackoff(dur time.Duration) Option {
+func MinimumBackoff(min time.Duration) Option {
 	return func(c *clientConfig) {
-		c.minDelay = dur
+		if min < 100*time.Millisecond {
+			min = 100 * time.Millisecond
+		} else if min > 5*time.Second {
+			min = 5 * time.Second
+		}
+
+		c.minDelay = min
 	}
 }
 
@@ -232,6 +258,18 @@ func appendMiddleware(mw ...khttp.Middleware) Option {
 		if len(mw) > 0 {
 			c.appendMiddleware = mw
 		}
+	}
+}
+
+func MaxConnectionRetries(max int) Option {
+	return func(c *clientConfig) {
+		if max < 0 {
+			max = 0
+		} else if max > 5 {
+			max = 5
+		}
+
+		c.maxConnectionRetries = max
 	}
 }
 
@@ -274,4 +312,72 @@ func kiotaMiddlewares(
 	}
 
 	return mw
+}
+
+// ---------------------------------------------------------------------------
+// Graph Api Adapter Wrapper
+// ---------------------------------------------------------------------------
+
+var _ abstractions.RequestAdapter = &adapterWrap{}
+
+// adapterWrap takes a GraphRequestAdapter and replaces the Send() function to
+// act as a middleware for all http calls.  Certain error conditions never reach
+// the the client middleware layer, and therefore miss out on logging and retries.
+// By hijacking the Send() call, we can ensure three basic needs:
+// 1. Panics generated by the graph client are caught instead of crashing corso.
+// 2. Http and Http2 connection closures are retried.
+// 3. Error and debug conditions are logged.
+type adapterWrap struct {
+	abstractions.RequestAdapter
+	config *clientConfig
+}
+
+func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapterWrap {
+	return &adapterWrap{gra, cc}
+}
+
+var connectionEnded = filters.Contains([]string{
+	"connection reset by peer",
+	"client connection force closed",
+})
+
+func (aw *adapterWrap) Send(
+	ctx context.Context,
+	requestInfo *abstractions.RequestInformation,
+	constructor serialization.ParsableFactory,
+	errorMappings abstractions.ErrorMappings,
+) (sp serialization.Parsable, err error) {
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover(), "graph adapter request"); crErr != nil {
+			err = Stack(ctx, crErr)
+		}
+	}()
+
+	// stream errors from http/2 will fail before we reach
+	// client middleware handling, therefore we don't get to
+	// make use of the retry middleware.  This external
+	// retry wrapper is unsophisticated, but should only
+	// retry in the event of a `stream error`, which is not
+	// a common expectation.
+	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
+		ictx := clues.Add(ctx, "request_retry_iter", i)
+
+		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
+		if err != nil &&
+			!(IsErrConnectionReset(err) ||
+				connectionEnded.Compare(err.Error())) {
+			return nil, Stack(ictx, err)
+		}
+
+		if err == nil {
+			break
+		}
+
+		logger.Ctx(ictx).Debug("http connection error")
+		events.Inc(events.APICall, "connectionerror")
+
+		time.Sleep(3 * time.Second)
+	}
+
+	return sp, err
 }

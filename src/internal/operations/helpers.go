@@ -11,8 +11,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-// finalizeErrorHandling ensures the operation follow the options
-// failure behavior requirements.
+// finalizeErrorHandling ensures the operation follows the
+// failure policy requirements.
 func finalizeErrorHandling(
 	ctx context.Context,
 	opts control.Options,

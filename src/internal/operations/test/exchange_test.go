@@ -18,11 +18,11 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
-	"github.com/alcionai/corso/src/internal/m365/exchange"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
-	exchTD "github.com/alcionai/corso/src/internal/m365/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
+	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -872,20 +872,20 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	}
 }
 
-type ExchangeRestoreIntgSuite struct {
+type ExchangeRestoreNightlyIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
 func TestExchangeRestoreIntgSuite(t *testing.T) {
-	suite.Run(t, &ExchangeRestoreIntgSuite{
-		Suite: tester.NewIntegrationSuite(
+	suite.Run(t, &ExchangeRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *ExchangeRestoreIntgSuite) SetupSuite() {
+func (suite *ExchangeRestoreNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
@@ -909,7 +909,7 @@ type clientItemPager interface {
 	) (graph.Container, error)
 }
 
-func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptions() {
+func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvancedOptions() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -1219,7 +1219,7 @@ func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeWithAdvancedOptio
 	})
 }
 
-func (suite *ExchangeRestoreIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
+func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)

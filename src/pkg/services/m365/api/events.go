@@ -724,7 +724,7 @@ func EventCollisionKey(item models.Eventable) string {
 
 	var (
 		subject   = ptr.Val(item.GetSubject())
-		oftype    = ptr.Val(item.GetType()).String()
+		oftype    = ptr.Val(item.GetTypeEscaped()).String()
 		startTime = item.GetStart()
 		start     string
 		endTime   = item.GetEnd()

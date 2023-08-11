@@ -44,56 +44,6 @@ func (suite *SelectorSuite) TestBadCastErr() {
 	assert.Error(suite.T(), err, clues.ToCore(err))
 }
 
-func (suite *SelectorSuite) TestResourceOwnersIn() {
-	rootCat := rootCatStub.String()
-
-	table := []struct {
-		name   string
-		input  []scope
-		expect []string
-	}{
-		{
-			name:   "nil",
-			input:  nil,
-			expect: []string{},
-		},
-		{
-			name:   "empty",
-			input:  []scope{},
-			expect: []string{},
-		},
-		{
-			name:   "single",
-			input:  []scope{{rootCat: filters.Identity("foo")}},
-			expect: []string{"foo"},
-		},
-		{
-			name: "multiple scopes",
-			input: []scope{
-				{rootCat: filters.Identity("foo,bar")},
-				{rootCat: filters.Identity("baz")},
-			},
-			expect: []string{"foo,bar", "baz"},
-		},
-		{
-			name: "multiple scopes with duplicates",
-			input: []scope{
-				{rootCat: filters.Identity("foo")},
-				{rootCat: filters.Identity("foo")},
-			},
-			expect: []string{"foo"},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			result := resourceOwnersIn(test.input, rootCat)
-			assert.ElementsMatch(t, test.expect, result)
-		})
-	}
-}
-
 func (suite *SelectorSuite) TestPathCategoriesIn() {
 	leafCat := leafCatStub.String()
 	f := filters.Identity(leafCat)
@@ -144,20 +94,20 @@ func (suite *SelectorSuite) TestContains() {
 
 func (suite *SelectorSuite) TestIsAnyResourceOwner() {
 	t := suite.T()
-	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
-	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{})))
-	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, nil)))
-	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{AnyTgt})))
-	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, Any())))
+	assert.False(t, isAnyProtectedResource(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.False(t, isAnyProtectedResource(newSelector(ServiceUnknown, []string{})))
+	assert.False(t, isAnyProtectedResource(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isAnyProtectedResource(newSelector(ServiceUnknown, []string{AnyTgt})))
+	assert.True(t, isAnyProtectedResource(newSelector(ServiceUnknown, Any())))
 }
 
 func (suite *SelectorSuite) TestIsNoneResourceOwner() {
 	t := suite.T()
-	assert.False(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{})))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, nil)))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{NoneTgt})))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, None())))
+	assert.False(t, isNoneProtectedResource(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, []string{})))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, []string{NoneTgt})))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, None())))
 }
 
 func (suite *SelectorSuite) TestSplitByResourceOnwer() {
@@ -224,7 +174,7 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 			t := suite.T()
 
 			s := newSelector(ServiceUnknown, test.input)
-			result := splitByResourceOwner[mockScope](s, allOwners, rootCatStub)
+			result := splitByProtectedResource[mockScope](s, allOwners, rootCatStub)
 
 			assert.Len(t, result, test.expectLen)
 

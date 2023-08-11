@@ -13,10 +13,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/resource"
-	"github.com/alcionai/corso/src/internal/m365/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -74,8 +73,8 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		return id
 	}
 
-	grh := func(ac api.Client) onedrive.RestoreHandler {
-		return sharepoint.NewRestoreHandler(ac)
+	grh := func(ac api.Client) drive.RestoreHandler {
+		return drive.NewLibraryRestoreHandler(ac)
 	}
 
 	runDriveIncrementalTest(
@@ -183,24 +182,24 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 	}
 }
 
-type SharePointRestoreIntgSuite struct {
+type SharePointRestoreNightlyIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
 func TestSharePointRestoreIntgSuite(t *testing.T) {
-	suite.Run(t, &SharePointRestoreIntgSuite{
-		Suite: tester.NewIntegrationSuite(
+	suite.Run(t, &SharePointRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *SharePointRestoreIntgSuite) SetupSuite() {
+func (suite *SharePointRestoreNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedOptions() {
+func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointWithAdvancedOptions() {
 	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
@@ -215,7 +214,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointWithAdvancedO
 		suite.its.site.DriveRootFolderID)
 }
 
-func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointAlternateProtectedResource() {
+func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointAlternateProtectedResource() {
 	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
@@ -230,7 +229,7 @@ func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointAlternateProt
 		suite.its.secondarySite)
 }
 
-func (suite *SharePointRestoreIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
+func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
 	t := suite.T()
 
 	// despite the client having a method for drive.Patch and drive.Delete, both only return

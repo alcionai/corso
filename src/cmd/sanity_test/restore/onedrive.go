@@ -145,7 +145,7 @@ func PopulateDriveDetails(
 			fileSizes[itemName] = ptr.Val(driveItem.GetSize())
 		}
 
-		if driveItem.GetFolder() == nil && driveItem.GetPackage() == nil {
+		if driveItem.GetFolder() == nil && driveItem.GetPackageEscaped() == nil {
 			continue
 		}
 
@@ -256,7 +256,7 @@ func getOneDriveChildFolder(
 			fileSizes[fullName] = ptr.Val(driveItem.GetSize())
 		}
 
-		if driveItem.GetFolder() == nil && driveItem.GetPackage() == nil {
+		if driveItem.GetFolder() == nil && driveItem.GetPackageEscaped() == nil {
 			continue
 		}
 
@@ -304,7 +304,7 @@ func getRestoredDrive(
 			continue
 		}
 
-		if item.GetFolder() == nil && item.GetPackage() == nil {
+		if item.GetFolder() == nil && item.GetPackageEscaped() == nil {
 			continue
 		}
 
