@@ -322,7 +322,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 
 	backupID := string(bo.Results.BackupID)
 
-	err = r.DeleteBackup(ctx, backupID)
+	err = r.DeleteBackups(ctx, backupID)
 	require.NoError(t, err, "deleting backup: %v", clues.ToCore(err))
 
 	// This operation should fail since the backup doesn't exist anymore.

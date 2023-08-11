@@ -89,7 +89,7 @@ type Repository interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
-	DeleteBackup(ctx context.Context, ids ...string) error
+	DeleteBackups(ctx context.Context, ids ...string) error
 	BackupGetter
 	// ConnectToM365 establishes graph api connections
 	// and initializes api client configurations.
@@ -630,17 +630,17 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
-// DeleteBackup removes the backups from both the model store and the backup
+// DeleteBackups removes the backups from both the model store and the backup
 // storage.
 //
 // All backups are delete as an atomic unit so any failures will result in no
 // deletions.
-func (r repository) DeleteBackup(ctx context.Context, ids ...string) error {
-	return deleteBackup(ctx, store.NewWrapper(r.modelStore), ids...)
+func (r repository) DeleteBackups(ctx context.Context, ids ...string) error {
+	return deleteBackups(ctx, store.NewWrapper(r.modelStore), ids...)
 }
 
 // deleteBackup handles the processing for Backup.
-func deleteBackup(
+func deleteBackups(
 	ctx context.Context,
 	sw store.BackupGetterModelDeleter,
 	ids ...string,

@@ -394,7 +394,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.sw)
+			err := deleteBackups(ctx, test.sw, string(test.sw.Backup.ID))
 			test.expectErr(t, err)
 		})
 	}
