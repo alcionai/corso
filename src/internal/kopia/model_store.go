@@ -497,7 +497,7 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 		return err
 	}
 
-	return ms.DeleteWithModelStoreID(ctx, latest)
+	return ms.DeleteWithModelStoreIDs(ctx, latest)
 }
 
 // DeleteWithModelStoreID deletes the model(s) with the given ModelStoreID(s)
@@ -506,7 +506,7 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 // persisted atomically.
 //
 // Will not make any changes if any deletion attempt returns an error.
-func (ms *ModelStore) DeleteWithModelStoreID(
+func (ms *ModelStore) DeleteWithModelStoreIDs(
 	ctx context.Context,
 	ids ...manifest.ID,
 ) error {

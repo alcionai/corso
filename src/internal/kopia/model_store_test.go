@@ -169,7 +169,7 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	err = suite.m.Delete(suite.ctx, theModelType, "")
 	assert.Error(t, err, clues.ToCore(err))
 
-	err = suite.m.DeleteWithModelStoreID(suite.ctx, "")
+	err = suite.m.DeleteWithModelStoreIDs(suite.ctx, "")
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -725,7 +725,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDeleteBatch() {
 		ids = append(ids, foo.ModelStoreID)
 	}
 
-	err := suite.m.DeleteWithModelStoreID(suite.ctx, ids...)
+	err := suite.m.DeleteWithModelStoreIDs(suite.ctx, ids...)
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, id := range ids {
@@ -741,7 +741,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
 	err := suite.m.Delete(suite.ctx, model.BackupOpSchema, "foo")
 	assert.NoError(t, err, clues.ToCore(err))
 
-	err = suite.m.DeleteWithModelStoreID(suite.ctx, "foo")
+	err = suite.m.DeleteWithModelStoreIDs(suite.ctx, "foo")
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
