@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -55,8 +56,8 @@ func (suite *MockSuite) TestMockExchangeCollectionItemSize() {
 		buf, err := io.ReadAll(item.ToReader())
 		assert.NoError(t, err, clues.ToCore(err))
 
-		assert.Implements(t, (*data.StreamSize)(nil), item)
-		s := item.(data.StreamSize)
+		assert.Implements(t, (*data.ItemSize)(nil), item)
+		s := item.(data.ItemSize)
 		assert.Equal(t, int64(len(buf)), s.Size())
 	}
 }
@@ -97,22 +98,24 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 
 	table := []struct {
 		name   string
-		reader *Data
+		reader *dataMock.Item
 		check  require.ErrorAssertionFunc
 	}{
 		{
 			name: "NoError",
-			reader: &Data{
-				ID:     id,
-				Reader: io.NopCloser(bytes.NewReader(itemData)),
+			reader: &dataMock.Item{
+				ItemID:   id,
+				Reader:   io.NopCloser(bytes.NewReader(itemData)),
+				ItemInfo: StubMailInfo(),
 			},
 			check: require.NoError,
 		},
 		{
 			name: "Error",
-			reader: &Data{
-				ID:      id,
-				ReadErr: assert.AnError,
+			reader: &dataMock.Item{
+				ItemID:   id,
+				ReadErr:  assert.AnError,
+				ItemInfo: StubMailInfo(),
 			},
 			check: require.Error,
 		},
@@ -122,7 +125,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, id, test.reader.UUID())
+			assert.Equal(t, id, test.reader.ID())
 			buf, err := io.ReadAll(test.reader.ToReader())
 
 			test.check(t, err, clues.ToCore(err))

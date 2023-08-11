@@ -15,7 +15,7 @@ import (
 
 var (
 	_ data.RestoreCollection = &kopiaDataCollection{}
-	_ data.Stream            = &kopiaDataStream{}
+	_ data.Item              = &kopiaDataStream{}
 )
 
 type kopiaDataCollection struct {
@@ -29,9 +29,9 @@ type kopiaDataCollection struct {
 func (kdc *kopiaDataCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
-) <-chan data.Stream {
+) <-chan data.Item {
 	var (
-		res       = make(chan data.Stream)
+		res       = make(chan data.Item)
 		el        = errs.Local()
 		loadCount = 0
 	)
@@ -72,12 +72,12 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 }
 
 // Fetch returns the file with the given name from the collection as a
-// data.Stream. Returns a data.ErrNotFound error if the file isn't in the
+// data.Item. Returns a data.ErrNotFound error if the file isn't in the
 // collection.
 func (kdc kopiaDataCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
-) (data.Stream, error) {
+) (data.Item, error) {
 	ctx = clues.Add(ctx, "item_name", clues.Hide(name))
 
 	if kdc.dir == nil {
@@ -119,7 +119,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 	}
 
 	return &kopiaDataStream{
-		uuid: name,
+		id: name,
 		reader: &restoreStreamReader{
 			ReadCloser:      r,
 			expectedVersion: kdc.expectedVersion,
@@ -130,7 +130,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 
 type kopiaDataStream struct {
 	reader io.ReadCloser
-	uuid   string
+	id     string
 	size   int64
 }
 
@@ -138,8 +138,8 @@ func (kds kopiaDataStream) ToReader() io.ReadCloser {
 	return kds.reader
 }
 
-func (kds kopiaDataStream) UUID() string {
-	return kds.uuid
+func (kds kopiaDataStream) ID() string {
+	return kds.id
 }
 
 func (kds kopiaDataStream) Deleted() bool {

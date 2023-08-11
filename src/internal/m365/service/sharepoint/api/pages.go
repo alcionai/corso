@@ -169,15 +169,15 @@ func retrieveSitePageOptions() *betasites.ItemPagesSitePageItemRequestBuilderGet
 func RestoreSitePage(
 	ctx context.Context,
 	service *BetaService,
-	itemData data.Stream,
+	itemData data.Item,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
-	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restorePage", diagnostics.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restorePage", diagnostics.Label("item_uuid", itemData.ID()))
 	defer end()
 
 	var (
 		dii      = details.ItemInfo{}
-		pageID   = itemData.UUID()
+		pageID   = itemData.ID()
 		pageName = pageID
 	)
 

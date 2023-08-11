@@ -196,14 +196,16 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
+	ctx := clues.Add(
+		cp.ctx,
+		"service", d.repoPath.Service().String(),
+		"category", d.repoPath.Category().String())
+
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
 	if d.info == nil || d.cached {
 		if d.prevPath == nil {
-			cp.errs.AddRecoverable(cp.ctx, clues.New("item sourced from previous backup with no previous path").
-				With(
-					"service", d.repoPath.Service().String(),
-					"category", d.repoPath.Category().String()).
+			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
 				Label(fault.LabelForceNoBackupCreation))
 
 			return
@@ -218,10 +220,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			d.repoPath,
 			d.locationPath)
 		if err != nil {
-			cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "adding item to merge list").
-				With(
-					"service", d.repoPath.Service().String(),
-					"category", d.repoPath.Category().String()).
+			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
 				Label(fault.LabelForceNoBackupCreation))
 		}
 
@@ -233,10 +232,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		d.locationPath,
 		*d.info)
 	if err != nil {
-		cp.errs.AddRecoverable(cp.ctx, clues.New("adding item to details").
-			With(
-				"service", d.repoPath.Service().String(),
-				"category", d.repoPath.Category().String()).
+		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
@@ -348,7 +344,7 @@ func collectionEntries(
 				return seen, nil
 			}
 
-			encodedName := encodeAsPath(e.UUID())
+			encodedName := encodeAsPath(e.ID())
 
 			// Even if this item has been deleted and should not appear at all in
 			// the new snapshot we need to record that we've seen it here so we know
@@ -366,7 +362,7 @@ func collectionEntries(
 			seen[encodedName] = struct{}{}
 
 			// For now assuming that item IDs don't need escaping.
-			itemPath, err := streamedEnts.FullPath().AppendItem(e.UUID())
+			itemPath, err := streamedEnts.FullPath().AppendItem(e.ID())
 			if err != nil {
 				err = clues.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(ctx, err)
@@ -383,7 +379,7 @@ func collectionEntries(
 			}
 
 			modTime := time.Now()
-			if smt, ok := e.(data.StreamModTime); ok {
+			if smt, ok := e.(data.ItemModTime); ok {
 				modTime = smt.ModTime()
 			}
 
@@ -392,7 +388,7 @@ func collectionEntries(
 			// used for restore. If progress does not contain information about a
 			// finished file it just returns without an error so it's safe to skip
 			// adding something to it.
-			ei, ok := e.(data.StreamInfo)
+			ei, ok := e.(data.ItemInfo)
 			if ok {
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race

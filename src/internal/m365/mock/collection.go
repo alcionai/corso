@@ -10,13 +10,13 @@ import (
 
 type RestoreCollection struct {
 	data.Collection
-	AuxItems map[string]data.Stream
+	AuxItems map[string]data.Item
 }
 
 func (rc RestoreCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
-) (data.Stream, error) {
+) (data.Item, error) {
 	res := rc.AuxItems[name]
 	if res == nil {
 		return nil, data.ErrNotFound
@@ -28,12 +28,12 @@ func (rc RestoreCollection) FetchItemByName(
 type BackupCollection struct {
 	Path    path.Path
 	Loc     *path.Builder
-	Streams []data.Stream
+	Streams []data.Item
 	CState  data.CollectionState
 }
 
-func (c *BackupCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
-	res := make(chan data.Stream)
+func (c *BackupCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)

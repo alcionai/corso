@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -29,12 +30,7 @@ type DataCollection struct {
 	DoNotMerge   bool
 }
 
-var (
-	_ data.BackupCollection = &DataCollection{}
-	_ data.Stream           = &Data{}
-	_ data.StreamInfo       = &Data{}
-	_ data.StreamSize       = &Data{}
-)
+var _ data.BackupCollection = &DataCollection{}
 
 func (medc DataCollection) FullPath() path.Path { return medc.fullPath }
 
@@ -118,19 +114,20 @@ func NewContactCollection(pathRepresentation path.Path, numMessagesToReturn int)
 func (medc *DataCollection) Items(
 	ctx context.Context,
 	_ *fault.Bus, // unused
-) <-chan data.Stream {
-	res := make(chan data.Stream)
+) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)
 
 		for i := 0; i < medc.messageCount; i++ {
-			res <- &Data{
-				ID:           medc.Names[i],
+			res <- &dataMock.Item{
+				ItemID:       medc.Names[i],
 				Reader:       io.NopCloser(bytes.NewReader(medc.Data[i])),
-				size:         int64(len(medc.Data[i])),
-				modifiedTime: medc.ModTimes[i],
-				deleted:      medc.DeletedItems[i],
+				ItemSize:     int64(len(medc.Data[i])),
+				ModifiedTime: medc.ModTimes[i],
+				DeletedFlag:  medc.DeletedItems[i],
+				ItemInfo:     StubMailInfo(),
 			}
 		}
 	}()
@@ -138,31 +135,7 @@ func (medc *DataCollection) Items(
 	return res
 }
 
-// TODO: move to data/mock for service-agnostic mocking
-// Data represents a single item retrieved from exchange
-type Data struct {
-	ID           string
-	Reader       io.ReadCloser
-	ReadErr      error
-	size         int64
-	modifiedTime time.Time
-	deleted      bool
-}
-
-func (med *Data) UUID() string       { return med.ID }
-func (med *Data) Deleted() bool      { return med.deleted }
-func (med *Data) Size() int64        { return med.size }
-func (med *Data) ModTime() time.Time { return med.modifiedTime }
-
-func (med *Data) ToReader() io.ReadCloser {
-	if med.ReadErr != nil {
-		return io.NopCloser(errReader{med.ReadErr})
-	}
-
-	return med.Reader
-}
-
-func (med *Data) Info() details.ItemInfo {
+func StubMailInfo() details.ItemInfo {
 	return details.ItemInfo{
 		Exchange: &details.ExchangeInfo{
 			ItemType: details.ExchangeMail,
@@ -171,12 +144,4 @@ func (med *Data) Info() details.ItemInfo {
 			Received: time.Now(),
 		},
 	}
-}
-
-type errReader struct {
-	readErr error
-}
-
-func (er errReader) Read([]byte) (int, error) {
-	return 0, er.readErr
 }

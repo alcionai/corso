@@ -12,15 +12,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type DataCollectionSuite struct {
+type CollectionSuite struct {
 	tester.Suite
 }
 
 func TestDataCollectionSuite(t *testing.T) {
-	suite.Run(t, &DataCollectionSuite{Suite: tester.NewUnitSuite(t)})
+	suite.Run(t, &CollectionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *DataCollectionSuite) TestStateOf() {
+func (suite *CollectionSuite) TestStateOf() {
 	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")

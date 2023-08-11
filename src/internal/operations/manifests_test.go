@@ -29,7 +29,7 @@ type mockColl struct {
 	p  path.Path
 }
 
-func (mc mockColl) Items(context.Context, *fault.Bus) <-chan data.Stream {
+func (mc mockColl) Items(context.Context, *fault.Bus) <-chan data.Item {
 	return nil
 }
 

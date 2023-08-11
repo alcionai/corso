@@ -156,10 +156,10 @@ func (dc *streamCollection) DoNotMergeItems() bool {
 	return false
 }
 
-// Items() always returns a channel with a single data.Stream
+// Items() always returns a channel with a single data.Item
 // representing the object to be persisted
-func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
-	items := make(chan data.Stream, 1)
+func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
+	items := make(chan data.Item, 1)
 	defer close(items)
 	items <- dc.item
 
@@ -175,7 +175,7 @@ type streamItem struct {
 	data []byte
 }
 
-func (di *streamItem) UUID() string {
+func (di *streamItem) ID() string {
 	return di.name
 }
 

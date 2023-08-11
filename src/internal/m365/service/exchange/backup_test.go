@@ -331,8 +331,8 @@ type failingColl struct {
 	t *testing.T
 }
 
-func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
-	ic := make(chan data.Stream)
+func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+	ic := make(chan data.Item)
 	defer close(ic)
 
 	errs.AddRecoverable(ctx, assert.AnError)
@@ -353,7 +353,7 @@ func (f failingColl) FullPath() path.Path {
 	return tmp
 }
 
-func (f failingColl) FetchItemByName(context.Context, string) (data.Stream, error) {
+func (f failingColl) FetchItemByName(context.Context, string) (data.Item, error) {
 	// no fetch calls will be made
 	return nil, nil
 }

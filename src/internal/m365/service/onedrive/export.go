@@ -54,7 +54,7 @@ func items(ctx context.Context, ec exportCollection, ch chan<- export.Item) {
 	// There will only be a single item in the backingCollections
 	// for OneDrive
 	for item := range ec.backingCollection.Items(ctx, errs) {
-		itemUUID := item.UUID()
+		itemUUID := item.ID()
 		if isMetadataFile(itemUUID, ec.backupVersion) {
 			continue
 		}
