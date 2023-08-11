@@ -678,3 +678,57 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent_NoopsNils() {
 		})
 	}
 }
+
+func (suite *PopulatedDataLayerResourcePath) TestHalves() {
+	t := suite.T()
+
+	onlyPrefix, err := path.BuildPrefix(
+		"titd",
+		[]path.ServiceResource{{path.ExchangeService, "pr"}},
+		path.ContactsCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	fullPath, err := path.Build(
+		"tid",
+		[]path.ServiceResource{{path.ExchangeService, "pr"}},
+		path.ContactsCategory,
+		true,
+		"fld", "item")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name      string
+		dlrp      path.Path
+		expectPfx *path.Builder
+		expectSfx path.Elements
+	}{
+		{
+			name: "only prefix",
+			dlrp: onlyPrefix,
+			expectPfx: path.Builder{}.Append(
+				"tid",
+				path.ExchangeService.String(),
+				"pr",
+				path.ContactsCategory.String()),
+			expectSfx: path.Elements{},
+		},
+		{
+			name: "full path",
+			dlrp: fullPath,
+			expectPfx: path.Builder{}.Append(
+				"tid",
+				path.ExchangeService.String(),
+				"pr",
+				path.ContactsCategory.String()),
+			expectSfx: path.Elements{"foo", "bar"},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			pfx, sfx := test.dlrp.Halves()
+			assert.Equal(t, test.expectPfx, pfx, "prefix")
+			assert.Equal(t, test.expectSfx, sfx, "suffix")
+		})
+	}
+}

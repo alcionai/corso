@@ -156,3 +156,17 @@ func (rp dataLayerResourcePath) ToBuilder() *Builder {
 func (rp *dataLayerResourcePath) UpdateParent(prev, cur Path) bool {
 	return rp.Builder.UpdateParent(prev.ToBuilder(), cur.ToBuilder())
 }
+
+func (rp *dataLayerResourcePath) Halves() (*Builder, Elements) {
+	pfx, sfx := &Builder{}, Elements{}
+
+	b := rp.Builder
+	if len(b.elements) > 0 {
+		lenPfx := 2 + (len(rp.serviceResources) * 2)
+
+		pfx = &Builder{elements: append(Elements{}, b.elements[:lenPfx]...)}
+		sfx = append(Elements{}, b.elements[lenPfx-1:]...)
+	}
+
+	return pfx, sfx
+}

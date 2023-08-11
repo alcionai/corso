@@ -36,12 +36,8 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 		repoRef path.Path,
 		unescapedFolders ...string,
 	) string {
-		return path.Builder{}.
-			Append(
-				repoRef.Tenant(),
-				repoRef.Service().String(),
-				repoRef.ResourceOwner(),
-				repoRef.Category().String()).
+		pfx, _ := repoRef.Halves()
+		return pfx.
 			Append(unescapedFolders...).
 			String()
 	}

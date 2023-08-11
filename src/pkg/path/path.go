@@ -115,6 +115,10 @@ type Path interface {
 	ShortRef() string
 	// ToBuilder returns a Builder instance that represents the current Path.
 	ToBuilder() *Builder
+	// Halves breaks the path into its prefix (tenant, services, resources, category)
+	// and suffix (all parts after the prefix).  If either half is empty, that half
+	// returns an empty, non-nil, value.
+	Halves() (*Builder, Elements)
 
 	// Every path needs to comply with these funcs to ensure that PII
 	// is appropriately hidden from logging, errors, and other outputs.
