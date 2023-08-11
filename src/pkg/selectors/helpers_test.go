@@ -186,7 +186,11 @@ func stubSelector(resourceOwners []string) mockSel {
 }
 
 func (m mockSel) PathCategories() selectorPathCategories {
-	return m.PathCategories()
+	return selectorPathCategories{
+		Includes: []path.CategoryType{pathCatStub},
+		Excludes: []path.CategoryType{pathCatStub},
+		Filters:  []path.CategoryType{pathCatStub},
+	}
 }
 
 // ---------------------------------------------------------------------------
