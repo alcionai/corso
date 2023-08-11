@@ -114,10 +114,9 @@ func getGroups(
 }
 
 func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
-	var (
-		log   = logger.Ctx(ctx)
-		teams []models.Groupable
-	)
+	log := logger.Ctx(ctx)
+
+	var teams []models.Groupable
 
 	for _, g := range groups {
 		if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {

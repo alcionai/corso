@@ -134,7 +134,7 @@ func (suite *GroupsIntgSuite) TestGetAllTeams() {
 		isTeam = true
 	}
 
-	assert.True(t, isTeam, "must not return non groups ")
+	assert.True(t, isTeam, "must only return teams")
 }
 
 func (suite *GroupsIntgSuite) TestTeams_GetByID() {
