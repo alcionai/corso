@@ -196,14 +196,16 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
+	ctx := clues.Add(
+		cp.ctx,
+		"service", d.repoPath.Service().String(),
+		"category", d.repoPath.Category().String())
+
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
 	if d.info == nil || d.cached {
 		if d.prevPath == nil {
-			cp.errs.AddRecoverable(cp.ctx, clues.New("item sourced from previous backup with no previous path").
-				With(
-					"service", d.repoPath.Service().String(),
-					"category", d.repoPath.Category().String()).
+			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
 				Label(fault.LabelForceNoBackupCreation))
 
 			return
@@ -218,10 +220,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			d.repoPath,
 			d.locationPath)
 		if err != nil {
-			cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "adding item to merge list").
-				With(
-					"service", d.repoPath.Service().String(),
-					"category", d.repoPath.Category().String()).
+			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
 				Label(fault.LabelForceNoBackupCreation))
 		}
 
@@ -234,10 +233,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		!d.cached,
 		*d.info)
 	if err != nil {
-		cp.errs.AddRecoverable(cp.ctx, clues.New("adding item to details").
-			With(
-				"service", d.repoPath.Service().String(),
-				"category", d.repoPath.Category().String()).
+		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
 			Label(fault.LabelForceNoBackupCreation))
 
 		return

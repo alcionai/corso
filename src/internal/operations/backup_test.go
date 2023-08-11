@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
+	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -1546,7 +1547,7 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 func makeBackupCollection(
 	p path.Path,
 	locPath *path.Builder,
-	items []mockDriveItem,
+	items []dataMock.Item,
 ) data.BackupCollection {
 	streams := make([]data.Item, len(items))
 
@@ -1588,38 +1589,32 @@ const (
 	folderID  = "folder-id"
 )
 
-type mockDriveItem struct {
-	dataMock.Item
-	DriveID       string
-	DriveName     string
-	ExtensionData *details.ExtensionData
-}
-
 func makeMockItem(
 	fileID string,
 	extData *details.ExtensionData,
 	modTime time.Time,
 	del bool,
 	readErr error,
-) mockDriveItem {
+) dataMock.Item {
 	rc := odMock.FileRespReadCloser(odMock.DriveFilePayloadData)
 	if extData != nil {
 		rc = odMock.FileRespWithExtensions(odMock.DriveFilePayloadData, extData)
 	}
 
-	return mockDriveItem{
-		Item: dataMock.Item{
-			ItemID:       fileID,
-			Reader:       rc,
-			ReadErr:      readErr,
-			ItemSize:     100,
-			ModifiedTime: modTime,
-			DeletedFlag:  del,
-		},
-		DriveID:       driveID,
-		DriveName:     driveName,
-		ExtensionData: extData,
+	dmi := dataMock.Item{
+		DeletedFlag:  del,
+		ItemID:       fileID,
+		ItemInfo:     odStub.DriveItemInfo(),
+		ItemSize:     100,
+		ModifiedTime: modTime,
+		Reader:       rc,
+		ReadErr:      readErr,
 	}
+
+	dmi.ItemInfo.OneDrive.DriveID = driveID
+	dmi.ItemInfo.OneDrive.DriveName = driveName
+
+	return dmi
 }
 
 // Check what kind of backup is produced for a given failurePolicy/observed fault
@@ -1666,7 +1661,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", nil, time.Now(), false, nil),
 						}),
 				}
@@ -1688,7 +1683,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", nil, time.Now(), false, assert.AnError),
 						}),
 				}
@@ -1708,7 +1703,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", nil, time.Now(), false, nil),
 						}),
 				}
@@ -1743,7 +1738,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", nil, time.Now(), false, assert.AnError),
 						}),
 				}
@@ -1765,7 +1760,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", nil, time.Now(), false, nil),
 							makeMockItem("file2", nil, time.Now(), false, nil),
 						}),
@@ -1801,7 +1796,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", nil, time.Now(), false, nil),
 							makeMockItem("file2", nil, time.Now(), false, assert.AnError),
 						}),
@@ -1858,7 +1853,6 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			err = bo.Run(ctx)
 			test.expectRunErr(t, err, clues.ToCore(err))
-
 			test.expectFaults(t, bo.Errors)
 
 			if len(test.expectBackupTag) == 0 {
@@ -1944,7 +1938,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", extData[0], T1, false, nil),
 							makeMockItem("file2", extData[1], T1, false, assert.AnError),
 						}),
@@ -1971,7 +1965,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", extData[0], T1, false, nil),
 							makeMockItem("file2", extData[1], T2, false, nil),
 							makeMockItem("file3", extData[2], T2, false, assert.AnError),
@@ -2006,7 +2000,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", extData[0], T1, false, nil),
 							makeMockItem("file2", extData[1], T2, false, nil),
 							makeMockItem("file3", extData[2], T3, false, nil),
@@ -2045,7 +2039,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", extData[0], T1, true, nil),
 							makeMockItem("file2", extData[1], T2, true, nil),
 							makeMockItem("file3", extData[2], T3, true, nil),
@@ -2067,7 +2061,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", extData[0], T1, false, nil),
 						}),
 				}
@@ -2098,7 +2092,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 					makeBackupCollection(
 						tmp,
 						locPath,
-						[]mockDriveItem{
+						[]dataMock.Item{
 							makeMockItem("file1", extData[0], T1, false, nil),
 							makeMockItem("file2", extData[1], T2, false, nil),
 							makeMockItem("file3", extData[2], T3, false, assert.AnError),
