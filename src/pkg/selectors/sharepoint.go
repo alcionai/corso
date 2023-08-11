@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -42,6 +43,7 @@ type (
 var (
 	_ Reducer        = &SharePointRestore{}
 	_ pathCategorier = &SharePointRestore{}
+	_ reasoner       = &SharePointRestore{}
 )
 
 // NewSharePointBackup produces a new Selector with the service set to ServiceSharePoint.
@@ -119,6 +121,13 @@ func (s sharePoint) PathCategories() selectorPathCategories {
 		Filters:  pathCategoriesIn[SharePointScope, sharePointCategory](s.Filters),
 		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s sharePoint) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -43,6 +44,7 @@ type (
 var (
 	_ Reducer        = &ExchangeRestore{}
 	_ pathCategorier = &ExchangeRestore{}
+	_ reasoner       = &ExchangeRestore{}
 )
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
@@ -120,6 +122,13 @@ func (s exchange) PathCategories() selectorPathCategories {
 		Filters:  pathCategoriesIn[ExchangeScope, exchangeCategory](s.Filters),
 		Includes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Includes),
 	}
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s exchange) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
 }
 
 // ---------------------------------------------------------------------------
