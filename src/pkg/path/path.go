@@ -186,7 +186,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, clues.New("path has too few segments").With("path_string", p)
 	}
 
-	srs, catIdx, err := ElementsToServiceResources(pb.elements[1:])
+	srs, catIdx, err := elementsToServiceResources(pb.elements[1:])
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

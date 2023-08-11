@@ -31,7 +31,7 @@ func newDataLayerResourcePath(
 	cat CategoryType,
 	isItem bool,
 ) dataLayerResourcePath {
-	pfx := append([]string{tenant}, ServiceResourcesToElements(srs)...)
+	pfx := append([]string{tenant}, serviceResourcesToElements(srs)...)
 	pfx = append(pfx, cat.String())
 
 	return dataLayerResourcePath{

@@ -37,7 +37,7 @@ func (sr ServiceResource) validate() error {
 }
 
 // ---------------------------------------------------------------------------
-// Collection
+// Exported Helpers
 // ---------------------------------------------------------------------------
 
 // NewServiceResources is a lenient constructor for building a
@@ -74,7 +74,21 @@ func NewServiceResources(elems ...any) ([]ServiceResource, error) {
 	return srs, nil
 }
 
-func ServiceResourcesToElements(srs []ServiceResource) Elements {
+func ServiceResourcesToResources(srs []ServiceResource) []string {
+	prs := make([]string, len(srs))
+
+	for i := range srs {
+		prs[i] = srs[i].ProtectedResource
+	}
+
+	return prs
+}
+
+// ---------------------------------------------------------------------------
+// Unexported Helpers
+// ---------------------------------------------------------------------------
+
+func serviceResourcesToElements(srs []ServiceResource) Elements {
 	es := make(Elements, 0, len(srs)*2)
 
 	for _, tuple := range srs {
@@ -85,7 +99,7 @@ func ServiceResourcesToElements(srs []ServiceResource) Elements {
 	return es
 }
 
-// ElementsToServiceResources turns as many pairs of elems as possible
+// elementsToServiceResources turns as many pairs of elems as possible
 // into ServiceResource tuples.  Elems must begin with a service, but
 // may contain more entries than there are service/resource pairs.
 // This transformer will continue consuming elements until it finds an
@@ -93,7 +107,7 @@ func ServiceResourcesToElements(srs []ServiceResource) Elements {
 // Returns the serviceResource pairs, the first index containing element
 // that is not part of a service/resource pair, and an error if elems is
 // len==0 or contains no services.
-func ElementsToServiceResources(elems Elements) ([]ServiceResource, int, error) {
+func elementsToServiceResources(elems Elements) ([]ServiceResource, int, error) {
 	if len(elems) == 0 {
 		return nil, -1, clues.Wrap(errMissingSegment, "service")
 	}

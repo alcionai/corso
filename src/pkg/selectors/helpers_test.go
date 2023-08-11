@@ -2,7 +2,6 @@ package selectors
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -229,6 +228,22 @@ func stubPath(t *testing.T, user string, s []string, cat path.CategoryType) path
 
 // stubRepoRef ensures test path production matches that of repoRef design,
 // stubbing out static values where necessary.
-func stubRepoRef(service path.ServiceType, data path.CategoryType, resourceOwner, folders, item string) string {
-	return strings.Join([]string{"tid", service.String(), resourceOwner, data.String(), folders, item}, "/")
+func stubRepoRef(
+	t *testing.T,
+	srs []path.ServiceResource,
+	cat path.CategoryType,
+	folders, item string,
+) string {
+	fs := path.Split(folders)
+	fs = append(fs, item)
+
+	pb, err := path.Build(
+		"tid",
+		srs,
+		cat,
+		true,
+		fs...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return pb.String()
 }

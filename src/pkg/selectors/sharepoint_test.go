@@ -155,9 +155,12 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 		}
 
 		return stubRepoRef(
-			path.SharePointService,
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: siteID,
+			}},
 			cat,
-			siteID,
 			strings.Join(folderElems, "/"),
 			item)
 	}
@@ -188,8 +191,24 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			"sid",
 			append(slices.Clone(prefixElems), itemElems3...),
 			"item3")
-		item4 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item4")
-		item5 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item5")
+		item4 = stubRepoRef(
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: "sid",
+			}},
+			path.PagesCategory,
+			pairGH,
+			"item4")
+		item5 = stubRepoRef(
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.SharePointService,
+				ProtectedResource: "sid",
+			}},
+			path.PagesCategory,
+			pairGH,
+			"item5")
 	)
 
 	deets := &details.Details{

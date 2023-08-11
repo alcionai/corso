@@ -815,10 +815,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		}
 
 		joinedFldrs := strings.Join(newElems, "/")
-
-		sr0 := p.ServiceResources()[0]
-
-		return stubRepoRef(sr0.Service, p.Category(), sr0.ProtectedResource, joinedFldrs, p.Item())
+		return stubRepoRef(
+			suite.T(),
+			p.ServiceResources(),
+			p.Category(),
+			joinedFldrs,
+			p.Item())
 	}
 
 	makeDeets := func(refs ...path.Path) *details.Details {
@@ -1060,12 +1062,36 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 
 func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 	var (
-		contact         = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "id5/id6", "cid")
 		contactLocation = "conts/my_cont"
-		event           = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "id1/id2", "eid")
 		eventLocation   = "cal/my_cal"
-		mail            = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "id3/id4", "mid")
 		mailLocation    = "inbx/my_mail"
+		contact         = stubRepoRef(
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: "uid",
+			}},
+			path.ContactsCategory,
+			"id5/id6",
+			"cid")
+		event = stubRepoRef(
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: "uid",
+			}},
+			path.EventsCategory,
+			"id1/id2",
+			"eid")
+		mail = stubRepoRef(
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.ExchangeService,
+				ProtectedResource: "uid",
+			}},
+			path.EmailCategory,
+			"id3/id4",
+			"mid")
 	)
 
 	makeDeets := func(refs ...string) *details.Details {

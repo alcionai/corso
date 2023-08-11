@@ -161,23 +161,32 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 	var (
 		file = stubRepoRef(
-			path.OneDriveService,
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.OneDriveService,
+				ProtectedResource: "uid",
+			}},
 			path.FilesCategory,
-			"uid",
 			"drive/driveID/root:/folderA.d/folderB.d",
 			"file")
 		fileParent = "folderA/folderB"
 		file2      = stubRepoRef(
-			path.OneDriveService,
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.OneDriveService,
+				ProtectedResource: "uid",
+			}},
 			path.FilesCategory,
-			"uid",
 			"drive/driveID/root:/folderA.d/folderC.d",
 			"file2")
 		fileParent2 = "folderA/folderC"
 		file3       = stubRepoRef(
-			path.OneDriveService,
+			suite.T(),
+			[]path.ServiceResource{{
+				Service:           path.OneDriveService,
+				ProtectedResource: "uid",
+			}},
 			path.FilesCategory,
-			"uid",
 			"drive/driveID/root:/folderD.d/folderE.d",
 			"file3")
 		fileParent3 = "folderD/folderE"

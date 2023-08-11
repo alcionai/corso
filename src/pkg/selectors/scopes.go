@@ -544,8 +544,11 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
-		// first check, every entry needs to match the selector's resource owners.
-		if !matchesResourceOwner.Compare(repoPath.ResourceOwner()) {
+		// first check, every entry needs to have at least one protected resource
+		// that matches the selector's protected resources.
+		if !matchesResourceOwner.CompareAny(
+			path.ServiceResourcesToResources(
+				repoPath.ServiceResources())...) {
 			continue
 		}
 

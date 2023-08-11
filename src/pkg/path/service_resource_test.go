@@ -157,7 +157,7 @@ func (suite *ServiceResourceUnitSuite) TestServiceResourceToElements() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result := ServiceResourcesToElements(test.srs)
+			result := serviceResourcesToElements(test.srs)
 
 			// not ElementsMatch, order matters
 			assert.Equal(t, test.expect, result)
@@ -234,7 +234,7 @@ func (suite *ServiceResourceUnitSuite) TestElementsToServiceResource() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			srs, idx, err := ElementsToServiceResources(test.elems)
+			srs, idx, err := elementsToServiceResources(test.elems)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectIdx, idx)
 			assert.Equal(t, test.expectSRS, srs)

@@ -22,15 +22,15 @@ import (
 // tests
 // ---------------------------------------------------------------------------
 
-type SelectorScopesSuite struct {
+type ScopesUnitSuite struct {
 	tester.Suite
 }
 
-func TestSelectorScopesSuite(t *testing.T) {
-	suite.Run(t, &SelectorScopesSuite{Suite: tester.NewUnitSuite(t)})
+func TestScopesUnitSuite(t *testing.T) {
+	suite.Run(t, &ScopesUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SelectorScopesSuite) TestContains() {
+func (suite *ScopesUnitSuite) TestContains() {
 	table := []struct {
 		name   string
 		scope  func() mockScope
@@ -108,7 +108,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestGetCatValue() {
+func (suite *ScopesUnitSuite) TestGetCatValue() {
 	t := suite.T()
 
 	stub := stubScope("")
@@ -122,7 +122,7 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 		getCatValue(stub, mockCategorizer("foo")))
 }
 
-func (suite *SelectorScopesSuite) TestIsAnyTarget() {
+func (suite *ScopesUnitSuite) TestIsAnyTarget() {
 	t := suite.T()
 	stub := stubScope("")
 	assert.True(t, isAnyTarget(stub, rootCatStub))
@@ -253,16 +253,19 @@ var reduceTestTable = []struct {
 	},
 }
 
-func (suite *SelectorScopesSuite) TestReduce() {
+func (suite *ScopesUnitSuite) TestReduce() {
 	deets := func() details.Details {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
 				Entries: []details.Entry{
 					{
 						RepoRef: stubRepoRef(
-							pathServiceStub,
+							suite.T(),
+							[]path.ServiceResource{{
+								Service:           pathServiceStub,
+								ProtectedResource: rootCatStub.String(),
+							}},
 							pathCatStub,
-							rootCatStub.String(),
 							"stub",
 							leafCatStub.String(),
 						),
@@ -298,16 +301,90 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestReduce_locationRef() {
+func (suite *ScopesUnitSuite) TestReduce_locationRef() {
+	deets := func() details.Details {
+		return details.Details{
+			DetailsModel: details.DetailsModel{
+				Entries: []details.Entry{{
+					RepoRef: stubRepoRef(
+						suite.T(),
+						[]path.ServiceResource{{
+							Service:           pathServiceStub,
+							ProtectedResource: rootCatStub.String(),
+						}},
+						pathCatStub,
+						"stub",
+						leafCatStub.String(),
+					),
+					LocationRef: "a/b/c//defg",
+				}},
+			},
+		}
+	}
+	dataCats := map[path.CategoryType]mockCategorizer{
+		pathCatStub: rootCatStub,
+	}
+
+	for _, test := range reduceTestTable {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			ds := deets()
+			result := reduce[mockScope](
+				ctx,
+				&ds,
+				test.sel().Selector,
+				dataCats,
+				fault.New(true))
+			require.NotNil(t, result)
+			assert.Len(t, result.Entries, test.expectLen)
+		})
+	}
+}
+
+func (suite *ScopesUnitSuite) TestReduce_multipleServiceResources() {
 	deets := func() details.Details {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
 				Entries: []details.Entry{
+					// tid/serv/"matching-id"/subserv/"non-matching-id"/...
 					{
 						RepoRef: stubRepoRef(
-							pathServiceStub,
+							suite.T(),
+							[]path.ServiceResource{
+								{
+									Service:           pathServiceStub,
+									ProtectedResource: rootCatStub.String(),
+								},
+								{
+									Service:           pathServiceStub,
+									ProtectedResource: "foo",
+								},
+							},
 							pathCatStub,
-							rootCatStub.String(),
+							"stub",
+							leafCatStub.String(),
+						),
+						LocationRef: "a/b/c//defg",
+					},
+					// tid/serv/"non-matching-id"/subserv/"matching-id"/...
+					{
+						RepoRef: stubRepoRef(
+							suite.T(),
+							[]path.ServiceResource{
+								{
+									Service:           pathServiceStub,
+									ProtectedResource: "foo",
+								},
+								{
+									Service:           pathServiceStub,
+									ProtectedResource: rootCatStub.String(),
+								},
+							},
+							pathCatStub,
 							"stub",
 							leafCatStub.String(),
 						),
@@ -341,7 +418,7 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestScopesByCategory() {
+func (suite *ScopesUnitSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
 	s2 := stubScope("")
@@ -357,7 +434,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	assert.Empty(t, result[leafCatStub])
 }
 
-func (suite *SelectorScopesSuite) TestPasses() {
+func (suite *ScopesUnitSuite) TestPasses() {
 	var (
 		cat   = rootCatStub
 		pth   = stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
@@ -401,7 +478,7 @@ func toMockScope(sc []scope) []mockScope {
 	return ms
 }
 
-func (suite *SelectorScopesSuite) TestMatchesPathValues() {
+func (suite *ScopesUnitSuite) TestMatchesPathValues() {
 	cat := rootCatStub
 	short := "brunheelda"
 
@@ -460,7 +537,7 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestDefaultItemOptions() {
+func (suite *ScopesUnitSuite) TestDefaultItemOptions() {
 	table := []struct {
 		name   string
 		cfg    Config
@@ -521,7 +598,7 @@ func (suite *SelectorScopesSuite) TestDefaultItemOptions() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestClean() {
+func (suite *ScopesUnitSuite) TestClean() {
 	table := []struct {
 		name   string
 		input  []string
@@ -568,7 +645,7 @@ func (suite *SelectorScopesSuite) TestClean() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestScopeConfig() {
+func (suite *ScopesUnitSuite) TestScopeConfig() {
 	input := "input"
 
 	table := []struct {
@@ -608,7 +685,7 @@ func (ms mockFMTState) Width() (int, bool)           { return 0, false }
 func (ms mockFMTState) Precision() (int, bool)       { return 0, false }
 func (ms mockFMTState) Flag(int) bool                { return false }
 
-func (suite *SelectorScopesSuite) TestScopesPII() {
+func (suite *ScopesUnitSuite) TestScopesPII() {
 	table := []struct {
 		name          string
 		s             mockScope
