@@ -373,7 +373,9 @@ func (op *BackupOperation) do(
 	cs := []data.BackupCollection{}
 	canUsePreviousBackup := false
 
-	for i := 0; i < 3; i++ {
+	var maxCount int = 1
+
+	for i := 0; i < maxCount; i++ {
 		cs, _, canUsePreviousBackup, err := produceBackupDataCollections(
 			ctx,
 			op.bp,
@@ -392,7 +394,7 @@ func (op *BackupOperation) do(
 			"can_use_previous_backup", canUsePreviousBackup,
 			"collection_count", len(cs))
 
-		if i == 2 {
+		if i == maxCount-1 {
 			return nil, clues.New("unable to produce backup collections").WithClues(ctx)
 		}
 	}
