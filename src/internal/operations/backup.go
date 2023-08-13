@@ -373,9 +373,11 @@ func (op *BackupOperation) do(
 	cs := []data.BackupCollection{}
 	canUsePreviousBackup := false
 
-	var maxCount int = 1
+	var maxCount int = 5
 
 	for i := 0; i < maxCount; i++ {
+		logger.Ctx(ctx).Info("delta query iteration")
+
 		cs, _, canUsePreviousBackup, err := produceBackupDataCollections(
 			ctx,
 			op.bp,
