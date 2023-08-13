@@ -15,7 +15,7 @@ import (
 )
 
 var profileTicker = time.NewTicker(300 * time.Second)
-var printTicker = time.NewTicker(10 * time.Second)
+var printTicker = time.NewTicker(1 * time.Second)
 var profileCounter = 0
 
 func main() {
@@ -67,6 +67,7 @@ func PrintMemUsage() {
 	logger.Ctx(ctx).Info("HeapObjects = ", bToMb(m.HeapObjects), " MB")
 	logger.Ctx(ctx).Info("HeapSys = ", bToMb(m.HeapSys), " MB")
 	logger.Ctx(ctx).Info("HeapIdle = ", bToMb(m.HeapIdle), " MB")
+	logger.Ctx(ctx).Info("HeapInuse = ", bToMb(m.HeapInuse), " MB")
 
 	logger.Ctx(ctx).Info("Mallocs = ", bToMb(m.Mallocs), " MB")
 	logger.Ctx(ctx).Info("Frees = ", bToMb(m.Frees), " MB")

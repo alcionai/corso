@@ -369,27 +369,33 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
-	// TODO(ashmrtn): This should probably just return a collection that deletes
-	// the entire subtree instead of returning an additional bool. That way base
-	// selection is controlled completely by flags and merging is controlled
-	// completely by collections.
-	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
-		ctx,
-		op.bp,
-		op.ResourceOwner,
-		op.Selectors,
-		mdColls,
-		lastBackupVersion,
-		op.Options,
-		op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "producing backup data collections")
-	}
+	// Run 3 times and exit
+	cs := []data.BackupCollection{}
+	canUsePreviousBackup := false
 
-	ctx = clues.Add(
-		ctx,
-		"can_use_previous_backup", canUsePreviousBackup,
-		"collection_count", len(cs))
+	for i := 0; i < 3; i++ {
+		cs, _, canUsePreviousBackup, err := produceBackupDataCollections(
+			ctx,
+			op.bp,
+			op.ResourceOwner,
+			op.Selectors,
+			mdColls,
+			lastBackupVersion,
+			op.Options,
+			op.Errors)
+		if err != nil {
+			return nil, clues.Wrap(err, "producing backup data collections")
+		}
+
+		ctx = clues.Add(
+			ctx,
+			"can_use_previous_backup", canUsePreviousBackup,
+			"collection_count", len(cs))
+
+		if i == 2 {
+			return nil, clues.New("unable to produce backup collections").WithClues(ctx)
+		}
+	}
 
 	writeStats, deets, toMerge, err := consumeBackupCollections(
 		ctx,
@@ -398,7 +404,7 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
-		ssmb,
+		nil,
 		backupID,
 		op.incremental && canUseMetadata && canUsePreviousBackup,
 		op.Errors)
