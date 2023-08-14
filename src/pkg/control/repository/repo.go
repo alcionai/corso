@@ -54,15 +54,21 @@ const (
 
 type RetentionMode int
 
-// Can't be reordered as we rely on iota for numbering.
-//
 //go:generate stringer -type=RetentionMode -linecomment
 const (
 	UnknownRetention    RetentionMode = 0
-	NoRetention         RetentionMode = 1
-	GovernanceRetention RetentionMode = 2
-	ComplianceRetention RetentionMode = 3
+	NoRetention         RetentionMode = 1 // none
+	GovernanceRetention RetentionMode = 2 // governance
+	ComplianceRetention RetentionMode = 3 // compliance
 )
+
+func ValidRetentionModeNames() map[string]RetentionMode {
+	return map[string]RetentionMode{
+		NoRetention.String():         NoRetention,
+		GovernanceRetention.String(): GovernanceRetention,
+		ComplianceRetention.String(): ComplianceRetention,
+	}
+}
 
 // Retention contains various options for configuring the retention mode. Takes
 // pointers instead of values so that we can tell the difference between an

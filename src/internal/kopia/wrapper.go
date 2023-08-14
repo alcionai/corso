@@ -20,13 +20,14 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 const (
@@ -137,7 +138,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 // complete backup of all data.
 func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
-	backupReasons []Reasoner,
+	backupReasons []identity.Reasoner,
 	bases BackupBases,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
@@ -589,7 +590,7 @@ func (w Wrapper) DeleteSnapshot(
 	return nil
 }
 
-func (w Wrapper) NewBaseFinder(bg inject.GetBackuper) (*baseFinder, error) {
+func (w Wrapper) NewBaseFinder(bg store.BackupGetter) (*baseFinder, error) {
 	return newBaseFinder(w.c, bg)
 }
 

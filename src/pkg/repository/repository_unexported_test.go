@@ -31,6 +31,41 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+type mockBackupList struct {
+	backups []*backup.Backup
+	err     error
+	check   func(fs []store.FilterOption)
+}
+
+func (mbl mockBackupList) GetBackup(
+	ctx context.Context,
+	backupID model.StableID,
+) (*backup.Backup, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (mbl mockBackupList) DeleteBackup(
+	ctx context.Context,
+	backupID model.StableID,
+) error {
+	return clues.New("not implemented")
+}
+
+func (mbl mockBackupList) GetBackups(
+	ctx context.Context,
+	filters ...store.FilterOption,
+) ([]*backup.Backup, error) {
+	if mbl.check != nil {
+		mbl.check(filters)
+	}
+
+	return mbl.backups, mbl.err
+}
+
+// ---------------------------------------------------------------------------
 // Unit
 // ---------------------------------------------------------------------------
 
@@ -96,6 +131,191 @@ func (suite *RepositoryBackupsUnitSuite) TestGetBackup() {
 			}
 
 			assert.Equal(t, test.expectID, b.ID)
+		})
+	}
+}
+
+func (suite *RepositoryBackupsUnitSuite) TestBackupsByTag() {
+	unlabeled1 := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+		},
+	}
+	unlabeled2 := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+		},
+	}
+
+	merge1 := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+			Tags: map[string]string{
+				model.BackupTypeTag: model.MergeBackup,
+			},
+		},
+	}
+	merge2 := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+			Tags: map[string]string{
+				model.BackupTypeTag: model.MergeBackup,
+			},
+		},
+	}
+
+	assist1 := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+			Tags: map[string]string{
+				model.BackupTypeTag: model.AssistBackup,
+			},
+		},
+	}
+	assist2 := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+			Tags: map[string]string{
+				model.BackupTypeTag: model.AssistBackup,
+			},
+		},
+	}
+
+	table := []struct {
+		name       string
+		getBackups []*backup.Backup
+		filters    []store.FilterOption
+		listErr    error
+		expectErr  assert.ErrorAssertionFunc
+		expect     []*backup.Backup
+	}{
+		{
+			name: "UnlabeledOnly",
+			getBackups: []*backup.Backup{
+				unlabeled1,
+				unlabeled2,
+			},
+			expectErr: assert.NoError,
+			expect: []*backup.Backup{
+				unlabeled1,
+				unlabeled2,
+			},
+		},
+		{
+			name: "MergeOnly",
+			getBackups: []*backup.Backup{
+				merge1,
+				merge2,
+			},
+			expectErr: assert.NoError,
+			expect: []*backup.Backup{
+				merge1,
+				merge2,
+			},
+		},
+		{
+			name: "AssistOnly",
+			getBackups: []*backup.Backup{
+				assist1,
+				assist2,
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "UnlabledAndMerge",
+			getBackups: []*backup.Backup{
+				merge1,
+				unlabeled1,
+				merge2,
+				unlabeled2,
+			},
+			expectErr: assert.NoError,
+			expect: []*backup.Backup{
+				merge1,
+				merge2,
+				unlabeled1,
+				unlabeled2,
+			},
+		},
+		{
+			name: "UnlabeledAndAssist",
+			getBackups: []*backup.Backup{
+				unlabeled1,
+				assist1,
+				unlabeled2,
+				assist2,
+			},
+			expectErr: assert.NoError,
+			expect: []*backup.Backup{
+				unlabeled1,
+				unlabeled2,
+			},
+		},
+		{
+			name: "MergeAndAssist",
+			getBackups: []*backup.Backup{
+				merge1,
+				assist1,
+				merge2,
+				assist2,
+			},
+			expectErr: assert.NoError,
+			expect: []*backup.Backup{
+				merge1,
+				merge2,
+			},
+		},
+		{
+			name: "UnlabeledAndMergeAndAssist",
+			getBackups: []*backup.Backup{
+				unlabeled1,
+				merge1,
+				assist1,
+				merge2,
+				unlabeled2,
+				assist2,
+			},
+			expectErr: assert.NoError,
+			expect: []*backup.Backup{
+				merge1,
+				merge2,
+				unlabeled1,
+				unlabeled2,
+			},
+		},
+		{
+			name: "LookupError",
+			getBackups: []*backup.Backup{
+				unlabeled1,
+				merge1,
+				assist1,
+				merge2,
+				unlabeled2,
+				assist2,
+			},
+			listErr:   assert.AnError,
+			expectErr: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			mbl := mockBackupList{
+				backups: test.getBackups,
+				err:     test.listErr,
+				check: func(fs []store.FilterOption) {
+					assert.ElementsMatch(t, test.filters, fs)
+				},
+			}
+
+			bs, err := backupsByTag(ctx, mbl, test.filters)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			assert.ElementsMatch(t, test.expect, bs)
 		})
 	}
 }
@@ -214,7 +434,7 @@ type RepositoryModelIntgSuite struct {
 	tester.Suite
 	kw          *kopia.Wrapper
 	ms          *kopia.ModelStore
-	sw          *store.Wrapper
+	sw          store.BackupStorer
 	kopiaCloser func(ctx context.Context)
 }
 
@@ -256,7 +476,7 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 	suite.ms, err = kopia.NewModelStore(k)
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.sw = store.NewKopiaStore(suite.ms)
+	suite.sw = store.NewWrapper(suite.ms)
 }
 
 func (suite *RepositoryModelIntgSuite) TearDownSuite() {
@@ -317,7 +537,7 @@ func writeBackup(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	tID, snapID, backupID string,
 	sel selectors.Selector,
 	ownerID, ownerName string,
@@ -339,6 +559,10 @@ func writeBackup(
 	ssid, err := sstore.Write(ctx, errs)
 	require.NoError(t, err, "writing to streamstore")
 
+	tags := map[string]string{
+		model.ServiceTag: sel.PathService().String(),
+	}
+
 	b := backup.New(
 		snapID, ssid,
 		operations.Completed.String(),
@@ -348,7 +572,8 @@ func writeBackup(
 		ownerID, ownerName,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
-		fe)
+		fe,
+		tags)
 
 	err = sw.Put(ctx, model.BackupSchema, b)
 	require.NoError(t, err)
@@ -374,7 +599,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, info))
 
 	table := []struct {
 		name       string
@@ -455,7 +680,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	loc := path.Builder{}.Append(repoPath.Folders()...)
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, info))
 
 	table := []struct {
 		name         string

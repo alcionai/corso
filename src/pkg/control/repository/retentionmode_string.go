@@ -14,9 +14,9 @@ func _() {
 	_ = x[ComplianceRetention-3]
 }
 
-const _RetentionMode_name = "UnknownRetentionNoRetentionGovernanceRetentionComplianceRetention"
+const _RetentionMode_name = "UnknownRetentionnonegovernancecompliance"
 
-var _RetentionMode_index = [...]uint8{0, 16, 27, 46, 65}
+var _RetentionMode_index = [...]uint8{0, 16, 20, 30, 40}
 
 func (i RetentionMode) String() string {
 	if i < 0 || i >= RetentionMode(len(_RetentionMode_index)-1) {

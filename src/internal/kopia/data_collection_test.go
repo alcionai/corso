@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -240,25 +240,25 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				bus   = fault.New(false)
 			)
 
-			for returnedStream := range c.Items(ctx, bus) {
+			for item := range c.Items(ctx, bus) {
 				require.Less(t, len(found), len(test.expectedLoaded), "items read safety")
 
 				found = append(found, loadedData{})
 				f := &found[len(found)-1]
-				f.uuid = returnedStream.UUID()
+				f.uuid = item.ID()
 
-				buf, err := io.ReadAll(returnedStream.ToReader())
+				buf, err := io.ReadAll(item.ToReader())
 				if !assert.NoError(t, err, clues.ToCore(err)) {
 					continue
 				}
 
 				f.data = buf
 
-				if !assert.Implements(t, (*data.StreamSize)(nil), returnedStream) {
+				if !assert.Implements(t, (*data.ItemSize)(nil), item) {
 					continue
 				}
 
-				ss := returnedStream.(data.StreamSize)
+				ss := item.(data.ItemSize)
 
 				f.size = ss.Size()
 			}
@@ -289,7 +289,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 		errFileName2  = "error2"
 
 		noErrFileData = "foo bar baz"
-		errReader     = &exchMock.Data{
+		errReader     = &dataMock.Item{
 			ReadErr: assert.AnError,
 		}
 	)

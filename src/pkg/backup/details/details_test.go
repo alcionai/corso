@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -305,40 +305,37 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 	}
 
 	for _, test := range table {
-		for _, updated := range []bool{false, true} {
-			suite.Run(fmt.Sprintf("%s Updated %v", test.name, updated), func() {
-				t := suite.T()
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-				rr, err := path.FromDataLayerPath(test.entry.RepoRef, true)
-				require.NoError(t, err, clues.ToCore(err))
+			rr, err := path.FromDataLayerPath(test.entry.RepoRef, true)
+			require.NoError(t, err, clues.ToCore(err))
 
-				db := &Builder{}
+			db := &Builder{}
 
-				// Make a local copy so we can modify it.
-				localItem := test.entry
+			// Make a local copy so we can modify it.
+			localItem := test.entry
 
-				err = db.Add(rr, &path.Builder{}, updated, localItem.ItemInfo)
-				require.NoError(t, err, clues.ToCore(err))
+			err = db.Add(rr, &path.Builder{}, localItem.ItemInfo)
+			require.NoError(t, err, clues.ToCore(err))
 
-				// Clear LocationRef that's automatically populated since we passed an
-				// empty builder above.
-				localItem.LocationRef = ""
-				localItem.Updated = updated
+			// Clear LocationRef that's automatically populated since we passed an
+			// empty builder above.
+			localItem.LocationRef = ""
 
-				expectedShortRef := localItem.ShortRef
-				localItem.ShortRef = ""
+			expectedShortRef := localItem.ShortRef
+			localItem.ShortRef = ""
 
-				deets := db.Details()
-				assert.Len(t, deets.Entries, 1)
+			deets := db.Details()
+			assert.Len(t, deets.Entries, 1)
 
-				got := deets.Entries[0]
-				gotShortRef := got.ShortRef
-				got.ShortRef = ""
+			got := deets.Entries[0]
+			gotShortRef := got.ShortRef
+			got.ShortRef = ""
 
-				assert.Equal(t, localItem, got, "DetailsEntry")
-				test.shortRefEqual(t, expectedShortRef, gotShortRef, "ShortRef")
-			})
-		}
+			assert.Equal(t, localItem, got, "DetailsEntry")
+			test.shortRefEqual(t, expectedShortRef, gotShortRef, "ShortRef")
+		})
 	}
 }
 
@@ -446,7 +443,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 		expectedDirs func() []Entry
 	}{
 		{
-			name: "One Exchange Email None Updated",
+			name: "One Exchange Email",
 			entries: func() []Entry {
 				e := exchangeMail1
 				ei := *exchangeMail1.Exchange
@@ -472,35 +469,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One Exchange Email Updated",
-			entries: func() []Entry {
-				e := exchangeMail1
-				ei := *exchangeMail1.Exchange
-				e.Exchange = &ei
-				e.Updated = true
-
-				return []Entry{e}
-			},
-			expectedDirs: func() []Entry {
-				res := []Entry{}
-
-				for _, entry := range exchangeFolders {
-					e := entry
-					ei := *entry.Folder
-
-					e.Folder = &ei
-					e.Folder.Size = exchangeMail1.Exchange.Size
-					e.Folder.Modified = exchangeMail1.Exchange.Modified
-					e.Updated = true
-
-					res = append(res, e)
-				}
-
-				return res
-			},
-		},
-		{
-			name: "Two Exchange Emails None Updated",
+			name: "Two Exchange Emails",
 			entries: func() []Entry {
 				res := []Entry{}
 
@@ -532,41 +501,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "Two Exchange Emails One Updated",
-			entries: func() []Entry {
-				res := []Entry{}
-
-				for i, entry := range []Entry{exchangeMail1, exchangeMail2} {
-					e := entry
-					ei := *entry.Exchange
-					e.Exchange = &ei
-					e.Updated = i == 1
-
-					res = append(res, e)
-				}
-
-				return res
-			},
-			expectedDirs: func() []Entry {
-				res := []Entry{}
-
-				for _, entry := range exchangeFolders {
-					e := entry
-					ei := *entry.Folder
-
-					e.Folder = &ei
-					e.Folder.Size = exchangeMail1.Exchange.Size + exchangeMail2.Exchange.Size
-					e.Folder.Modified = exchangeMail2.Exchange.Modified
-					e.Updated = true
-
-					res = append(res, e)
-				}
-
-				return res
-			},
-		},
-		{
-			name: "One Email And One Contact None Updated",
+			name: "One Email And One Contact",
 			entries: func() []Entry {
 				res := []Entry{}
 
@@ -609,7 +544,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One OneDrive Item None Updated",
+			name: "One OneDrive Item",
 			entries: func() []Entry {
 				e := oneDrive1
 				ei := *oneDrive1.OneDrive
@@ -636,7 +571,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One SharePoint Item None Updated",
+			name: "One SharePoint Item",
 			entries: func() []Entry {
 				e := sharePoint1
 				ei := *sharePoint1.SharePoint
@@ -663,7 +598,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 			},
 		},
 		{
-			name: "One SharePoint Legacy Item None Updated",
+			name: "One SharePoint Legacy Item",
 			entries: func() []Entry {
 				e := sharePoint1
 				ei := *sharePoint1.SharePoint
@@ -703,7 +638,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 				loc, err := path.Builder{}.SplitUnescapeAppend(entry.LocationRef)
 				require.NoError(t, err, clues.ToCore(err))
 
-				err = db.Add(rr, loc, entry.Updated, entry.ItemInfo)
+				err = db.Add(rr, loc, entry.ItemInfo)
 				require.NoError(t, err, clues.ToCore(err))
 			}
 
@@ -982,7 +917,6 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_shortRefsUniqueFromFolder() {
 		itemPath,
 		// Don't need to generate folders for this entry we just want the ShortRef.
 		&path.Builder{},
-		false,
 		info)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -1017,13 +951,13 @@ func (suite *DetailsUnitSuite) TestBuilder_Add_cleansFileIDSuffixes() {
 	// Don't need to generate folders for this entry, we just want the itemRef
 	loc := &path.Builder{}
 
-	err := b.Add(dataSfx, loc, false, info)
+	err := b.Add(dataSfx, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = b.Add(dirMetaSfx, loc, false, info)
+	err = b.Add(dirMetaSfx, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = b.Add(metaSfx, loc, false, info)
+	err = b.Add(metaSfx, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, ent := range b.Details().Items() {
@@ -1057,16 +991,16 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 	// Don't need to generate folders for this entry, we just want the itemRef
 	loc := &path.Builder{}
 
-	err := b.Add(dataSfx, loc, false, info)
+	err := b.Add(dataSfx, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = b.Add(dataSfx2, loc, false, info)
+	err = b.Add(dataSfx2, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = b.Add(dirMetaSfx, loc, false, info)
+	err = b.Add(dirMetaSfx, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = b.Add(metaSfx, loc, false, info)
+	err = b.Add(metaSfx, loc, info)
 	require.NoError(t, err, clues.ToCore(err))
 
 	b.knownFolders = map[string]Entry{
@@ -1076,7 +1010,6 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 			ParentRef:   "1234",
 			LocationRef: "ab",
 			ItemRef:     "cd",
-			Updated:     false,
 			ItemInfo:    info,
 		},
 		"dummy2": {
@@ -1085,7 +1018,6 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 			ParentRef:   "12342",
 			LocationRef: "ab2",
 			ItemRef:     "cd2",
-			Updated:     false,
 			ItemInfo:    info,
 		},
 		"dummy3": {
@@ -1094,7 +1026,6 @@ func (suite *DetailsUnitSuite) TestBuilder_DetailsNoDuplicate() {
 			ParentRef:   "12343",
 			LocationRef: "ab3",
 			ItemRef:     "cd3",
-			Updated:     false,
 			ItemInfo:    info,
 		},
 	}

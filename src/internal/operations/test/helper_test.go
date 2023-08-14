@@ -19,10 +19,10 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	odConsts "github.com/alcionai/corso/src/internal/m365/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -32,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -59,7 +60,7 @@ type backupOpDependencies struct {
 	sel  selectors.Selector
 	sss  streamstore.Streamer
 	st   storage.Storage
-	sw   *store.Wrapper
+	sw   store.BackupStorer
 
 	closer func()
 }
@@ -129,7 +130,7 @@ func prepNewTestBackupOp(
 		return operations.BackupOperation{}, nil
 	}
 
-	bod.sw = store.NewKopiaStore(bod.kms)
+	bod.sw = store.NewWrapper(bod.kms)
 
 	connectorResource := resource.Users
 	if sel.Service == selectors.ServiceSharePoint {
@@ -234,7 +235,7 @@ func checkBackupIsInManifests(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	bo *operations.BackupOperation,
 	sel selectors.Selector,
 	resourceOwner string,
@@ -251,7 +252,7 @@ func checkBackupIsInManifests(
 			bf, err := kw.NewBaseFinder(sw)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mans := bf.FindBases(ctx, []kopia.Reasoner{r}, tags)
+			mans := bf.FindBases(ctx, []identity.Reasoner{r}, tags)
 			for _, man := range mans.MergeBases() {
 				bID, ok := man.GetTag(kopia.TagBackupID)
 				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
@@ -322,19 +323,19 @@ func checkMetadataFilesExist(
 				itemNames := []string{}
 
 				for item := range col.Items(ctx, fault.New(true)) {
-					assert.Implements(t, (*data.StreamSize)(nil), item)
+					assert.Implements(t, (*data.ItemSize)(nil), item)
 
-					s := item.(data.StreamSize)
+					s := item.(data.ItemSize)
 					assert.Greaterf(
 						t,
 						s.Size(),
 						int64(0),
 						"empty metadata file: %s/%s",
 						col.FullPath(),
-						item.UUID(),
+						item.ID(),
 					)
 
-					itemNames = append(itemNames, item.UUID())
+					itemNames = append(itemNames, item.ID())
 				}
 
 				assert.ElementsMatchf(

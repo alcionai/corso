@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,9 +20,9 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -131,8 +132,8 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 		return id
 	}
 
-	grh := func(ac api.Client) onedrive.RestoreHandler {
-		return onedrive.NewRestoreHandler(ac)
+	grh := func(ac api.Client) drive.RestoreHandler {
+		return drive.NewRestoreHandler(ac)
 	}
 
 	runDriveIncrementalTest(
@@ -156,7 +157,7 @@ func runDriveIncrementalTest(
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
 	getTestDriveID func(*testing.T, context.Context) string,
-	getRestoreHandler func(api.Client) onedrive.RestoreHandler,
+	getRestoreHandler func(api.Client) drive.RestoreHandler,
 	skipPermissionsTests bool,
 ) {
 	t := suite.T()
@@ -212,7 +213,7 @@ func runDriveIncrementalTest(
 		}
 	)
 
-	rrPfx, err := path.ServicePrefix(atid, roidn.ID(), service, category)
+	rrPfx, err := path.BuildPrefix(atid, roidn.ID(), service, category)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// strip the category from the prefix; we primarily want the tenant and resource owner.
@@ -334,7 +335,7 @@ func runDriveIncrementalTest(
 		newFileName = "new_file.txt"
 		newFileID   string
 
-		permissionIDMappings = map[string]string{}
+		permissionIDMappings = xsync.NewMapOf[string]()
 		writePerm            = metadata.Permission{
 			ID:       "perm-id",
 			Roles:    []string{"write"},
@@ -387,7 +388,7 @@ func runDriveIncrementalTest(
 		{
 			name: "add permission to new file",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				err = onedrive.UpdatePermissions(
+				err = drive.UpdatePermissions(
 					ctx,
 					rh,
 					driveID,
@@ -400,12 +401,12 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
-			nonMetaItemsWritten: 1, // the file for which permission was updated
+			nonMetaItemsWritten: 0, // none because the file is considered cached instead of written.
 		},
 		{
 			name: "remove permission from new file",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				err = onedrive.UpdatePermissions(
+				err = drive.UpdatePermissions(
 					ctx,
 					rh,
 					driveID,
@@ -418,13 +419,13 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
-			nonMetaItemsWritten: 1, //.data file for newitem
+			nonMetaItemsWritten: 0, // none because the file is considered cached instead of written.
 		},
 		{
 			name: "add permission to container",
 			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerInfos[container1].id
-				err = onedrive.UpdatePermissions(
+				err = drive.UpdatePermissions(
 					ctx,
 					rh,
 					driveID,
@@ -443,7 +444,7 @@ func runDriveIncrementalTest(
 			name: "remove permission from container",
 			updateFiles: func(t *testing.T, ctx context.Context) {
 				targetContainer := containerInfos[container1].id
-				err = onedrive.UpdatePermissions(
+				err = drive.UpdatePermissions(
 					ctx,
 					rh,
 					driveID,
@@ -517,7 +518,7 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        4, // .data and .meta for newitem, .dirmeta for parent
-			nonMetaItemsWritten: 1, // .data file for new item
+			nonMetaItemsWritten: 1, // .data file for moved item
 		},
 		{
 			name: "boomerang a file",
@@ -549,7 +550,7 @@ func runDriveIncrementalTest(
 			},
 			itemsRead:           1, // .data file for newitem
 			itemsWritten:        3, // .data and .meta for newitem, .dirmeta for parent
-			nonMetaItemsWritten: 1, // .data file for new item
+			nonMetaItemsWritten: 0, // non because the file is considered cached instead of written.
 		},
 		{
 			name: "delete file",
@@ -964,24 +965,24 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 	}
 }
 
-type OneDriveRestoreIntgSuite struct {
+type OneDriveRestoreNightlyIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
 func TestOneDriveRestoreIntgSuite(t *testing.T) {
-	suite.Run(t, &OneDriveRestoreIntgSuite{
-		Suite: tester.NewIntegrationSuite(
+	suite.Run(t, &OneDriveRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *OneDriveRestoreIntgSuite) SetupSuite() {
+func (suite *OneDriveRestoreNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
+func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
 	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 	sel.DiscreteOwner = suite.its.user.ID
@@ -1251,7 +1252,7 @@ func runDriveRestoreWithAdvancedOptions(
 	})
 }
 
-func (suite *OneDriveRestoreIntgSuite) TestRestore_Run_onedriveAlternateProtectedResource() {
+func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveAlternateProtectedResource() {
 	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 	sel.DiscreteOwner = suite.its.user.ID

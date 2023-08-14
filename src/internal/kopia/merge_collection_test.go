@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/exchange/mock"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -90,7 +90,7 @@ func (suite *MergeCollectionUnitSuite) TestItems() {
 	gotItemNames := []string{}
 
 	for item := range dc.Items(ctx, fault.New(true)) {
-		gotItemNames = append(gotItemNames, item.UUID())
+		gotItemNames = append(gotItemNames, item.ID())
 	}
 
 	assert.ElementsMatch(t, expectedItemNames, gotItemNames)

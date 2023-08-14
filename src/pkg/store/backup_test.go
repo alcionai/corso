@@ -66,7 +66,7 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			sm := &store.Wrapper{Storer: test.mock}
+			sm := store.NewWrapper(test.mock)
 
 			result, err := sm.GetBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err, clues.ToCore(err))
@@ -104,7 +104,7 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			sm := &store.Wrapper{Storer: test.mock}
+			sm := store.NewWrapper(test.mock)
 
 			result, err := sm.GetBackups(ctx)
 			test.expect(t, err, clues.ToCore(err))
@@ -143,7 +143,7 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			sm := &store.Wrapper{Storer: test.mock}
+			sm := store.NewWrapper(test.mock)
 
 			err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err, clues.ToCore(err))

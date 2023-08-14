@@ -17,10 +17,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
-	odStub "github.com/alcionai/corso/src/internal/m365/onedrive/stub"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -572,16 +572,16 @@ func checkEvent(
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
-	assert.Equal(t, ptr.Val(expected.GetType()), ptr.Val(got.GetType()), "Type")
+	assert.Equal(t, ptr.Val(expected.GetTypeEscaped()), ptr.Val(got.GetTypeEscaped()), "Type")
 }
 
 func compareExchangeEmail(
 	t *testing.T,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
+	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
 
@@ -605,10 +605,10 @@ func compareExchangeContact(
 	t *testing.T,
 	colPath path.Path,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
+	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
 
@@ -633,10 +633,10 @@ func compareExchangeContact(
 func compareExchangeEvent(
 	t *testing.T,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
+	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
 
@@ -715,13 +715,13 @@ func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
 func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
 	// have a good way to materialize these in the test right now.
-	if rootDir && item.UUID() == metadata.DirMetaFileSuffix {
+	if rootDir && item.ID() == metadata.DirMetaFileSuffix {
 		return false
 	}
 
@@ -732,12 +732,12 @@ func compareDriveItem(
 
 	var (
 		displayName string
-		name        = item.UUID()
+		name        = item.ID()
 		isMeta      = metadata.HasMetaSuffix(name)
 	)
 
 	if !isMeta {
-		oitem := item.(*onedrive.Item)
+		oitem := item.(*drive.Item)
 		info := oitem.Info()
 
 		if info.OneDrive != nil {
@@ -867,11 +867,11 @@ func compareItem(
 	expected map[string][]byte,
 	service path.ServiceType,
 	category path.CategoryType,
-	item data.Stream,
+	item data.Item,
 	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
-	if mt, ok := item.(data.StreamModTime); ok {
+	if mt, ok := item.(data.ItemModTime); ok {
 		assert.NotZero(t, mt.ModTime())
 	}
 

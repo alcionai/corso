@@ -161,6 +161,267 @@ type (
 	}
 )
 
+// appendScopes iterates through each scope in the list of scope slices,
+// calling setDefaults() to ensure it is completely populated, and appends
+// those scopes to the `to` slice.
+func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
+	if len(to) == 0 {
+		to = []scope{}
+	}
+
+	for _, scopeSl := range scopes {
+		for _, s := range scopeSl {
+			s.setDefaults()
+			to = append(to, scope(s))
+		}
+	}
+
+	return to
+}
+
+// scopes retrieves the list of scopes in the selector.
+func scopes[T scopeT](s Selector) []T {
+	scopes := []T{}
+
+	for _, v := range s.Includes {
+		scopes = append(scopes, T(v))
+	}
+
+	return scopes
+}
+
+// ---------------------------------------------------------------------------
+// scope config & constructors
+// ---------------------------------------------------------------------------
+
+// constructs the default item-scope comparator options according
+// to the selector configuration.
+//   - if cfg.OnlyMatchItemNames == false, then comparison assumes item IDs,
+//     which are case sensitive, resulting in StrictEqualsMatch
+func defaultItemOptions(cfg Config) []option {
+	opts := []option{}
+
+	if !cfg.OnlyMatchItemNames {
+		opts = append(opts, StrictEqualMatch())
+	}
+
+	return opts
+}
+
+type scopeConfig struct {
+	usePathFilter         bool
+	usePrefixFilter       bool
+	useSuffixFilter       bool
+	useEqualsFilter       bool
+	useStrictEqualsFilter bool
+}
+
+type option func(*scopeConfig)
+
+func (sc *scopeConfig) populate(opts ...option) {
+	for _, opt := range opts {
+		opt(sc)
+	}
+}
+
+// PrefixMatch ensures the selector uses a Prefix comparator, instead
+// of contains or equals.  Will not override a default Any() or None()
+// comparator.
+func PrefixMatch() option {
+	return func(sc *scopeConfig) {
+		sc.usePrefixFilter = true
+	}
+}
+
+// SuffixMatch ensures the selector uses a Suffix comparator, instead
+// of contains or equals.  Will not override a default Any() or None()
+// comparator.
+func SuffixMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useSuffixFilter = true
+	}
+}
+
+// StrictEqualsMatch ensures the selector uses a StrictEquals comparator, instead
+// of contains.  Will not override a default Any() or None() comparator.
+func StrictEqualMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useStrictEqualsFilter = true
+	}
+}
+
+// ExactMatch ensures the selector uses an Equals comparator, instead
+// of contains.  Will not override a default Any() or None() comparator.
+func ExactMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useEqualsFilter = true
+	}
+}
+
+// pathComparator is an internal-facing option.  It is assumed that scope
+// constructors will provide the pathComparator option whenever a folder-
+// level scope (ie, a scope that compares path hierarchies) is created.
+func pathComparator() option {
+	return func(sc *scopeConfig) {
+		sc.usePathFilter = true
+	}
+}
+
+func badCastErr(cast, is service) error {
+	return clues.Stack(ErrorBadSelectorCast, clues.New(fmt.Sprintf("%s is not %s", cast, is)))
+}
+
+// if the provided slice contains Any, returns [Any]
+// if the slice contains None, returns [None]
+// if the slice contains Any and None, returns the first
+// if the slice is empty, returns [None]
+// otherwise returns the input
+func clean(s []string) []string {
+	if len(s) == 0 {
+		return None()
+	}
+
+	for _, e := range s {
+		if e == AnyTgt {
+			return Any()
+		}
+
+		if e == NoneTgt {
+			return None()
+		}
+	}
+
+	return s
+}
+
+type filterFunc func([]string) filters.Filter
+
+// filterize turns the slice into a filter.
+// if the input is Any(), returns a passAny filter.
+// if the input is None(), returns a failAny filter.
+// if the scopeConfig specifies a filter, use that filter.
+// if the input is len(1), returns an Equals filter.
+// otherwise returns a Contains filter.
+func filterFor(sc scopeConfig, targets ...string) filters.Filter {
+	return filterize(sc, nil, targets...)
+}
+
+// filterize turns the slice into a filter.
+// if the input is Any(), returns a passAny filter.
+// if the input is None(), returns a failAny filter.
+// if the scopeConfig specifies a filter, use that filter.
+// if defaultFilter is non-nil, returns that filter.
+// if the input is len(1), returns an Equals filter.
+// otherwise returns a Contains filter.
+func filterize(
+	sc scopeConfig,
+	defaultFilter filterFunc,
+	targets ...string,
+) filters.Filter {
+	targets = clean(targets)
+
+	if len(targets) == 0 || targets[0] == NoneTgt {
+		return failAny
+	}
+
+	if targets[0] == AnyTgt {
+		return passAny
+	}
+
+	if sc.usePathFilter {
+		if sc.useEqualsFilter {
+			return filters.PathEquals(targets)
+		}
+
+		if sc.usePrefixFilter {
+			return filters.PathPrefix(targets)
+		}
+
+		if sc.useSuffixFilter {
+			return filters.PathSuffix(targets)
+		}
+
+		return filters.PathContains(targets)
+	}
+
+	if sc.usePrefixFilter {
+		return filters.Prefix(targets)
+	}
+
+	if sc.useSuffixFilter {
+		return filters.Suffix(targets)
+	}
+
+	if sc.useStrictEqualsFilter {
+		return filters.StrictEqual(targets)
+	}
+
+	if defaultFilter != nil {
+		return defaultFilter(targets)
+	}
+
+	return filters.Equal(targets)
+}
+
+// pathFilterFactory returns the appropriate path filter
+// (contains, prefix, or suffix) for the provided options.
+// If multiple options are flagged, Prefix takes priority.
+// If no options are provided, returns PathContains.
+func pathFilterFactory(opts ...option) filterFunc {
+	sc := &scopeConfig{}
+	sc.populate(opts...)
+
+	var ff filterFunc
+
+	switch true {
+	case sc.usePrefixFilter:
+		ff = filters.PathPrefix
+	case sc.useSuffixFilter:
+		ff = filters.PathSuffix
+	case sc.useEqualsFilter:
+		ff = filters.PathEquals
+	default:
+		ff = filters.PathContains
+	}
+
+	return wrapSliceFilter(ff)
+}
+
+func wrapSliceFilter(ff filterFunc) filterFunc {
+	return func(s []string) filters.Filter {
+		s = clean(s)
+
+		if f, ok := isAnyOrNone(s); ok {
+			return f
+		}
+
+		return ff(s)
+	}
+}
+
+// returns (<filter>, true) if s is len==1 and s[0] is
+// anyTgt or noneTgt, implying that the caller should use
+// the returned filter.  On (<filter>, false), the caller
+// can ignore the returned filter.
+// a special case exists for len(s)==0, interpreted as
+// "noneTgt"
+func isAnyOrNone(s []string) (filters.Filter, bool) {
+	switch len(s) {
+	case 0:
+		return failAny, true
+
+	case 1:
+		switch s[0] {
+		case AnyTgt:
+			return passAny, true
+		case NoneTgt:
+			return failAny, true
+		}
+	}
+
+	return failAny, false
+}
+
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
 	cat categorizer,
@@ -239,94 +500,8 @@ func marshalScope(mss map[string]string) string {
 }
 
 // ---------------------------------------------------------------------------
-// scope funcs
+// reducer & filtering
 // ---------------------------------------------------------------------------
-
-// matches returns true if the category is included in the scope's
-// data type, and the input string passes the scope's filter for
-// that category.
-func matches[T scopeT, C categoryT](s T, cat C, inpt string) bool {
-	if !typeAndCategoryMatches(cat, s.categorizer()) {
-		return false
-	}
-
-	if len(inpt) == 0 {
-		return false
-	}
-
-	return s[cat.String()].Compare(inpt)
-}
-
-// matchesAny returns true if the category is included in the scope's
-// data type, and any one of the input strings passes the scope's filter.
-func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
-	if !typeAndCategoryMatches(cat, s.categorizer()) {
-		return false
-	}
-
-	if len(inpts) == 0 {
-		return false
-	}
-
-	return s[cat.String()].CompareAny(inpts...)
-}
-
-// getCategory returns the scope's category value.
-// if s is an info-type scope, returns the info category.
-func getCategory[T scopeT](s T) string {
-	return s[scopeKeyCategory].Identity
-}
-
-// getInfoCategory returns the scope's infoFilter category value.
-func getInfoCategory[T scopeT](s T) string {
-	return s[scopeKeyInfoCategory].Identity
-}
-
-// getCatValue takes the value of s[cat] and returns the slice.
-// If s[cat] is nil, returns None().
-func getCatValue[T scopeT](s T, cat categorizer) []string {
-	filt, ok := s[cat.String()]
-	if !ok {
-		return None()
-	}
-
-	if len(filt.Targets) > 0 {
-		return filt.Targets
-	}
-
-	return filt.Targets
-}
-
-// set sets a value by category to the scope.  Only intended for internal
-// use, not for exporting to callers.
-func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
-	sc := &scopeConfig{}
-	sc.populate(opts...)
-
-	s[cat.String()] = filterFor(*sc, v...)
-
-	return s
-}
-
-// returns true if the category is included in the scope's category type,
-// and the value is set to None().
-func isNoneTarget[T scopeT, C categoryT](s T, cat C) bool {
-	if !typeAndCategoryMatches(cat, s.categorizer()) {
-		return false
-	}
-
-	return s[cat.String()].Comparator == filters.Fails
-}
-
-// returns true if the category is included in the scope's category type,
-// and the value is set to Any().
-func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
-	if !typeAndCategoryMatches(cat, s.categorizer()) {
-		return false
-	}
-
-	return s[cat.String()].Comparator == filters.Passes
-}
 
 // reduce filters the entries in the details to only those that match the
 // inclusions, filters, and exclusions in the selector.
@@ -541,6 +716,92 @@ func matchesPathValues[T scopeT, C categoryT](
 // ---------------------------------------------------------------------------
 // helper funcs
 // ---------------------------------------------------------------------------
+
+// matches returns true if the category is included in the scope's
+// data type, and the input string passes the scope's filter for
+// that category.
+func matches[T scopeT, C categoryT](s T, cat C, inpt string) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+
+	if len(inpt) == 0 {
+		return false
+	}
+
+	return s[cat.String()].Compare(inpt)
+}
+
+// matchesAny returns true if the category is included in the scope's
+// data type, and any one of the input strings passes the scope's filter.
+func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+
+	if len(inpts) == 0 {
+		return false
+	}
+
+	return s[cat.String()].CompareAny(inpts...)
+}
+
+// getCategory returns the scope's category value.
+// if s is an info-type scope, returns the info category.
+func getCategory[T scopeT](s T) string {
+	return s[scopeKeyCategory].Identity
+}
+
+// getInfoCategory returns the scope's infoFilter category value.
+func getInfoCategory[T scopeT](s T) string {
+	return s[scopeKeyInfoCategory].Identity
+}
+
+// getCatValue takes the value of s[cat] and returns the slice.
+// If s[cat] is nil, returns None().
+func getCatValue[T scopeT](s T, cat categorizer) []string {
+	filt, ok := s[cat.String()]
+	if !ok {
+		return None()
+	}
+
+	if len(filt.Targets) > 0 {
+		return filt.Targets
+	}
+
+	return filt.Targets
+}
+
+// set sets a value by category to the scope.  Only intended for internal
+// use, not for exporting to callers.
+func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
+	sc := &scopeConfig{}
+	sc.populate(opts...)
+
+	s[cat.String()] = filterFor(*sc, v...)
+
+	return s
+}
+
+// returns true if the category is included in the scope's category type,
+// and the value is set to None().
+func isNoneTarget[T scopeT, C categoryT](s T, cat C) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+
+	return s[cat.String()].Comparator == filters.Fails
+}
+
+// returns true if the category is included in the scope's category type,
+// and the value is set to Any().
+func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+
+	return s[cat.String()].Comparator == filters.Passes
+}
 
 // categoryMatches returns true if:
 // - neither type is 'unknown'

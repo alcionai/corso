@@ -24,11 +24,12 @@ import (
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/data/mock"
-	exchMock "github.com/alcionai/corso/src/internal/m365/exchange/mock"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -78,7 +79,7 @@ func testForFiles(
 		for s := range c.Items(ctx, fault.New(true)) {
 			count++
 
-			fullPath, err := c.FullPath().AppendItem(s.UUID())
+			fullPath, err := c.FullPath().AppendItem(s.ID())
 			require.NoError(t, err, clues.ToCore(err))
 
 			expected, ok := expected[fullPath.String()]
@@ -88,9 +89,9 @@ func testForFiles(
 			require.NoError(t, err, "reading collection item", fullPath, clues.ToCore(err))
 			assert.Equal(t, expected, buf, "comparing collection item", fullPath)
 
-			require.Implements(t, (*data.StreamSize)(nil), s)
+			require.Implements(t, (*data.ItemSize)(nil), s)
 
-			ss := s.(data.StreamSize)
+			ss := s.(data.ItemSize)
 			assert.Equal(t, len(buf), int(ss.Size()))
 		}
 	}
@@ -371,7 +372,6 @@ func checkRetentionParams(
 
 // mustReopen closes and reopens the connection that w uses. Assumes no other
 // structs besides w are holding a reference to the conn that w has.
-// TODO(ashmrtn): Remove this when kopia caching is fixed.
 //
 //revive:disable-next-line:context-as-argument
 func mustReopen(t *testing.T, ctx context.Context, w *Wrapper) {
@@ -520,7 +520,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 			err = w.SetRetentionParameters(ctx, test.opts)
 			test.expectErr(t, err, clues.ToCore(err))
 
-			mustReopen(t, ctx, w)
 			checkRetentionParams(
 				t,
 				ctx,
@@ -562,7 +561,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
-	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
@@ -577,7 +575,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
-	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
@@ -592,7 +589,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
-	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
@@ -607,7 +603,6 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	})
 	require.NoError(t, err, clues.ToCore(err))
 
-	mustReopen(t, ctx, w)
 	checkRetentionParams(
 		t,
 		ctx,
@@ -615,6 +610,91 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 		blob.RetentionMode(""),
 		0,
 		assert.False)
+}
+
+func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunMaintenance() {
+	table := []struct {
+		name   string
+		reopen bool
+	}{
+		{
+			// Check that in the same connection we can create a repo, set and then
+			// update the retention period, and run full maintenance to extend object
+			// locks.
+			name: "SameConnection",
+		},
+		{
+			// Test that even if the retention configuration change is done from a
+			// different repo connection that we still can extend the object locking
+			// duration and run maintenance successfully.
+			name:   "ReopenToReconfigure",
+			reopen: true,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			k, err := openKopiaRepo(t, ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			w := &Wrapper{k}
+
+			mOpts := repository.Maintenance{
+				Safety: repository.FullMaintenanceSafety,
+				Type:   repository.CompleteMaintenance,
+			}
+
+			// This will set common maintenance config parameters. There's some interplay
+			// between the maintenance schedule and retention period that we want to check
+			// below.
+			err = w.RepoMaintenance(ctx, mOpts)
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Enable retention.
+			err = w.SetRetentionParameters(ctx, repository.Retention{
+				Mode:     ptr.To(repository.GovernanceRetention),
+				Duration: ptr.To(time.Hour * 48),
+				Extend:   ptr.To(true),
+			})
+			require.NoError(t, err, clues.ToCore(err))
+
+			checkRetentionParams(
+				t,
+				ctx,
+				k,
+				blob.Governance,
+				time.Hour*48,
+				assert.True)
+
+			if test.reopen {
+				mustReopen(t, ctx, w)
+			}
+
+			// Change retention duration without updating mode.
+			err = w.SetRetentionParameters(ctx, repository.Retention{
+				Duration: ptr.To(time.Hour * 96),
+			})
+			require.NoError(t, err, clues.ToCore(err))
+
+			checkRetentionParams(
+				t,
+				ctx,
+				k,
+				blob.Governance,
+				time.Hour*96,
+				assert.True)
+
+			// Run full maintenance again. This should extend object locks for things if
+			// they exist.
+			err = w.RepoMaintenance(ctx, mOpts)
+			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
 }
 
 // ---------------
@@ -721,7 +801,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		"brunhilda": "",
 	}
 
-	reasons := []Reasoner{
+	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
 			suite.storePath1.ResourceOwner(),
@@ -844,10 +924,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 					// 47 file and 2 folder entries.
 					test.expectedUploadedFiles+test.expectedCachedFiles+2,
 				)
-
-				for _, entry := range details {
-					test.deetsUpdated(t, entry.Updated)
-				}
 			}
 
 			checkSnapshotTags(
@@ -885,9 +961,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			collections:           collections,
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
-			deetsUpdated:          assert.False,
-			hashedBytesCheck:      assert.Zero,
-			uploadedBytes:         []int64{4000, 6000},
+			// Entries go to details merger since cached files are merged too.
+			expectMerge:      true,
+			deetsUpdated:     assert.False,
+			hashedBytesCheck: assert.Zero,
+			uploadedBytes:    []int64{4000, 6000},
 		},
 		{
 			name: "Kopia Assist And Merge No Files Changed",
@@ -919,6 +997,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			collections:           collections,
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
+			expectMerge:           true,
 			deetsUpdated:          assert.False,
 			hashedBytesCheck:      assert.Zero,
 			uploadedBytes:         []int64{4000, 6000},
@@ -993,7 +1072,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		"brunhilda": "",
 	}
 
-	reasons := []Reasoner{
+	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
 			storePath.ResourceOwner(),
@@ -1029,7 +1108,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			numDeetsEntries: 3,
 			hasMetaDeets:    true,
 			cols: func() []data.BackupCollection {
-				streams := []data.Stream{}
+				streams := []data.Item{}
 				fileNames := []string{
 					testFileName,
 					testFileName + metadata.MetaFileSuffix,
@@ -1040,8 +1119,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					info := baseOneDriveItemInfo
 					info.ItemName = name
 
-					ms := &mock.Stream{
-						ID:       name,
+					ms := &dataMock.Item{
+						ItemID:   name,
 						Reader:   io.NopCloser(&bytes.Buffer{}),
 						ItemSize: 0,
 						ItemInfo: details.ItemInfo{OneDrive: &info},
@@ -1070,8 +1149,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				info := baseOneDriveItemInfo
 				info.ItemName = testFileName
 
-				ms := &mock.Stream{
-					ID:       testFileName,
+				ms := &dataMock.Item{
+					ItemID:   testFileName,
 					Reader:   io.NopCloser(&bytes.Buffer{}),
 					ItemSize: 0,
 					ItemInfo: details.ItemInfo{OneDrive: &info},
@@ -1080,7 +1159,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				mc := &mockBackupCollection{
 					path:    storePath,
 					loc:     locPath,
-					streams: []data.Stream{ms},
+					streams: []data.Item{ms},
 					state:   data.NotMovedState,
 				}
 
@@ -1124,8 +1203,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			)
 
 			for _, entry := range details {
-				assert.True(t, entry.Updated)
-
 				if test.hasMetaDeets {
 					continue
 				}
@@ -1188,7 +1265,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
-		[]Reasoner{r},
+		[]identity.Reasoner{r},
 		nil,
 		[]data.BackupCollection{dc1, dc2},
 		nil,
@@ -1217,15 +1294,16 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	testForFiles(t, ctx, expected, result)
 }
 
+// TODO(pandeyabs): Switch to m365/mock/BackupCollection.
 type mockBackupCollection struct {
 	path    path.Path
 	loc     *path.Builder
-	streams []data.Stream
+	streams []data.Item
 	state   data.CollectionState
 }
 
-func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
-	res := make(chan data.Stream)
+func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)
@@ -1269,36 +1347,42 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		&mockBackupCollection{
 			path: suite.storePath1,
 			loc:  loc1,
-			streams: []data.Stream{
-				&exchMock.Data{
-					ID:     testFileName,
-					Reader: io.NopCloser(bytes.NewReader(testFileData)),
+			streams: []data.Item{
+				&dataMock.Item{
+					ItemID:   testFileName,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:     testFileName2,
-					Reader: io.NopCloser(bytes.NewReader(testFileData2)),
+				&dataMock.Item{
+					ItemID:   testFileName2,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData2)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
 			},
 		},
 		&mockBackupCollection{
 			path: suite.storePath2,
 			loc:  loc2,
-			streams: []data.Stream{
-				&exchMock.Data{
-					ID:     testFileName3,
-					Reader: io.NopCloser(bytes.NewReader(testFileData3)),
+			streams: []data.Item{
+				&dataMock.Item{
+					ItemID:   testFileName3,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:      testFileName4,
-					ReadErr: assert.AnError,
+				&dataMock.Item{
+					ItemID:   testFileName4,
+					ReadErr:  assert.AnError,
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:     testFileName5,
-					Reader: io.NopCloser(bytes.NewReader(testFileData5)),
+				&dataMock.Item{
+					ItemID:   testFileName5,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData5)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
-				&exchMock.Data{
-					ID:     testFileName6,
-					Reader: io.NopCloser(bytes.NewReader(testFileData6)),
+				&dataMock.Item{
+					ItemID:   testFileName6,
+					Reader:   io.NopCloser(bytes.NewReader(testFileData6)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
 			},
 		},
@@ -1306,7 +1390,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
-		[]Reasoner{r},
+		[]identity.Reasoner{r},
 		nil,
 		collections,
 		nil,
@@ -1525,9 +1609,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		for _, item := range suite.files[parent.String()] {
 			collection.streams = append(
 				collection.streams,
-				&exchMock.Data{
-					ID:     item.itemPath.Item(),
-					Reader: io.NopCloser(bytes.NewReader(item.data)),
+				&dataMock.Item{
+					ItemID:   item.itemPath.Item(),
+					Reader:   io.NopCloser(bytes.NewReader(item.data)),
+					ItemInfo: exchMock.StubMailInfo(),
 				},
 			)
 		}
@@ -1539,7 +1624,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
-		[]Reasoner{r},
+		[]identity.Reasoner{r},
 		nil,
 		collections,
 		nil,
@@ -1666,11 +1751,11 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
-				[]Reasoner{r},
+				[]identity.Reasoner{r},
 				NewMockBackupBases().WithMergeBases(
 					ManifestEntry{
 						Manifest: man,
-						Reasons:  []Reasoner{r},
+						Reasons:  []identity.Reasoner{r},
 					},
 				),
 				test.cols(),

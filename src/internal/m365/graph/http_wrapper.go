@@ -4,11 +4,12 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
+	"github.com/pkg/errors"
+	"golang.org/x/net/http2"
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
@@ -56,7 +57,7 @@ func NewHTTPWrapper(opts ...Option) *httpWrapper {
 
 	cc.apply(hc)
 
-	return &httpWrapper{hc}
+	return &httpWrapper{hc, cc}
 }
 
 // NewNoTimeoutHTTPWrapper constructs a http wrapper with no context timeout.
@@ -73,8 +74,6 @@ func NewNoTimeoutHTTPWrapper(opts ...Option) *httpWrapper {
 // ---------------------------------------------------------------------------
 // requests
 // ---------------------------------------------------------------------------
-
-var streamErrRE = regexp.MustCompile(`stream error: stream ID \d+; .+; received from peer`)
 
 // Request does the provided request.
 func (hw httpWrapper) Request(
@@ -99,31 +98,30 @@ func (hw httpWrapper) Request(
 
 	var resp *http.Response
 
-	i := 0
-
 	// stream errors from http/2 will fail before we reach
 	// client middleware handling, therefore we don't get to
 	// make use of the retry middleware.  This external
 	// retry wrapper is unsophisticated, but should only
 	// retry in the event of a `stream error`, which is not
 	// a common expectation.
-	for i < 3 {
+	for i := 0; i < hw.config.maxConnectionRetries+1; i++ {
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
 		resp, err = hw.client.Do(req)
-		if err != nil && !streamErrRE.MatchString(err.Error()) {
-			return nil, Stack(ictx, err)
-		}
 
 		if err == nil {
 			break
 		}
 
-		logger.Ctx(ictx).Debug("retrying after stream error")
+		var http2StreamErr http2.StreamError
+		if !errors.As(err, &http2StreamErr) {
+			return nil, Stack(ictx, err)
+		}
+
+		logger.Ctx(ictx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
 		time.Sleep(3 * time.Second)
-		i++
 	}
 
 	if err != nil {
@@ -140,6 +138,7 @@ func (hw httpWrapper) Request(
 type (
 	httpWrapper struct {
 		client *http.Client
+		config *clientConfig
 	}
 
 	customTransport struct {

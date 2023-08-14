@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -43,6 +44,7 @@ type (
 var (
 	_ Reducer        = &ExchangeRestore{}
 	_ pathCategorier = &ExchangeRestore{}
+	_ reasoner       = &ExchangeRestore{}
 )
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
@@ -69,7 +71,7 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 }
 
 func (s ExchangeBackup) SplitByResourceOwner(users []string) []ExchangeBackup {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+	sels := splitByProtectedResource[ExchangeScope](s.Selector, users, ExchangeUser)
 
 	ss := make([]ExchangeBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -103,7 +105,7 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 }
 
 func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore {
-	sels := splitByResourceOwner[ExchangeScope](sr.Selector, users, ExchangeUser)
+	sels := splitByProtectedResource[ExchangeScope](sr.Selector, users, ExchangeUser)
 
 	ss := make([]ExchangeRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -120,6 +122,13 @@ func (s exchange) PathCategories() selectorPathCategories {
 		Filters:  pathCategoriesIn[ExchangeScope, exchangeCategory](s.Filters),
 		Includes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Includes),
 	}
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s exchange) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
 }
 
 // ---------------------------------------------------------------------------

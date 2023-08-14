@@ -16,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/onedrive"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -59,7 +59,7 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	rc inject.RestoreConsumer,
 	acct account.Account,
 	backupID model.StableID,
@@ -130,8 +130,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
 	defer func() {
 		end()
-		// wait for the progress display to clean up
-		observe.Complete()
 	}()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
@@ -262,8 +260,8 @@ func (op *RestoreOperation) do(
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
-	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
-	defer close(kopiaComplete)
+	progressBar := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	defer close(progressBar)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(
 		ctx,
@@ -274,8 +272,6 @@ func (op *RestoreOperation) do(
 	if err != nil {
 		return nil, clues.Wrap(err, "producing collections to restore")
 	}
-
-	kopiaComplete <- struct{}{}
 
 	ctx = clues.Add(ctx, "coll_count", len(dcs))
 
@@ -372,11 +368,8 @@ func consumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, error) {
-	complete := observe.MessageWithCompletion(ctx, "Restoring data")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	progressBar := observe.MessageWithCompletion(ctx, "Restoring data")
+	defer close(progressBar)
 
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     backupVersion,

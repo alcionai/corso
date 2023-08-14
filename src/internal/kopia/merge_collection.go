@@ -43,8 +43,15 @@ func (mc *mergeCollection) addCollection(
 	// Keep a stable sorting of this merged collection set so we can say there's
 	// some deterministic behavior when Fetch is called. We don't expect to have
 	// to merge many collections.
-	slices.SortStableFunc(mc.cols, func(a, b col) bool {
-		return a.storagePath < b.storagePath
+	slices.SortStableFunc(mc.cols, func(a, b col) int {
+		switch true {
+		case a.storagePath < b.storagePath:
+			return -1
+		case a.storagePath > b.storagePath:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	return nil
@@ -57,8 +64,8 @@ func (mc mergeCollection) FullPath() path.Path {
 func (mc *mergeCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
-) <-chan data.Stream {
-	res := make(chan data.Stream)
+) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)
@@ -91,7 +98,7 @@ func (mc *mergeCollection) Items(
 func (mc *mergeCollection) FetchItemByName(
 	ctx context.Context,
 	name string,
-) (data.Stream, error) {
+) (data.Item, error) {
 	logger.Ctx(ctx).Infow(
 		"fetching item in merged collection",
 		"merged_collection_count", len(mc.cols))

@@ -62,6 +62,12 @@ type Toggles struct {
 	// DisableIncrementals prevents backups from using incremental lookups,
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+	// ForceItemDataDownload disables finding cached items in previous failed
+	// backups (i.e. kopia-assisted incrementals). Data dedupe will still occur
+	// since that is based on content hashes. Items that have not changed since
+	// the previous backup (i.e. in the merge base) will not be redownloaded. Use
+	// DisableIncrementals to control that behavior.
+	ForceItemDataDownload bool `json:"forceItemDataDownload,omitempty"`
 	// DisableDelta prevents backups from using delta based lookups,
 	// forcing a backup by enumerating all items. This is different
 	// from DisableIncrementals in that this does not even makes use of

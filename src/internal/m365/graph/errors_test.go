@@ -33,7 +33,7 @@ func odErr(code string) *odataerrors.ODataError {
 	odErr := odataerrors.NewODataError()
 	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
-	odErr.SetError(merr)
+	odErr.SetErrorEscaped(merr)
 
 	return odErr
 }
@@ -43,7 +43,7 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
 	merr.SetMessage(&message)
-	odErr.SetError(merr)
+	odErr.SetErrorEscaped(merr)
 
 	return odErr
 }
@@ -290,7 +290,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 			name: "non-matching resource not found",
 			err: func() error {
 				res := odErr(string(ResourceNotFound))
-				res.GetError().SetMessage(ptr.To("Calendar not found"))
+				res.GetErrorEscaped().SetMessage(ptr.To("Calendar not found"))
 
 				return res
 			}(),

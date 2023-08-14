@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -57,6 +58,9 @@ type BackupOperation struct {
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
+	// When true, disables kopia-assisted incremental backups. This forces
+	// downloading and hashing all item data for items not in the merge base(s).
+	disableAssistBackup bool
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -71,7 +75,7 @@ func NewBackupOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 	bp inject.BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
@@ -79,14 +83,15 @@ func NewBackupOperation(
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:     newOperation(opts, bus, count.New(), kw, sw),
-		ResourceOwner: owner,
-		Selectors:     selector,
-		Version:       "v0",
-		BackupVersion: version.Backup,
-		account:       acct,
-		incremental:   useIncrementalBackup(selector, opts),
-		bp:            bp,
+		operation:           newOperation(opts, bus, count.New(), kw, sw),
+		ResourceOwner:       owner,
+		Selectors:           selector,
+		Version:             "v0",
+		BackupVersion:       version.Backup,
+		account:             acct,
+		incremental:         useIncrementalBackup(selector, opts),
+		disableAssistBackup: opts.ToggleFeatures.ForceItemDataDownload,
+		bp:                  bp,
 	}
 
 	if err := op.validate(); err != nil {
@@ -117,9 +122,64 @@ func (op BackupOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type backupStats struct {
-	k             *kopia.BackupStats
-	ctrl          *data.CollectionStats
-	resourceCount int
+	k                   *kopia.BackupStats
+	ctrl                *data.CollectionStats
+	resourceCount       int
+	hasNewDetailEntries bool
+}
+
+// An assist backup must meet the following criteria:
+// 1. new detail entries were produced
+// 2. valid details ssid & item snapshot ID
+// 3. no non-recoverable errors
+// 4. we observed recoverable errors
+// 5. not running in best effort mode. Reason being that there is
+// no way to distinguish assist backups from merge backups in best effort mode.
+//
+// Primary reason for persisting assist backup models is to ensure we don't
+// lose corso extension data(deets) in the event of recoverable failures.
+//
+// Note: kopia.DetailsMergeInfoer doesn't impact decision making for creating
+// assist backups. It may be empty if it’s the very first backup so there is no
+// merge base to source base details from, or non-empty, if there was a merge
+// base. In summary, if there are no new deets, no new extension data was produced
+// and hence no need to persist assist backup model.
+func isAssistBackup(
+	newDeetsProduced bool,
+	snapID, ssid string,
+	failurePolicy control.FailurePolicy,
+	err *fault.Bus,
+) bool {
+	return newDeetsProduced &&
+		len(snapID) > 0 &&
+		len(ssid) > 0 &&
+		failurePolicy != control.BestEffort &&
+		err.Failure() == nil &&
+		len(err.Recovered()) > 0
+}
+
+// A merge backup must meet the following criteria:
+// 1. valid details ssid & item snapshot ID
+// 2. zero recoverable errors
+// 3. no recoverable errors if not running in best effort mode
+func isMergeBackup(
+	snapID, ssid string,
+	failurePolicy control.FailurePolicy,
+	err *fault.Bus,
+) bool {
+	if len(snapID) == 0 || len(ssid) == 0 {
+		return false
+	}
+
+	if err.Failure() != nil {
+		return false
+	}
+
+	if failurePolicy == control.BestEffort {
+		return true
+	}
+
+	return len(err.Recovered()) == 0
 }
 
 // ---------------------------------------------------------------------------
@@ -137,8 +197,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
 	defer func() {
 		end()
-		// wait for the progress display to clean up
-		observe.Complete()
 	}()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
@@ -182,7 +240,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
-		"incremental", op.incremental)
+		"incremental", op.incremental,
+		"disable_assist_backup", op.disableAssistBackup)
 
 	op.bus.Event(
 		ctx,
@@ -226,7 +285,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
 	// -----
@@ -239,35 +297,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return op.Errors.Failure()
 	}
 
-	// force exit without backup in certain cases.
-	// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
-	for _, e := range op.Errors.Recovered() {
-		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
-			logger.Ctx(ctx).
-				With("error", e).
-				With(clues.InErr(err).Slice()...).
-				Infow("completed backup; conditional error forcing exit without model persistence",
-					"results", op.Results)
-
-			return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
-		}
-	}
-
 	err = op.createBackupModels(
 		ctx,
 		sstore,
-		opStats.k.SnapshotID,
+		opStats,
 		op.Results.BackupID,
 		op.BackupVersion,
 		deets.Details())
 	if err != nil {
-		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
+		op.Errors.Fail(clues.Wrap(err, "persisting backup models"))
 		return op.Errors.Failure()
 	}
 
-	logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
+	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 
-	return nil
+	if op.Errors.Failure() == nil {
+		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
+	}
+
+	return op.Errors.Failure()
 }
 
 // do is purely the action of running a backup.  All pre/post behavior
@@ -278,11 +326,17 @@ func (op *BackupOperation) do(
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
-	var (
-		reasons           = selectorToReasons(op.account.ID(), op.Selectors, false)
-		fallbackReasons   = makeFallbackReasons(op.account.ID(), op.Selectors)
-		lastBackupVersion = version.NoBackup
-	)
+	lastBackupVersion := version.NoBackup
+
+	reasons, err := op.Selectors.Reasons(op.account.ID(), false)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting reasons")
+	}
+
+	fallbackReasons, err := makeFallbackReasons(op.account.ID(), op.Selectors)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting fallback reasons")
+	}
 
 	logger.Ctx(ctx).With(
 		"control_options", op.Options,
@@ -303,7 +357,8 @@ func (op *BackupOperation) do(
 		op.kopia,
 		reasons, fallbackReasons,
 		op.account.ID(),
-		op.incremental)
+		op.incremental,
+		op.disableAssistBackup)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
@@ -314,6 +369,10 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
+	// TODO(ashmrtn): This should probably just return a collection that deletes
+	// the entire subtree instead of returning an additional bool. That way base
+	// selection is controlled completely by flags and merging is controlled
+	// completely by collections.
 	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
@@ -347,12 +406,14 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
+	opStats.hasNewDetailEntries = (deets != nil && !deets.Empty()) ||
+		(toMerge != nil && toMerge.ItemsToMerge() > 0)
 	opStats.k = writeStats
 
 	err = mergeDetails(
 		ctx,
 		detailsStore,
-		mans.Backups(),
+		mans,
 		toMerge,
 		deets,
 		writeStats,
@@ -369,13 +430,14 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
-func makeFallbackReasons(tenant string, sel selectors.Selector) []kopia.Reasoner {
+func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reasoner, error) {
 	if sel.PathService() != path.SharePointService &&
 		sel.DiscreteOwner != sel.DiscreteOwnerName {
-		return selectorToReasons(tenant, sel, true)
+		return sel.Reasons(tenant, true)
 	}
 
-	return nil
+	// return nil for fallback reasons since a nil value will no-op.
+	return nil, nil
 }
 
 // checker to see if conditions are correct for incremental backup behavior such as
@@ -392,68 +454,37 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp inject.BackupProducer,
-	resourceOwner idname.Provider,
+	protectedResource idname.Provider,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	complete := observe.MessageWithCompletion(ctx, "Discovering items to backup")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	defer close(progressBar)
 
-	return bp.ProduceBackupCollections(
-		ctx,
-		resourceOwner,
-		sel,
-		metadata,
-		lastBackupVersion,
-		ctrlOpts,
-		errs)
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion:   lastBackupVersion,
+		MetadataCollections: metadata,
+		Options:             ctrlOpts,
+		ProtectedResource:   protectedResource,
+		Selector:            sel,
+	}
+
+	return bp.ProduceBackupCollections(ctx, bpc, errs)
 }
 
 // ---------------------------------------------------------------------------
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(
-	tenant string,
-	sel selectors.Selector,
-	useOwnerNameForID bool,
-) []kopia.Reasoner {
-	service := sel.PathService()
-	reasons := []kopia.Reasoner{}
-
-	pcs, err := sel.PathCategories()
-	if err != nil {
-		// This is technically safe, it's just that the resulting backup won't be
-		// usable as a base for future incremental backups.
-		return nil
-	}
-
-	owner := sel.DiscreteOwner
-	if useOwnerNameForID {
-		owner = sel.DiscreteOwnerName
-	}
-
-	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
-		for _, cat := range sl {
-			reasons = append(reasons, kopia.NewReason(tenant, owner, service, cat))
-		}
-	}
-
-	return reasons
-}
-
 // calls kopia to backup the collections of data
 func consumeBackupCollections(
 	ctx context.Context,
 	bc kinject.BackupConsumer,
 	tenantID string,
-	reasons []kopia.Reasoner,
+	reasons []identity.Reasoner,
 	bbs kopia.BackupBases,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
@@ -463,11 +494,8 @@ func consumeBackupCollections(
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	ctx = clues.Add(ctx, "collection_source", "operations")
 
-	complete := observe.MessageWithCompletion(ctx, "Backing up data")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	progressBar := observe.MessageWithCompletion(ctx, "Backing up data")
+	defer close(progressBar)
 
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),
@@ -502,13 +530,13 @@ func consumeBackupCollections(
 	if kopiaStats.ErrorCount > 0 {
 		err = clues.New("building kopia snapshot").WithClues(ctx)
 	} else if kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount {
-		err = clues.New("downloading items for persistence").WithClues(ctx)
+		logger.Ctx(ctx).Info("recoverable errors were seen during backup")
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
-func matchesReason(reasons []kopia.Reasoner, p path.Path) bool {
+func matchesReason(reasons []identity.Reasoner, p path.Path) bool {
 	for _, reason := range reasons {
 		if p.ResourceOwner() == reason.ProtectedResource() &&
 			p.Service() == reason.Service() &&
@@ -530,7 +558,7 @@ func getNewPathRefs(
 	entry *details.Entry,
 	repoRef path.Path,
 	backupVersion int,
-) (path.Path, *path.Builder, bool, error) {
+) (path.Path, *path.Builder, error) {
 	// Right now we can't guarantee that we have an old location in the
 	// previous details entry so first try a lookup without a location to see
 	// if it matches so we don't need to try parsing from the old entry.
@@ -539,57 +567,155 @@ func getNewPathRefs(
 	// able to assume we always have the location in the previous entry. We'll end
 	// up doing some extra parsing, but it will simplify this code.
 	if repoRef.Service() == path.ExchangeService {
-		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), nil)
+		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
+			repoRef.ToBuilder(),
+			entry.Modified(),
+			nil)
 		if err != nil {
-			return nil, nil, false, clues.Wrap(err, "getting new paths")
+			return nil, nil, clues.Wrap(err, "getting new paths")
 		} else if newPath == nil {
 			// This entry doesn't need merging.
-			return nil, nil, false, nil
+			return nil, nil, nil
 		} else if newLoc == nil {
-			return nil, nil, false, clues.New("unable to find new exchange location")
+			return nil, nil, clues.New("unable to find new exchange location")
 		}
 
-		// This is kind of jank cause we're in a transitionary period, but even if
-		// we're consesrvative here about marking something as updated the RepoRef
-		// comparison in the caller should catch the change. Calendars is the only
-		// exception, since it uses IDs for folders, but we should already be
-		// populating the LocationRef for them.
-		//
-		// Without this, all OneDrive items will be marked as updated the first time
-		// around because OneDrive hasn't been persisting LocationRef before now.
-		updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
-
-		return newPath, newLoc, updated, nil
+		return newPath, newLoc, nil
 	}
 
 	// We didn't have an exact entry, so retry with a location.
 	locRef, err := entry.ToLocationIDer(backupVersion)
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting previous item location")
+		return nil, nil, clues.Wrap(err, "getting previous item location")
 	}
 
 	if locRef == nil {
-		return nil, nil, false, clues.New("entry with empty LocationRef")
+		return nil, nil, clues.New("entry with empty LocationRef")
 	}
 
-	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(repoRef.ToBuilder(), locRef)
+	newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
+		repoRef.ToBuilder(),
+		entry.Modified(),
+		locRef)
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting new paths with old location")
+		return nil, nil, clues.Wrap(err, "getting new paths with old location")
 	} else if newPath == nil {
-		return nil, nil, false, nil
+		return nil, nil, nil
 	} else if newLoc == nil {
-		return nil, nil, false, clues.New("unable to get new paths")
+		return nil, nil, clues.New("unable to get new paths")
 	}
 
-	updated := len(entry.LocationRef) > 0 && newLoc.String() != entry.LocationRef
+	return newPath, newLoc, nil
+}
 
-	return newPath, newLoc, updated, nil
+func mergeItemsFromBase(
+	ctx context.Context,
+	checkReason bool,
+	baseBackup kopia.BackupEntry,
+	detailsStore streamstore.Streamer,
+	dataFromBackup kopia.DetailsMergeInfoer,
+	deets *details.Builder,
+	alreadySeenItems map[string]struct{},
+	errs *fault.Bus,
+) (int, error) {
+	var (
+		manifestAddedEntries int
+		totalBaseItems       int
+	)
+
+	// Can't be in the above block else it's counted as a redeclaration.
+	ctx = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+
+	baseDeets, err := getDetailsFromBackup(
+		ctx,
+		baseBackup.Backup,
+		detailsStore,
+		errs)
+	if err != nil {
+		return manifestAddedEntries,
+			clues.New("fetching base details for backup").WithClues(ctx)
+	}
+
+	for _, entry := range baseDeets.Items() {
+		// Track this here instead of calling Items() again to get the count since
+		// it can be a bit expensive.
+		totalBaseItems++
+
+		rr, err := path.FromDataLayerPath(entry.RepoRef, true)
+		if err != nil {
+			return manifestAddedEntries, clues.New("parsing base item info path").
+				WithClues(ctx).
+				With("repo_ref", path.LoggableDir(entry.RepoRef))
+		}
+
+		// Although this base has an entry it may not be the most recent. Check
+		// the reasons a snapshot was returned to ensure we only choose the recent
+		// entries.
+		//
+		// We only really want to do this check for merge bases though because
+		// kopia won't abide by reasons when determining if an item's cached. This
+		// leaves us in a bit of a pickle if the user has run any concurrent backups
+		// with overlapping reasons that then turn into assist bases, but the
+		// modTime check in DetailsMergeInfoer should handle that.
+		if checkReason && !matchesReason(baseBackup.Reasons, rr) {
+			continue
+		}
+
+		// Skip items that were already found in a previous base backup.
+		if _, ok := alreadySeenItems[rr.ShortRef()]; ok {
+			continue
+		}
+
+		ictx := clues.Add(ctx, "repo_ref", rr)
+
+		newPath, newLoc, err := getNewPathRefs(
+			dataFromBackup,
+			entry,
+			rr,
+			baseBackup.Version)
+		if err != nil {
+			return manifestAddedEntries,
+				clues.Wrap(err, "getting updated info for entry").WithClues(ictx)
+		}
+
+		// This entry isn't merged.
+		if newPath == nil {
+			continue
+		}
+
+		// Fixup paths in the item.
+		item := entry.ItemInfo
+		details.UpdateItem(&item, newLoc)
+
+		err = deets.Add(
+			newPath,
+			newLoc,
+			item)
+		if err != nil {
+			return manifestAddedEntries,
+				clues.Wrap(err, "adding item to details").WithClues(ictx)
+		}
+
+		// Make sure we won't add this again in another base.
+		alreadySeenItems[rr.ShortRef()] = struct{}{}
+
+		// Track how many entries we added so that we know if we got them all when
+		// we're done.
+		manifestAddedEntries++
+	}
+
+	logger.Ctx(ctx).Infow(
+		"merged details with base manifest",
+		"count_base_item_unfiltered", totalBaseItems,
+		"count_base_item_added", manifestAddedEntries)
+
+	return manifestAddedEntries, nil
 }
 
 func mergeDetails(
 	ctx context.Context,
 	detailsStore streamstore.Streamer,
-	backups []kopia.BackupEntry,
+	bases kopia.BackupBases,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	writeStats *kopia.BackupStats,
@@ -604,88 +730,68 @@ func mergeDetails(
 	writeStats.TotalNonMetaUploadedBytes = detailsModel.SumNonMetaFileSizes()
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
-	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
+	if bases == nil || dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
 	}
 
-	var addedEntries int
+	var (
+		addedEntries int
+		// alreadySeenEntries tracks items that we've already merged so we don't
+		// accidentally merge them again. This could happen if, for example, there's
+		// an assist backup and a merge backup that both have the same version of an
+		// item at the same path.
+		alreadySeenEntries = map[string]struct{}{}
+	)
 
-	for _, baseBackup := range backups {
-		var (
-			mctx                 = clues.Add(ctx, "base_backup_id", baseBackup.ID)
-			manifestAddedEntries int
-		)
-
-		baseDeets, err := getDetailsFromBackup(
-			mctx,
-			baseBackup.Backup,
+	// Merge details from assist bases first. It shouldn't technically matter
+	// since the DetailsMergeInfoer should take into account the modTime of items,
+	// but just to be on the safe side.
+	//
+	// We don't want to match entries based on Reason for assist bases because
+	// kopia won't abide by Reasons when determining if an item's cached. This
+	// leaves us in a bit of a pickle if the user has run any concurrent backups
+	// with overlapping Reasons that turn into assist bases, but the modTime check
+	// in DetailsMergeInfoer should handle that.
+	for _, base := range bases.AssistBackups() {
+		added, err := mergeItemsFromBase(
+			ctx,
+			false,
+			base,
 			detailsStore,
+			dataFromBackup,
+			deets,
+			alreadySeenEntries,
 			errs)
 		if err != nil {
-			return clues.New("fetching base details for backup")
+			return clues.Wrap(err, "merging assist backup base details")
 		}
 
-		for _, entry := range baseDeets.Items() {
-			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
-			if err != nil {
-				return clues.New("parsing base item info path").
-					WithClues(mctx).
-					With("repo_ref", path.NewElements(entry.RepoRef))
-			}
+		addedEntries = addedEntries + added
+	}
 
-			// Although this base has an entry it may not be the most recent. Check
-			// the reasons a snapshot was returned to ensure we only choose the recent
-			// entries.
-			//
-			// TODO(ashmrtn): This logic will need expanded to cover entries from
-			// checkpoints if we start doing kopia-assisted incrementals for those.
-			if !matchesReason(baseBackup.Reasons, rr) {
-				continue
-			}
-
-			mctx = clues.Add(mctx, "repo_ref", rr)
-
-			newPath, newLoc, locUpdated, err := getNewPathRefs(
-				dataFromBackup,
-				entry,
-				rr,
-				baseBackup.Version)
-			if err != nil {
-				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
-			}
-
-			// This entry isn't merged.
-			if newPath == nil {
-				continue
-			}
-
-			// Fixup paths in the item.
-			item := entry.ItemInfo
-			details.UpdateItem(&item, newLoc)
-
-			// TODO(ashmrtn): This may need updated if we start using this merge
-			// strategry for items that were cached in kopia.
-			itemUpdated := newPath.String() != rr.String() || locUpdated
-
-			err = deets.Add(
-				newPath,
-				newLoc,
-				itemUpdated,
-				item)
-			if err != nil {
-				return clues.Wrap(err, "adding item to details")
-			}
-
-			// Track how many entries we added so that we know if we got them all when
-			// we're done.
-			addedEntries++
-			manifestAddedEntries++
+	// Now add entries from the merge base backups. These will be things that
+	// weren't changed in the new backup. Items that were already added because
+	// they were counted as cached in an assist base backup will be skipped due to
+	// alreadySeenEntries.
+	//
+	// We do want to enable matching entries based on Reasons because we
+	// explicitly control which subtrees from the merge base backup are grafted
+	// onto the hierarchy for the currently running backup.
+	for _, base := range bases.Backups() {
+		added, err := mergeItemsFromBase(
+			ctx,
+			true,
+			base,
+			detailsStore,
+			dataFromBackup,
+			deets,
+			alreadySeenEntries,
+			errs)
+		if err != nil {
+			return clues.Wrap(err, "merging merge backup base details")
 		}
 
-		logger.Ctx(mctx).Infow(
-			"merged details with base manifest",
-			"base_item_count_unfiltered", len(baseDeets.Items()),
-			"base_item_count_added", manifestAddedEntries)
+		addedEntries = addedEntries + added
 	}
 
 	checkCount := dataFromBackup.ItemsToMerge()
@@ -712,6 +818,8 @@ func (op *BackupOperation) persistResults(
 
 	op.Status = Completed
 
+	// Non recoverable errors always result in a failed backup.
+	// This holds true for all FailurePolicy.
 	if op.Errors.Failure() != nil {
 		op.Status = Failed
 	}
@@ -739,6 +847,7 @@ func (op *BackupOperation) persistResults(
 
 	op.Results.ItemsRead = opStats.ctrl.Successes
 
+	// Only return non-recoverable errors at this point.
 	return op.Errors.Failure()
 }
 
@@ -746,12 +855,16 @@ func (op *BackupOperation) persistResults(
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
 	sscw streamstore.CollectorWriter,
-	snapID string,
+	opStats backupStats,
 	backupID model.StableID,
 	backupVersion int,
 	deets *details.Details,
 ) error {
-	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
+	snapID := opStats.k.SnapshotID
+	ctx = clues.Add(ctx,
+		"snapshot_id", snapID,
+		"backup_id", backupID)
+
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
 	// are generated during the serialization process.
@@ -780,6 +893,32 @@ func (op *BackupOperation) createBackupModels(
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
 
+	tags := map[string]string{
+		model.ServiceTag: op.Selectors.PathService().String(),
+	}
+
+	// Add tags to mark this backup as either assist or merge. This is used to:
+	// 1. Filter assist backups by tag during base selection process
+	// 2. Differentiate assist backups from merge backups
+	if isMergeBackup(
+		snapID,
+		ssid,
+		op.Options.FailureHandling,
+		op.Errors) {
+		tags[model.BackupTypeTag] = model.MergeBackup
+	} else if isAssistBackup(
+		opStats.hasNewDetailEntries,
+		snapID,
+		ssid,
+		op.Options.FailureHandling,
+		op.Errors) {
+		tags[model.BackupTypeTag] = model.AssistBackup
+	} else {
+		return clues.New("backup is neither assist nor merge").WithClues(ctx)
+	}
+
+	ctx = clues.Add(ctx, model.BackupTypeTag, tags[model.BackupTypeTag])
+
 	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
@@ -790,7 +929,8 @@ func (op *BackupOperation) createBackupModels(
 		op.ResourceOwner.Name(),
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors.Errors())
+		op.Errors.Errors(),
+		tags)
 
 	logger.Ctx(ctx).Info("creating new backup")
 

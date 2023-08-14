@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -23,6 +24,7 @@ const (
 	ServiceExchange                  // Exchange
 	ServiceOneDrive                  // OneDrive
 	ServiceSharePoint                // SharePoint
+	ServiceGroups                    // Groups
 )
 
 var serviceToPathType = map[service]path.ServiceType{
@@ -84,6 +86,14 @@ type selectorPathCategories struct {
 
 type pathCategorier interface {
 	PathCategories() selectorPathCategories
+}
+
+type pathServicer interface {
+	PathService() path.ServiceType
+}
+
+type reasoner interface {
+	Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner
 }
 
 // ---------------------------------------------------------------------------
@@ -158,11 +168,25 @@ func (s *Selector) Configure(cfg Config) {
 	s.Cfg = cfg
 }
 
-// DiscreteResourceOwners returns the list of individual resourceOwners used
-// in the selector.
-// TODO(rkeepers): remove in favor of split and s.DiscreteOwner
-func (s Selector) DiscreteResourceOwners() []string {
-	return s.ResourceOwners.Targets
+// ---------------------------------------------------------------------------
+// protected resources & idname provider compliance
+// ---------------------------------------------------------------------------
+
+var _ idname.Provider = &Selector{}
+
+// ID returns s.discreteOwner, which is assumed to be a stable ID.
+func (s Selector) ID() string {
+	return s.DiscreteOwner
+}
+
+// Name returns s.discreteOwnerName.  If that value is empty, it returns
+// s.DiscreteOwner instead.
+func (s Selector) Name() string {
+	if len(s.DiscreteOwnerName) == 0 {
+		return s.DiscreteOwner
+	}
+
+	return s.DiscreteOwnerName
 }
 
 // SetDiscreteOwnerIDName ensures the selector has the correct discrete owner
@@ -192,32 +216,17 @@ func (s Selector) SetDiscreteOwnerIDName(id, name string) Selector {
 	return r
 }
 
-// ID returns s.discreteOwner, which is assumed to be a stable ID.
-func (s Selector) ID() string {
-	return s.DiscreteOwner
-}
-
-// Name returns s.discreteOwnerName.  If that value is empty, it returns
-// s.DiscreteOwner instead.
-func (s Selector) Name() string {
-	if len(s.DiscreteOwnerName) == 0 {
-		return s.DiscreteOwner
-	}
-
-	return s.DiscreteOwnerName
-}
-
-// isAnyResourceOwner returns true if the selector includes all resource owners.
-func isAnyResourceOwner(s Selector) bool {
+// isAnyProtectedResource returns true if the selector includes all resource owners.
+func isAnyProtectedResource(s Selector) bool {
 	return s.ResourceOwners.Comparator == filters.Passes
 }
 
-// isNoneResourceOwner returns true if the selector includes no resource owners.
-func isNoneResourceOwner(s Selector) bool {
+// isNoneProtectedResource returns true if the selector includes no resource owners.
+func isNoneProtectedResource(s Selector) bool {
 	return s.ResourceOwners.Comparator == filters.Fails
 }
 
-// SplitByResourceOwner makes one shallow clone for each resourceOwner in the
+// splitByProtectedResource makes one shallow clone for each resourceOwner in the
 // selector, specifying a new DiscreteOwner for each one.
 // If the original selector already specified a discrete slice of resource owners,
 // only those owners are used in the result.
@@ -229,14 +238,14 @@ func isNoneResourceOwner(s Selector) bool {
 //
 // temporarily, clones all scopes in each selector and replaces the owners with
 // the discrete owner.
-func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string, rootCat C) []Selector {
-	if isNoneResourceOwner(s) {
+func splitByProtectedResource[T scopeT, C categoryT](s Selector, allOwners []string, rootCat C) []Selector {
+	if isNoneProtectedResource(s) {
 		return []Selector{}
 	}
 
 	targets := allOwners
 
-	if !isAnyResourceOwner(s) {
+	if !isAnyProtectedResource(s) {
 		targets = s.ResourceOwners.Targets
 	}
 
@@ -249,35 +258,6 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 	}
 
 	return ss
-}
-
-// appendScopes iterates through each scope in the list of scope slices,
-// calling setDefaults() to ensure it is completely populated, and appends
-// those scopes to the `to` slice.
-func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
-	if len(to) == 0 {
-		to = []scope{}
-	}
-
-	for _, scopeSl := range scopes {
-		for _, s := range scopeSl {
-			s.setDefaults()
-			to = append(to, scope(s))
-		}
-	}
-
-	return to
-}
-
-// scopes retrieves the list of scopes in the selector.
-func scopes[T scopeT](s Selector) []T {
-	scopes := []T{}
-
-	for _, v := range s.Includes {
-		scopes = append(scopes, T(v))
-	}
-
-	return scopes
 }
 
 // Returns the path.ServiceType matching the selector service.
@@ -302,7 +282,7 @@ func (s Selector) Reduce(
 	return r.Reduce(ctx, deets, errs), nil
 }
 
-// returns the sets of path categories identified in each scope set.
+// PathCategories returns the sets of path categories identified in each scope set.
 func (s Selector) PathCategories() (selectorPathCategories, error) {
 	ro, err := selectorAsIface[pathCategorier](s)
 	if err != nil {
@@ -310,6 +290,18 @@ func (s Selector) PathCategories() (selectorPathCategories, error) {
 	}
 
 	return ro.PathCategories(), nil
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s Selector) Reasons(tenantID string, useOwnerNameForID bool) ([]identity.Reasoner, error) {
+	ro, err := selectorAsIface[reasoner](s)
+	if err != nil {
+		return nil, err
+	}
+
+	return ro.Reasons(tenantID, useOwnerNameForID), nil
 }
 
 // transformer for arbitrary selector interfaces
@@ -329,6 +321,9 @@ func selectorAsIface[T any](s Selector) (T, error) {
 		t = a.(T)
 	case ServiceSharePoint:
 		a, err = func() (any, error) { return s.ToSharePointRestore() }()
+		t = a.(T)
+	case ServiceGroups:
+		a, err = func() (any, error) { return s.ToGroupsRestore() }()
 		t = a.(T)
 	default:
 		err = clues.Stack(ErrorUnrecognizedService, clues.New(s.Service.String()))
@@ -419,28 +414,6 @@ func (ls loggableSelector) marshal() string {
 // helpers
 // ---------------------------------------------------------------------------
 
-// produces the discrete set of resource owners in the slice of scopes.
-// Any and None values are discarded.
-func resourceOwnersIn(s []scope, rootCat string) []string {
-	rm := map[string]struct{}{}
-
-	for _, sc := range s {
-		for _, v := range sc[rootCat].Targets {
-			rm[v] = struct{}{}
-		}
-	}
-
-	rs := []string{}
-
-	for k := range rm {
-		if k != AnyTgt && k != NoneTgt {
-			rs = append(rs, k)
-		}
-	}
-
-	return rs
-}
-
 // produces the discrete set of path categories in the slice of scopes.
 func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
 	m := map[path.CategoryType]struct{}{}
@@ -457,236 +430,4 @@ func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
 	}
 
 	return maps.Keys(m)
-}
-
-// ---------------------------------------------------------------------------
-// scope constructors
-// ---------------------------------------------------------------------------
-
-// constructs the default item-scope comparator options according
-// to the selector configuration.
-//   - if cfg.OnlyMatchItemNames == false, then comparison assumes item IDs,
-//     which are case sensitive, resulting in StrictEqualsMatch
-func defaultItemOptions(cfg Config) []option {
-	opts := []option{}
-
-	if !cfg.OnlyMatchItemNames {
-		opts = append(opts, StrictEqualMatch())
-	}
-
-	return opts
-}
-
-type scopeConfig struct {
-	usePathFilter         bool
-	usePrefixFilter       bool
-	useSuffixFilter       bool
-	useEqualsFilter       bool
-	useStrictEqualsFilter bool
-}
-
-type option func(*scopeConfig)
-
-func (sc *scopeConfig) populate(opts ...option) {
-	for _, opt := range opts {
-		opt(sc)
-	}
-}
-
-// PrefixMatch ensures the selector uses a Prefix comparator, instead
-// of contains or equals.  Will not override a default Any() or None()
-// comparator.
-func PrefixMatch() option {
-	return func(sc *scopeConfig) {
-		sc.usePrefixFilter = true
-	}
-}
-
-// SuffixMatch ensures the selector uses a Suffix comparator, instead
-// of contains or equals.  Will not override a default Any() or None()
-// comparator.
-func SuffixMatch() option {
-	return func(sc *scopeConfig) {
-		sc.useSuffixFilter = true
-	}
-}
-
-// StrictEqualsMatch ensures the selector uses a StrictEquals comparator, instead
-// of contains.  Will not override a default Any() or None() comparator.
-func StrictEqualMatch() option {
-	return func(sc *scopeConfig) {
-		sc.useStrictEqualsFilter = true
-	}
-}
-
-// ExactMatch ensures the selector uses an Equals comparator, instead
-// of contains.  Will not override a default Any() or None() comparator.
-func ExactMatch() option {
-	return func(sc *scopeConfig) {
-		sc.useEqualsFilter = true
-	}
-}
-
-// pathComparator is an internal-facing option.  It is assumed that scope
-// constructors will provide the pathComparator option whenever a folder-
-// level scope (ie, a scope that compares path hierarchies) is created.
-func pathComparator() option {
-	return func(sc *scopeConfig) {
-		sc.usePathFilter = true
-	}
-}
-
-func badCastErr(cast, is service) error {
-	return clues.Stack(ErrorBadSelectorCast, clues.New(fmt.Sprintf("%s is not %s", cast, is)))
-}
-
-// if the provided slice contains Any, returns [Any]
-// if the slice contains None, returns [None]
-// if the slice contains Any and None, returns the first
-// if the slice is empty, returns [None]
-// otherwise returns the input
-func clean(s []string) []string {
-	if len(s) == 0 {
-		return None()
-	}
-
-	for _, e := range s {
-		if e == AnyTgt {
-			return Any()
-		}
-
-		if e == NoneTgt {
-			return None()
-		}
-	}
-
-	return s
-}
-
-type filterFunc func([]string) filters.Filter
-
-// filterize turns the slice into a filter.
-// if the input is Any(), returns a passAny filter.
-// if the input is None(), returns a failAny filter.
-// if the scopeConfig specifies a filter, use that filter.
-// if the input is len(1), returns an Equals filter.
-// otherwise returns a Contains filter.
-func filterFor(sc scopeConfig, targets ...string) filters.Filter {
-	return filterize(sc, nil, targets...)
-}
-
-// filterize turns the slice into a filter.
-// if the input is Any(), returns a passAny filter.
-// if the input is None(), returns a failAny filter.
-// if the scopeConfig specifies a filter, use that filter.
-// if defaultFilter is non-nil, returns that filter.
-// if the input is len(1), returns an Equals filter.
-// otherwise returns a Contains filter.
-func filterize(
-	sc scopeConfig,
-	defaultFilter filterFunc,
-	targets ...string,
-) filters.Filter {
-	targets = clean(targets)
-
-	if len(targets) == 0 || targets[0] == NoneTgt {
-		return failAny
-	}
-
-	if targets[0] == AnyTgt {
-		return passAny
-	}
-
-	if sc.usePathFilter {
-		if sc.useEqualsFilter {
-			return filters.PathEquals(targets)
-		}
-
-		if sc.usePrefixFilter {
-			return filters.PathPrefix(targets)
-		}
-
-		if sc.useSuffixFilter {
-			return filters.PathSuffix(targets)
-		}
-
-		return filters.PathContains(targets)
-	}
-
-	if sc.usePrefixFilter {
-		return filters.Prefix(targets)
-	}
-
-	if sc.useSuffixFilter {
-		return filters.Suffix(targets)
-	}
-
-	if sc.useStrictEqualsFilter {
-		return filters.StrictEqual(targets)
-	}
-
-	if defaultFilter != nil {
-		return defaultFilter(targets)
-	}
-
-	return filters.Equal(targets)
-}
-
-// pathFilterFactory returns the appropriate path filter
-// (contains, prefix, or suffix) for the provided options.
-// If multiple options are flagged, Prefix takes priority.
-// If no options are provided, returns PathContains.
-func pathFilterFactory(opts ...option) filterFunc {
-	sc := &scopeConfig{}
-	sc.populate(opts...)
-
-	var ff filterFunc
-
-	switch true {
-	case sc.usePrefixFilter:
-		ff = filters.PathPrefix
-	case sc.useSuffixFilter:
-		ff = filters.PathSuffix
-	case sc.useEqualsFilter:
-		ff = filters.PathEquals
-	default:
-		ff = filters.PathContains
-	}
-
-	return wrapSliceFilter(ff)
-}
-
-func wrapSliceFilter(ff filterFunc) filterFunc {
-	return func(s []string) filters.Filter {
-		s = clean(s)
-
-		if f, ok := isAnyOrNone(s); ok {
-			return f
-		}
-
-		return ff(s)
-	}
-}
-
-// returns (<filter>, true) if s is len==1 and s[0] is
-// anyTgt or noneTgt, implying that the caller should use
-// the returned filter.  On (<filter>, false), the caller
-// can ignore the returned filter.
-// a special case exists for len(s)==0, interpreted as
-// "noneTgt"
-func isAnyOrNone(s []string) (filters.Filter, bool) {
-	switch len(s) {
-	case 0:
-		return failAny, true
-
-	case 1:
-		switch s[0] {
-		case AnyTgt:
-			return passAny, true
-		case NoneTgt:
-			return failAny, true
-		}
-	}
-
-	return failAny, false
 }

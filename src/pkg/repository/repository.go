@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/onedrive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -220,12 +220,8 @@ func Connect(
 		}
 	}()
 
-	// Close/Reset the progress bar. This ensures callers don't have to worry about
-	// their output getting clobbered (#1720)
-	defer observe.Complete()
-
-	complete := observe.MessageWithCompletion(ctx, "Connecting to repository")
-	defer close(complete)
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
+	defer close(progressBar)
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx, opts.Repo); err != nil {
@@ -263,8 +259,6 @@ func Connect(
 	if !opts.DisableMetrics {
 		bus.SetRepoID(repoid)
 	}
-
-	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
@@ -353,7 +347,7 @@ func (r repository) NewBackupWithLookup(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		ctrl,
 		r.Account,
 		sel,
@@ -377,7 +371,7 @@ func (r repository) NewExport(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		ctrl,
 		r.Account,
 		model.StableID(backupID),
@@ -402,7 +396,7 @@ func (r repository) NewRestore(
 		ctx,
 		r.Opts,
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		ctrl,
 		r.Account,
 		model.StableID(backupID),
@@ -438,7 +432,7 @@ func (r repository) NewRetentionConfig(
 
 // Backup retrieves a backup by id.
 func (r repository) Backup(ctx context.Context, id string) (*backup.Backup, error) {
-	return getBackup(ctx, id, store.NewKopiaStore(r.modelStore))
+	return getBackup(ctx, id, store.NewWrapper(r.modelStore))
 }
 
 // getBackup handles the processing for Backup.
@@ -455,13 +449,13 @@ func getBackup(
 	return b, nil
 }
 
-// BackupsByID lists backups by ID. Returns as many backups as possible with
+// Backups lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
 func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus) {
 	var (
 		bups []*backup.Backup
 		errs = fault.New(false)
-		sw   = store.NewKopiaStore(r.modelStore)
+		sw   = store.NewWrapper(r.modelStore)
 	)
 
 	for _, id := range ids {
@@ -478,10 +472,38 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 	return bups, errs
 }
 
-// backups lists backups in a repository
+// BackupsByTag lists all backups in a repository that contain all the tags
+// specified.
 func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
-	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetBackups(ctx, fs...)
+	sw := store.NewWrapper(r.modelStore)
+	return backupsByTag(ctx, sw, fs)
+}
+
+// backupsByTag returns all backups matching all provided tags.
+//
+// TODO(ashmrtn): This exists mostly for testing, but we could restructure the
+// code in this file so there's a more elegant mocking solution.
+func backupsByTag(
+	ctx context.Context,
+	sw store.BackupWrapper,
+	fs []store.FilterOption,
+) ([]*backup.Backup, error) {
+	bs, err := sw.GetBackups(ctx, fs...)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	// Filter out assist backup bases as they're considered incomplete and we
+	// haven't been displaying them before now.
+	res := make([]*backup.Backup, 0, len(bs))
+
+	for _, b := range bs {
+		if t := b.Tags[model.BackupTypeTag]; t != model.AssistBackup {
+			res = append(res, b)
+		}
+	}
+
+	return res, nil
 }
 
 // BackupDetails returns the specified backup.Details
@@ -496,7 +518,7 @@ func (r repository) GetBackupDetails(
 		backupID,
 		r.Account.ID(),
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		errs)
 
 	return deets, bup, errs.Fail(err)
@@ -566,7 +588,7 @@ func (r repository) GetBackupErrors(
 		backupID,
 		r.Account.ID(),
 		r.dataLayer,
-		store.NewKopiaStore(r.modelStore),
+		store.NewWrapper(r.modelStore),
 		errs)
 
 	return fe, bup, errs.Fail(err)
@@ -613,7 +635,7 @@ type snapshotDeleter interface {
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
 func (r repository) DeleteBackup(ctx context.Context, id string) error {
-	return deleteBackup(ctx, id, r.dataLayer, store.NewKopiaStore(r.modelStore))
+	return deleteBackup(ctx, id, r.dataLayer, store.NewWrapper(r.modelStore))
 }
 
 // deleteBackup handles the processing for Backup.
@@ -708,17 +730,20 @@ func newRepoID(s storage.Storage) string {
 // helpers
 // ---------------------------------------------------------------------------
 
+var m365nonce bool
+
 func connectToM365(
 	ctx context.Context,
 	pst path.ServiceType,
 	acct account.Account,
 	co control.Options,
 ) (*m365.Controller, error) {
-	complete := observe.MessageWithCompletion(ctx, "Connecting to M365")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	if !m365nonce {
+		m365nonce = true
+
+		progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
+		defer close(progressBar)
+	}
 
 	// retrieve data from the producer
 	rc := resource.Users

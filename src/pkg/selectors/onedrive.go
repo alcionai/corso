@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -42,6 +43,7 @@ type (
 var (
 	_ Reducer        = &OneDriveRestore{}
 	_ pathCategorier = &OneDriveRestore{}
+	_ reasoner       = &OneDriveRestore{}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
@@ -68,7 +70,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 }
 
 func (s OneDriveBackup) SplitByResourceOwner(users []string) []OneDriveBackup {
-	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
+	sels := splitByProtectedResource[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -102,7 +104,7 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 }
 
 func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore {
-	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
+	sels := splitByProtectedResource[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -119,6 +121,13 @@ func (s oneDrive) PathCategories() selectorPathCategories {
 		Filters:  pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Filters),
 		Includes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Includes),
 	}
+}
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s oneDrive) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
 }
 
 // ---------------------------------------------------------------------------

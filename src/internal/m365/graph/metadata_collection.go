@@ -16,7 +16,7 @@ import (
 
 var (
 	_ data.BackupCollection = &MetadataCollection{}
-	_ data.Stream           = &MetadataItem{}
+	_ data.Item             = &MetadataItem{}
 )
 
 // MetadataCollection in a simple collection that assumes all items to be
@@ -134,8 +134,8 @@ func (md MetadataCollection) DoNotMergeItems() bool {
 func (md MetadataCollection) Items(
 	ctx context.Context,
 	_ *fault.Bus, // not used, just here for interface compliance
-) <-chan data.Stream {
-	res := make(chan data.Stream)
+) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		totalBytes := int64(0)
@@ -169,8 +169,8 @@ func (md MetadataCollection) Items(
 	return res
 }
 
-// MetadataItem is an in-memory data.Stream implementation. MetadataItem does
-// not implement additional interfaces like data.StreamInfo, so it should only
+// MetadataItem is an in-memory data.Item implementation. MetadataItem does
+// not implement additional interfaces like data.ItemInfo, so it should only
 // be used for items with a small amount of content that don't need to be added
 // to backup details.
 //
@@ -190,7 +190,7 @@ func NewMetadataItem(uuid string, itemData []byte) MetadataItem {
 	}
 }
 
-func (mi MetadataItem) UUID() string {
+func (mi MetadataItem) ID() string {
 	return mi.uuid
 }
 
