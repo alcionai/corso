@@ -14,6 +14,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e "time"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -53,7 +55,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItems map[string]models.DriveItemable
+	driveItems map[string]CorsoDriveItemable
 
 	// Primary M365 ID of the drive this collection was created from
 	driveID   string
@@ -88,6 +90,111 @@ type Collection struct {
 	doNotMergeItems bool
 
 	urlCache getItemPropertyer
+}
+
+// Replica of models.DriveItemable
+type CorsoDriveItemable interface {
+	GetId() *string
+	GetName() *string
+	GetSize() *int64
+	GetFile() models.Fileable
+	GetFolder() *models.Folder
+	GetAdditionalData() map[string]interface{}
+	GetParentReference() models.ItemReferenceable
+	SetParentReference(models.ItemReferenceable)
+	GetShared() models.Sharedable
+	GetCreatedBy() models.IdentitySetable
+	GetCreatedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
+	GetLastModifiedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
+	GetMalware() models.Malwareable
+	GetSharepointIds() models.SharepointIdsable
+}
+
+type CorsoDriveItem struct {
+	ID                   *string
+	Name                 *string
+	Size                 *int64
+	File                 models.Fileable
+	AdditionalData       map[string]interface{}
+	ParentReference      models.ItemReferenceable
+	Shared               models.Sharedable
+	CreatedBy            models.IdentitySetable
+	CreatedDateTime      *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
+	LastModifiedDateTime *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
+	Malware              models.Malwareable
+}
+
+func (c *CorsoDriveItem) GetId() *string {
+	return c.ID
+}
+
+func (c *CorsoDriveItem) GetName() *string {
+	return c.Name
+}
+
+func (c *CorsoDriveItem) GetSize() *int64 {
+	return c.Size
+}
+
+func (c *CorsoDriveItem) GetFile() models.Fileable {
+	return c.File
+}
+
+func (c *CorsoDriveItem) GetFolder() *models.Folder {
+	return nil
+}
+
+func (c *CorsoDriveItem) GetAdditionalData() map[string]interface{} {
+	return c.AdditionalData
+}
+
+func (c *CorsoDriveItem) GetParentReference() models.ItemReferenceable {
+	return c.ParentReference
+}
+
+func (c *CorsoDriveItem) SetParentReference(parent models.ItemReferenceable) {
+	c.ParentReference = parent
+}
+
+func (c *CorsoDriveItem) GetShared() models.Sharedable {
+	return c.Shared
+}
+
+func (c *CorsoDriveItem) GetCreatedBy() models.IdentitySetable {
+	return c.CreatedBy
+}
+
+func (c *CorsoDriveItem) GetCreatedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time {
+	return c.CreatedDateTime
+}
+
+func (c *CorsoDriveItem) GetLastModifiedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time {
+	return c.LastModifiedDateTime
+}
+
+func (c *CorsoDriveItem) GetMalware() models.Malwareable {
+	return c.Malware
+}
+
+func (c *CorsoDriveItem) GetSharepointIds() models.SharepointIdsable {
+	return nil
+}
+
+// models.DriveItemable to CorsoDriveItemable
+func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
+	return &CorsoDriveItem{
+		ID:                   item.GetId(),
+		Name:                 item.GetName(),
+		Size:                 item.GetSize(),
+		File:                 item.GetFile(),
+		ParentReference:      item.GetParentReference(),
+		Shared:               item.GetShared(),
+		CreatedBy:            item.GetCreatedBy(),
+		CreatedDateTime:      item.GetCreatedDateTime(),
+		LastModifiedDateTime: item.GetLastModifiedDateTime(),
+		Malware:              item.GetMalware(),
+		AdditionalData:       item.GetAdditionalData(),
+	}
 }
 
 func pathToLocation(p path.Path) (*path.Builder, error) {
@@ -161,7 +268,7 @@ func newColl(
 		handler:         handler,
 		folderPath:      currPath,
 		prevPath:        prevPath,
-		driveItems:      map[string]models.DriveItemable{},
+		driveItems:      map[string]CorsoDriveItemable{},
 		driveID:         driveID,
 		data:            make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
@@ -179,8 +286,9 @@ func newColl(
 // populated. The return values denotes if the item was previously
 // present or is new one.
 func (oc *Collection) Add(item models.DriveItemable) bool {
-	_, found := oc.driveItems[ptr.Val(item.GetId())]
-	oc.driveItems[ptr.Val(item.GetId())] = item
+	cdi := ToCorsoDriveItemable(item)
+	_, found := oc.driveItems[ptr.Val(cdi.GetId())]
+	oc.driveItems[ptr.Val(cdi.GetId())] = cdi
 
 	// if !found, it's a new addition
 	return !found
@@ -266,26 +374,27 @@ func (i *Item) ModTime() time.Time      { return i.info.Modified() }
 func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
 	driveID string,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	errs *fault.Bus,
 ) (io.ReadCloser, error) {
 	var (
-		itemID   = ptr.Val(item.GetId())
-		itemName = ptr.Val(item.GetName())
+	// itemID   = ptr.Val(item.GetId())
+	// itemName = ptr.Val(item.GetName())
+	//el = errs.Local()
 	)
 
 	itemData, err := downloadContent(ctx, oc.handler, oc.urlCache, item, oc.driveID)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
-			errs.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
+			//errs.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
-			errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
+			//errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
@@ -300,7 +409,7 @@ func (oc *Collection) getDriveItemContent(
 			// restore, or we have to handle it separately by somehow
 			// deleting the entire collection.
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
-			errs.AddSkip(ctx, fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
+			//errs.AddSkip(ctx, fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
@@ -328,7 +437,7 @@ func downloadContent(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
 	uc getItemPropertyer,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	driveID string,
 ) (io.ReadCloser, error) {
 	itemID := ptr.Val(item.GetId())
@@ -361,7 +470,8 @@ func downloadContent(
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	content, err = downloadItem(ctx, iaag, di)
+	cdi := ToCorsoDriveItemable(di)
+	content, err = downloadItem(ctx, iaag, cdi)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -449,7 +559,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
-		go func(item models.DriveItemable) {
+		go func(item CorsoDriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -480,7 +590,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 func (oc *Collection) populateDriveItem(
 	ctx context.Context,
 	parentPath *path.Builder,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	stats *driveStats,
 	itemExtensionFactory []extensions.CreateItemExtensioner,
 	errs *fault.Bus,

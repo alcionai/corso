@@ -81,7 +81,7 @@ func (h itemBackupHandler) NewItemPager(
 
 func (h itemBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
@@ -158,7 +158,7 @@ func (h itemRestoreHandler) NewDrivePager(
 // and kiota drops any SetSize update.
 func (h itemRestoreHandler) AugmentItemInfo(
 	dii details.ItemInfo,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
@@ -243,7 +243,7 @@ func (h itemRestoreHandler) GetRootFolder(
 
 func augmentItemInfo(
 	dii details.ItemInfo,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {

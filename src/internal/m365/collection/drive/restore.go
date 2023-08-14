@@ -842,8 +842,8 @@ func restoreFile(
 	}
 
 	defer closeProgressBar()
-
-	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
+	cdi := ToCorsoDriveItemable(newItem)
+	dii := ir.AugmentItemInfo(details.ItemInfo{}, cdi, written, nil)
 
 	if shouldDeleteOriginal {
 		ctr.Inc(count.CollisionReplace)

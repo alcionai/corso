@@ -77,7 +77,7 @@ func (h libraryBackupHandler) NewItemPager(
 
 func (h libraryBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
-	item models.DriveItemable,
+	item onedrive.CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
@@ -183,7 +183,7 @@ func (h libraryRestoreHandler) NewDrivePager(
 
 func (h libraryRestoreHandler) AugmentItemInfo(
 	dii details.ItemInfo,
-	item models.DriveItemable,
+	item onedrive.CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
@@ -268,7 +268,7 @@ func (h libraryRestoreHandler) GetRootFolder(
 
 func augmentLibraryItemInfo(
 	dii details.ItemInfo,
-	item models.DriveItemable,
+	item onedrive.CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {

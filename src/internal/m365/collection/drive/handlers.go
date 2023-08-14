@@ -20,7 +20,7 @@ type ItemInfoAugmenter interface {
 	// and kiota drops any SetSize update.
 	AugmentItemInfo(
 		dii details.ItemInfo,
-		item models.DriveItemable,
+		item CorsoDriveItemable,
 		size int64,
 		parentPath *path.Builder,
 	) details.ItemInfo
