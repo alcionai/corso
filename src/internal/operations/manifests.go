@@ -145,8 +145,7 @@ func collectMetadata(
 				Append(fn).
 				ToServiceCategoryMetadataPath(
 					tenantID,
-					reason.ProtectedResource(),
-					reason.Service(),
+					reason.ServiceResources(),
 					reason.Category(),
 					true)
 			if err != nil {

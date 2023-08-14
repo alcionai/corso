@@ -15,22 +15,17 @@ import (
 var _ identity.Reasoner = &backupReason{}
 
 type backupReason struct {
-	category path.CategoryType
-	resource string
-	service  path.ServiceType
-	tenant   string
+	category         path.CategoryType
+	serviceResources []path.ServiceResource
+	tenant           string
 }
 
 func (br backupReason) Tenant() string {
 	return br.tenant
 }
 
-func (br backupReason) ProtectedResource() string {
-	return br.resource
-}
-
-func (br backupReason) Service() path.ServiceType {
-	return br.service
+func (br backupReason) ServiceResources() []path.ServiceResource {
+	return br.serviceResources
 }
 
 func (br backupReason) Category() path.CategoryType {
@@ -40,13 +35,18 @@ func (br backupReason) Category() path.CategoryType {
 func (br backupReason) SubtreePath() (path.Path, error) {
 	return path.BuildPrefix(
 		br.tenant,
-		br.resource,
-		br.service,
+		br.serviceResources,
 		br.category)
 }
 
 func (br backupReason) key() string {
-	return br.category.String() + br.resource + br.service.String() + br.tenant
+	var k string
+
+	for _, sr := range br.serviceResources {
+		k += sr.ProtectedResource + sr.Service.String()
+	}
+
+	return br.category.String() + k + br.tenant
 }
 
 // ---------------------------------------------------------------------------

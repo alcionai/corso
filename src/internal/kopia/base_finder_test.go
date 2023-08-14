@@ -47,22 +47,22 @@ var (
 
 	testAllUsersAllCats = []identity.Reasoner{
 		// User1 email and events.
-		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-		NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
 		// User2 email and events.
-		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-		NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EventsCategory),
 		// User3 email and events.
-		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
-		NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EventsCategory),
 	}
 	testAllUsersMail = []identity.Reasoner{
-		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-		NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-		NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EmailCategory),
 	}
 	testUser1Mail = []identity.Reasoner{
-		NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
 	}
 )
 
@@ -294,7 +294,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []identity.Reasoner{
-		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: "a-user", Service: path.ExchangeService}}, path.EmailCategory),
 	}
 
 	bb := bf.FindBases(ctx, reasons, nil)
@@ -313,7 +313,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 		bg: mockEmptyModelGetter{},
 	}
 	reasons := []identity.Reasoner{
-		NewReason("", "a-user", path.ExchangeService, path.EmailCategory),
+		NewReason("", []path.ServiceResource{{ProtectedResource: "a-user", Service: path.ExchangeService}}, path.EmailCategory),
 	}
 
 	bb := bf.FindBases(ctx, reasons, nil)
@@ -602,26 +602,26 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: {
-					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EmailCategory),
 				},
 				1: {
-					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EventsCategory),
 				},
 			},
 			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: {
-					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EmailCategory),
 				},
 				1: {
-					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser3, Service: path.ExchangeService}}, path.EventsCategory),
 				},
 			},
 			backupData: []backupInfo{
@@ -667,36 +667,36 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				2: {
-					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EventsCategory),
 				},
 			},
 			expectedAssistManifestReasons: map[int][]identity.Reasoner{
 				0: {
-					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EventsCategory),
 				},
 				1: {
-					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
 				},
 				2: {
-					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EventsCategory),
 				},
 			},
 			expectedAssistReasons: map[int][]identity.Reasoner{
 				0: {
-					NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EventsCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EventsCategory),
 				},
 				1: {
-					NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser1, Service: path.ExchangeService}}, path.EmailCategory),
+					NewReason("", []path.ServiceResource{{ProtectedResource: testUser2, Service: path.ExchangeService}}, path.EmailCategory),
 				},
 			},
 			backupData: []backupInfo{

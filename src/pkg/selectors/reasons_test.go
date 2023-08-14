@@ -22,17 +22,17 @@ func TestReasonsUnitSuite(t *testing.T) {
 
 func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 	var (
-		tenantID = "tid"
-		exchange = path.ExchangeService.String()
-		email    = path.EmailCategory.String()
-		contacts = path.ContactsCategory.String()
+		tenantID    = "tid"
+		pstExchange = path.ExchangeService
+		exchange    = pstExchange.String()
+		email       = path.EmailCategory.String()
+		contacts    = path.ContactsCategory.String()
 	)
 
 	type expect struct {
 		tenant            string
-		resource          string
+		serviceResources  []path.ServiceResource
 		category          string
-		service           string
 		subtreePath       string
 		subtreePathHadErr bool
 	}
@@ -69,10 +69,12 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			useName: true,
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "timbubba",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "timbubba",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("timbubba", email, exchange),
 				},
 			},
@@ -86,10 +88,12 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "bubba",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "bubba",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("bubba", email, exchange),
 				},
 			},
@@ -103,10 +107,12 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "tachoma dhaume",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "tachoma dhaume",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("tachoma dhaume", email, exchange),
 				},
 			},
@@ -122,10 +128,12 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "vyng vang zoombah",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "vyng vang zoombah",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("vyng vang zoombah", email, exchange),
 				},
 			},
@@ -140,10 +148,12 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "fat billie",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "fat billie",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("fat billie", email, exchange),
 				},
 			},
@@ -158,10 +168,12 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "seathane",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "seathane",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("seathane", email, exchange),
 				},
 			},
@@ -176,17 +188,21 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "perell",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "perell",
+						Service:           pstExchange,
+					}},
 					category:    email,
-					service:     exchange,
 					subtreePath: stpFor("perell", email, exchange),
 				},
 				{
-					tenant:      tenantID,
-					resource:    "perell",
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "perell",
+						Service:           pstExchange,
+					}},
 					category:    contacts,
-					service:     exchange,
 					subtreePath: stpFor("perell", contacts, exchange),
 				},
 			},
@@ -211,8 +227,7 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 
 				results = append(results, expect{
 					tenant:            r.Tenant(),
-					resource:          r.ProtectedResource(),
-					service:           r.Service().String(),
+					serviceResources:  r.ServiceResources(),
 					category:          r.Category().String(),
 					subtreePath:       stpStr,
 					subtreePathHadErr: err != nil,
@@ -225,150 +240,103 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_thorough() {
 }
 
 func (suite *ReasonsUnitSuite) TestReasonsFor_serviceChecks() {
-	var (
-		tenantID = "tid"
-		exchange = path.ExchangeService.String()
-		email    = path.EmailCategory.String()
-		contacts = path.ContactsCategory.String()
-	)
+	var tenantID = "tid"
 
 	type expect struct {
 		tenant            string
-		resource          string
+		serviceResources  []path.ServiceResource
 		category          string
-		service           string
 		subtreePath       string
 		subtreePathHadErr bool
 	}
 
-	stpFor := func(resource, category, service string) string {
-		return path.Builder{}.Append(tenantID, service, resource, category).String()
+	stpFor := func(
+		resource string,
+		service path.ServiceType,
+		category path.CategoryType,
+	) string {
+		return path.Builder{}.Append(tenantID, service.String(), resource, category.String()).String()
 	}
 
 	table := []struct {
 		name    string
-		sel     func() ExchangeRestore
+		sel     func() servicerCategorizerProvider
 		useName bool
 		expect  []expect
 	}{
 		{
-			name: "no scopes",
-			sel: func() ExchangeRestore {
-				return *NewExchangeRestore([]string{"timbo"})
-			},
-			expect: []expect{},
-		},
-		{
-			name: "only includes",
-			sel: func() ExchangeRestore {
-				sel := *NewExchangeRestore([]string{"bubba"})
+			name: "exchange",
+			sel: func() servicerCategorizerProvider {
+				sel := *NewExchangeRestore([]string{"hadrian"})
 				sel.Include(sel.MailFolders(Any()))
 				return sel
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "bubba",
-					category:    email,
-					service:     exchange,
-					subtreePath: stpFor("bubba", email, exchange),
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "hadrian",
+						Service:           path.ExchangeService,
+					}},
+					category:    path.EmailCategory.String(),
+					subtreePath: stpFor("hadrian", path.ExchangeService, path.EmailCategory),
 				},
 			},
 		},
 		{
-			name: "only filters",
-			sel: func() ExchangeRestore {
-				sel := *NewExchangeRestore([]string{"tachoma dhaume"})
-				sel.Filter(sel.MailFolders(Any()))
+			name: "onedrive",
+			sel: func() servicerCategorizerProvider {
+				sel := *NewOneDriveRestore([]string{"hella"})
+				sel.Filter(sel.Folders(Any()))
 				return sel
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "tachoma dhaume",
-					category:    email,
-					service:     exchange,
-					subtreePath: stpFor("tachoma dhaume", email, exchange),
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "hella",
+						Service:           path.OneDriveService,
+					}},
+					category:    path.FilesCategory.String(),
+					subtreePath: stpFor("hella", path.OneDriveService, path.FilesCategory),
 				},
 			},
 		},
 		{
-			name: "duplicate includes and filters",
-			sel: func() ExchangeRestore {
-				sel := *NewExchangeRestore([]string{"vyng vang zoombah"})
-				sel.Include(sel.MailFolders(Any()))
-				sel.Filter(sel.MailFolders(Any()))
-
+			name: "sharepoint",
+			sel: func() servicerCategorizerProvider {
+				sel := *NewSharePointRestore([]string{"lem king"})
+				sel.Include(sel.LibraryFolders(Any()))
 				return sel
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "vyng vang zoombah",
-					category:    email,
-					service:     exchange,
-					subtreePath: stpFor("vyng vang zoombah", email, exchange),
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "lem king",
+						Service:           path.SharePointService,
+					}},
+					category:    path.EmailCategory.String(),
+					subtreePath: stpFor("lem king", path.SharePointService, path.LibrariesCategory),
 				},
 			},
 		},
 		{
-			name: "duplicate includes",
-			sel: func() ExchangeRestore {
-				sel := *NewExchangeRestore([]string{"fat billie"})
-				sel.Include(sel.MailFolders(Any()), sel.MailFolders(Any()))
-
+			name: "groups",
+			sel: func() servicerCategorizerProvider {
+				sel := *NewGroupsRestore([]string{"fero feritas"})
+				sel.Include(sel.TODO(Any()))
 				return sel
 			},
 			expect: []expect{
 				{
-					tenant:      tenantID,
-					resource:    "fat billie",
-					category:    email,
-					service:     exchange,
-					subtreePath: stpFor("fat billie", email, exchange),
-				},
-			},
-		},
-		{
-			name: "duplicate filters",
-			sel: func() ExchangeRestore {
-				sel := *NewExchangeRestore([]string{"seathane"})
-				sel.Filter(sel.MailFolders(Any()), sel.MailFolders(Any()))
-
-				return sel
-			},
-			expect: []expect{
-				{
-					tenant:      tenantID,
-					resource:    "seathane",
-					category:    email,
-					service:     exchange,
-					subtreePath: stpFor("seathane", email, exchange),
-				},
-			},
-		},
-		{
-			name: "no duplicates",
-			sel: func() ExchangeRestore {
-				sel := *NewExchangeRestore([]string{"perell"})
-				sel.Include(sel.MailFolders(Any()), sel.ContactFolders(Any()))
-
-				return sel
-			},
-			expect: []expect{
-				{
-					tenant:      tenantID,
-					resource:    "perell",
-					category:    email,
-					service:     exchange,
-					subtreePath: stpFor("perell", email, exchange),
-				},
-				{
-					tenant:      tenantID,
-					resource:    "perell",
-					category:    contacts,
-					service:     exchange,
-					subtreePath: stpFor("perell", contacts, exchange),
+					tenant: tenantID,
+					serviceResources: []path.ServiceResource{{
+						ProtectedResource: "fero feritas",
+						Service:           path.GroupsService,
+					}},
+					category:    path.EmailCategory.String(),
+					subtreePath: stpFor("fero feritas", path.GroupsService, path.LibrariesCategory),
 				},
 			},
 		},
@@ -392,8 +360,7 @@ func (suite *ReasonsUnitSuite) TestReasonsFor_serviceChecks() {
 
 				results = append(results, expect{
 					tenant:            r.Tenant(),
-					resource:          r.ProtectedResource(),
-					service:           r.Service().String(),
+					serviceResources:  r.ServiceResources(),
 					category:          r.Category().String(),
 					subtreePath:       stpStr,
 					subtreePathHadErr: err != nil,

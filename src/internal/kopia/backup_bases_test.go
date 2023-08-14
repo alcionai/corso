@@ -220,7 +220,10 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			reasons := make([]identity.Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
-				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
+				reasons = append(reasons, NewReason(
+					"",
+					[]path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}},
+					c))
 			}
 
 			m := makeManifest(baseID, "", "b"+baseID, reasons...)
@@ -245,7 +248,10 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			reasons := make([]identity.Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
-				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
+				reasons = append(reasons, NewReason(
+					"",
+					[]path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}},
+					c))
 			}
 
 			m := makeManifest(baseID, "", "a"+baseID, reasons...)
@@ -480,7 +486,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	ro := "resource_owner"
 
 	makeMan := func(pct path.CategoryType, id, incmpl, bID string) ManifestEntry {
-		r := NewReason("", ro, path.ExchangeService, pct)
+		r := NewReason("", []path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}}, pct)
 		return makeManifest(id, incmpl, bID, r)
 	}
 
@@ -690,11 +696,17 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					NewReason(
+						"",
+						[]path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}},
+						path.ContactsCategory))
 
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					NewReason(
+						"",
+						[]path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}},
+						path.ContactsCategory))
 
 				return res
 			}(),
@@ -702,11 +714,17 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					NewReason(
+						"",
+						[]path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}},
+						path.ContactsCategory))
 
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					NewReason(
+						"",
+						[]path.ServiceResource{{ProtectedResource: ro, Service: path.ExchangeService}},
+						path.ContactsCategory))
 
 				res.assistBases = append(res.mergeBases, res.assistBases...)
 

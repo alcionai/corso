@@ -85,6 +85,16 @@ func ServiceResourcesToResources(srs []ServiceResource) []string {
 	return prs
 }
 
+func ServiceResourcesToServices(srs []ServiceResource) []ServiceType {
+	sts := make([]ServiceType, len(srs))
+
+	for i := range srs {
+		sts[i] = srs[i].Service
+	}
+
+	return sts
+}
+
 func ServiceResourcesMatchServices(srs []ServiceResource, sts []ServiceType) bool {
 	return slices.EqualFunc(srs, sts, func(sr ServiceResource, st ServiceType) bool {
 		return sr.Service == st

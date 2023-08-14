@@ -7,8 +7,7 @@ import "github.com/alcionai/corso/src/pkg/path"
 // categories which are held within the backup.
 type Reasoner interface {
 	Tenant() string
-	ProtectedResource() string
-	Service() path.ServiceType
+	ServiceResources() []path.ServiceResource
 	Category() path.CategoryType
 	// SubtreePath returns the path prefix for data in existing backups that have
 	// parameters (tenant, protected resourced, etc) that match this Reasoner.

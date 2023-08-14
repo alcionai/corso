@@ -112,7 +112,13 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			name:  "single reason, single file",
 			manID: "single single",
 			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					tid,
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
@@ -131,7 +137,13 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			name:  "single reason, multiple files",
 			manID: "single multi",
 			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					tid,
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
@@ -150,8 +162,20 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			name:  "multiple reasons, single file",
 			manID: "multi single",
 			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
-				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					tid,
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
+				kopia.NewReason(
+					tid,
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
@@ -173,8 +197,20 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			name:  "multiple reasons, multiple file",
 			manID: "multi multi",
 			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
-				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					tid,
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
+				kopia.NewReason(
+					tid,
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
@@ -226,7 +262,13 @@ func buildReasons(
 	for _, cat := range cats {
 		reasons = append(
 			reasons,
-			kopia.NewReason("", ro, service, cat))
+			kopia.NewReason(
+				"",
+				[]path.ServiceResource{{
+					ProtectedResource: ro,
+					Service:           service,
+				}},
+				cat))
 	}
 
 	return reasons
@@ -283,7 +325,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			rp: mockRestoreProducer{},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -304,7 +352,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			rp: mockRestoreProducer{},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -332,8 +386,20 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
-				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -379,7 +445,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -409,7 +481,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			getMeta:    true,
 			dropAssist: true,
@@ -438,7 +516,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				},
 			},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -460,7 +544,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			rp: mockRestoreProducer{err: assert.AnError},
 			reasons: []identity.Reasoner{
-				kopia.NewReason("", ro, path.ExchangeService, path.EmailCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.EmailCategory),
 			},
 			getMeta:    true,
 			assertErr:  assert.Error,
@@ -566,14 +656,18 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 
 	emailReason := kopia.NewReason(
 		"",
-		ro,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: ro,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory)
 
 	fbEmailReason := kopia.NewReason(
 		"",
-		fbro,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: fbro,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory)
 
 	table := []struct {
@@ -880,11 +974,23 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			reasons: []identity.Reasoner{
 				emailReason,
-				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			fallbackReasons: []identity.Reasoner{
 				fbEmailReason,
-				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: fbro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -916,7 +1022,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			reasons: []identity.Reasoner{emailReason},
 			fallbackReasons: []identity.Reasoner{
-				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: fbro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -951,11 +1063,23 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			},
 			reasons: []identity.Reasoner{
 				emailReason,
-				kopia.NewReason("", ro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: ro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			fallbackReasons: []identity.Reasoner{
 				fbEmailReason,
-				kopia.NewReason("", fbro, path.ExchangeService, path.ContactsCategory),
+				kopia.NewReason(
+					"",
+					[]path.ServiceResource{{
+						ProtectedResource: fbro,
+						Service:           path.ExchangeService,
+					}},
+					path.ContactsCategory),
 			},
 			getMeta:   true,
 			assertErr: assert.NoError,

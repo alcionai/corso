@@ -31,15 +31,14 @@ const (
 )
 
 func NewReason(
-	tenant, resource string,
-	service path.ServiceType,
+	tenant string,
+	srs []path.ServiceResource,
 	category path.CategoryType,
 ) identity.Reasoner {
 	return reason{
-		tenant:   tenant,
-		resource: resource,
-		service:  service,
-		category: category,
+		tenant:           tenant,
+		serviceResources: srs,
+		category:         category,
 	}
 }
 
@@ -47,22 +46,17 @@ type reason struct {
 	// tenant appears here so that when this is moved to an inject package nothing
 	// needs changed. However, kopia itself is blind to the fields in the reason
 	// struct and relies on helper functions to get the information it needs.
-	tenant   string
-	resource string
-	service  path.ServiceType
-	category path.CategoryType
+	tenant           string
+	serviceResources []path.ServiceResource
+	category         path.CategoryType
 }
 
 func (r reason) Tenant() string {
 	return r.tenant
 }
 
-func (r reason) ProtectedResource() string {
-	return r.resource
-}
-
-func (r reason) Service() path.ServiceType {
-	return r.service
+func (r reason) ServiceResources() []path.ServiceResource {
+	return r.ServiceResources()
 }
 
 func (r reason) Category() path.CategoryType {
@@ -72,8 +66,7 @@ func (r reason) Category() path.CategoryType {
 func (r reason) SubtreePath() (path.Path, error) {
 	p, err := path.BuildPrefix(
 		r.Tenant(),
-		r.ProtectedResource(),
-		r.Service(),
+		r.ServiceResources(),
 		r.Category())
 
 	return p, clues.Wrap(err, "building path").OrNil()
@@ -88,7 +81,13 @@ func tagKeys(r identity.Reasoner) []string {
 
 // reasonKey returns the concatenation of the ProtectedResource, Service, and Category.
 func reasonKey(r identity.Reasoner) string {
-	return r.ProtectedResource() + r.Service().String() + r.Category().String()
+	var rk string
+
+	for _, sr := range r.ServiceResources() {
+		rk += sr.ProtectedResource + sr.Service.String()
+	}
+
+	return rk + r.Category().String()
 }
 
 type BackupEntry struct {
@@ -412,7 +411,7 @@ func (b *baseFinder) FindBases(
 	for _, searchReason := range reasons {
 		ictx := clues.Add(
 			ctx,
-			"search_service", searchReason.Service().String(),
+			"search_service", path.ServiceResourcesToServices(searchReason.ServiceResources()),
 			"search_category", searchReason.Category().String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 

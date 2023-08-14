@@ -460,13 +460,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 
 		emailReason = kopia.NewReason(
 			tenant,
-			resourceOwner,
-			path.ExchangeService,
+			[]path.ServiceResource{{
+				ProtectedResource: resourceOwner,
+				Service:           path.ExchangeService,
+			}},
 			path.EmailCategory)
 		contactsReason = kopia.NewReason(
 			tenant,
-			resourceOwner,
-			path.ExchangeService,
+			[]path.ServiceResource{{
+				ProtectedResource: resourceOwner,
+				Service:           path.ExchangeService,
+			}},
 			path.ContactsCategory)
 
 		reasons = []identity.Reasoner{
@@ -617,13 +621,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 		pathReason1 = kopia.NewReason(
 			"",
-			itemPath1.ResourceOwner(),
-			itemPath1.Service(),
+			itemPath1.ServiceResources(),
 			itemPath1.Category())
 		pathReason3 = kopia.NewReason(
 			"",
-			itemPath3.ResourceOwner(),
-			itemPath3.Service(),
+			itemPath3.ServiceResources(),
 			itemPath3.Category())
 
 		time1 = time.Now()
@@ -1240,8 +1242,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 		pathReason1 = kopia.NewReason(
 			"",
-			itemPath1.ResourceOwner(),
-			itemPath1.Service(),
+			itemPath1.ServiceResources(),
 			itemPath1.Category())
 
 		backup1 = kopia.BackupEntry{
