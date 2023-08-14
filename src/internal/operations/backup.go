@@ -397,7 +397,7 @@ func (op *BackupOperation) do(
 			"collection_count", len(cs))
 
 		// sleep for 5 mins
-		time.Sleep(5 * time.Minute)
+		//time.Sleep(5 * time.Minute)
 
 		if i == maxCount-1 {
 			return nil, clues.New("unable to produce backup collections").WithClues(ctx)
