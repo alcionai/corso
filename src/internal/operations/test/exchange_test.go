@@ -18,9 +18,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
-	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -347,7 +347,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		// },
 	}
 
-	rrPfx, err := path.ServicePrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
+	rrPfx, err := path.BuildPrefix(acct.ID(), uidn.ID(), service, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// strip the category from the prefix; we primarily want the tenant and resource owner.

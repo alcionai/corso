@@ -326,11 +326,17 @@ func (op *BackupOperation) do(
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
-	var (
-		reasons           = selectorToReasons(op.account.ID(), op.Selectors, false)
-		fallbackReasons   = makeFallbackReasons(op.account.ID(), op.Selectors)
-		lastBackupVersion = version.NoBackup
-	)
+	lastBackupVersion := version.NoBackup
+
+	reasons, err := op.Selectors.Reasons(op.account.ID(), false)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting reasons")
+	}
+
+	fallbackReasons, err := makeFallbackReasons(op.account.ID(), op.Selectors)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting fallback reasons")
+	}
 
 	logger.Ctx(ctx).With(
 		"control_options", op.Options,
@@ -424,13 +430,14 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
-func makeFallbackReasons(tenant string, sel selectors.Selector) []identity.Reasoner {
+func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reasoner, error) {
 	if sel.PathService() != path.SharePointService &&
 		sel.DiscreteOwner != sel.DiscreteOwnerName {
-		return selectorToReasons(tenant, sel, true)
+		return sel.Reasons(tenant, true)
 	}
 
-	return nil
+	// return nil for fallback reasons since a nil value will no-op.
+	return nil, nil
 }
 
 // checker to see if conditions are correct for incremental backup behavior such as
@@ -471,35 +478,6 @@ func produceBackupDataCollections(
 // ---------------------------------------------------------------------------
 // Consumer funcs
 // ---------------------------------------------------------------------------
-
-func selectorToReasons(
-	tenant string,
-	sel selectors.Selector,
-	useOwnerNameForID bool,
-) []identity.Reasoner {
-	service := sel.PathService()
-	reasons := []identity.Reasoner{}
-
-	pcs, err := sel.PathCategories()
-	if err != nil {
-		// This is technically safe, it's just that the resulting backup won't be
-		// usable as a base for future incremental backups.
-		return nil
-	}
-
-	owner := sel.DiscreteOwner
-	if useOwnerNameForID {
-		owner = sel.DiscreteOwnerName
-	}
-
-	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
-		for _, cat := range sl {
-			reasons = append(reasons, kopia.NewReason(tenant, owner, service, cat))
-		}
-	}
-
-	return reasons
-}
 
 // calls kopia to backup the collections of data
 func consumeBackupCollections(

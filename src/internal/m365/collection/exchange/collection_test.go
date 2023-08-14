@@ -57,13 +57,13 @@ func TestCollectionSuite(t *testing.T) {
 func (suite *CollectionSuite) TestReader_Valid() {
 	m := []byte("test message")
 	description := "aFile"
-	ed := &Stream{id: description, message: m}
+	ed := &Item{id: description, message: m}
 
 	buf := &bytes.Buffer{}
 	_, err := buf.ReadFrom(ed.ToReader())
 	assert.NoError(suite.T(), err, clues.ToCore(err))
 	assert.Equal(suite.T(), buf.Bytes(), m)
-	assert.Equal(suite.T(), description, ed.UUID())
+	assert.Equal(suite.T(), description, ed.ID())
 }
 
 func (suite *CollectionSuite) TestReader_Empty() {
@@ -73,7 +73,7 @@ func (suite *CollectionSuite) TestReader_Empty() {
 		t        = suite.T()
 	)
 
-	ed := &Stream{message: empty}
+	ed := &Item{message: empty}
 	buf := &bytes.Buffer{}
 	received, err := buf.ReadFrom(ed.ToReader())
 

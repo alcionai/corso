@@ -31,7 +31,7 @@ func newContactRestoreHandler(
 	}
 }
 
-func (h contactRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
+func (h contactRestoreHandler) NewContainerCache(userID string) graph.ContainerResolver {
 	return &contactContainerCache{
 		userID: userID,
 		enumer: h.ac,
@@ -39,7 +39,7 @@ func (h contactRestoreHandler) newContainerCache(userID string) graph.ContainerR
 	}
 }
 
-func (h contactRestoreHandler) formatRestoreDestination(
+func (h contactRestoreHandler) FormatRestoreDestination(
 	destinationContainerName string,
 	_ path.Path, // contact folders cannot be nested
 ) *path.Builder {
@@ -60,7 +60,7 @@ func (h contactRestoreHandler) GetContainerByName(
 	return h.ac.GetContainerByName(ctx, userID, "", containerName)
 }
 
-func (h contactRestoreHandler) defaultRootContainer() string {
+func (h contactRestoreHandler) DefaultRootContainer() string {
 	return api.DefaultContacts
 }
 
@@ -163,7 +163,7 @@ func restoreContact(
 	return info, nil
 }
 
-func (h contactRestoreHandler) getItemsInContainerByCollisionKey(
+func (h contactRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
 ) (map[string]string, error) {

@@ -1153,16 +1153,16 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 
 type failingColl struct{}
 
-func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
-	ic := make(chan data.Stream)
+func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+	ic := make(chan data.Item)
 	defer close(ic)
 
 	errs.AddRecoverable(ctx, assert.AnError)
 
 	return ic
 }
-func (f failingColl) FullPath() path.Path                                          { return nil }
-func (f failingColl) FetchItemByName(context.Context, string) (data.Stream, error) { return nil, nil }
+func (f failingColl) FullPath() path.Path                                        { return nil }
+func (f failingColl) FetchItemByName(context.Context, string) (data.Item, error) { return nil, nil }
 
 // This check is to ensure that we don't error out, but still return
 // canUsePreviousBackup as false on read errors

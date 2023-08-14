@@ -23,8 +23,8 @@ type prefixCollection struct {
 	state data.CollectionState
 }
 
-func (c prefixCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Stream {
-	res := make(chan data.Stream)
+func (c prefixCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Item {
+	res := make(chan data.Item)
 	close(res)
 
 	s := support.CreateStatus(ctx, support.Backup, 0, support.CollectionMetrics{}, "")
@@ -79,7 +79,7 @@ func BaseCollections(
 	for cat := range categories {
 		ictx := clues.Add(ctx, "base_service", service, "base_category", cat)
 
-		full, err := path.ServicePrefix(tenant, rOwner, service, cat)
+		full, err := path.BuildPrefix(tenant, rOwner, service, cat)
 		if err != nil {
 			// Shouldn't happen.
 			err = clues.Wrap(err, "making path").WithClues(ictx)

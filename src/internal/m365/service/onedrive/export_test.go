@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -67,30 +69,22 @@ func (suite *ExportUnitSuite) TestIsMetadataFile() {
 	}
 }
 
-type metadataStream struct {
-	id   string
-	name string
-}
-
-func (ms metadataStream) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewBufferString(`{"filename": "` + ms.name + `"}`))
-}
-func (ms metadataStream) UUID() string  { return ms.id }
-func (ms metadataStream) Deleted() bool { return false }
-
 type finD struct {
 	id   string
 	name string
 	err  error
 }
 
-func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Stream, error) {
+func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Item, error) {
 	if fd.err != nil {
 		return nil, fd.err
 	}
 
 	if name == fd.id {
-		return metadataStream{id: fd.id, name: fd.name}, nil
+		return &dataMock.Item{
+			ItemID: fd.id,
+			Reader: io.NopCloser(bytes.NewBufferString(`{"filename": "` + fd.name + `"}`)),
+		}, nil
 	}
 
 	return nil, assert.AnError
@@ -148,8 +142,7 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 				ctx,
 				test.id,
 				test.backupVersion,
-				test.fin,
-			)
+				test.fin)
 			test.errFunc(t, err)
 
 			assert.Equal(t, test.name, name, "name")
@@ -159,11 +152,11 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 
 type mockRestoreCollection struct {
 	path  path.Path
-	items []mockDataStream
+	items []*dataMock.Item
 }
 
-func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
-	ch := make(chan data.Stream)
+func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+	ch := make(chan data.Item)
 
 	go func() {
 		defer close(ch)
@@ -171,8 +164,8 @@ func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-ch
 		el := errs.Local()
 
 		for _, item := range rc.items {
-			if item.err != nil {
-				el.AddRecoverable(ctx, item.err)
+			if item.ReadErr != nil {
+				el.AddRecoverable(ctx, item.ReadErr)
 				continue
 			}
 
@@ -187,22 +180,6 @@ func (rc mockRestoreCollection) FullPath() path.Path {
 	return rc.path
 }
 
-type mockDataStream struct {
-	id   string
-	data string
-	err  error
-}
-
-func (ms mockDataStream) ToReader() io.ReadCloser {
-	if ms.data != "" {
-		return io.NopCloser(bytes.NewBufferString(ms.data))
-	}
-
-	return nil
-}
-func (ms mockDataStream) UUID() string  { return ms.id }
-func (ms mockDataStream) Deleted() bool { return false }
-
 func (suite *ExportUnitSuite) TestGetItems() {
 	table := []struct {
 		name              string
@@ -215,8 +192,11 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "name1", data: "body1"},
+					items: []*dataMock.Item{
+						{
+							ItemID: "name1",
+							Reader: io.NopCloser(bytes.NewBufferString("body1")),
+						},
 					},
 				},
 			},
@@ -235,9 +215,15 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "name1", data: "body1"},
-						{id: "name2", data: "body2"},
+					items: []*dataMock.Item{
+						{
+							ItemID: "name1",
+							Reader: io.NopCloser(bytes.NewBufferString("body1")),
+						},
+						{
+							ItemID: "name2",
+							Reader: io.NopCloser(bytes.NewBufferString("body2")),
+						},
 					},
 				},
 			},
@@ -263,8 +249,11 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 2,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "name1.data", data: "body1"},
+					items: []*dataMock.Item{
+						{
+							ItemID: "name1.data",
+							Reader: io.NopCloser(bytes.NewBufferString("body1")),
+						},
 					},
 				},
 			},
@@ -283,8 +272,11 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Backup,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "id1.data", data: "body1"},
+					items: []*dataMock.Item{
+						{
+							ItemID: "id1.data",
+							Reader: io.NopCloser(bytes.NewBufferString("body1")),
+						},
 					},
 				},
 				FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
@@ -304,8 +296,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Backup,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "id1.data"},
+					items: []*dataMock.Item{
+						{ItemID: "id1.data"},
 					},
 				},
 				FetchItemByNamer: finD{err: assert.AnError},
@@ -322,9 +314,14 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Backup,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "missing.data"},
-						{id: "id1.data", data: "body1"},
+					items: []*dataMock.Item{
+						{
+							ItemID: "missing.data",
+						},
+						{
+							ItemID: "id1.data",
+							Reader: io.NopCloser(bytes.NewBufferString("body1")),
+						},
 					},
 				},
 				FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
@@ -348,10 +345,19 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.OneDrive1DataAndMetaFiles,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: mockRestoreCollection{
-					items: []mockDataStream{
-						{id: "name0", data: "body0"},
-						{id: "name1", err: assert.AnError},
-						{id: "name2", data: "body2"},
+					items: []*dataMock.Item{
+						{
+							ItemID: "name0",
+							Reader: io.NopCloser(bytes.NewBufferString("body0")),
+						},
+						{
+							ItemID:  "name1",
+							ReadErr: assert.AnError,
+						},
+						{
+							ItemID: "name2",
+							Reader: io.NopCloser(bytes.NewBufferString("body2")),
+						},
 					},
 				},
 			},
@@ -419,7 +425,22 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	dpb := odConsts.DriveFolderPrefixBuilder("driveID1")
+	var (
+		exportCfg     = control.ExportConfig{}
+		dpb           = odConsts.DriveFolderPrefixBuilder("driveID1")
+		dii           = odStub.DriveItemInfo()
+		expectedItems = []export.Item{
+			{
+				ID: "id1.data",
+				Data: export.ItemData{
+					Name: "name1",
+					Body: io.NopCloser((bytes.NewBufferString("body1"))),
+				},
+			},
+		}
+	)
+
+	dii.OneDrive.ItemName = "name1"
 
 	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
 	assert.NoError(t, err, "build path")
@@ -428,34 +449,31 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		data.FetchRestoreCollection{
 			Collection: mockRestoreCollection{
 				path: p,
-				items: []mockDataStream{
-					{id: "id1.data", data: "body1"},
+				items: []*dataMock.Item{
+					{
+						ItemID:   "id1.data",
+						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
+						ItemInfo: dii,
+					},
 				},
 			},
 			FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
 		},
 	}
 
-	expectedItems := []export.Item{
-		{
-			ID: "id1.data",
-			Data: export.ItemData{
-				Name: "name1",
-				Body: io.NopCloser((bytes.NewBufferString("body1"))),
-			},
-		},
-	}
-
-	exportCfg := control.ExportConfig{}
-	ecs, err := ProduceExportCollections(ctx, int(version.Backup), exportCfg, control.Options{}, dcs, nil, fault.New(true))
+	ecs, err := ProduceExportCollections(
+		ctx,
+		int(version.Backup),
+		exportCfg,
+		control.DefaultOptions(),
+		dcs,
+		nil,
+		fault.New(true))
 	assert.NoError(t, err, "export collections error")
-
 	assert.Len(t, ecs, 1, "num of collections")
 
-	items := ecs[0].Items(ctx)
-
 	fitems := []export.Item{}
-	for item := range items {
+	for item := range ecs[0].Items(ctx) {
 		fitems = append(fitems, item)
 	}
 

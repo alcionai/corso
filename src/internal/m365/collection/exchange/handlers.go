@@ -63,8 +63,8 @@ type restoreHandler interface {
 	itemRestorer
 	containerAPI
 	getItemsByCollisionKeyser
-	newContainerCache(userID string) graph.ContainerResolver
-	formatRestoreDestination(
+	NewContainerCache(userID string) graph.ContainerResolver
+	FormatRestoreDestination(
 		destinationContainerName string,
 		collectionFullPath path.Path,
 	) *path.Builder
@@ -95,7 +95,7 @@ type containerAPI interface {
 		ctx context.Context,
 		userID, parentContainerID, containerName string,
 	) (graph.Container, error)
-	defaultRootContainer() string
+	DefaultRootContainer() string
 }
 
 type containerByNamer interface {
@@ -107,7 +107,7 @@ type containerByNamer interface {
 }
 
 // primary interface controller for all per-cateogry restoration behavior.
-func restoreHandlers(
+func RestoreHandlers(
 	ac api.Client,
 ) map[path.CategoryType]restoreHandler {
 	return map[path.CategoryType]restoreHandler{
@@ -124,7 +124,7 @@ type getItemsByCollisionKeyser interface {
 	// Collision key checks are used during restore to handle the on-
 	// collision restore configurations that cause the item restore to get
 	// skipped, replaced, or copied.
-	getItemsInContainerByCollisionKey(
+	GetItemsInContainerByCollisionKey(
 		ctx context.Context,
 		userID, containerID string,
 	) (map[string]string, error)

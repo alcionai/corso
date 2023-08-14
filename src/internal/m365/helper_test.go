@@ -578,10 +578,10 @@ func checkEvent(
 func compareExchangeEmail(
 	t *testing.T,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
+	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
 
@@ -605,10 +605,10 @@ func compareExchangeContact(
 	t *testing.T,
 	colPath path.Path,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
+	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
 
@@ -633,10 +633,10 @@ func compareExchangeContact(
 func compareExchangeEvent(
 	t *testing.T,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
+	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
 
@@ -715,13 +715,13 @@ func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
 func compareDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
-	item data.Stream,
+	item data.Item,
 	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
 	// Skip Drive permissions in the folder that used to be the root. We don't
 	// have a good way to materialize these in the test right now.
-	if rootDir && item.UUID() == metadata.DirMetaFileSuffix {
+	if rootDir && item.ID() == metadata.DirMetaFileSuffix {
 		return false
 	}
 
@@ -732,7 +732,7 @@ func compareDriveItem(
 
 	var (
 		displayName string
-		name        = item.UUID()
+		name        = item.ID()
 		isMeta      = metadata.HasMetaSuffix(name)
 	)
 
@@ -867,11 +867,11 @@ func compareItem(
 	expected map[string][]byte,
 	service path.ServiceType,
 	category path.CategoryType,
-	item data.Stream,
+	item data.Item,
 	mci m365Stub.ConfigInfo,
 	rootDir bool,
 ) bool {
-	if mt, ok := item.(data.StreamModTime); ok {
+	if mt, ok := item.(data.ItemModTime); ok {
 		assert.NotZero(t, mt.ModTime())
 	}
 

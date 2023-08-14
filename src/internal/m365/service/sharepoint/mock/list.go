@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	_ data.Stream           = &ListData{}
+	_ data.Item             = &ListData{}
 	_ data.BackupCollection = &ListCollection{}
 )
 
@@ -50,8 +50,8 @@ func (mlc *ListCollection) PreviousPath() path.Path {
 func (mlc *ListCollection) Items(
 	ctx context.Context,
 	_ *fault.Bus, // unused
-) <-chan data.Stream {
-	res := make(chan data.Stream)
+) <-chan data.Item {
+	res := make(chan data.Item)
 
 	go func() {
 		defer close(res)
@@ -65,15 +65,15 @@ func (mlc *ListCollection) Items(
 }
 
 type ListData struct {
-	ID      string
+	ItemID  string
 	Reader  io.ReadCloser
 	ReadErr error
 	size    int64
 	deleted bool
 }
 
-func (mld *ListData) UUID() string {
-	return mld.ID
+func (mld *ListData) ID() string {
+	return mld.ItemID
 }
 
 func (mld ListData) Deleted() bool {
@@ -156,14 +156,14 @@ func ListBytes(title string) ([]byte, error) {
 	return objectWriter.GetSerializedContent()
 }
 
-// ListStream returns the data.Stream representation
+// ListStream returns the data.Item representation
 // of the Mocked SharePoint List
 func ListStream(t *testing.T, title string, numOfItems int) *ListData {
 	byteArray, err := ListBytes(title)
 	require.NoError(t, err, clues.ToCore(err))
 
 	listData := &ListData{
-		ID:     title,
+		ItemID: title,
 		Reader: io.NopCloser(bytes.NewReader(byteArray)),
 		size:   int64(len(byteArray)),
 	}

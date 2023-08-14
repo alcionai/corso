@@ -116,10 +116,10 @@ func deserializeMetadata(
 
 				var (
 					err  error
-					ictx = clues.Add(ctx, "item_uuid", item.UUID())
+					ictx = clues.Add(ctx, "item_uuid", item.ID())
 				)
 
-				switch item.UUID() {
+				switch item.ID() {
 				case graph.PreviousPathFileName:
 					err = deserializeMap(item.ToReader(), prevFolders)
 
@@ -129,7 +129,7 @@ func deserializeMetadata(
 				default:
 					logger.Ctx(ictx).Infow(
 						"skipping unknown metadata file",
-						"file_name", item.UUID())
+						"file_name", item.ID())
 
 					continue
 				}

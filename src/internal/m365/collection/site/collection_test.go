@@ -171,7 +171,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				control.DefaultOptions())
 			col.data <- test.getItem(t, test.itemName)
 
-			readItems := []data.Stream{}
+			readItems := []data.Item{}
 
 			for item := range col.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
@@ -179,7 +179,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 			require.Equal(t, len(readItems), 1)
 			item := readItems[0]
-			shareInfo, ok := item.(data.StreamInfo)
+			shareInfo, ok := item.(data.ItemInfo)
 			require.True(t, ok)
 			require.NotNil(t, shareInfo.Info())
 			require.NotNil(t, shareInfo.Info().SharePoint)
