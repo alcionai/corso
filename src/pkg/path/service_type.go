@@ -29,6 +29,8 @@ const (
 	ExchangeMetadataService               // exchangeMetadata
 	OneDriveMetadataService               // onedriveMetadata
 	SharePointMetadataService             // sharepointMetadata
+	GroupsService                         // groups
+	GroupsMetadataService                 // groupsMetadata
 )
 
 func toServiceType(service string) ServiceType {
