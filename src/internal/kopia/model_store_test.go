@@ -169,7 +169,7 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	err = suite.m.Delete(suite.ctx, theModelType, "")
 	assert.Error(t, err, clues.ToCore(err))
 
-	err = suite.m.DeleteWithModelStoreID(suite.ctx, "")
+	err = suite.m.DeleteWithModelStoreIDs(suite.ctx, "")
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -711,13 +711,37 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 	assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
 }
 
+func (suite *ModelStoreIntegrationSuite) TestPutDeleteBatch() {
+	t := suite.T()
+	theModelType := model.BackupOpSchema
+	ids := []manifest.ID{}
+
+	for i := 0; i < 5; i++ {
+		foo := &fooModel{Bar: uuid.NewString()}
+
+		err := suite.m.Put(suite.ctx, theModelType, foo)
+		require.NoError(t, err, clues.ToCore(err))
+
+		ids = append(ids, foo.ModelStoreID)
+	}
+
+	err := suite.m.DeleteWithModelStoreIDs(suite.ctx, ids...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, id := range ids {
+		returned := &fooModel{}
+		err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, id, returned)
+		assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+	}
+}
+
 func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
 	t := suite.T()
 
 	err := suite.m.Delete(suite.ctx, model.BackupOpSchema, "foo")
 	assert.NoError(t, err, clues.ToCore(err))
 
-	err = suite.m.DeleteWithModelStoreID(suite.ctx, "foo")
+	err = suite.m.DeleteWithModelStoreIDs(suite.ctx, "foo")
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
