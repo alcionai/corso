@@ -518,7 +518,7 @@ func (ms *ModelStore) DeleteWithModelStoreIDs(
 			}
 
 			if err := w.DeleteManifest(innerCtx, id); err != nil {
-				return clues.Stack(err).WithClues(ctx).With("model_store_id", id)
+				return clues.Stack(err).WithClues(innerCtx).With("model_store_id", id)
 			}
 		}
 
