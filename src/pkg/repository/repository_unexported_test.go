@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -320,81 +321,317 @@ func (suite *RepositoryBackupsUnitSuite) TestBackupsByTag() {
 	}
 }
 
-func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
+type getRes struct {
+	bup *backup.Backup
+	err error
+}
+
+type mockBackupGetterModelDeleter struct {
+	t *testing.T
+
+	gets       []getRes
+	deleteErrs []error
+
+	expectGets []model.StableID
+	expectDels [][]string
+
+	getCount int
+	delCount int
+}
+
+func (m *mockBackupGetterModelDeleter) GetBackup(
+	_ context.Context,
+	id model.StableID,
+) (*backup.Backup, error) {
+	defer func() {
+		m.getCount++
+	}()
+
+	assert.Equal(m.t, m.expectGets[m.getCount], id)
+
+	return m.gets[m.getCount].bup, clues.Stack(m.gets[m.getCount].err).OrNil()
+}
+
+func (m *mockBackupGetterModelDeleter) DeleteWithModelStoreIDs(
+	_ context.Context,
+	ids ...manifest.ID,
+) error {
+	defer func() {
+		m.delCount++
+	}()
+
+	converted := make([]string, 0, len(ids))
+	for _, id := range ids {
+		converted = append(converted, string(id))
+	}
+
+	assert.ElementsMatch(m.t, m.expectDels[m.delCount], converted)
+
+	return clues.Stack(m.deleteErrs[m.delCount]).OrNil()
+}
+
+func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 	bup := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID: model.StableID(uuid.NewString()),
+			ID:           model.StableID(uuid.NewString()),
+			ModelStoreID: manifest.ID(uuid.NewString()),
 		},
+		SnapshotID:    uuid.NewString(),
+		StreamStoreID: uuid.NewString(),
+	}
+
+	bupLegacy := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID:           model.StableID(uuid.NewString()),
+			ModelStoreID: manifest.ID(uuid.NewString()),
+		},
+		SnapshotID: uuid.NewString(),
+		DetailsID:  uuid.NewString(),
 	}
 
 	bupNoSnapshot := &backup.Backup{
-		BaseModel: model.BaseModel{},
+		BaseModel: model.BaseModel{
+			ID:           model.StableID(uuid.NewString()),
+			ModelStoreID: manifest.ID(uuid.NewString()),
+		},
+		StreamStoreID: uuid.NewString(),
+	}
+
+	bupNoDetails := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID:           model.StableID(uuid.NewString()),
+			ModelStoreID: manifest.ID(uuid.NewString()),
+		},
+		SnapshotID: uuid.NewString(),
 	}
 
 	table := []struct {
-		name      string
-		sw        mock.BackupWrapper
-		expectErr func(t *testing.T, result error)
-		expectID  model.StableID
+		name       string
+		inputIDs   []model.StableID
+		gets       []getRes
+		expectGets []model.StableID
+		dels       []error
+		expectDels [][]string
+		expectErr  func(t *testing.T, result error)
 	}{
 		{
-			name: "no error",
-			sw: mock.BackupWrapper{
-				Backup:    bup,
-				GetErr:    nil,
-				DeleteErr: nil,
+			name: "SingleBackup NoError",
+			inputIDs: []model.StableID{
+				bup.ID,
+			},
+			gets: []getRes{
+				{bup: bup},
+			},
+			expectGets: []model.StableID{
+				bup.ID,
+			},
+			dels: []error{
+				nil,
+			},
+			expectDels: [][]string{
+				{
+					string(bup.ModelStoreID),
+					bup.SnapshotID,
+					bup.StreamStoreID,
+				},
 			},
 			expectErr: func(t *testing.T, result error) {
 				assert.NoError(t, result, clues.ToCore(result))
 			},
-			expectID: bup.ID,
 		},
 		{
-			name: "get error",
-			sw: mock.BackupWrapper{
-				Backup:    bup,
-				GetErr:    data.ErrNotFound,
-				DeleteErr: nil,
+			name: "SingleBackup GetError",
+			inputIDs: []model.StableID{
+				bup.ID,
+			},
+			gets: []getRes{
+				{err: data.ErrNotFound},
+			},
+			expectGets: []model.StableID{
+				bup.ID,
 			},
 			expectErr: func(t *testing.T, result error) {
 				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
 			},
-			expectID: bup.ID,
 		},
 		{
-			name: "delete error",
-			sw: mock.BackupWrapper{
-				Backup:    bup,
-				GetErr:    nil,
-				DeleteErr: assert.AnError,
+			name: "SingleBackup DeleteError",
+			inputIDs: []model.StableID{
+				bup.ID,
+			},
+			gets: []getRes{
+				{bup: bup},
+			},
+			expectGets: []model.StableID{
+				bup.ID,
+			},
+			dels: []error{assert.AnError},
+			expectDels: [][]string{
+				{
+					string(bup.ModelStoreID),
+					bup.SnapshotID,
+					bup.StreamStoreID,
+				},
 			},
 			expectErr: func(t *testing.T, result error) {
 				assert.ErrorIs(t, result, assert.AnError, clues.ToCore(result))
 			},
-			expectID: bup.ID,
 		},
 		{
-			name: "no snapshot present",
-			sw: mock.BackupWrapper{
-				Backup:    bupNoSnapshot,
-				GetErr:    nil,
-				DeleteErr: nil,
+			name: "SingleBackup NoSnapshot",
+			inputIDs: []model.StableID{
+				bupNoSnapshot.ID,
+			},
+			gets: []getRes{
+				{bup: bupNoSnapshot},
+			},
+			expectGets: []model.StableID{
+				bupNoSnapshot.ID,
+			},
+			dels: []error{nil},
+			expectDels: [][]string{
+				{
+					string(bupNoSnapshot.ModelStoreID),
+					bupNoSnapshot.StreamStoreID,
+				},
 			},
 			expectErr: func(t *testing.T, result error) {
 				assert.NoError(t, result, clues.ToCore(result))
 			},
-			expectID: bupNoSnapshot.ID,
+		},
+		{
+			name: "SingleBackup NoDetails",
+			inputIDs: []model.StableID{
+				bupNoDetails.ID,
+			},
+			gets: []getRes{
+				{bup: bupNoDetails},
+			},
+			expectGets: []model.StableID{
+				bupNoDetails.ID,
+			},
+			dels: []error{nil},
+			expectDels: [][]string{
+				{
+					string(bupNoDetails.ModelStoreID),
+					bupNoDetails.SnapshotID,
+				},
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+		},
+		{
+			name: "SingleBackup OldDetailsID",
+			inputIDs: []model.StableID{
+				bupLegacy.ID,
+			},
+			gets: []getRes{
+				{bup: bupLegacy},
+			},
+			expectGets: []model.StableID{
+				bupLegacy.ID,
+			},
+			dels: []error{nil},
+			expectDels: [][]string{
+				{
+					string(bupLegacy.ModelStoreID),
+					bupLegacy.SnapshotID,
+					bupLegacy.DetailsID,
+				},
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+		},
+		{
+			name: "MultipleBackups NoError",
+			inputIDs: []model.StableID{
+				bup.ID,
+				bupLegacy.ID,
+				bupNoSnapshot.ID,
+				bupNoDetails.ID,
+			},
+			gets: []getRes{
+				{bup: bup},
+				{bup: bupLegacy},
+				{bup: bupNoSnapshot},
+				{bup: bupNoDetails},
+			},
+			expectGets: []model.StableID{
+				bup.ID,
+				bupLegacy.ID,
+				bupNoSnapshot.ID,
+				bupNoDetails.ID,
+			},
+			dels: []error{nil},
+			expectDels: [][]string{
+				{
+					string(bup.ModelStoreID),
+					bup.SnapshotID,
+					bup.StreamStoreID,
+					string(bupLegacy.ModelStoreID),
+					bupLegacy.SnapshotID,
+					bupLegacy.DetailsID,
+					string(bupNoSnapshot.ModelStoreID),
+					bupNoSnapshot.StreamStoreID,
+					string(bupNoDetails.ModelStoreID),
+					bupNoDetails.SnapshotID,
+				},
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+		},
+		{
+			name: "MultipleBackups GetError",
+			inputIDs: []model.StableID{
+				bup.ID,
+				bupLegacy.ID,
+				bupNoSnapshot.ID,
+				bupNoDetails.ID,
+			},
+			gets: []getRes{
+				{bup: bup},
+				{bup: bupLegacy},
+				{bup: bupNoSnapshot},
+				{err: data.ErrNotFound},
+			},
+			expectGets: []model.StableID{
+				bup.ID,
+				bupLegacy.ID,
+				bupNoSnapshot.ID,
+				bupNoDetails.ID,
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
+				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
+			},
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			m := &mockBackupGetterModelDeleter{
+				t: t,
+
+				gets:       test.gets,
+				deleteErrs: test.dels,
+
+				expectGets: test.expectGets,
+				expectDels: test.expectDels,
+			}
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			err := deleteBackup(ctx, string(test.sw.Backup.ID), test.sw)
+			strIDs := make([]string, 0, len(test.inputIDs))
+			for _, id := range test.inputIDs {
+				strIDs = append(strIDs, string(id))
+			}
+
+			err := deleteBackups(ctx, m, strIDs...)
 			test.expectErr(t, err)
 		})
 	}
