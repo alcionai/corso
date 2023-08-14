@@ -370,39 +370,39 @@ func (op *BackupOperation) do(
 	}
 
 	// Run 3 times and exit
-	cs := []data.BackupCollection{}
-	canUsePreviousBackup := false
+	//cs := []data.BackupCollection{}
+	//canUsePreviousBackup := false
 
-	var maxCount int = 2
+	//var maxCount int = 2
 
-	for i := 0; i < maxCount; i++ {
-		logger.Ctx(ctx).Info("delta query iteration")
+	//for i := 0; i < maxCount; i++ {
+	logger.Ctx(ctx).Info("delta query iteration")
 
-		cs, _, canUsePreviousBackup, err := produceBackupDataCollections(
-			ctx,
-			op.bp,
-			op.ResourceOwner,
-			op.Selectors,
-			mdColls,
-			lastBackupVersion,
-			op.Options,
-			op.Errors)
-		if err != nil {
-			return nil, clues.Wrap(err, "producing backup data collections")
-		}
-
-		ctx = clues.Add(
-			ctx,
-			"can_use_previous_backup", canUsePreviousBackup,
-			"collection_count", len(cs))
-
-		// sleep for 5 mins
-		//time.Sleep(5 * time.Minute)
-
-		if i == maxCount-1 {
-			return nil, clues.New("unable to produce backup collections").WithClues(ctx)
-		}
+	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
+		ctx,
+		op.bp,
+		op.ResourceOwner,
+		op.Selectors,
+		mdColls,
+		lastBackupVersion,
+		op.Options,
+		op.Errors)
+	if err != nil {
+		return nil, clues.Wrap(err, "producing backup data collections")
 	}
+
+	ctx = clues.Add(
+		ctx,
+		"can_use_previous_backup", canUsePreviousBackup,
+		"collection_count", len(cs))
+
+	// sleep for 5 mins
+	//time.Sleep(5 * time.Minute)
+
+	// if i == maxCount-1 {
+	// 	return nil, clues.New("unable to produce backup collections").WithClues(ctx)
+	// }
+	//}
 
 	writeStats, deets, toMerge, err := consumeBackupCollections(
 		ctx,
@@ -411,7 +411,7 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
-		nil,
+		ssmb,
 		backupID,
 		op.incremental && canUseMetadata && canUsePreviousBackup,
 		op.Errors)

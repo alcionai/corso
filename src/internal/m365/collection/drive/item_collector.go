@@ -131,6 +131,8 @@ func collectItems(
 	}
 	logger.Ctx(ctx).Info("delta query iteration end")
 
+	logger.Ctx(ctx).Info("delta query iteration end")
+
 	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil
 }
 
