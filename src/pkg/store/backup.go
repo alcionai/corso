@@ -59,14 +59,23 @@ type (
 		DeleteBackup(ctx context.Context, backupID model.StableID) error
 	}
 
+	ModelDeleter interface {
+		DeleteWithModelStoreIDs(ctx context.Context, ids ...manifest.ID) error
+	}
+
+	BackupGetterModelDeleter interface {
+		BackupGetter
+		ModelDeleter
+	}
+
 	Storer interface {
 		Delete(ctx context.Context, s model.Schema, id model.StableID) error
-		DeleteWithModelStoreIDs(ctx context.Context, ids ...manifest.ID) error
 		Get(ctx context.Context, s model.Schema, id model.StableID, data model.Model) error
 		GetIDsForType(ctx context.Context, s model.Schema, tags map[string]string) ([]*model.BaseModel, error)
 		GetWithModelStoreID(ctx context.Context, s model.Schema, id manifest.ID, data model.Model) error
 		Put(ctx context.Context, s model.Schema, m model.Model) error
 		Update(ctx context.Context, s model.Schema, m model.Model) error
+		ModelDeleter
 	}
 
 	BackupStorer interface {

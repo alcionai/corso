@@ -559,37 +559,6 @@ func (w Wrapper) ProduceRestoreCollections(
 	return res, el.Failure()
 }
 
-// DeleteSnapshot removes the provided manifest from kopia.
-func (w Wrapper) DeleteSnapshot(
-	ctx context.Context,
-	snapshotID string,
-) error {
-	mid := manifest.ID(snapshotID)
-	if len(mid) == 0 {
-		return clues.New("snapshot ID required for deletion").WithClues(ctx)
-	}
-
-	err := repo.WriteSession(
-		ctx,
-		w.c,
-		repo.WriteSessionOptions{Purpose: "KopiaWrapperBackupDeletion"},
-		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
-			if err := rw.DeleteManifest(ctx, mid); err != nil {
-				return clues.Wrap(err, "deleting snapshot").WithClues(ctx)
-			}
-
-			return nil
-		},
-	)
-	// Telling kopia to always flush may hide other errors if it fails while
-	// flushing the write session (hence logging above).
-	if err != nil {
-		return clues.Wrap(err, "deleting backup manifest").WithClues(ctx)
-	}
-
-	return nil
-}
-
 func (w Wrapper) NewBaseFinder(bg store.BackupGetter) (*baseFinder, error) {
 	return newBaseFinder(w.c, bg)
 }

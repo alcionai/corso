@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -286,6 +287,57 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, restoreCfg)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, ro)
+}
+
+func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	acct := tconfig.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := storeTD.NewPrefixedS3Storage(t)
+
+	r, err := Initialize(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	userID := tconfig.M365UserID(t)
+	sel := selectors.NewExchangeBackup([]string{userID})
+	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+	sel.DiscreteOwner = userID
+
+	bo, err := r.NewBackup(ctx, sel.Selector)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, bo)
+
+	err = bo.Run(ctx)
+	require.NoError(t, err, "running backup operation: %v", clues.ToCore(err))
+
+	backupID := string(bo.Results.BackupID)
+
+	err = r.DeleteBackup(ctx, backupID)
+	require.NoError(t, err, "deleting backup: %v", clues.ToCore(err))
+
+	// This operation should fail since the backup doesn't exist anymore.
+	restoreCfg := testdata.DefaultRestoreConfig("")
+
+	ro, err := r.NewRestore(
+		ctx,
+		backupID,
+		selectors.Selector{DiscreteOwner: userID},
+		restoreCfg)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, ro)
+
+	_, err = ro.Run(ctx)
+	assert.Error(t, err, "running restore operation")
 }
 
 func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {

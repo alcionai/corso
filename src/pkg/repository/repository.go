@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -629,31 +630,31 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
-type snapshotDeleter interface {
-	DeleteSnapshot(ctx context.Context, snapshotID string) error
-}
-
 // DeleteBackup removes the backup from both the model store and the backup storage.
 func (r repository) DeleteBackup(ctx context.Context, id string) error {
-	return deleteBackup(ctx, id, r.dataLayer, store.NewWrapper(r.modelStore))
+	return deleteBackup(ctx, id, store.NewWrapper(r.modelStore))
 }
 
 // deleteBackup handles the processing for Backup.
 func deleteBackup(
 	ctx context.Context,
 	id string,
-	kw snapshotDeleter,
-	sw store.BackupGetterDeleter,
+	sw store.BackupGetterModelDeleter,
 ) error {
 	b, err := sw.GetBackup(ctx, model.StableID(id))
 	if err != nil {
-		return errWrapper(err)
+		return clues.Stack(errWrapper(err)).WithClues(ctx)
 	}
 
+	// Although we haven't explicitly stated it, snapshots are technically
+	// manifests in kopia. This means we can use the same delete API to remove
+	// them and backup models. Deleting all of them together gives us both
+	// atomicity guarantees (around when data will be flushed) and helps reduce
+	// the number of manifest blobs that kopia will create.
+	toDelete := []manifest.ID{manifest.ID(b.ModelStoreID)}
+
 	if len(b.SnapshotID) > 0 {
-		if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
-			return err
-		}
+		toDelete = append(toDelete, manifest.ID(b.SnapshotID))
 	}
 
 	ssid := b.StreamStoreID
@@ -662,12 +663,10 @@ func deleteBackup(
 	}
 
 	if len(ssid) > 0 {
-		if err := kw.DeleteSnapshot(ctx, ssid); err != nil {
-			return err
-		}
+		toDelete = append(toDelete, manifest.ID(ssid))
 	}
 
-	return sw.DeleteBackup(ctx, model.StableID(id))
+	return sw.DeleteWithModelStoreIDs(ctx, toDelete...)
 }
 
 func (r repository) ConnectToM365(

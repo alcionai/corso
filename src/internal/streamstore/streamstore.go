@@ -79,16 +79,6 @@ func (ss *storeStreamer) Read(ctx context.Context, snapshotID string, col Collec
 	return nil
 }
 
-// Delete deletes a `details.Details` object from the kopia repository
-func (ss *storeStreamer) Delete(ctx context.Context, detailsID string) error {
-	err := ss.kw.DeleteSnapshot(ctx, detailsID)
-	if err != nil {
-		return clues.Wrap(err, "deleting snapshot in stream store")
-	}
-
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // interfaces
 // ---------------------------------------------------------------------------
@@ -99,7 +89,6 @@ type Streamer interface {
 	Collector
 	Writer
 	Reader
-	Delete(context.Context, string) error
 }
 
 type CollectorWriter interface {
