@@ -73,6 +73,12 @@ func pitrListBackups(
 	pitr time.Time,
 	backupIDs []string,
 ) error {
+	logAndPrint(
+		ctx,
+		"looking for %d backup(s) using timestamp %v\n",
+		len(backupIDs),
+		pitr)
+
 	if len(backupIDs) == 0 {
 		return nil
 	}
