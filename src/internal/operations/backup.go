@@ -376,7 +376,7 @@ func (op *BackupOperation) do(
 	//var maxCount int = 2
 
 	//for i := 0; i < maxCount; i++ {
-	logger.Ctx(ctx).Info("delta query iteration")
+	//logger.Ctx(ctx).Info("delta query iteration")
 
 	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
 		ctx,
