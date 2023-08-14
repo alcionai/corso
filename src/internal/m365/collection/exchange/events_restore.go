@@ -32,7 +32,7 @@ func newEventRestoreHandler(
 	}
 }
 
-func (h eventRestoreHandler) newContainerCache(userID string) graph.ContainerResolver {
+func (h eventRestoreHandler) NewContainerCache(userID string) graph.ContainerResolver {
 	return &eventContainerCache{
 		userID: userID,
 		enumer: h.ac,
@@ -40,7 +40,7 @@ func (h eventRestoreHandler) newContainerCache(userID string) graph.ContainerRes
 	}
 }
 
-func (h eventRestoreHandler) formatRestoreDestination(
+func (h eventRestoreHandler) FormatRestoreDestination(
 	destinationContainerName string,
 	_ path.Path, // ignored because calendars cannot be nested
 ) *path.Builder {
@@ -66,7 +66,7 @@ func (h eventRestoreHandler) GetContainerByName(
 }
 
 // always returns the provided value
-func (h eventRestoreHandler) defaultRootContainer() string {
+func (h eventRestoreHandler) DefaultRootContainer() string {
 	return api.DefaultCalendar
 }
 
@@ -323,7 +323,7 @@ func updateAttachments(
 	return el.Failure()
 }
 
-func (h eventRestoreHandler) getItemsInContainerByCollisionKey(
+func (h eventRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
 ) (map[string]string, error) {
