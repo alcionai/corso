@@ -373,7 +373,7 @@ func (op *BackupOperation) do(
 	cs := []data.BackupCollection{}
 	canUsePreviousBackup := false
 
-	var maxCount int = 5
+	var maxCount int = 2
 
 	for i := 0; i < maxCount; i++ {
 		logger.Ctx(ctx).Info("delta query iteration")
@@ -395,6 +395,9 @@ func (op *BackupOperation) do(
 			ctx,
 			"can_use_previous_backup", canUsePreviousBackup,
 			"collection_count", len(cs))
+
+		// sleep for 5 mins
+		time.Sleep(5 * time.Minute)
 
 		if i == maxCount-1 {
 			return nil, clues.New("unable to produce backup collections").WithClues(ctx)

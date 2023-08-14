@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -467,8 +468,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 	wg.Wait()
 
+	// print memory for oc.DriveItems
+	size := unsafe.Sizeof(oc.driveItems)
+	logger.Ctx(ctx).Infow("driveItems map size", "size", size)
+
 	// free up memory
-	oc.driveItems = make(map[string]models.DriveItemable)
+	//oc.driveItems = make(map[string]models.DriveItemable)
 	oc.reportAsCompleted(ctx, int(stats.itemsFound), int(stats.itemsRead), stats.byteCount)
 }
 
