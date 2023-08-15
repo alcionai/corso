@@ -724,8 +724,10 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 func (suite *KopiaIntegrationSuite) SetupSuite() {
 	tmp, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		testInboxDir)
@@ -736,8 +738,10 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 
 	tmp, err = path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		testArchiveDir)
@@ -804,14 +808,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
-			suite.storePath1.ResourceOwner(),
-			suite.storePath1.Service(),
+			suite.storePath1.PrimaryProtectedResource(),
+			suite.storePath1.PrimaryService(),
 			suite.storePath1.Category(),
 		),
 		NewReason(
 			testTenant,
-			suite.storePath2.ResourceOwner(),
-			suite.storePath2.Service(),
+			suite.storePath2.PrimaryProtectedResource(),
+			suite.storePath2.PrimaryService(),
 			suite.storePath2.Category(),
 		),
 	}
@@ -1052,8 +1056,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	tmp, err := path.Build(
 		testTenant,
-		testUser,
-		path.OneDriveService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.OneDriveService,
+		}},
 		path.FilesCategory,
 		false,
 		testInboxDir)
@@ -1079,8 +1085,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
-			storePath.ResourceOwner(),
-			storePath.Service(),
+			storePath.PrimaryProtectedResource(),
+			storePath.PrimaryService(),
 			storePath.Category()),
 	}
 
@@ -1507,8 +1513,10 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 	tmp, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		testInboxDir)
@@ -1518,8 +1526,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 
 	tmp, err = path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		testArchiveDir)
@@ -1800,8 +1810,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	doesntExist, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		true,
 		"subdir", "foo")
@@ -1934,8 +1946,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_PathChanges() {
 	rp1, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		"corso_restore", "Inbox")
@@ -1943,8 +1957,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 
 	rp2, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		"corso_restore", "Archive")
@@ -2057,8 +2073,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 
 	rp1, err := path.Build(
 		testTenant,
-		testUser,
-		path.ExchangeService,
+		[]path.ServiceResource{{
+			ProtectedResource: testUser,
+			Service:           path.ExchangeService,
+		}},
 		path.EmailCategory,
 		false,
 		"corso_restore", "Inbox")

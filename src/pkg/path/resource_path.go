@@ -51,6 +51,26 @@ func (rp dataLayerResourcePath) ServiceResources() []ServiceResource {
 	return rp.serviceResources
 }
 
+func (rp dataLayerResourcePath) PrimaryService() ServiceType {
+	srs := rp.serviceResources
+
+	if len(srs) == 0 {
+		return UnknownService
+	}
+
+	return srs[0].Service
+}
+
+func (rp dataLayerResourcePath) PrimaryProtectedResource() string {
+	srs := rp.serviceResources
+
+	if len(srs) == 0 {
+		return ""
+	}
+
+	return srs[0].ProtectedResource
+}
+
 // Category returns the CategoryType embedded in the dataLayerResourcePath.
 func (rp dataLayerResourcePath) Category() CategoryType {
 	return rp.category
@@ -72,10 +92,16 @@ func (rp dataLayerResourcePath) lastFolderIdx() int {
 	return endIdx
 }
 
+func (rp dataLayerResourcePath) prefixLen() int {
+	return 2 + 2*len(rp.serviceResources)
+}
+
 // Folder returns the folder segment embedded in the dataLayerResourcePath.
 func (rp dataLayerResourcePath) Folder(escape bool) string {
 	endIdx := rp.lastFolderIdx()
-	if endIdx == 4 {
+	pfxLen := rp.prefixLen()
+
+	if endIdx == pfxLen {
 		return ""
 	}
 
@@ -93,11 +119,14 @@ func (rp dataLayerResourcePath) Folder(escape bool) string {
 // dataLayerResourcePath.
 func (rp dataLayerResourcePath) Folders() Elements {
 	endIdx := rp.lastFolderIdx()
-	if endIdx == 4 {
+	pfxLen := rp.prefixLen()
+
+	// if endIdx == prefix length, there are no folders
+	if endIdx == pfxLen {
 		return nil
 	}
 
-	return append([]string{}, rp.elements[4:endIdx]...)
+	return append([]string{}, rp.elements[pfxLen:endIdx]...)
 }
 
 // Item returns the item embedded in the dataLayerResourcePath if the path

@@ -78,47 +78,58 @@ var (
 // Resources that don't have the requested information should return an empty
 // string.
 type Path interface {
-	String() string
+	// parts
+
+	Tenant() string
 	// ServiceResources produces all of the services and subservices, along with
 	// the protected resource paired with the service, as contained in the path,
 	// in their order of appearance.
 	ServiceResources() []ServiceResource
+	// PrimaryService is the first service in ServiceResources()
+	PrimaryService() ServiceType
+	// PrimaryProtectedResource is the first ProtectedResource in ServiceResources()
+	PrimaryProtectedResource() string
 	Category() CategoryType
-	Tenant() string
 	Folder(escaped bool) string
 	Folders() Elements
 	Item() string
-	// UpdateParent updates parent from old to new if the item/folder was
-	// parented by old path
-	UpdateParent(prev, cur Path) bool
-	// PopFront returns a Builder object with the first element (left-side)
-	// removed. As the resulting set of elements is no longer a valid resource
-	// path a Builder is returned instead.
-	PopFront() *Builder
-	// Dir returns a Path object with the right-most element removed if possible.
-	// If removing the right-most element would discard one of the required prefix
-	// elements then an error is returned.
-	Dir() (Path, error)
+
+	// type transformations
+
+	// ToBuilder returns a Builder instance that represents the current Path.
+	ToBuilder() *Builder
 	// Elements returns all the elements in the path. This is a temporary function
 	// and will likely be updated to handle encoded elements instead of clear-text
 	// elements in the future.
 	Elements() Elements
+	// Halves breaks the path into its prefix (tenant, services, resources, category)
+	// and suffix (all parts after the prefix).  If either half is empty, that half
+	// returns an empty, non-nil, value.
+	Halves() (*Builder, Elements)
+	// ShortRef returns a short reference representing this path. The short
+	// reference is guaranteed to be unique. No guarantees are made about whether
+	// a short reference can be converted back into the Path that generated it.
+	ShortRef() string
+
+	// mutators
+
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.
 	Append(isItem bool, elems ...string) (Path, error)
 	// AppendItem is a shorthand for Append(true, someItem)
 	AppendItem(item string) (Path, error)
-	// ShortRef returns a short reference representing this path. The short
-	// reference is guaranteed to be unique. No guarantees are made about whether
-	// a short reference can be converted back into the Path that generated it.
-	ShortRef() string
-	// ToBuilder returns a Builder instance that represents the current Path.
-	ToBuilder() *Builder
-	// Halves breaks the path into its prefix (tenant, services, resources, category)
-	// and suffix (all parts after the prefix).  If either half is empty, that half
-	// returns an empty, non-nil, value.
-	Halves() (*Builder, Elements)
+	// Dir returns a Path object with the right-most element removed if possible.
+	// If removing the right-most element would discard one of the required prefix
+	// elements then an error is returned.
+	Dir() (Path, error)
+	// PopFront returns a Builder object with the first element (left-side)
+	// removed. As the resulting set of elements is no longer a valid resource
+	// path a Builder is returned instead.
+	PopFront() *Builder
+	// UpdateParent updates parent from old to new if the item/folder was
+	// parented by old path
+	UpdateParent(prev, cur Path) bool
 
 	// Every path needs to comply with these funcs to ensure that PII
 	// is appropriately hidden from logging, errors, and other outputs.

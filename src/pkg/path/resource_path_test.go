@@ -15,14 +15,34 @@ import (
 )
 
 const (
-	testTenant = "aTenant"
-	testUser   = "aUser"
+	testTenant            = "aTenant"
+	testProtectedResource = "aProtectedResource"
 )
+
+func elemsWithWithoutItem(elems path.Elements) func(isItem bool) path.Elements {
+	return func(isItem bool) path.Elements {
+		if isItem {
+			return elems[:len(elems)-1]
+		}
+
+		return elems
+	}
+}
+
+func itemWithWithoutItem(elems path.Elements) func(isItem bool) string {
+	return func(isItem bool) string {
+		if isItem {
+			return elems[len(elems)-1]
+		}
+
+		return ""
+	}
+}
 
 var (
 	// Purposely doesn't have characters that need escaping so it can be easily
 	// computed using strings.Join().
-	rest = []string{"some", "folder", "path", "with", "possible", "item"}
+	rest = path.Elements{"some", "folder", "path", "with", "possible", "item"}
 
 	missingInfo = []struct {
 		name   string
@@ -33,7 +53,7 @@ var (
 		{
 			name:   "NoTenant",
 			tenant: "",
-			user:   testUser,
+			user:   testProtectedResource,
 			rest:   rest,
 		},
 		{
@@ -45,7 +65,7 @@ var (
 		{
 			name:   "NoFolderOrItem",
 			tenant: testTenant,
-			user:   testUser,
+			user:   testProtectedResource,
 			rest:   nil,
 		},
 	}
@@ -70,60 +90,193 @@ var (
 		},
 	}
 
-	// Set of acceptable service/category mixtures.
+	// Set of acceptable service[/subservice]/category mixtures.
 	serviceCategories = []struct {
-		service  path.ServiceType
-		category path.CategoryType
-		pathFunc func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error)
+		name           string
+		primaryService path.ServiceType
+		category       path.CategoryType
+		pathFunc       func(
+			tenant, primaryResource string,
+			isItem bool,
+			suffix path.Elements,
+		) (path.Path, error)
+		expectFolders func(expect path.Elements) func(isItem bool) path.Elements
+		expectItem    func(expect path.Elements) func(isItem bool) string
 	}{
 		{
-			service:  path.ExchangeService,
-			category: path.EmailCategory,
-			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerExchangePathForCategory(tenant, user, path.EmailCategory, isItem)
+			name:           path.ExchangeService.String() + path.EmailCategory.String(),
+			primaryService: path.ExchangeService,
+			category:       path.EmailCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.ExchangeService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 		{
-			service:  path.ExchangeService,
-			category: path.ContactsCategory,
-			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerExchangePathForCategory(tenant, user, path.ContactsCategory, isItem)
+			name:           path.ExchangeService.String() + path.ContactsCategory.String(),
+			primaryService: path.ExchangeService,
+			category:       path.ContactsCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.ExchangeService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 		{
-			service:  path.ExchangeService,
-			category: path.EventsCategory,
-			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerExchangePathForCategory(tenant, user, path.EventsCategory, isItem)
+			name:           path.ExchangeService.String() + path.EventsCategory.String(),
+			primaryService: path.ExchangeService,
+			category:       path.EventsCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.ExchangeService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 		{
-			service:  path.OneDriveService,
-			category: path.FilesCategory,
-			pathFunc: func(pb *path.Builder, tenant, user string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerOneDrivePath(tenant, user, isItem)
+			name:           path.OneDriveService.String() + path.FilesCategory.String(),
+			primaryService: path.OneDriveService,
+			category:       path.FilesCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.OneDriveService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 		{
-			service:  path.SharePointService,
-			category: path.LibrariesCategory,
-			pathFunc: func(pb *path.Builder, tenant, site string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, site, path.LibrariesCategory, isItem)
+			name:           path.SharePointService.String() + path.LibrariesCategory.String(),
+			primaryService: path.SharePointService,
+			category:       path.LibrariesCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.SharePointService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 		{
-			service:  path.SharePointService,
-			category: path.ListsCategory,
-			pathFunc: func(pb *path.Builder, tenant, site string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, site, path.ListsCategory, isItem)
+			name:           path.SharePointService.String() + path.ListsCategory.String(),
+			primaryService: path.SharePointService,
+			category:       path.ListsCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.SharePointService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 		{
-			service:  path.SharePointService,
-			category: path.PagesCategory,
-			pathFunc: func(pb *path.Builder, tenant, site string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, site, path.PagesCategory, isItem)
+			name:           path.SharePointService.String() + path.PagesCategory.String(),
+			primaryService: path.SharePointService,
+			category:       path.PagesCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.SharePointService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
 			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
+		},
+		{
+			name:           path.GroupsService.String() + path.UnknownCategory.String(),
+			primaryService: path.GroupsService,
+			category:       path.UnknownCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(path.GroupsService, primaryResource)
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
+			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
+		},
+		{
+			name:           path.GroupsService.String() + path.SharePointService.String() + path.UnknownCategory.String(),
+			primaryService: path.GroupsService,
+			category:       path.LibrariesCategory,
+			pathFunc: func(
+				tenant, primaryResource string,
+				isItem bool,
+				suffix path.Elements,
+			) (path.Path, error) {
+				srs, err := path.NewServiceResources(
+					path.GroupsService,
+					primaryResource,
+					path.SharePointService,
+					"secondaryProtectedResource")
+				if err != nil {
+					return nil, err
+				}
+
+				return path.Build(tenant, srs, path.PagesCategory, isItem, suffix...)
+			},
+			expectFolders: elemsWithWithoutItem,
+			expectItem:    itemWithWithoutItem,
 		},
 	}
 )
@@ -142,22 +295,13 @@ func (suite *DataLayerResourcePath) SetupSuite() {
 
 func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 	for _, types := range serviceCategories {
-		suite.Run(types.service.String()+types.category.String(), func() {
+		suite.Run(types.primaryService.String()+types.category.String(), func() {
 			for _, m := range modes {
 				suite.Run(m.name, func() {
 					for _, test := range missingInfo {
 						suite.Run(test.name, func() {
-							t := suite.T()
-
-							b := path.Builder{}.Append(test.rest...)
-
-							_, err := types.pathFunc(
-								b,
-								test.tenant,
-								test.user,
-								m.isItem,
-							)
-							assert.Error(t, err)
+							_, err := types.pathFunc(test.tenant, test.user, m.isItem, rest)
+							assert.Error(suite.T(), err, clues.ToCore(err))
 						})
 					}
 				})
@@ -167,31 +311,23 @@ func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 }
 
 func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
-	item := "item"
-	b := path.Builder{}.Append(item)
-
-	for _, types := range serviceCategories {
-		suite.Run(types.service.String()+types.category.String(), func() {
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
 			t := suite.T()
 
-			p, err := types.pathFunc(
-				b,
-				testTenant,
-				testUser,
-				true,
-			)
+			p, err := test.pathFunc(testTenant, testProtectedResource, true, path.Elements{"item"})
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Empty(t, p.Folder(false))
 			assert.Empty(t, p.Folders())
-			assert.Equal(t, item, p.Item())
+			assert.Equal(t, test.expectItem(path.Elements{"item"})(true), p.Item())
 		})
 	}
 }
 
 func (suite *DataLayerResourcePath) TestPopFront() {
 	expected := path.Builder{}.Append(append(
-		[]string{path.ExchangeService.String(), testUser, path.EmailCategory.String()},
+		[]string{path.ExchangeService.String(), testProtectedResource, path.EmailCategory.String()},
 		rest...,
 	)...)
 
@@ -202,7 +338,7 @@ func (suite *DataLayerResourcePath) TestPopFront() {
 			pb := path.Builder{}.Append(rest...)
 			p, err := pb.ToDataLayerExchangePathForCategory(
 				testTenant,
-				testUser,
+				testProtectedResource,
 				path.EmailCategory,
 				m.isItem,
 			)
@@ -218,7 +354,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 	elements := []string{
 		testTenant,
 		path.ExchangeService.String(),
-		testUser,
+		testProtectedResource,
 		path.EmailCategory.String(),
 	}
 
@@ -227,7 +363,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 			pb := path.Builder{}.Append(rest...)
 			p, err := pb.ToDataLayerExchangePathForCategory(
 				testTenant,
-				testUser,
+				testProtectedResource,
 				path.EmailCategory,
 				m.isItem,
 			)
@@ -391,7 +527,7 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 
 					p, err := b.ToDataLayerExchangePathForCategory(
 						testTenant,
-						testUser,
+						testProtectedResource,
 						test.category,
 						m.isItem)
 					test.check(t, err, clues.ToCore(err))
@@ -401,9 +537,9 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					}
 
 					assert.Equal(t, testTenant, p.Tenant())
-					assert.Equal(t, path.ExchangeService, p.ServiceResources()[0].Service)
+					assert.Equal(t, path.ExchangeService, p.PrimaryService())
 					assert.Equal(t, test.category, p.Category())
-					assert.Equal(t, testUser, p.ServiceResources()[0].ProtectedResource)
+					assert.Equal(t, testProtectedResource, p.PrimaryProtectedResource())
 					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder(false))
 					assert.Equal(t, path.Elements(m.expectedFolders), p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
@@ -416,7 +552,8 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 type PopulatedDataLayerResourcePath struct {
 	tester.Suite
 	// Bool value is whether the path is an item path or a folder path.
-	paths map[bool]path.Path
+	serviceCategoriesToIsItemToPath map[string]map[bool]path.Path
+	isItemToPath                    map[bool]path.Path
 }
 
 func TestPopulatedDataLayerResourcePath(t *testing.T) {
@@ -424,98 +561,109 @@ func TestPopulatedDataLayerResourcePath(t *testing.T) {
 }
 
 func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
-	suite.paths = make(map[bool]path.Path, 2)
-	base := path.Builder{}.Append(rest...)
+	suite.serviceCategoriesToIsItemToPath = map[string]map[bool]path.Path{}
 
-	for _, t := range []bool{true, false} {
-		p, err := base.ToDataLayerExchangePathForCategory(
-			testTenant,
-			testUser,
-			path.EmailCategory,
-			t,
-		)
-		require.NoError(suite.T(), err, clues.ToCore(err))
+	for _, sc := range serviceCategories {
+		m := make(map[bool]path.Path, 2)
+		suite.serviceCategoriesToIsItemToPath[sc.name] = m
 
-		suite.paths[t] = p
+		for _, is := range []bool{true, false} {
+			p, err := sc.pathFunc(testTenant, testProtectedResource, is, rest)
+			require.NoError(suite.T(), err, clues.ToCore(err))
+
+			suite.serviceCategoriesToIsItemToPath[sc.name][is] = p
+			suite.isItemToPath[is] = p
+		}
 	}
 }
 
 func (suite *PopulatedDataLayerResourcePath) TestTenant() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, testTenant, suite.paths[m.isItem].Tenant())
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), testTenant, p.Tenant())
+				})
+			}
 		})
 	}
 }
 
-func (suite *PopulatedDataLayerResourcePath) TestService() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(
-				t,
-				path.ExchangeService,
-				suite.paths[m.isItem].ServiceResources()[0].Service)
+func (suite *PopulatedDataLayerResourcePath) TestPrimaryService() {
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), test.primaryService, p.PrimaryService())
+				})
+			}
 		})
 	}
 }
 
 func (suite *PopulatedDataLayerResourcePath) TestCategory() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, path.EmailCategory, suite.paths[m.isItem].Category())
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), test.category, p.Category())
+				})
+			}
 		})
 	}
 }
 
-func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(
-				t,
-				testUser,
-				suite.paths[m.isItem].ServiceResources()[0].ProtectedResource)
+func (suite *PopulatedDataLayerResourcePath) TestPrimaryProtectedResource() {
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), testProtectedResource, p.PrimaryProtectedResource())
+				})
+			}
 		})
 	}
 }
 
 func (suite *PopulatedDataLayerResourcePath) TestFolder() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(
-				t,
-				strings.Join(m.expectedFolders, "/"),
-				suite.paths[m.isItem].Folder(false),
-			)
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), test.expectFolders(rest)(m.isItem).String(), p.Folder(true))
+				})
+			}
 		})
 	}
 }
 
 func (suite *PopulatedDataLayerResourcePath) TestFolders() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, path.Elements(m.expectedFolders), suite.paths[m.isItem].Folders())
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), test.expectFolders(rest)(m.isItem), p.Folders())
+				})
+			}
 		})
 	}
 }
 
 func (suite *PopulatedDataLayerResourcePath) TestItem() {
-	for _, m := range modes {
-		suite.Run(m.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, m.expectedItem, suite.paths[m.isItem].Item())
+	for _, test := range serviceCategories {
+		suite.Run(test.name, func() {
+			for _, m := range modes {
+				suite.Run(m.name, func() {
+					p := suite.serviceCategoriesToIsItemToPath[test.name][m.isItem]
+					assert.Equal(suite.T(), test.expectItem(rest)(m.isItem), p.Item())
+				})
+			}
 		})
 	}
 }
@@ -540,8 +688,7 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 			hasItem: false,
 			expectedFolder: strings.Join(
 				append(append([]string{}, rest...), newElement),
-				"/",
-			),
+				"/"),
 			expectedItem: "",
 		},
 	}
@@ -552,7 +699,7 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 				suite.Run(test.name, func() {
 					t := suite.T()
 
-					newPath, err := suite.paths[m.isItem].Append(test.hasItem, newElement)
+					newPath, err := suite.isItemToPath[m.isItem].Append(test.hasItem, newElement)
 
 					// Items don't allow appending.
 					if m.isItem {
