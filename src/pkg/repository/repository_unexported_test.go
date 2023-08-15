@@ -373,46 +373,47 @@ func (m *mockBackupGetterModelDeleter) DeleteWithModelStoreIDs(
 func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 	bup := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("current-bup-id"),
+			ModelStoreID: manifest.ID("current-bup-msid"),
 		},
-		SnapshotID:    uuid.NewString(),
-		StreamStoreID: uuid.NewString(),
+		SnapshotID:    "current-bup-dsid",
+		StreamStoreID: "current-bup-ssid",
 	}
 
 	bupLegacy := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("legacy-bup-id"),
+			ModelStoreID: manifest.ID("legacy-bup-msid"),
 		},
-		SnapshotID: uuid.NewString(),
-		DetailsID:  uuid.NewString(),
+		SnapshotID: "legacy-bup-dsid",
+		DetailsID:  "legacy-bup-did",
 	}
 
 	bupNoSnapshot := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("ns-bup-id"),
+			ModelStoreID: manifest.ID("ns-bup-id-msid"),
 		},
-		StreamStoreID: uuid.NewString(),
+		StreamStoreID: "ns-bup-ssid",
 	}
 
 	bupNoDetails := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("nssid-bup-id"),
+			ModelStoreID: manifest.ID("nssid-bup-msid"),
 		},
-		SnapshotID: uuid.NewString(),
+		SnapshotID: "nssid-bup-dsid",
 	}
 
 	table := []struct {
-		name       string
-		inputIDs   []model.StableID
-		gets       []getRes
-		expectGets []model.StableID
-		dels       []error
-		expectDels [][]string
-		expectErr  func(t *testing.T, result error)
+		name          string
+		inputIDs      []model.StableID
+		gets          []getRes
+		expectGets    []model.StableID
+		dels          []error
+		expectDels    [][]string
+		failOnMissing bool
+		expectErr     func(t *testing.T, result error)
 	}{
 		{
 			name: "SingleBackup NoError",
@@ -450,6 +451,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			expectGets: []model.StableID{
 				bup.ID,
 			},
+			failOnMissing: true,
 			expectErr: func(t *testing.T, result error) {
 				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
@@ -585,7 +587,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			},
 		},
 		{
-			name: "MultipleBackups GetError",
+			name: "MultipleBackups GetError FailOnMissing",
 			inputIDs: []model.StableID{
 				bup.ID,
 				bupLegacy.ID,
@@ -604,9 +606,46 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 				bupNoSnapshot.ID,
 				bupNoDetails.ID,
 			},
+			failOnMissing: true,
 			expectErr: func(t *testing.T, result error) {
 				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
+			},
+		},
+		{
+			name: "MultipleBackups GetError NoFailOnMissing",
+			inputIDs: []model.StableID{
+				bup.ID,
+				bupLegacy.ID,
+				bupNoSnapshot.ID,
+				bupNoDetails.ID,
+			},
+			gets: []getRes{
+				{bup: bup},
+				{err: data.ErrNotFound},
+				{bup: bupNoSnapshot},
+				{bup: bupNoDetails},
+			},
+			expectGets: []model.StableID{
+				bup.ID,
+				bupLegacy.ID,
+				bupNoSnapshot.ID,
+				bupNoDetails.ID,
+			},
+			dels: []error{nil},
+			expectDels: [][]string{
+				{
+					string(bup.ModelStoreID),
+					bup.SnapshotID,
+					bup.StreamStoreID,
+					string(bupNoSnapshot.ModelStoreID),
+					bupNoSnapshot.StreamStoreID,
+					string(bupNoDetails.ModelStoreID),
+					bupNoDetails.SnapshotID,
+				},
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
 			},
 		},
 	}
@@ -631,7 +670,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 				strIDs = append(strIDs, string(id))
 			}
 
-			err := deleteBackups(ctx, m, strIDs...)
+			err := deleteBackups(ctx, m, test.failOnMissing, strIDs...)
 			test.expectErr(t, err)
 		})
 	}
