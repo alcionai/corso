@@ -33,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	idMock "github.com/alcionai/corso/src/pkg/backup/identity/mock"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -244,7 +245,11 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				r     = kopia.NewReason("", resourceOwner, sel.PathService(), category)
+				r = idMock.Reason{
+					Cat:      category,
+					Svc:      sel.PathService(),
+					Resource: resourceOwner,
+				}
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)

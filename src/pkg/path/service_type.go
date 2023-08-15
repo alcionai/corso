@@ -33,7 +33,7 @@ const (
 	GroupsMetadataService                 // groupsMetadata
 )
 
-func toServiceType(service string) ServiceType {
+func ToServiceType(service string) ServiceType {
 	s := strings.ToLower(service)
 
 	switch s {

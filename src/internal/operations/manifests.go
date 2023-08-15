@@ -80,12 +80,7 @@ func getManifestsAndMetadata(
 	// 3. the current reasons contain all the necessary manifests.
 	// Note: This is not relevant for assist backups, since they are newly introduced
 	// and they don't exist with fallback reasons.
-	bb = bb.MergeBackupBases(
-		ctx,
-		fbb,
-		func(r identity.Reasoner) string {
-			return r.Service().String() + r.Category().String()
-		})
+	bb = bb.MergeBackupBases(ctx, fbb, kopia.BaseKeyServiceCategory)
 
 	if !getMetadata {
 		return bb, nil, false, nil

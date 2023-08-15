@@ -111,6 +111,12 @@ func (bb *backupBases) ClearAssistBases() {
 	bb.assistBases = nil
 }
 
+// BaseKeyServiceCategory makes a backup base key using
+// the reasoner's Service and Category.
+func BaseKeyServiceCategory(br identity.Reasoner) string {
+	return br.Service().String() + br.Category().String()
+}
+
 // MergeBackupBases reduces the two BackupBases into a single BackupBase.
 // Assumes the passed in BackupBases represents a prior backup version (across
 // some migration that disrupts lookup), and that the BackupBases used to call

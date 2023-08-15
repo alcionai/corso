@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	idMock "github.com/alcionai/corso/src/pkg/backup/identity/mock"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -460,18 +461,12 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 
 			bb := makeBackupBases(test.merge, test.assist)
 			other := makeBackupBases(test.otherMerge, test.otherAssist)
-			expected := test.expect()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			got := bb.MergeBackupBases(
-				ctx,
-				other,
-				func(r identity.Reasoner) string {
-					return r.Service().String() + r.Category().String()
-				})
-			AssertBackupBasesEqual(t, expected, got)
+			got := bb.MergeBackupBases(ctx, other, BaseKeyServiceCategory)
+			AssertBackupBasesEqual(t, test.expect(), got)
 		})
 	}
 }
@@ -840,6 +835,40 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 
 			test.bb.fixupAndVerify(ctx)
 			AssertBackupBasesEqual(suite.T(), test.expect, test.bb)
+		})
+	}
+}
+
+func (suite *BackupBasesUnitSuite) TestBaseKeyServiceCategory() {
+	table := []struct {
+		name     string
+		service  path.ServiceType
+		category path.CategoryType
+		expect   string
+	}{
+		{
+			name:     "unknown",
+			service:  path.UnknownService,
+			category: path.UnknownCategory,
+			expect:   "unknown",
+		},
+		{
+			name:     "known service",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
+			expect:   "exchangeEmail",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := BaseKeyServiceCategory(idMock.Reason{
+				TenantID: "tid",
+				Cat:      test.category,
+				Svc:      test.service,
+			})
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }

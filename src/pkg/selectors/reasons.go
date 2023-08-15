@@ -3,6 +3,8 @@ package selectors
 import (
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -38,11 +40,12 @@ func (br backupReason) Category() path.CategoryType {
 }
 
 func (br backupReason) SubtreePath() (path.Path, error) {
-	return path.BuildPrefix(
-		br.tenant,
-		br.resource,
-		br.service,
-		br.category)
+	srs, err := path.NewServiceResources(br.service, br.resource)
+	if err != nil {
+		return nil, clues.Wrap(err, "building path prefix services")
+	}
+
+	return path.BuildPrefix(br.tenant, srs, br.category)
 }
 
 func (br backupReason) key() string {
@@ -59,6 +62,14 @@ type servicerCategorizerProvider interface {
 	idname.Provider
 }
 
+// produces the Reasoner basis described by the selector.
+// In cases of reasons with subservices (ie, multiple
+// services described by a backup or path), the selector
+// will only ever generate a ServiceResource for the first
+// service+resource pair in the set.
+//
+// TODO: it may be possible, if necessary, to add subservice
+// recognition to the service via additional scopes.
 func reasonsFor(
 	sel servicerCategorizerProvider,
 	tenantID string,

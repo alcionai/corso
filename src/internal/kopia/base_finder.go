@@ -70,11 +70,14 @@ func (r reason) Category() path.CategoryType {
 }
 
 func (r reason) SubtreePath() (path.Path, error) {
-	p, err := path.BuildPrefix(
-		r.Tenant(),
-		r.ProtectedResource(),
+	srs, err := path.NewServiceResources(
 		r.Service(),
-		r.Category())
+		r.ProtectedResource())
+	if err != nil {
+		return nil, clues.Wrap(err, "building path service prefix")
+	}
+
+	p, err := path.BuildPrefix(r.Tenant(), srs, r.Category())
 
 	return p, clues.Wrap(err, "building path").OrNil()
 }
