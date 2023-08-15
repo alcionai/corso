@@ -373,36 +373,36 @@ func (m *mockBackupGetterModelDeleter) DeleteWithModelStoreIDs(
 func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 	bup := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("current-bup-id"),
+			ModelStoreID: manifest.ID("current-bup-msid"),
 		},
-		SnapshotID:    uuid.NewString(),
-		StreamStoreID: uuid.NewString(),
+		SnapshotID:    "current-bup-dsid",
+		StreamStoreID: "current-bup-ssid",
 	}
 
 	bupLegacy := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("legacy-bup-id"),
+			ModelStoreID: manifest.ID("legacy-bup-msid"),
 		},
-		SnapshotID: uuid.NewString(),
-		DetailsID:  uuid.NewString(),
+		SnapshotID: "legacy-bup-dsid",
+		DetailsID:  "legacy-bup-did",
 	}
 
 	bupNoSnapshot := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("ns-bup-id"),
+			ModelStoreID: manifest.ID("ns-bup-id-msid"),
 		},
-		StreamStoreID: uuid.NewString(),
+		StreamStoreID: "ns-bup-ssid",
 	}
 
 	bupNoDetails := &backup.Backup{
 		BaseModel: model.BaseModel{
-			ID:           model.StableID(uuid.NewString()),
-			ModelStoreID: manifest.ID(uuid.NewString()),
+			ID:           model.StableID("nssid-bup-id"),
+			ModelStoreID: manifest.ID("nssid-bup-msid"),
 		},
-		SnapshotID: uuid.NewString(),
+		SnapshotID: "nssid-bup-dsid",
 	}
 
 	table := []struct {
