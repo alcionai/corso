@@ -89,7 +89,7 @@ type Repository interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
-	DeleteBackups(ctx context.Context, ids ...string) error
+	DeleteBackups(ctx context.Context, failOnMissing bool, ids ...string) error
 	BackupGetter
 	// ConnectToM365 establishes graph api connections
 	// and initializes api client configurations.
@@ -633,18 +633,26 @@ func getBackupErrors(
 // DeleteBackups removes the backups from both the model store and the backup
 // storage.
 //
-// Missing models or snapshots during deletion do not cause errors.
+// If failOnMissing is true then returns an error if a backup model can't be
+// found. Otherwise ignores missing backup models.
+//
+// Missing models or snapshots during the actual deletion do not cause errors.
 //
 // All backups are delete as an atomic unit so any failures will result in no
 // deletions.
-func (r repository) DeleteBackups(ctx context.Context, ids ...string) error {
-	return deleteBackups(ctx, store.NewWrapper(r.modelStore), ids...)
+func (r repository) DeleteBackups(
+	ctx context.Context,
+	failOnMissing bool,
+	ids ...string,
+) error {
+	return deleteBackups(ctx, store.NewWrapper(r.modelStore), failOnMissing, ids...)
 }
 
 // deleteBackup handles the processing for backup deletion.
 func deleteBackups(
 	ctx context.Context,
 	sw store.BackupGetterModelDeleter,
+	failOnMissing bool,
 	ids ...string,
 ) error {
 	// Although we haven't explicitly stated it, snapshots are technically
@@ -657,7 +665,7 @@ func deleteBackups(
 	for _, id := range ids {
 		b, err := sw.GetBackup(ctx, model.StableID(id))
 		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
+			if !failOnMissing && errors.Is(err, data.ErrNotFound) {
 				continue
 			}
 
