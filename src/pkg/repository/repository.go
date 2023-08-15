@@ -633,13 +633,15 @@ func getBackupErrors(
 // DeleteBackups removes the backups from both the model store and the backup
 // storage.
 //
+// Missing models or snapshots during deletion do not cause errors.
+//
 // All backups are delete as an atomic unit so any failures will result in no
 // deletions.
 func (r repository) DeleteBackups(ctx context.Context, ids ...string) error {
 	return deleteBackups(ctx, store.NewWrapper(r.modelStore), ids...)
 }
 
-// deleteBackup handles the processing for Backup.
+// deleteBackup handles the processing for backup deletion.
 func deleteBackups(
 	ctx context.Context,
 	sw store.BackupGetterModelDeleter,
@@ -655,6 +657,10 @@ func deleteBackups(
 	for _, id := range ids {
 		b, err := sw.GetBackup(ctx, model.StableID(id))
 		if err != nil {
+			if errors.Is(err, data.ErrNotFound) {
+				continue
+			}
+
 			return clues.Stack(errWrapper(err)).
 				WithClues(ctx).
 				With("delete_backup_id", id)

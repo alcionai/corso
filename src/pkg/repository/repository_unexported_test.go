@@ -450,9 +450,10 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			expectGets: []model.StableID{
 				bup.ID,
 			},
+			dels:       []error{nil},
+			expectDels: [][]string{nil},
 			expectErr: func(t *testing.T, result error) {
-				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
-				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
+				assert.NoError(t, result, clues.ToCore(result))
 			},
 		},
 		{
@@ -585,7 +586,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			},
 		},
 		{
-			name: "MultipleBackups GetError",
+			name: "MultipleBackups GetError NoFailOnMissing",
 			inputIDs: []model.StableID{
 				bup.ID,
 				bupLegacy.ID,
@@ -594,9 +595,9 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			},
 			gets: []getRes{
 				{bup: bup},
-				{bup: bupLegacy},
-				{bup: bupNoSnapshot},
 				{err: data.ErrNotFound},
+				{bup: bupNoSnapshot},
+				{bup: bupNoDetails},
 			},
 			expectGets: []model.StableID{
 				bup.ID,
@@ -604,9 +605,20 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 				bupNoSnapshot.ID,
 				bupNoDetails.ID,
 			},
+			dels: []error{nil},
+			expectDels: [][]string{
+				{
+					string(bup.ModelStoreID),
+					bup.SnapshotID,
+					bup.StreamStoreID,
+					string(bupNoSnapshot.ModelStoreID),
+					bupNoSnapshot.StreamStoreID,
+					string(bupNoDetails.ModelStoreID),
+					bupNoDetails.SnapshotID,
+				},
+			},
 			expectErr: func(t *testing.T, result error) {
-				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
-				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
+				assert.NoError(t, result, clues.ToCore(result))
 			},
 		},
 	}
