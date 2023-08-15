@@ -28,6 +28,7 @@ const (
 // between callers.
 var retryErrs = []error{
 	syscall.ECONNRESET,
+	io.ErrUnexpectedEOF,
 }
 
 type Getter interface {
