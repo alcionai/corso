@@ -220,3 +220,29 @@ func UnlicensedM365UserID(t *testing.T) string {
 
 	return strings.ToLower(cfg[TestCfgSecondaryUserID])
 }
+
+// Teams
+
+// M365TeamsID returns a teamID string representing the m365TeamsID described
+// by either the env var CORSO_M365_TEST_TEAM_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func M365TeamsID(t *testing.T) string {
+	cfg, err := ReadTestConfig()
+	require.NoError(t, err, "retrieving m365 team id from test configuration: %+v", clues.ToCore(err))
+
+	return strings.ToLower(cfg[TestCfgTeamID])
+}
+
+// Groups
+
+// M365GroupID returns a groupID string representing the m365GroupID described
+// by either the env var CORSO_M365_TEST_GROUP_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func M365GroupID(t *testing.T) string {
+	cfg, err := ReadTestConfig()
+	require.NoError(t, err, "retrieving m365 group id from test configuration: %+v", clues.ToCore(err))
+
+	return strings.ToLower(cfg[TestCfgTeamID])
+}
