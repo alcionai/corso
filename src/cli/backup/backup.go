@@ -283,7 +283,7 @@ func genericDeleteCommand(
 
 	defer utils.CloseRepo(ctx, r)
 
-	if err := r.DeleteBackup(ctx, bID); err != nil {
+	if err := r.DeleteBackups(ctx, true, bID); err != nil {
 		return Only(ctx, clues.Wrap(err, "Deleting backup "+bID))
 	}
 

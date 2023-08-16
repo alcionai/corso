@@ -1,4 +1,4 @@
-package readers_test
+package readers
 
 import (
 	"bytes"
@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -141,10 +140,19 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 		expectErr           error
 	}{
 		{
-			name: "OnlyFirstGetErrors NoRangeSupport",
+			name: "OnlyFirstGetErrors ECONNRESET NoRangeSupport",
 			getterResps: map[int]getterResp{
 				0: {
 					err: syscall.ECONNRESET,
+				},
+			},
+			expectData: data,
+		},
+		{
+			name: "OnlyFirstGetErrors ErrUnexpectedEOF NoRangeSupport",
+			getterResps: map[int]getterResp{
+				0: {
+					err: io.ErrUnexpectedEOF,
 				},
 			},
 			expectData: data,
@@ -215,6 +223,29 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				3: {
 					read: 0,
 					err:  syscall.ECONNRESET,
+				},
+				6: {
+					read: 0,
+					err:  syscall.ECONNRESET,
+				},
+			},
+			expectData: data,
+		},
+		{
+			name:          "MultipleRetriableErrorTypesInMiddle RangeSupport",
+			supportsRange: true,
+			getterResps: map[int]getterResp{
+				1: {offset: 12},
+				2: {offset: 20},
+			},
+			getterExpectHeaders: map[int]map[string]string{
+				1: {"Range": "bytes=12-"},
+				2: {"Range": "bytes=20-"},
+			},
+			readerResps: map[int]readResp{
+				3: {
+					read: 0,
+					err:  io.ErrUnexpectedEOF,
 				},
 				6: {
 					read: 0,
@@ -450,7 +481,7 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 				resData = make([]byte, len(data))
 			)
 
-			rrh, err := readers.NewResetRetryHandler(ctx, getter)
+			rrh, err := NewResetRetryHandler(ctx, getter)
 			require.NoError(t, err, "making reader wrapper: %v", clues.ToCore(err))
 
 			for err == nil && offset < len(data) {
@@ -472,6 +503,68 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 			}
 
 			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
+		})
+	}
+}
+
+func (suite *ResetRetryHandlerUnitSuite) TestIsRetriable() {
+	table := []struct {
+		name   string
+		err    error
+		expect bool
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: false,
+		},
+		{
+			name:   "Connection Reset Error",
+			err:    syscall.ECONNRESET,
+			expect: true,
+		},
+		{
+			name:   "Unexpected EOF Error",
+			err:    io.ErrUnexpectedEOF,
+			expect: true,
+		},
+		{
+			name:   "Not Retriable Error",
+			err:    assert.AnError,
+			expect: false,
+		},
+		{
+			name:   "Chained Errors With No Retriables",
+			err:    clues.Stack(assert.AnError, clues.New("another error")),
+			expect: false,
+		},
+		{
+			name:   "Chained Errors With ECONNRESET",
+			err:    clues.Stack(assert.AnError, syscall.ECONNRESET, assert.AnError),
+			expect: true,
+		},
+		{
+			name:   "Chained Errors With ErrUnexpectedEOF",
+			err:    clues.Stack(assert.AnError, io.ErrUnexpectedEOF, assert.AnError),
+			expect: true,
+		},
+		{
+			name:   "Wrapped ECONNRESET Error",
+			err:    clues.Wrap(syscall.ECONNRESET, "wrapped error"),
+			expect: true,
+		},
+		{
+			name:   "Wrapped ErrUnexpectedEOF Error",
+			err:    clues.Wrap(io.ErrUnexpectedEOF, "wrapped error"),
+			expect: true,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			assert.Equal(t, test.expect, isRetriable(test.err))
 		})
 	}
 }

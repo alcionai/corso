@@ -66,8 +66,8 @@ github.com/andybalholm/brotli v1.0.5 h1:8uQZIdzKmjc/iuPu7O2ioW48L81FgatrcpfFmiq/
 github.com/andybalholm/brotli v1.0.5/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
 github.com/armon/go-metrics v0.4.1 h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJA=
 github.com/armon/go-metrics v0.4.1/go.mod h1:E6amYzXo6aW1tqzoZGT755KkbgrJsSdpwZ+3JqfkOG4=
-github.com/aws/aws-sdk-go v1.44.322 h1:7JfwifGRGQMHd99PvfXqxBaZsjuRaOF6e3X9zRx2uYo=
-github.com/aws/aws-sdk-go v1.44.322/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.324 h1:/uja9PtgeeqrZCPOJTenjMLNpciIMuzaRKooq+erG4A=
+github.com/aws/aws-sdk-go v1.44.324/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-xray-sdk-go v1.8.1 h1:O4pXV+hnCskaamGsZnFpzHyAmgPGusBMN6i7nnsy0Fo=
 github.com/aws/aws-xray-sdk-go v1.8.1/go.mod h1:wMmVYzej3sykAttNBkXQHK/+clAPWTOrPiajEk7Cp3A=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
@@ -275,8 +275,8 @@ github.com/microsoft/kiota-abstractions-go v1.2.0 h1:lUriJgqdCY/QajwWQOgTCQE9Aty
 github.com/microsoft/kiota-abstractions-go v1.2.0/go.mod h1:RkxyZ5x87Njik7iVeQY9M2wtrrL1MJZcXiI/BxD/82g=
 github.com/microsoft/kiota-authentication-azure-go v1.0.0 h1:29FNZZ/4nnCOwFcGWlB/sxPvWz487HA2bXH8jR5k2Rk=
 github.com/microsoft/kiota-authentication-azure-go v1.0.0/go.mod h1:rnx3PRlkGdXDcA/0lZQTbBwyYGmc+3POt7HpE/e4jGw=
-github.com/microsoft/kiota-http-go v1.0.1 h1:818u3aiLpxj35hZgfUSqphQ18IUTK3gVdTE4cQ5vjLw=
-github.com/microsoft/kiota-http-go v1.0.1/go.mod h1:H0cg+ly+5ZSR8z4swj5ea9O/GB5ll2YuYeQ0/pJs7AY=
+github.com/microsoft/kiota-http-go v1.1.0 h1:L5I93EiNtlP/X6YzeTlhjWt7Q1DxzC9CmWSVtX3b0tE=
+github.com/microsoft/kiota-http-go v1.1.0/go.mod h1:zESUM6ovki9LEupqziCbxJ+FAYoF0dFDYZVpOkAfSLc=
 github.com/microsoft/kiota-serialization-form-go v1.0.0 h1:UNdrkMnLFqUCccQZerKjblsyVgifS11b3WCx+eFEsAI=
 github.com/microsoft/kiota-serialization-form-go v1.0.0/go.mod h1:h4mQOO6KVTNciMF6azi1J9QB19ujSw3ULKcSNyXXOMA=
 github.com/microsoft/kiota-serialization-json-go v1.0.4 h1:5TaISWwd2Me8clrK7SqNATo0tv9seOq59y4I5953egQ=
