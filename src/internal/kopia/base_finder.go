@@ -30,6 +30,10 @@ const (
 	userTagPrefix = "tag:"
 )
 
+// ---------------------------------------------------------------------------
+// reasoners
+// ---------------------------------------------------------------------------
+
 func NewReason(
 	tenant, resource string,
 	service path.ServiceType,
@@ -47,10 +51,11 @@ type reason struct {
 	// tenant appears here so that when this is moved to an inject package nothing
 	// needs changed. However, kopia itself is blind to the fields in the reason
 	// struct and relies on helper functions to get the information it needs.
-	tenant   string
-	resource string
-	service  path.ServiceType
-	category path.CategoryType
+	tenant           string
+	serviceResources []path.ServiceResource
+	resource         string
+	service          path.ServiceType
+	category         path.CategoryType
 }
 
 func (r reason) Tenant() string {
@@ -94,6 +99,10 @@ func reasonKey(r identity.Reasoner) string {
 	return r.ProtectedResource() + r.Service().String() + r.Category().String()
 }
 
+// ---------------------------------------------------------------------------
+// entries
+// ---------------------------------------------------------------------------
+
 type BackupEntry struct {
 	*backup.Backup
 	Reasons []identity.Reasoner
@@ -108,7 +117,7 @@ type ManifestEntry struct {
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)
 	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
-	Reasons []identity.Reasoner
+	Reasons []identity.SubtreeReasoner
 }
 
 func (me ManifestEntry) GetTag(key string) (string, bool) {
@@ -284,7 +293,7 @@ func (b *baseFinder) findBasesInSet(
 				}
 				assistSnap := ManifestEntry{
 					Manifest: man,
-					Reasons:  []identity.Reasoner{reason},
+					Reasons:  []identity.SubtreeReasoner{reason},
 				}
 
 				assistBase = &backupBase{
@@ -310,7 +319,7 @@ func (b *baseFinder) findBasesInSet(
 
 		mergeSnap := ManifestEntry{
 			Manifest: man,
-			Reasons:  []identity.Reasoner{reason},
+			Reasons:  []identity.SubtreeReasoner{reason},
 		}
 
 		mergeModel := BackupEntry{

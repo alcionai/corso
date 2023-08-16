@@ -1070,20 +1070,20 @@ const (
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap ManifestEntry,
+	snapshot ManifestEntry,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
 	// Only complete snapshots should be used to source base information.
 	// Snapshots for checkpoints will rely on kopia-assisted dedupe to efficiently
 	// handle items that were completely uploaded before Corso crashed.
-	if len(snap.IncompleteReason) > 0 {
+	if len(snapshot.IncompleteReason) > 0 {
 		return nil
 	}
 
-	ctx = clues.Add(ctx, "snapshot_base_id", snap.ID)
+	ctx = clues.Add(ctx, "snapshot_base_id", snapshot.ID)
 
-	root, err := loader.SnapshotRoot(snap.Manifest)
+	root, err := loader.SnapshotRoot(snapshot.Manifest)
 	if err != nil {
 		return clues.Wrap(err, "getting snapshot root directory").WithClues(ctx)
 	}
@@ -1094,12 +1094,12 @@ func inflateBaseTree(
 	}
 
 	// Some logging to help track things.
-	logBaseInfo(ctx, snap)
+	logBaseInfo(ctx, snapshot)
 
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
 	// what has been reported in the collections we got.
-	for _, r := range snap.Reasons {
+	for _, r := range snapshot.Reasons {
 		ictx := clues.Add(
 			ctx,
 			"subtree_service", r.Service().String(),
