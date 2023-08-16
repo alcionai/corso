@@ -75,6 +75,7 @@ func collectItems(
 		pager.SetNext(prevDelta)
 	}
 
+	logger.Ctx(ctx).Info("delta query iteration begin")
 	for {
 		// assume delta urls here, which allows single-token consumption
 		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
@@ -128,6 +129,7 @@ func collectItems(
 		logger.Ctx(ctx).Debugw("Found nextLink", "link", nextLink)
 		pager.SetNext(nextLink)
 	}
+	logger.Ctx(ctx).Info("delta query iteration end")
 
 	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil
 }
