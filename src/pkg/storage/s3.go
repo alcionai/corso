@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"os"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -50,6 +51,13 @@ func (c S3Config) Normalize() S3Config {
 	}
 }
 
+const (
+	// hack to avoid cycle with config pkg
+	AccessKey       = "aws_access_key_id"
+	SecretAccessKey = "aws_secret_access_key"
+	SessionToken    = "aws_session_token"
+)
+
 // StringConfig transforms a s3Config struct into a plain
 // map[string]string.  All values in the original struct which
 // serialize into the map are expected to be strings.
@@ -74,14 +82,21 @@ func (s Storage) S3Config() (S3Config, error) {
 	c := S3Config{}
 
 	if len(s.Config) > 0 {
-		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
-		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
-		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
+		// c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
+		// c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
+		// c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
 
-		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
-		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
+		c.AccessKey = os.Getenv(AccessKey)
+		c.SecretKey = os.Getenv(SecretAccessKey)
+		c.SessionToken = os.Getenv(SessionToken)
+		c.Bucket = "ap-test"
+		c.Endpoint = "localhost:9000"
 		c.Prefix = orEmptyString(s.Config[keyS3Prefix])
-		c.DoNotUseTLS = str.ParseBool(s.Config[keyS3DoNotUseTLS])
+
+		// c.Bucket = orEmptyString(s.Config[keyS3Bucket])
+		// c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
+		// c.Prefix = orEmptyString(s.Config[keyS3Prefix])
+		c.DoNotUseTLS = true
 		c.DoNotVerifyTLS = str.ParseBool(s.Config[keyS3DoNotVerifyTLS])
 	}
 
