@@ -28,7 +28,6 @@ type FetchRestoreCollection struct {
 // ErrNotFound for all Fetch calls.
 type NoFetchRestoreCollection struct {
 	Collection
-	FetchItemByNamer
 }
 
 func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Item, error) {
