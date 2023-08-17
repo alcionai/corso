@@ -3,6 +3,7 @@ package kopia
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
@@ -16,10 +17,42 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+// cleanupOrphanedData uses bs and mf to lookup all models/snapshots for backups
+// and deletes items that are older than nowFunc() - gcBuffer (cutoff) that are
+// not "complete" backups with:
+//   - a backup model
+//   - an item data snapshot
+//   - a details snapshot or details model
+//
+// We exclude all items younger than the cutoff to add some buffer so that even
+// if this is run concurrently with a backup it's not likely to delete models
+// just being created. For example, if there was no buffer period and this is
+// run when another corso instance has created an item data snapshot but hasn't
+// yet created the details snapshot or the backup model would result in this
+// instance of corso marking the newly created item data snapshot for deletion
+// because it appears orphaned.
+//
+// For simplicity, we exclude all items younger than the cutoff. It's possible
+// to exclude only snapshots and details models since the backup model is the
+// last thing persisted for a backup. However, If we selectively exclude things
+// then changes to the order of persistence may require changes here too.
+//
+// The buffer duration should be longer than the difference in creation times
+// between the first item data snapshot/details/backup model made during a
+// backup operation and the last.
+//
+// We don't have hard numbers on the time right now, but if the order of
+// persistence is (item data snapshot, details snapshot, backup model) it should
+// be faster than creating the snapshot itself and probably happens O(minutes)
+// or O(hours) instead of O(days). Of course, that assumes a non-adversarial
+// setup where things such as machine hiberation, process freezing (i.e. paused
+// at the OS level), etc. don't occur.
 func cleanupOrphanedData(
 	ctx context.Context,
 	bs store.Storer,
 	mf manifestFinder,
+	gcBuffer time.Duration,
+	nowFunc func() time.Time,
 ) error {
 	// Get all snapshot manifests.
 	snaps, err := mf.FindManifests(
@@ -43,27 +76,16 @@ func cleanupOrphanedData(
 		dataSnaps = map[manifest.ID]struct{}{}
 	)
 
-	// TODO(ashmrtn): Exclude all snapshots and details younger than X <duration>.
-	// Doing so adds some buffer so that even if this is run concurrently with a
-	// backup it's not likely to delete models just being created. For example,
-	// running this when another corso instance has created an item data snapshot
-	// but hasn't yet created the details snapshot or the backup model would
-	// result in this instance of corso marking the newly created item data
-	// snapshot for deletion because it appears orphaned.
-	//
-	// Excluding only snapshots and details models works for now since the backup
-	// model is the last thing persisted out of them. If we switch the order of
-	// persistence then this will need updated as well.
-	//
-	// The buffer duration should be longer than the time it would take to do
-	// details merging and backup model creation. We don't have hard numbers on
-	// that, but it should be faster than creating the snapshot itself and
-	// probably happens O(minutes) or O(hours) instead of O(days). Of course, that
-	// assumes a non-adversarial setup where things such as machine hiberation,
-	// process freezing (i.e. paused at the OS level), etc. don't occur.
+	cutoff := nowFunc().Add(-gcBuffer)
 
 	// Sort all the snapshots as either details snapshots or item data snapshots.
 	for _, snap := range snaps {
+		// Don't even try to see if this needs garbage collected because it's not
+		// old enough and may correspond to an in-progress operation.
+		if !cutoff.After(snap.ModTime) {
+			continue
+		}
+
 		k, _ := makeTagKV(TagBackupCategory)
 		if _, ok := snap.Labels[k]; ok {
 			dataSnaps[snap.ID] = struct{}{}
@@ -82,6 +104,12 @@ func cleanupOrphanedData(
 	}
 
 	for _, d := range deetsModels {
+		// Don't even try to see if this needs garbage collected because it's not
+		// old enough and may correspond to an in-progress operation.
+		if !cutoff.After(d.ModTime) {
+			continue
+		}
+
 		deets[d.ModelStoreID] = struct{}{}
 	}
 
@@ -95,6 +123,12 @@ func cleanupOrphanedData(
 	maps.Copy(toDelete, dataSnaps)
 
 	for _, bup := range bups {
+		// Don't even try to see if this needs garbage collected because it's not
+		// old enough and may correspond to an in-progress operation.
+		if !cutoff.After(bup.ModTime) {
+			continue
+		}
+
 		toDelete[manifest.ID(bup.ModelStoreID)] = struct{}{}
 
 		bm := backup.Backup{}
@@ -110,12 +144,13 @@ func cleanupOrphanedData(
 					With("search_backup_id", bup.ID)
 			}
 
-			// TODO(ashmrtn): This actually needs revised, see above TODO. Leaving it
-			// here for the moment to get the basic logic in.
+			// Probably safe to continue if the model wasn't found because that means
+			// that the possible item data and details for the backup are now
+			// orphaned. They'll be deleted since we won't remove them from the delete
+			// set.
 			//
-			// Safe to continue if the model wasn't found because that means that the
-			// possible item data and details for the backup are now orphaned. They'll
-			// be deleted since we won't remove them from the delete set.
+			// The fact that we exclude all items younger than the cutoff should
+			// already exclude items that are from concurrent corso backup operations.
 			//
 			// This isn't expected to really pop up, but it's possible if this
 			// function is run concurrently with either a backup delete or another
@@ -142,6 +177,11 @@ func cleanupOrphanedData(
 			delete(toDelete, manifest.ID(ssid))
 		}
 	}
+
+	logger.Ctx(ctx).Debugw(
+		"garbage collecting orphaned items",
+		"num_items", len(toDelete),
+		"kopia_ids", maps.Keys(toDelete))
 
 	// Use single atomic batch delete operation to cleanup to keep from making a
 	// bunch of manifest content blobs.
