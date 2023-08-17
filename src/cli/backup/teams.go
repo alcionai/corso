@@ -1,10 +1,12 @@
 package backup
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -126,7 +128,13 @@ func teamsCreateCmd() *cobra.Command {
 
 // processes a teams service backup.
 func createTeamsCmd(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	return Only(ctx, clues.New("not yet implemented"))
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -164,7 +172,13 @@ func teamsDetailsCmd() *cobra.Command {
 
 // processes a teams service backup.
 func detailsTeamsCmd(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	return Only(ctx, clues.New("not yet implemented"))
 }
 
 // ------------------------------------------------------------------------------------------------
