@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/kopia/kopia/repo/manifest"
 )
 
@@ -68,7 +70,8 @@ type BaseModel struct {
 	// Tags associated with this model in the store to facilitate lookup. Tags in
 	// the struct are not serialized directly into the stored model, but are part
 	// of the metadata for the model.
-	Tags map[string]string `json:"-"`
+	Tags    map[string]string `json:"-"`
+	ModTime time.Time         `json:"-"`
 }
 
 func (bm *BaseModel) Base() *BaseModel {
