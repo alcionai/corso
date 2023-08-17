@@ -60,8 +60,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = groupsServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// TODO Neha: add groups flag
-		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		flags.AddGroupFlag(c)
+		flags.AddDataFlag(c, []string{dataLibraries}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)

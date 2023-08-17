@@ -60,7 +60,7 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = teamsServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// TODO Neha: add teams flag
+		flags.AddTeamFlag(c)
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
