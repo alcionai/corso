@@ -34,7 +34,7 @@ func (mms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stab
 	return mms.err
 }
 
-func (mms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
+func (mms *ModelStore) DeleteWithModelStoreIDs(ctx context.Context, ids ...manifest.ID) error {
 	return mms.err
 }
 

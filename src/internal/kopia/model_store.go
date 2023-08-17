@@ -497,20 +497,32 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 		return err
 	}
 
-	return ms.DeleteWithModelStoreID(ctx, latest)
+	return ms.DeleteWithModelStoreIDs(ctx, latest)
 }
 
-// DeleteWithModelStoreID deletes the model with the given ModelStoreID from the
-// model store. Turns into a noop if id is not empty but the model does not
-// exist.
-func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
-	if len(id) == 0 {
-		return clues.Stack(errNoModelStoreID).WithClues(ctx)
-	}
-
+// DeleteWithModelStoreID deletes the model(s) with the given ModelStoreID(s)
+// from the model store. For an individual ID, turns into a noop if the ID is
+// non-empty but the model doesn't exist. All model deletions should be
+// persisted atomically.
+//
+// Will not make any changes if any deletion attempt returns an error.
+func (ms *ModelStore) DeleteWithModelStoreIDs(
+	ctx context.Context,
+	ids ...manifest.ID,
+) error {
 	opts := repo.WriteSessionOptions{Purpose: "ModelStoreDelete"}
 	cb := func(innerCtx context.Context, w repo.RepositoryWriter) error {
-		return w.DeleteManifest(innerCtx, id)
+		for _, id := range ids {
+			if len(id) == 0 {
+				return clues.Stack(errNoModelStoreID).WithClues(ctx)
+			}
+
+			if err := w.DeleteManifest(innerCtx, id); err != nil {
+				return clues.Stack(err).WithClues(innerCtx).With("model_store_id", id)
+			}
+		}
+
+		return nil
 	}
 
 	if err := repo.WriteSession(ctx, ms.c, opts, cb); err != nil {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -88,7 +89,7 @@ type Repository interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
-	DeleteBackup(ctx context.Context, id string) error
+	DeleteBackups(ctx context.Context, failOnMissing bool, ids ...string) error
 	BackupGetter
 	// ConnectToM365 establishes graph api connections
 	// and initializes api client configurations.
@@ -629,45 +630,67 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
-type snapshotDeleter interface {
-	DeleteSnapshot(ctx context.Context, snapshotID string) error
-}
-
-// DeleteBackup removes the backup from both the model store and the backup storage.
-func (r repository) DeleteBackup(ctx context.Context, id string) error {
-	return deleteBackup(ctx, id, r.dataLayer, store.NewWrapper(r.modelStore))
-}
-
-// deleteBackup handles the processing for Backup.
-func deleteBackup(
+// DeleteBackups removes the backups from both the model store and the backup
+// storage.
+//
+// If failOnMissing is true then returns an error if a backup model can't be
+// found. Otherwise ignores missing backup models.
+//
+// Missing models or snapshots during the actual deletion do not cause errors.
+//
+// All backups are delete as an atomic unit so any failures will result in no
+// deletions.
+func (r repository) DeleteBackups(
 	ctx context.Context,
-	id string,
-	kw snapshotDeleter,
-	sw store.BackupGetterDeleter,
+	failOnMissing bool,
+	ids ...string,
 ) error {
-	b, err := sw.GetBackup(ctx, model.StableID(id))
-	if err != nil {
-		return errWrapper(err)
-	}
+	return deleteBackups(ctx, store.NewWrapper(r.modelStore), failOnMissing, ids...)
+}
 
-	if len(b.SnapshotID) > 0 {
-		if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
-			return err
+// deleteBackup handles the processing for backup deletion.
+func deleteBackups(
+	ctx context.Context,
+	sw store.BackupGetterModelDeleter,
+	failOnMissing bool,
+	ids ...string,
+) error {
+	// Although we haven't explicitly stated it, snapshots are technically
+	// manifests in kopia. This means we can use the same delete API to remove
+	// them and backup models. Deleting all of them together gives us both
+	// atomicity guarantees (around when data will be flushed) and helps reduce
+	// the number of manifest blobs that kopia will create.
+	var toDelete []manifest.ID
+
+	for _, id := range ids {
+		b, err := sw.GetBackup(ctx, model.StableID(id))
+		if err != nil {
+			if !failOnMissing && errors.Is(err, data.ErrNotFound) {
+				continue
+			}
+
+			return clues.Stack(errWrapper(err)).
+				WithClues(ctx).
+				With("delete_backup_id", id)
+		}
+
+		toDelete = append(toDelete, b.ModelStoreID)
+
+		if len(b.SnapshotID) > 0 {
+			toDelete = append(toDelete, manifest.ID(b.SnapshotID))
+		}
+
+		ssid := b.StreamStoreID
+		if len(ssid) == 0 {
+			ssid = b.DetailsID
+		}
+
+		if len(ssid) > 0 {
+			toDelete = append(toDelete, manifest.ID(ssid))
 		}
 	}
 
-	ssid := b.StreamStoreID
-	if len(ssid) == 0 {
-		ssid = b.DetailsID
-	}
-
-	if len(ssid) > 0 {
-		if err := kw.DeleteSnapshot(ctx, ssid); err != nil {
-			return err
-		}
-	}
-
-	return sw.DeleteBackup(ctx, model.StableID(id))
+	return sw.DeleteWithModelStoreIDs(ctx, toDelete...)
 }
 
 func (r repository) ConnectToM365(

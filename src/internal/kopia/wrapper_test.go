@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/format"
@@ -2154,54 +2153,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Erro
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, c)
-		})
-	}
-}
-
-func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
-	t := suite.T()
-
-	err := suite.w.DeleteSnapshot(suite.ctx, string(suite.snapshotID))
-	assert.NoError(t, err, clues.ToCore(err))
-
-	// assert the deletion worked
-	itemPath := suite.files[suite.testPath1.String()][0].itemPath
-	ic := i64counter{}
-
-	c, err := suite.w.ProduceRestoreCollections(
-		suite.ctx,
-		string(suite.snapshotID),
-		toRestorePaths(t, itemPath),
-		&ic,
-		fault.New(true))
-	assert.Error(t, err, "snapshot should be deleted", clues.ToCore(err))
-	assert.Empty(t, c)
-	assert.Zero(t, ic.i)
-}
-
-func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot_BadIDs() {
-	table := []struct {
-		name       string
-		snapshotID string
-		expect     assert.ErrorAssertionFunc
-	}{
-		{
-			name:       "no id",
-			snapshotID: "",
-			expect:     assert.Error,
-		},
-		{
-			name:       "unknown id",
-			snapshotID: uuid.NewString(),
-			expect:     assert.NoError,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			err := suite.w.DeleteSnapshot(suite.ctx, test.snapshotID)
-			test.expect(t, err, clues.ToCore(err))
 		})
 	}
 }

@@ -51,26 +51,6 @@ func (d *Details) add(
 			return entry, clues.New("item is not SharePoint or OneDrive type")
 		}
 
-		filename := ""
-		if info.OneDrive != nil {
-			filename = info.OneDrive.ItemName
-		} else if info.SharePoint != nil {
-			filename = info.SharePoint.ItemName
-		}
-
-		// Make the new path contain all display names and then the M365 item ID.
-		// This ensures the path will be unique, thus ensuring the ShortRef will be
-		// unique.
-		//
-		// If we appended the file's display name to the path then it's possible
-		// for a folder in the parent directory to have the same display name as the
-		// M365 ID of this file and also have a subfolder in the folder with a
-		// display name that matches the file's display name. That would result in
-		// duplicate ShortRefs, which we can't allow.
-		elements := repoRef.Elements()
-		elements = append(elements[:len(elements)-1], filename, repoRef.Item())
-		entry.ShortRef = path.Builder{}.Append(elements...).ShortRef()
-
 		// clean metadata suffixes from item refs
 		entry.ItemRef = withoutMetadataSuffix(entry.ItemRef)
 	}

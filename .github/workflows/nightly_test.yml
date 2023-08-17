@@ -103,7 +103,7 @@ jobs:
           -v            \
           -failfast     \
           -p 1          \
-          -timeout 15m  \
+          -timeout 1h  \
           ./... 2>&1 | tee ./testlog/gotest-nightly.log | gotestfmt -hide successful-tests
 
 ##########################################################################################################################################

@@ -48,7 +48,7 @@ func deleteBackups(
 
 	for _, backup := range backups {
 		if backup.StartAndEndTime.CompletedAt.Before(cutoff) {
-			if err := r.DeleteBackup(ctx, backup.ID.String()); err != nil {
+			if err := r.DeleteBackups(ctx, true, backup.ID.String()); err != nil {
 				return nil, clues.Wrap(
 					err,
 					"deleting backup").
@@ -73,6 +73,12 @@ func pitrListBackups(
 	pitr time.Time,
 	backupIDs []string,
 ) error {
+	logAndPrint(
+		ctx,
+		"looking for %d backup(s) using timestamp %v\n",
+		len(backupIDs),
+		pitr)
+
 	if len(backupIDs) == 0 {
 		return nil
 	}
