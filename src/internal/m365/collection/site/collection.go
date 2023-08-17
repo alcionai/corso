@@ -26,14 +26,21 @@ import (
 
 type DataCategory int
 
+// channel sizes
+const (
+	collectionChannelBufferSize = 50
+	fetchChannelSize            = 5
+)
+
 //go:generate stringer -type=DataCategory
 const (
-	collectionChannelBufferSize              = 50
-	fetchChannelSize                         = 5
-	Unknown                     DataCategory = iota
-	List
-	Drive
-	Pages
+	// Unknown is 2 due to a mishandling of iota.
+	// It should be 0, by standard, but now we're
+	// stuck with this for backwards compatibility.
+	Unknown DataCategory = 2
+	List    DataCategory = 3
+	Drive   DataCategory = 4
+	Pages   DataCategory = 5
 )
 
 var (

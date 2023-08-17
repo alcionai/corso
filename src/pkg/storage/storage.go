@@ -12,8 +12,8 @@ type storageProvider int
 
 //go:generate stringer -type=storageProvider -linecomment
 const (
-	ProviderUnknown storageProvider = iota // Unknown Provider
-	ProviderS3                             // S3
+	ProviderUnknown storageProvider = 0 // Unknown Provider
+	ProviderS3      storageProvider = 1 // S3
 )
 
 // storage parsing errors

@@ -31,13 +31,13 @@ type collectionScope int
 const (
 	// CollectionScopeUnknown is used when we don't know and don't need
 	// to know the kind, like in the case of deletes
-	CollectionScopeUnknown collectionScope = iota
+	CollectionScopeUnknown collectionScope = 0
 
 	// CollectionScopeFolder is used for regular folder collections
-	CollectionScopeFolder
+	CollectionScopeFolder collectionScope = 1
 
 	// CollectionScopePackage is used to represent OneNote items
-	CollectionScopePackage
+	CollectionScopePackage collectionScope = 2
 )
 
 const restrictedDirectory = "Site Pages"

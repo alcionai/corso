@@ -33,11 +33,11 @@ type OpStatus int
 
 //go:generate stringer -type=OpStatus -linecomment
 const (
-	Unknown    OpStatus = iota // Status Unknown
-	InProgress                 // In Progress
-	Completed                  // Completed
-	Failed                     // Failed
-	NoData                     // No Data
+	Unknown    OpStatus = 0 // Status Unknown
+	InProgress OpStatus = 1 // In Progress
+	Completed  OpStatus = 2 // Completed
+	Failed     OpStatus = 3 // Failed
+	NoData     OpStatus = 4 // No Data
 )
 
 // --------------------------------------------------------------------------------

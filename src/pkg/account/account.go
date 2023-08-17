@@ -10,8 +10,8 @@ type accountProvider int
 
 //go:generate stringer -type=accountProvider -linecomment
 const (
-	ProviderUnknown accountProvider = iota // Unknown Provider
-	ProviderM365                           // M365
+	ProviderUnknown accountProvider = 0 // Unknown Provider
+	ProviderM365    accountProvider = 1 // M365
 )
 
 // storage parsing errors

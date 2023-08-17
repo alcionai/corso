@@ -22,12 +22,12 @@ func (id StableID) String() string {
 //
 //go:generate go run golang.org/x/tools/cmd/stringer -type=Schema
 const (
-	UnknownSchema = Schema(iota)
-	BackupOpSchema
-	RestoreOpSchema
-	BackupSchema
-	BackupDetailsSchema
-	RepositorySchema
+	UnknownSchema       Schema = 0
+	BackupOpSchema      Schema = 1
+	RestoreOpSchema     Schema = 2
+	BackupSchema        Schema = 3
+	BackupDetailsSchema Schema = 4
+	RepositorySchema    Schema = 5
 )
 
 // common tags for filtering
@@ -38,7 +38,7 @@ const (
 	MergeBackup   = "merge-backup"
 )
 
-// Valid returns true if the ModelType value fits within the iota range.
+// Valid returns true if the ModelType value fits within the const range.
 func (mt Schema) Valid() bool {
 	return mt > 0 && mt < RepositorySchema+1
 }

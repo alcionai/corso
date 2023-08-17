@@ -20,11 +20,11 @@ type service int
 
 //go:generate stringer -type=service -linecomment
 const (
-	ServiceUnknown    service = iota // Unknown Service
-	ServiceExchange                  // Exchange
-	ServiceOneDrive                  // OneDrive
-	ServiceSharePoint                // SharePoint
-	ServiceGroups                    // Groups
+	ServiceUnknown    service = 0 // Unknown Service
+	ServiceExchange   service = 1 // Exchange
+	ServiceOneDrive   service = 2 // OneDrive
+	ServiceSharePoint service = 3 // SharePoint
+	ServiceGroups     service = 4 // Groups
 )
 
 var serviceToPathType = map[service]path.ServiceType{

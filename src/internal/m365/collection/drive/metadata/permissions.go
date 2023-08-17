@@ -14,8 +14,8 @@ import (
 type SharingMode int
 
 const (
-	SharingModeCustom = SharingMode(iota)
-	SharingModeInherited
+	SharingModeCustom    SharingMode = 0
+	SharingModeInherited SharingMode = 1
 )
 
 type GV2Type string
