@@ -49,24 +49,6 @@ func (c Groups) GetAll(
 	return getGroups(ctx, errs, service)
 }
 
-// GetTeams retrieves all Teams.
-func (c Groups) GetTeams(
-	ctx context.Context,
-	errs *fault.Bus,
-) ([]models.Groupable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, err
-	}
-
-	groups, err := getGroups(ctx, errs, service)
-	if err != nil {
-		return nil, err
-	}
-
-	return OnlyTeams(ctx, groups), nil
-}
-
 // GetAll retrieves all groups.
 func getGroups(
 	ctx context.Context,
@@ -113,31 +95,6 @@ func getGroups(
 	return groups, el.Failure()
 }
 
-func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
-	log := logger.Ctx(ctx)
-
-	var teams []models.Groupable
-
-	for _, g := range groups {
-		if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
-			val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, g.GetAdditionalData())
-			for _, v := range val {
-				s, err := str.AnyToString(v)
-				if err != nil {
-					log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
-					continue
-				}
-
-				if s == teamsAdditionalDataLabel {
-					teams = append(teams, g)
-				}
-			}
-		}
-	}
-
-	return teams
-}
-
 // GetID retrieves group by groupID.
 func (c Groups) GetByID(
 	ctx context.Context,
@@ -151,34 +108,6 @@ func (c Groups) GetByID(
 	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
 	if err != nil {
 		err := graph.Wrap(ctx, err, "getting group by id")
-
-		return nil, err
-	}
-
-	return resp, graph.Stack(ctx, err).OrNil()
-}
-
-// GetTeamByID retrieves group by groupID.
-func (c Groups) GetTeamByID(
-	ctx context.Context,
-	identifier string,
-) (models.Groupable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
-	if err != nil {
-		err := graph.Wrap(ctx, err, "getting group by id")
-
-		return nil, err
-	}
-
-	groups := []models.Groupable{resp}
-
-	if len(OnlyTeams(ctx, groups)) == 0 {
-		err := clues.New("given teamID is not related to any team")
 
 		return nil, err
 	}
@@ -202,4 +131,39 @@ func ValidateGroup(item models.Groupable) error {
 	}
 
 	return nil
+}
+
+func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
+	var teams []models.Groupable
+
+	for _, g := range groups {
+		if IsTeam(ctx, g) {
+			teams = append(teams, g)
+		}
+	}
+
+	return teams
+}
+
+func IsTeam(ctx context.Context, mg models.Groupable) bool {
+	log := logger.Ctx(ctx)
+
+	if mg.GetAdditionalData()[ResourceProvisioningOptions] == nil {
+		return false
+	}
+
+	val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, mg.GetAdditionalData())
+	for _, v := range val {
+		s, err := str.AnyToString(v)
+		if err != nil {
+			log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
+			continue
+		}
+
+		if s == teamsAdditionalDataLabel {
+			return true
+		}
+	}
+
+	return false
 }

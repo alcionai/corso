@@ -24,6 +24,10 @@ type getDefaultDriver interface {
 	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
 }
 
+type getAller[T any] interface {
+	GetAll(ctx context.Context, errs *fault.Bus) ([]T, error)
+}
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -253,12 +257,11 @@ func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site,
 	return getAllSites(ctx, ac.Sites())
 }
 
-type getAllSiteser interface {
-	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error)
-}
-
-func getAllSites(ctx context.Context, gas getAllSiteser) ([]*Site, error) {
-	sites, err := gas.GetAll(ctx, fault.New(true))
+func getAllSites(
+	ctx context.Context,
+	ga getAller[models.Siteable],
+) ([]*Site, error) {
+	sites, err := ga.GetAll(ctx, fault.New(true))
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			return nil, clues.Stack(graph.ErrServiceNotEnabled, err)
@@ -311,82 +314,6 @@ func SitesMap(
 	}
 
 	return idname.NewCache(itn), nil
-}
-
-// ---------------------------------------------------------------------------
-// Teams
-// ---------------------------------------------------------------------------
-
-// Team is the minimal information required to identify and display a M365 Team.
-type Team struct {
-	ID string
-
-	// DisplayName is the human-readable name of the team.  Normally the plaintext name that the
-	// user provided when they created the team or the updated name if it was changed.
-	// Ex: displayName: "Testing Team"
-	DisplayName string
-}
-
-// TeamsCompat returns a list of teams in the specified M365 tenant.
-func TeamsCompat(ctx context.Context, acct account.Account) ([]*Team, error) {
-	errs := fault.New(true)
-
-	us, err := Teams(ctx, acct, errs)
-	if err != nil {
-		return nil, err
-	}
-
-	return us, errs.Failure()
-}
-
-// Teams returns a list of teams in the specified M365 tenant
-func Teams(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Team, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService)
-	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
-	}
-
-	return getAllTeams(ctx, ac.Groups())
-}
-
-// parseUser extracts information from `models.Userable` we care about
-func parseTeam(item models.Groupable) (*Team, error) {
-	if item.GetDisplayName() == nil {
-		return nil, clues.New("Team missing display name").
-			With("Team ID", ptr.Val(item.GetId()))
-	}
-
-	u := &Team{
-		ID:          ptr.Val(item.GetId()),
-		DisplayName: ptr.Val(item.GetDisplayName()),
-	}
-
-	return u, nil
-}
-
-type getAllGroupers interface {
-	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Groupable, error)
-	GetTeams(ctx context.Context, errs *fault.Bus) ([]models.Groupable, error)
-}
-
-func getAllTeams(ctx context.Context, gas getAllGroupers) ([]*Team, error) {
-	teams, err := gas.GetTeams(ctx, fault.New(true))
-	if err != nil {
-		return nil, clues.Wrap(err, "retrieving teams")
-	}
-
-	ret := make([]*Team, 0, len(teams))
-
-	for _, team := range teams {
-		t, err := parseTeam(team)
-		if err != nil {
-			return nil, clues.Wrap(err, "parsing teams")
-		}
-
-		ret = append(ret, t)
-	}
-
-	return ret, nil
 }
 
 // ---------------------------------------------------------------------------

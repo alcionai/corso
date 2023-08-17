@@ -110,7 +110,7 @@ func (suite *GroupsIntgSuite) TestGetAllGroups() {
 	require.NotZero(t, len(groups), "must have at least one group")
 }
 
-func (suite *GroupsIntgSuite) TestGetAllTeams() {
+func (suite *GroupsIntgSuite) TestGetAll() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -118,7 +118,7 @@ func (suite *GroupsIntgSuite) TestGetAllTeams() {
 
 	teams, err := suite.its.ac.
 		Groups().
-		GetTeams(ctx, fault.New(true))
+		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(teams), "must have at least one teams")
 
@@ -140,7 +140,7 @@ func (suite *GroupsIntgSuite) TestGetAllTeams() {
 func (suite *GroupsIntgSuite) TestTeams_GetByID() {
 	var (
 		t      = suite.T()
-		teamID = tconfig.M365TeamsID(t)
+		teamID = tconfig.M365TeamID(t)
 	)
 
 	teamsAPI := suite.its.ac.Groups()
@@ -187,7 +187,7 @@ func (suite *GroupsIntgSuite) TestTeams_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := teamsAPI.GetTeamByID(ctx, test.id)
+			_, err := teamsAPI.GetByID(ctx, test.id)
 			test.expectErr(t, err)
 		})
 	}
