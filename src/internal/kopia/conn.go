@@ -52,9 +52,26 @@ var (
 	}
 )
 
-type snapshotLoader interface {
-	SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error)
-}
+type (
+	manifestFinder interface {
+		FindManifests(
+			ctx context.Context,
+			tags map[string]string,
+		) ([]*manifest.EntryMetadata, error)
+	}
+
+	snapshotManager interface {
+		manifestFinder
+		LoadSnapshot(
+			ctx context.Context,
+			id manifest.ID,
+		) (*snapshot.Manifest, error)
+	}
+
+	snapshotLoader interface {
+		SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error)
+	}
+)
 
 var (
 	_ snapshotManager = &conn{}
