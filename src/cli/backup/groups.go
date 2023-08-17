@@ -14,36 +14,36 @@ import (
 // ------------------------------------------------------------------------------------------------
 
 const (
-	teamsServiceCommand                 = "teams"
-	teamsServiceCommandCreateUseSuffix  = "--team <teamsName> | '" + flags.Wildcard + "'"
-	teamsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
-	teamsServiceCommandDetailsUseSuffix = "--backup <backupId>"
+	groupsServiceCommand                 = "groups"
+	groupsServiceCommandCreateUseSuffix  = "--group <groupsName> | '" + flags.Wildcard + "'"
+	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 // TODO: correct examples
 const (
-	teamsServiceCommandCreateExamples = `# Backup all Teams data for Alice
-corso backup create teams --team alice@example.com 
+	groupsServiceCommandCreateExamples = `# Backup all Groups data for Alice
+corso backup create groups --group alice@example.com 
 
-# Backup only Teams contacts for Alice and Bob
-corso backup create teams --team engineering,sales --data contacts
+# Backup only Groups contacts for Alice and Bob
+corso backup create groups --group engineering,sales --data contacts
 
-# Backup all Teams data for all M365 users 
-corso backup create teams --team '*'`
+# Backup all Groups data for all M365 users 
+corso backup create groups --group '*'`
 
-	teamsServiceCommandDeleteExamples = `# Delete Teams backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete teams --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd
+corso backup delete groups --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	teamsServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
-corso backup details teams --backup 1234abcd-12ab-cd34-56de-1234abcd
+	groupsServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
+corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd
 
 # Explore calendar events occurring after start of 2022
-corso backup details teams --backup 1234abcd-12ab-cd34-56de-1234abcd \
+corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --event-starts-after 2022-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
-func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
+func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 	var (
 		c  *cobra.Command
 		fs *pflag.FlagSet
@@ -51,14 +51,14 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, teamsCreateCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.HideCommand())
 		fs.SortFlags = false
 
-		c.Use = c.Use + " " + teamsServiceCommandCreateUseSuffix
-		c.Example = teamsServiceCommandCreateExamples
+		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
+		c.Example = groupsServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// TODO Neha: add teams flag
+		// TODO Neha: add groups flag
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
@@ -67,7 +67,7 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddFailFastFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, teamsListCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.HideCommand())
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
@@ -79,11 +79,11 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, teamsDetailsCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.HideCommand())
 		fs.SortFlags = false
 
-		c.Use = c.Use + " " + teamsServiceCommandDetailsUseSuffix
-		c.Example = teamsServiceCommandDetailsExamples
+		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
+		c.Example = groupsServiceCommandDetailsExamples
 
 		flags.AddSkipReduceFlag(c)
 
@@ -95,11 +95,11 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddAzureCredsFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, teamsDeleteCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.HideCommand())
 		fs.SortFlags = false
 
-		c.Use = c.Use + " " + teamsServiceCommandDeleteUseSuffix
-		c.Example = teamsServiceCommandDeleteExamples
+		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
+		c.Example = groupsServiceCommandDeleteExamples
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddCorsoPassphaseFlags(c)
@@ -114,18 +114,18 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 // backup create
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup create teams [<flag>...]`
-func teamsCreateCmd() *cobra.Command {
+// `corso backup create groups [<flag>...]`
+func groupsCreateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   teamsServiceCommand,
-		Short: "Backup M365 Team service data",
-		RunE:  createTeamsCmd,
+		Use:   groupsServiceCommand,
+		Short: "Backup M365 Group service data",
+		RunE:  createGroupsCmd,
 		Args:  cobra.NoArgs,
 	}
 }
 
-// processes a teams service backup.
-func createTeamsCmd(cmd *cobra.Command, args []string) error {
+// processes a groups service backup.
+func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
 
@@ -133,37 +133,37 @@ func createTeamsCmd(cmd *cobra.Command, args []string) error {
 // backup list
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup list teams [<flag>...]`
-func teamsListCmd() *cobra.Command {
+// `corso backup list groups [<flag>...]`
+func groupsListCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   teamsServiceCommand,
-		Short: "List the history of M365 Teams service backups",
-		RunE:  listTeamsCmd,
+		Use:   groupsServiceCommand,
+		Short: "List the history of M365 Groups service backups",
+		RunE:  listGroupsCmd,
 		Args:  cobra.NoArgs,
 	}
 }
 
 // lists the history of backup operations
-func listTeamsCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, flags.BackupIDFV, path.TeamsService, args)
+func listGroupsCmd(cmd *cobra.Command, args []string) error {
+	return genericListCommand(cmd, flags.BackupIDFV, path.GroupsService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
 // backup details
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup details teams [<flag>...]`
-func teamsDetailsCmd() *cobra.Command {
+// `corso backup details groups [<flag>...]`
+func groupsDetailsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   teamsServiceCommand,
-		Short: "Shows the details of a M365 Teams service backup",
-		RunE:  detailsTeamsCmd,
+		Use:   groupsServiceCommand,
+		Short: "Shows the details of a M365 Groups service backup",
+		RunE:  detailsGroupsCmd,
 		Args:  cobra.NoArgs,
 	}
 }
 
-// processes a teams service backup.
-func detailsTeamsCmd(cmd *cobra.Command, args []string) error {
+// processes a groups service backup.
+func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
 
@@ -171,17 +171,17 @@ func detailsTeamsCmd(cmd *cobra.Command, args []string) error {
 // backup delete
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup delete teams [<flag>...]`
-func teamsDeleteCmd() *cobra.Command {
+// `corso backup delete groups [<flag>...]`
+func groupsDeleteCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   teamsServiceCommand,
-		Short: "Delete backed-up M365 Teams service data",
-		RunE:  deleteTeamsCmd,
+		Use:   groupsServiceCommand,
+		Short: "Delete backed-up M365 Groups service data",
+		RunE:  deleteGroupsCmd,
 		Args:  cobra.NoArgs,
 	}
 }
 
-// deletes an teams service backup.
-func deleteTeamsCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.TeamsService, flags.BackupIDFV, "Teams", args)
+// deletes an groups service backup.
+func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
+	return genericDeleteCommand(cmd, path.GroupsService, flags.BackupIDFV, "Groups", args)
 }
