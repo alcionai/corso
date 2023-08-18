@@ -9,16 +9,10 @@ import (
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 )
 
-type BackupChannelHandler interface {
+type BackupMessagesHandler interface {
+	GetMessage(ctx context.Context, teamID, channelID, itemID string) (models.ChatMessageable, error)
+	NewMessagePager(teamID, channelID string) api.MessageItemDeltaEnumerator
 	GetChannel(ctx context.Context, teamID, channelID string) (models.Channelable, error)
 	NewChannelPager(teamID, channelID string) api.ChannelItemDeltaEnumerator
-}
-
-type BackupMessagesHandler interface {
-	GetItem(ctx context.Context, teamID, channelID, itemID string) (models.ChatMessageable, error)
-	NewItemPager(teamID, channelID string) api.MessageItemDeltaEnumerator
-}
-
-type BackupReplyHandler interface {
-	GetItem(ctx context.Context, teamID, channelID, messageID string) (serialization.Parsable, error)
+	GetReply(ctx context.Context, teamID, channelID, messageID string) (serialization.Parsable, error)
 }
