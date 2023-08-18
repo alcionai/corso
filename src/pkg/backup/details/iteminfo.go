@@ -28,9 +28,9 @@ const (
 	ExchangeMail    ItemType = 3
 
 	// SharePoint (10x)
-	SharePointLibrary ItemType = 100
-	SharePointList    ItemType = 101
-	SharePointPage    ItemType = 102
+	SharePointLibrary ItemType = 101
+	SharePointList    ItemType = 102
+	SharePointPage    ItemType = 103
 
 	// OneDrive (20x)
 	OneDriveItem ItemType = 205
