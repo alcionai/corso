@@ -31,6 +31,8 @@ const (
 	SharePointMetadataService             // sharepointMetadata
 	GroupsService                         // groups
 	GroupsMetadataService                 // groupsMetadata
+	TeamsService                          // teams
+	TeamsMetadataService                  // teamsMetadata
 )
 
 func toServiceType(service string) ServiceType {
