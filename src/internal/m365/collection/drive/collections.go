@@ -693,18 +693,17 @@ func (c *Collections) UpdateCollections(
 			break
 		}
 
-		driveItem := item.(*models.DriveItem)
-		// Get backing store
-		st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
-
-		logger.Ctx(ctx).Infow("serialized size", "in_mem_store_size", sizePkg.Of(st.Store))
-
 		var (
 			itemID   = ptr.Val(item.GetId())
 			itemName = ptr.Val(item.GetName())
-			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
 			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 		)
+
+		driveItem := item.(*models.DriveItem)
+		// Get backing store
+		st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
+		ictx := clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
+		logger.Ctx(ictx).Infow("serialized size", "in_mem_store_size", sizePkg.Of(st.Store))
 
 		if item.GetMalware() != nil {
 			addtl := graph.ItemInfo(item)
