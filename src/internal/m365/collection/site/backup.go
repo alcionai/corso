@@ -59,6 +59,7 @@ func CollectPages(
 	bpc inject.BackupProducerConfig,
 	creds account.M365Config,
 	ac api.Client,
+	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -105,7 +106,7 @@ func CollectPages(
 		collection := NewCollection(
 			dir,
 			ac,
-			Pages,
+			scope,
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
@@ -122,6 +123,7 @@ func CollectLists(
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	tenantID string,
+	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -156,7 +158,7 @@ func CollectLists(
 		collection := NewCollection(
 			dir,
 			ac,
-			List,
+			scope,
 			su,
 			bpc.Options)
 		collection.AddJob(tuple.ID)
