@@ -636,7 +636,7 @@ func UnwrapEmailAddress(contact models.Recipientable) string {
 }
 
 func mailCollisionKeyProps() []string {
-	return idAnd("subject", sentDateTime, receivedDateTime)
+	return idAnd("subject", sentDateTime, receivedDateTime, createdDateTime)
 }
 
 // MailCollisionKey constructs a key from the messageable's subject, sender, and recipients (to, cc, bcc).
