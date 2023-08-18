@@ -95,6 +95,7 @@ func (h groupBackupHandler) NewLocationIDer(
 	driveID string,
 	elems ...string,
 ) details.LocationIDer {
+	// TODO(meain): path fixes
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
 
@@ -119,7 +120,6 @@ func (h groupBackupHandler) IsAllPass() bool {
 
 func (h groupBackupHandler) IncludesDir(dir string) bool {
 	// TODO(meain)
-	// return h.scope.Matches(selectors.SharePointGroupFolder, dir)
 	return true
 }
 

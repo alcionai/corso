@@ -14,11 +14,19 @@ func NewGroupsLocationIDer(
 	driveID string,
 	escapedFolders ...string,
 ) uniqueLoc {
-	// TODO: implement
-	return uniqueLoc{}
+	// TODO(meain): path fixes
+	pb := path.Builder{}.
+		Append(path.LibrariesCategory.String(), driveID).
+		Append(escapedFolders...)
+
+	return uniqueLoc{
+		pb:          pb,
+		prefixElems: 2,
+	}
 }
 
 // GroupsInfo describes a groups item
+// TODO(meain): Should we add the channel name?
 type GroupsInfo struct {
 	Created    time.Time `json:"created,omitempty"`
 	DriveName  string    `json:"driveName,omitempty"`
@@ -51,9 +59,20 @@ func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
 }
 
 func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
-	return nil, clues.New("not yet implemented")
+	if len(i.DriveID) == 0 {
+		return nil, clues.New("empty drive ID")
+	}
+
+	loc := NewGroupsLocationIDer(i.DriveID, baseLoc.Elements()...)
+
+	return &loc, nil
 }
 
 func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
-	return clues.New("not yet implemented")
+	// TODO(meain): path updates if any
+	if i.ItemType == SharePointLibrary {
+		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
+	}
+
+	return clues.New("unsupported ItemType for GroupsInfo").With("item_type", i.ItemType)
 }
