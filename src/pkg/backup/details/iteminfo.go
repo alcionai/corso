@@ -36,6 +36,9 @@ const (
 
 	// Folder Management(30x)
 	FolderItem ItemType = 306
+
+	// GroupChannel(40x)
+	GroupChannel ItemType = 407
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
