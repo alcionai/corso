@@ -62,12 +62,6 @@ func (suite *TeamsUnitSuite) TestAddTeamsCommands() {
 				testdata.RestoreDestination,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
-				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
-				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
-				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
-				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
-				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
-				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
 
 				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
 				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,

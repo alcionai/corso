@@ -39,7 +39,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 const (
 	sharePointServiceCommand          = "sharepoint"
-	sharePointServiceCommandUseSuffix = "--backup <backupId> <destination>"
+	sharePointServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
 	sharePointServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's latest backup (1234abcd...) to my-exports directory
@@ -66,7 +66,7 @@ func sharePointExportCmd() *cobra.Command {
 		RunE:  exportSharePointCmd,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return errors.New("missing restore destination")
+				return errors.New("missing export destination")
 			}
 
 			return nil

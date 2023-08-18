@@ -40,7 +40,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
-	groupsServiceCommandUseSuffix = "--backup <backupId> <destination>"
+	groupsServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
 	groupsServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's last backup (1234abcd...) to my-exports directory
@@ -63,7 +63,7 @@ func groupsExportCmd() *cobra.Command {
 		RunE:  exportGroupsCmd,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return errors.New("missing restore destination")
+				return errors.New("missing export destination")
 			}
 
 			return nil
