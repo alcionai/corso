@@ -328,6 +328,13 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			expectedService: path.SharePointMetadataService,
 			check:           assert.NoError,
 		},
+		{
+			name:            "Passes",
+			service:         path.GroupsService,
+			category:        path.LibrariesCategory,
+			expectedService: path.GroupsMetadataService,
+			check:           assert.NoError,
+		},
 	}
 
 	for _, test := range table {

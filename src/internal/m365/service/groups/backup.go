@@ -5,8 +5,12 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -56,7 +60,41 @@ func ProduceBackupCollections(
 		var dbcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
-		case path.LibrariesCategory: // TODO
+		case path.LibrariesCategory:
+			// TODO(meain): Private channels get a separate SharePoint
+			// site. We should also back those up and not just the
+			// default one.
+			resp, err := ac.Stable.
+				Client().
+				Groups().
+				ByGroupId(bpc.ProtectedResource.ID()).
+				Sites().
+				BySiteId("root").
+				Get(ctx, nil)
+			if err != nil {
+				return nil, nil, false, clues.Wrap(err, "getting root site for group")
+			}
+
+			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
+			sbpc := inject.BackupProducerConfig{
+				LastBackupVersion: bpc.LastBackupVersion,
+				Options:           bpc.Options,
+				ProtectedResource: pr,
+				Selector:          bpc.Selector,
+			}
+
+			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
+				ctx,
+				sbpc,
+				drive.NewGroupBackupHandler(bpc.ProtectedResource.ID(), ac.Drives(), scope),
+				creds.AzureTenantID,
+				ssmb,
+				su,
+				errs)
+			if err != nil {
+				el.AddRecoverable(ctx, err)
+				continue
+			}
 		}
 
 		collections = append(collections, dbcs...)
@@ -70,7 +108,7 @@ func ProduceBackupCollections(
 			collections,
 			creds.AzureTenantID,
 			bpc.ProtectedResource.ID(),
-			path.UnknownService, // path.GroupsService
+			path.GroupsService,
 			categories,
 			su,
 			errs)

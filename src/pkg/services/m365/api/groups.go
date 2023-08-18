@@ -7,6 +7,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -27,7 +28,7 @@ func (c Client) Groups() Groups {
 	return Groups{c}
 }
 
-// On creation of each Teams team a corrsponding group gets created.
+// On creation of each Teams team a corresponding group gets created.
 // The group acts as the protected resource, and all teams data like events,
 // drive and mail messages are owned by that group.
 
@@ -166,4 +167,15 @@ func IsTeam(ctx context.Context, mg models.Groupable) bool {
 	}
 
 	return false
+}
+
+// GetIDAndName looks up the group matching the given ID, and returns
+// its canonical ID and the name.
+func (c Groups) GetIDAndName(ctx context.Context, groupID string) (string, string, error) {
+	s, err := c.GetByID(ctx, groupID)
+	if err != nil {
+		return "", "", err
+	}
+
+	return ptr.Val(s.GetId()), ptr.Val(s.GetDisplayName()), nil
 }

@@ -25,10 +25,9 @@ import (
 func CollectLibraries(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
-	ad api.Drives,
+	bh drive.BackupHandler,
 	tenantID string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
-	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
@@ -37,7 +36,7 @@ func CollectLibraries(
 	var (
 		collections = []data.BackupCollection{}
 		colls       = drive.NewCollections(
-			drive.NewLibraryBackupHandler(ad, scope),
+			bh,
 			tenantID,
 			bpc.ProtectedResource.ID(),
 			su,
