@@ -94,6 +94,12 @@ func idAnd(ss ...string) []string {
 // exported
 // ---------------------------------------------------------------------------
 
+func DriveItemSelectURLCache() []string {
+	return idAnd(
+		"deleted",
+	)
+}
+
 func DriveItemSelectDefault() []string {
 	return idAnd(
 		"content.downloadUrl",

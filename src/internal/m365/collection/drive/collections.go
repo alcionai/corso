@@ -473,7 +473,7 @@ func (c *Collections) addURLCacheToDriveCollections(
 		driveID,
 		prevDelta,
 		urlCacheRefreshInterval,
-		c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+		c.handler.NewItemPager(driveID, "", api.DriveItemSelectURLCache()),
 		errs)
 	if err != nil {
 		return err
