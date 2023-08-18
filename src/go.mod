@@ -5,10 +5,10 @@ go 1.20
 replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20230803184432-5f2a35eade6b
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.0
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
 	github.com/alcionai/clues v0.0.0-20230728164842-7dc4795a43e4
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.44.325
+	github.com/aws/aws-sdk-go v1.44.326
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/google/uuid v1.3.0
@@ -62,9 +62,9 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.0 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -92,7 +92,7 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.0.61
+	github.com/minio/minio-go/v7 v7.0.62
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
