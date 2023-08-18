@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/store"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
+	sizePkg "github.com/DmitriyVTitov/size"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -690,6 +692,12 @@ func (c *Collections) UpdateCollections(
 		if el.Failure() != nil {
 			break
 		}
+
+		driveItem := item.(*models.DriveItem)
+		// Get backing store
+		st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
+
+		logger.Ctx(ctx).Infow("serialized size", "in_mem_store_size", sizePkg.Of(st.Store))
 
 		var (
 			itemID   = ptr.Val(item.GetId())
