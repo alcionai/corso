@@ -241,6 +241,8 @@ func (pb Builder) ToStreamStorePath(
 		metadataService = OneDriveMetadataService
 	case SharePointService:
 		metadataService = SharePointMetadataService
+	case GroupsService:
+		metadataService = GroupsMetadataService
 	}
 
 	return &dataLayerResourcePath{
@@ -282,6 +284,8 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		metadataService = OneDriveMetadataService
 	case SharePointService:
 		metadataService = SharePointMetadataService
+	case GroupsService:
+		metadataService = GroupsMetadataService
 	}
 
 	return &dataLayerResourcePath{
@@ -344,6 +348,14 @@ func (pb Builder) ToDataLayerSharePointPath(
 	isItem bool,
 ) (Path, error) {
 	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
+}
+
+func (pb Builder) ToDataLayerGroupPath(
+	tenant, group string,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	return pb.ToDataLayerPath(tenant, group, GroupsService, category, isItem)
 }
 
 // ---------------------------------------------------------------------------

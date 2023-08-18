@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -204,8 +205,8 @@ func (s *groups) Scopes() []GroupsScope {
 // -------------------
 // Scope Factories
 
-// Produces one or more Groups site scopes.
-// One scope is created per site entry.
+// Produces one or more Groups scopes.
+// One scope is created per group entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -214,38 +215,57 @@ func (s *groups) AllData() []GroupsScope {
 
 	scopes = append(
 		scopes,
-		makeScope[GroupsScope](GroupsTODOContainer, Any()))
+		makeScope[GroupsScope](GroupsLibraryFolder, Any()))
 
 	return scopes
 }
 
-// TODO produces one or more Groups TODO scopes.
+// Library produces one or more Group library scopes, where the library
+// matches upon a given drive by ID or Name.  In order to ensure library selection
+// this should always be embedded within the Filter() set; include(Library()) will
+// select all items in the library without further filtering.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// Any empty slice defaults to [selectors.None]
-func (s *groups) TODO(lists []string, opts ...option) []GroupsScope {
+// If any slice is empty, it defaults to [selectors.None]
+func (s *groups) Library(library string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsLibraryItem,
+			SharePointInfoLibraryDrive, // TODO(meain)
+			[]string{library},
+			filters.Equal),
+	}
+}
+
+// LibraryFolders produces one or more SharePoint libraryFolder scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *groups) LibraryFolders(libraryFolders []string, opts ...option) []GroupsScope {
 	var (
 		scopes = []GroupsScope{}
 		os     = append([]option{pathComparator()}, opts...)
 	)
 
-	scopes = append(scopes, makeScope[GroupsScope](GroupsTODOContainer, lists, os...))
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsLibraryFolder, libraryFolders, os...))
 
 	return scopes
 }
 
-// ListTODOItemsItems produces one or more Groups TODO item scopes.
+// LibraryItems produces one or more Groups library item scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-// options are only applied to the list scopes.
-func (s *groups) TODOItems(lists, items []string, opts ...option) []GroupsScope {
+// options are only applied to the library scopes.
+func (s *groups) LibraryItems(libraries, items []string, opts ...option) []GroupsScope {
 	scopes := []GroupsScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[GroupsScope](GroupsTODOItem, items, defaultItemOptions(s.Cfg)...).
-			set(GroupsTODOContainer, lists, opts...))
+		makeScope[GroupsScope](GroupsLibraryItem, items, defaultItemOptions(s.Cfg)...).
+			set(GroupsLibraryFolder, libraries, opts...))
 
 	return scopes
 }
@@ -270,21 +290,27 @@ const (
 	GroupsCategoryUnknown groupsCategory = ""
 
 	// types of data in Groups
-	GroupsGroup         groupsCategory = "GroupsGroup"
-	GroupsTODOContainer groupsCategory = "GroupsTODOContainer"
-	GroupsTODOItem      groupsCategory = "GroupsTODOItem"
+	GroupsGroup groupsCategory = "GroupsGroup"
+
+	// sharepoint
+	GroupsLibraryFolder groupsCategory = "GroupsLibraryFolder"
+	GroupsLibraryItem   groupsCategory = "GroupsLibraryItem"
+
+	// messages
+	// GroupsTeamChannel groupsCategory = "GroupsTeamChannel"
+	// GroupsTeamChannelMessages    groupsCategory = "GroupsTeamChannelMessages"
 
 	// details.itemInfo comparables
 
 	// library drive selection
-	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
+	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive" // TODO(meain)
 )
 
 // groupsLeafProperties describes common metadata of the leaf categories
 var groupsLeafProperties = map[categorizer]leafProperty{
-	GroupsTODOItem: { // the root category must be represented, even though it isn't a leaf
-		pathKeys: []categorizer{GroupsTODOContainer, GroupsTODOItem},
-		pathType: path.UnknownCategory,
+	GroupsLibraryItem: {
+		pathKeys: []categorizer{GroupsLibraryFolder, GroupsLibraryItem},
+		pathType: path.LibrariesCategory,
 	},
 	GroupsGroup: { // the root category must be represented, even though it isn't a leaf
 		pathKeys: []categorizer{GroupsGroup},
@@ -303,8 +329,8 @@ func (c groupsCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c groupsCategory) leafCat() categorizer {
 	switch c {
-	case GroupsTODOContainer, GroupsInfoSiteLibraryDrive:
-		return GroupsTODOItem
+	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive:
+		return GroupsLibraryItem
 	}
 
 	return c
@@ -334,7 +360,7 @@ func (c groupsCategory) isLeaf() bool {
 // pathValues transforms the two paths to maps of identified properties.
 //
 // Example:
-// [tenantID, service, siteID, category, folder, itemID]
+// [tenantID, service, groupID, site, siteID, category, folder, itemID]
 // => {spFolder: folder, spItemID: itemID}
 func (c groupsCategory) pathValues(
 	repo path.Path,
@@ -348,13 +374,13 @@ func (c groupsCategory) pathValues(
 	)
 
 	switch c {
-	case GroupsTODOContainer, GroupsTODOItem:
+	case GroupsLibraryFolder, GroupsLibraryItem:
 		if ent.Groups == nil {
 			return nil, clues.New("no Groups ItemInfo in details")
 		}
 
-		folderCat, itemCat = GroupsTODOContainer, GroupsTODOItem
-		rFld = ent.Groups.ParentPath
+		folderCat, itemCat = GroupsLibraryFolder, GroupsLibraryItem
+		rFld = ent.Groups.ParentPath // TODO(meain)
 
 	default:
 		return nil, clues.New("unrecognized groupsCategory").With("category", c)
@@ -451,7 +477,7 @@ func (s GroupsScope) set(cat groupsCategory, v []string, opts ...option) GroupsS
 	os := []option{}
 
 	switch cat {
-	case GroupsTODOContainer:
+	case GroupsLibraryFolder:
 		os = append(os, pathComparator())
 	}
 
@@ -462,10 +488,10 @@ func (s GroupsScope) set(cat groupsCategory, v []string, opts ...option) GroupsS
 func (s GroupsScope) setDefaults() {
 	switch s.Category() {
 	case GroupsGroup:
-		s[GroupsTODOContainer.String()] = passAny
-		s[GroupsTODOItem.String()] = passAny
-	case GroupsTODOContainer:
-		s[GroupsTODOItem.String()] = passAny
+		s[GroupsLibraryFolder.String()] = passAny
+		s[GroupsLibraryItem.String()] = passAny
+	case GroupsLibraryFolder:
+		s[GroupsLibraryItem.String()] = passAny
 	}
 }
 
@@ -485,7 +511,7 @@ func (s groups) Reduce(
 		deets,
 		s.Selector,
 		map[path.CategoryType]groupsCategory{
-			path.UnknownCategory: GroupsTODOItem,
+			path.LibrariesCategory: GroupsLibraryItem,
 		},
 		errs)
 }

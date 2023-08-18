@@ -73,6 +73,9 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		ListsCategory:     {},
 		PagesCategory:     {},
 	},
+	GroupsService: {
+		LibrariesCategory: {}, // TODO(meain)
+	},
 }
 
 func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
