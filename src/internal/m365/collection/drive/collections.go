@@ -8,11 +8,9 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/store"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
-	sizePkg "github.com/DmitriyVTitov/size"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -670,19 +668,19 @@ func (c *Collections) getCollectionPath(
 	return collectionPath, nil
 }
 
-func getBackingStoreSize(ctx context.Context, item models.DriveItemable) {
-	driveItem := item.(*models.DriveItem)
-	// Get backing store
-	st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
-	logger.Ctx(ctx).Infow("store size", "in_mem_store_size", sizePkg.Of(st.Store))
-	logger.Ctx(ctx).Infow("drive item size", "in_mem_store_size", sizePkg.Of(driveItem))
-}
+// func getBackingStoreSize(ctx context.Context, item models.DriveItemable) {
+// 	driveItem := item.(*models.DriveItem)
+// 	// Get backing store
+// 	st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
+// 	logger.Ctx(ctx).Infow("store size", "in_mem_store_size", sizePkg.Of(st.Store))
+// 	logger.Ctx(ctx).Infow("drive item size", "in_mem_store_size", sizePkg.Of(driveItem))
+// }
 
-func getBackingStoreSize1(ctx context.Context, item CorsoDriveItemable) {
-	driveItem := item.(*CorsoDriveItem)
-	// Get backing store
-	logger.Ctx(ctx).Infow("corso serialized size", "in_mem_store_size", sizePkg.Of(driveItem))
-}
+// func getBackingStoreSize1(ctx context.Context, item CorsoDriveItemable) {
+// 	driveItem := item.(*CorsoDriveItem)
+// 	// Get backing store
+// 	logger.Ctx(ctx).Infow("corso serialized size", "in_mem_store_size", sizePkg.Of(driveItem))
+// }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package).
@@ -826,10 +824,10 @@ func (c *Collections) UpdateCollections(
 			// that OneDrive always returns all folders on the path of an item
 			// before the item. This seems to hold true for now at least.
 			if col.Add(item) {
-				getBackingStoreSize(ictx, item)
+				//getBackingStoreSize(ictx, item)
 				c.NumItems++
-				cdi := ToCorsoDriveItemable(item)
-				getBackingStoreSize1(ictx, cdi)
+				//cdi := ToCorsoDriveItemable(item)
+				//getBackingStoreSize1(ictx, cdi)
 			}
 
 		case item.GetFile() != nil:
@@ -866,11 +864,11 @@ func (c *Collections) UpdateCollections(
 			itemCollection[driveID][itemID] = parentID
 
 			if collection.Add(item) {
-				getBackingStoreSize(ictx, item)
+				//getBackingStoreSize(ictx, item)
 				c.NumItems++
 				c.NumFiles++
-				cdi := ToCorsoDriveItemable(item)
-				getBackingStoreSize1(ictx, cdi)
+				//cdi := ToCorsoDriveItemable(item)
+				//getBackingStoreSize1(ictx, cdi)
 			}
 
 			// Do this after adding the file to the collection so if we fail to add
