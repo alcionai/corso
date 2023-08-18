@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -61,11 +62,14 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ProtectedResource: mock.NewProvider(siteID, siteID),
 	}
 
+	sel := selectors.NewSharePointBackup([]string{siteID})
+
 	col, err := CollectPages(
 		ctx,
 		bpc,
 		creds,
 		ac,
+		sel.Lists(selectors.Any())[0],
 		(&MockGraphService{}).UpdateStatus,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))

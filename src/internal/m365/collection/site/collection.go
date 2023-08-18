@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -34,13 +35,9 @@ const (
 
 //go:generate stringer -type=DataCategory
 const (
-	// Unknown is 2 due to a mishandling of iota.
-	// It should be 0, by standard, but now we're
-	// stuck with this for backwards compatibility.
-	Unknown DataCategory = 2
-	List    DataCategory = 3
-	Drive   DataCategory = 4
-	Pages   DataCategory = 5
+	Unknown DataCategory = 0
+	List    DataCategory = 1
+	Pages   DataCategory = 2
 )
 
 var (
@@ -60,7 +57,7 @@ type Collection struct {
 	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
 	jobs []string
 	// M365 IDs of the items of this collection
-	category      DataCategory
+	category      path.CategoryType
 	client        api.Sites
 	ctrl          control.Options
 	betaService   *betaAPI.BetaService
@@ -71,7 +68,7 @@ type Collection struct {
 func NewCollection(
 	folderPath path.Path,
 	ac api.Client,
-	category DataCategory,
+	scope selectors.SharePointScope,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 ) *Collection {
@@ -81,7 +78,7 @@ func NewCollection(
 		data:          make(chan data.Item, collectionChannelBufferSize),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
-		category:      category,
+		category:      scope.Category().PathType(),
 		ctrl:          ctrlOpts,
 	}
 
@@ -205,9 +202,9 @@ func (sc *Collection) runPopulate(
 
 	// Switch retrieval function based on category
 	switch sc.category {
-	case List:
+	case path.ListsCategory:
 		metrics, err = sc.retrieveLists(ctx, writer, colProgress, errs)
-	case Pages:
+	case path.PagesCategory:
 		metrics, err = sc.retrievePages(ctx, sc.client, writer, colProgress, errs)
 	}
 

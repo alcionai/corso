@@ -63,6 +63,7 @@ func ProduceBackupCollections(
 				bpc,
 				ac,
 				creds.AzureTenantID,
+				scope,
 				su,
 				errs)
 			if err != nil {
@@ -95,6 +96,7 @@ func ProduceBackupCollections(
 				bpc,
 				creds,
 				ac,
+				scope,
 				su,
 				errs)
 			if err != nil {

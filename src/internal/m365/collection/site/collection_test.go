@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -82,16 +83,18 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		dirRoot = "directory"
 	)
 
+	sel := selectors.NewSharePointBackup([]string{"site"})
+
 	tables := []struct {
 		name, itemName string
-		category       DataCategory
+		scope          selectors.SharePointScope
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) *Item
 	}{
 		{
 			name:     "List",
 			itemName: "MockListing",
-			category: List,
+			scope:    sel.Lists(selectors.Any())[0],
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -127,7 +130,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		{
 			name:     "Pages",
 			itemName: "MockPages",
-			category: Pages,
+			scope:    sel.Pages(selectors.Any())[0],
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -166,7 +169,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			col := NewCollection(
 				test.getDir(t),
 				suite.ac,
-				test.category,
+				test.scope,
 				nil,
 				control.DefaultOptions())
 			col.data <- test.getItem(t, test.itemName)
