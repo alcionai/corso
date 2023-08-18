@@ -60,8 +60,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = groupsServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// TODO Neha: add groups flag
-		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		flags.AddGroupFlag(c)
+		flags.AddDataFlag(c, []string{dataLibraries}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -178,6 +178,10 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if err := validateGroupBackupCreateFlags(flags.GroupFV); err != nil {
+		return Only(ctx, err)
+	}
+
 	return Only(ctx, clues.New("not yet implemented"))
 }
 
@@ -198,4 +202,29 @@ func groupsDeleteCmd() *cobra.Command {
 // deletes an groups service backup.
 func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
 	return genericDeleteCommand(cmd, path.GroupsService, flags.BackupIDFV, "Groups", args)
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func validateGroupBackupCreateFlags(groups []string) error {
+	if len(groups) == 0 {
+		return clues.New(
+			"requires one or more --" +
+				flags.GroupFN + " ids, or the wildcard --" +
+				flags.GroupFN + " *",
+		)
+	}
+
+	// TODO(meain)
+	// for _, d := range cats {
+	// 	if d != dataLibraries {
+	// 		return clues.New(
+	// 			d + " is an unrecognized data type; only  " + dataLibraries + " is supported"
+	// 		)
+	// 	}
+	// }
+
+	return nil
 }
