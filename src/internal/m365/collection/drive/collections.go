@@ -670,6 +670,13 @@ func (c *Collections) getCollectionPath(
 	return collectionPath, nil
 }
 
+func getBackingStoreSize(ctx context.Context, item models.DriveItemable) {
+	driveItem := item.(*models.DriveItem)
+	// Get backing store
+	st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
+	logger.Ctx(ctx).Infow("serialized size", "in_mem_store_size", sizePkg.Of(st.Store))
+}
+
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package).
 // oldPaths is the unchanged data that was loaded from the metadata file.
@@ -699,11 +706,7 @@ func (c *Collections) UpdateCollections(
 			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 		)
 
-		driveItem := item.(*models.DriveItem)
-		// Get backing store
-		st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
 		ictx := clues.Add(ctx, "item_id", itemID, "item_name", clues.Hide(itemName))
-		logger.Ctx(ictx).Infow("serialized size", "in_mem_store_size", sizePkg.Of(st.Store))
 
 		if item.GetMalware() != nil {
 			addtl := graph.ItemInfo(item)
@@ -816,6 +819,7 @@ func (c *Collections) UpdateCollections(
 			// that OneDrive always returns all folders on the path of an item
 			// before the item. This seems to hold true for now at least.
 			if col.Add(item) {
+				getBackingStoreSize(ictx, item)
 				c.NumItems++
 			}
 
@@ -853,6 +857,7 @@ func (c *Collections) UpdateCollections(
 			itemCollection[driveID][itemID] = parentID
 
 			if collection.Add(item) {
+				getBackingStoreSize(ictx, item)
 				c.NumItems++
 				c.NumFiles++
 			}
