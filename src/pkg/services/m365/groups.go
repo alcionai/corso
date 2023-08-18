@@ -80,7 +80,7 @@ func getAllGroups(
 // helpers
 // ---------------------------------------------------------------------------
 
-// parseUser extracts information from `models.Userable` we care about
+// parseUser extracts information from `models.Groupable` we care about
 func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 	if mg.GetDisplayName() == nil {
 		return nil, clues.New("group missing display name").

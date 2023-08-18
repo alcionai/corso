@@ -134,6 +134,8 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	// group
 
+	// use of the TeamID is intentional here, so that we are assured
+	// the group has full usage of the teams api.
 	its.groupID = tconfig.M365TeamID(t)
 
 	team, err := its.ac.Groups().GetByID(ctx, its.groupID)
