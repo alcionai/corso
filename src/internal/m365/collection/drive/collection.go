@@ -108,6 +108,7 @@ type CorsoDriveItemable interface {
 	GetLastModifiedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
 	GetMalware() models.Malwareable
 	GetSharepointIds() models.SharepointIdsable
+	GetOdataType() *string
 }
 
 type CorsoDriveItem struct {
@@ -122,6 +123,8 @@ type CorsoDriveItem struct {
 	CreatedDateTime      *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
 	LastModifiedDateTime *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
 	Malware              models.Malwareable
+	SharepointIds        models.SharepointIdsable
+	OdataType            *string
 }
 
 func (c *CorsoDriveItem) GetId() *string {
@@ -177,7 +180,11 @@ func (c *CorsoDriveItem) GetMalware() models.Malwareable {
 }
 
 func (c *CorsoDriveItem) GetSharepointIds() models.SharepointIdsable {
-	return nil
+	return c.SharepointIds
+}
+
+func (c *CorsoDriveItem) GetOdataType() *string {
+	return c.OdataType
 }
 
 // models.DriveItemable to CorsoDriveItemable
@@ -194,6 +201,8 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		LastModifiedDateTime: item.GetLastModifiedDateTime(),
 		Malware:              item.GetMalware(),
 		AdditionalData:       item.GetAdditionalData(),
+		SharepointIds:        item.GetSharepointIds(),
+		OdataType:            item.GetOdataType(),
 	}
 }
 

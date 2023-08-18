@@ -674,7 +674,14 @@ func getBackingStoreSize(ctx context.Context, item models.DriveItemable) {
 	driveItem := item.(*models.DriveItem)
 	// Get backing store
 	st := driveItem.GetBackingStore().(*store.InMemoryBackingStore)
-	logger.Ctx(ctx).Infow("serialized size", "in_mem_store_size", sizePkg.Of(st.Store))
+	logger.Ctx(ctx).Infow("store size", "in_mem_store_size", sizePkg.Of(st.Store))
+	logger.Ctx(ctx).Infow("drive item size", "in_mem_store_size", sizePkg.Of(driveItem))
+}
+
+func getBackingStoreSize1(ctx context.Context, item CorsoDriveItemable) {
+	driveItem := item.(*CorsoDriveItem)
+	// Get backing store
+	logger.Ctx(ctx).Infow("corso serialized size", "in_mem_store_size", sizePkg.Of(driveItem))
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
@@ -821,6 +828,8 @@ func (c *Collections) UpdateCollections(
 			if col.Add(item) {
 				getBackingStoreSize(ictx, item)
 				c.NumItems++
+				cdi := ToCorsoDriveItemable(item)
+				getBackingStoreSize1(ictx, cdi)
 			}
 
 		case item.GetFile() != nil:
@@ -860,6 +869,8 @@ func (c *Collections) UpdateCollections(
 				getBackingStoreSize(ictx, item)
 				c.NumItems++
 				c.NumFiles++
+				cdi := ToCorsoDriveItemable(item)
+				getBackingStoreSize1(ictx, cdi)
 			}
 
 			// Do this after adding the file to the collection so if we fail to add
