@@ -1,7 +1,6 @@
 package restore
 
 import (
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -78,5 +77,5 @@ func restoreGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, clues.New("not yet implemented"))
+	return Only(ctx, utils.ErrNotYetImplemented)
 }

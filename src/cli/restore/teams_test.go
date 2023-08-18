@@ -83,7 +83,8 @@ func (suite *TeamsUnitSuite) TestAddTeamsCommands() {
 			cmd.SetOut(new(bytes.Buffer)) // drop output
 			cmd.SetErr(new(bytes.Buffer)) // drop output
 			err := cmd.Execute()
-			assert.NoError(t, err, clues.ToCore(err))
+			// assert.NoError(t, err, clues.ToCore(err))
+			assert.ErrorIs(t, err, utils.ErrNotYetImplemented, clues.ToCore(err))
 
 			opts := utils.MakeTeamsOpts(cmd)
 			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)

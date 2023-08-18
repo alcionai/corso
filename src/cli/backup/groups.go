@@ -134,7 +134,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, clues.New("not yet implemented"))
+	return Only(ctx, utils.ErrNotYetImplemented)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -182,7 +182,7 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	return Only(ctx, clues.New("not yet implemented"))
+	return Only(ctx, utils.ErrNotYetImplemented)
 }
 
 // ------------------------------------------------------------------------------------------------
