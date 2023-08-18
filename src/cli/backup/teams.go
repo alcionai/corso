@@ -1,10 +1,12 @@
 package backup
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -58,7 +60,7 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = teamsServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// TODO Neha: add teams flag
+		flags.AddTeamFlag(c)
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
@@ -126,7 +128,17 @@ func teamsCreateCmd() *cobra.Command {
 
 // processes a teams service backup.
 func createTeamsCmd(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if err := validateTeamBackupCreateFlags(flags.TeamFV); err != nil {
+		return Only(ctx, err)
+	}
+
+	return Only(ctx, clues.New("not yet implemented"))
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -164,7 +176,13 @@ func teamsDetailsCmd() *cobra.Command {
 
 // processes a teams service backup.
 func detailsTeamsCmd(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	return Only(ctx, clues.New("not yet implemented"))
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -184,4 +202,29 @@ func teamsDeleteCmd() *cobra.Command {
 // deletes an teams service backup.
 func deleteTeamsCmd(cmd *cobra.Command, args []string) error {
 	return genericDeleteCommand(cmd, path.TeamsService, flags.BackupIDFV, "Teams", args)
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func validateTeamBackupCreateFlags(teams []string) error {
+	if len(teams) == 0 {
+		return clues.New(
+			"requires one or more --" +
+				flags.TeamFN + " ids, or the wildcard --" +
+				flags.TeamFN + " *",
+		)
+	}
+
+	// TODO(meain)
+	// for _, d := range cats {
+	// 	if d != dataLibraries {
+	// 		return clues.New(
+	// 			d + " is an unrecognized data type; only  " + dataLibraries + " is supported"
+	// 		)
+	// 	}
+	// }
+
+	return nil
 }
