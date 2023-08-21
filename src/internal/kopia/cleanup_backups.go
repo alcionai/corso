@@ -32,7 +32,7 @@ func cleanupOrphanedData(
 	}
 
 	var (
-		// deets is a hash sets of the ModelStoreID or snapshot IDs for backup
+		// deets is a hash set of the ModelStoreID or snapshot IDs for backup
 		// details. It contains the IDs for both legacy details stored in the model
 		// store and newer details stored as a snapshot because it doesn't matter
 		// what the storage format is. We only need to know the ID so we can:
@@ -135,12 +135,11 @@ func cleanupOrphanedData(
 		_, dataOK := dataSnaps[manifest.ID(bm.SnapshotID)]
 		_, deetsOK := deets[manifest.ID(ssid)]
 
+		// All data is present, we shouldn't garbage collect this backup.
 		if deetsOK && dataOK {
 			delete(toDelete, bup.ModelStoreID)
 			delete(toDelete, manifest.ID(bm.SnapshotID))
 			delete(toDelete, manifest.ID(ssid))
-
-			continue
 		}
 	}
 
