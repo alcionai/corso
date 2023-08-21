@@ -87,6 +87,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		newItem(newFolderName, true),
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
+
 	require.NotNil(t, newFolder.GetId())
 
 	nfid := ptr.Val(newFolder.GetId())
@@ -131,10 +132,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			nfid,
 			newItem(newItemName, false),
 			control.Copy)
-		if err != nil {
-			// Something bad happened, skip this item
-			continue
-		}
+		require.NoError(t, err, clues.ToCore(err))
 
 		items = append(items, item)
 	}
@@ -176,13 +174,18 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 				nil,
 				nil)
 			require.NoError(t, err, clues.ToCore(err))
+
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Body)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
+
+			resp.Body.Close()
 		}(i)
 	}
 	wg.Wait()
 
-	// Validate that <= 1 delta queries were made by url cache
-	require.LessOrEqual(t, uc.deltaQueryCount, 1)
+	// Validate that exactly 1 delta query was made by url cache
+	require.Equal(t, 1, uc.deltaQueryCount)
 }
 
 type URLCacheUnitSuite struct {
