@@ -17,11 +17,12 @@ func _() {
 	_ = x[LibrariesCategory-6]
 	_ = x[PagesCategory-7]
 	_ = x[DetailsCategory-8]
+	_ = x[ChannelMessagesCategory-9]
 }
 
-const _CategoryType_name = "UnknownCategoryemailcontactseventsfileslistslibrariespagesdetails"
+const _CategoryType_name = "UnknownCategoryemailcontactseventsfileslistslibrariespagesdetailschannel messages"
 
-var _CategoryType_index = [...]uint8{0, 15, 20, 28, 34, 39, 44, 53, 58, 65}
+var _CategoryType_index = [...]uint8{0, 15, 20, 28, 34, 39, 44, 53, 58, 65, 81}
 
 func (i CategoryType) String() string {
 	if i < 0 || i >= CategoryType(len(_CategoryType_index)-1) {
