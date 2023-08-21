@@ -397,13 +397,25 @@ func (suite *GroupsSelectorSuite) TestCategory_PathType() {
 		cat      groupsCategory
 		pathType path.CategoryType
 	}{
-		{GroupsCategoryUnknown, path.UnknownCategory},
-		{GroupsChannel, path.UnknownCategory},
-		{GroupsChannelMessage, path.ChannelMessagesCategory},
+		{
+			cat:      GroupsCategoryUnknown,
+			pathType: path.UnknownCategory,
+		},
+		{
+			cat:      GroupsChannel,
+			pathType: path.ChannelMessagesCategory,
+		},
+		{
+			cat:      GroupsChannelMessage,
+			pathType: path.ChannelMessagesCategory,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.cat.String(), func() {
-			assert.Equal(suite.T(), test.pathType, test.cat.PathType())
+			assert.Equal(
+				suite.T(),
+				test.pathType.String(),
+				test.cat.PathType().String())
 		})
 	}
 }
