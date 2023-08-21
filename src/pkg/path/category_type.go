@@ -17,15 +17,15 @@ type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory   CategoryType = iota
-	EmailCategory                  // email
-	ContactsCategory               // contacts
-	EventsCategory                 // events
-	FilesCategory                  // files
-	ListsCategory                  // lists
-	LibrariesCategory              // libraries
-	PagesCategory                  // pages
-	DetailsCategory                // details
+	UnknownCategory   CategoryType = 0
+	EmailCategory     CategoryType = 1 // email
+	ContactsCategory  CategoryType = 2 // contacts
+	EventsCategory    CategoryType = 3 // events
+	FilesCategory     CategoryType = 4 // files
+	ListsCategory     CategoryType = 5 // lists
+	LibrariesCategory CategoryType = 6 // libraries
+	PagesCategory     CategoryType = 7 // pages
+	DetailsCategory   CategoryType = 8 // details
 )
 
 func ToCategoryType(category string) CategoryType {
