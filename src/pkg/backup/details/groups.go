@@ -35,17 +35,24 @@ func NewGroupsLocationIDer(
 }
 
 // GroupsInfo describes a groups item
-// TODO(meain): Add channel name and id
 type GroupsInfo struct {
 	Created    time.Time `json:"created,omitempty"`
-	DriveName  string    `json:"driveName,omitempty"`
-	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
+
+	// Groups Specific
+	ChannelName string `json:"channelName,omitempty"`
+	ChannelID   string `json:"channelID,omitempty"`
+
+	// SharePoint specific
+	DriveName string `json:"driveName,omitempty"`
+	DriveID   string `json:"driveID,omitempty"`
+	SiteID    string `json:"siteID,omitempty"`
+	WebURL    string `json:"webURL,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo

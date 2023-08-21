@@ -133,7 +133,7 @@ func augmentGroupItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	var driveName, driveID, creatorEmail string
+	var driveName, driveID, creatorEmail, siteID, weburl string
 
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
@@ -154,15 +154,15 @@ func augmentGroupItemInfo(
 		}
 	}
 
-	// gsi := item.GetSharepointIds()
-	// if gsi != nil {
-	// 	siteID = ptr.Val(gsi.GetSiteId())
-	// 	weburl = ptr.Val(gsi.GetSiteUrl())
+	gsi := item.GetSharepointIds()
+	if gsi != nil {
+		siteID = ptr.Val(gsi.GetSiteId())
+		weburl = ptr.Val(gsi.GetSiteUrl())
 
-	// 	if len(weburl) == 0 {
-	// 		weburl = constructWebURL(item.GetAdditionalData())
-	// 	}
-	// }
+		if len(weburl) == 0 {
+			weburl = constructWebURL(item.GetAdditionalData())
+		}
+	}
 
 	if item.GetParentReference() != nil {
 		driveID = ptr.Val(item.GetParentReference().GetDriveId())
@@ -174,6 +174,7 @@ func augmentGroupItemInfo(
 		pps = parentPath.String()
 	}
 
+	// TODO: Add channel name and ID
 	dii.Groups = &details.GroupsInfo{
 		Created:    ptr.Val(item.GetCreatedDateTime()),
 		DriveID:    driveID,
@@ -184,6 +185,8 @@ func augmentGroupItemInfo(
 		Owner:      creatorEmail,
 		ParentPath: pps,
 		Size:       size,
+		SiteID:     siteID,
+		WebURL:     weburl,
 	}
 
 	dii.Extension = &details.ExtensionData{}
