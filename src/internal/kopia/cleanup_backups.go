@@ -222,14 +222,33 @@ func cleanupOrphanedData(
 		"num_items", len(toDelete),
 		"kopia_ids", maps.Keys(toDelete))
 
+	// This will technically save a superset of the assist bases we should keep.
+	// The reason for that is that we only add something to the set of assist
+	// bases after we've excluded backups in the buffer time zone. For example
+	// we could discover that of the set of assist bases we have, something is
+	// the youngest and exclude it from gabage collection. However, when looking
+	// at the set of all assist bases, including those in the buffer zone, it's
+	// possible the one we thought was the youngest actually isn't and could be
+	// garbage collected.
+	//
+	// This sort of edge case will ideally happen only for a few assist bases at
+	// a time. Assuming this function is run somewhat periodically, missing these
+	// edge cases is alright because they'll get picked up on a subsequent run.
+	assistItems := collectOldAssistBases(ctx, assistBackups)
+
+	logger.Ctx(ctx).Debugw(
+		"garbage collecting old assist bases",
+		"assist_num_items", len(assistItems),
+		"assist_kopia_ids", assistItems)
+
+	assistItems = append(assistItems, maps.Keys(toDelete)...)
+
 	// Use single atomic batch delete operation to cleanup to keep from making a
 	// bunch of manifest content blobs.
-	if err := bs.DeleteWithModelStoreIDs(ctx, maps.Keys(toDelete)...); err != nil {
+	if err := bs.DeleteWithModelStoreIDs(ctx, assistItems...); err != nil {
 		return clues.Wrap(err, "deleting orphaned data")
 	}
 
-	// TODO(ashmrtn): Do some pruning of assist backup models so we don't keep
-	// them around forever.
 	return nil
 }
 
