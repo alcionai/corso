@@ -11,22 +11,31 @@ import (
 
 // NewGroupsLocationIDer builds a LocationIDer for the groups.
 func NewGroupsLocationIDer(
+	category path.CategoryType,
 	driveID string,
 	escapedFolders ...string,
-) uniqueLoc {
+) (uniqueLoc, error) {
 	// TODO(meain): path fixes
-	pb := path.Builder{}.
-		Append(path.LibrariesCategory.String(), driveID).
-		Append(escapedFolders...)
-
-	return uniqueLoc{
-		pb:          pb,
-		prefixElems: 2,
+	if err := path.ValidateServiceAndCategory(path.GroupsService, category); err != nil {
+		return uniqueLoc{}, clues.Wrap(err, "making groups LocationIDer")
 	}
+
+	pb := path.Builder{}.Append(category.String())
+	prefixElems := 1
+
+	if driveID != "" { // non sp paths don't have driveID
+		pb.Append(driveID)
+
+		prefixElems = 2
+	}
+
+	pb.Append(escapedFolders...)
+
+	return uniqueLoc{pb, prefixElems}, nil
 }
 
 // GroupsInfo describes a groups item
-// TODO(meain): Should we add the channel name?
+// TODO(meain): Add channel name and id
 type GroupsInfo struct {
 	Created    time.Time `json:"created,omitempty"`
 	DriveName  string    `json:"driveName,omitempty"`
@@ -59,13 +68,20 @@ func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
 }
 
 func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
-	if len(i.DriveID) == 0 {
-		return nil, clues.New("empty drive ID")
+	var category path.CategoryType
+
+	switch i.ItemType {
+	case SharePointLibrary:
+		category = path.LibrariesCategory
+
+		if len(i.DriveID) == 0 {
+			return nil, clues.New("empty drive ID")
+		}
 	}
 
-	loc := NewGroupsLocationIDer(i.DriveID, baseLoc.Elements()...)
+	loc, err := NewGroupsLocationIDer(category, i.DriveID, baseLoc.Elements()...)
 
-	return &loc, nil
+	return &loc, err
 }
 
 func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
