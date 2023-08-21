@@ -19,7 +19,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.0
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.14.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.15.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v2 v2.4.1
@@ -49,6 +49,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
