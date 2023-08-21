@@ -18,7 +18,7 @@ func addTeamsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, teamsRestoreCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, teamsRestoreCmd(), utils.MarkPreReleaseCommand())
 
 		c.Use = c.Use + " " + teamsServiceCommandUseSuffix
 
