@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.327
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/h2non/gock v1.2.0
 	github.com/kopia/kopia v0.13.0
 	github.com/microsoft/kiota-abstractions-go v1.2.0
