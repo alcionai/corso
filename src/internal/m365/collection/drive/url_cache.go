@@ -3,6 +3,7 @@ package drive
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -18,6 +19,7 @@ import (
 const (
 	urlCacheDriveItemThreshold = 300 * 1000
 	urlCacheRefreshInterval    = 1 * time.Hour
+	maxRefreshFailuresAllowed  = 3
 )
 
 type getItemPropertyer interface {
@@ -36,20 +38,19 @@ var _ getItemPropertyer = &urlCache{}
 
 // urlCache caches download URLs for drive items
 type urlCache struct {
-	driveID         string
-	prevDelta       string
-	idToProps       map[string]itemProps
-	lastRefreshTime time.Time
-	refreshInterval time.Duration
+	driveID             string
+	prevDelta           string
+	idToProps           map[string]itemProps
+	lastRefreshTime     time.Time
+	refreshInterval     time.Duration
+	refreshFailureCount int64
 	// cacheMu protects idToProps and lastRefreshTime
 	cacheMu sync.RWMutex
 	// refreshMu serializes cache refresh attempts by potential writers
 	refreshMu       sync.Mutex
 	deltaQueryCount int
-
-	itemPager api.DriveItemDeltaEnumerator
-
-	errs *fault.Bus
+	itemPager       api.DriveItemDeltaEnumerator
+	errs            *fault.Bus
 }
 
 // newURLache creates a new URL cache for the specified drive ID
@@ -109,11 +110,17 @@ func (uc *urlCache) getItemProperties(
 		return itemProps{}, clues.New("item id is empty")
 	}
 
+	if atomic.LoadInt64(&uc.refreshFailureCount) > maxRefreshFailuresAllowed {
+		return itemProps{}, clues.New("url cache in failed state")
+	}
+
 	ctx = clues.Add(ctx, "drive_id", uc.driveID)
 
 	if uc.needsRefresh() {
 		err := uc.refreshCache(ctx)
 		if err != nil {
+			atomic.AddInt64(&uc.refreshFailureCount, 1)
+
 			return itemProps{}, err
 		}
 	}
