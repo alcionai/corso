@@ -3,12 +3,14 @@ package kopia
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
@@ -276,4 +278,94 @@ func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	}
 
 	return nil
+}
+
+func collectOldAssistBases(
+	ctx context.Context,
+	bups []*backup.Backup,
+) []manifest.ID {
+	// maybeDelete is the set of backups that could be deleted. It starts out as
+	// the set of all backups and has ineligible backups removed from it.
+	maybeDelete := map[manifest.ID]*backup.Backup{}
+	// Figure out which backups have overlapping reasons. A single backup can
+	// appear in multiple slices in the map, one for each Reason associated with
+	// it.
+	bupsByReason := map[string][]*backup.Backup{}
+
+	for _, bup := range bups {
+		// Safe to pull from this field since assist backups came after we switched
+		// to using ProtectedResourceID.
+		roid := bup.ProtectedResourceID
+
+		tenant := bup.Tags[tenantTag]
+		if len(tenant) == 0 {
+			// We can skip this backup. It won't get garbage collected, but it also
+			// won't result in incorrect behavior overall.
+			logger.Ctx(ctx).Infow("missing tenant tag in backup", "backup_id", bup.ID)
+			continue
+		}
+
+		maybeDelete[manifest.ID(bup.ModelStoreID)] = bup
+
+		for tag := range bup.Tags {
+			if strings.HasPrefix(tag, serviceCatTagPrefix) {
+				// Precise way we concatenate all this info doesn't really matter as
+				// long as it's consistent for all backups in the set and includes all
+				// the pieces we need to ensure uniqueness across.
+				fullTag := tenant + roid + tag
+				bupsByReason[fullTag] = append(bupsByReason[fullTag], bup)
+			}
+		}
+	}
+
+	// For each set of backups we found, sort them by time. Mark all but the
+	// youngest backup in each group as eligible for garbage collection.
+	//
+	// We implement this process as removing backups from the set of potential
+	// backups to delete because it's possible for a backup to to not be the
+	// youngest for one Reason but be the youngest for a different Reason (i.e.
+	// most recent exchange mail backup but not the most recent exchange
+	// contacts backup). A simple delete operation in the map is sufficient to
+	// remove a backup even if it's only the youngest for a single Reason.
+	// Otherwise we'd need to do another pass after this to determine the
+	// isYoungest status for all Reasons in the backup.
+	//
+	// TODO(ashmrtn): Handle concurrent backups somehow? Right now backups that
+	// have overlapping start and end times aren't explicitly handled.
+	for _, bupSet := range bupsByReason {
+		if len(bupSet) == 0 {
+			continue
+		}
+
+		// Sort in reverse chronological order so that we can just remove the zeroth
+		// item from the delete set instead of getting the slice length.
+		// Unfortunately this could also put us in the pathologic case where almost
+		// all items need swapped since in theory kopia returns results in
+		// chronologic order and we're processing them in the order kopia returns
+		// them.
+		slices.SortStableFunc(bupSet, func(a, b *backup.Backup) int {
+			return -a.CreationTime.Compare(b.CreationTime)
+		})
+
+		delete(maybeDelete, manifest.ID(bupSet[0].ModelStoreID))
+	}
+
+	res := make([]manifest.ID, 0, 3*len(maybeDelete))
+
+	// For all items remaining in the delete set, generate the final set of items
+	// to delete. This set includes the data snapshot ID, details snapshot ID, and
+	// backup model ID to delete for each backup.
+	for bupID, bup := range maybeDelete {
+		// Don't need to check if we use StreamStoreID or DetailsID because
+		// DetailsID was deprecated prior to tagging backups as assist backups.
+		// Since the input set is only assist backups there's no overlap between the
+		// two implementations.
+		res = append(
+			res,
+			bupID,
+			manifest.ID(bup.SnapshotID),
+			manifest.ID(bup.StreamStoreID))
+	}
+
+	return res
 }
