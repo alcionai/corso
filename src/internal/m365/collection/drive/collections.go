@@ -286,17 +286,25 @@ func (c *Collections) Get(
 			"num_paths_entries", len(oldPaths),
 			"num_deltas_entries", numOldDelta)
 
-		delta, paths, excluded, err := collectItems(
-			ictx,
-			c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
-			driveID,
-			driveName,
-			c.UpdateCollections,
-			oldPaths,
-			prevDelta,
-			errs)
-		if err != nil {
-			return nil, false, err
+		var delta DeltaUpdate
+		var paths map[string]string
+		var excluded map[string]struct{}
+
+		for i := 0; i < 3; i++ {
+			logger.Ctx(ctx).Info("Delta query - original begin")
+			delta, paths, excluded, err = collectItems(
+				ictx,
+				c.handler.NewItemPager(driveID, "", api.DriveItemSelectDefault()),
+				driveID,
+				driveName,
+				c.UpdateCollections,
+				oldPaths,
+				prevDelta,
+				errs)
+			if err != nil {
+				return nil, false, err
+			}
+			logger.Ctx(ctx).Info("Delta query - original end")
 		}
 
 		// Used for logging below.
@@ -340,6 +348,29 @@ func (c *Collections) Get(
 			if err != nil {
 				return nil, false, err
 			}
+		}
+
+		for i := 0; i < 3; i++ {
+			logger.Ctx(ctx).Info("Delta query - URL cache begin")
+			err = c.addURLCacheToDriveCollections(
+				ictx,
+				driveID,
+				prevDelta,
+				errs)
+			if err != nil {
+				return nil, false, err
+			}
+
+			var uc *urlCache
+			for _, driveColls := range c.CollectionMap {
+				for _, coll := range driveColls {
+					uc = coll.urlCache.(*urlCache)
+				}
+			}
+
+			uc.RefreshCache(ctx)
+
+			logger.Ctx(ctx).Info("Delta query - URL cache end")
 		}
 
 		// For both cases we don't need to do set difference on folder map if the

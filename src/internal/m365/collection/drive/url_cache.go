@@ -112,7 +112,7 @@ func (uc *urlCache) getItemProperties(
 	ctx = clues.Add(ctx, "drive_id", uc.driveID)
 
 	if uc.needsRefresh() {
-		err := uc.refreshCache(ctx)
+		err := uc.RefreshCache(ctx)
 		if err != nil {
 			return itemProps{}, err
 		}
@@ -137,7 +137,7 @@ func (uc *urlCache) needsRefresh() bool {
 }
 
 // refreshCache refreshes the URL cache by performing a delta query.
-func (uc *urlCache) refreshCache(
+func (uc *urlCache) RefreshCache(
 	ctx context.Context,
 ) error {
 	// Acquire mutex to prevent multiple threads from refreshing the
