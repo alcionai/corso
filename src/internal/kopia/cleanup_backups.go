@@ -17,6 +17,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+const (
+	serviceCatTagPrefix = "sc-"
+	kopiaPathLabel      = "path"
+	tenantTag           = "tenant"
+)
+
 // cleanupOrphanedData uses bs and mf to lookup all models/snapshots for backups
 // and deletes items that are older than nowFunc() - gcBuffer (cutoff) that are
 // not "complete" backups with:
@@ -68,7 +74,10 @@ func cleanupOrphanedData(
 		//   2. delete the details if they're orphaned
 		deets = map[manifest.ID]struct{}{}
 		// dataSnaps is a hash set of the snapshot IDs for item data snapshots.
-		dataSnaps = map[manifest.ID]struct{}{}
+		dataSnaps = map[manifest.ID]*manifest.EntryMetadata{}
+		// toDelete is the set of objects to delete from kopia. It starts out with
+		// all items and has ineligible items removed from it.
+		toDelete = map[manifest.ID]struct{}{}
 	)
 
 	cutoff := nowFunc().Add(-gcBuffer)
@@ -81,9 +90,11 @@ func cleanupOrphanedData(
 			continue
 		}
 
+		toDelete[snap.ID] = struct{}{}
+
 		k, _ := makeTagKV(TagBackupCategory)
 		if _, ok := snap.Labels[k]; ok {
-			dataSnaps[snap.ID] = struct{}{}
+			dataSnaps[snap.ID] = snap
 			continue
 		}
 
@@ -106,6 +117,7 @@ func cleanupOrphanedData(
 		}
 
 		deets[d.ModelStoreID] = struct{}{}
+		toDelete[d.ModelStoreID] = struct{}{}
 	}
 
 	// Get all backup models.
@@ -114,8 +126,11 @@ func cleanupOrphanedData(
 		return clues.Wrap(err, "getting all backup models")
 	}
 
-	toDelete := maps.Clone(deets)
-	maps.Copy(toDelete, dataSnaps)
+	// assistBackups is the set of backups that have a
+	//   * a label denoting their an assist backup
+	//   * item data snapshot
+	//   * details snapshot
+	var assistBackups []*backup.Backup
 
 	for _, bup := range bups {
 		// Don't even try to see if this needs garbage collected because it's not
@@ -162,7 +177,7 @@ func cleanupOrphanedData(
 			ssid = bm.DetailsID
 		}
 
-		_, dataOK := dataSnaps[manifest.ID(bm.SnapshotID)]
+		d, dataOK := dataSnaps[manifest.ID(bm.SnapshotID)]
 		_, deetsOK := deets[manifest.ID(ssid)]
 
 		// All data is present, we shouldn't garbage collect this backup.
@@ -170,6 +185,33 @@ func cleanupOrphanedData(
 			delete(toDelete, bup.ModelStoreID)
 			delete(toDelete, manifest.ID(bm.SnapshotID))
 			delete(toDelete, manifest.ID(ssid))
+
+			// Add to the assist backup set so that we can attempt to garbage collect
+			// older assist backups below.
+			if bup.Tags[model.BackupTypeTag] == model.AssistBackup {
+				// This is a little messy to have, but can simplify the logic below.
+				// The state of tagging in corso isn't all that great right now and we'd
+				// really like to consolidate tags and clean them up. For now, we're
+				// going to copy tags that are related to Reasons for a backup from the
+				// item data snapshot to the backup model. This makes the function
+				// checking if assist backups should be garbage collected a bit easier
+				// because now they only have to source data from backup models.
+				if err := transferTags(d, &bm); err != nil {
+					logger.Ctx(ctx).Debugw(
+						"transferring legacy tags to backup model",
+						"err", err,
+						"snapshot_id", d.ID,
+						"backup_id", bup.ID)
+
+					// Continuing here means the base won't be eligible for old assist
+					// base garbage collection. We could add more logic to eventually
+					// delete the base in question but I don't really expect to see
+					// failures when transferring tags.
+					continue
+				}
+
+				assistBackups = append(assistBackups, &bm)
+			}
 		}
 	}
 
@@ -186,6 +228,52 @@ func cleanupOrphanedData(
 
 	// TODO(ashmrtn): Do some pruning of assist backup models so we don't keep
 	// them around forever.
+	return nil
+}
+
+var skipKeys = []string{
+	TagBackupID,
+	TagBackupCategory,
+}
+
+func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
+	tenant, err := decodeElement(snap.Labels[kopiaPathLabel])
+	if err != nil {
+		return clues.Wrap(err, "decoding tenant from label")
+	}
+
+	bup.Tags[tenantTag] = tenant
+
+	skipTags := map[string]struct{}{}
+
+	for _, k := range skipKeys {
+		key, _ := makeTagKV(k)
+		skipTags[key] = struct{}{}
+	}
+
+	// Safe to check only this because the old field was deprecated prior to the
+	// tagging of assist backups and this function only deals with assist
+	// backups.
+	roid := bup.ProtectedResourceID
+
+	roidK, _ := makeTagKV(roid)
+	skipTags[roidK] = struct{}{}
+
+	// This is hacky, but right now we don't have a good way to get only the
+	// Reason tags for something. We can however, find them by searching for all
+	// the "normalized" tags and then discarding the ones we know aren't
+	// reasons. Unfortunately this won't work if custom tags are added to the
+	// backup that we don't know about.
+	//
+	// Convert them to the newer format that we'd like to have where the
+	// service/category tags have the form "sc-<service><category>".
+	for tag := range snap.Labels {
+		if _, ok := skipTags[tag]; ok || !strings.HasPrefix(tag, userTagPrefix) {
+			continue
+		}
+
+		bup.Tags[strings.Replace(tag, userTagPrefix, serviceCatTagPrefix, 1)] = "0"
+	}
 
 	return nil
 }
