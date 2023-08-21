@@ -53,7 +53,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreReleaseCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
@@ -69,7 +69,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddFailFastFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreReleaseCommand())
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
@@ -81,7 +81,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreReleaseCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
@@ -97,7 +97,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddAzureCredsFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreReleaseCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
