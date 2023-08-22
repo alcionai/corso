@@ -373,23 +373,36 @@ func (op *BackupOperation) do(
 	// the entire subtree instead of returning an additional bool. That way base
 	// selection is controlled completely by flags and merging is controlled
 	// completely by collections.
-	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
-		ctx,
-		op.bp,
-		op.ResourceOwner,
-		op.Selectors,
-		mdColls,
-		lastBackupVersion,
-		op.Options,
-		op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "producing backup data collections")
-	}
 
-	ctx = clues.Add(
-		ctx,
-		"can_use_previous_backup", canUsePreviousBackup,
-		"collection_count", len(cs))
+	var cs []data.BackupCollection
+	maxAttempts := 30
+
+	for i := 0; i < maxAttempts; i++ {
+		logger.Ctx(ctx).Info("delta query begin")
+		cs, _, _, err := produceBackupDataCollections(
+			ctx,
+			op.bp,
+			op.ResourceOwner,
+			op.Selectors,
+			mdColls,
+			lastBackupVersion,
+			op.Options,
+			op.Errors)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("producing backup data collections")
+
+			if i == maxAttempts-1 {
+				return nil, clues.Wrap(err, "producing backup data collections")
+			}
+		}
+
+		logger.Ctx(ctx).Info("delta query end")
+
+		ctx = clues.Add(
+			ctx,
+			"can_use_previous_backup", false,
+			"collection_count", len(cs))
+	}
 
 	writeStats, deets, toMerge, err := consumeBackupCollections(
 		ctx,
@@ -398,9 +411,9 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
-		ssmb,
+		nil,
 		backupID,
-		op.incremental && canUseMetadata && canUsePreviousBackup,
+		op.incremental && canUseMetadata && false,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
