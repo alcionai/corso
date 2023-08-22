@@ -87,14 +87,10 @@ func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		}
 
 		fallthrough
-	case ExchangeMail:
-		fallthrough
-	case ExchangeContact:
+	case ExchangeMail, ExchangeContact:
 		baseLoc = path.Builder{}.Append(rr.Folders()...)
 
-	case OneDriveItem:
-		fallthrough
-	case SharePointLibrary:
+	case OneDriveItem, SharePointLibrary:
 		if backupVersion >= version.OneDrive7LocationRef {
 			return nil, clues.New("no previous location for drive entry").
 				With("repo_ref", rr)

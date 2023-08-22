@@ -617,8 +617,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"work",
 				"item1",
 			},
-			true,
-		)
+			true)
 		exchangeLocationPath1 = path.Builder{}.Append("work-display-name")
 		exchangePathReason1   = kopia.NewReason(
 			"",
