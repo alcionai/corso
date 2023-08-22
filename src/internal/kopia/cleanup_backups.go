@@ -28,14 +28,9 @@ import (
 // if this is run concurrently with a backup it's not likely to delete models
 // just being created. For example, if there was no buffer period and this is
 // run when another corso instance has created an item data snapshot but hasn't
-// yet created the details snapshot or the backup model would result in this
+// yet created the details snapshot or the backup model it would result in this
 // instance of corso marking the newly created item data snapshot for deletion
 // because it appears orphaned.
-//
-// For simplicity, we exclude all items younger than the cutoff. It's possible
-// to exclude only snapshots and details models since the backup model is the
-// last thing persisted for a backup. However, If we selectively exclude things
-// then changes to the order of persistence may require changes here too.
 //
 // The buffer duration should be longer than the difference in creation times
 // between the first item data snapshot/details/backup model made during a
@@ -178,7 +173,7 @@ func cleanupOrphanedData(
 		}
 	}
 
-	logger.Ctx(ctx).Debugw(
+	logger.Ctx(ctx).Infow(
 		"garbage collecting orphaned items",
 		"num_items", len(toDelete),
 		"kopia_ids", maps.Keys(toDelete))
