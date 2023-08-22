@@ -92,7 +92,7 @@ jobs:
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-nightly.log
+          CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-nightly.log
           LOG_GRAPH_REQUESTS: true
           S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
         run: |
@@ -101,7 +101,6 @@ jobs:
           -tags testing \
           -json         \
           -v            \
-          -failfast     \
           -p 1          \
           -timeout 1h  \
           ./... 2>&1 | tee ./testlog/gotest-nightly.log | gotestfmt -hide successful-tests

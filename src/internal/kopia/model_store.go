@@ -210,6 +210,7 @@ func (ms ModelStore) populateBaseModelFromMetadata(
 	base.ID = model.StableID(id)
 	base.ModelVersion = v
 	base.Tags = m.Labels
+	base.ModTime = m.ModTime
 
 	stripHiddenTags(base.Tags)
 

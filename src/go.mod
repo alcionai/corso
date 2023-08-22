@@ -8,10 +8,10 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
 	github.com/alcionai/clues v0.0.0-20230728164842-7dc4795a43e4
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.44.326
+	github.com/aws/aws-sdk-go v1.44.328
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/h2non/gock v1.2.0
 	github.com/kopia/kopia v0.13.0
 	github.com/microsoft/kiota-abstractions-go v1.2.0
@@ -19,10 +19,10 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.0
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.14.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.15.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/puzpuzpuz/xsync/v2 v2.4.1
+	github.com/puzpuzpuz/xsync/v2 v2.5.0
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
 	github.com/spatialcurrent/go-lazy v0.0.0-20211115014721-47315cc003d1
 	github.com/spf13/cobra v1.7.0
@@ -49,6 +49,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
