@@ -113,13 +113,11 @@ func DriveItemSelectDefault() []string {
 		"shared")
 }
 
-// URL cache only needs a subset of default select fields.
-// This improves memory usage for delta query operations done by URL cache.
+// URL cache only needs a subset of item properties
 func DriveItemSelectURLCache() []string {
 	return idAnd(
 		"content.downloadUrl",
 		"deleted",
 		"file",
-		"folder",
-	)
+		"folder")
 }
