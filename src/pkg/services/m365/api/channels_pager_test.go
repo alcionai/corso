@@ -139,24 +139,29 @@ func deleteChannel(ctx context.Context, credentials account.M365Config, teamID, 
 }
 
 // func (suite *ChannelPagerIntgSuite) TestMessages_CreateGetAndDelete() {
-// t := suite.T()
-// ctx, flush := tester.NewContext(t)
-// defer flush()
+// 	t := suite.T()
+// 	ctx, flush := tester.NewContext(t)
+// 	defer flush()
 
-// var (
-// teamID    = tconfig.M365TeamsID(t)
-// channelID = tconfig.M365ChannelID(t)
-// credentials = suite.its.ac.Credentials
-// chanClient  = suite.its.ac.Channels()
-// )
+// 	var (
+// 		teamID      = tconfig.M365TeamsID(t)
+// 		channelID   = tconfig.M365ChannelID(t)
+// 		credentials = suite.its.ac.Credentials
+// 		chanClient  = suite.its.ac.Channels()
+// 	)
 
-// POST channel
-// patchBody := models.NewChatMessage()
-// body := models.NewItemBody()
-// content := "Hello World"
-// body.SetContent(&content)
-// patchBody.SetBody(body)
+// 	// GET channel - should be not found
+// 	message, _, err := chanClient.GetMessage(ctx, teamID, channelID, "", "")
+// 	assert.Error(t, err, clues.ToCore(err))
 
-// _,  := suite.its.ac.Channels().PostMessage(ctx, teamID, channelID, patchBody)
-// assert.NoError(t, err, clues.ToCore(err))
+// 	// POST channel
+// 	// patchBody := models.NewChatMessage()
+// 	// body := models.NewItemBody()
+// 	// content := "Hello World"
+// 	// body.SetContent(&content)
+// 	// patchBody.SetBody(body)
+
+// 	// _,  := suite.its.ac.Channels().PostMessage(ctx, teamID, channelID, patchBody)
+// 	// assert.NoError(t, err, clues.ToCore(err))
+
 // }
