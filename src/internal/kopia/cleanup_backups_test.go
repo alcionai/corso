@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
@@ -221,6 +222,28 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		},
 	}
 
+	// Get some stable time so that we can do everything relative to this in the
+	// tests. Mostly just makes reasoning/viewing times easier because the only
+	// differences will be the changes we make.
+	baseTime := time.Now()
+
+	manifestWithTime := func(
+		mt time.Time,
+		m *manifest.EntryMetadata,
+	) *manifest.EntryMetadata {
+		res := *m
+		res.ModTime = mt
+
+		return &res
+	}
+
+	backupWithTime := func(mt time.Time, b *backup.Backup) *backup.Backup {
+		res := *b
+		res.ModTime = mt
+
+		return &res
+	}
+
 	table := []struct {
 		name             string
 		snapshots        []*manifest.EntryMetadata
@@ -231,12 +254,15 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		backups             []backupRes
 		backupListErr       error
 		deleteErr           error
+		time                time.Time
+		buffer              time.Duration
 
 		expectDeleteIDs []manifest.ID
 		expectErr       assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "EmptyRepo",
+			time:      baseTime,
 			expectErr: assert.NoError,
 		},
 		{
@@ -253,6 +279,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				{bup: bupCurrent},
 				{bup: bupLegacy},
 			},
+			time:      baseTime,
 			expectErr: assert.NoError,
 		},
 		{
@@ -277,6 +304,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				snapNoDetails.ID,
 				deetsNoSnapshot.ID,
 			},
+			time:      baseTime,
 			expectErr: assert.NoError,
 		},
 		{
@@ -297,6 +325,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifest.ID(bupLegacy.ModelStoreID),
 				manifest.ID(deetsLegacy.ModelStoreID),
 			},
+			time:      baseTime,
 			expectErr: assert.NoError,
 		},
 		{
@@ -315,6 +344,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				snapCurrent.ID,
 				snapLegacy.ID,
 			},
+			time:      baseTime,
 			expectErr: assert.NoError,
 		},
 		{
@@ -334,6 +364,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			backups: []backupRes{
 				{bup: bupCurrent},
 			},
+			time:      baseTime,
 			expectErr: assert.Error,
 		},
 		{
@@ -343,6 +374,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				deetsCurrent,
 			},
 			backupListErr: assert.AnError,
+			time:          baseTime,
 			expectErr:     assert.Error,
 		},
 		{
@@ -378,6 +410,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				snapNoDetails.ID,
 				manifest.ID(bupNoDetails.ModelStoreID),
 			},
+			time:      baseTime,
 			expectErr: assert.NoError,
 		},
 		{
@@ -399,7 +432,76 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				},
 				{bup: bupNoDetails},
 			},
+			time:      baseTime,
 			expectErr: assert.Error,
+		},
+		{
+			name: "DeleteError Fails",
+			snapshots: []*manifest.EntryMetadata{
+				snapCurrent,
+				deetsCurrent,
+				snapLegacy,
+				snapNoDetails,
+			},
+			detailsModels: []*model.BaseModel{
+				deetsLegacy,
+			},
+			backups: []backupRes{
+				{bup: bupCurrent},
+				{bup: bupLegacy},
+				{bup: bupNoDetails},
+			},
+			expectDeleteIDs: []manifest.ID{
+				snapNoDetails.ID,
+				manifest.ID(bupNoDetails.ModelStoreID),
+			},
+			deleteErr: assert.AnError,
+			time:      baseTime,
+			expectErr: assert.Error,
+		},
+		{
+			name: "MissingSnapshot BarelyTooYoungForCleanup Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithTime(baseTime, deetsCurrent),
+			},
+			backups: []backupRes{
+				{bup: backupWithTime(baseTime, bupCurrent)},
+			},
+			time:      baseTime.Add(24 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			name: "MissingSnapshot BarelyOldEnough CausesCleanup",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithTime(baseTime, deetsCurrent),
+			},
+			backups: []backupRes{
+				{bup: backupWithTime(baseTime, bupCurrent)},
+			},
+			expectDeleteIDs: []manifest.ID{
+				deetsCurrent.ID,
+				manifest.ID(bupCurrent.ModelStoreID),
+			},
+			time:      baseTime.Add((24 * time.Hour) + time.Second),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			name: "BackupGetErrorNotFound TooYoung Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithTime(baseTime, snapCurrent),
+				manifestWithTime(baseTime, deetsCurrent),
+			},
+			backups: []backupRes{
+				{
+					bup: backupWithTime(baseTime, bupCurrent),
+					err: data.ErrNotFound,
+				},
+			},
+			time:      baseTime,
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
 		},
 	}
 
@@ -426,7 +528,12 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				err:       test.snapshotFetchErr,
 			}
 
-			err := cleanupOrphanedData(ctx, mbs, mmf)
+			err := cleanupOrphanedData(
+				ctx,
+				mbs,
+				mmf,
+				test.buffer,
+				func() time.Time { return test.time })
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
