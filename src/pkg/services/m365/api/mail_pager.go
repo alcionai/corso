@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -242,33 +241,11 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	m := map[string]string{}
 
 	for _, item := range items {
-		e := item.GetAdditionalData()
-		tag := e["@odata.etag"]
-
-		logger.Ctx(ctx).Infow(
-			"item_id", ptr.Val(item.GetId()),
-			"item_subject", ptr.Val(item.GetSubject()),
-			"collision_key", MailCollisionKey(item),
-			"etag", tag)
-
-		// Check if item already exists
-		// if _, ok := m[MailCollisionKey(item)]; ok {
-		// 	// print id & subject for both items
-		// 	logger.Ctx(ctx).Infow(
-		// 		"item collision",
-		// 		"item_id", ptr.Val(item.GetId()),
-		// 		"item_subject", ptr.Val(item.GetSubject()),
-		// 		"collision_key", MailCollisionKey(item),
-		// 		"etag", tag)
-		// }
-		// PIM: A privileged directory role was assigned outside of PIM2023-02-17T03:18:05Z2023-02-17T03:18:09Z
-		logger.Ctx(ctx).Info(MailCollisionKey(item))
 		m[MailCollisionKey(item)] = ptr.Val(item.GetId())
 	}
 
 	return m, nil
 }
-
 func (c Mail) GetItemIDsInContainer(
 	ctx context.Context,
 	userID, containerID string,
