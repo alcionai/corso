@@ -82,7 +82,7 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	},
 	TeamsService: {
 		ChannelMessagesCategory: {},
-		LibrariesCategory:       {},
+		LibrariesCategory:       {}, // TODO(meain)
 	},
 }
 

@@ -329,14 +329,24 @@ const (
 	GroupsGroup          groupsCategory = "GroupsGroup"
 	GroupsChannel        groupsCategory = "GroupsChannel"
 	GroupsChannelMessage groupsCategory = "GroupsChannelMessage"
-	GroupsLibraryFolder  groupsCategory = "GroupsLibraryFolder"
-	GroupsLibraryItem    groupsCategory = "GroupsLibraryItem"
 
 	// details.itemInfo comparables
 
 	// channel drive selection
-	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
-	GroupsInfoChannel          groupsCategory = "GroupsInfoChannel"
+	GroupsInfoChannel groupsCategory = "GroupsInfoChannel"
+
+	// sharepoint
+	GroupsLibraryFolder groupsCategory = "GroupsLibraryFolder"
+	GroupsLibraryItem   groupsCategory = "GroupsLibraryItem"
+
+	// messages
+	// GroupsTeamChannel groupsCategory = "GroupsTeamChannel"
+	// GroupsTeamChannelMessages    groupsCategory = "GroupsTeamChannelMessages"
+
+	// details.itemInfo comparables
+
+	// library drive selection
+	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive" // TODO(meain)
 )
 
 // groupsLeafProperties describes common metadata of the leaf categories
@@ -424,7 +434,7 @@ func (c groupsCategory) pathValues(
 		}
 
 		folderCat, itemCat = GroupsLibraryFolder, GroupsLibraryItem
-		rFld = ent.Groups.ParentPath
+		rFld = ent.Groups.ParentPath // TODO(meain)
 
 	default:
 		return nil, clues.New("unrecognized groupsCategory").With("category", c)

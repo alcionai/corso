@@ -1,19 +1,19 @@
 package api
 
-import (
-	"context"
-)
+import "github.com/microsoftgraph/msgraph-sdk-go/models"
 
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------
 
-type MessageItemDeltaEnumerator interface {
-	GetPage(context.Context) (DeltaPageLinker, error)
+type ChannelMessageDeltaEnumerator interface {
+	DeltaGetPager
+	ValuesInPageLinker[models.ChatMessageable]
+	SetNextLinker
 }
 
 // TODO: implement
-// var _ MessageItemDeltaEnumerator = &messagePageCtrl{}
+// var _ ChannelMessageDeltaEnumerator = &messagePageCtrl{}
 
 // type messagePageCtrl struct {
 // 	gs      graph.Servicer
@@ -25,12 +25,14 @@ type MessageItemDeltaEnumerator interface {
 // channel pager
 // ---------------------------------------------------------------------------
 
-type ChannelItemDeltaEnumerator interface {
-	GetPage(context.Context) (DeltaPageLinker, error)
+type ChannelDeltaEnumerator interface {
+	DeltaGetPager
+	ValuesInPageLinker[models.Channelable]
+	SetNextLinker
 }
 
 // TODO: implement
-// var _ ChannelsItemDeltaEnumerator = &channelsPageCtrl{}
+// var _ ChannelDeltaEnumerator = &channelsPageCtrl{}
 
 // type channelsPageCtrl struct {
 // 	gs      graph.Servicer
