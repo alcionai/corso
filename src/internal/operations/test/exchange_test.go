@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -14,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -1003,369 +1006,369 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		checkRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
 	})
 
-	// // skip restore
+	// skip restore
 
-	// suite.Run("skip collisions", func() {
-	// 	t := suite.T()
+	suite.Run("skip collisions", func() {
+		t := suite.T()
 
-	// 	ctx, flush := tester.NewContext(t)
-	// 	defer flush()
+		ctx, flush := tester.NewContext(t)
+		defer flush()
 
-	// 	mb := evmock.NewBus()
-	// 	ctr2 := count.New()
+		mb := evmock.NewBus()
+		ctr2 := count.New()
 
-	// 	restoreCfg.OnCollision = control.Skip
+		restoreCfg.OnCollision = control.Skip
 
-	// 	ro, _ := prepNewTestRestoreOp(
-	// 		t,
-	// 		ctx,
-	// 		bod.st,
-	// 		bo.Results.BackupID,
-	// 		mb,
-	// 		ctr2,
-	// 		sel,
-	// 		opts,
-	// 		restoreCfg)
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr2,
+			sel,
+			opts,
+			restoreCfg)
 
-	// 	deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
 
-	// 	assert.Zero(
-	// 		t,
-	// 		len(deets.Entries),
-	// 		"no items should have been restored")
+		assert.Zero(
+			t,
+			len(deets.Entries),
+			"no items should have been restored")
 
-	// 	checkRestoreCounts(t, ctr2, countItemsInRestore, 0, 0)
+		checkRestoreCounts(t, ctr2, countItemsInRestore, 0, 0)
 
-	// 	result := map[string]string{}
+		result := map[string]string{}
 
-	// 	for cat, ac := range testCategories {
-	// 		suite.Run(cat.String(), func() {
-	// 			t := suite.T()
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
 
-	// 			ctx, flush := tester.NewContext(t)
-	// 			defer flush()
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-	// 			m := filterCollisionKeyResults(
-	// 				t,
-	// 				ctx,
-	// 				userID,
-	// 				containerIDs[cat],
-	// 				GetItemsInContainerByCollisionKeyer[string](ac),
-	// 				collisionKeys[cat])
-	// 			maps.Copy(result, m)
+				m := filterCollisionKeyResults(
+					t,
+					ctx,
+					userID,
+					containerIDs[cat],
+					GetItemsInContainerByCollisionKeyer[string](ac),
+					collisionKeys[cat])
+				maps.Copy(result, m)
 
-	// 			currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
-	// 			require.NoError(t, err, clues.ToCore(err))
+				currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
+				require.NoError(t, err, clues.ToCore(err))
 
-	// 			assert.Equal(t, itemIDs[cat], currentIDs, "ids are equal")
-	// 		})
-	// 	}
+				assert.Equal(t, itemIDs[cat], currentIDs, "ids are equal")
+			})
+		}
 
-	// 	assert.Len(t, result, 0, "no new items should get added")
-	// })
+		assert.Len(t, result, 0, "no new items should get added")
+	})
 
-	// // replace restore
+	// replace restore
 
-	// suite.Run("replace collisions", func() {
-	// 	t := suite.T()
+	suite.Run("replace collisions", func() {
+		t := suite.T()
 
-	// 	ctx, flush := tester.NewContext(t)
-	// 	defer flush()
+		ctx, flush := tester.NewContext(t)
+		defer flush()
 
-	// 	mb := evmock.NewBus()
-	// 	ctr3 := count.New()
+		mb := evmock.NewBus()
+		ctr3 := count.New()
 
-	// 	restoreCfg.OnCollision = control.Replace
+		restoreCfg.OnCollision = control.Replace
 
-	// 	ro, _ := prepNewTestRestoreOp(
-	// 		t,
-	// 		ctx,
-	// 		bod.st,
-	// 		bo.Results.BackupID,
-	// 		mb,
-	// 		ctr3,
-	// 		sel,
-	// 		opts,
-	// 		restoreCfg)
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr3,
+			sel,
+			opts,
+			restoreCfg)
 
-	// 	deets := runAndCheckRestore(t, ctx, &ro, mb, false)
-	// 	filtEnts := []details.Entry{}
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		filtEnts := []details.Entry{}
 
-	// 	for _, e := range deets.Entries {
-	// 		if e.Folder == nil {
-	// 			filtEnts = append(filtEnts, e)
-	// 		}
-	// 	}
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
 
-	// 	assert.Len(t, filtEnts, countItemsInRestore, "every item should have been replaced")
+		assert.Len(t, filtEnts, countItemsInRestore, "every item should have been replaced")
 
-	// 	checkRestoreCounts(t, ctr3, 0, countItemsInRestore, 0)
+		checkRestoreCounts(t, ctr3, 0, countItemsInRestore, 0)
 
-	// 	result := map[string]string{}
+		result := map[string]string{}
 
-	// 	for cat, ac := range testCategories {
-	// 		suite.Run(cat.String(), func() {
-	// 			t := suite.T()
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
 
-	// 			ctx, flush := tester.NewContext(t)
-	// 			defer flush()
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-	// 			m := filterCollisionKeyResults(
-	// 				t,
-	// 				ctx,
-	// 				userID,
-	// 				containerIDs[cat],
-	// 				GetItemsInContainerByCollisionKeyer[string](ac),
-	// 				collisionKeys[cat])
-	// 			maps.Copy(result, m)
+				m := filterCollisionKeyResults(
+					t,
+					ctx,
+					userID,
+					containerIDs[cat],
+					GetItemsInContainerByCollisionKeyer[string](ac),
+					collisionKeys[cat])
+				maps.Copy(result, m)
 
-	// 			currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
-	// 			require.NoError(t, err, clues.ToCore(err))
+				currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
+				require.NoError(t, err, clues.ToCore(err))
 
-	// 			assert.Equal(t, len(itemIDs[cat]), len(currentIDs), "count of ids are equal")
-	// 			for orig := range itemIDs[cat] {
-	// 				assert.NotContains(t, currentIDs, orig, "original item should not exist after replacement")
-	// 			}
+				assert.Equal(t, len(itemIDs[cat]), len(currentIDs), "count of ids are equal")
+				for orig := range itemIDs[cat] {
+					assert.NotContains(t, currentIDs, orig, "original item should not exist after replacement")
+				}
 
-	// 			itemIDs[cat] = currentIDs
-	// 		})
-	// 	}
+				itemIDs[cat] = currentIDs
+			})
+		}
 
-	// 	assert.Len(t, result, 0, "all items should have been replaced")
-	// })
+		assert.Len(t, result, 0, "all items should have been replaced")
+	})
 
-	// // copy restore
+	// copy restore
 
-	// suite.Run("copy collisions", func() {
-	// 	t := suite.T()
+	suite.Run("copy collisions", func() {
+		t := suite.T()
 
-	// 	ctx, flush := tester.NewContext(t)
-	// 	defer flush()
+		ctx, flush := tester.NewContext(t)
+		defer flush()
 
-	// 	mb := evmock.NewBus()
-	// 	ctr4 := count.New()
+		mb := evmock.NewBus()
+		ctr4 := count.New()
 
-	// 	restoreCfg.OnCollision = control.Copy
+		restoreCfg.OnCollision = control.Copy
 
-	// 	ro, _ := prepNewTestRestoreOp(
-	// 		t,
-	// 		ctx,
-	// 		bod.st,
-	// 		bo.Results.BackupID,
-	// 		mb,
-	// 		ctr4,
-	// 		sel,
-	// 		opts,
-	// 		restoreCfg)
+		ro, _ := prepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.st,
+			bo.Results.BackupID,
+			mb,
+			ctr4,
+			sel,
+			opts,
+			restoreCfg)
 
-	// 	deets := runAndCheckRestore(t, ctx, &ro, mb, false)
-	// 	filtEnts := []details.Entry{}
+		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		filtEnts := []details.Entry{}
 
-	// 	for _, e := range deets.Entries {
-	// 		if e.Folder == nil {
-	// 			filtEnts = append(filtEnts, e)
-	// 		}
-	// 	}
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
 
-	// 	assert.Len(t, filtEnts, countItemsInRestore, "every item should have been copied")
+		assert.Len(t, filtEnts, countItemsInRestore, "every item should have been copied")
 
-	// 	checkRestoreCounts(t, ctr4, 0, 0, countItemsInRestore)
+		checkRestoreCounts(t, ctr4, 0, 0, countItemsInRestore)
 
-	// 	result := map[string]string{}
+		result := map[string]string{}
 
-	// 	for cat, ac := range testCategories {
-	// 		suite.Run(cat.String(), func() {
-	// 			t := suite.T()
+		for cat, ac := range testCategories {
+			suite.Run(cat.String(), func() {
+				t := suite.T()
 
-	// 			ctx, flush := tester.NewContext(t)
-	// 			defer flush()
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-	// 			m := filterCollisionKeyResults(
-	// 				t,
-	// 				ctx,
-	// 				userID,
-	// 				containerIDs[cat],
-	// 				GetItemsInContainerByCollisionKeyer[string](ac),
-	// 				collisionKeys[cat])
-	// 			maps.Copy(result, m)
+				m := filterCollisionKeyResults(
+					t,
+					ctx,
+					userID,
+					containerIDs[cat],
+					GetItemsInContainerByCollisionKeyer[string](ac),
+					collisionKeys[cat])
+				maps.Copy(result, m)
 
-	// 			currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
-	// 			require.NoError(t, err, clues.ToCore(err))
+				currentIDs, err := ac.GetItemIDsInContainer(ctx, userID, containerIDs[cat])
+				require.NoError(t, err, clues.ToCore(err))
 
-	// 			assert.Equal(t, 2*len(itemIDs[cat]), len(currentIDs), "count of ids should be double from before")
-	// 			assert.Subset(t, maps.Keys(currentIDs), maps.Keys(itemIDs[cat]), "original item should exist after copy")
-	// 		})
-	// 	}
+				assert.Equal(t, 2*len(itemIDs[cat]), len(currentIDs), "count of ids should be double from before")
+				assert.Subset(t, maps.Keys(currentIDs), maps.Keys(itemIDs[cat]), "original item should exist after copy")
+			})
+		}
 
-	// 	// TODO: we have the option of modifying copy creations in exchange
-	// 	// so that the results don't collide.  But we haven't made that
-	// 	// decision yet.
-	// 	assert.Len(t, result, 0, "no items should have been added as copies")
-	// })
+		// TODO: we have the option of modifying copy creations in exchange
+		// so that the results don't collide.  But we haven't made that
+		// decision yet.
+		assert.Len(t, result, 0, "no items should have been added as copies")
+	})
 }
 
-// func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
-// 	t := suite.T()
+func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateProtectedResource() {
+	t := suite.T()
 
-// 	ctx, flush := tester.NewContext(t)
-// 	defer flush()
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-// 	// a backup is required to run restores
+	// a backup is required to run restores
 
-// 	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
-// 	baseSel.Include(
-// 		// events cannot be run, for the same reason as incremental backups: the user needs
-// 		// to have their account recycled.
-// 		// base_sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
-// 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
-// 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+	baseSel.Include(
+		// events cannot be run, for the same reason as incremental backups: the user needs
+		// to have their account recycled.
+		// base_sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
+		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-// 	baseSel.DiscreteOwner = suite.its.user.ID
+	baseSel.DiscreteOwner = suite.its.user.ID
 
-// 	var (
-// 		mb   = evmock.NewBus()
-// 		opts = control.DefaultOptions()
-// 	)
+	var (
+		mb   = evmock.NewBus()
+		opts = control.DefaultOptions()
+	)
 
-// 	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
-// 	defer bod.close(t, ctx)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	defer bod.close(t, ctx)
 
-// 	runAndCheckBackup(t, ctx, &bo, mb, false)
+	runAndCheckBackup(t, ctx, &bo, mb, false)
 
-// 	rsel, err := baseSel.ToExchangeRestore()
-// 	require.NoError(t, err, clues.ToCore(err))
+	rsel, err := baseSel.ToExchangeRestore()
+	require.NoError(t, err, clues.ToCore(err))
 
-// 	var (
-// 		restoreCfg      = ctrlTD.DefaultRestoreConfig("exchange_restore_to_user")
-// 		sel             = rsel.Selector
-// 		userID          = suite.its.user.ID
-// 		secondaryUserID = suite.its.secondaryUser.ID
-// 		uid             = userID
-// 		acCont          = suite.its.ac.Contacts()
-// 		acMail          = suite.its.ac.Mail()
-// 		// acEvts   = suite.its.ac.Events()
-// 		firstCtr = count.New()
-// 	)
+	var (
+		restoreCfg      = ctrlTD.DefaultRestoreConfig("exchange_restore_to_user")
+		sel             = rsel.Selector
+		userID          = suite.its.user.ID
+		secondaryUserID = suite.its.secondaryUser.ID
+		uid             = userID
+		acCont          = suite.its.ac.Contacts()
+		acMail          = suite.its.ac.Mail()
+		// acEvts   = suite.its.ac.Events()
+		firstCtr = count.New()
+	)
 
-// 	restoreCfg.OnCollision = control.Copy
-// 	mb = evmock.NewBus()
+	restoreCfg.OnCollision = control.Copy
+	mb = evmock.NewBus()
 
-// 	// first restore to the current user
+	// first restore to the current user
 
-// 	ro1, _ := prepNewTestRestoreOp(
-// 		t,
-// 		ctx,
-// 		bod.st,
-// 		bo.Results.BackupID,
-// 		mb,
-// 		firstCtr,
-// 		sel,
-// 		opts,
-// 		restoreCfg)
+	ro1, _ := prepNewTestRestoreOp(
+		t,
+		ctx,
+		bod.st,
+		bo.Results.BackupID,
+		mb,
+		firstCtr,
+		sel,
+		opts,
+		restoreCfg)
 
-// 	runAndCheckRestore(t, ctx, &ro1, mb, false)
+	runAndCheckRestore(t, ctx, &ro1, mb, false)
 
-// 	// get all files in folder, use these as the base
-// 	// set of files to compare against.
+	// get all files in folder, use these as the base
+	// set of files to compare against.
 
-// 	var (
-// 		userItemIDs       = map[path.CategoryType]map[string]struct{}{}
-// 		userCollisionKeys = map[path.CategoryType]map[string]string{}
-// 	)
+	var (
+		userItemIDs       = map[path.CategoryType]map[string]struct{}{}
+		userCollisionKeys = map[path.CategoryType]map[string]string{}
+	)
 
-// 	// --- contacts
-// 	cat := path.ContactsCategory
-// 	userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
-// 		t,
-// 		ctx,
-// 		acCont,
-// 		uid,
-// 		"",
-// 		restoreCfg.Location)
+	// --- contacts
+	cat := path.ContactsCategory
+	userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acCont,
+		uid,
+		"",
+		restoreCfg.Location)
 
-// 	// --- events
-// 	// cat = path.EventsCategory
-// 	// userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
-// 	// t,
-// 	// ctx,
-// 	// acEvts,
-// 	// uid,
-// 	// "",
-// 	// restoreCfg.Location)
+	// --- events
+	// cat = path.EventsCategory
+	// userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+	// t,
+	// ctx,
+	// acEvts,
+	// uid,
+	// "",
+	// restoreCfg.Location)
 
-// 	// --- mail
-// 	cat = path.EmailCategory
-// 	userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
-// 		t,
-// 		ctx,
-// 		acMail,
-// 		uid,
-// 		"",
-// 		restoreCfg.Location,
-// 		api.MailInbox)
+	// --- mail
+	cat = path.EmailCategory
+	userItemIDs[cat], userCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acMail,
+		uid,
+		"",
+		restoreCfg.Location,
+		api.MailInbox)
 
-// 	// then restore to the secondary user
+	// then restore to the secondary user
 
-// 	uid = secondaryUserID
-// 	mb = evmock.NewBus()
-// 	secondCtr := count.New()
-// 	restoreCfg.ProtectedResource = uid
+	uid = secondaryUserID
+	mb = evmock.NewBus()
+	secondCtr := count.New()
+	restoreCfg.ProtectedResource = uid
 
-// 	ro2, _ := prepNewTestRestoreOp(
-// 		t,
-// 		ctx,
-// 		bod.st,
-// 		bo.Results.BackupID,
-// 		mb,
-// 		secondCtr,
-// 		sel,
-// 		opts,
-// 		restoreCfg)
+	ro2, _ := prepNewTestRestoreOp(
+		t,
+		ctx,
+		bod.st,
+		bo.Results.BackupID,
+		mb,
+		secondCtr,
+		sel,
+		opts,
+		restoreCfg)
 
-// 	runAndCheckRestore(t, ctx, &ro2, mb, false)
+	runAndCheckRestore(t, ctx, &ro2, mb, false)
 
-// 	var (
-// 		secondaryItemIDs       = map[path.CategoryType]map[string]struct{}{}
-// 		secondaryCollisionKeys = map[path.CategoryType]map[string]string{}
-// 	)
+	var (
+		secondaryItemIDs       = map[path.CategoryType]map[string]struct{}{}
+		secondaryCollisionKeys = map[path.CategoryType]map[string]string{}
+	)
 
-// 	// --- contacts
-// 	cat = path.ContactsCategory
-// 	secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
-// 		t,
-// 		ctx,
-// 		acCont,
-// 		uid,
-// 		"",
-// 		restoreCfg.Location)
+	// --- contacts
+	cat = path.ContactsCategory
+	secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acCont,
+		uid,
+		"",
+		restoreCfg.Location)
 
-// 	// --- events
-// 	// cat = path.EventsCategory
-// 	// secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
-// 	// t,
-// 	// ctx,
-// 	// acEvts,
-// 	// uid,
-// 	// "",
-// 	// restoreCfg.Location)
+	// --- events
+	// cat = path.EventsCategory
+	// secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+	// t,
+	// ctx,
+	// acEvts,
+	// uid,
+	// "",
+	// restoreCfg.Location)
 
-// 	// --- mail
-// 	cat = path.EmailCategory
-// 	secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
-// 		t,
-// 		ctx,
-// 		acMail,
-// 		uid,
-// 		"",
-// 		restoreCfg.Location,
-// 		api.MailInbox)
+	// --- mail
+	cat = path.EmailCategory
+	secondaryItemIDs[cat], secondaryCollisionKeys[cat], _ = getCollKeysAndItemIDs(
+		t,
+		ctx,
+		acMail,
+		uid,
+		"",
+		restoreCfg.Location,
+		api.MailInbox)
 
-// 	// compare restore results
-// 	for _, cat := range []path.CategoryType{path.ContactsCategory, path.EmailCategory, path.EventsCategory} {
-// 		assert.Equal(t, len(userItemIDs[cat]), len(secondaryItemIDs[cat]))
-// 		assert.ElementsMatch(t, maps.Keys(userCollisionKeys[cat]), maps.Keys(secondaryCollisionKeys[cat]))
-// 	}
-// }
+	// compare restore results
+	for _, cat := range []path.CategoryType{path.ContactsCategory, path.EmailCategory, path.EventsCategory} {
+		assert.Equal(t, len(userItemIDs[cat]), len(secondaryItemIDs[cat]))
+		assert.ElementsMatch(t, maps.Keys(userCollisionKeys[cat]), maps.Keys(secondaryCollisionKeys[cat]))
+	}
+}
 
 func getCollKeysAndItemIDs(
 	t *testing.T,
