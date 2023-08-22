@@ -188,6 +188,7 @@ func (p *DriveItemDeltaPageCtrl) GetPage(ctx context.Context) (DeltaPageLinker, 
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
+		logger.CtxErr(ctx, err).Error("delta GET error")
 		return nil, graph.Stack(ctx, err)
 	}
 

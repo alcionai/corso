@@ -122,8 +122,18 @@ func (mw *LoggingMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
+	// log request
+	logger.Ctx(req.Context()).Infow("logging middleware: graph api req",
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()))
+
 	// call the next middleware
 	resp, err := pipeline.Next(req, middlewareIndex)
+	if err != nil {
+		logger.CtxErr(req.Context(), err).Errorw("logging middleware: graph api error",
+			"network_timeout_error", IsNetworkTimeoutError(err))
+	}
+
 	if resp == nil {
 		return resp, err
 	}
@@ -212,6 +222,11 @@ func (mw RetryMiddleware) Intercept(
 		IsErrConnectionReset(err) ||
 		mw.isRetriableRespCode(ctx, resp)
 
+	if err != nil {
+		logger.CtxErr(ctx, err).Errorw("retry middleware: graph api error",
+			"network_timeout_error", IsNetworkTimeoutError(err))
+	}
+
 	if !retriable {
 		return resp, stackReq(ctx, req, resp, err).OrNil()
 	}
@@ -295,6 +310,10 @@ func (mw RetryMiddleware) retryRequest(
 	}
 
 	nextResp, err := pipeline.Next(req, middlewareIndex)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("retry middleware: retryRequest: graph api error")
+	}
+
 	if err != nil && !IsErrTimeout(err) && !IsErrConnectionReset(err) {
 		return nextResp, stackReq(ctx, req, nextResp, err)
 	}

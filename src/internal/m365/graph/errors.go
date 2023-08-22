@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -183,7 +184,18 @@ func IsErrTimeout(err error) bool {
 		errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
-		os.IsTimeout(err)
+		os.IsTimeout(err) ||
+		IsNetworkTimeoutError(err)
+}
+
+func IsNetworkTimeoutError(err error) bool {
+	var netErr net.Error
+
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+
+	return false
 }
 
 func IsErrConnectionReset(err error) bool {
