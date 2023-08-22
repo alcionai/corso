@@ -1294,7 +1294,6 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	testForFiles(t, ctx, expected, result)
 }
 
-// TODO(pandeyabs): Switch to m365/mock/BackupCollection.
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
