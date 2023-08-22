@@ -13,8 +13,17 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// common interfaces and funcs
+// common interfaces
 // ---------------------------------------------------------------------------
+
+// TODO(keepers): replace all matching uses of GetPage with this.
+type DeltaGetPager interface {
+	GetPage(context.Context) (DeltaPageLinker, error)
+}
+
+type ValuesInPageLinker[T any] interface {
+	ValuesIn(PageLinker) ([]T, error)
+}
 
 type PageLinker interface {
 	GetOdataNextLink() *string
@@ -24,6 +33,14 @@ type DeltaPageLinker interface {
 	PageLinker
 	GetOdataDeltaLink() *string
 }
+
+type SetNextLinker interface {
+	SetNext(nextLink string)
+}
+
+// ---------------------------------------------------------------------------
+// common funcs
+// ---------------------------------------------------------------------------
 
 // IsNextLinkValid separate check to investigate whether error is
 func IsNextLinkValid(next string) bool {
