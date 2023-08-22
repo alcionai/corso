@@ -219,7 +219,6 @@ func groupsDetailsCmd() *cobra.Command {
 }
 
 // processes a groups service backup.
-// TODO: how should details be printed with multiple subservices
 func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil

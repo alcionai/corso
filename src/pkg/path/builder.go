@@ -350,14 +350,6 @@ func (pb Builder) ToDataLayerSharePointPath(
 	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
 }
 
-func (pb Builder) ToDataLayerGroupPath(
-	tenant, group string,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, group, GroupsService, category, isItem)
-}
-
 // ---------------------------------------------------------------------------
 // Stringers and PII Concealer Compliance
 // ---------------------------------------------------------------------------
