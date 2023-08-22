@@ -184,6 +184,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 					rc.Close()
 				}
 			}(resp.Body)
+
 			require.Equal(t, http.StatusOK, resp.StatusCode)
 		}(i)
 	}
