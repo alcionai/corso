@@ -96,6 +96,8 @@ func (w *conn) Initialize(
 	opts repository.Options,
 	retentionOpts repository.Retention,
 ) error {
+	w.storage.Provider = storage.ProviderFS
+
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -154,6 +156,8 @@ func (w *conn) Initialize(
 }
 
 func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
+	w.storage.Provider = storage.ProviderFS
+
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -225,6 +229,8 @@ func blobStoreByProvider(
 	switch s.Provider {
 	case storage.ProviderS3:
 		return s3BlobStorage(ctx, opts, s)
+	case storage.ProviderFS:
+		return localFSBlobStorage(ctx, opts, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
 	}

@@ -14,6 +14,7 @@ type storageProvider int
 const (
 	ProviderUnknown storageProvider = 0 // Unknown Provider
 	ProviderS3      storageProvider = 1 // S3
+	ProviderFS      storageProvider = 2 // local or network attached file system
 )
 
 // storage parsing errors
