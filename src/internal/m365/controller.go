@@ -170,6 +170,8 @@ func getResourceClient(rc resource.Category, ac api.Client) (*resourceClient, er
 		return &resourceClient{enum: rc, getter: ac.Users()}, nil
 	case resource.Sites:
 		return &resourceClient{enum: rc, getter: ac.Sites()}, nil
+	case resource.Groups:
+		return &resourceClient{enum: rc, getter: ac.Groups()}, nil
 	default:
 		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", rc)
 	}

@@ -13,10 +13,12 @@ var piiSafePathElems = pii.MapWithPlurals(
 	UnknownService.String(),
 	ExchangeService.String(),
 	OneDriveService.String(),
+	GroupsService.String(),
 	SharePointService.String(),
 	ExchangeMetadataService.String(),
 	OneDriveMetadataService.String(),
 	SharePointMetadataService.String(),
+	GroupsMetadataService.String(),
 
 	// categories
 	UnknownCategory.String(),
