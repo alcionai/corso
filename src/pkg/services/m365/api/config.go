@@ -112,3 +112,12 @@ func DriveItemSelectDefault() []string {
 		"malware",
 		"shared")
 }
+
+// URL cache only needs a subset of item properties
+func DriveItemSelectURLCache() []string {
+	return idAnd(
+		"content.downloadUrl",
+		"deleted",
+		"file",
+		"folder")
+}

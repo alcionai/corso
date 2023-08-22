@@ -137,89 +137,113 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 	backupTag, _ := makeTagKV(TagBackupCategory)
 
 	// Current backup and snapshots.
-	bupCurrent := &backup.Backup{
-		BaseModel: model.BaseModel{
-			ID:           model.StableID("current-bup-id"),
-			ModelStoreID: manifest.ID("current-bup-msid"),
-		},
-		SnapshotID:    "current-snap-msid",
-		StreamStoreID: "current-deets-msid",
+	bupCurrent := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("current-bup-id"),
+				ModelStoreID: manifest.ID("current-bup-msid"),
+			},
+			SnapshotID:    "current-snap-msid",
+			StreamStoreID: "current-deets-msid",
+		}
 	}
 
-	snapCurrent := &manifest.EntryMetadata{
-		ID: "current-snap-msid",
-		Labels: map[string]string{
-			backupTag: "0",
-		},
+	snapCurrent := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "current-snap-msid",
+			Labels: map[string]string{
+				backupTag: "0",
+			},
+		}
 	}
 
-	deetsCurrent := &manifest.EntryMetadata{
-		ID: "current-deets-msid",
+	deetsCurrent := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "current-deets-msid",
+		}
 	}
 
 	// Legacy backup with details in separate model.
-	bupLegacy := &backup.Backup{
-		BaseModel: model.BaseModel{
-			ID:           model.StableID("legacy-bup-id"),
-			ModelStoreID: manifest.ID("legacy-bup-msid"),
-		},
-		SnapshotID: "legacy-snap-msid",
-		DetailsID:  "legacy-deets-msid",
+	bupLegacy := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("legacy-bup-id"),
+				ModelStoreID: manifest.ID("legacy-bup-msid"),
+			},
+			SnapshotID: "legacy-snap-msid",
+			DetailsID:  "legacy-deets-msid",
+		}
 	}
 
-	snapLegacy := &manifest.EntryMetadata{
-		ID: "legacy-snap-msid",
-		Labels: map[string]string{
-			backupTag: "0",
-		},
+	snapLegacy := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "legacy-snap-msid",
+			Labels: map[string]string{
+				backupTag: "0",
+			},
+		}
 	}
 
-	deetsLegacy := &model.BaseModel{
-		ID:           "legacy-deets-id",
-		ModelStoreID: "legacy-deets-msid",
+	deetsLegacy := func() *model.BaseModel {
+		return &model.BaseModel{
+			ID:           "legacy-deets-id",
+			ModelStoreID: "legacy-deets-msid",
+		}
 	}
 
 	// Incomplete backup missing data snapshot.
-	bupNoSnapshot := &backup.Backup{
-		BaseModel: model.BaseModel{
-			ID:           model.StableID("ns-bup-id"),
-			ModelStoreID: manifest.ID("ns-bup-id-msid"),
-		},
-		StreamStoreID: "ns-deets-msid",
+	bupNoSnapshot := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("ns-bup-id"),
+				ModelStoreID: manifest.ID("ns-bup-id-msid"),
+			},
+			StreamStoreID: "ns-deets-msid",
+		}
 	}
 
-	deetsNoSnapshot := &manifest.EntryMetadata{
-		ID: "ns-deets-msid",
+	deetsNoSnapshot := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "ns-deets-msid",
+		}
 	}
 
 	// Legacy incomplete backup missing data snapshot.
-	bupLegacyNoSnapshot := &backup.Backup{
-		BaseModel: model.BaseModel{
-			ID:           model.StableID("ns-legacy-bup-id"),
-			ModelStoreID: manifest.ID("ns-legacy-bup-id-msid"),
-		},
-		DetailsID: "ns-legacy-deets-msid",
+	bupLegacyNoSnapshot := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("ns-legacy-bup-id"),
+				ModelStoreID: manifest.ID("ns-legacy-bup-id-msid"),
+			},
+			DetailsID: "ns-legacy-deets-msid",
+		}
 	}
 
-	deetsLegacyNoSnapshot := &model.BaseModel{
-		ID:           "ns-legacy-deets-id",
-		ModelStoreID: "ns-legacy-deets-msid",
+	deetsLegacyNoSnapshot := func() *model.BaseModel {
+		return &model.BaseModel{
+			ID:           "ns-legacy-deets-id",
+			ModelStoreID: "ns-legacy-deets-msid",
+		}
 	}
 
 	// Incomplete backup missing details.
-	bupNoDetails := &backup.Backup{
-		BaseModel: model.BaseModel{
-			ID:           model.StableID("nssid-bup-id"),
-			ModelStoreID: manifest.ID("nssid-bup-msid"),
-		},
-		SnapshotID: "nssid-snap-msid",
+	bupNoDetails := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("nssid-bup-id"),
+				ModelStoreID: manifest.ID("nssid-bup-msid"),
+			},
+			SnapshotID: "nssid-snap-msid",
+		}
 	}
 
-	snapNoDetails := &manifest.EntryMetadata{
-		ID: "nssid-snap-msid",
-		Labels: map[string]string{
-			backupTag: "0",
-		},
+	snapNoDetails := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "nssid-snap-msid",
+			Labels: map[string]string{
+				backupTag: "0",
+			},
+		}
 	}
 
 	// Get some stable time so that we can do everything relative to this in the
@@ -268,16 +292,16 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "OnlyCompleteBackups Noops",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
-				deetsCurrent,
-				snapLegacy,
+				snapCurrent(),
+				deetsCurrent(),
+				snapLegacy(),
 			},
 			detailsModels: []*model.BaseModel{
-				deetsLegacy,
+				deetsLegacy(),
 			},
 			backups: []backupRes{
-				{bup: bupCurrent},
-				{bup: bupLegacy},
+				{bup: bupCurrent()},
+				{bup: bupLegacy()},
 			},
 			time:      baseTime,
 			expectErr: assert.NoError,
@@ -285,24 +309,24 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "MissingFieldsInBackup CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
-				snapNoDetails,
-				deetsNoSnapshot,
+				snapNoDetails(),
+				deetsNoSnapshot(),
 			},
 			detailsModels: []*model.BaseModel{
-				deetsLegacyNoSnapshot,
+				deetsLegacyNoSnapshot(),
 			},
 			backups: []backupRes{
-				{bup: bupNoSnapshot},
-				{bup: bupLegacyNoSnapshot},
-				{bup: bupNoDetails},
+				{bup: bupNoSnapshot()},
+				{bup: bupLegacyNoSnapshot()},
+				{bup: bupNoDetails()},
 			},
 			expectDeleteIDs: []manifest.ID{
-				manifest.ID(bupNoSnapshot.ModelStoreID),
-				manifest.ID(bupLegacyNoSnapshot.ModelStoreID),
-				manifest.ID(bupNoDetails.ModelStoreID),
-				manifest.ID(deetsLegacyNoSnapshot.ModelStoreID),
-				snapNoDetails.ID,
-				deetsNoSnapshot.ID,
+				manifest.ID(bupNoSnapshot().ModelStoreID),
+				manifest.ID(bupLegacyNoSnapshot().ModelStoreID),
+				manifest.ID(bupNoDetails().ModelStoreID),
+				manifest.ID(deetsLegacyNoSnapshot().ModelStoreID),
+				snapNoDetails().ID,
+				deetsNoSnapshot().ID,
 			},
 			time:      baseTime,
 			expectErr: assert.NoError,
@@ -310,20 +334,20 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "MissingSnapshot CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
-				deetsCurrent,
+				deetsCurrent(),
 			},
 			detailsModels: []*model.BaseModel{
-				deetsLegacy,
+				deetsLegacy(),
 			},
 			backups: []backupRes{
-				{bup: bupCurrent},
-				{bup: bupLegacy},
+				{bup: bupCurrent()},
+				{bup: bupLegacy()},
 			},
 			expectDeleteIDs: []manifest.ID{
-				manifest.ID(bupCurrent.ModelStoreID),
-				deetsCurrent.ID,
-				manifest.ID(bupLegacy.ModelStoreID),
-				manifest.ID(deetsLegacy.ModelStoreID),
+				manifest.ID(bupCurrent().ModelStoreID),
+				deetsCurrent().ID,
+				manifest.ID(bupLegacy().ModelStoreID),
+				manifest.ID(deetsLegacy().ModelStoreID),
 			},
 			time:      baseTime,
 			expectErr: assert.NoError,
@@ -331,38 +355,39 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "MissingDetails CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
-				snapLegacy,
+				snapCurrent(),
+				snapLegacy(),
 			},
 			backups: []backupRes{
-				{bup: bupCurrent},
-				{bup: bupLegacy},
+				{bup: bupCurrent()},
+				{bup: bupLegacy()},
 			},
 			expectDeleteIDs: []manifest.ID{
-				manifest.ID(bupCurrent.ModelStoreID),
-				manifest.ID(bupLegacy.ModelStoreID),
-				snapCurrent.ID,
-				snapLegacy.ID,
+				manifest.ID(bupCurrent().ModelStoreID),
+				manifest.ID(bupLegacy().ModelStoreID),
+				snapCurrent().ID,
+				snapLegacy().ID,
 			},
 			time:      baseTime,
 			expectErr: assert.NoError,
 		},
+		// Tests with various errors from Storer.
 		{
 			name:             "SnapshotsListError Fails",
 			snapshotFetchErr: assert.AnError,
 			backups: []backupRes{
-				{bup: bupCurrent},
+				{bup: bupCurrent()},
 			},
 			expectErr: assert.Error,
 		},
 		{
 			name: "LegacyDetailsListError Fails",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
+				snapCurrent(),
 			},
 			detailsModelListErr: assert.AnError,
 			backups: []backupRes{
-				{bup: bupCurrent},
+				{bup: bupCurrent()},
 			},
 			time:      baseTime,
 			expectErr: assert.Error,
@@ -370,8 +395,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "BackupIDsListError Fails",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
-				deetsCurrent,
+				snapCurrent(),
+				deetsCurrent(),
 			},
 			backupListErr: assert.AnError,
 			time:          baseTime,
@@ -380,22 +405,22 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "BackupModelGetErrorNotFound CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
-				deetsCurrent,
-				snapLegacy,
-				snapNoDetails,
+				snapCurrent(),
+				deetsCurrent(),
+				snapLegacy(),
+				snapNoDetails(),
 			},
 			detailsModels: []*model.BaseModel{
-				deetsLegacy,
+				deetsLegacy(),
 			},
 			backups: []backupRes{
-				{bup: bupCurrent},
+				{bup: bupCurrent()},
 				{
-					bup: bupLegacy,
+					bup: bupLegacy(),
 					err: data.ErrNotFound,
 				},
 				{
-					bup: bupNoDetails,
+					bup: bupNoDetails(),
 					err: data.ErrNotFound,
 				},
 			},
@@ -404,11 +429,11 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			// delete operation should ignore missing models though so there's no
 			// issue.
 			expectDeleteIDs: []manifest.ID{
-				snapLegacy.ID,
-				manifest.ID(deetsLegacy.ModelStoreID),
-				manifest.ID(bupLegacy.ModelStoreID),
-				snapNoDetails.ID,
-				manifest.ID(bupNoDetails.ModelStoreID),
+				snapLegacy().ID,
+				manifest.ID(deetsLegacy().ModelStoreID),
+				manifest.ID(bupLegacy().ModelStoreID),
+				snapNoDetails().ID,
+				manifest.ID(bupNoDetails().ModelStoreID),
 			},
 			time:      baseTime,
 			expectErr: assert.NoError,
@@ -416,21 +441,21 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "BackupModelGetError Fails",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
-				deetsCurrent,
-				snapLegacy,
-				snapNoDetails,
+				snapCurrent(),
+				deetsCurrent(),
+				snapLegacy(),
+				snapNoDetails(),
 			},
 			detailsModels: []*model.BaseModel{
-				deetsLegacy,
+				deetsLegacy(),
 			},
 			backups: []backupRes{
-				{bup: bupCurrent},
+				{bup: bupCurrent()},
 				{
-					bup: bupLegacy,
+					bup: bupLegacy(),
 					err: assert.AnError,
 				},
-				{bup: bupNoDetails},
+				{bup: bupNoDetails()},
 			},
 			time:      baseTime,
 			expectErr: assert.Error,
@@ -438,34 +463,35 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "DeleteError Fails",
 			snapshots: []*manifest.EntryMetadata{
-				snapCurrent,
-				deetsCurrent,
-				snapLegacy,
-				snapNoDetails,
+				snapCurrent(),
+				deetsCurrent(),
+				snapLegacy(),
+				snapNoDetails(),
 			},
 			detailsModels: []*model.BaseModel{
-				deetsLegacy,
+				deetsLegacy(),
 			},
 			backups: []backupRes{
-				{bup: bupCurrent},
-				{bup: bupLegacy},
-				{bup: bupNoDetails},
+				{bup: bupCurrent()},
+				{bup: bupLegacy()},
+				{bup: bupNoDetails()},
 			},
 			expectDeleteIDs: []manifest.ID{
-				snapNoDetails.ID,
-				manifest.ID(bupNoDetails.ModelStoreID),
+				snapNoDetails().ID,
+				manifest.ID(bupNoDetails().ModelStoreID),
 			},
 			deleteErr: assert.AnError,
 			time:      baseTime,
 			expectErr: assert.Error,
 		},
+		// Tests dealing with buffer times.
 		{
 			name: "MissingSnapshot BarelyTooYoungForCleanup Noops",
 			snapshots: []*manifest.EntryMetadata{
-				manifestWithTime(baseTime, deetsCurrent),
+				manifestWithTime(baseTime, deetsCurrent()),
 			},
 			backups: []backupRes{
-				{bup: backupWithTime(baseTime, bupCurrent)},
+				{bup: backupWithTime(baseTime, bupCurrent())},
 			},
 			time:      baseTime.Add(24 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -474,14 +500,14 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "MissingSnapshot BarelyOldEnough CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
-				manifestWithTime(baseTime, deetsCurrent),
+				manifestWithTime(baseTime, deetsCurrent()),
 			},
 			backups: []backupRes{
-				{bup: backupWithTime(baseTime, bupCurrent)},
+				{bup: backupWithTime(baseTime, bupCurrent())},
 			},
 			expectDeleteIDs: []manifest.ID{
-				deetsCurrent.ID,
-				manifest.ID(bupCurrent.ModelStoreID),
+				deetsCurrent().ID,
+				manifest.ID(bupCurrent().ModelStoreID),
 			},
 			time:      baseTime.Add((24 * time.Hour) + time.Second),
 			buffer:    24 * time.Hour,
@@ -490,12 +516,12 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		{
 			name: "BackupGetErrorNotFound TooYoung Noops",
 			snapshots: []*manifest.EntryMetadata{
-				manifestWithTime(baseTime, snapCurrent),
-				manifestWithTime(baseTime, deetsCurrent),
+				manifestWithTime(baseTime, snapCurrent()),
+				manifestWithTime(baseTime, deetsCurrent()),
 			},
 			backups: []backupRes{
 				{
-					bup: backupWithTime(baseTime, bupCurrent),
+					bup: backupWithTime(baseTime, bupCurrent()),
 					err: data.ErrNotFound,
 				},
 			},

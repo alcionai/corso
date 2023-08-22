@@ -32,6 +32,7 @@ var serviceToPathType = map[service]path.ServiceType{
 	ServiceExchange:   path.ExchangeService,
 	ServiceOneDrive:   path.OneDriveService,
 	ServiceSharePoint: path.SharePointService,
+	ServiceGroups:     path.GroupsService,
 }
 
 var (

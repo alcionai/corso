@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -116,6 +117,18 @@ func (ctrl *Controller) ProduceBackupCollections(
 			return nil, nil, false, err
 		}
 
+	case path.GroupsService:
+		colls, ssmb, canUsePreviousBackup, err = groups.ProduceBackupCollections(
+			ctx,
+			bpc,
+			ctrl.AC,
+			ctrl.credentials,
+			ctrl.UpdateStatus,
+			errs)
+		if err != nil {
+			return nil, nil, false, err
+		}
+
 	default:
 		return nil, nil, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 	}
@@ -176,6 +189,10 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 		// Exchange and OneDrive user existence now checked in checkServiceEnabled.
 		return nil
 
+	case selectors.ServiceGroups:
+		// TODO(meain): check for group existence.
+		return nil
+
 	case selectors.ServiceSharePoint:
 		ids = siteIDs
 	}
@@ -197,8 +214,8 @@ func checkServiceEnabled(
 	service path.ServiceType,
 	resource string,
 ) (bool, bool, error) {
-	if service == path.SharePointService {
-		// No "enabled" check required for sharepoint
+	if service == path.SharePointService || service == path.GroupsService {
+		// No "enabled" check required for sharepoint or groups.
 		return true, true, nil
 	}
 
