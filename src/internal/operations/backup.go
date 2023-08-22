@@ -333,11 +333,6 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "getting reasons")
 	}
 
-	fallbackReasons, err := makeFallbackReasons(op.account.ID(), op.Selectors)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting fallback reasons")
-	}
-
 	logger.Ctx(ctx).With(
 		"control_options", op.Options,
 		"selectors", op.Selectors).
@@ -355,7 +350,7 @@ func (op *BackupOperation) do(
 		ctx,
 		kbf,
 		op.kopia,
-		reasons, fallbackReasons,
+		reasons,
 		op.account.ID(),
 		op.incremental,
 		op.disableAssistBackup)
@@ -428,16 +423,6 @@ func (op *BackupOperation) do(
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	return deets, nil
-}
-
-func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reasoner, error) {
-	if sel.PathService() != path.SharePointService &&
-		sel.DiscreteOwner != sel.DiscreteOwnerName {
-		return sel.Reasons(tenant, true)
-	}
-
-	// return nil for fallback reasons since a nil value will no-op.
-	return nil, nil
 }
 
 // checker to see if conditions are correct for incremental backup behavior such as

@@ -20,7 +20,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
 	rp inject.RestoreProducer,
-	reasons, fallbackReasons []identity.Reasoner,
+	reasons []identity.Reasoner,
 	tenantID string,
 	getMetadata, dropAssistBases bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
@@ -29,7 +29,6 @@ func produceManifestsAndMetadata(
 		bf,
 		rp,
 		reasons,
-		fallbackReasons,
 		tenantID,
 		getMetadata)
 	if err != nil {
@@ -57,7 +56,7 @@ func getManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
 	rp inject.RestoreProducer,
-	reasons, fallbackReasons []identity.Reasoner,
+	reasons []identity.Reasoner,
 	tenantID string,
 	getMetadata bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
@@ -68,24 +67,6 @@ func getManifestsAndMetadata(
 	)
 
 	bb := bf.FindBases(ctx, reasons, tags)
-	// TODO(ashmrtn): Only fetch these if we haven't already covered all the
-	// reasons for this backup.
-	fbb := bf.FindBases(ctx, fallbackReasons, tags)
-
-	// one of three cases can occur when retrieving backups across reason migrations:
-	// 1. the current reasons don't match any manifests, and we use the fallback to
-	// look up the previous reason version.
-	// 2. the current reasons only contain an incomplete manifest, and the fallback
-	// can find a complete manifest.
-	// 3. the current reasons contain all the necessary manifests.
-	// Note: This is not relevant for assist backups, since they are newly introduced
-	// and they don't exist with fallback reasons.
-	bb = bb.MergeBackupBases(
-		ctx,
-		fbb,
-		func(r identity.Reasoner) string {
-			return r.Service().String() + r.Category().String()
-		})
 
 	if !getMetadata {
 		return bb, nil, false, nil
