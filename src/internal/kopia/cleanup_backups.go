@@ -57,6 +57,11 @@ func cleanupOrphanedData(
 	gcBuffer time.Duration,
 	nowFunc func() time.Time,
 ) error {
+	logger.Ctx(ctx).Infow(
+		"cleaning up failed and incomplete backups",
+		"current_time", nowFunc(),
+		"buffer_duration", gcBuffer)
+
 	// Get all snapshot manifests.
 	snaps, err := mf.FindManifests(
 		ctx,
