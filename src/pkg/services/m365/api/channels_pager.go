@@ -77,18 +77,86 @@ func (p *MessagePageCtrl) ValuesIn(l PageLinker) ([]models.ChatMessageable, erro
 	return getValues[models.ChatMessageable](l)
 }
 
-type MessageItemIDType struct {
-	ItemID string
-}
+// ---------------------------------------------------------------------------
+// channel pager
+// ---------------------------------------------------------------------------
 
 type ChannelDeltaEnumerator interface {
-	DeltaGetPager
+	PageLinker
 	ValuesInPageLinker[models.Channelable]
 	SetNextLinker
 }
 
 // TODO: implement
-// var _ ChannelDeltaEnumerator = &channelsPageCtrl{}
+var _ ChannelDeltaEnumerator = &channelPageCtrl{}
+
+type channelPageCtrl struct {
+	gs      graph.Servicer
+	builder *teams.ItemChannelsRequestBuilder
+	options *teams.ItemChannelsRequestBuilderGetRequestConfiguration
+}
+
+func (c Channels) NewChannelPager(
+	teamID,
+	channelID string,
+	fields []string,
+) *channelPageCtrl {
+	requestConfig := &teams.ItemChannelsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &teams.ItemChannelsRequestBuilderGetQueryParameters{
+			Select: fields,
+		},
+	}
+
+	res := &channelPageCtrl{
+		gs:      c.Stable,
+		options: requestConfig,
+		builder: c.Stable.
+			Client().
+			Teams().
+			ByTeamId(teamID).
+			Channels(),
+	}
+
+	return res
+}
+
+func (p *channelPageCtrl) SetNext(nextLink string) {
+	p.builder = teams.NewItemChannelsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *channelPageCtrl) GetPage(ctx context.Context) (PageLinker, error) {
+	var (
+		resp PageLinker
+		err  error
+	)
+
+	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
+func (p *channelPageCtrl) ValuesIn(l PageLinker) ([]models.Channelable, error) {
+	return getValues[models.Channelable](l)
+}
+
+func (p *channelPageCtrl) GetOdataNextLink() *string {
+	// TODO: no delta present here. Is it possible to have interface which does not have
+	// GetOdataNextLink method
+	emptyString := ""
+	return &emptyString
+}
+
+// ---------------------------------------------------------------------------
+// non delta item pager
+// ---------------------------------------------------------------------------
+
+type MessageItemIDType struct {
+	ItemID string
+}
+
 type channelItemPageCtrl struct {
 	gs      graph.Servicer
 	builder *teams.ItemChannelsItemMessagesRequestBuilder
