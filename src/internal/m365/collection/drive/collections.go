@@ -439,7 +439,7 @@ func (c *Collections) Get(
 	service, category := c.handler.ServiceCat()
 	md, err := graph.MakeMetadataCollection(
 		c.tenantID,
-		c.resourceOwner, // TODO(meain): path fixes: group id
+		c.resourceOwner,
 		service,
 		category,
 		[]graph.MetadataCollectionEntry{

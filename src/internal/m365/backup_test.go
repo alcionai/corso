@@ -480,8 +480,7 @@ func TestGroupsCollectionIntgSuite(t *testing.T) {
 	suite.Run(t, &GroupsCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
