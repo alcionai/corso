@@ -14,9 +14,10 @@ type Options struct {
 }
 
 type Maintenance struct {
-	Type   MaintenanceType   `json:"type"`
-	Safety MaintenanceSafety `json:"safety"`
-	Force  bool              `json:"force"`
+	Type          MaintenanceType   `json:"type"`
+	Safety        MaintenanceSafety `json:"safety"`
+	Force         bool              `json:"force"`
+	CleanupBuffer *time.Duration
 }
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,11 @@ type MaintenanceType int
 const (
 	CompleteMaintenance MaintenanceType = 0 // complete
 	MetadataMaintenance MaintenanceType = 1 // metadata
+	// Adding this here so we can test failed backup cleanup more without forcing
+	// SDK consumers to use it right away. We can remove this and add the
+	// additional cleanup functionality to CompleteMaintenance when we feel more
+	// comfortable with it.
+	CompletePlusMaintenance MaintenanceType = 2 // dontuse
 )
 
 var StringToMaintenanceType = map[string]MaintenanceType{
