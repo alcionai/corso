@@ -24,6 +24,10 @@ type getDefaultDriver interface {
 	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
 }
 
+type getAller[T any] interface {
+	GetAll(ctx context.Context, errs *fault.Bus) ([]T, error)
+}
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -253,12 +257,11 @@ func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site,
 	return getAllSites(ctx, ac.Sites())
 }
 
-type getAllSiteser interface {
-	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error)
-}
-
-func getAllSites(ctx context.Context, gas getAllSiteser) ([]*Site, error) {
-	sites, err := gas.GetAll(ctx, fault.New(true))
+func getAllSites(
+	ctx context.Context,
+	ga getAller[models.Siteable],
+) ([]*Site, error) {
+	sites, err := ga.GetAll(ctx, fault.New(true))
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			return nil, clues.Stack(graph.ErrServiceNotEnabled, err)

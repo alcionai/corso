@@ -22,15 +22,17 @@ type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
 const (
-	UnknownService            ServiceType = iota
-	ExchangeService                       // exchange
-	OneDriveService                       // onedrive
-	SharePointService                     // sharepoint
-	ExchangeMetadataService               // exchangeMetadata
-	OneDriveMetadataService               // onedriveMetadata
-	SharePointMetadataService             // sharepointMetadata
-	GroupsService                         // groups
-	GroupsMetadataService                 // groupsMetadata
+	UnknownService            ServiceType = 0
+	ExchangeService           ServiceType = 1  // exchange
+	OneDriveService           ServiceType = 2  // onedrive
+	SharePointService         ServiceType = 3  // sharepoint
+	ExchangeMetadataService   ServiceType = 4  // exchangeMetadata
+	OneDriveMetadataService   ServiceType = 5  // onedriveMetadata
+	SharePointMetadataService ServiceType = 6  // sharepointMetadata
+	GroupsService             ServiceType = 7  // groups
+	GroupsMetadataService     ServiceType = 8  // groupsMetadata
+	TeamsService              ServiceType = 9  // teams
+	TeamsMetadataService      ServiceType = 10 // teamsMetadata
 )
 
 func toServiceType(service string) ServiceType {
@@ -43,12 +45,20 @@ func toServiceType(service string) ServiceType {
 		return OneDriveService
 	case strings.ToLower(SharePointService.String()):
 		return SharePointService
+	case strings.ToLower(GroupsService.String()):
+		return GroupsService
+	case strings.ToLower(TeamsService.String()):
+		return TeamsService
 	case strings.ToLower(ExchangeMetadataService.String()):
 		return ExchangeMetadataService
 	case strings.ToLower(OneDriveMetadataService.String()):
 		return OneDriveMetadataService
 	case strings.ToLower(SharePointMetadataService.String()):
 		return SharePointMetadataService
+	case strings.ToLower(GroupsMetadataService.String()):
+		return GroupsMetadataService
+	case strings.ToLower(TeamsMetadataService.String()):
+		return TeamsMetadataService
 	default:
 		return UnknownService
 	}

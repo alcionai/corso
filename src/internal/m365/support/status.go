@@ -37,10 +37,10 @@ type Operation int
 
 //go:generate stringer -type=Operation
 const (
-	OpUnknown Operation = iota
-	Backup
-	Restore
-	Export
+	OpUnknown Operation = 0
+	Backup    Operation = 1
+	Restore   Operation = 2
+	Export    Operation = 3
 )
 
 // Constructor for ConnectorOperationStatus. If the counts do not agree, an error is returned.

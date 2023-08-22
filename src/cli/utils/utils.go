@@ -19,6 +19,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+var ErrNotYetImplemented = clues.New("not yet implemented")
+
 func GetAccountAndConnect(
 	ctx context.Context,
 	pst path.ServiceType,

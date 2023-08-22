@@ -25,12 +25,10 @@ type Maintenance struct {
 
 type MaintenanceType int
 
-// Can't be reordered as we rely on iota for numbering.
-//
 //go:generate stringer -type=MaintenanceType -linecomment
 const (
-	CompleteMaintenance MaintenanceType = iota // complete
-	MetadataMaintenance                        // metadata
+	CompleteMaintenance MaintenanceType = 0 // complete
+	MetadataMaintenance MaintenanceType = 1 // metadata
 )
 
 var StringToMaintenanceType = map[string]MaintenanceType{
@@ -40,16 +38,14 @@ var StringToMaintenanceType = map[string]MaintenanceType{
 
 type MaintenanceSafety int
 
-// Can't be reordered as we rely on iota for numbering.
-//
 //go:generate stringer -type=MaintenanceSafety -linecomment
 const (
-	FullMaintenanceSafety MaintenanceSafety = iota
+	FullMaintenanceSafety MaintenanceSafety = 0
 	//nolint:lll
 	// Use only if there's no other kopia instances accessing the repo and the
 	// storage backend is strongly consistent.
 	// https://github.com/kopia/kopia/blob/f9de453efc198b6e993af8922f953a7e5322dc5f/repo/maintenance/maintenance_safety.go#L42
-	NoMaintenanceSafety
+	NoMaintenanceSafety MaintenanceSafety = 1
 )
 
 type RetentionMode int

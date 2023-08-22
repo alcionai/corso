@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -214,38 +215,42 @@ func (s *groups) AllData() []GroupsScope {
 
 	scopes = append(
 		scopes,
-		makeScope[GroupsScope](GroupsTODOContainer, Any()))
+		makeScope[GroupsScope](GroupsChannel, Any()))
 
 	return scopes
 }
 
-// TODO produces one or more Groups TODO scopes.
+// Channel produces one or more SharePoint channel scopes, where the channel
+// matches upon a given channel by ID or Name.  In order to ensure channel selection
+// this should always be embedded within the Filter() set; include(channel()) will
+// select all items in the channel without further filtering.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// Any empty slice defaults to [selectors.None]
-func (s *groups) TODO(lists []string, opts ...option) []GroupsScope {
+// If any slice is empty, it defaults to [selectors.None]
+func (s *groups) Channel(channel string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannel,
+			GroupsInfoChannel,
+			[]string{channel},
+			filters.Equal),
+	}
+}
+
+// ChannelMessages produces one or more Groups channel message scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *sharePoint) ChannelMessages(channels, messages []string, opts ...option) []GroupsScope {
 	var (
 		scopes = []GroupsScope{}
 		os     = append([]option{pathComparator()}, opts...)
 	)
 
-	scopes = append(scopes, makeScope[GroupsScope](GroupsTODOContainer, lists, os...))
-
-	return scopes
-}
-
-// ListTODOItemsItems produces one or more Groups TODO item scopes.
-// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
-// If any slice contains selectors.None, that slice is reduced to [selectors.None]
-// If any slice is empty, it defaults to [selectors.None]
-// options are only applied to the list scopes.
-func (s *groups) TODOItems(lists, items []string, opts ...option) []GroupsScope {
-	scopes := []GroupsScope{}
-
 	scopes = append(
 		scopes,
-		makeScope[GroupsScope](GroupsTODOItem, items, defaultItemOptions(s.Cfg)...).
-			set(GroupsTODOContainer, lists, opts...))
+		makeScope[GroupsScope](GroupsChannelMessage, messages, os...).
+			set(GroupsChannel, channels, opts...))
 
 	return scopes
 }
@@ -270,21 +275,22 @@ const (
 	GroupsCategoryUnknown groupsCategory = ""
 
 	// types of data in Groups
-	GroupsGroup         groupsCategory = "GroupsGroup"
-	GroupsTODOContainer groupsCategory = "GroupsTODOContainer"
-	GroupsTODOItem      groupsCategory = "GroupsTODOItem"
+	GroupsGroup          groupsCategory = "GroupsGroup"
+	GroupsChannel        groupsCategory = "GroupsChannel"
+	GroupsChannelMessage groupsCategory = "GroupsChannelMessage"
 
 	// details.itemInfo comparables
 
-	// library drive selection
+	// channel drive selection
 	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
+	GroupsInfoChannel          groupsCategory = "GroupsInfoChannel"
 )
 
 // groupsLeafProperties describes common metadata of the leaf categories
 var groupsLeafProperties = map[categorizer]leafProperty{
-	GroupsTODOItem: { // the root category must be represented, even though it isn't a leaf
-		pathKeys: []categorizer{GroupsTODOContainer, GroupsTODOItem},
-		pathType: path.UnknownCategory,
+	GroupsChannelMessage: { // the root category must be represented, even though it isn't a leaf
+		pathKeys: []categorizer{GroupsChannel, GroupsChannelMessage},
+		pathType: path.ChannelMessagesCategory,
 	},
 	GroupsGroup: { // the root category must be represented, even though it isn't a leaf
 		pathKeys: []categorizer{GroupsGroup},
@@ -303,8 +309,10 @@ func (c groupsCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c groupsCategory) leafCat() categorizer {
 	switch c {
-	case GroupsTODOContainer, GroupsInfoSiteLibraryDrive:
-		return GroupsTODOItem
+	// TODO: if channels ever contain more than one type of item,
+	// we'll need to fix this up.
+	case GroupsChannel, GroupsChannelMessage, GroupsInfoSiteLibraryDrive:
+		return GroupsChannelMessage
 	}
 
 	return c
@@ -348,12 +356,12 @@ func (c groupsCategory) pathValues(
 	)
 
 	switch c {
-	case GroupsTODOContainer, GroupsTODOItem:
+	case GroupsChannel, GroupsChannelMessage:
 		if ent.Groups == nil {
 			return nil, clues.New("no Groups ItemInfo in details")
 		}
 
-		folderCat, itemCat = GroupsTODOContainer, GroupsTODOItem
+		folderCat, itemCat = GroupsChannel, GroupsChannelMessage
 		rFld = ent.Groups.ParentPath
 
 	default:
@@ -451,7 +459,7 @@ func (s GroupsScope) set(cat groupsCategory, v []string, opts ...option) GroupsS
 	os := []option{}
 
 	switch cat {
-	case GroupsTODOContainer:
+	case GroupsChannel:
 		os = append(os, pathComparator())
 	}
 
@@ -462,10 +470,10 @@ func (s GroupsScope) set(cat groupsCategory, v []string, opts ...option) GroupsS
 func (s GroupsScope) setDefaults() {
 	switch s.Category() {
 	case GroupsGroup:
-		s[GroupsTODOContainer.String()] = passAny
-		s[GroupsTODOItem.String()] = passAny
-	case GroupsTODOContainer:
-		s[GroupsTODOItem.String()] = passAny
+		s[GroupsChannel.String()] = passAny
+		s[GroupsChannelMessage.String()] = passAny
+	case GroupsChannel:
+		s[GroupsChannelMessage.String()] = passAny
 	}
 }
 
@@ -485,7 +493,7 @@ func (s groups) Reduce(
 		deets,
 		s.Selector,
 		map[path.CategoryType]groupsCategory{
-			path.UnknownCategory: GroupsTODOItem,
+			path.ChannelMessagesCategory: GroupsChannelMessage,
 		},
 		errs)
 }
@@ -516,6 +524,9 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		}
 
 		return matchesAny(s, GroupsInfoSiteLibraryDrive, ds)
+	case GroupsInfoChannel:
+		ds := Any()
+		return matchesAny(s, GroupsInfoChannel, ds)
 	}
 
 	return s.Matches(infoCat, i)

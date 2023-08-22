@@ -276,25 +276,25 @@ func (suite *m365UnitSuite) TestCheckUserHasDrives() {
 	}
 }
 
-type mockGAS struct {
+type mockGASites struct {
 	response []models.Siteable
 	err      error
 }
 
-func (m mockGAS) GetAll(context.Context, *fault.Bus) ([]models.Siteable, error) {
+func (m mockGASites) GetAll(context.Context, *fault.Bus) ([]models.Siteable, error) {
 	return m.response, m.err
 }
 
 func (suite *m365UnitSuite) TestGetAllSites() {
 	table := []struct {
 		name      string
-		mock      func(context.Context) getAllSiteser
+		mock      func(context.Context) getAller[models.Siteable]
 		expectErr func(*testing.T, error)
 	}{
 		{
 			name: "ok",
-			mock: func(ctx context.Context) getAllSiteser {
-				return mockGAS{[]models.Siteable{}, nil}
+			mock: func(ctx context.Context) getAller[models.Siteable] {
+				return mockGASites{[]models.Siteable{}, nil}
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
@@ -302,14 +302,14 @@ func (suite *m365UnitSuite) TestGetAllSites() {
 		},
 		{
 			name: "no sharepoint license",
-			mock: func(ctx context.Context) getAllSiteser {
+			mock: func(ctx context.Context) getAller[models.Siteable] {
 				odErr := odataerrors.NewODataError()
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
 				odErr.SetErrorEscaped(merr)
 
-				return mockGAS{nil, graph.Stack(ctx, odErr)}
+				return mockGASites{nil, graph.Stack(ctx, odErr)}
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
@@ -317,14 +317,14 @@ func (suite *m365UnitSuite) TestGetAllSites() {
 		},
 		{
 			name: "arbitrary error",
-			mock: func(ctx context.Context) getAllSiteser {
+			mock: func(ctx context.Context) getAller[models.Siteable] {
 				odErr := odataerrors.NewODataError()
 				merr := odataerrors.NewMainError()
 				merr.SetCode(ptr.To("code"))
 				merr.SetMessage(ptr.To("message"))
 				odErr.SetErrorEscaped(merr)
 
-				return mockGAS{nil, graph.Stack(ctx, odErr)}
+				return mockGASites{nil, graph.Stack(ctx, odErr)}
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.Error(t, err, clues.ToCore(err))
