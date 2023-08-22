@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -34,7 +35,7 @@ type Channels struct {
 // CreateContainer makes an channels with the name in the team
 func (c Channels) CreateChannel(
 	ctx context.Context,
-	teamID, _, containerName string,
+	teamID, containerName string,
 ) (graph.Container, error) {
 	body := models.NewChannel()
 	body.SetDisplayName(&containerName)
@@ -77,16 +78,13 @@ func (c Channels) DeleteChannel(
 	return nil
 }
 
-// prefer GetChannelByID where possible.
-// use this only in cases where the models.Channelable
-// is required.
 func (c Channels) GetChannel(
 	ctx context.Context,
 	teamID, containerID string,
 ) (models.Channelable, error) {
 	config := &teams.ItemChannelsChannelItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &teams.ItemChannelsChannelItemRequestBuilderGetQueryParameters{
-			Select: idAnd("name", "owner"),
+			Select: idAnd("displayName"),
 		},
 	}
 
@@ -116,20 +114,26 @@ func (c Channels) GetChannelByID(
 	return ChannelsDisplayable{Channelable: channel}, nil
 }
 
-// GetChannelByName fetches a calendar by name
+// GetChannelByName fetches a channel by name
 func (c Channels) GetChannelByName(
 	ctx context.Context,
-	teamID, _, containerName string,
+	teamID, containerName string,
 ) (graph.Container, error) {
-
 	ctx = clues.Add(ctx, "channel_name", containerName)
+
+	filter := fmt.Sprintf("displayName eq '%s'", containerName)
+	options := &teams.ItemChannelsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &teams.ItemChannelsRequestBuilderGetQueryParameters{
+			Filter: &filter,
+		},
+	}
 
 	resp, err := c.Stable.
 		Client().
 		Teams().
 		ByTeamId(teamID).
 		Channels().
-		Get(ctx, nil)
+		Get(ctx, options)
 
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
@@ -141,9 +145,9 @@ func (c Channels) GetChannelByName(
 		return nil, clues.New("channel not found").WithClues(ctx)
 	}
 
-	// We only allow the api to match one calendar with the provided name.
+	// We only allow the api to match one channel with the provided name.
 	// If we match multiples, we'll eagerly return the first one.
-	logger.Ctx(ctx).Debugw("calendars matched the name search", "calendar_count", len(gv))
+	logger.Ctx(ctx).Debugw("channels matched the name search")
 
 	// Sanity check ID and name
 	cal := gv[0]
@@ -170,7 +174,7 @@ func (c Channels) PatchChannel(
 		Patch(ctx, body, nil)
 
 	if err != nil {
-		return graph.Wrap(ctx, err, "patching event calendar")
+		return graph.Wrap(ctx, err, "patching channel")
 	}
 
 	return nil

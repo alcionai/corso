@@ -246,3 +246,14 @@ func M365GroupID(t *testing.T) string {
 
 	return strings.ToLower(cfg[TestCfgTeamID])
 }
+
+// M365ChannelID returns a channelID string representing the m365TeamsID described
+// by either the env var CORSO_M365_TEST_CHANNEL_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func M365ChannelID(t *testing.T) string {
+	cfg, err := ReadTestConfig()
+	require.NoError(t, err, "retrieving m365 channel id from test configuration: %+v", clues.ToCore(err))
+
+	return cfg[TestCfgChannelID]
+}
