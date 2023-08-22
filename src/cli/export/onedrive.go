@@ -39,7 +39,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 const (
 	oneDriveServiceCommand          = "onedrive"
-	oneDriveServiceCommandUseSuffix = "--backup <backupId> <destination>"
+	oneDriveServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
 	oneDriveServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's last backup (1234abcd...) to my-exports directory
@@ -62,7 +62,7 @@ func oneDriveExportCmd() *cobra.Command {
 		RunE:  exportOneDriveCmd,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return errors.New("missing restore destination")
+				return errors.New("missing export destination")
 			}
 
 			return nil

@@ -215,7 +215,43 @@ func (s *groups) AllData() []GroupsScope {
 
 	scopes = append(
 		scopes,
-		makeScope[GroupsScope](GroupsLibraryFolder, Any()))
+		makeScope[GroupsScope](GroupsLibraryFolder, Any()),
+		makeScope[GroupsScope](GroupsChannel, Any()))
+
+	return scopes
+}
+
+// Channel produces one or more SharePoint channel scopes, where the channel
+// matches upon a given channel by ID or Name.  In order to ensure channel selection
+// this should always be embedded within the Filter() set; include(channel()) will
+// select all items in the channel without further filtering.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *groups) Channel(channel string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannel,
+			GroupsInfoChannel,
+			[]string{channel},
+			filters.Equal),
+	}
+}
+
+// ChannelMessages produces one or more Groups channel message scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *sharePoint) ChannelMessages(channels, messages []string, opts ...option) []GroupsScope {
+	var (
+		scopes = []GroupsScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsChannelMessage, messages, os...).
+			set(GroupsChannel, channels, opts...))
 
 	return scopes
 }
@@ -231,7 +267,7 @@ func (s *groups) Library(library string) []GroupsScope {
 	return []GroupsScope{
 		makeInfoScope[GroupsScope](
 			GroupsLibraryItem,
-			SharePointInfoLibraryDrive, // TODO(meain)
+			GroupsInfoSiteLibraryDrive,
 			[]string{library},
 			filters.Equal),
 	}
@@ -290,24 +326,25 @@ const (
 	GroupsCategoryUnknown groupsCategory = ""
 
 	// types of data in Groups
-	GroupsGroup groupsCategory = "GroupsGroup"
-
-	// sharepoint
-	GroupsLibraryFolder groupsCategory = "GroupsLibraryFolder"
-	GroupsLibraryItem   groupsCategory = "GroupsLibraryItem"
-
-	// messages
-	// GroupsTeamChannel groupsCategory = "GroupsTeamChannel"
-	// GroupsTeamChannelMessages    groupsCategory = "GroupsTeamChannelMessages"
+	GroupsGroup          groupsCategory = "GroupsGroup"
+	GroupsChannel        groupsCategory = "GroupsChannel"
+	GroupsChannelMessage groupsCategory = "GroupsChannelMessage"
+	GroupsLibraryFolder  groupsCategory = "GroupsLibraryFolder"
+	GroupsLibraryItem    groupsCategory = "GroupsLibraryItem"
 
 	// details.itemInfo comparables
 
-	// library drive selection
-	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive" // TODO(meain)
+	// channel drive selection
+	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
+	GroupsInfoChannel          groupsCategory = "GroupsInfoChannel"
 )
 
 // groupsLeafProperties describes common metadata of the leaf categories
 var groupsLeafProperties = map[categorizer]leafProperty{
+	GroupsChannelMessage: { // the root category must be represented, even though it isn't a leaf
+		pathKeys: []categorizer{GroupsChannel, GroupsChannelMessage},
+		pathType: path.ChannelMessagesCategory,
+	},
 	GroupsLibraryItem: {
 		pathKeys: []categorizer{GroupsLibraryFolder, GroupsLibraryItem},
 		pathType: path.LibrariesCategory,
@@ -329,6 +366,10 @@ func (c groupsCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c groupsCategory) leafCat() categorizer {
 	switch c {
+	// TODO: if channels ever contain more than one type of item,
+	// we'll need to fix this up.
+	case GroupsChannel, GroupsChannelMessage:
+		return GroupsChannelMessage
 	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive:
 		return GroupsLibraryItem
 	}
@@ -374,14 +415,16 @@ func (c groupsCategory) pathValues(
 	)
 
 	switch c {
+	case GroupsChannel, GroupsChannelMessage:
+		folderCat, itemCat = GroupsChannel, GroupsChannelMessage
+		rFld = ent.Groups.ParentPath
 	case GroupsLibraryFolder, GroupsLibraryItem:
 		if ent.Groups == nil {
 			return nil, clues.New("no Groups ItemInfo in details")
 		}
 
 		folderCat, itemCat = GroupsLibraryFolder, GroupsLibraryItem
-		rFld = ent.Groups.ParentPath // TODO(meain)
-
+		rFld = ent.Groups.ParentPath
 	default:
 		return nil, clues.New("unrecognized groupsCategory").With("category", c)
 	}
@@ -477,7 +520,7 @@ func (s GroupsScope) set(cat groupsCategory, v []string, opts ...option) GroupsS
 	os := []option{}
 
 	switch cat {
-	case GroupsLibraryFolder:
+	case GroupsChannel, GroupsLibraryFolder:
 		os = append(os, pathComparator())
 	}
 
@@ -488,8 +531,12 @@ func (s GroupsScope) set(cat groupsCategory, v []string, opts ...option) GroupsS
 func (s GroupsScope) setDefaults() {
 	switch s.Category() {
 	case GroupsGroup:
+		s[GroupsChannel.String()] = passAny
+		s[GroupsChannelMessage.String()] = passAny
 		s[GroupsLibraryFolder.String()] = passAny
 		s[GroupsLibraryItem.String()] = passAny
+	case GroupsChannel:
+		s[GroupsChannelMessage.String()] = passAny
 	case GroupsLibraryFolder:
 		s[GroupsLibraryItem.String()] = passAny
 	}
@@ -511,7 +558,8 @@ func (s groups) Reduce(
 		deets,
 		s.Selector,
 		map[path.CategoryType]groupsCategory{
-			path.LibrariesCategory: GroupsLibraryItem,
+			path.ChannelMessagesCategory: GroupsChannelMessage,
+			path.LibrariesCategory:       GroupsLibraryItem,
 		},
 		errs)
 }
@@ -542,6 +590,9 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		}
 
 		return matchesAny(s, GroupsInfoSiteLibraryDrive, ds)
+	case GroupsInfoChannel:
+		ds := Any()
+		return matchesAny(s, GroupsInfoChannel, ds)
 	}
 
 	return s.Matches(infoCat, i)

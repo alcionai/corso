@@ -116,6 +116,30 @@ func (c Groups) GetByID(
 	return resp, graph.Stack(ctx, err).OrNil()
 }
 
+// GetRootSite retrieves the root site for the group.
+func (c Groups) GetRootSite(
+	ctx context.Context,
+	identifier string,
+) (models.Siteable, error) {
+	service, err := c.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := service.
+		Client().
+		Groups().
+		ByGroupId(identifier).
+		Sites().
+		BySiteId("root").
+		Get(ctx, nil)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting root site for group")
+	}
+
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------

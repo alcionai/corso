@@ -223,7 +223,7 @@ func checkServiceEnabled(
 	resource string,
 ) (bool, bool, error) {
 	if service == path.SharePointService || service == path.GroupsService {
-		// No "enabled" check required for sharepoint
+		// No "enabled" check required for sharepoint or groups.
 		return true, true, nil
 	}
 

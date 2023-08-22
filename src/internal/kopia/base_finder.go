@@ -115,14 +115,6 @@ func (me ManifestEntry) GetTag(key string) (string, bool) {
 	return v, ok
 }
 
-type snapshotManager interface {
-	FindManifests(
-		ctx context.Context,
-		tags map[string]string,
-	) ([]*manifest.EntryMetadata, error)
-	LoadSnapshot(ctx context.Context, id manifest.ID) (*snapshot.Manifest, error)
-}
-
 func serviceCatString(s path.ServiceType, c path.CategoryType) string {
 	return s.String() + c.String()
 }

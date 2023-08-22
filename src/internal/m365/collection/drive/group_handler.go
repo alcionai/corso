@@ -53,8 +53,13 @@ func (h groupBackupHandler) CanonicalPath(
 	folders *path.Builder,
 	tenantID, resourceOwner string,
 ) (path.Path, error) {
-	// TODO(meain): resourceOwner
-	return folders.ToDataLayerGroupPath(tenantID, h.groupID, path.LibrariesCategory, false)
+	// TODO(meain): path fixes: sharepoint site ids should be in the path
+	return folders.ToDataLayerPath(
+		tenantID,
+		h.groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		false)
 }
 
 func (h groupBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
