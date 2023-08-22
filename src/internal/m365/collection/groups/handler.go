@@ -11,8 +11,8 @@ import (
 
 type BackupMessagesHandler interface {
 	GetMessageByID(ctx context.Context, teamID, channelID, itemID string) (models.ChatMessageable, error)
-	NewMessagePager(teamID, channelID string) api.MessageItemDeltaEnumerator
+	NewMessagePager(teamID, channelID string) api.ChannelMessageDeltaEnumerator
 	GetChannelByID(ctx context.Context, teamID, channelID string) (models.Channelable, error)
-	NewChannelPager(teamID, channelID string) api.ChannelItemDeltaEnumerator
+	NewChannelPager(teamID, channelID string) api.ChannelDeltaEnumerator
 	GetReplyByID(ctx context.Context, teamID, channelID, messageID string) (serialization.Parsable, error)
 }
