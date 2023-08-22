@@ -64,15 +64,9 @@ func ProduceBackupCollections(
 			// TODO(meain): Private channels get a separate SharePoint
 			// site. We should also back those up and not just the
 			// default one.
-			resp, err := ac.Stable.
-				Client().
-				Groups().
-				ByGroupId(bpc.ProtectedResource.ID()).
-				Sites().
-				BySiteId("root").
-				Get(ctx, nil)
+			resp, err := ac.Groups().GetRootSite(ctx, bpc.ProtectedResource.ID())
 			if err != nil {
-				return nil, nil, false, clues.Wrap(err, "getting root site for group")
+				return nil, nil, false, err
 			}
 
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
