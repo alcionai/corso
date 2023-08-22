@@ -30,6 +30,7 @@ const (
 	TestCfgGroupID          = "m365groupid"
 	TestCfgUserID           = "m365userid"
 	TestCfgSecondaryUserID  = "secondarym365userid"
+	TestCfgSecondaryGroupID = "secondarym365groupid"
 	TestCfgTertiaryUserID   = "tertiarym365userid"
 	TestCfgLoadTestUserID   = "loadtestm365userid"
 	TestCfgLoadTestOrgUsers = "loadtestm365orgusers"

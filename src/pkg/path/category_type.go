@@ -78,9 +78,11 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	},
 	GroupsService: {
 		ChannelMessagesCategory: {},
+		LibrariesCategory:       {},
 	},
 	TeamsService: {
 		ChannelMessagesCategory: {},
+		LibrariesCategory:       {},
 	},
 }
 

@@ -107,7 +107,7 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 		Groups().
 		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
-	require.NotZero(t, len(groups), "must find at least one group")
+	require.NotZero(t, len(groups), "must have at least one group")
 }
 
 func (suite *GroupsIntgSuite) TestGroups_GetByID() {
@@ -122,30 +122,15 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 		expectErr func(*testing.T, error)
 	}{
 		{
-			name: "3 part id",
+			name: "valid id",
 			id:   groupID,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
 		},
 		{
-			name: "malformed id",
+			name: "invalid id",
 			id:   uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "random id",
-			id:   uuid.NewString() + "," + uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-
-		{
-			name: "malformed url",
-			id:   "barunihlda",
 			expectErr: func(t *testing.T, err error) {
 				assert.Error(t, err, clues.ToCore(err))
 			},

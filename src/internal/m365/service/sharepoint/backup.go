@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -79,10 +80,9 @@ func ProduceBackupCollections(
 			spcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				bpc,
-				ac.Drives(),
+				drive.NewLibraryBackupHandler(ac.Drives(), scope),
 				creds.AzureTenantID,
 				ssmb,
-				scope,
 				su,
 				errs)
 			if err != nil {
