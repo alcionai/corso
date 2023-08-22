@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	m365Mock "github.com/alcionai/corso/src/internal/m365/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -1128,10 +1129,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					streams = append(streams, ms)
 				}
 
-				mc := &mockBackupCollection{
-					path:    storePath,
-					loc:     locPath,
-					streams: streams,
+				mc := &m365Mock.BackupCollection{
+					Path:    storePath,
+					Loc:     locPath,
+					Streams: streams,
 				}
 
 				return []data.BackupCollection{mc}
@@ -1155,11 +1156,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					ItemInfo: details.ItemInfo{OneDrive: &info},
 				}
 
-				mc := &mockBackupCollection{
-					path:    storePath,
-					loc:     locPath,
-					streams: []data.Item{ms},
-					state:   data.NotMovedState,
+				mc := &m365Mock.BackupCollection{
+					Path:    storePath,
+					Loc:     locPath,
+					Streams: []data.Item{ms},
+					CState:  data.NotMovedState,
 				}
 
 				return []data.BackupCollection{mc}
@@ -1294,47 +1295,6 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 }
 
 // TODO(pandeyabs): Switch to m365/mock/BackupCollection.
-type mockBackupCollection struct {
-	path    path.Path
-	loc     *path.Builder
-	streams []data.Item
-	state   data.CollectionState
-}
-
-func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
-	res := make(chan data.Item)
-
-	go func() {
-		defer close(res)
-
-		for _, s := range c.streams {
-			res <- s
-		}
-	}()
-
-	return res
-}
-
-func (c mockBackupCollection) FullPath() path.Path {
-	return c.path
-}
-
-func (c mockBackupCollection) PreviousPath() path.Path {
-	return c.path
-}
-
-func (c mockBackupCollection) LocationPath() *path.Builder {
-	return c.loc
-}
-
-func (c mockBackupCollection) State() data.CollectionState {
-	return c.state
-}
-
-func (c mockBackupCollection) DoNotMergeItems() bool {
-	return false
-}
-
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
@@ -1343,10 +1303,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	collections := []data.BackupCollection{
-		&mockBackupCollection{
-			path: suite.storePath1,
-			loc:  loc1,
-			streams: []data.Item{
+		&m365Mock.BackupCollection{
+			Path: suite.storePath1,
+			Loc:  loc1,
+			Streams: []data.Item{
 				&dataMock.Item{
 					ItemID:   testFileName,
 					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
@@ -1359,10 +1319,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 				},
 			},
 		},
-		&mockBackupCollection{
-			path: suite.storePath2,
-			loc:  loc2,
-			streams: []data.Item{
+		&m365Mock.BackupCollection{
+			Path: suite.storePath2,
+			Loc:  loc2,
+			Streams: []data.Item{
 				&dataMock.Item{
 					ItemID:   testFileName3,
 					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
@@ -1603,11 +1563,11 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
 		loc := path.Builder{}.Append(parent.Folders()...)
-		collection := &mockBackupCollection{path: parent, loc: loc}
+		collection := &m365Mock.BackupCollection{Path: parent, Loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
-			collection.streams = append(
-				collection.streams,
+			collection.Streams = append(
+				collection.Streams,
 				&dataMock.Item{
 					ItemID:   item.itemPath.Item(),
 					Reader:   io.NopCloser(bytes.NewReader(item.data)),
