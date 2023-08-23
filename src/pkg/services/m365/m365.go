@@ -219,6 +219,8 @@ func parseUser(item models.Userable) (*User, error) {
 }
 
 // UserInfo returns the corso-specific set of user metadata.
+// TODO(pandeyabs): Remove support for this API. SDK users would be using
+// per service API calls - UserHasMailbox, UserGetMailboxInfo, UserHasDrive, etc.
 func GetUserInfo(
 	ctx context.Context,
 	acct account.Account,
