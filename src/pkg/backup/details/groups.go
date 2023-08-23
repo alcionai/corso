@@ -1,9 +1,11 @@
 package details
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/dustin/go-humanize"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -45,8 +47,12 @@ type GroupsInfo struct {
 	Size       int64     `json:"size,omitempty"`
 
 	// Channels Specific
-	ChannelName string `json:"channelName,omitempty"`
-	ChannelID   string `json:"channelID,omitempty"`
+	ChannelName    string    `json:"channelName,omitempty"`
+	ChannelID      string    `json:"channelID,omitempty"`
+	LastResponseAt time.Time `json:"lastResponseAt,omitempty"`
+	MessageCreator string    `json:"messageCreator,omitempty"`
+	MessagePreview string    `json:"messagePreview,omitempty"`
+	ReplyCount     int       `json:"replyCount,omitempty"`
 
 	// SharePoint specific
 	DriveName string `json:"driveName,omitempty"`
@@ -58,16 +64,42 @@ type GroupsInfo struct {
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i GroupsInfo) Headers() []string {
-	return []string{"Created", "Modified"}
+	switch i.ItemType {
+	case SharePointLibrary:
+		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
+	case TeamsChannelMessage:
+		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Response"}
+	}
+
+	return []string{}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i GroupsInfo) Values() []string {
-	return []string{
-		dttm.FormatToTabularDisplay(i.Created),
-		dttm.FormatToTabularDisplay(i.Modified),
+	switch i.ItemType {
+	case SharePointLibrary:
+		return []string{
+			i.ItemName,
+			i.DriveName,
+			i.ParentPath,
+			humanize.Bytes(uint64(i.Size)),
+			i.Owner,
+			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Modified),
+		}
+	case TeamsChannelMessage:
+		return []string{
+			i.MessagePreview,
+			i.ChannelName,
+			strconv.Itoa(i.ReplyCount),
+			i.MessageCreator,
+			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Modified),
+		}
 	}
+
+	return []string{}
 }
 
 func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
