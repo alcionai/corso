@@ -42,7 +42,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 
 	serviceEnabled, _, err := checkServiceEnabled(
 		ctx,
-		ctrl.AC.Users(),
+		ctrl,
 		rcc.Selector.PathService(),
 		rcc.ProtectedResource.ID())
 	if err != nil {

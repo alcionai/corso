@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -57,7 +56,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 
 	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
 		ctx,
-		ctrl.AC.Users(),
+		ctrl,
 		service,
 		bpc.ProtectedResource.ID())
 	if err != nil {
@@ -212,35 +211,81 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	return nil
 }
 
-type getInfoer interface {
-	GetInfo(context.Context, string) (*api.UserInfo, error)
-}
-
 func checkServiceEnabled(
 	ctx context.Context,
-	gi getInfoer,
+	ctrl *Controller,
 	service path.ServiceType,
 	resource string,
 ) (bool, bool, error) {
-	if service == path.SharePointService || service == path.GroupsService {
-		// No "enabled" check required for sharepoint or groups.
+	switch service {
+	case path.ExchangeService:
+		return checkExchangeServiceEnabled(ctx, ctrl, resource)
+	case path.OneDriveService:
+		return checkOneDriveServiceEnabled(ctx, ctrl, resource)
+	case path.SharePointService:
+		return checkSharepointServiceEnabled(ctx, ctrl, resource)
+	case path.GroupsService:
 		return true, true, nil
 	}
 
-	info, err := gi.GetInfo(ctx, resource)
+	return false, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
+}
+
+func checkOneDriveServiceEnabled(
+	ctx context.Context,
+	ctrl *Controller,
+	resource string,
+) (bool, bool, error) {
+	if _, err := ctrl.AC.Users().GetDefaultDrive(ctx, resource); err != nil {
+		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+			logger.CtxErr(ctx, err).Error("getting user's default drive")
+
+			return false, false, graph.Wrap(ctx, err, "getting user's default drive info")
+		}
+
+		logger.Ctx(ctx).Info("resource owner does not have a drive")
+
+		return false, false, nil
+	}
+
+	return true, true, nil
+}
+
+func checkExchangeServiceEnabled(
+	ctx context.Context,
+	ctrl *Controller,
+	resource string,
+) (bool, bool, error) {
+	enabled, err := ctrl.AC.Users().IsExchangeServiceEnabled(ctx, resource)
 	if err != nil {
 		return false, false, clues.Stack(err)
 	}
 
-	if !info.ServiceEnabled(service) {
-		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
+	if !enabled {
+		return false, false, nil
 	}
 
-	canMakeDeltaQueries := true
-	if service == path.ExchangeService {
-		// we currently can only check quota exceeded for exchange
-		canMakeDeltaQueries = info.CanMakeDeltaQueries()
+	mi, err := ctrl.AC.Users().GetMailboxInfo(ctx, resource)
+	if err != nil {
+		return false, false, clues.Stack(err)
 	}
 
-	return true, canMakeDeltaQueries, nil
+	return true, !mi.QuotaExceeded, nil
+}
+
+func checkSharepointServiceEnabled(
+	ctx context.Context,
+	ctrl *Controller,
+	resource string,
+) (bool, bool, error) {
+	_, err := ctrl.AC.Sites().GetRoot(ctx)
+	if err != nil {
+		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
+			return false, false, nil
+		}
+
+		return false, false, err
+	}
+
+	return true, true, nil
 }

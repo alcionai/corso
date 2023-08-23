@@ -172,6 +172,7 @@ func appendIfErr(errs []error, err error) []error {
 // Info
 // ---------------------------------------------------------------------------
 
+// TODO(pandeyabs): Remove this once the SDK users have migrated to new APIs
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		// Assume all services are enabled
@@ -284,6 +285,22 @@ func (c Users) GetMailboxSettings(
 	return settings, nil
 }
 
+func (c Users) IsExchangeServiceEnabled(
+	ctx context.Context,
+	userID string,
+) (bool, error) {
+	_, err := c.GetMailInbox(ctx, userID)
+	if err != nil {
+		if err := EvaluateMailboxError(err); err != nil {
+			return false, clues.Stack(err)
+		}
+
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (c Users) GetMailInbox(
 	ctx context.Context,
 	userID string,
@@ -300,6 +317,62 @@ func (c Users) GetMailInbox(
 	}
 
 	return inbox, nil
+}
+
+func (c Users) GetMailboxInfo(
+	ctx context.Context,
+	userID string,
+) (MailboxInfo, error) {
+	mailFolderFound := true
+	// check whether the user is able to access their inbox.
+	// if they cannot, we can assume they are ineligible for exchange backups.
+	inbx, err := c.GetMailInbox(ctx, userID)
+	if err != nil {
+		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
+			logger.CtxErr(ctx, err).Error("getting user's mail folder")
+			return MailboxInfo{}, err
+		}
+
+		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
+
+		mailFolderFound = false
+	}
+
+	// check whether the user has accessible mailbox settings.
+	// if they do, aggregate them in the MailboxInfo
+	mi := MailboxInfo{
+		ErrGetMailBoxSetting: []error{},
+	}
+
+	if !mailFolderFound {
+		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxSettingsNotFound)
+
+		return mi, nil
+	}
+
+	mboxSettings, err := c.getMailboxSettings(ctx, userID)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("err getting user's mailbox settings")
+
+		if !graph.IsErrAccessDenied(err) {
+			return MailboxInfo{}, graph.Wrap(ctx, err, "getting user's mailbox settings")
+		}
+
+		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, clues.New("access denied"))
+	} else {
+		mi = parseMailboxSettings(mboxSettings, mi)
+	}
+
+	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
+	if err != nil {
+		if !graph.IsErrQuotaExceeded(err) {
+			return MailboxInfo{}, clues.Stack(err)
+		}
+
+		mi.QuotaExceeded = graph.IsErrQuotaExceeded(err)
+	}
+
+	return mi, nil
 }
 
 func (c Users) GetDefaultDrive(
