@@ -173,7 +173,6 @@ jobs:
           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
-          run-e
 
       - name: Exchange - Incremental backup
         id: exchange-backup-incremental
