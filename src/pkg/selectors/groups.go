@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -242,7 +243,7 @@ func (s *groups) Channel(channel string) []GroupsScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *sharePoint) ChannelMessages(channels, messages []string, opts ...option) []GroupsScope {
+func (s *groups) ChannelMessages(channels, messages []string, opts ...option) []GroupsScope {
 	var (
 		scopes = []GroupsScope{}
 		os     = append([]option{pathComparator()}, opts...)
@@ -309,7 +310,76 @@ func (s *groups) LibraryItems(libraries, items []string, opts ...option) []Group
 // -------------------
 // ItemInfo Factories
 
-// TODO
+// MessageCreator produces one or more groups channelMessage info scopes.
+// Matches any channel message created by the specified user.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *GroupsRestore) MessageCreator(creator string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannelMessage,
+			GroupsInfoChannelMessageCreator,
+			[]string{creator},
+			filters.In),
+	}
+}
+
+// MessageCreatedAfter produces a channel message created-after info scope.
+// Matches any message where the creation time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *GroupsRestore) MessageCreatedAfter(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannelMessage,
+			GroupsInfoChannelMessageCreatedAfter,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
+
+// MessageCreatedBefore produces a channel message created-before info scope.
+// Matches any message where the creation time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *GroupsRestore) MessageCreatedBefore(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannelMessage,
+			GroupsInfoChannelMessageCreatedBefore,
+			[]string{timeStrings},
+			filters.Greater),
+	}
+}
+
+// MessageLastReplyAfter produces a channel message last-response-after info scope.
+// Matches any message where last response time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *GroupsRestore) MessageLastReplyAfter(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannelMessage,
+			GroupsInfoChannelMessageLastReplyAfter,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
+
+// MessageLastReplyBefore produces a channel message last-response-before info scope.
+// Matches any message where last response time is after the timestring.
+// If the input equals selectors.Any, the scope will match all times.
+// If the input is empty or selectors.None, the scope will always fail comparisons.
+func (s *GroupsRestore) MessageLastReplyBefore(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsChannelMessage,
+			GroupsInfoChannelMessageLastReplyBefore,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Categories
@@ -334,9 +404,16 @@ const (
 
 	// details.itemInfo comparables
 
-	// channel drive selection
+	// channel and drive selection
 	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
 	GroupsInfoChannel          groupsCategory = "GroupsInfoChannel"
+
+	// data contained within details.ItemInfo
+	GroupsInfoChannelMessageCreatedAfter    groupsCategory = "GroupsInfoChannelMessageCreatedAfter"
+	GroupsInfoChannelMessageCreatedBefore   groupsCategory = "GroupsInfoChannelMessageCreatedBefore"
+	GroupsInfoChannelMessageCreator         groupsCategory = "GroupsInfoChannelMessageCreator"
+	GroupsInfoChannelMessageLastReplyAfter  groupsCategory = "GroupsInfoChannelMessageLastReplyAfter"
+	GroupsInfoChannelMessageLastReplyBefore groupsCategory = "GroupsInfoChannelMessageLastReplyBefore"
 )
 
 // groupsLeafProperties describes common metadata of the leaf categories
@@ -368,7 +445,9 @@ func (c groupsCategory) leafCat() categorizer {
 	switch c {
 	// TODO: if channels ever contain more than one type of item,
 	// we'll need to fix this up.
-	case GroupsChannel, GroupsChannelMessage:
+	case GroupsChannel, GroupsChannelMessage,
+		GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore, GroupsInfoChannelMessageCreator,
+		GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
 		return GroupsChannelMessage
 	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive:
 		return GroupsLibraryItem
@@ -591,8 +670,23 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 
 		return matchesAny(s, GroupsInfoSiteLibraryDrive, ds)
 	case GroupsInfoChannel:
-		ds := Any()
+		ds := []string{}
+
+		if len(info.ChannelID) > 0 {
+			ds = append(ds, info.ChannelID)
+		}
+
+		if len(info.ChannelName) > 0 {
+			ds = append(ds, info.ChannelName)
+		}
+
 		return matchesAny(s, GroupsInfoChannel, ds)
+	case GroupsInfoChannelMessageCreator:
+		i = info.MessageCreator
+	case GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore:
+		i = dttm.Format(info.Created)
+	case GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
+		i = dttm.Format(info.LastReplyAt)
 	}
 
 	return s.Matches(infoCat, i)
