@@ -33,6 +33,61 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// tests that depend on no backups existing
+// ---------------------------------------------------------------------------
+
+type NoBackupExchangeE2ESuite struct {
+	tester.Suite
+	dpnd dependencies
+	its  intgTesterSetup
+}
+
+func TestNoBackupExchangeE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
+		t,
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
+	)})
+}
+
+func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	suite.its = newIntegrationTesterSetup(t)
+	suite.dpnd = prepM365Test(t, ctx)
+}
+
+func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_noBackups() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	suite.dpnd.recorder.Reset()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	cmd.SetErr(&suite.dpnd.recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	result := suite.dpnd.recorder.String()
+
+	// as an offhand check: the result should contain the m365 user id
+	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
+}
+
+// ---------------------------------------------------------------------------
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
@@ -176,34 +231,6 @@ func runExchangeBackupUserNotFoundTest(suite *BackupExchangeE2ESuite, category p
 
 	result := recorder.String()
 	t.Log("backup results", result)
-}
-
-func (suite *BackupExchangeE2ESuite) TestExchangeBackupListCmd_empty() {
-	t := suite.T()
-	ctx, flush := tester.NewContext(t)
-	ctx = config.SetViper(ctx, suite.dpnd.vpr)
-
-	defer flush()
-
-	suite.dpnd.recorder.Reset()
-
-	cmd := cliTD.StubRootCmd(
-		"backup", "list", "exchange",
-		"--config-file", suite.dpnd.configFilePath)
-	cli.BuildCommandTree(cmd)
-
-	cmd.SetErr(&suite.dpnd.recorder)
-
-	ctx = print.SetRootCmd(ctx, cmd)
-
-	// run the command
-	err := cmd.ExecuteContext(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-
-	result := suite.dpnd.recorder.String()
-
-	// as an offhand check: the result should contain the m365 user id
-	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
 }
 
 func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_badAzureClientIDFlag() {
