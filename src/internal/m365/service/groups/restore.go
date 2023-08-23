@@ -5,12 +5,17 @@ import (
 	"errors"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -29,16 +34,11 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
+		lrh            = drive.NewLibraryRestoreHandler(ac, rcc.Selector.PathService())
 		restoreMetrics support.CollectionMetrics
-		// caches         = onedrive.NewRestoreCaches(backupDriveIDNames)
-		el = errs.Local()
+		caches         = drive.NewRestoreCaches(backupDriveIDNames)
+		el             = errs.Local()
 	)
-
-	// TODO: uncomment when a handler is available
-	// err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
-	// if err != nil {
-	// 	return nil, clues.Wrap(err, "initializing restore caches")
-	// }
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
@@ -52,6 +52,7 @@ func ConsumeRestoreCollections(
 
 		var (
 			err      error
+			resp     models.Siteable
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
@@ -63,7 +64,39 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			// TODO
+			// TODO(meain): As of now we only restore the root site
+			// and that too to whatever is currently the root site of the
+			// group and not the original one. Not sure if the
+			// original can be changed.
+			resp, err = ac.Groups().GetRootSite(ctx, rcc.ProtectedResource.ID())
+			if err != nil {
+				return nil, err
+			}
+
+			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
+			srcc := inject.RestoreConsumerConfig{
+				BackupVersion:     rcc.BackupVersion,
+				Options:           rcc.Options,
+				ProtectedResource: pr,
+				RestoreConfig:     rcc.RestoreConfig,
+				Selector:          rcc.Selector,
+			}
+
+			err = caches.Populate(ctx, lrh, srcc.ProtectedResource.ID())
+			if err != nil {
+				return nil, clues.Wrap(err, "initializing restore caches")
+			}
+
+			metrics, err = drive.RestoreCollection(
+				ictx,
+				lrh,
+				srcc,
+				dc,
+				caches,
+				deets,
+				control.DefaultRestoreContainerName(dttm.HumanReadableDriveItem),
+				errs,
+				ctr)
 
 		default:
 			return nil, clues.New("data category not supported").

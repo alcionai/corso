@@ -21,9 +21,6 @@ var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
 	addSharePointCommands,
-	// awaiting release
-	// addGroupsCommands,
-	// addTeamsCommands,
 }
 
 // AddCommands attaches all `corso restore * *` commands to the parent.

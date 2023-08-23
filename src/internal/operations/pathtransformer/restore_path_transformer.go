@@ -135,7 +135,8 @@ func makeRestorePathsForEntry(
 		res.RestorePath, err = basicLocationPath(repoRef, locRef)
 	case ent.OneDrive != nil ||
 		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointLibrary) ||
-		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem):
+		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem) ||
+		(ent.Groups != nil && ent.Groups.ItemType == details.SharePointLibrary):
 		res.RestorePath, err = drivePathMerge(ent, repoRef, locRef)
 	default:
 		return res, clues.New("unknown entry type").WithClues(ctx)
