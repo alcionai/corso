@@ -425,7 +425,6 @@ func (c groupsCategory) pathValues(
 
 		folderCat, itemCat = GroupsLibraryFolder, GroupsLibraryItem
 		rFld = ent.Groups.ParentPath
-
 	default:
 		return nil, clues.New("unrecognized groupsCategory").With("category", c)
 	}

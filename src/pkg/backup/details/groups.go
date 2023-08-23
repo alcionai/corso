@@ -11,24 +11,48 @@ import (
 
 // NewGroupsLocationIDer builds a LocationIDer for the groups.
 func NewGroupsLocationIDer(
+	category path.CategoryType,
 	driveID string,
 	escapedFolders ...string,
-) uniqueLoc {
-	// TODO: implement
-	return uniqueLoc{}
+) (uniqueLoc, error) {
+	// TODO(meain): path fixes
+	if err := path.ValidateServiceAndCategory(path.GroupsService, category); err != nil {
+		return uniqueLoc{}, clues.Wrap(err, "making groups LocationIDer")
+	}
+
+	pb := path.Builder{}.Append(category.String())
+	prefixElems := 1
+
+	if driveID != "" { // non sp paths don't have driveID
+		pb.Append(driveID)
+
+		prefixElems = 2
+	}
+
+	pb.Append(escapedFolders...)
+
+	return uniqueLoc{pb, prefixElems}, nil
 }
 
 // GroupsInfo describes a groups item
 type GroupsInfo struct {
 	Created    time.Time `json:"created,omitempty"`
-	DriveName  string    `json:"driveName,omitempty"`
-	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
+
+	// Channels Specific
+	ChannelName string `json:"channelName,omitempty"`
+	ChannelID   string `json:"channelID,omitempty"`
+
+	// SharePoint specific
+	DriveName string `json:"driveName,omitempty"`
+	DriveID   string `json:"driveID,omitempty"`
+	SiteID    string `json:"siteID,omitempty"`
+	WebURL    string `json:"webURL,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -51,9 +75,27 @@ func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
 }
 
 func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
-	return nil, clues.New("not yet implemented")
+	var category path.CategoryType
+
+	switch i.ItemType {
+	case SharePointLibrary:
+		category = path.LibrariesCategory
+
+		if len(i.DriveID) == 0 {
+			return nil, clues.New("empty drive ID")
+		}
+	}
+
+	loc, err := NewGroupsLocationIDer(category, i.DriveID, baseLoc.Elements()...)
+
+	return &loc, err
 }
 
 func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
-	return clues.New("not yet implemented")
+	// TODO(meain): path updates if any
+	if i.ItemType == SharePointLibrary {
+		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
+	}
+
+	return clues.New("unsupported ItemType for GroupsInfo").With("item_type", i.ItemType)
 }

@@ -36,7 +36,7 @@ func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := libraryBackupHandler{}
+			h := libraryBackupHandler{service: path.SharePointService}
 			p := path.Builder{}.Append("prefix")
 
 			result, err := h.CanonicalPath(p, tenantID, resourceOwner)
