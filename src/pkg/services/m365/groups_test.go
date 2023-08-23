@@ -68,6 +68,31 @@ func (suite *GroupsIntgSuite) TestGroups() {
 	}
 }
 
+func (suite *GroupsIntgSuite) TestGroupsMap() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	gm, err := m365.GroupsMap(ctx, suite.acct, fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, gm)
+
+	for _, gid := range gm.IDs() {
+		suite.Run("group_"+gid, func() {
+			t := suite.T()
+
+			assert.NotEmpty(t, gid)
+
+			name, ok := gm.NameOf(gid)
+			assert.True(t, ok)
+			assert.NotEmpty(t, name)
+		})
+	}
+}
+
 func (suite *GroupsIntgSuite) TestGroups_InvalidCredentials() {
 	table := []struct {
 		name string

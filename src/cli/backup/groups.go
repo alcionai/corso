@@ -221,7 +221,7 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.MakeGroupOpts(cmd)
+	opts := utils.MakeGroupsOpts(cmd)
 
 	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.GroupsService, repo.S3Overrides(cmd))
 	if err != nil {
@@ -230,7 +230,7 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsGroupCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsGroupsCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -245,17 +245,17 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runDetailsGroupCmd actually performs the lookup in backup details.
+// runDetailsGroupsCmd actually performs the lookup in backup details.
 // the fault.Errors return is always non-nil.  Callers should check if
 // errs.Failure() == nil.
-func runDetailsGroupCmd(
+func runDetailsGroupsCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
 	backupID string,
-	opts utils.GroupOpts,
+	opts utils.GroupsOpts,
 	skipReduce bool,
 ) (*details.Details, error) {
-	if err := utils.ValidateGroupRestoreFlags(backupID, opts); err != nil {
+	if err := utils.ValidateGroupsRestoreFlags(backupID, opts); err != nil {
 		return nil, err
 	}
 
@@ -274,9 +274,9 @@ func runDetailsGroupCmd(
 	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
 
 	if !skipReduce {
-		sel := utils.IncludeGroupRestoreDataSelectors(ctx, opts)
+		sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
 		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-		utils.FilterGroupRestoreInfoSelectors(sel, opts)
+		utils.FilterGroupsRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}
 
