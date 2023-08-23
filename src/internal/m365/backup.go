@@ -156,6 +156,17 @@ func (ctrl *Controller) IsBackupRunnable(
 	service path.ServiceType,
 	resourceOwner string,
 ) (bool, error) {
+	if service == path.GroupsService {
+		_, err := ctrl.AC.Groups().GetByID(ctx, resourceOwner)
+		if err != nil {
+			// TODO(meain): check for error message in case groups are
+			// not enabled at all similar to sharepoint
+			return false, err
+		}
+
+		return true, nil
+	}
+
 	if service == path.SharePointService {
 		_, err := ctrl.AC.Sites().GetRoot(ctx)
 		if err != nil {
@@ -181,7 +192,7 @@ func (ctrl *Controller) IsBackupRunnable(
 	return true, nil
 }
 
-func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
+func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	var ids []string
 
 	switch sels.Service {
@@ -189,16 +200,13 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 		// Exchange and OneDrive user existence now checked in checkServiceEnabled.
 		return nil
 
-	case selectors.ServiceGroups:
-		// TODO(meain): check for group existence.
-		return nil
-
-	case selectors.ServiceSharePoint:
-		ids = siteIDs
+	case selectors.ServiceSharePoint, selectors.ServiceGroups:
+		ids = cachedIDs
 	}
 
 	if !filters.Contains(ids).Compare(sels.ID()) {
-		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_protected_resource", sels.DiscreteOwner)
+		return clues.Stack(graph.ErrResourceOwnerNotFound).
+			With("selector_protected_resource", sels.DiscreteOwner)
 	}
 
 	return nil

@@ -28,7 +28,7 @@ const (
 	ExchangeMail    ItemType = 3
 
 	// SharePoint (10x)
-	SharePointLibrary ItemType = 101
+	SharePointLibrary ItemType = 101 // also used for groups
 	SharePointList    ItemType = 102
 	SharePointPage    ItemType = 103
 
