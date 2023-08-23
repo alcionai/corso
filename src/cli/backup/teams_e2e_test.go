@@ -28,6 +28,63 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// tests that require no existing backups
+// ---------------------------------------------------------------------------
+
+type NoBackupTeamsE2ESuite struct {
+	tester.Suite
+	dpnd dependencies
+	its  intgTesterSetup
+}
+
+func TestNoBackupTeamsE2ESuite(t *testing.T) {
+	t.Skip("enable when e2e is complete for teams")
+
+	suite.Run(t, &BackupTeamsE2ESuite{Suite: tester.NewE2ESuite(
+		t,
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
+	)})
+}
+
+func (suite *NoBackupTeamsE2ESuite) SetupSuite() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	suite.its = newIntegrationTesterSetup(t)
+	suite.dpnd = prepM365Test(t, ctx)
+}
+
+func (suite *NoBackupTeamsE2ESuite) TestTeamsBackupListCmd_noBackups() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	suite.dpnd.recorder.Reset()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "list", "teams",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	cmd.SetErr(&suite.dpnd.recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	result := suite.dpnd.recorder.String()
+
+	// as an offhand check: the result should contain the m365 team id
+	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
+}
+
+// ---------------------------------------------------------------------------
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
@@ -132,34 +189,6 @@ func runTeamsBackupTeamNotFoundTest(suite *BackupTeamsE2ESuite, category path.Ca
 
 	result := recorder.String()
 	t.Log("backup results", result)
-}
-
-func (suite *BackupTeamsE2ESuite) TestTeamsBackupListCmd_empty() {
-	t := suite.T()
-	ctx, flush := tester.NewContext(t)
-	ctx = config.SetViper(ctx, suite.dpnd.vpr)
-
-	defer flush()
-
-	suite.dpnd.recorder.Reset()
-
-	cmd := cliTD.StubRootCmd(
-		"backup", "list", "teams",
-		"--config-file", suite.dpnd.configFilePath)
-	cli.BuildCommandTree(cmd)
-
-	cmd.SetErr(&suite.dpnd.recorder)
-
-	ctx = print.SetRootCmd(ctx, cmd)
-
-	// run the command
-	err := cmd.ExecuteContext(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-
-	result := suite.dpnd.recorder.String()
-
-	// as an offhand check: the result should contain the m365 team id
-	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
 }
 
 func (suite *BackupTeamsE2ESuite) TestBackupCreateTeams_badAzureClientIDFlag() {
