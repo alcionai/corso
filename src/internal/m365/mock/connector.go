@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -44,14 +43,6 @@ func (ctrl Controller) ProduceBackupCollections(
 	error,
 ) {
 	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
-}
-
-func (ctrl Controller) IsBackupRunnable(
-	_ context.Context,
-	_ path.ServiceType,
-	_ string,
-) (bool, error) {
-	return true, ctrl.Err
 }
 
 func (ctrl Controller) Wait() *data.CollectionStats {

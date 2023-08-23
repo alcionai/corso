@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -23,8 +22,6 @@ type (
 			bpc BackupProducerConfig,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
-		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
-
 		Wait() *data.CollectionStats
 	}
 

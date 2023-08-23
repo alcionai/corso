@@ -1531,14 +1531,6 @@ func (mbp *mockBackupProducer) ProduceBackupCollections(
 	return mbp.colls, nil, true, nil
 }
 
-func (mbp *mockBackupProducer) IsBackupRunnable(
-	context.Context,
-	path.ServiceType,
-	string,
-) (bool, error) {
-	return true, nil
-}
-
 func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 	return &mbp.dcs
 }

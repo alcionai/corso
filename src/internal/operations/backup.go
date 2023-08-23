@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -201,25 +200,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
-
-	var runnable bool
-
-	// IsBackupRunnable checks if the user has services enabled to run a backup.
-	// it also checks for conditions like mailbox full.
-	runnable, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
-	if err != nil {
-		logger.CtxErr(ctx, err).Error("verifying backup is runnable")
-		op.Errors.Fail(clues.Wrap(err, "verifying backup is runnable"))
-
-		return
-	}
-
-	if !runnable {
-		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if backup is enabled")
-		op.Errors.Fail(clues.Wrap(err, "checking if backup is enabled"))
-
-		return
-	}
 
 	// -----
 	// Setup

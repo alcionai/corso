@@ -147,39 +147,6 @@ func (ctrl *Controller) ProduceBackupCollections(
 	return colls, ssmb, canUsePreviousBackup, nil
 }
 
-// IsBackupRunnable verifies that the users provided has the services enabled and
-// data can be backed up. The canMakeDeltaQueries provides info if the mailbox is
-// full and delta queries can be made on it.
-func (ctrl *Controller) IsBackupRunnable(
-	ctx context.Context,
-	service path.ServiceType,
-	resourceOwner string,
-) (bool, error) {
-	if service == path.SharePointService {
-		_, err := ctrl.AC.Sites().GetRoot(ctx)
-		if err != nil {
-			if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-				return false, clues.Stack(graph.ErrServiceNotEnabled, err)
-			}
-
-			return false, err
-		}
-
-		return true, nil
-	}
-
-	info, err := ctrl.AC.Users().GetInfo(ctx, resourceOwner)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
-	}
-
-	return true, nil
-}
-
 func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	var ids []string
 
