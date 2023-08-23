@@ -84,16 +84,25 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	_, err = ac.Users().GetMailInbox(ctx, userID)
-	if err != nil {
-		if err := api.EvaluateMailboxError(err); err != nil {
-			return false, clues.Stack(err)
-		}
+	return ac.Users().IsExchangeServiceEnabled(ctx, userID)
+}
 
-		return false, nil
+func UserGetMailboxInfo(
+	ctx context.Context,
+	acct account.Account,
+	userID string,
+) (api.MailboxInfo, error) {
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
+	if err != nil {
+		return api.MailboxInfo{}, clues.Stack(err).WithClues(ctx)
 	}
 
-	return true, nil
+	mi, err := ac.Users().GetMailboxInfo(ctx, userID)
+	if err != nil {
+		return api.MailboxInfo{}, clues.Stack(err)
+	}
+
+	return mi, nil
 }
 
 // UserHasDrives returns true if the user has any drives
