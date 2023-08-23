@@ -39,8 +39,7 @@ const (
 // Collection implements the interface from data.Collection
 // Structure holds data for an Exchange application for a single user
 type Collection struct {
-	// M365 user
-	user string // M365 user
+	user string
 	data chan data.Item
 
 	// added is a list of existing item IDs that were added to a container

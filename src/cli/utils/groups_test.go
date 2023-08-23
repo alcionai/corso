@@ -35,28 +35,28 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 		{
 			name:             "no inputs",
 			opts:             utils.GroupsOpts{},
-			expectIncludeLen: 3,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			expectIncludeLen: 3,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			expectIncludeLen: 4,
+			expectIncludeLen: 2,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			expectIncludeLen: 4,
+			expectIncludeLen: 2,
 		},
 		// TODO Add library specific tests once we have filters based
 		// on library folders

@@ -3,9 +3,9 @@ package utils
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
