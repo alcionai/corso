@@ -74,7 +74,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
-		return drive.NewLibraryRestoreHandler(ac)
+		return drive.NewLibraryRestoreHandler(ac, path.SharePointService)
 	}
 
 	runDriveIncrementalTest(
