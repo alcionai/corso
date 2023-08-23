@@ -241,6 +241,8 @@ func (pb Builder) ToStreamStorePath(
 		metadataService = OneDriveMetadataService
 	case SharePointService:
 		metadataService = SharePointMetadataService
+	case GroupsService:
+		metadataService = GroupsMetadataService
 	}
 
 	return &dataLayerResourcePath{
@@ -282,6 +284,8 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		metadataService = OneDriveMetadataService
 	case SharePointService:
 		metadataService = SharePointMetadataService
+	case GroupsService:
+		metadataService = GroupsMetadataService
 	}
 
 	return &dataLayerResourcePath{

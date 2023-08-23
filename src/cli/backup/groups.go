@@ -1,14 +1,27 @@
 package backup
 
 import (
+	"context"
+	"errors"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -134,7 +147,38 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	if err := validateGroupsBackupCreateFlags(flags.GroupFV, flags.CategoryDataFV); err != nil {
+		return err
+	}
+
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	ins, err := m365.GroupsMap(ctx, *acct, errs)
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 groups"))
+	}
+
+	sel := groupsBackupCreateSelectors(ctx, ins, flags.GroupFV, flags.CategoryDataFV)
+	selectorSet := []selectors.Selector{}
+
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
+		selectorSet = append(selectorSet, discSel.Selector)
+	}
+
+	return runBackups(
+		ctx,
+		r,
+		"Group", "group",
+		selectorSet,
+		ins)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -172,17 +216,71 @@ func groupsDetailsCmd() *cobra.Command {
 
 // processes a groups service backup.
 func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	if err := validateGroupBackupCreateFlags(flags.GroupFV); err != nil {
+	ctx := cmd.Context()
+	opts := utils.MakeGroupsOpts(cmd)
+
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	if err != nil {
 		return Only(ctx, err)
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	defer utils.CloseRepo(ctx, r)
+
+	ds, err := runDetailsGroupsCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	if len(ds.Entries) == 0 {
+		Info(ctx, selectors.ErrorNoMatchingItems)
+		return nil
+	}
+
+	ds.PrintEntries(ctx)
+
+	return nil
+}
+
+// runDetailsGroupsCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Failure() == nil.
+func runDetailsGroupsCmd(
+	ctx context.Context,
+	r repository.BackupGetter,
+	backupID string,
+	opts utils.GroupsOpts,
+	skipReduce bool,
+) (*details.Details, error) {
+	if err := utils.ValidateGroupsRestoreFlags(backupID, opts); err != nil {
+		return nil, err
+	}
+
+	ctx = clues.Add(ctx, "backup_id", backupID)
+
+	d, _, errs := r.GetBackupDetails(ctx, backupID)
+	// TODO: log/track recoverable errors
+	if errs.Failure() != nil {
+		if errors.Is(errs.Failure(), data.ErrNotFound) {
+			return nil, clues.New("no backup exists with the id " + backupID)
+		}
+
+		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+	}
+
+	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
+
+	if !skipReduce {
+		sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+		utils.FilterGroupsRestoreInfoSelectors(sel, opts)
+		d = sel.Reduce(ctx, d, errs)
+	}
+
+	return d, nil
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -208,7 +306,7 @@ func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
 // helpers
 // ---------------------------------------------------------------------------
 
-func validateGroupBackupCreateFlags(groups []string) error {
+func validateGroupsBackupCreateFlags(groups, cats []string) error {
 	if len(groups) == 0 {
 		return clues.New(
 			"requires one or more --" +
@@ -227,4 +325,41 @@ func validateGroupBackupCreateFlags(groups []string) error {
 	// }
 
 	return nil
+}
+
+// TODO: users might specify a data type, this only supports AllData().
+func groupsBackupCreateSelectors(
+	ctx context.Context,
+	ins idname.Cacher,
+	group, cats []string,
+) *selectors.GroupsBackup {
+	if filters.PathContains(group).Compare(flags.Wildcard) {
+		return includeAllGroupWithCategories(ins, cats)
+	}
+
+	sel := selectors.NewGroupsBackup(slices.Clone(group))
+
+	return addGroupsCategories(sel, cats)
+}
+
+func includeAllGroupWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
+	return addGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
+}
+
+func addGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
+	if len(cats) == 0 {
+		sel.Include(sel.AllData())
+	}
+
+	// TODO(meain): handle filtering
+	// for _, d := range cats {
+	// 	switch d {
+	// 	case dataLibraries:
+	// 		sel.Include(sel.LibraryFolders(selectors.Any()))
+	// 	case dataPages:
+	// 		sel.Include(sel.Pages(selectors.Any()))
+	// 	}
+	// }
+
+	return sel
 }

@@ -465,3 +465,85 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// CreateGroupsCollection tests
+// ---------------------------------------------------------------------------
+
+type GroupsCollectionIntgSuite struct {
+	tester.Suite
+	connector *Controller
+	user      string
+}
+
+func TestGroupsCollectionIntgSuite(t *testing.T) {
+	suite.Run(t, &GroupsCollectionIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs}),
+	})
+}
+
+func (suite *GroupsCollectionIntgSuite) SetupSuite() {
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	suite.connector = newController(ctx, suite.T(), resource.Sites, path.GroupsService)
+	suite.user = tconfig.M365UserID(suite.T())
+
+	tester.LogTimeOfTest(suite.T())
+}
+
+func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		groupID  = tconfig.M365GroupID(t)
+		ctrl     = newController(ctx, t, resource.Groups, path.GroupsService)
+		groupIDs = []string{groupID}
+	)
+
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sel := selectors.NewGroupsBackup(groupIDs)
+	// TODO(meain): make use of selectors
+	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+
+	sel.SetDiscreteOwnerIDName(id, name)
+
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion: version.NoBackup,
+		Options:           control.DefaultOptions(),
+		ProtectedResource: inMock.NewProvider(id, name),
+		Selector:          sel.Selector,
+	}
+
+	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+		ctx,
+		bpc,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
+	// No excludes yet as this isn't an incremental backup.
+	assert.True(t, excludes.Empty())
+
+	// we don't know an exact count of drives this will produce,
+	// but it should be more than one.
+	assert.Greater(t, len(collections), 1)
+
+	for _, coll := range collections {
+		for object := range coll.Items(ctx, fault.New(true)) {
+			buf := &bytes.Buffer{}
+			_, err := buf.ReadFrom(object.ToReader())
+			assert.NoError(t, err, "reading item", clues.ToCore(err))
+		}
+	}
+
+	status := ctrl.Wait()
+	assert.NotZero(t, status.Successes)
+	t.Log(status.String())
+}

@@ -3,13 +3,11 @@ package drive
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -85,7 +83,7 @@ func (h itemBackupHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, item, size, parentPath)
+	return augmentItemInfo(dii, path.OneDriveService, item, size, parentPath)
 }
 
 func (h itemBackupHandler) FormatDisplayPath(
@@ -162,7 +160,7 @@ func (h itemRestoreHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, item, size, parentPath)
+	return augmentItemInfo(dii, path.OneDriveService, item, size, parentPath)
 }
 
 func (h itemRestoreHandler) DeleteItem(
@@ -235,52 +233,4 @@ func (h itemRestoreHandler) GetRootFolder(
 	driveID string,
 ) (models.DriveItemable, error) {
 	return h.ac.GetRootFolder(ctx, driveID)
-}
-
-// ---------------------------------------------------------------------------
-// Common
-// ---------------------------------------------------------------------------
-
-func augmentItemInfo(
-	dii details.ItemInfo,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	var email, driveName, driveID string
-
-	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
-		// User is sometimes not available when created via some
-		// external applications (like backup/restore solutions)
-		ed, ok := item.GetCreatedBy().GetUser().GetAdditionalData()["email"]
-		if ok {
-			email = *ed.(*string)
-		}
-	}
-
-	if item.GetParentReference() != nil {
-		driveID = ptr.Val(item.GetParentReference().GetDriveId())
-		driveName = strings.TrimSpace(ptr.Val(item.GetParentReference().GetName()))
-	}
-
-	var pps string
-	if parentPath != nil {
-		pps = parentPath.String()
-	}
-
-	dii.OneDrive = &details.OneDriveInfo{
-		Created:    ptr.Val(item.GetCreatedDateTime()),
-		DriveID:    driveID,
-		DriveName:  driveName,
-		ItemName:   ptr.Val(item.GetName()),
-		ItemType:   details.OneDriveItem,
-		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
-		Owner:      email,
-		ParentPath: pps,
-		Size:       size,
-	}
-
-	dii.Extension = &details.ExtensionData{}
-
-	return dii
 }

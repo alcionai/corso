@@ -28,7 +28,7 @@ const (
 	ExchangeMail    ItemType = 3
 
 	// SharePoint (10x)
-	SharePointLibrary ItemType = 101
+	SharePointLibrary ItemType = 101 // also used for groups
 	SharePointList    ItemType = 102
 	SharePointPage    ItemType = 103
 
@@ -37,6 +37,9 @@ const (
 
 	// Folder Management(30x)
 	FolderItem ItemType = 306
+
+	// Groups/Teams(40x)
+	TeamsChannelMessage ItemType = 401
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
