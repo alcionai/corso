@@ -44,7 +44,7 @@ type GroupsInfo struct {
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
 
-	// Groups Specific
+	// Channels Specific
 	ChannelName string `json:"channelName,omitempty"`
 	ChannelID   string `json:"channelID,omitempty"`
 

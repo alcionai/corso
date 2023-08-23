@@ -206,7 +206,7 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 
 	if !filters.Contains(ids).Compare(sels.ID()) {
 		return clues.Stack(graph.ErrResourceOwnerNotFound).
-			With("missing_protected_resource", sels.DiscreteOwner)
+			With("selector_protected_resource", sels.DiscreteOwner)
 	}
 
 	return nil

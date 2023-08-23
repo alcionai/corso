@@ -166,11 +166,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 groups"))
 	}
 
-	sel, err := groupsBackupCreateSelectors(ctx, ins, flags.GroupFV, flags.CategoryDataFV)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Retrieving up group group by ID and URL"))
-	}
-
+	sel := groupsBackupCreateSelectors(ctx, ins, flags.GroupFV, flags.CategoryDataFV)
 	selectorSet := []selectors.Selector{}
 
 	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
@@ -336,14 +332,14 @@ func groupsBackupCreateSelectors(
 	ctx context.Context,
 	ins idname.Cacher,
 	group, cats []string,
-) (*selectors.GroupsBackup, error) {
+) *selectors.GroupsBackup {
 	if filters.PathContains(group).Compare(flags.Wildcard) {
-		return includeAllGroupWithCategories(ins, cats), nil
+		return includeAllGroupWithCategories(ins, cats)
 	}
 
 	sel := selectors.NewGroupsBackup(slices.Clone(group))
 
-	return addGroupsCategories(sel, cats), nil
+	return addGroupsCategories(sel, cats)
 }
 
 func includeAllGroupWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
@@ -352,7 +348,7 @@ func includeAllGroupWithCategories(ins idname.Cacher, categories []string) *sele
 
 func addGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
 	if len(cats) == 0 {
-		sel.Include(sel.LibraryFolders(selectors.Any()))
+		sel.Include(sel.AllData())
 	}
 
 	// TODO(meain): handle filtering

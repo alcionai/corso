@@ -97,8 +97,7 @@ func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 	return u, nil
 }
 
-// GroupsMap retrieves all groups in the tenant, and returns two maps:
-// one id-to-name and one name-to-id.
+// GroupsMap retrieves an id-name cache of all groups in the tenant.
 func GroupsMap(
 	ctx context.Context,
 	acct account.Account,
