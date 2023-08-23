@@ -37,6 +37,9 @@ const (
 
 	// Folder Management(30x)
 	FolderItem ItemType = 306
+
+	// Groups/Teams(40x)
+	TeamsChannelMessage ItemType = 401
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
