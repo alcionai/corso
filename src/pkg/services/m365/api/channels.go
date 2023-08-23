@@ -32,52 +32,6 @@ type Channels struct {
 // containers
 // ---------------------------------------------------------------------------
 
-// CreateContainer makes an channels with the name in the team
-func (c Channels) CreateChannel(
-	ctx context.Context,
-	teamID, containerName string,
-) (graph.Container, error) {
-	body := models.NewChannel()
-	body.SetDisplayName(&containerName)
-
-	container, err := c.Stable.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating channel")
-	}
-
-	return ChannelsDisplayable{Channelable: container}, nil
-}
-
-// DeleteChannel removes a channel from user's M365 account
-func (c Channels) DeleteChannel(
-	ctx context.Context,
-	teamID, containerID string,
-) error {
-	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	err = srv.Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(containerID).
-		Delete(ctx, nil)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	return nil
-}
-
 func (c Channels) GetChannel(
 	ctx context.Context,
 	teamID, containerID string,
@@ -160,26 +114,6 @@ func (c Channels) GetChannelByName(
 	return container, nil
 }
 
-func (c Channels) PatchChannel(
-	ctx context.Context,
-	teamID, containerID string,
-	body models.Channelable,
-) error {
-	_, err := c.Stable.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(containerID).
-		Patch(ctx, body, nil)
-
-	if err != nil {
-		return graph.Wrap(ctx, err, "patching channel")
-	}
-
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // message
 // ---------------------------------------------------------------------------
@@ -209,58 +143,7 @@ func (c Channels) GetMessage(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	return message, MessageInfo(message, size), nil
-}
-
-func (c Channels) PostMessage(
-	ctx context.Context,
-	teamID, containerID string,
-	body models.ChatMessageable,
-) (models.ChatMessageable, error) {
-	itm, err := c.Stable.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(containerID).
-		Messages().
-		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating mail message")
-	}
-
-	if itm == nil {
-		return nil, clues.New("nil response mail message creation").WithClues(ctx)
-	}
-
-	return itm, nil
-}
-
-func (c Channels) DeleteMessage(
-	ctx context.Context,
-	teamID, itemID, containerID string,
-) error {
-	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	err = srv.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(containerID).
-		Messages().
-		ByChatMessageId(itemID).
-		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting mail message")
-	}
-
-	return nil
+	return message, ChannelMessageInfo(message, size), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -289,66 +172,11 @@ func (c Channels) GetReplies(
 	return replies, nil
 }
 
-func (c Channels) PostReply(
-	ctx context.Context,
-	teamID, containerID, messageID string,
-	body models.ChatMessageable,
-) (models.ChatMessageable, error) {
-	itm, err := c.Stable.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(containerID).
-		Messages().
-		ByChatMessageId(messageID).
-		Replies().
-		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating reply message")
-	}
-
-	if itm == nil {
-		return nil, clues.New("nil response reply to message creation").WithClues(ctx)
-	}
-
-	return itm, nil
-}
-
-func (c Channels) DeleteReply(
-	ctx context.Context,
-	teamID, itemID, containerID, replyID string,
-) error {
-	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	err = srv.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(containerID).
-		Messages().
-		ByChatMessageId(itemID).
-		Replies().
-		ByChatMessageId1(replyID).
-		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting mail message")
-	}
-
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-func MessageInfo(msg models.ChatMessageable, size int64) *details.GroupsInfo {
+func ChannelMessageInfo(msg models.ChatMessageable, size int64) *details.GroupsInfo {
 	var (
 		created = ptr.Val(msg.GetCreatedDateTime())
 	)
