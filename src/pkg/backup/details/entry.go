@@ -56,6 +56,9 @@ type Entry struct {
 // ToLocationIDer takes a backup version and produces the unique location for
 // this entry if possible. Reasons it may not be possible to produce the unique
 // location include an unsupported backup version or missing information.
+//
+// TODO(ashmrtn): Remove this function completely if we ever decide to sunset
+// older corso versions that didn't populate LocationRef.
 func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 	if len(de.LocationRef) > 0 {
 		baseLoc, err := path.Builder{}.SplitUnescapeAppend(de.LocationRef)
@@ -68,32 +71,44 @@ func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		return de.ItemInfo.uniqueLocation(baseLoc)
 	}
 
-	if backupVersion >= version.OneDrive7LocationRef ||
-		(de.ItemInfo.infoType() != OneDriveItem &&
-			de.ItemInfo.infoType() != SharePointLibrary) {
-		return nil, clues.New("no previous location for entry")
-	}
-
-	// This is a little hacky, but we only want to try to extract the old
-	// location if it's OneDrive or SharePoint libraries and it's known to
-	// be an older backup version.
-	//
-	// TODO(ashmrtn): Remove this code once OneDrive/SharePoint libraries
-	// LocationRef code has been out long enough that all delta tokens for
-	// previous backup versions will have expired. At that point, either
-	// we'll do a full backup (token expired, no newer backups) or have a
-	// backup of a higher version with the information we need.
 	rr, err := path.FromDataLayerPath(de.RepoRef, true)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting item RepoRef")
+		return nil, clues.Wrap(err, "getting item RepoRef").
+			With("repo_ref", de.RepoRef)
 	}
 
-	p, err := path.ToDrivePath(rr)
-	if err != nil {
-		return nil, clues.New("converting RepoRef to drive path")
+	var baseLoc *path.Builder
+
+	switch de.ItemInfo.infoType() {
+	case ExchangeEvent:
+		if backupVersion >= 2 {
+			return nil, clues.New("no previous location for calendar entry").
+				With("repo_ref", rr)
+		}
+
+		fallthrough
+	case ExchangeMail, ExchangeContact:
+		baseLoc = path.Builder{}.Append(rr.Folders()...)
+
+	case OneDriveItem, SharePointLibrary:
+		if backupVersion >= version.OneDrive7LocationRef {
+			return nil, clues.New("no previous location for drive entry").
+				With("repo_ref", rr)
+		}
+
+		p, err := path.ToDrivePath(rr)
+		if err != nil {
+			return nil, clues.New("converting RepoRef to drive path").
+				With("repo_ref", rr)
+		}
+
+		baseLoc = path.Builder{}.Append(p.Root).Append(p.Folders...)
 	}
 
-	baseLoc := path.Builder{}.Append(p.Root).Append(p.Folders...)
+	if baseLoc == nil {
+		return nil, clues.New("unable to extract LocationRef from RepoRef").
+			With("repo_ref", rr)
+	}
 
 	// Individual services may add additional info to the base and return that.
 	return de.ItemInfo.uniqueLocation(baseLoc)
