@@ -96,7 +96,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	sids.DriveID = ptr.Val(siteDrive.GetId())
 
-	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, sids.ID)
+	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, sids.DriveID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sids.DriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
