@@ -412,7 +412,9 @@ func formatDetailsForRestoration(
 		return nil, clues.Wrap(err, "getting restore paths")
 	}
 
-	if sel.Service == selectors.ServiceOneDrive || sel.Service == selectors.ServiceSharePoint {
+	if sel.Service == selectors.ServiceOneDrive ||
+		sel.Service == selectors.ServiceSharePoint ||
+		sel.Service == selectors.ServiceGroups {
 		paths, err = onedrive.AugmentRestorePaths(backupVersion, paths)
 		if err != nil {
 			return nil, clues.Wrap(err, "augmenting paths")
