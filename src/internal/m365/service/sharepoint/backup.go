@@ -80,7 +80,7 @@ func ProduceBackupCollections(
 			spcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				bpc,
-				drive.NewLibraryBackupHandler(ac.Drives(), scope, path.SharePointService),
+				drive.NewLibraryBackupHandler(ac.Drives(), scope, bpc.Selector.PathService()),
 				creds.AzureTenantID,
 				ssmb,
 				su,

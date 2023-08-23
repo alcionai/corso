@@ -33,7 +33,7 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		lrh            = drive.NewLibraryRestoreHandler(ac, path.SharePointService)
+		lrh            = drive.NewLibraryRestoreHandler(ac, rcc.Selector.PathService())
 		restoreMetrics support.CollectionMetrics
 		caches         = drive.NewRestoreCaches(backupDriveIDNames)
 		el             = errs.Local()
