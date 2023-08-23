@@ -56,23 +56,11 @@ func (c Channels) GetChannel(
 	return resp, nil
 }
 
-func (c Channels) GetChannelByID(
-	ctx context.Context,
-	teamID, containerID string,
-) (graph.Container, error) {
-	channel, err := c.GetChannel(ctx, teamID, containerID)
-	if err != nil {
-		return nil, err
-	}
-
-	return ChannelsDisplayable{Channelable: channel}, nil
-}
-
 // GetChannelByName fetches a channel by name
 func (c Channels) GetChannelByName(
 	ctx context.Context,
 	teamID, containerName string,
-) (graph.Container, error) {
+) (models.Channelable, error) {
 	ctx = clues.Add(ctx, "channel_name", containerName)
 
 	filter := fmt.Sprintf("displayName eq '%s'", containerName)
@@ -94,7 +82,6 @@ func (c Channels) GetChannelByName(
 	}
 
 	gv := resp.GetValue()
-
 	if len(gv) == 0 {
 		return nil, clues.New("channel not found").WithClues(ctx)
 	}
@@ -105,31 +92,28 @@ func (c Channels) GetChannelByName(
 
 	// Sanity check ID and name
 	cal := gv[0]
-	container := ChannelsDisplayable{Channelable: cal}
 
-	if err := graph.CheckIDAndName(container); err != nil {
+	if err := CheckIDAndName(cal); err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	return container, nil
+	return cal, nil
 }
 
 // ---------------------------------------------------------------------------
 // message
 // ---------------------------------------------------------------------------
 
-// GetItem retrieves a Messageable item.
+// GetMessage retrieves a ChannelMessage item.
 func (c Channels) GetMessage(
 	ctx context.Context,
 	teamID, channelID, itemID string,
-	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.GroupsInfo, error) {
 	var (
 		size int64
 	)
 
-	// is preferImmutableIDs headers required here
 	message, err := c.Stable.
 		Client().
 		Teams().
@@ -182,7 +166,7 @@ func ChannelMessageInfo(msg models.ChatMessageable, size int64) *details.GroupsI
 	)
 
 	return &details.GroupsInfo{
-		ItemType: details.GroupChannel,
+		ItemType: details.GroupChannelMessage,
 		Size:     size,
 		Created:  created,
 		Modified: ptr.OrNow(msg.GetLastModifiedDateTime()),
@@ -193,16 +177,22 @@ func ChannelMessageInfo(msg models.ChatMessageable, size int64) *details.GroupsI
 // helper funcs
 // ---------------------------------------------------------------------------
 
-// ChannelsDisplayable is a wrapper that complies with the
-// models.Channelable interface with the graph.Container
-// interfaces.
-type ChannelsDisplayable struct {
-	models.Channelable
-}
+// CheckIDAndName is a validator that ensures the ID
+// and name are populated and not zero valued.
+func CheckIDAndName(c models.Channelable) error {
+	if c == nil {
+		return clues.New("nil container")
+	}
 
-// GetParentFolderId returns the default channe name address
+	id := ptr.Val(c.GetId())
+	if len(id) == 0 {
+		return clues.New("container missing ID")
+	}
 
-//nolint:revive
-func (c ChannelsDisplayable) GetParentFolderId() *string {
+	dn := ptr.Val(c.GetDisplayName())
+	if len(dn) == 0 {
+		return clues.New("container missing display name").With("container_id", id)
+	}
+
 	return nil
 }
