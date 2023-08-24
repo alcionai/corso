@@ -46,7 +46,6 @@ const (
 	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
 	EnvCorsoM365TestTeamID           = "CORSO_M365_TEST_TEAM_ID"
 	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_GROUP_ID"
-	EnvCorsoM365TestChannelID        = "CORSO_M365_TEST_CHANNEL_ID"
 	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
 	EnvCorsoSecondaryM365TestSiteID  = "CORSO_SECONDARY_M365_TEST_SITE_ID"
 	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
