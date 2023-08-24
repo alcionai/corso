@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 )
 
 type ChannelPagerIntgSuite struct {
@@ -59,7 +60,7 @@ func (suite *ChannelPagerIntgSuite) TestChannels_Get() {
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, ptr.Val(channel.GetDisplayName()), containerName)
 
-	// GET channel -should not be found anymore
+	// GET channel -should be found
 	_, err = chanClient.GetChannel(ctx, teamID, ptr.Val(channel.GetId()))
-	assert.Error(t, err, clues.ToCore(err))
+	assert.NoError(t, err, clues.ToCore(err))
 }

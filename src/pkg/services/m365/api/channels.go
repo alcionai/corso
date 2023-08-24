@@ -5,14 +5,15 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/teams"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 )
 
 // ---------------------------------------------------------------------------
@@ -76,7 +77,6 @@ func (c Channels) GetChannelByName(
 		ByTeamId(teamID).
 		Channels().
 		Get(ctx, options)
-
 	if err != nil {
 		return nil, graph.Stack(ctx, err).WithClues(ctx)
 	}
@@ -110,9 +110,7 @@ func (c Channels) GetMessage(
 	teamID, channelID, itemID string,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.GroupsInfo, error) {
-	var (
-		size int64
-	)
+	var size int64
 
 	message, err := c.Stable.
 		Client().
@@ -161,9 +159,7 @@ func (c Channels) GetReplies(
 // ---------------------------------------------------------------------------
 
 func ChannelMessageInfo(msg models.ChatMessageable, size int64) *details.GroupsInfo {
-	var (
-		created = ptr.Val(msg.GetCreatedDateTime())
-	)
+	created := ptr.Val(msg.GetCreatedDateTime())
 
 	return &details.GroupsInfo{
 		ItemType: details.TeamsChannelMessage,
