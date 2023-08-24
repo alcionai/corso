@@ -330,7 +330,7 @@ jobs:
 
       # generate new entries for test
       - name: Groups - Create new data
-        if: never() # TODO: enable when ready
+        if: false # TODO: enable when ready
         id: new-data-creation-groups
         working-directory: ./src/cmd/factory
         run: |
@@ -347,7 +347,7 @@ jobs:
           echo result="${suffix}" >> $GITHUB_OUTPUT
 
       - name: Groups - Backup
-        if: never() # TODO: enable when ready
+        if: false # TODO: enable when ready
         id: groups-backup
         uses: ./.github/actions/backup-restore-test
         with:
@@ -358,7 +358,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Teams - Backup
-        if: never() # TODO: enable when ready
+        if: false # TODO: enable when ready
         id: teams-backup
         uses: ./.github/actions/backup-restore-test
         with:

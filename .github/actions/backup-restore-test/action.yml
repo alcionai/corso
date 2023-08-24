@@ -56,7 +56,7 @@ runs:
             tee $GITHUB_OUTPUT
 
     - name: Restore ${{ inputs.service }} ${{ inputs.kind }}
-      if: inputs.restore != ""
+      if: ${{ inputs.restore-args != "" }}
       id: restore
       shell: bash
       working-directory: src
