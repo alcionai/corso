@@ -56,7 +56,7 @@ runs:
             tee $GITHUB_OUTPUT
 
     - name: Restore ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.restore-args != "" }}
+      if: ${{ inputs.restore-args != '' }}
       id: restore
       shell: bash
       working-directory: src
@@ -78,7 +78,7 @@ runs:
             cat /tmp/corsologs
 
     - name: Check restore ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.restore-args != "" }}
+      if: ${{ inputs.restore-args != '' }}
       shell: bash
       working-directory: src
       env:
