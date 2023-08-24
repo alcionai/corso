@@ -56,7 +56,7 @@ runs:
             tee $GITHUB_OUTPUT
 
     - name: Restore ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.restore-args }}
+      if: inputs.restore-args
       id: restore
       shell: bash
       working-directory: src
@@ -78,7 +78,7 @@ runs:
             cat /tmp/corsologs
 
     - name: Check restore ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.restore-args }}
+      if: inputs.restore-args
       shell: bash
       working-directory: src
       env:
@@ -92,7 +92,7 @@ runs:
         ./sanity-test
 
     - name: Export ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.with-export == true }}
+      if: inputs.with-export == true
       id: export
       shell: bash
       working-directory: src
@@ -109,7 +109,7 @@ runs:
           cat /tmp/corsologs
 
     - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.with-export == true }}
+      if: inputs.with-export == true
       shell: bash
       working-directory: src
       env:
@@ -123,7 +123,7 @@ runs:
         ./sanity-test
 
     - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.with-export == true }}
+      if: inputs.with-export == true
       id: export-archive
       shell: bash
       working-directory: src
@@ -143,7 +143,7 @@ runs:
           cat /tmp/corsologs
 
     - name: Check archive export ${{ inputs.service }} ${{ inputs.kind }}
-      if: ${{ inputs.with-export == true }}
+      if: inputs.with-export == true
       shell: bash
       working-directory: src
       env:
