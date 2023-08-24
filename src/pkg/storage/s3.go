@@ -70,6 +70,7 @@ func (c S3Config) StringConfig() (map[string]string, error) {
 }
 
 // S3Config retrieves the S3Config details from the Storage config.
+// TODO(pandeyabs): Make it take s storage as arg.
 func (s Storage) S3Config() (S3Config, error) {
 	c := S3Config{}
 
@@ -90,7 +91,7 @@ func (s Storage) S3Config() (S3Config, error) {
 
 func (c S3Config) validate() error {
 	check := map[string]string{
-		Bucket: c.Bucket,
+		//Bucket: c.Bucket,
 	}
 	for k, v := range check {
 		if len(v) == 0 {

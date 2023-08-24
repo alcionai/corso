@@ -79,6 +79,7 @@ func configureStorage(
 		if matchFromConfig {
 			providerType := vpr.GetString(StorageProviderTypeKey)
 			if providerType != storage.ProviderS3.String() {
+				// TODO: needs change
 				return store, clues.New("unsupported storage provider: " + providerType)
 			}
 
@@ -147,7 +148,7 @@ func configureStorage(
 
 	// ensure required properties are present
 	if err := requireProps(map[string]string{
-		storage.Bucket:              s3Cfg.Bucket,
+		//storage.Bucket:              s3Cfg.Bucket,
 		credentials.CorsoPassphrase: corso.CorsoPassphrase,
 	}); err != nil {
 		return storage.Storage{}, err

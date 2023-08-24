@@ -96,8 +96,6 @@ func (w *conn) Initialize(
 	opts repository.Options,
 	retentionOpts repository.Retention,
 ) error {
-	w.storage.Provider = storage.ProviderFS
-
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")

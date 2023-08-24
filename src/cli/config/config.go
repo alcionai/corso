@@ -218,6 +218,7 @@ func WriteRepoConfig(
 
 // writeRepoConfigWithViper implements WriteRepoConfig, but takes in a viper
 // struct for testing.
+// TODO(pandeyabs): This needs to be made generic. Currently it uses s3config.
 func writeRepoConfigWithViper(
 	vpr *viper.Viper,
 	s3Config storage.S3Config,
