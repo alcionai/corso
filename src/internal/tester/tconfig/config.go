@@ -28,7 +28,6 @@ const (
 	TestCfgSiteURL          = "m365siteurl"
 	TestCfgTeamID           = "m365teamid"
 	TestCfgGroupID          = "m365groupid"
-	TestCfgChannelID        = "m365channelid"
 	TestCfgUserID           = "m365userid"
 	TestCfgSecondaryUserID  = "secondarym365userid"
 	TestCfgSecondaryGroupID = "secondarym365groupid"
@@ -169,12 +168,6 @@ func ReadTestConfig() (map[string]string, error) {
 		os.Getenv(EnvCorsoM365TestGroupID),
 		vpr.GetString(TestCfgGroupID),
 		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
-	fallbackTo(
-		testEnv,
-		TestCfgChannelID,
-		os.Getenv(EnvCorsoM365TestChannelID),
-		vpr.GetString(TestCfgChannelID),
-		"19:nY6QHZ3hnHJ6ylarBxPjCOLRJNvrL3oKI5iW15QxTPA1@thread.tacv2")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,
