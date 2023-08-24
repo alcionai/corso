@@ -1353,7 +1353,7 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 			expectedUniqueLoc: fmt.Sprintf(expectedExchangeUniqueLocFmt, path.EmailCategory),
 		},
 		{
-			name:     "Exchange Email Without LocationRef Old Version Errors",
+			name:     "Exchange Email Without LocationRef Old Version",
 			service:  path.ExchangeService.String(),
 			category: path.EmailCategory.String(),
 			itemInfo: ItemInfo{
@@ -1361,12 +1361,28 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 					ItemType: ExchangeMail,
 				},
 			},
-			backupVersion: version.OneDrive7LocationRef - 1,
-			expectedErr:   require.Error,
+			backupVersion:     version.OneDrive7LocationRef - 1,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedExchangeUniqueLocFmt, path.EmailCategory),
 		},
 		{
-			name:     "Exchange Email Without LocationRef New Version Errors",
+			name:     "Exchange Email Without LocationRef New Version",
 			service:  path.ExchangeService.String(),
+			category: path.EmailCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
+				},
+			},
+			backupVersion:     version.OneDrive7LocationRef,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedExchangeUniqueLocFmt, path.EmailCategory),
+		},
+		{
+			name:     "Exchange Email Bad RepoRef Fails",
+			service:  path.OneDriveService.String(),
 			category: path.EmailCategory.String(),
 			itemInfo: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -1375,6 +1391,32 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 			},
 			backupVersion: version.OneDrive7LocationRef,
 			expectedErr:   require.Error,
+		},
+		{
+			name:     "Exchange Event Empty LocationRef New Version Fails",
+			service:  path.ExchangeService.String(),
+			category: path.EventsCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeEvent,
+				},
+			},
+			backupVersion: 2,
+			expectedErr:   require.Error,
+		},
+		{
+			name:     "Exchange Event Empty LocationRef Old Version",
+			service:  path.ExchangeService.String(),
+			category: path.EventsCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeEvent,
+				},
+			},
+			backupVersion:     version.OneDrive1DataAndMetaFiles,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedExchangeUniqueLocFmt, path.EventsCategory),
 		},
 	}
 

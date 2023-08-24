@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -32,6 +33,18 @@ func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
 	require.NoError(t, err, clues.ToCore(err))
 
 	return &ModelStore{c: c, modelVersion: globalModelVersion}
+}
+
+func assertEqualNoModTime(t *testing.T, expected, got *fooModel) {
+	t.Helper()
+
+	expectedClean := *expected
+	gotClean := *got
+
+	expectedClean.ModTime = time.Time{}
+	gotClean.ModTime = time.Time{}
+
+	assert.Equal(t, expectedClean, gotClean)
 }
 
 // ---------------
@@ -259,6 +272,8 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			// Avoid some silly test errors from comparing nil to empty map.
 			foo.Tags = map[string]string{}
 
+			startTime := time.Now()
+
 			err := suite.m.Put(suite.ctx, test.s, foo)
 			test.check(t, err, clues.ToCore(err))
 
@@ -273,11 +288,17 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			returned := &fooModel{}
 			err = suite.m.Get(suite.ctx, test.s, foo.ID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+
+			assertEqualNoModTime(t, foo, returned)
+			assert.WithinDuration(t, startTime, returned.ModTime, 5*time.Second)
+
+			returned = &fooModel{}
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, test.s, foo.ModelStoreID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+
+			assertEqualNoModTime(t, foo, returned)
+			assert.WithinDuration(t, startTime, returned.ModTime, 5*time.Second)
 		})
 	}
 }
@@ -324,11 +345,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 
 			err = suite.m.Get(suite.ctx, mdl, foo.ID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+			assertEqualNoModTime(t, foo, returned)
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, mdl, foo.ModelStoreID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+			assertEqualNoModTime(t, foo, returned)
 		})
 	}
 }
@@ -350,11 +371,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 	returned := &fooModel{}
 	err = suite.m.Get(suite.ctx, theModelType, foo.ID, returned)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, foo, returned)
+	assertEqualNoModTime(t, foo, returned)
 
 	err = suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, foo, returned)
+	assertEqualNoModTime(t, foo, returned)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
@@ -559,7 +580,16 @@ func (suite *ModelStoreIntegrationSuite) TestGetOfTypeWithTags() {
 			ids, err := suite.m.GetIDsForType(suite.ctx, test.s, test.tags)
 			require.NoError(t, err, clues.ToCore(err))
 
-			assert.ElementsMatch(t, expected, ids)
+			cleanIDs := make([]*model.BaseModel, 0, len(ids))
+
+			for _, id := range ids {
+				id2 := *id
+				id2.ModTime = time.Time{}
+
+				cleanIDs = append(cleanIDs, &id2)
+			}
+
+			assert.ElementsMatch(t, expected, cleanIDs)
 		})
 	}
 }
@@ -627,7 +657,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			err = m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+			assertEqualNoModTime(t, foo, returned)
 
 			ids, err := m.GetIDsForType(ctx, theModelType, nil)
 			require.NoError(t, err, clues.ToCore(err))
@@ -822,7 +852,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 
 	err = m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, foo, returned)
+	assertEqualNoModTime(t, foo, returned)
 }
 
 func openConnAndModelStore(

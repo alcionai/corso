@@ -13,10 +13,10 @@ var ErrNotFound = clues.New("not found")
 type CollectionState int
 
 const (
-	NewState = CollectionState(iota)
-	NotMovedState
-	MovedState
-	DeletedState
+	NewState      CollectionState = 0
+	NotMovedState CollectionState = 1
+	MovedState    CollectionState = 2
+	DeletedState  CollectionState = 3
 )
 
 type FetchRestoreCollection struct {

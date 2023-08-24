@@ -7,6 +7,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -27,7 +28,7 @@ func (c Client) Groups() Groups {
 	return Groups{c}
 }
 
-// On creation of each Teams team a corrsponding group gets created.
+// On creation of each Teams team a corresponding group gets created.
 // The group acts as the protected resource, and all teams data like events,
 // drive and mail messages are owned by that group.
 
@@ -47,24 +48,6 @@ func (c Groups) GetAll(
 	}
 
 	return getGroups(ctx, errs, service)
-}
-
-// GetTeams retrieves all Teams.
-func (c Groups) GetTeams(
-	ctx context.Context,
-	errs *fault.Bus,
-) ([]models.Groupable, error) {
-	service, err := c.Service()
-	if err != nil {
-		return nil, err
-	}
-
-	groups, err := getGroups(ctx, errs, service)
-	if err != nil {
-		return nil, err
-	}
-
-	return OnlyTeams(ctx, groups), nil
 }
 
 // GetAll retrieves all groups.
@@ -113,31 +96,6 @@ func getGroups(
 	return groups, el.Failure()
 }
 
-func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
-	log := logger.Ctx(ctx)
-
-	var teams []models.Groupable
-
-	for _, g := range groups {
-		if g.GetAdditionalData()[ResourceProvisioningOptions] != nil {
-			val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, g.GetAdditionalData())
-			for _, v := range val {
-				s, err := str.AnyToString(v)
-				if err != nil {
-					log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
-					continue
-				}
-
-				if s == teamsAdditionalDataLabel {
-					teams = append(teams, g)
-				}
-			}
-		}
-	}
-
-	return teams
-}
-
 // GetID retrieves group by groupID.
 func (c Groups) GetByID(
 	ctx context.Context,
@@ -158,29 +116,25 @@ func (c Groups) GetByID(
 	return resp, graph.Stack(ctx, err).OrNil()
 }
 
-// GetTeamByID retrieves group by groupID.
-func (c Groups) GetTeamByID(
+// GetRootSite retrieves the root site for the group.
+func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,
-) (models.Groupable, error) {
+) (models.Siteable, error) {
 	service, err := c.Service()
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
+	resp, err := service.
+		Client().
+		Groups().
+		ByGroupId(identifier).
+		Sites().
+		BySiteId("root").
+		Get(ctx, nil)
 	if err != nil {
-		err := graph.Wrap(ctx, err, "getting group by id")
-
-		return nil, err
-	}
-
-	groups := []models.Groupable{resp}
-
-	if len(OnlyTeams(ctx, groups)) == 0 {
-		err := clues.New("given teamID is not related to any team")
-
-		return nil, err
+		return nil, clues.Wrap(err, "getting root site for group")
 	}
 
 	return resp, graph.Stack(ctx, err).OrNil()
@@ -202,4 +156,50 @@ func ValidateGroup(item models.Groupable) error {
 	}
 
 	return nil
+}
+
+func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
+	var teams []models.Groupable
+
+	for _, g := range groups {
+		if IsTeam(ctx, g) {
+			teams = append(teams, g)
+		}
+	}
+
+	return teams
+}
+
+func IsTeam(ctx context.Context, mg models.Groupable) bool {
+	log := logger.Ctx(ctx)
+
+	if mg.GetAdditionalData()[ResourceProvisioningOptions] == nil {
+		return false
+	}
+
+	val, _ := tform.AnyValueToT[[]any](ResourceProvisioningOptions, mg.GetAdditionalData())
+	for _, v := range val {
+		s, err := str.AnyToString(v)
+		if err != nil {
+			log.Debug("could not be converted to string value: ", ResourceProvisioningOptions)
+			continue
+		}
+
+		if s == teamsAdditionalDataLabel {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetIDAndName looks up the group matching the given ID, and returns
+// its canonical ID and the name.
+func (c Groups) GetIDAndName(ctx context.Context, groupID string) (string, string, error) {
+	s, err := c.GetByID(ctx, groupID)
+	if err != nil {
+		return "", "", err
+	}
+
+	return ptr.Val(s.GetId()), ptr.Val(s.GetDisplayName()), nil
 }

@@ -166,7 +166,7 @@ func ChannelMessageInfo(msg models.ChatMessageable, size int64) *details.GroupsI
 	)
 
 	return &details.GroupsInfo{
-		ItemType: details.GroupChannelMessage,
+		ItemType: details.TeamsChannelMessage,
 		Size:     size,
 		Created:  created,
 		Modified: ptr.OrNow(msg.GetLastModifiedDateTime()),

@@ -17,15 +17,16 @@ type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory   CategoryType = iota
-	EmailCategory                  // email
-	ContactsCategory               // contacts
-	EventsCategory                 // events
-	FilesCategory                  // files
-	ListsCategory                  // lists
-	LibrariesCategory              // libraries
-	PagesCategory                  // pages
-	DetailsCategory                // details
+	UnknownCategory         CategoryType = 0
+	EmailCategory           CategoryType = 1 // email
+	ContactsCategory        CategoryType = 2 // contacts
+	EventsCategory          CategoryType = 3 // events
+	FilesCategory           CategoryType = 4 // files
+	ListsCategory           CategoryType = 5 // lists
+	LibrariesCategory       CategoryType = 6 // libraries
+	PagesCategory           CategoryType = 7 // pages
+	DetailsCategory         CategoryType = 8 // details
+	ChannelMessagesCategory CategoryType = 9 // channel messages
 )
 
 func ToCategoryType(category string) CategoryType {
@@ -48,6 +49,8 @@ func ToCategoryType(category string) CategoryType {
 		return PagesCategory
 	case strings.ToLower(DetailsCategory.String()):
 		return DetailsCategory
+	case strings.ToLower(ChannelMessagesCategory.String()):
+		return ChannelMessagesCategory
 	default:
 		return UnknownCategory
 	}
@@ -72,6 +75,14 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		LibrariesCategory: {},
 		ListsCategory:     {},
 		PagesCategory:     {},
+	},
+	GroupsService: {
+		ChannelMessagesCategory: {},
+		LibrariesCategory:       {},
+	},
+	TeamsService: {
+		ChannelMessagesCategory: {},
+		LibrariesCategory:       {},
 	},
 }
 

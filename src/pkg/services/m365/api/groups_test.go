@@ -97,7 +97,7 @@ func (suite *GroupsIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *GroupsIntgSuite) TestGetAllGroups() {
+func (suite *GroupsIntgSuite) TestGetAll() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -108,98 +108,13 @@ func (suite *GroupsIntgSuite) TestGetAllGroups() {
 		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(groups), "must have at least one group")
-}
-
-func (suite *GroupsIntgSuite) TestGetAllTeams() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	teams, err := suite.its.ac.
-		Groups().
-		GetTeams(ctx, fault.New(true))
-	require.NoError(t, err)
-	require.NotZero(t, len(teams), "must have at least one teams")
-
-	groups, err := suite.its.ac.
-		Groups().
-		GetAll(ctx, fault.New(true))
-	require.NoError(t, err)
-	require.NotZero(t, len(groups), "must have at least one group")
-
-	var isTeam bool
-
-	if len(groups) > len(teams) {
-		isTeam = true
-	}
-
-	assert.True(t, isTeam, "must only return teams")
-}
-
-func (suite *GroupsIntgSuite) TestTeams_GetByID() {
-	var (
-		t      = suite.T()
-		teamID = tconfig.M365TeamsID(t)
-	)
-
-	teamsAPI := suite.its.ac.Groups()
-
-	table := []struct {
-		name      string
-		id        string
-		expectErr func(*testing.T, error)
-	}{
-		{
-			name: "3 part id",
-			id:   teamID,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "malformed id",
-			id:   uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "random id",
-			id:   uuid.NewString() + "," + uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-
-		{
-			name: "malformed url",
-			id:   "barunihlda",
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			_, err := teamsAPI.GetTeamByID(ctx, test.id)
-			test.expectErr(t, err)
-		})
-	}
 }
 
 func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	var (
-		t       = suite.T()
-		groupID = tconfig.M365GroupID(t)
+		groupID   = suite.its.groupID
+		groupsAPI = suite.its.ac.Groups()
 	)
-
-	groupsAPI := suite.its.ac.Groups()
 
 	table := []struct {
 		name      string
@@ -207,30 +122,15 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 		expectErr func(*testing.T, error)
 	}{
 		{
-			name: "3 part id",
+			name: "valid id",
 			id:   groupID,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
 		},
 		{
-			name: "malformed id",
+			name: "invalid id",
 			id:   uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "random id",
-			id:   uuid.NewString() + "," + uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-
-		{
-			name: "malformed url",
-			id:   "barunihlda",
 			expectErr: func(t *testing.T, err error) {
 				assert.Error(t, err, clues.ToCore(err))
 			},

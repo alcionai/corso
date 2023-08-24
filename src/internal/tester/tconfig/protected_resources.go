@@ -223,11 +223,11 @@ func UnlicensedM365UserID(t *testing.T) string {
 
 // Teams
 
-// M365TeamsID returns a teamID string representing the m365TeamsID described
+// M365TeamID returns a teamID string representing the m365TeamsID described
 // by either the env var CORSO_M365_TEST_TEAM_ID, the corso_test.toml config
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
-func M365TeamsID(t *testing.T) string {
+func M365TeamID(t *testing.T) string {
 	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving m365 team id from test configuration: %+v", clues.ToCore(err))
 

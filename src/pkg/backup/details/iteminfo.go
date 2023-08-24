@@ -20,16 +20,17 @@ type ItemType int
 // Additionally, any itemType directly assigned a number should not be altered.
 // This applies to  OneDriveItem and FolderItem
 const (
-	UnknownType ItemType = iota // 0, global unknown value
+	UnknownType ItemType = 0
 
 	// Exchange (00x)
-	ExchangeContact
-	ExchangeEvent
-	ExchangeMail
+	ExchangeContact ItemType = 1
+	ExchangeEvent   ItemType = 2
+	ExchangeMail    ItemType = 3
+
 	// SharePoint (10x)
-	SharePointLibrary ItemType = iota + 97 // 100
-	SharePointList                         // 101...
-	SharePointPage
+	SharePointLibrary ItemType = 101 // also used for groups
+	SharePointList    ItemType = 102
+	SharePointPage    ItemType = 103
 
 	// OneDrive (20x)
 	OneDriveItem ItemType = 205
@@ -37,8 +38,8 @@ const (
 	// Folder Management(30x)
 	FolderItem ItemType = 306
 
-	// GroupChannelMessage(40x)
-	GroupChannelMessage ItemType = 407
+	// Groups/Teams(40x)
+	TeamsChannelMessage ItemType = 401
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {

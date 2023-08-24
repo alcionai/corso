@@ -25,10 +25,9 @@ import (
 func CollectLibraries(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
-	ad api.Drives,
+	bh drive.BackupHandler,
 	tenantID string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
-	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
@@ -37,13 +36,16 @@ func CollectLibraries(
 	var (
 		collections = []data.BackupCollection{}
 		colls       = drive.NewCollections(
-			drive.NewLibraryBackupHandler(ad, scope),
+			bh,
 			tenantID,
 			bpc.ProtectedResource.ID(),
 			su,
 			bpc.Options)
 	)
 
+	// TODO(meain): backup resource owner should be group id in case
+	// of group sharepoint site backup. As of now, we always use
+	// sharepoint site ids.
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {
 		return nil, false, graph.Wrap(ctx, err, "getting library")
@@ -59,6 +61,7 @@ func CollectPages(
 	bpc inject.BackupProducerConfig,
 	creds account.M365Config,
 	ac api.Client,
+	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -105,7 +108,7 @@ func CollectPages(
 		collection := NewCollection(
 			dir,
 			ac,
-			Pages,
+			scope,
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
@@ -122,6 +125,7 @@ func CollectLists(
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	tenantID string,
+	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -156,7 +160,7 @@ func CollectLists(
 		collection := NewCollection(
 			dir,
 			ac,
-			List,
+			scope,
 			su,
 			bpc.Options)
 		collection.AddJob(tuple.ID)

@@ -28,19 +28,20 @@ func (suite *ChannelPagerIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *ChannelPagerIntgSuite) TestChannels_GetPage() {
-	t := suite.T()
+// This will be added once 'pager' is implemented
+// func (suite *ChannelPagerIntgSuite) TestChannels_GetPage() {
+// 	t := suite.T()
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+// 	ctx, flush := tester.NewContext(t)
+// 	defer flush()
 
-	teamID := tconfig.M365TeamsID(t)
-	channelID := tconfig.M365ChannelID(t)
-	pager := suite.its.ac.Channels().NewMessagePager(teamID, channelID, []string{})
-	a, err := pager.GetPage(ctx)
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotNil(t, a)
-}
+// 	teamID := tconfig.M365TeamID(t)
+// 	channelID := tconfig.M365ChannelID(t)
+// 	pager := suite.its.ac.Channels().NewMessagePager(teamID, channelID, []string{})
+// 	a, err := pager.GetPage(ctx)
+// 	assert.NoError(t, err, clues.ToCore(err))
+// 	assert.NotNil(t, a)
+// }
 
 func (suite *ChannelPagerIntgSuite) TestChannels_Get() {
 	t := suite.T()
@@ -49,7 +50,7 @@ func (suite *ChannelPagerIntgSuite) TestChannels_Get() {
 
 	var (
 		containerName = "General"
-		teamID        = tconfig.M365TeamsID(t)
+		teamID        = tconfig.M365TeamID(t)
 		chanClient    = suite.its.ac.Channels()
 	)
 
@@ -62,31 +63,3 @@ func (suite *ChannelPagerIntgSuite) TestChannels_Get() {
 	_, err = chanClient.GetChannel(ctx, teamID, ptr.Val(channel.GetId()))
 	assert.Error(t, err, clues.ToCore(err))
 }
-
-// func (suite *ChannelPagerIntgSuite) TestMessages_CreateGetAndDelete() {
-// 	t := suite.T()
-// 	ctx, flush := tester.NewContext(t)
-// 	defer flush()
-
-// 	var (
-// 		teamID      = tconfig.M365TeamsID(t)
-// 		channelID   = tconfig.M365ChannelID(t)
-// 		credentials = suite.its.ac.Credentials
-// 		chanClient  = suite.its.ac.Channels()
-// 	)
-
-// 	// GET channel - should be not found
-// 	message, _, err := chanClient.GetMessage(ctx, teamID, channelID, "", "")
-// 	assert.Error(t, err, clues.ToCore(err))
-
-// 	// POST channel
-// 	// patchBody := models.NewChatMessage()
-// 	// body := models.NewItemBody()
-// 	// content := "Hello World"
-// 	// body.SetContent(&content)
-// 	// patchBody.SetBody(body)
-
-// 	// _,  := suite.its.ac.Channels().PostMessage(ctx, teamID, channelID, patchBody)
-// 	// assert.NoError(t, err, clues.ToCore(err))
-
-// }
