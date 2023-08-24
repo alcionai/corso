@@ -509,6 +509,7 @@ jobs:
           #   * various variable quoting patterns
           #   * possible ineffective echo commands
           flags: "-ignore SC2129 -ignore SC2086 -ignore SC2046 -ignore 2116"
+          files: ".github/workflows/*.yml, .github/actions/*.yml"
 
   # ----------------------------------------------------------------------------------------------------
   # --- Publish steps ----------------------------------------------------------------------------------
