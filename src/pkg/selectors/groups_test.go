@@ -98,20 +98,20 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 			path.LibrariesCategory,
 			"sid",
 			append(slices.Clone(drivePrefixElems), itemElems1...),
-			"chitem")
+			"item")
 		libItem2 = toRR(
 			path.LibrariesCategory,
 			"sid",
 			append(slices.Clone(drivePrefixElems), itemElems2...),
-			"chitem2")
+			"item2")
 		libItem3 = toRR(
 			path.LibrariesCategory,
 			"sid",
 			append(slices.Clone(drivePrefixElems), itemElems3...),
-			"chitem3")
-		chanItem  = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems1), "item")
-		chanItem2 = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems2), "item2")
-		chanItem3 = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems3), "item3")
+			"item3")
+		chanItem  = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems1), "chitem")
+		chanItem2 = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems2), "chitem2")
+		chanItem3 = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems3), "chitem3")
 	)
 
 	deets := &details.Details{

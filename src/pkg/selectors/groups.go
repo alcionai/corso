@@ -377,7 +377,7 @@ func (s *GroupsRestore) MessageLastReplyBefore(timeStrings string) []GroupsScope
 			GroupsChannelMessage,
 			GroupsInfoChannelMessageLastReplyBefore,
 			[]string{timeStrings},
-			filters.Less),
+			filters.Greater),
 	}
 }
 
@@ -493,15 +493,15 @@ func (c groupsCategory) pathValues(
 		rFld               string
 	)
 
+	if ent.Groups == nil {
+		return nil, clues.New("no Groups ItemInfo in details")
+	}
+
 	switch c {
 	case GroupsChannel, GroupsChannelMessage:
 		folderCat, itemCat = GroupsChannel, GroupsChannelMessage
 		rFld = ent.Groups.ParentPath
 	case GroupsLibraryFolder, GroupsLibraryItem:
-		if ent.Groups == nil {
-			return nil, clues.New("no Groups ItemInfo in details")
-		}
-
 		folderCat, itemCat = GroupsLibraryFolder, GroupsLibraryItem
 		rFld = ent.Groups.ParentPath
 	default:
