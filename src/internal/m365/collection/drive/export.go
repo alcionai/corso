@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"

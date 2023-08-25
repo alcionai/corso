@@ -4,12 +4,15 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -21,6 +24,7 @@ func ProduceExportCollections(
 	exportCfg control.ExportConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
+	backupDriveIDNames idname.CacheBuilder,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) ([]export.Collection, error) {
@@ -35,8 +39,15 @@ func ProduceExportCollections(
 			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
 		}
 
+		driveName, ok := backupDriveIDNames.NameOf(drivePath.DriveID)
+		if !ok {
+			// This should not happen, but just in case
+			logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Warn("drive name not found, using drive id")
+			driveName = drivePath.DriveID
+		}
+
 		baseDir := path.Builder{}.
-			Append(drivePath.DriveID).
+			Append(driveName).
 			Append(drivePath.Folders...)
 
 		ec = append(ec, drive.NewExportCollection(baseDir.String(), dc, backupVersion))
