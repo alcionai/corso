@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 )
 
@@ -80,5 +79,18 @@ func exportGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	opts := utils.MakeGroupsOpts(cmd)
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
+	if err := utils.ValidateGroupsRestoreFlags(flags.BackupIDFV, opts); err != nil {
+		return err
+	}
+
+	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
+	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
+
+	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "Groups")
 }

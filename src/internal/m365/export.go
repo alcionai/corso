@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -53,6 +54,16 @@ func (ctrl *Controller) ProduceExportCollections(
 			errs)
 	case selectors.ServiceSharePoint:
 		expCollections, err = sharepoint.ProduceExportCollections(
+			ctx,
+			backupVersion,
+			exportCfg,
+			opts,
+			dcs,
+			ctrl.backupDriveIDNames,
+			deets,
+			errs)
+	case selectors.ServiceGroups:
+		expCollections, err = groups.ProduceExportCollections(
 			ctx,
 			backupVersion,
 			exportCfg,
