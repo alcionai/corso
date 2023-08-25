@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - SharePoint document libraries deleted after the last backup can now be restored.
 - Restore requires the protected resource to have access to the service being restored.
+- SharePoint data from multiple document libraries are not merged in exports
 
 ### Added
 - Added option to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
