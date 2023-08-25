@@ -23,7 +23,7 @@ import (
 )
 
 func openKopiaRepo(
-	t *testing.T,
+	t tester.TestT,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, error) {
 	st := storeTD.NewPrefixedS3Storage(t)

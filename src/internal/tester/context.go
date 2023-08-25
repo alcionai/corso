@@ -3,7 +3,6 @@ package tester
 import (
 	"context"
 	"os"
-	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -11,7 +10,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-func NewContext(t *testing.T) (context.Context, func()) {
+func NewContext(t TestT) (context.Context, func()) {
 	level := logger.LLInfo
 	format := logger.LFText
 
@@ -34,7 +33,7 @@ func NewContext(t *testing.T) (context.Context, func()) {
 }
 
 func WithContext(
-	t *testing.T,
+	t TestT,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (context.Context, func()) {
 	ls := logger.Settings{
@@ -48,7 +47,7 @@ func WithContext(
 }
 
 func enrichTestCtx(
-	t *testing.T,
+	t TestT,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) context.Context {
 	if t == nil {
