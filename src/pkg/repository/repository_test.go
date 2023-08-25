@@ -126,7 +126,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	table := []struct {
 		name     string
 		account  account.Account
-		storage  func(*testing.T) storage.Storage
+		storage  func(tester.TestT) storage.Storage
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
