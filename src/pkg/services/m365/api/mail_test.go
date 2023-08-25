@@ -383,7 +383,7 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 
 	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
 	msgs := suite.its.ac.Mail()
-	mailfolder, err := msgs.CreateMailFolder(ctx, userID, folderName)
+	mailfolder, err := msgs.CreateContainer(ctx, userID, api.MsgFolderRoot, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msg := models.NewMessage()
