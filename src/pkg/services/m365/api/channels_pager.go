@@ -86,6 +86,7 @@ type ChannelDeltaEnumerator interface {
 	PageLinker
 	ValuesInPageLinker[models.Channelable]
 	SetNextLinker
+	GetPage(ctx context.Context) (PageLinker, error)
 }
 
 // TODO: implement
@@ -98,8 +99,7 @@ type channelPageCtrl struct {
 }
 
 func (c Channels) NewChannelPager(
-	teamID,
-	channelID string,
+	teamID string,
 	fields []string,
 ) *channelPageCtrl {
 	requestConfig := &teams.ItemChannelsRequestBuilderGetRequestConfiguration{

@@ -61,25 +61,51 @@ func CreateCollections(
 	// conversations as well.
 	// Also, this should be produced by the Handler.
 	// chanPager := handler.NewChannelsPager(qp.ProtectedResource.ID())
-	// TODO(neha): enumerate channels
-	channels := []graph.Displayable{}
 
-	collections, err := populateCollections(
-		ctx,
-		qp,
-		handler,
-		su,
-		channels,
-		scope,
-		// dps,
-		bpc.Options,
-		errs)
-	if err != nil {
-		return nil, clues.Wrap(err, "filling collections")
-	}
+	//  enumerating channels
+	pager := handler.NewChannelsPager(qp.ProtectedResource.ID(), []string{})
 
-	for _, coll := range collections {
-		allCollections = append(allCollections, coll)
+	// Loop through all pages returned by Graph API.
+	for {
+		var (
+			err  error
+			page api.PageLinker
+		)
+
+		page, err = pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "retrieving drives")
+		}
+
+		channels, err := pager.ValuesIn(page)
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "extracting drives from response")
+		}
+
+		collections, err := populateCollections(
+			ctx,
+			qp,
+			handler,
+			su,
+			channels,
+			scope,
+			// dps,
+			bpc.Options,
+			errs)
+		if err != nil {
+			return nil, clues.Wrap(err, "filling collections")
+		}
+
+		for _, coll := range collections {
+			allCollections = append(allCollections, coll)
+		}
+
+		nextLink := ptr.Val(page.GetOdataNextLink())
+		if len(nextLink) == 0 {
+			break
+		}
+
+		pager.SetNext(nextLink)
 	}
 
 	return allCollections, nil
@@ -90,7 +116,7 @@ func populateCollections(
 	qp graph.QueryParams,
 	bh BackupHandler,
 	statusUpdater support.StatusUpdater,
-	channels []graph.Displayable,
+	channels []models.Channelable,
 	scope selectors.GroupsScope,
 	// dps DeltaPaths,
 	ctrlOpts control.Options,
@@ -153,11 +179,13 @@ func populateCollections(
 		// }
 
 		// ictx = clues.Add(ictx, "previous_path", prevPath)
-
+		// TODO: Neha check this
+		var fields []string
 		// TODO: the handler should provide this implementation.
+		// TODO: if we doing this messages are items for us.
 		items, err := collectItems(
 			ctx,
-			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId())))
+			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId()), fields))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
@@ -306,7 +334,7 @@ func includeContainer(
 	directory := ptr.Val(gd.GetDisplayName())
 
 	// TODO(keepers): awaiting parent branch to update to main
-	ok := scope.Matches(selectors.GroupsCategoryUnknown, directory)
+	ok := scope.Matches(selectors.GroupsChannelMessage, directory)
 
 	logger.Ctx(ctx).With(
 		"included", ok,
