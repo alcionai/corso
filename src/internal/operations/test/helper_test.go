@@ -582,6 +582,7 @@ type intgTesterSetup struct {
 	secondaryUser ids
 	site          ids
 	secondarySite ids
+	group         ids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -606,6 +607,9 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.secondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.ac)
 	its.site = siteIDs(t, tconfig.M365SiteID(t), its.ac)
 	its.secondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.ac)
+	// teamID is used here intentionally.  We want the group
+	// to have access to teams data
+	its.group = groupIDs(t, tconfig.M365TeamID(t), its.ac)
 
 	return its
 }
@@ -644,6 +648,26 @@ func siteIDs(t *testing.T, id string, ac api.Client) ids {
 	require.NoError(t, err, clues.ToCore(err))
 
 	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+
+	return r
+}
+
+func groupIDs(t *testing.T, id string, ac api.Client) ids {
+	r := ids{ID: id}
+
+	// ctx, flush := tester.NewContext(t)
+	// defer flush()
+
+	// TODO: get default site drive info
+	// drive, err := ac.Groups().GetDefaultDrive(ctx, id)
+	// require.NoError(t, err, clues.ToCore(err))
+
+	// r.DriveID = ptr.Val(drive.GetId())
+
+	// driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
+	// require.NoError(t, err, clues.ToCore(err))
+
+	// r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
 
 	return r
 }
