@@ -31,3 +31,10 @@ type BackupHandler interface {
 		teamID, channelID, messageID string,
 	) (serialization.Parsable, error)
 }
+
+type BackupMessagesHandler interface {
+	GetMessage(ctx context.Context, teamID, channelID, itemID string) (models.ChatMessageable, error)
+	NewMessagePager(teamID, channelID string) api.ChannelMessageDeltaEnumerator
+	GetChannel(ctx context.Context, teamID, channelID string) (models.Channelable, error)
+	GetReply(ctx context.Context, teamID, channelID, messageID string) (serialization.Parsable, error)
+}

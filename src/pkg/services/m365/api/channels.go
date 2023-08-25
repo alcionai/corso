@@ -135,7 +135,7 @@ func (c Channels) GetMessage(
 // GetReplies retrieves a Messageable item.
 func (c Channels) GetReplies(
 	ctx context.Context,
-	teamID, channelID, itemID string,
+	teamID, channelID, messageID string,
 ) (serialization.Parsable, error) {
 	replies, err := c.Stable.
 		Client().
@@ -144,7 +144,7 @@ func (c Channels) GetReplies(
 		Channels().
 		ByChannelId(channelID).
 		Messages().
-		ByChatMessageId(itemID).
+		ByChatMessageId(messageID).
 		Replies().
 		Get(ctx, nil)
 	if err != nil {
