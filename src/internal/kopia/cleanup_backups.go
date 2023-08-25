@@ -3,18 +3,26 @@ package kopia
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/store"
+)
+
+const (
+	serviceCatTagPrefix = "sc-"
+	kopiaPathLabel      = "path"
+	tenantTag           = "tenant"
 )
 
 // cleanupOrphanedData uses bs and mf to lookup all models/snapshots for backups
@@ -67,8 +75,11 @@ func cleanupOrphanedData(
 		//   1. check if there's a corresponding backup for them
 		//   2. delete the details if they're orphaned
 		deets = map[manifest.ID]struct{}{}
-		// dataSnaps is a hash set of the snapshot IDs for item data snapshots.
-		dataSnaps = map[manifest.ID]struct{}{}
+		// dataSnaps is a hash map of the snapshot IDs for item data snapshots.
+		dataSnaps = map[manifest.ID]*manifest.EntryMetadata{}
+		// toDelete is the set of objects to delete from kopia. It starts out with
+		// all items and has ineligible items removed from it.
+		toDelete = map[manifest.ID]struct{}{}
 	)
 
 	cutoff := nowFunc().Add(-gcBuffer)
@@ -81,9 +92,11 @@ func cleanupOrphanedData(
 			continue
 		}
 
+		toDelete[snap.ID] = struct{}{}
+
 		k, _ := makeTagKV(TagBackupCategory)
 		if _, ok := snap.Labels[k]; ok {
-			dataSnaps[snap.ID] = struct{}{}
+			dataSnaps[snap.ID] = snap
 			continue
 		}
 
@@ -106,6 +119,7 @@ func cleanupOrphanedData(
 		}
 
 		deets[d.ModelStoreID] = struct{}{}
+		toDelete[d.ModelStoreID] = struct{}{}
 	}
 
 	// Get all backup models.
@@ -114,8 +128,11 @@ func cleanupOrphanedData(
 		return clues.Wrap(err, "getting all backup models")
 	}
 
-	toDelete := maps.Clone(deets)
-	maps.Copy(toDelete, dataSnaps)
+	// assistBackups is the set of backups that have a
+	//   * a label denoting they're an assist backup
+	//   * item data snapshot
+	//   * details snapshot
+	var assistBackups []*backup.Backup
 
 	for _, bup := range bups {
 		// Don't even try to see if this needs garbage collected because it's not
@@ -162,7 +179,7 @@ func cleanupOrphanedData(
 			ssid = bm.DetailsID
 		}
 
-		_, dataOK := dataSnaps[manifest.ID(bm.SnapshotID)]
+		d, dataOK := dataSnaps[manifest.ID(bm.SnapshotID)]
 		_, deetsOK := deets[manifest.ID(ssid)]
 
 		// All data is present, we shouldn't garbage collect this backup.
@@ -170,6 +187,33 @@ func cleanupOrphanedData(
 			delete(toDelete, bup.ModelStoreID)
 			delete(toDelete, manifest.ID(bm.SnapshotID))
 			delete(toDelete, manifest.ID(ssid))
+
+			// Add to the assist backup set so that we can attempt to garbage collect
+			// older assist backups below.
+			if bup.Tags[model.BackupTypeTag] == model.AssistBackup {
+				// This is a little messy to have, but can simplify the logic below.
+				// The state of tagging in corso isn't all that great right now and we'd
+				// really like to consolidate tags and clean them up. For now, we're
+				// going to copy tags that are related to Reasons for a backup from the
+				// item data snapshot to the backup model. This makes the function
+				// checking if assist backups should be garbage collected a bit easier
+				// because now they only have to source data from backup models.
+				if err := transferTags(d, &bm); err != nil {
+					logger.Ctx(ctx).Debugw(
+						"transferring legacy tags to backup model",
+						"err", err,
+						"snapshot_id", d.ID,
+						"backup_id", bup.ID)
+
+					// Continuing here means the base won't be eligible for old assist
+					// base garbage collection. We could add more logic to eventually
+					// delete the base in question but I don't really expect to see
+					// failures when transferring tags.
+					continue
+				}
+
+				assistBackups = append(assistBackups, &bm)
+			}
 		}
 	}
 
@@ -178,14 +222,169 @@ func cleanupOrphanedData(
 		"num_items", len(toDelete),
 		"kopia_ids", maps.Keys(toDelete))
 
+	// This will technically save a superset of the assist bases we should keep.
+	// The reason for that is that we only add something to the set of assist
+	// bases after we've excluded backups in the buffer time zone. For example
+	// we could discover that of the set of assist bases we have, something is
+	// the youngest and exclude it from gabage collection. However, when looking
+	// at the set of all assist bases, including those in the buffer zone, it's
+	// possible the one we thought was the youngest actually isn't and could be
+	// garbage collected.
+	//
+	// This sort of edge case will ideally happen only for a few assist bases at
+	// a time. Assuming this function is run somewhat periodically, missing these
+	// edge cases is alright because they'll get picked up on a subsequent run.
+	assistItems := collectOldAssistBases(ctx, assistBackups)
+
+	logger.Ctx(ctx).Debugw(
+		"garbage collecting old assist bases",
+		"assist_num_items", len(assistItems),
+		"assist_kopia_ids", assistItems)
+
+	assistItems = append(assistItems, maps.Keys(toDelete)...)
+
 	// Use single atomic batch delete operation to cleanup to keep from making a
 	// bunch of manifest content blobs.
-	if err := bs.DeleteWithModelStoreIDs(ctx, maps.Keys(toDelete)...); err != nil {
+	if err := bs.DeleteWithModelStoreIDs(ctx, assistItems...); err != nil {
 		return clues.Wrap(err, "deleting orphaned data")
 	}
 
-	// TODO(ashmrtn): Do some pruning of assist backup models so we don't keep
-	// them around forever.
+	return nil
+}
+
+var skipKeys = []string{
+	TagBackupID,
+	TagBackupCategory,
+}
+
+func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
+	tenant, err := decodeElement(snap.Labels[kopiaPathLabel])
+	if err != nil {
+		return clues.Wrap(err, "decoding tenant from label")
+	}
+
+	bup.Tags[tenantTag] = tenant
+
+	skipTags := map[string]struct{}{}
+
+	for _, k := range skipKeys {
+		key, _ := makeTagKV(k)
+		skipTags[key] = struct{}{}
+	}
+
+	// Safe to check only this because the old field was deprecated prior to the
+	// tagging of assist backups and this function only deals with assist
+	// backups.
+	roid := bup.ProtectedResourceID
+
+	roidK, _ := makeTagKV(roid)
+	skipTags[roidK] = struct{}{}
+
+	// This is hacky, but right now we don't have a good way to get only the
+	// Reason tags for something. We can however, find them by searching for all
+	// the "normalized" tags and then discarding the ones we know aren't
+	// reasons. Unfortunately this won't work if custom tags are added to the
+	// backup that we don't know about.
+	//
+	// Convert them to the newer format that we'd like to have where the
+	// service/category tags have the form "sc-<service><category>".
+	for tag := range snap.Labels {
+		if _, ok := skipTags[tag]; ok || !strings.HasPrefix(tag, userTagPrefix) {
+			continue
+		}
+
+		bup.Tags[strings.Replace(tag, userTagPrefix, serviceCatTagPrefix, 1)] = "0"
+	}
 
 	return nil
+}
+
+func collectOldAssistBases(
+	ctx context.Context,
+	bups []*backup.Backup,
+) []manifest.ID {
+	// maybeDelete is the set of backups that could be deleted. It starts out as
+	// the set of all backups and has ineligible backups removed from it.
+	maybeDelete := map[manifest.ID]*backup.Backup{}
+	// Figure out which backups have overlapping reasons. A single backup can
+	// appear in multiple slices in the map, one for each Reason associated with
+	// it.
+	bupsByReason := map[string][]*backup.Backup{}
+
+	for _, bup := range bups {
+		// Safe to pull from this field since assist backups came after we switched
+		// to using ProtectedResourceID.
+		roid := bup.ProtectedResourceID
+
+		tenant := bup.Tags[tenantTag]
+		if len(tenant) == 0 {
+			// We can skip this backup. It won't get garbage collected, but it also
+			// won't result in incorrect behavior overall.
+			logger.Ctx(ctx).Infow("missing tenant tag in backup", "backup_id", bup.ID)
+			continue
+		}
+
+		maybeDelete[manifest.ID(bup.ModelStoreID)] = bup
+
+		for tag := range bup.Tags {
+			if strings.HasPrefix(tag, serviceCatTagPrefix) {
+				// Precise way we concatenate all this info doesn't really matter as
+				// long as it's consistent for all backups in the set and includes all
+				// the pieces we need to ensure uniqueness across.
+				fullTag := tenant + roid + tag
+				bupsByReason[fullTag] = append(bupsByReason[fullTag], bup)
+			}
+		}
+	}
+
+	// For each set of backups we found, sort them by time. Mark all but the
+	// youngest backup in each group as eligible for garbage collection.
+	//
+	// We implement this process as removing backups from the set of potential
+	// backups to delete because it's possible for a backup to to not be the
+	// youngest for one Reason but be the youngest for a different Reason (i.e.
+	// most recent exchange mail backup but not the most recent exchange
+	// contacts backup). A simple delete operation in the map is sufficient to
+	// remove a backup even if it's only the youngest for a single Reason.
+	// Otherwise we'd need to do another pass after this to determine the
+	// isYoungest status for all Reasons in the backup.
+	//
+	// TODO(ashmrtn): Handle concurrent backups somehow? Right now backups that
+	// have overlapping start and end times aren't explicitly handled.
+	for _, bupSet := range bupsByReason {
+		if len(bupSet) == 0 {
+			continue
+		}
+
+		// Sort in reverse chronological order so that we can just remove the zeroth
+		// item from the delete set instead of getting the slice length.
+		// Unfortunately this could also put us in the pathologic case where almost
+		// all items need swapped since in theory kopia returns results in
+		// chronologic order and we're processing them in the order kopia returns
+		// them.
+		slices.SortStableFunc(bupSet, func(a, b *backup.Backup) int {
+			return -a.CreationTime.Compare(b.CreationTime)
+		})
+
+		delete(maybeDelete, manifest.ID(bupSet[0].ModelStoreID))
+	}
+
+	res := make([]manifest.ID, 0, 3*len(maybeDelete))
+
+	// For all items remaining in the delete set, generate the final set of items
+	// to delete. This set includes the data snapshot ID, details snapshot ID, and
+	// backup model ID to delete for each backup.
+	for bupID, bup := range maybeDelete {
+		// Don't need to check if we use StreamStoreID or DetailsID because
+		// DetailsID was deprecated prior to tagging backups as assist backups.
+		// Since the input set is only assist backups there's no overlap between the
+		// two implementations.
+		res = append(
+			res,
+			bupID,
+			manifest.ID(bup.SnapshotID),
+			manifest.ID(bup.StreamStoreID))
+	}
+
+	return res
 }
