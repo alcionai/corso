@@ -143,8 +143,7 @@ func (p *channelPageCtrl) ValuesIn(l PageLinker) ([]models.Channelable, error) {
 }
 
 func (p *channelPageCtrl) GetOdataNextLink() *string {
-	// TODO: no delta present here. Is it possible to have interface which does not have
-	// GetOdataNextLink method
+	// No next link preent in the API result
 	emptyString := ""
 	return &emptyString
 }
