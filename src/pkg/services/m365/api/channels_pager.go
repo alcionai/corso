@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 )
 
 // ---------------------------------------------------------------------------
