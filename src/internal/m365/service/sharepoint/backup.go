@@ -82,6 +82,7 @@ func ProduceBackupCollections(
 				bpc,
 				drive.NewLibraryBackupHandler(ac.Drives(), scope, bpc.Selector.PathService()),
 				creds.AzureTenantID,
+				bpc.ProtectedResource.ID(),
 				ssmb,
 				su,
 				errs)

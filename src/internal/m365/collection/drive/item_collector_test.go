@@ -347,6 +347,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				&itemBackupHandler{suite.ac.Drives(), scope},
 				creds.AzureTenantID,
 				test.user,
+				test.user,
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},

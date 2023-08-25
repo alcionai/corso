@@ -27,6 +27,7 @@ func CollectLibraries(
 	bpc inject.BackupProducerConfig,
 	bh drive.BackupHandler,
 	tenantID string,
+	resourceOwner string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	su support.StatusUpdater,
 	errs *fault.Bus,
@@ -38,14 +39,12 @@ func CollectLibraries(
 		colls       = drive.NewCollections(
 			bh,
 			tenantID,
+			resourceOwner,
 			bpc.ProtectedResource.ID(),
 			su,
 			bpc.Options)
 	)
 
-	// TODO(meain): backup resource owner should be group id in case
-	// of group sharepoint site backup. As of now, we always use
-	// sharepoint site ids.
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {
 		return nil, false, graph.Wrap(ctx, err, "getting library")

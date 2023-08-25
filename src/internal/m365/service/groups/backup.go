@@ -71,17 +71,23 @@ func ProduceBackupCollections(
 
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
 			sbpc := inject.BackupProducerConfig{
-				LastBackupVersion: bpc.LastBackupVersion,
-				Options:           bpc.Options,
-				ProtectedResource: pr,
-				Selector:          bpc.Selector,
+				LastBackupVersion:   bpc.LastBackupVersion,
+				Options:             bpc.Options,
+				ProtectedResource:   pr,
+				Selector:            bpc.Selector,
+				MetadataCollections: bpc.MetadataCollections,
 			}
+
+			// NOTE: MetadataCollections are empty as some(channel
+			// messages) don't have metadata and that causes the
+			// entire metadata fetch to fail.
 
 			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				sbpc,
 				drive.NewGroupBackupHandler(bpc.ProtectedResource.ID(), ac.Drives(), scope),
 				creds.AzureTenantID,
+				bpc.ProtectedResource.ID(),
 				ssmb,
 				su,
 				errs)

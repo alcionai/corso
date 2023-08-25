@@ -52,6 +52,7 @@ func ProduceBackupCollections(
 			drive.NewItemBackupHandler(ac.Drives(), scope),
 			tenant,
 			bpc.ProtectedResource.ID(),
+			bpc.ProtectedResource.ID(),
 			su,
 			bpc.Options)
 

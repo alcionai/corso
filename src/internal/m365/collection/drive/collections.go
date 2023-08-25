@@ -47,8 +47,15 @@ const restrictedDirectory = "Site Pages"
 type Collections struct {
 	handler BackupHandler
 
-	tenantID      string
+	tenantID string
+
+	// resourceOwner is the owner of the top level resource
 	resourceOwner string
+
+	// serviceOwner is the owner of the service we are backing up.
+	// serviceOwner and resourceOwner will be only when backing up a
+	// SharePoint site associated with a Group.
+	serviceOwner string
 
 	statusUpdater support.StatusUpdater
 
@@ -69,6 +76,7 @@ func NewCollections(
 	bh BackupHandler,
 	tenantID string,
 	resourceOwner string,
+	serviceOwner string,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 ) *Collections {
@@ -76,6 +84,7 @@ func NewCollections(
 		handler:       bh,
 		tenantID:      tenantID,
 		resourceOwner: resourceOwner,
+		serviceOwner:  serviceOwner,
 		CollectionMap: map[string]map[string]*Collection{},
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
@@ -246,7 +255,7 @@ func (c *Collections) Get(
 	defer close(progressBar)
 
 	// Enumerate drives for the specified resourceOwner
-	pager := c.handler.NewDrivePager(c.resourceOwner, nil)
+	pager := c.handler.NewDrivePager(c.serviceOwner, nil)
 
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
@@ -349,7 +358,7 @@ func (c *Collections) Get(
 				continue
 			}
 
-			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID, c.resourceOwner)
+			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID, c.serviceOwner)
 			if err != nil {
 				return nil, false, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
@@ -413,7 +422,7 @@ func (c *Collections) Get(
 
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.resourceOwner, driveID)
+		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.serviceOwner, driveID)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}
@@ -642,7 +651,7 @@ func (c *Collections) getCollectionPath(
 		pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
 	}
 
-	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID, c.resourceOwner)
+	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID, c.serviceOwner)
 	if err != nil {
 		return nil, clues.Wrap(err, "making item path")
 	}

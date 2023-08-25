@@ -747,6 +747,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				&itemBackupHandler{api.Drives{}, tt.scope},
 				tenant,
 				user,
+				user,
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2344,6 +2345,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				mbh,
 				tenant,
 				user,
+				user,
 				func(*support.ControllerOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2713,6 +2715,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			c := NewCollections(
 				mbh,
 				"test-tenant",
+				"test-user",
 				"test-user",
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})

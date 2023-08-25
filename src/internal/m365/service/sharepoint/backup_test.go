@@ -104,6 +104,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				drive.NewLibraryBackupHandler(api.Drives{}, test.scope, path.SharePointService),
 				tenantID,
 				siteID,
+				siteID,
 				nil,
 				control.DefaultOptions())
 
