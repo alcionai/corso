@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	stdpath "path"
+	"strings"
 	"testing"
 	"time"
 
@@ -765,18 +766,24 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
+	c1 := exchMock.NewCollection(
+		suite.storePath1,
+		suite.locPath1,
+		5)
+	// Add a 4k chunk of data that should be compressible. This helps check
+	// compression is enabled because we do some testing on the number of bytes
+	// uploaded during the first backup.
+	c1.Data[0] = []byte(strings.Repeat("abcdefgh", 512))
+
 	collections := []data.BackupCollection{
-		exchMock.NewCollection(
-			suite.storePath1,
-			suite.locPath1,
-			5),
+		c1,
 		exchMock.NewCollection(
 			suite.storePath2,
 			suite.locPath2,
 			42),
 	}
 
-	c1 := exchMock.NewCollection(
+	c1 = exchMock.NewCollection(
 		suite.storePath1,
 		suite.locPath1,
 		0)
