@@ -20,12 +20,17 @@ import (
 var _ BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
-	ac    api.Drives
-	scope selectors.SharePointScope
+	ac      api.Drives
+	scope   selectors.SharePointScope
+	service path.ServiceType
 }
 
-func NewLibraryBackupHandler(ac api.Drives, scope selectors.SharePointScope) libraryBackupHandler {
-	return libraryBackupHandler{ac, scope}
+func NewLibraryBackupHandler(
+	ac api.Drives,
+	scope selectors.SharePointScope,
+	service path.ServiceType,
+) libraryBackupHandler {
+	return libraryBackupHandler{ac, scope, service}
 }
 
 func (h libraryBackupHandler) Get(
@@ -42,7 +47,7 @@ func (h libraryBackupHandler) PathPrefix(
 	return path.Build(
 		tenantID,
 		resourceOwner,
-		path.SharePointService,
+		h.service,
 		path.LibrariesCategory,
 		false,
 		odConsts.DrivesPathDir,
@@ -54,7 +59,7 @@ func (h libraryBackupHandler) CanonicalPath(
 	folders *path.Builder,
 	tenantID, resourceOwner string,
 ) (path.Path, error) {
-	return folders.ToDataLayerSharePointPath(tenantID, resourceOwner, path.LibrariesCategory, false)
+	return folders.ToDataLayerPath(tenantID, resourceOwner, h.service, path.LibrariesCategory, false)
 }
 
 func (h libraryBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
@@ -81,7 +86,7 @@ func (h libraryBackupHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentLibraryItemInfo(dii, item, size, parentPath)
+	return augmentItemInfo(dii, h.service, item, size, parentPath)
 }
 
 // constructWebURL is a helper function for recreating the webURL
@@ -128,6 +133,7 @@ func (h libraryBackupHandler) NewLocationIDer(
 	driveID string,
 	elems ...string,
 ) details.LocationIDer {
+	// TODO(meain): path related changes for groups
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
 
@@ -160,11 +166,12 @@ func (h libraryBackupHandler) IncludesDir(dir string) bool {
 var _ RestoreHandler = &libraryRestoreHandler{}
 
 type libraryRestoreHandler struct {
-	ac api.Client
+	ac      api.Client
+	service path.ServiceType
 }
 
-func NewLibraryRestoreHandler(ac api.Client) libraryRestoreHandler {
-	return libraryRestoreHandler{ac}
+func NewLibraryRestoreHandler(ac api.Client, service path.ServiceType) libraryRestoreHandler {
+	return libraryRestoreHandler{ac, service}
 }
 
 func (h libraryRestoreHandler) PostDrive(
@@ -187,7 +194,7 @@ func (h libraryRestoreHandler) AugmentItemInfo(
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentLibraryItemInfo(dii, item, size, parentPath)
+	return augmentItemInfo(dii, h.service, item, size, parentPath)
 }
 
 func (h libraryRestoreHandler) DeleteItem(
@@ -260,74 +267,4 @@ func (h libraryRestoreHandler) GetRootFolder(
 	driveID string,
 ) (models.DriveItemable, error) {
 	return h.ac.Drives().GetRootFolder(ctx, driveID)
-}
-
-// ---------------------------------------------------------------------------
-// Common
-// ---------------------------------------------------------------------------
-
-func augmentLibraryItemInfo(
-	dii details.ItemInfo,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	var driveName, siteID, driveID, weburl, creatorEmail string
-
-	// TODO: we rely on this info for details/restore lookups,
-	// so if it's nil we have an issue, and will need an alternative
-	// way to source the data.
-
-	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
-		// User is sometimes not available when created via some
-		// external applications (like backup/restore solutions)
-		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
-
-		ed, ok := additionalData["email"]
-		if !ok {
-			ed = additionalData["displayName"]
-		}
-
-		if ed != nil {
-			creatorEmail = *ed.(*string)
-		}
-	}
-
-	gsi := item.GetSharepointIds()
-	if gsi != nil {
-		siteID = ptr.Val(gsi.GetSiteId())
-		weburl = ptr.Val(gsi.GetSiteUrl())
-
-		if len(weburl) == 0 {
-			weburl = constructWebURL(item.GetAdditionalData())
-		}
-	}
-
-	if item.GetParentReference() != nil {
-		driveID = ptr.Val(item.GetParentReference().GetDriveId())
-		driveName = strings.TrimSpace(ptr.Val(item.GetParentReference().GetName()))
-	}
-
-	var pps string
-	if parentPath != nil {
-		pps = parentPath.String()
-	}
-
-	dii.SharePoint = &details.SharePointInfo{
-		Created:    ptr.Val(item.GetCreatedDateTime()),
-		DriveID:    driveID,
-		DriveName:  driveName,
-		ItemName:   ptr.Val(item.GetName()),
-		ItemType:   details.SharePointLibrary,
-		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
-		Owner:      creatorEmail,
-		ParentPath: pps,
-		SiteID:     siteID,
-		Size:       size,
-		WebURL:     weburl,
-	}
-
-	dii.Extension = &details.ExtensionData{}
-
-	return dii
 }

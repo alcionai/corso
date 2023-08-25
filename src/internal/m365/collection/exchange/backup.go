@@ -75,8 +75,6 @@ func CreateCollections(
 		return nil, clues.Wrap(err, "filling collections")
 	}
 
-	foldersComplete <- struct{}{}
-
 	for _, coll := range collections {
 		allCollections = append(allCollections, coll)
 	}

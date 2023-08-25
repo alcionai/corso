@@ -12,7 +12,7 @@ inputs:
     required: false
     default: ""
   restore-args:
-    description: Arguments to pass for restore
+    description: Arguments to pass for restore; restore is skipped when missing.
     required: false
     default: ""
   test-folder:
@@ -28,6 +28,10 @@ inputs:
     description: Value for the --collisions flag
     requried: false
     default: "replace"
+  with-export:
+    description: Runs export tests when true
+    required: false
+    default: false
 
 outputs:
   backup-id:
@@ -52,6 +56,7 @@ runs:
             tee $GITHUB_OUTPUT
 
     - name: Restore ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.restore-args
       id: restore
       shell: bash
       working-directory: src
@@ -73,6 +78,7 @@ runs:
             cat /tmp/corsologs
 
     - name: Check restore ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.restore-args
       shell: bash
       working-directory: src
       env:
@@ -86,10 +92,10 @@ runs:
         ./sanity-test
 
     - name: Export ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.with-export == true
       id: export
       shell: bash
       working-directory: src
-      if: ${{ inputs.service == 'onedrive' || inputs.service == 'sharepoint' }}
       run: |
         set -euo pipefail
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
@@ -103,9 +109,9 @@ runs:
           cat /tmp/corsologs
 
     - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.with-export == true
       shell: bash
       working-directory: src
-      if: ${{ inputs.service == 'onedrive' || inputs.service == 'sharepoint' }}
       env:
         SANITY_TEST_KIND: export
         SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
@@ -117,10 +123,10 @@ runs:
         ./sanity-test
 
     - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.with-export == true
       id: export-archive
       shell: bash
       working-directory: src
-      if: ${{ inputs.service == 'onedrive' }} # Export only available for OneDrive
       run: |
         set -euo pipefail
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
@@ -137,9 +143,9 @@ runs:
           cat /tmp/corsologs
 
     - name: Check archive export ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.with-export == true
       shell: bash
       working-directory: src
-      if: ${{ inputs.service == 'onedrive' }}
       env:
         SANITY_TEST_KIND: export
         SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped

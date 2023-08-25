@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -80,7 +81,7 @@ func getAllGroups(
 // helpers
 // ---------------------------------------------------------------------------
 
-// parseUser extracts information from `models.Groupable` we care about
+// parseGroup extracts information from `models.Groupable` we care about
 func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 	if mg.GetDisplayName() == nil {
 		return nil, clues.New("group missing display name").
@@ -94,4 +95,24 @@ func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 	}
 
 	return u, nil
+}
+
+// GroupsMap retrieves an id-name cache of all groups in the tenant.
+func GroupsMap(
+	ctx context.Context,
+	acct account.Account,
+	errs *fault.Bus,
+) (idname.Cacher, error) {
+	groups, err := Groups(ctx, acct, errs)
+	if err != nil {
+		return idname.NewCache(nil), err
+	}
+
+	itn := make(map[string]string, len(groups))
+
+	for _, s := range groups {
+		itn[s.ID] = s.DisplayName
+	}
+
+	return idname.NewCache(itn), nil
 }

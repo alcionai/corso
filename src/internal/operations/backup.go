@@ -492,7 +492,10 @@ func consumeBackupCollections(
 	isIncremental bool,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
-	ctx = clues.Add(ctx, "collection_source", "operations")
+	ctx = clues.Add(
+		ctx,
+		"collection_source", "operations",
+		"snapshot_type", "item data")
 
 	progressBar := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer close(progressBar)
@@ -559,31 +562,6 @@ func getNewPathRefs(
 	repoRef path.Path,
 	backupVersion int,
 ) (path.Path, *path.Builder, error) {
-	// Right now we can't guarantee that we have an old location in the
-	// previous details entry so first try a lookup without a location to see
-	// if it matches so we don't need to try parsing from the old entry.
-	//
-	// TODO(ashmrtn): In the future we can remove this first check as we'll be
-	// able to assume we always have the location in the previous entry. We'll end
-	// up doing some extra parsing, but it will simplify this code.
-	if repoRef.Service() == path.ExchangeService {
-		newPath, newLoc, err := dataFromBackup.GetNewPathRefs(
-			repoRef.ToBuilder(),
-			entry.Modified(),
-			nil)
-		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting new paths")
-		} else if newPath == nil {
-			// This entry doesn't need merging.
-			return nil, nil, nil
-		} else if newLoc == nil {
-			return nil, nil, clues.New("unable to find new exchange location")
-		}
-
-		return newPath, newLoc, nil
-	}
-
-	// We didn't have an exact entry, so retry with a location.
 	locRef, err := entry.ToLocationIDer(backupVersion)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "getting previous item location")

@@ -606,6 +606,24 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 		time1 = time.Now()
 		time2 = time1.Add(time.Hour)
+
+		exchangeItemPath1 = makePath(
+			suite.T(),
+			[]string{
+				tenant,
+				path.ExchangeService.String(),
+				ro,
+				path.EmailCategory.String(),
+				"work",
+				"item1",
+			},
+			true)
+		exchangeLocationPath1 = path.Builder{}.Append("work-display-name")
+		exchangePathReason1   = kopia.NewReason(
+			"",
+			exchangeItemPath1.ResourceOwner(),
+			exchangeItemPath1.Service(),
+			exchangeItemPath1.Category())
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
@@ -801,6 +819,36 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			errCheck: assert.NoError,
 			expectedEntries: []*details.Entry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
+			},
+		},
+		{
+			name: "ExchangeItemMerged",
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(exchangeItemPath1, exchangeItemPath1, exchangeLocationPath1)
+
+				return res
+			}(),
+			inputBackups: []kopia.BackupEntry{
+				{
+					Backup: &backup1,
+					Reasons: []identity.Reasoner{
+						exchangePathReason1,
+					},
+				},
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.Entry{
+							*makeDetailsEntry(suite.T(), exchangeItemPath1, exchangeLocationPath1, 42, false),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.Entry{
+				makeDetailsEntry(suite.T(), exchangeItemPath1, exchangeLocationPath1, 42, false),
 			},
 		},
 		{
