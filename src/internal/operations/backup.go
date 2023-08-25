@@ -492,7 +492,10 @@ func consumeBackupCollections(
 	isIncremental bool,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
-	ctx = clues.Add(ctx, "collection_source", "operations")
+	ctx = clues.Add(
+		ctx,
+		"collection_source", "operations",
+		"snapshot_type", "item data")
 
 	progressBar := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer close(progressBar)
