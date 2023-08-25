@@ -1,10 +1,9 @@
-package onedrive
+package sharepoint
 
 import (
 	"context"
 
 	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -36,7 +35,9 @@ func ProduceExportCollections(
 			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
 		}
 
-		baseDir := path.Builder{}.Append(drivePath.Folders...)
+		baseDir := path.Builder{}.
+			Append(drivePath.DriveID).
+			Append(drivePath.Folders...)
 
 		ec = append(ec, drive.NewExportCollection(baseDir.String(), dc, backupVersion))
 	}
