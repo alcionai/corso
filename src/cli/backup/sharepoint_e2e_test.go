@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,11 +20,8 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
-	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -35,13 +31,7 @@ import (
 
 type NoBackupSharePointE2ESuite struct {
 	tester.Suite
-	acct       account.Account
-	st         storage.Storage
-	vpr        *viper.Viper
-	cfgFP      string
-	repo       repository.Repository
-	m365SiteID string
-	recorder   strings.Builder
+	dpnd dependencies
 }
 
 func TestNoBackupSharePointE2ESuite(t *testing.T) {
@@ -57,33 +47,25 @@ func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
-
-	suite.acct = acct
-	suite.st = st
-	suite.repo = repo
-	suite.vpr = vpr
-	suite.recorder = recorder
-	suite.cfgFP = cfgFilePath
-	suite.m365SiteID = tconfig.M365SiteID(t)
+	suite.dpnd = prepM365Test(t, ctx)
 }
 
 func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
-	ctx = config.SetViper(ctx, suite.vpr)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
 	defer flush()
 
-	suite.recorder.Reset()
+	suite.dpnd.recorder.Reset()
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "sharepoint",
-		"--config-file", suite.cfgFP)
+		"--config-file", suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&suite.recorder)
+	cmd.SetErr(&suite.dpnd.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -91,7 +73,7 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	result := suite.recorder.String()
+	result := suite.dpnd.recorder.String()
 
 	// as an offhand check: the result should contain the m365 sitet id
 	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
@@ -103,13 +85,8 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 
 type BackupDeleteSharePointE2ESuite struct {
 	tester.Suite
-	acct     account.Account
-	st       storage.Storage
-	vpr      *viper.Viper
-	cfgFP    string
-	repo     repository.Repository
+	dpnd     dependencies
 	backupOp operations.BackupOperation
-	recorder strings.Builder
 }
 
 func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
@@ -126,14 +103,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
-
-	suite.acct = acct
-	suite.st = st
-	suite.repo = repo
-	suite.vpr = vpr
-	suite.recorder = recorder
-	suite.cfgFP = cfgFilePath
+	suite.dpnd = prepM365Test(t, ctx)
 
 	var (
 		m365SiteID = tconfig.M365SiteID(t)
@@ -145,7 +115,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	sel := selectors.NewSharePointBackup(sites)
 	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	backupOp, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOp = backupOp
@@ -158,18 +128,18 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
-	ctx = config.SetViper(ctx, suite.vpr)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
 	defer flush()
 
-	suite.recorder.Reset()
+	suite.dpnd.recorder.Reset()
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
-		"--config-file", suite.cfgFP,
+		"--config-file", suite.dpnd.configFilePath,
 		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
-	cmd.SetErr(&suite.recorder)
+	cmd.SetErr(&suite.dpnd.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -177,7 +147,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	result := suite.recorder.String()
+	result := suite.dpnd.recorder.String()
 	assert.True(t,
 		strings.HasSuffix(
 			result,
@@ -201,13 +171,13 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unkno
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
-	ctx = config.SetViper(ctx, suite.vpr)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
 	defer flush()
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
-		"--config-file", suite.cfgFP,
+		"--config-file", suite.dpnd.configFilePath,
 		"--"+flags.BackupFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
