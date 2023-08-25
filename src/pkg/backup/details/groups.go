@@ -49,7 +49,7 @@ type GroupsInfo struct {
 	// Channels Specific
 	ChannelName    string    `json:"channelName,omitempty"`
 	ChannelID      string    `json:"channelID,omitempty"`
-	LastResponseAt time.Time `json:"lastResponseAt,omitempty"`
+	LastReplyAt    time.Time `json:"lastResponseAt,omitempty"`
 	MessageCreator string    `json:"messageCreator,omitempty"`
 	MessagePreview string    `json:"messagePreview,omitempty"`
 	ReplyCount     int       `json:"replyCount,omitempty"`
