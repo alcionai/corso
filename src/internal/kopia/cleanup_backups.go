@@ -75,7 +75,7 @@ func cleanupOrphanedData(
 		//   1. check if there's a corresponding backup for them
 		//   2. delete the details if they're orphaned
 		deets = map[manifest.ID]struct{}{}
-		// dataSnaps is a hash set of the snapshot IDs for item data snapshots.
+		// dataSnaps is a hash map of the snapshot IDs for item data snapshots.
 		dataSnaps = map[manifest.ID]*manifest.EntryMetadata{}
 		// toDelete is the set of objects to delete from kopia. It starts out with
 		// all items and has ineligible items removed from it.
@@ -129,7 +129,7 @@ func cleanupOrphanedData(
 	}
 
 	// assistBackups is the set of backups that have a
-	//   * a label denoting their an assist backup
+	//   * a label denoting they're an assist backup
 	//   * item data snapshot
 	//   * details snapshot
 	var assistBackups []*backup.Backup

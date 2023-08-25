@@ -627,6 +627,10 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		},
 		// Tests dealing with assist base cleanup.
 		{
+			// Test that even if we have multiple assist bases with the same
+			// Reason(s), none of them are garbage collected if they are within the
+			// buffer period used to exclude recently created backups from garbage
+			// collection.
 			name: "AssistBase NotYoungest InBufferTime Noops",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
@@ -650,6 +654,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
+			// Test that an assist base that has the same Reasons as a newer assist
+			// base is garbage collected when it's outside the buffer period.
 			name: "AssistBases NotYoungest CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
@@ -688,6 +694,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
+			// Test that an assist base that is not the most recent for Reason A but
+			// is the most recent for Reason B is not garbage collected.
 			name: "AssistBases YoungestInOneReason Noops",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
@@ -712,6 +720,10 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
+			// Test that assist bases that have the same tenant, service, and category
+			// but different protected resources are not garbage collected. This is
+			// a test to ensure the Reason field is properly handled when finding the
+			// most recent assist base.
 			name: "AssistBases DifferentProtectedResources Noops",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
@@ -735,6 +747,10 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
+			// Test that assist bases that have the same protected resource, service,
+			// and category but different tenants are not garbage collected. This is a
+			// test to ensure the Reason field is properly handled when finding the
+			// most recent assist base.
 			name: "AssistBases DifferentTenants Noops",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
@@ -758,6 +774,10 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
+			// Test that if the tenant is not available for a given assist base that
+			// it's excluded from the garbage collection set. This behavior is
+			// conservative because it's quite likely that we could garbage collect
+			// the base without issue.
 			name: "AssistBases NoTenant SkipsBackup",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
