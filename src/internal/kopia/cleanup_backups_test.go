@@ -694,6 +694,45 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
+			// Test that the most recent assist base is not garbage collected even if
+			// there's a newer merge base that has the same Reasons as the assist
+			// base. Also ensure assist bases with the same Reasons that are older
+			// than the newest assist base are still garbage collected.
+			name: "AssistBasesAndMergeBase NotYoungest CausesCleanupForAssistBase",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithTime(baseTime.Add(time.Minute), bupCurrent3())},
+			},
+			expectDeleteIDs: []manifest.ID{
+				snapCurrent().ID,
+				deetsCurrent().ID,
+				manifest.ID(bupCurrent().ModelStoreID),
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
 			// Test that an assist base that is not the most recent for Reason A but
 			// is the most recent for Reason B is not garbage collected.
 			name: "AssistBases YoungestInOneReason Noops",
