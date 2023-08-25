@@ -132,7 +132,7 @@ func (c Channels) GetMessage(
 // replies
 // ---------------------------------------------------------------------------
 
-// GetReplies retrieves a Messageable item.
+// GetReplies retrieves all replies to a Channel Message.
 func (c Channels) GetReplies(
 	ctx context.Context,
 	teamID, channelID, messageID string,
