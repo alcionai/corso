@@ -47,6 +47,7 @@ func (suite *ChannelPagerIntgSuite) SetupSuite() {
 func (suite *ChannelPagerIntgSuite) TestChannels_Get() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
+
 	defer flush()
 
 	var (

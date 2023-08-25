@@ -241,6 +241,7 @@ jobs:
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
       # generate some more enteries for incremental check
       - name: OneDrive - Create new data (for incremental)
@@ -263,6 +264,7 @@ jobs:
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
 ##########################################################################################################################################
 
@@ -295,6 +297,7 @@ jobs:
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
       # generate some more enteries for incremental check
       - name: SharePoint - Create new data (for incremental)
@@ -318,6 +321,53 @@ jobs:
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+##########################################################################################################################################
+
+# Groups and Teams
+
+      # generate new entries for test
+      - name: Groups - Create new data
+        if: false # TODO: enable when ready
+        id: new-data-creation-groups
+        working-directory: ./src/cmd/factory
+        run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+
+          go run . sharepoint files  \
+            --site ${{ secrets.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4
+
+          echo result="${suffix}" >> $GITHUB_OUTPUT
+
+      - name: Groups - Backup
+        if: false # TODO: enable when ready
+        id: groups-backup
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: groups
+          kind: initial
+          backup-args: '--group "${{ secrets.CORSO_M365_TEST_TEAM_ID }}"'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      - name: Teams - Backup
+        if: false # TODO: enable when ready
+        id: teams-backup
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: teams
+          kind: initial
+          backup-args: '--group "${{ secrets.CORSO_M365_TEST_TEAM_ID }}"'
+          test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+
+      # TODO: incrementals
 
 ##########################################################################################################################################
 
