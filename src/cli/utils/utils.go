@@ -63,7 +63,7 @@ func AccountConnectAndWriteRepoConfig(
 		return nil, nil, err
 	}
 
-	s3Config, err := stg.S3Config()
+	storageConfig, err := config.NewStorageConfigFrom(*stg)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting storage configuration")
 		return nil, nil, err
@@ -77,7 +77,7 @@ func AccountConnectAndWriteRepoConfig(
 
 	// repo config gets set during repo connect and init.
 	// This call confirms we have the correct values.
-	err = config.WriteRepoConfig(ctx, s3Config, m365Config, opts.Repo, r.GetID())
+	err = config.WriteRepoConfig(ctx, storageConfig, m365Config, opts.Repo, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")
 		return nil, nil, err

@@ -1,11 +1,14 @@
 package storage
 
 import (
+	"fmt"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
+// Move this to config
 type CommonConfig struct {
 	credentials.Corso // requires: CorsoPassphrase
 
@@ -42,6 +45,11 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 	return c, c.validate()
 }
 
+// storage parsing errors
+var (
+	errMissingRequired = clues.New("missing required storage configuration")
+)
+
 // ensures all required properties are present
 func (c CommonConfig) validate() error {
 	if len(c.CorsoPassphrase) == 0 {
@@ -50,4 +58,21 @@ func (c CommonConfig) validate() error {
 
 	// kopiaCfgFilePath is not required
 	return nil
+}
+
+// Helper for parsing the values in a config object.
+// If the value is nil or not a string, returns an empty string.
+func orEmptyString(v any) string {
+	defer func() {
+		r := recover()
+		if r != nil {
+			fmt.Printf("panic recovery casting %v to string\n", v)
+		}
+	}()
+
+	if v == nil {
+		return ""
+	}
+
+	return v.(string)
 }

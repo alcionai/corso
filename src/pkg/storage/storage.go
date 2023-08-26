@@ -1,30 +1,21 @@
 package storage
 
 import (
-	"fmt"
-
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/common"
 )
 
-type storageProvider int
+type StorageProvider int
 
-//go:generate stringer -type=storageProvider -linecomment
+//go:generate stringer -type=StorageProvider -linecomment
 const (
-	ProviderUnknown storageProvider = 0 // Unknown Provider
-	ProviderS3      storageProvider = 1 // S3
-)
-
-// storage parsing errors
-var (
-	errMissingRequired = clues.New("missing required storage configuration")
+	ProviderUnknown StorageProvider = 0 // Unknown Provider
+	ProviderS3      StorageProvider = 1 // S3
 )
 
 // Storage defines a storage provider, along with any configuration
 // required to set up or communicate with that provider.
 type Storage struct {
-	Provider storageProvider
+	Provider StorageProvider
 	Config   map[string]string
 	// TODO: These are AWS S3 specific -> move these out
 	SessionTags     map[string]string
@@ -34,7 +25,7 @@ type Storage struct {
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
-func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, error) {
+func NewStorage(p StorageProvider, cfgs ...common.StringConfigurer) (Storage, error) {
 	cs, err := common.UnionStringConfigs(cfgs...)
 
 	return Storage{
@@ -46,7 +37,7 @@ func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, er
 // NewStorageUsingRole supports specifying an AWS IAM role the storage provider
 // should assume.
 func NewStorageUsingRole(
-	p storageProvider,
+	p StorageProvider,
 	roleARN string,
 	sessionName string,
 	sessionTags map[string]string,
@@ -63,21 +54,4 @@ func NewStorageUsingRole(
 		SessionName:     sessionName,
 		SessionDuration: duration,
 	}, err
-}
-
-// Helper for parsing the values in a config object.
-// If the value is nil or not a string, returns an empty string.
-func orEmptyString(v any) string {
-	defer func() {
-		r := recover()
-		if r != nil {
-			fmt.Printf("panic recovery casting %v to string\n", v)
-		}
-	}()
-
-	if v == nil {
-		return ""
-	}
-
-	return v.(string)
 }

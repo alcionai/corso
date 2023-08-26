@@ -203,14 +203,14 @@ func Read(ctx context.Context) error {
 // It does not check for conflicts or existing data.
 func WriteRepoConfig(
 	ctx context.Context,
-	s3Config storage.S3Config,
+	storageConfig StorageConfigurer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
 	return writeRepoConfigWithViper(
 		GetViper(ctx),
-		s3Config,
+		storageConfig,
 		m365Config,
 		repoOpts,
 		repoID)
@@ -220,20 +220,16 @@ func WriteRepoConfig(
 // struct for testing.
 func writeRepoConfigWithViper(
 	vpr *viper.Viper,
-	s3Config storage.S3Config,
+	storageConfig StorageConfigurer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
-	s3Config = s3Config.Normalize()
+	storageConfig.WriteConfigToViper(vpr)
+
 	// Rudimentary support for persisting repo config
 	// TODO: Handle conflicts, support other config types
-	vpr.Set(StorageProviderTypeKey, storage.ProviderS3.String())
-	vpr.Set(BucketNameKey, s3Config.Bucket)
-	vpr.Set(EndpointKey, s3Config.Endpoint)
-	vpr.Set(PrefixKey, s3Config.Prefix)
-	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
-	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
+
 	vpr.Set(RepoID, repoID)
 
 	// Need if-checks as Viper will write empty values otherwise.
@@ -335,12 +331,13 @@ func getUserHost(vpr *viper.Viper, readConfigFromViper bool) (string, string) {
 // Helper funcs
 // ---------------------------------------------------------------------------
 
+// TODO: This is not really needed?
 var constToTomlKeyMap = map[string]string{
 	account.AzureTenantID:  AzureTenantIDKey,
 	AccountProviderTypeKey: AccountProviderTypeKey,
-	storage.Bucket:         BucketNameKey,
-	storage.Endpoint:       EndpointKey,
-	storage.Prefix:         PrefixKey,
+	Bucket:                 BucketNameKey,
+	Endpoint:               EndpointKey,
+	Prefix:                 PrefixKey,
 	StorageProviderTypeKey: StorageProviderTypeKey,
 }
 

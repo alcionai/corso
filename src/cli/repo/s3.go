@@ -128,6 +128,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
 
+	// Need to send provider here
 	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
 	if err != nil {
 		return Only(ctx, err)
@@ -149,11 +150,17 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	storageCfg, err := config.NewStorageConfigFrom(cfg.Storage)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
 
+	s3Cfg, ok := storageCfg.(config.S3Config)
+	if !ok {
+		return Only(ctx, clues.New("Casting storage config to S3Config"))
+	}
+
+	// TODO: move this to cfg validate
 	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
 			"pass --disable-tls flag to use http:// instead of default https://"
@@ -214,6 +221,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
 
+	// Send provider here
 	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
@@ -224,9 +232,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	storageCfg, err := config.NewStorageConfigFrom(cfg.Storage)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
+	}
+
+	s3Cfg, ok := storageCfg.(config.S3Config)
+	if !ok {
+		return Only(ctx, clues.New("Casting storage config to S3Config"))
 	}
 
 	m365, err := cfg.Account.M365Config()
@@ -287,23 +300,23 @@ func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
 	}
 
 	if _, ok := flagset[bucketFN]; ok {
-		s3Overrides[storage.Bucket] = bucket
+		s3Overrides[config.Bucket] = bucket
 	}
 
 	if _, ok := flagset[prefixFN]; ok {
-		s3Overrides[storage.Prefix] = prefix
+		s3Overrides[config.Prefix] = prefix
 	}
 
 	if _, ok := flagset[doNotUseTLSFN]; ok {
-		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(doNotUseTLS)
+		s3Overrides[config.DoNotUseTLS] = strconv.FormatBool(doNotUseTLS)
 	}
 
 	if _, ok := flagset[doNotVerifyTLSFN]; ok {
-		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(doNotVerifyTLS)
+		s3Overrides[config.DoNotVerifyTLS] = strconv.FormatBool(doNotVerifyTLS)
 	}
 
 	if _, ok := flagset[endpointFN]; ok {
-		s3Overrides[storage.Endpoint] = endpoint
+		s3Overrides[config.Endpoint] = endpoint
 	}
 
 	return s3Overrides

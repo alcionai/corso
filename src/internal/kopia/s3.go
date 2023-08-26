@@ -7,6 +7,7 @@ import (
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/blob/s3"
 
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -20,9 +21,14 @@ func s3BlobStorage(
 	repoOpts repository.Options,
 	s storage.Storage,
 ) (blob.Storage, error) {
-	cfg, err := s.S3Config()
+	sCfg, err := config.NewStorageConfigFrom(s)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	cfg, ok := sCfg.(config.S3Config)
+	if !ok {
+		return nil, clues.New("casting storage config to S3Config")
 	}
 
 	endpoint := defaultS3Endpoint
