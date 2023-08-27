@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -227,6 +228,25 @@ func (op *RestoreOperation) do(
 		"backup_protected_resource_name", clues.Hide(bup.Selector.Name()),
 		"restore_protected_resource_id", restoreToProtectedResource.ID(),
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
+
+	// IsRunnable checks if the resource has the service enabled to be able to restore.
+	runnable, err := op.rc.IsRunnable(
+		ctx,
+		op.Selectors.PathService(),
+		restoreToProtectedResource.ID())
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("verifying restore is runnable")
+		op.Errors.Fail(clues.Wrap(err, "verifying restore is runnable"))
+
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	if !runnable {
+		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if restore is enabled")
+		op.Errors.Fail(clues.Wrap(err, "checking if restore is enabled"))
+
+		return nil, clues.Stack(graph.ErrServiceNotEnabled).WithClues(ctx)
+	}
 
 	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))
 

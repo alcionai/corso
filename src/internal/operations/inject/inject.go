@@ -23,7 +23,12 @@ type (
 			bpc BackupProducerConfig,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
-		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
+
+		IsRunnable(
+			ctx context.Context,
+			service path.ServiceType,
+			resourceOwner string,
+		) (bool, error)
 
 		Wait() *data.CollectionStats
 	}
@@ -36,6 +41,12 @@ type (
 			errs *fault.Bus,
 			ctr *count.Bus,
 		) (*details.Details, error)
+
+		IsRunnable(
+			ctx context.Context,
+			service path.ServiceType,
+			resourceOwner string,
+		) (bool, error)
 
 		Wait() *data.CollectionStats
 

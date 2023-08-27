@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	commonM365 "github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -19,10 +20,6 @@ import (
 // ---------------------------------------------------------------------------
 // interfaces & structs
 // ---------------------------------------------------------------------------
-
-type getDefaultDriver interface {
-	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
-}
 
 type getAller[T any] interface {
 	GetAll(ctx context.Context, errs *fault.Bus) ([]T, error)
@@ -84,7 +81,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	return ac.Users().IsExchangeServiceEnabled(ctx, userID)
+	return commonM365.IsExchangeServiceEnabled(ctx, ac, userID)
 }
 
 func UserGetMailboxInfo(
@@ -113,26 +110,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	return checkUserHasDrives(ctx, ac.Users(), userID)
-}
-
-func checkUserHasDrives(ctx context.Context, dgdd getDefaultDriver, userID string) (bool, error) {
-	_, err := dgdd.GetDefaultDrive(ctx, userID)
-	if err != nil {
-		// we consider this a non-error case, since it
-		// answers the question the caller is asking.
-		if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			return false, nil
-		}
-
-		if graph.IsErrUserNotFound(err) {
-			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
-
-		return false, clues.Stack(err)
-	}
-
-	return true, nil
+	return commonM365.IsOneDriveServiceEnabled(ctx, ac, userID)
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info

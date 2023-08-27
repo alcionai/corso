@@ -54,23 +54,11 @@ func (ctrl *Controller) ProduceBackupCollections(
 		return nil, nil, false, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
-		ctx,
-		ctrl,
-		service,
-		bpc.ProtectedResource.ID())
-	if err != nil {
-		return nil, nil, false, err
-	}
-
-	if !serviceEnabled {
-		return []data.BackupCollection{}, nil, false, nil
-	}
-
 	var (
 		colls                []data.BackupCollection
 		ssmb                 *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
+		canMakeDeltaQueries  bool
 	)
 
 	if !canMakeDeltaQueries {
@@ -147,48 +135,24 @@ func (ctrl *Controller) ProduceBackupCollections(
 	return colls, ssmb, canUsePreviousBackup, nil
 }
 
-// IsBackupRunnable verifies that the users provided has the services enabled and
-// data can be backed up. The canMakeDeltaQueries provides info if the mailbox is
-// full and delta queries can be made on it.
-func (ctrl *Controller) IsBackupRunnable(
+// IsRunnable verifies that the provided resource has the services enabled.
+func (ctrl *Controller) IsRunnable(
 	ctx context.Context,
 	service path.ServiceType,
 	resourceOwner string,
 ) (bool, error) {
-	if service == path.GroupsService {
-		_, err := ctrl.AC.Groups().GetByID(ctx, resourceOwner)
-		if err != nil {
-			// TODO(meain): check for error message in case groups are
-			// not enabled at all similar to sharepoint
-			return false, err
-		}
-
+	switch service {
+	case path.ExchangeService:
+		return IsExchangeServiceEnabled(ctx, ctrl.AC, resourceOwner)
+	case path.OneDriveService:
+		return IsOneDriveServiceEnabled(ctx, ctrl.AC, resourceOwner)
+	case path.SharePointService:
+		return IsSharePointServiceEnabled(ctx, ctrl.AC, resourceOwner)
+	case path.GroupsService:
 		return true, nil
 	}
 
-	if service == path.SharePointService {
-		_, err := ctrl.AC.Sites().GetRoot(ctx)
-		if err != nil {
-			if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-				return false, clues.Stack(graph.ErrServiceNotEnabled, err)
-			}
-
-			return false, err
-		}
-
-		return true, nil
-	}
-
-	info, err := ctrl.AC.Users().GetInfo(ctx, resourceOwner)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
-	}
-
-	return true, nil
+	return false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 }
 
 func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
@@ -209,83 +173,4 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	return nil
-}
-
-func checkServiceEnabled(
-	ctx context.Context,
-	ctrl *Controller,
-	service path.ServiceType,
-	resource string,
-) (bool, bool, error) {
-	switch service {
-	case path.ExchangeService:
-		return checkExchangeServiceEnabled(ctx, ctrl, resource)
-	case path.OneDriveService:
-		return checkOneDriveServiceEnabled(ctx, ctrl, resource)
-	case path.SharePointService:
-		return checkSharepointServiceEnabled(ctx, ctrl, resource)
-	case path.GroupsService:
-		return true, true, nil
-	}
-
-	return false, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
-}
-
-func checkOneDriveServiceEnabled(
-	ctx context.Context,
-	ctrl *Controller,
-	resource string,
-) (bool, bool, error) {
-	if _, err := ctrl.AC.Users().GetDefaultDrive(ctx, resource); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			logger.CtxErr(ctx, err).Error("getting user's default drive")
-
-			return false, false, graph.Wrap(ctx, err, "getting user's default drive info")
-		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a drive")
-
-		return false, false, nil
-	}
-
-	return true, true, nil
-}
-
-func checkExchangeServiceEnabled(
-	ctx context.Context,
-	ctrl *Controller,
-	resource string,
-) (bool, bool, error) {
-	enabled, err := ctrl.AC.Users().IsExchangeServiceEnabled(ctx, resource)
-	if err != nil {
-		return false, false, clues.Stack(err)
-	}
-
-	if !enabled {
-		return false, false, nil
-	}
-
-	mi, err := ctrl.AC.Users().GetMailboxInfo(ctx, resource)
-	if err != nil {
-		return false, false, clues.Stack(err)
-	}
-
-	return true, !mi.QuotaExceeded, nil
-}
-
-func checkSharepointServiceEnabled(
-	ctx context.Context,
-	ctrl *Controller,
-	resource string,
-) (bool, bool, error) {
-	_, err := ctrl.AC.Sites().GetRoot(ctx)
-	if err != nil {
-		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			return false, false, nil
-		}
-
-		return false, false, err
-	}
-
-	return true, true, nil
 }

@@ -285,22 +285,6 @@ func (c Users) GetMailboxSettings(
 	return settings, nil
 }
 
-func (c Users) IsExchangeServiceEnabled(
-	ctx context.Context,
-	userID string,
-) (bool, error) {
-	_, err := c.GetMailInbox(ctx, userID)
-	if err != nil {
-		if err := EvaluateMailboxError(err); err != nil {
-			return false, clues.Stack(err)
-		}
-
-		return false, nil
-	}
-
-	return true, nil
-}
-
 func (c Users) GetMailInbox(
 	ctx context.Context,
 	userID string,

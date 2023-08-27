@@ -40,23 +40,11 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 		return nil, clues.New("no data collections to restore")
 	}
 
-	serviceEnabled, _, err := checkServiceEnabled(
-		ctx,
-		ctrl,
-		rcc.Selector.PathService(),
-		rcc.ProtectedResource.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	if !serviceEnabled {
-		return nil, clues.Stack(graph.ErrServiceNotEnabled).WithClues(ctx)
-	}
-
 	var (
 		service = rcc.Selector.PathService()
 		status  *support.ControllerOperationStatus
 		deets   = &details.Builder{}
+		err     error
 	)
 
 	switch service {
