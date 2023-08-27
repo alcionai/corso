@@ -143,11 +143,11 @@ func (ctrl *Controller) IsRunnable(
 ) (bool, error) {
 	switch service {
 	case path.ExchangeService:
-		return IsExchangeServiceEnabled(ctx, ctrl.AC, resourceOwner)
+		return IsExchangeServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
 	case path.OneDriveService:
-		return IsOneDriveServiceEnabled(ctx, ctrl.AC, resourceOwner)
+		return IsOneDriveServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
 	case path.SharePointService:
-		return IsSharePointServiceEnabled(ctx, ctrl.AC, resourceOwner)
+		return IsSharePointServiceEnabled(ctx, ctrl.AC.Users().Sites(), resourceOwner)
 	case path.GroupsService:
 		return true, nil
 	}
