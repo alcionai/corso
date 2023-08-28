@@ -20,7 +20,8 @@ import (
 
 // Variables
 var (
-	ErrMailBoxSettingsNotFound = clues.New("mailbox settings not found")
+	ErrMailBoxSettingsNotFound     = clues.New("mailbox settings not found")
+	ErrMailBoxSettingsAccessDenied = clues.New("access denied")
 )
 
 // ---------------------------------------------------------------------------
@@ -219,7 +220,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 		return userInfo, nil
 	}
 
-	mboxSettings, err := c.getMailboxSettings(ctx, userID)
+	mboxSettings, err := c.GetMailboxSettings(ctx, userID)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("err getting user's mailbox settings")
 
@@ -229,10 +230,10 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, clues.New("access denied"))
 	} else {
-		mi = parseMailboxSettings(mboxSettings, mi)
+		mi = ParseMailboxSettings(mboxSettings, mi)
 	}
 
-	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
+	err = c.GetFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
 	if err != nil {
 		if !graph.IsErrQuotaExceeded(err) {
 			return nil, clues.Stack(err)
@@ -266,7 +267,7 @@ func EvaluateMailboxError(err error) error {
 	return err
 }
 
-func (c Users) getMailboxSettings(
+func (c Users) GetMailboxSettings(
 	ctx context.Context,
 	userID string,
 ) (models.Userable, error) {
@@ -323,7 +324,7 @@ func (c Users) GetDefaultDrive(
 // exceeded error. Ideally(if available) we should convert this to
 // pull the user's usage via an api and compare if they have used
 // up their quota.
-func (c Users) getFirstInboxMessage(
+func (c Users) GetFirstInboxMessage(
 	ctx context.Context,
 	userID, inboxID string,
 ) error {
