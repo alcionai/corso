@@ -66,14 +66,14 @@ func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 
 func (h itemBackupHandler) NewDrivePager(
 	resourceOwner string, fields []string,
-) api.DrivePager {
+) api.Pager[models.Driveable] {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
 func (h itemBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
-) api.DriveItemDeltaEnumerator {
+) api.DeltaPager[models.DriveItemable] {
 	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
 }
 
@@ -145,7 +145,7 @@ func (h itemRestoreHandler) PostDrive(
 
 func (h itemRestoreHandler) NewDrivePager(
 	resourceOwner string, fields []string,
-) api.DrivePager {
+) api.Pager[models.Driveable] {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 

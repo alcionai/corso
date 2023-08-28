@@ -72,26 +72,26 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		resultDrives = append(resultDrives, d)
 	}
 
-	tooManyRetries := make([]mock.PagerResult, 0, maxDrivesRetries+1)
+	tooManyRetries := make([]mock.PagerResult[models.Driveable], 0, maxDrivesRetries+1)
 
 	for i := 0; i < maxDrivesRetries+1; i++ {
-		tooManyRetries = append(tooManyRetries, mock.PagerResult{
+		tooManyRetries = append(tooManyRetries, mock.PagerResult[models.Driveable]{
 			Err: context.DeadlineExceeded,
 		})
 	}
 
 	table := []struct {
 		name            string
-		pagerResults    []mock.PagerResult
+		pagerResults    []mock.PagerResult[models.Driveable]
 		retry           bool
 		expectedErr     assert.ErrorAssertionFunc
 		expectedResults []models.Driveable
 	}{
 		{
 			name: "AllOneResultNilNextLink",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives,
+					Values:   resultDrives,
 					NextLink: nil,
 					Err:      nil,
 				},
@@ -102,9 +102,9 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "AllOneResultEmptyNextLink",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives,
+					Values:   resultDrives,
 					NextLink: &emptyLink,
 					Err:      nil,
 				},
@@ -115,14 +115,14 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsNilNextLink",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives[:numDriveResults/2],
+					Values:   resultDrives[:numDriveResults/2],
 					NextLink: &link,
 					Err:      nil,
 				},
 				{
-					Drives:   resultDrives[numDriveResults/2:],
+					Values:   resultDrives[numDriveResults/2:],
 					NextLink: nil,
 					Err:      nil,
 				},
@@ -133,14 +133,14 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsEmptyNextLink",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives[:numDriveResults/2],
+					Values:   resultDrives[:numDriveResults/2],
 					NextLink: &link,
 					Err:      nil,
 				},
 				{
-					Drives:   resultDrives[numDriveResults/2:],
+					Values:   resultDrives[numDriveResults/2:],
 					NextLink: &emptyLink,
 					Err:      nil,
 				},
@@ -151,14 +151,14 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "NonRetryableError",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives,
+					Values:   resultDrives,
 					NextLink: &link,
 					Err:      nil,
 				},
 				{
-					Drives:   nil,
+					Values:   nil,
 					NextLink: nil,
 					Err:      assert.AnError,
 				},
@@ -169,9 +169,9 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "MySiteURLNotFound",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   nil,
+					Values:   nil,
 					NextLink: nil,
 					Err:      graph.Stack(ctx, mySiteURLNotFound),
 				},
@@ -182,9 +182,9 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "MySiteNotFound",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   nil,
+					Values:   nil,
 					NextLink: nil,
 					Err:      graph.Stack(ctx, mySiteNotFound),
 				},
@@ -195,19 +195,19 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsContextTimeoutWithRetries",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives[:numDriveResults/2],
+					Values:   resultDrives[:numDriveResults/2],
 					NextLink: &link,
 					Err:      nil,
 				},
 				{
-					Drives:   nil,
+					Values:   nil,
 					NextLink: nil,
 					Err:      context.DeadlineExceeded,
 				},
 				{
-					Drives:   resultDrives[numDriveResults/2:],
+					Values:   resultDrives[numDriveResults/2:],
 					NextLink: &emptyLink,
 					Err:      nil,
 				},
@@ -218,19 +218,19 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsContextTimeoutNoRetries",
-			pagerResults: []mock.PagerResult{
+			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
-					Drives:   resultDrives[:numDriveResults/2],
+					Values:   resultDrives[:numDriveResults/2],
 					NextLink: &link,
 					Err:      nil,
 				},
 				{
-					Drives:   nil,
+					Values:   nil,
 					NextLink: nil,
 					Err:      context.DeadlineExceeded,
 				},
 				{
-					Drives:   resultDrives[numDriveResults/2:],
+					Values:   resultDrives[numDriveResults/2:],
 					NextLink: &emptyLink,
 					Err:      nil,
 				},
@@ -242,9 +242,9 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		{
 			name: "TooManyRetries",
 			pagerResults: append(
-				[]mock.PagerResult{
+				[]mock.PagerResult[models.Driveable]{
 					{
-						Drives:   resultDrives[:numDriveResults/2],
+						Values:   resultDrives[:numDriveResults/2],
 						NextLink: &link,
 						Err:      nil,
 					},
@@ -263,7 +263,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			pager := &mock.DrivePager{
+			pager := &mock.Pager[models.Driveable]{
 				ToReturn: test.pagerResults,
 			}
 

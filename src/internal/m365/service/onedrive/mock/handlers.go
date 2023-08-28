@@ -34,9 +34,9 @@ type BackupHandler struct {
 	Service  path.ServiceType
 	Category path.CategoryType
 
-	DrivePagerV api.DrivePager
+	DrivePagerV api.Pager[models.Driveable]
 	// driveID -> itemPager
-	ItemPagerV map[string]api.DriveItemDeltaEnumerator
+	ItemPagerV map[string]api.DeltaPager[models.DriveItemable]
 
 	LocationIDFn locationIDer
 
@@ -103,11 +103,11 @@ func (h BackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return h.Service, h.Category
 }
 
-func (h BackupHandler) NewDrivePager(string, []string) api.DrivePager {
+func (h BackupHandler) NewDrivePager(string, []string) api.Pager[models.Driveable] {
 	return h.DrivePagerV
 }
 
-func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DriveItemDeltaEnumerator {
+func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DeltaPager[models.DriveItemable] {
 	return h.ItemPagerV[driveID]
 }
 
@@ -249,7 +249,7 @@ type RestoreHandler struct {
 	PostItemResp   models.DriveItemable
 	PostItemErr    error
 
-	DrivePagerV api.DrivePager
+	DrivePagerV api.Pager[models.Driveable]
 
 	PostDriveResp models.Driveable
 	PostDriveErr  error
@@ -264,7 +264,7 @@ func (h RestoreHandler) PostDrive(
 	return h.PostDriveResp, h.PostDriveErr
 }
 
-func (h RestoreHandler) NewDrivePager(string, []string) api.DrivePager {
+func (h RestoreHandler) NewDrivePager(string, []string) api.Pager[models.Driveable] {
 	return h.DrivePagerV
 }
 
