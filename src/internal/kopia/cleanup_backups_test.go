@@ -15,6 +15,8 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type BackupCleanupUnitSuite struct {
@@ -163,6 +165,58 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		}
 	}
 
+	bupCurrent2 := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("current-bup-id-2"),
+				ModelStoreID: manifest.ID("current-bup-msid-2"),
+			},
+			SnapshotID:    "current-snap-msid-2",
+			StreamStoreID: "current-deets-msid-2",
+		}
+	}
+
+	snapCurrent2 := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "current-snap-msid-2",
+			Labels: map[string]string{
+				backupTag: "0",
+			},
+		}
+	}
+
+	deetsCurrent2 := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "current-deets-msid-2",
+		}
+	}
+
+	bupCurrent3 := func() *backup.Backup {
+		return &backup.Backup{
+			BaseModel: model.BaseModel{
+				ID:           model.StableID("current-bup-id-3"),
+				ModelStoreID: manifest.ID("current-bup-msid-3"),
+			},
+			SnapshotID:    "current-snap-msid-3",
+			StreamStoreID: "current-deets-msid-3",
+		}
+	}
+
+	snapCurrent3 := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "current-snap-msid-3",
+			Labels: map[string]string{
+				backupTag: "0",
+			},
+		}
+	}
+
+	deetsCurrent3 := func() *manifest.EntryMetadata {
+		return &manifest.EntryMetadata{
+			ID: "current-deets-msid-3",
+		}
+	}
+
 	// Legacy backup with details in separate model.
 	bupLegacy := func() *backup.Backup {
 		return &backup.Backup{
@@ -261,9 +315,51 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		return &res
 	}
 
+	manifestWithReasons := func(
+		m *manifest.EntryMetadata,
+		tenantID string,
+		reasons ...identity.Reasoner,
+	) *manifest.EntryMetadata {
+		res := *m
+
+		if res.Labels == nil {
+			res.Labels = map[string]string{}
+		}
+
+		res.Labels[kopiaPathLabel] = encodeAsPath(tenantID)
+
+		// Add the given reasons.
+		for _, r := range reasons {
+			for _, k := range tagKeys(r) {
+				key, _ := makeTagKV(k)
+				res.Labels[key] = "0"
+			}
+		}
+
+		// Also add other common reasons on item data snapshots.
+		k, _ := makeTagKV(TagBackupCategory)
+		res.Labels[k] = "0"
+
+		return &res
+	}
+
 	backupWithTime := func(mt time.Time, b *backup.Backup) *backup.Backup {
 		res := *b
 		res.ModTime = mt
+		res.CreationTime = mt
+
+		return &res
+	}
+
+	backupAssist := func(protectedResource string, b *backup.Backup) *backup.Backup {
+		res := *b
+		res.ProtectedResourceID = protectedResource
+
+		if res.Tags == nil {
+			res.Tags = map[string]string{}
+		}
+
+		res.Tags[model.BackupTypeTag] = model.AssistBackup
 
 		return &res
 	}
@@ -527,6 +623,232 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			},
 			time:      baseTime,
 			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		// Tests dealing with assist base cleanup.
+		{
+			// Test that even if we have multiple assist bases with the same
+			// Reason(s), none of them are garbage collected if they are within the
+			// buffer period used to exclude recently created backups from garbage
+			// collection.
+			name: "AssistBase NotYoungest InBufferTime Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+			},
+			time:      baseTime,
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that an assist base that has the same Reasons as a newer assist
+			// base is garbage collected when it's outside the buffer period.
+			name: "AssistBases NotYoungest CausesCleanup",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+			},
+			expectDeleteIDs: []manifest.ID{
+				snapCurrent().ID,
+				deetsCurrent().ID,
+				manifest.ID(bupCurrent().ModelStoreID),
+				snapCurrent2().ID,
+				deetsCurrent2().ID,
+				manifest.ID(bupCurrent2().ModelStoreID),
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that the most recent assist base is not garbage collected even if
+			// there's a newer merge base that has the same Reasons as the assist
+			// base. Also ensure assist bases with the same Reasons that are older
+			// than the newest assist base are still garbage collected.
+			name: "AssistBasesAndMergeBase NotYoungest CausesCleanupForAssistBase",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithTime(baseTime.Add(time.Minute), bupCurrent3())},
+			},
+			expectDeleteIDs: []manifest.ID{
+				snapCurrent().ID,
+				deetsCurrent().ID,
+				manifest.ID(bupCurrent().ModelStoreID),
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that an assist base that is not the most recent for Reason A but
+			// is the most recent for Reason B is not garbage collected.
+			name: "AssistBases YoungestInOneReason Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory),
+					NewReason("", "ro", path.ExchangeService, path.ContactsCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that assist bases that have the same tenant, service, and category
+			// but different protected resources are not garbage collected. This is
+			// a test to ensure the Reason field is properly handled when finding the
+			// most recent assist base.
+			name: "AssistBases DifferentProtectedResources Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro1", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro2", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro1", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro2", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that assist bases that have the same protected resource, service,
+			// and category but different tenants are not garbage collected. This is a
+			// test to ensure the Reason field is properly handled when finding the
+			// most recent assist base.
+			name: "AssistBases DifferentTenants Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant2",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that if the tenant is not available for a given assist base that
+			// it's excluded from the garbage collection set. This behavior is
+			// conservative because it's quite likely that we could garbage collect
+			// the base without issue.
+			name: "AssistBases NoTenant SkipsBackup",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
+			},
+			backups: []backupRes{
+				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+			},
+			time:   baseTime.Add(48 * time.Hour),
+			buffer: 24 * time.Hour,
+			expectDeleteIDs: []manifest.ID{
+				snapCurrent2().ID,
+				deetsCurrent2().ID,
+				manifest.ID(bupCurrent2().ModelStoreID),
+			},
 			expectErr: assert.NoError,
 		},
 	}

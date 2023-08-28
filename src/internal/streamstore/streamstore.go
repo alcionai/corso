@@ -61,6 +61,8 @@ func (ss *storeStreamer) Collect(ctx context.Context, col Collectable) error {
 
 // Write persists the collected objects in the stream store
 func (ss *storeStreamer) Write(ctx context.Context, errs *fault.Bus) (string, error) {
+	ctx = clues.Add(ctx, "snapshot_type", "stream store")
+
 	id, err := write(ctx, ss.kw, ss.dbcs, errs)
 	if err != nil {
 		return "", clues.Wrap(err, "writing to stream store")
