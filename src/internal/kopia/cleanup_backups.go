@@ -128,11 +128,17 @@ func cleanupOrphanedData(
 		return clues.Wrap(err, "getting all backup models")
 	}
 
-	// assistBackups is the set of backups that have a
-	//   * a label denoting they're an assist backup
-	//   * item data snapshot
-	//   * details snapshot
-	var assistBackups []*backup.Backup
+	var (
+		// assistBackups is the set of backups that have a
+		//   * a label denoting they're an assist backup
+		//   * item data snapshot
+		//   * details snapshot
+		assistBackups []*backup.Backup
+		// mostRecentMergeBase holds the creation time of the most recent merge base
+		// for the given Reason. The Reason -> key translation is done by
+		// keysForBackup.
+		mostRecentMergeBase = map[string]time.Time{}
+	)
 
 	for _, bup := range bups {
 		// Don't even try to see if this needs garbage collected because it's not
@@ -188,31 +194,57 @@ func cleanupOrphanedData(
 			delete(toDelete, manifest.ID(bm.SnapshotID))
 			delete(toDelete, manifest.ID(ssid))
 
+			// This is a little messy to have, but can simplify the logic below.
+			// The state of tagging in corso isn't all that great right now and we'd
+			// really like to consolidate tags and clean them up. For now, we're
+			// going to copy tags that are related to Reasons for a backup from the
+			// item data snapshot to the backup model. This makes the function
+			// checking if assist backups should be garbage collected a bit easier
+			// because now they only have to source data from backup models.
+			if err := transferTags(d, &bm); err != nil {
+				logger.CtxErr(ctx, err).Errorw(
+					"transferring legacy tags to backup model",
+					"snapshot_id", d.ID,
+					"backup_id", bup.ID)
+
+				// Continuing here means the base won't be eligible for old assist
+				// base garbage collection or as a newer merge base timestamp.
+				//
+				// We could add more logic to eventually delete the base if it's an
+				// assist base. If it's a merge base then it should be mostly harmless
+				// as a newer merge base should cause older assist bases to be garbage
+				// collected.
+				//
+				// Either way, I don't really expect to see failures when transferring
+				// tags so not worth adding extra code for unless we see it become a
+				// problem.
+				continue
+			}
+
 			// Add to the assist backup set so that we can attempt to garbage collect
 			// older assist backups below.
 			if bup.Tags[model.BackupTypeTag] == model.AssistBackup {
-				// This is a little messy to have, but can simplify the logic below.
-				// The state of tagging in corso isn't all that great right now and we'd
-				// really like to consolidate tags and clean them up. For now, we're
-				// going to copy tags that are related to Reasons for a backup from the
-				// item data snapshot to the backup model. This makes the function
-				// checking if assist backups should be garbage collected a bit easier
-				// because now they only have to source data from backup models.
-				if err := transferTags(d, &bm); err != nil {
-					logger.Ctx(ctx).Debugw(
-						"transferring legacy tags to backup model",
-						"err", err,
-						"snapshot_id", d.ID,
-						"backup_id", bup.ID)
+				assistBackups = append(assistBackups, &bm)
+				continue
+			}
 
-					// Continuing here means the base won't be eligible for old assist
-					// base garbage collection. We could add more logic to eventually
-					// delete the base in question but I don't really expect to see
-					// failures when transferring tags.
+			// If it's a merge base track the time it was created so we can check
+			// later if we should remove all assist bases or not.
+			tags, err := keysForBackup(&bm)
+			if err != nil {
+				logger.CtxErr(ctx, err).Error(
+					"getting Reason keys for merge base. May keep an additional assist base")
+			}
+
+			for _, tag := range tags {
+				t, ok := mostRecentMergeBase[tag]
+				if ok && t.After(bm.CreationTime) {
+					// Don't update the merge base time if we've already seen a newer
+					// merge base.
 					continue
 				}
 
-				assistBackups = append(assistBackups, &bm)
+				mostRecentMergeBase[tag] = bm.CreationTime
 			}
 		}
 	}
@@ -297,6 +329,37 @@ func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	}
 
 	return nil
+}
+
+// keysForBackup returns a slice of string keys representing the Reasons for this
+// backup. If there's a problem creating the keys an error is returned.
+func keysForBackup(bup *backup.Backup) ([]string, error) {
+	var (
+		res []string
+		// Safe to pull from this field since assist backups came after we switched
+		// to using ProtectedResourceID.
+		roid = bup.ProtectedResourceID
+	)
+
+	tenant := bup.Tags[tenantTag]
+	if len(tenant) == 0 {
+		// We can skip this backup. It won't get garbage collected, but it also
+		// won't result in incorrect behavior overall.
+		return nil, clues.New("missing tenant tag in backup").
+			With("backup_id", bup.ID)
+	}
+
+	for tag := range bup.Tags {
+		if strings.HasPrefix(tag, serviceCatTagPrefix) {
+			// Precise way we concatenate all this info doesn't really matter as
+			// long as it's consistent for all backups in the set and includes all
+			// the pieces we need to ensure uniqueness across.
+			fullTag := tenant + roid + tag
+			res = append(res, fullTag)
+		}
+	}
+
+	return res, nil
 }
 
 func collectOldAssistBases(
