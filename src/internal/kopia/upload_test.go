@@ -1205,15 +1205,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     testFileName,
-								children: []*expectedNode{},
-							},
-							{
-								name:     testFileName2,
-								children: []*expectedNode{},
-								data:     testFileData2,
-							},
+							newExpectedFile(testFileName, nil),
+							newExpectedFile(testFileName2, testFileData2),
 						},
 					},
 				}),
@@ -1235,11 +1228,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     testFileName,
-								children: []*expectedNode{},
-								data:     testFileData2,
-							},
+							newExpectedFile(testFileName, testFileData2),
 						},
 					},
 				}),
@@ -1264,11 +1253,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     testFileName2,
-								children: []*expectedNode{},
-								data:     testFileData2,
-							},
+							newExpectedFile(testFileName2, testFileData2),
 						},
 					},
 				}),
@@ -1293,20 +1278,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     testFileName2,
-								children: []*expectedNode{},
-								data:     testFileData2,
-							},
+							newExpectedFile(testFileName2, testFileData2),
 						},
 					},
 					{
 						name: testArchiveID,
 						children: []*expectedNode{
-							{
-								name:     testFileName,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(testFileName, nil),
 						},
 					},
 				}),
@@ -1327,11 +1305,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     testFileName2,
-								children: []*expectedNode{},
-								data:     testFileData2,
-							},
+							newExpectedFile(testFileName2, testFileData2),
 						},
 					},
 				}),
@@ -1500,19 +1474,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 							{
 								name: workID,
 								children: []*expectedNode{
-									{
-										name:     workFileName1,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -1543,30 +1511,18 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID + "2",
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(inboxFileName1, nil),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName1, nil),
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 							{
 								name: workID,
 								children: []*expectedNode{
-									{
-										name:     workFileName1,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -1609,21 +1565,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID + "2",
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(inboxFileName1, nil),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName1, nil),
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 						},
@@ -1631,10 +1578,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: workID,
 						children: []*expectedNode{
-							{
-								name:     workFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(workFileName1, nil),
 						},
 					},
 				}),
@@ -1667,10 +1611,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: workID,
 						children: []*expectedNode{
-							{
-								name:     workFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(workFileName1, nil),
 						},
 					},
 				}),
@@ -1694,16 +1635,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(inboxFileName1, nil),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name: workFileName1,
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -1730,25 +1666,17 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(inboxFileName1, nil),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name: workFileName2,
-										data: workFileData2,
-									},
+									newExpectedFile(workFileName2, workFileData2),
 								},
 							},
 							{
 								name: workID,
 								children: []*expectedNode{
-									{
-										name: workFileName1,
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -1775,10 +1703,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name: workFileName2,
-								data: workFileData2,
-							},
+							newExpectedFile(workFileName2, workFileData2),
 						},
 					},
 				}),
@@ -1811,16 +1736,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(inboxFileName1, nil),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name: workFileName1,
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -1828,12 +1748,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: personalID,
 						children: []*expectedNode{
-							{
-								name: personalFileName1,
-							},
-							{
-								name: personalFileName2,
-							},
+							newExpectedFile(personalFileName1, nil),
+							newExpectedFile(personalFileName2, nil),
 						},
 					},
 				}),
@@ -1866,17 +1782,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(inboxFileName1, nil),
 							{
 								name: workID,
 								children: []*expectedNode{
-									{
-										name:     workFileName1,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -1884,17 +1794,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: workID,
 						children: []*expectedNode{
-							{
-								name: personalFileName1,
-							},
-							{
-								name: personalFileName2,
-								data: testFileData5,
-							},
-							{
-								name: testFileName4,
-								data: testFileData4,
-							},
+							newExpectedFile(personalFileName1, nil),
+							newExpectedFile(personalFileName2, nil),
+							newExpectedFile(testFileName4, testFileData4),
 						},
 					},
 				}),
@@ -1946,36 +1848,19 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: personalID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName2,
-								children: []*expectedNode{},
-								data:     inboxFileData2,
-							},
+							newExpectedFile(inboxFileName2, inboxFileData2),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName1, nil),
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 							{
 								name: workID,
 								children: []*expectedNode{
-									{
-										name:     workFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     testFileName6,
-										children: []*expectedNode{},
-										data:     testFileData6,
-									},
+									newExpectedFile(workFileName1, nil),
+									newExpectedFile(testFileName6, testFileData6),
 								},
 							},
 						},
@@ -2008,36 +1893,19 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName2,
-								children: []*expectedNode{},
-								data:     inboxFileData2,
-							},
+							newExpectedFile(inboxFileName2, inboxFileData2),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName1, nil),
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 							{
 								name: workID,
 								children: []*expectedNode{
-									{
-										name:     workFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     testFileName6,
-										children: []*expectedNode{},
-										data:     testFileData6,
-									},
+									newExpectedFile(workFileName1, nil),
+									newExpectedFile(testFileName6, testFileData6),
 								},
 							},
 						},
@@ -2071,21 +1939,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     workFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(workFileName1, nil),
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName1, nil),
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 						},
@@ -2118,14 +1977,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     personalFileName1,
-										children: []*expectedNode{},
-									},
-									{
-										name:     personalFileName2,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(personalFileName1, nil),
+									newExpectedFile(personalFileName2, nil),
 								},
 							},
 						},
@@ -2160,10 +2013,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							{
 								name: personalID,
 								children: []*expectedNode{
-									{
-										name:     workFileName1,
-										children: []*expectedNode{},
-									},
+									newExpectedFile(workFileName1, nil),
 								},
 							},
 						},
@@ -2302,19 +2152,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 					{
 						name: personalDir,
 						children: []*expectedNode{
-							{
-								name:     testFileName3,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(testFileName3, nil),
 						},
 					},
 					{
 						name: workDir,
 						children: []*expectedNode{
-							{
-								name:     testFileName4,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(testFileName4, nil),
 						},
 					},
 				},
@@ -2413,10 +2257,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 			{
 				name: testArchiveID,
 				children: []*expectedNode{
-					{
-						name:     testFileName2,
-						children: []*expectedNode{},
-					},
+					newExpectedFile(testFileName2, nil),
 				},
 			},
 		})
@@ -2626,16 +2467,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-								data:     inboxFileData1v2,
-							},
-							{
-								name:     inboxFileName2,
-								children: []*expectedNode{},
-								data:     inboxFileData2,
-							},
+							newExpectedFile(inboxFileName1, inboxFileData1v2),
+							newExpectedFile(inboxFileName2, inboxFileData2),
 						},
 					},
 				},
@@ -2646,10 +2479,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 					{
 						name: contactsDir,
 						children: []*expectedNode{
-							{
-								name:     contactsFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(contactsFileName1, nil),
 						},
 					},
 				},
@@ -2798,11 +2628,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 					{
 						name: testInboxID,
 						children: []*expectedNode{
-							{
-								name:     inboxFileName1,
-								children: []*expectedNode{},
-								data:     inboxFileData1,
-							},
+							newExpectedFile(inboxFileName1, inboxFileData1),
 						},
 					},
 				},
@@ -2813,10 +2639,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 					{
 						name: contactsDir,
 						children: []*expectedNode{
-							{
-								name:     contactsFileName1,
-								children: []*expectedNode{},
-							},
+							newExpectedFile(contactsFileName1, nil),
 						},
 					},
 				},
