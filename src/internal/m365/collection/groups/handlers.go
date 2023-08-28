@@ -3,38 +3,39 @@ package groups
 import (
 	"context"
 
-	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type BackupHandler interface {
-	GetChannelByID(
+type backupHandler interface {
+	// gets all channels for the group
+	getChannels(
 		ctx context.Context,
-		teamID, channelID string,
-	) (models.Channelable, error)
-	NewChannelsPager(
-		teamID string,
-	) api.Pager[models.Channelable]
+	) ([]models.Channelable, error)
 
-	GetMessageByID(
+	// gets all messages by delta in the channel
+	getChannelMessagesDelta(
 		ctx context.Context,
-		teamID, channelID, itemID string,
-	) (models.ChatMessageable, error)
-	NewMessagePager(
-		teamID, channelID string,
-	) api.DeltaPager[models.ChatMessageable]
+		channelID, prevDelta string,
+	) ([]models.ChatMessageable, api.DeltaUpdate, error)
 
-	GetMessageReplies(
+	// includeContainer evaluates whether the channel is included
+	// in he provided scope.
+	includeContainer(
 		ctx context.Context,
-		teamID, channelID, messageID string,
-	) (serialization.Parsable, error)
-}
+		qp graph.QueryParams,
+		ch models.Channelable,
+		scope selectors.GroupsScope,
+	) bool
 
-type BackupMessagesHandler interface {
-	GetMessage(ctx context.Context, teamID, channelID, itemID string) (models.ChatMessageable, error)
-	NewMessagePager(teamID, channelID string) api.DeltaPager[models.ChatMessageable]
-	GetChannel(ctx context.Context, teamID, channelID string) (models.Channelable, error)
-	GetReply(ctx context.Context, teamID, channelID, messageID string) (serialization.Parsable, error)
+	// canonicalPath constructs the service and category specific path for
+	// the given builder.
+	canonicalPath(
+		folders *path.Builder,
+		tenantID string,
+	) (path.Path, error)
 }

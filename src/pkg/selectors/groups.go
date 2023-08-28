@@ -222,19 +222,19 @@ func (s *groups) AllData() []GroupsScope {
 	return scopes
 }
 
-// Channel produces one or more SharePoint channel scopes, where the channel
+// Channels produces one or more SharePoint channel scopes, where the channel
 // matches upon a given channel by ID or Name.  In order to ensure channel selection
 // this should always be embedded within the Filter() set; include(channel()) will
 // select all items in the channel without further filtering.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *groups) Channel(channel string) []GroupsScope {
+func (s *groups) Channels(channels []string) []GroupsScope {
 	return []GroupsScope{
 		makeInfoScope[GroupsScope](
 			GroupsChannel,
 			GroupsInfoChannel,
-			[]string{channel},
+			channels,
 			filters.Equal),
 	}
 }

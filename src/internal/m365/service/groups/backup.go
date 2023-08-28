@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -88,6 +89,20 @@ func ProduceBackupCollections(
 				),
 				creds.AzureTenantID,
 				ssmb,
+				su,
+				errs)
+			if err != nil {
+				el.AddRecoverable(ctx, err)
+				continue
+			}
+
+		case path.ChannelMessagesCategory:
+			dbcs, err = groups.CreateCollections(
+				ctx,
+				bpc,
+				groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels()),
+				creds.AzureTenantID,
+				scope,
 				su,
 				errs)
 			if err != nil {
