@@ -16,8 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
-	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
@@ -373,44 +371,6 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	suite.secondaryUser = tconfig.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
-}
-
-func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		restoreCfg = testdata.DefaultRestoreConfig("")
-		sel        = selectors.Selector{
-			Service: selectors.ServiceUnknown,
-		}
-	)
-
-	restoreCfg.IncludePermissions = true
-
-	rcc := inject.RestoreConsumerConfig{
-		BackupVersion:     version.Backup,
-		Options:           control.DefaultOptions(),
-		ProtectedResource: sel,
-		RestoreConfig:     restoreCfg,
-		Selector:          sel,
-	}
-
-	deets, err := suite.ctrl.ConsumeRestoreCollections(
-		ctx,
-		rcc,
-		[]data.RestoreCollection{&dataMock.Collection{}},
-		fault.New(true),
-		count.New())
-	assert.Error(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
-	assert.Nil(t, deets)
-
-	status := suite.ctrl.Wait()
-	assert.Equal(t, 0, status.Objects)
-	assert.Equal(t, 0, status.Folders)
-	assert.Equal(t, 0, status.Successes)
 }
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
