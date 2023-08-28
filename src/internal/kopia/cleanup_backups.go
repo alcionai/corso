@@ -266,7 +266,7 @@ func cleanupOrphanedData(
 	// This sort of edge case will ideally happen only for a few assist bases at
 	// a time. Assuming this function is run somewhat periodically, missing these
 	// edge cases is alright because they'll get picked up on a subsequent run.
-	assistItems := collectOldAssistBases(ctx, assistBackups)
+	assistItems := collectOldAssistBases(ctx, mostRecentMergeBase, assistBackups)
 
 	logger.Ctx(ctx).Debugw(
 		"garbage collecting old assist bases",
@@ -293,6 +293,10 @@ func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	tenant, err := decodeElement(snap.Labels[kopiaPathLabel])
 	if err != nil {
 		return clues.Wrap(err, "decoding tenant from label")
+	}
+
+	if bup.Tags == nil {
+		bup.Tags = map[string]string{}
 	}
 
 	bup.Tags[tenantTag] = tenant
@@ -364,6 +368,7 @@ func keysForBackup(bup *backup.Backup) ([]string, error) {
 
 func collectOldAssistBases(
 	ctx context.Context,
+	mostRecentMergeBase map[string]time.Time,
 	bups []*backup.Backup,
 ) []manifest.ID {
 	// maybeDelete is the set of backups that could be deleted. It starts out as
@@ -375,28 +380,16 @@ func collectOldAssistBases(
 	bupsByReason := map[string][]*backup.Backup{}
 
 	for _, bup := range bups {
-		// Safe to pull from this field since assist backups came after we switched
-		// to using ProtectedResourceID.
-		roid := bup.ProtectedResourceID
-
-		tenant := bup.Tags[tenantTag]
-		if len(tenant) == 0 {
-			// We can skip this backup. It won't get garbage collected, but it also
-			// won't result in incorrect behavior overall.
-			logger.Ctx(ctx).Infow("missing tenant tag in backup", "backup_id", bup.ID)
+		tags, err := keysForBackup(bup)
+		if err != nil {
+			logger.CtxErr(ctx, err).Error("not checking backup for garbage collection")
 			continue
 		}
 
 		maybeDelete[manifest.ID(bup.ModelStoreID)] = bup
 
-		for tag := range bup.Tags {
-			if strings.HasPrefix(tag, serviceCatTagPrefix) {
-				// Precise way we concatenate all this info doesn't really matter as
-				// long as it's consistent for all backups in the set and includes all
-				// the pieces we need to ensure uniqueness across.
-				fullTag := tenant + roid + tag
-				bupsByReason[fullTag] = append(bupsByReason[fullTag], bup)
-			}
+		for _, tag := range tags {
+			bupsByReason[tag] = append(bupsByReason[tag], bup)
 		}
 	}
 
@@ -414,7 +407,7 @@ func collectOldAssistBases(
 	//
 	// TODO(ashmrtn): Handle concurrent backups somehow? Right now backups that
 	// have overlapping start and end times aren't explicitly handled.
-	for _, bupSet := range bupsByReason {
+	for tag, bupSet := range bupsByReason {
 		if len(bupSet) == 0 {
 			continue
 		}
@@ -429,7 +422,14 @@ func collectOldAssistBases(
 			return -a.CreationTime.Compare(b.CreationTime)
 		})
 
-		delete(maybeDelete, manifest.ID(bupSet[0].ModelStoreID))
+		// Only remove the youngest assist base from the deletion set if we don't
+		// have a merge base that's younger than it. We don't need to check if the
+		// value is in the map here because the zero time is always at least as old
+		// as the times we'll see in our backups (if we see the zero time in our
+		// backup it's a bug but will still pass the check to keep the backup).
+		if t := mostRecentMergeBase[tag]; !bupSet[0].CreationTime.Before(t) {
+			delete(maybeDelete, manifest.ID(bupSet[0].ModelStoreID))
+		}
 	}
 
 	res := make([]manifest.ID, 0, 3*len(maybeDelete))
