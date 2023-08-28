@@ -133,8 +133,12 @@ func prepNewTestBackupOp(
 	bod.sw = store.NewWrapper(bod.kms)
 
 	connectorResource := resource.Users
-	if sel.Service == selectors.ServiceSharePoint {
+
+	switch sel.Service {
+	case selectors.ServiceSharePoint:
 		connectorResource = resource.Sites
+	case selectors.ServiceGroups:
+		connectorResource = resource.Groups
 	}
 
 	bod.ctrl, bod.sel = ControllerWithSelector(
@@ -521,6 +525,8 @@ func toDataLayerPath(
 		p, err = pb.ToDataLayerOneDrivePath(tenant, resourceOwner, isItem)
 	case path.SharePointService:
 		p, err = pb.ToDataLayerSharePointPath(tenant, resourceOwner, category, isItem)
+	case path.GroupsService:
+		p, err = pb.ToDataLayerPath(tenant, resourceOwner, service, category, false)
 	default:
 		err = clues.New(fmt.Sprintf("unknown service: %s", service))
 	}
@@ -575,6 +581,13 @@ type ids struct {
 	DriveRootFolderID string
 }
 
+type gids struct {
+	ID                        string
+	RootSiteID                string
+	RootSiteDriveID           string
+	RootSiteDriveRootFolderID string
+}
+
 type intgTesterSetup struct {
 	ac            api.Client
 	gockAC        api.Client
@@ -582,7 +595,7 @@ type intgTesterSetup struct {
 	secondaryUser ids
 	site          ids
 	secondarySite ids
-	group         ids
+	group         gids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -652,22 +665,26 @@ func siteIDs(t *testing.T, id string, ac api.Client) ids {
 	return r
 }
 
-func groupIDs(t *testing.T, id string, ac api.Client) ids {
-	r := ids{ID: id}
+func groupIDs(t *testing.T, id string, ac api.Client) gids {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-	// ctx, flush := tester.NewContext(t)
-	// defer flush()
+	r := gids{ID: id}
 
-	// TODO: get default site drive info
-	// drive, err := ac.Groups().GetDefaultDrive(ctx, id)
-	// require.NoError(t, err, clues.ToCore(err))
+	site, err := ac.Groups().GetRootSite(ctx, id)
+	require.NoError(t, err, clues.ToCore(err))
 
-	// r.DriveID = ptr.Val(drive.GetId())
+	r.RootSiteID = ptr.Val(site.GetId())
 
-	// driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
-	// require.NoError(t, err, clues.ToCore(err))
+	drive, err := ac.Sites().GetDefaultDrive(ctx, r.RootSiteID)
+	require.NoError(t, err, clues.ToCore(err))
 
-	// r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+	r.RootSiteDriveID = ptr.Val(drive.GetId())
+
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.RootSiteDriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.RootSiteDriveRootFolderID = ptr.Val(driveRootFolder.GetId())
 
 	return r
 }
