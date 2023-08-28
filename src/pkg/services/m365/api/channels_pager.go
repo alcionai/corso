@@ -94,6 +94,7 @@ func (c Channels) GetChannelMessagesDelta(
 			logger.Ctx(ctx).Infow("Invalid previous delta", "delta_link", prevDelta)
 
 			invalidPrevDelta = true
+			vs = []models.ChatMessageable{}
 
 			pager.Reset(ctx)
 
@@ -101,12 +102,12 @@ func (c Channels) GetChannelMessagesDelta(
 		}
 
 		if err != nil {
-			return nil, DeltaUpdate{}, graph.Wrap(ctx, err, "retrieving page of channels")
+			return nil, DeltaUpdate{}, graph.Wrap(ctx, err, "retrieving page of channel messages")
 		}
 
 		vals, err := pager.ValuesIn(page)
 		if err != nil {
-			return nil, DeltaUpdate{}, graph.Wrap(ctx, err, "extracting channels from response")
+			return nil, DeltaUpdate{}, graph.Wrap(ctx, err, "extracting channel messages from response")
 		}
 
 		vs = append(vs, vals...)
@@ -158,7 +159,7 @@ func (p *channelPageCtrl) GetPage(
 }
 
 func (p *channelPageCtrl) GetOdataNextLink() *string {
-	return ptr.To("")
+	return p.GetOdataNextLink()
 }
 
 func (p *channelPageCtrl) ValuesIn(l PageLinker) ([]models.Channelable, error) {
