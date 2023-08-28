@@ -351,15 +351,17 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		return &res
 	}
 
-	backupAssist := func(protectedResource string, b *backup.Backup) *backup.Backup {
+	backupWithResource := func(protectedResource string, isAssist bool, b *backup.Backup) *backup.Backup {
 		res := *b
 		res.ProtectedResourceID = protectedResource
 
-		if res.Tags == nil {
-			res.Tags = map[string]string{}
-		}
+		if isAssist {
+			if res.Tags == nil {
+				res.Tags = map[string]string{}
+			}
 
-		res.Tags[model.BackupTypeTag] = model.AssistBackup
+			res.Tags[model.BackupTypeTag] = model.AssistBackup
+		}
 
 		return &res
 	}
@@ -646,8 +648,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime,
 			buffer:    24 * time.Hour,
@@ -677,9 +679,9 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
 			},
 			expectDeleteIDs: []manifest.ID{
 				snapCurrent().ID,
@@ -751,8 +753,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -778,8 +780,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro1", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro2", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro1", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro2", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -805,8 +807,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -838,9 +840,9 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
 			},
 			time:   baseTime.Add(48 * time.Hour),
 			buffer: 24 * time.Hour,
