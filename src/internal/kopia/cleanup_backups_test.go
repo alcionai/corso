@@ -696,11 +696,9 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			expectErr: assert.NoError,
 		},
 		{
-			// Test that the most recent assist base is not garbage collected even if
-			// there's a newer merge base that has the same Reasons as the assist
-			// base. Also ensure assist bases with the same Reasons that are older
-			// than the newest assist base are still garbage collected.
-			name: "AssistBasesAndMergeBase NotYoungest CausesCleanupForAssistBase",
+			// Test that the most recent assist base is garbage collected if there's a
+			// newer merge base that has the same Reasons as the assist base.
+			name: "AssistBasesAndMergeBases NotYoungest CausesCleanupForAssistBase",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
@@ -709,21 +707,21 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
-					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					manifestWithTime(baseTime.Add(time.Minute), snapCurrent2()),
 					"tenant1",
 					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
-				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent2()),
 
 				manifestWithReasons(
-					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent3()),
 					"tenant1",
 					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
-				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent3()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
-				{bup: backupWithTime(baseTime.Add(time.Minute), bupCurrent3())},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(time.Minute), bupCurrent2()))},
+				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(-time.Second), bupCurrent3()))},
 			},
 			expectDeleteIDs: []manifest.ID{
 				snapCurrent().ID,
