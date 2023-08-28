@@ -448,7 +448,7 @@ func (suite *PathUnitSuite) TestPrefixOrPathFromDataLayerPath() {
 
 	// Check we can't make a regular path with the same input since it doesn't
 	// have enough segments.
-	p, err = FromDataLayerPath(input, false)
+	_, err = FromDataLayerPath(input, false)
 	assert.Error(t, err)
 }
 
