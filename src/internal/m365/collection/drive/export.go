@@ -59,8 +59,6 @@ func items(ctx context.Context, ec ExportCollection, ch chan<- export.Item) {
 
 	errs := fault.New(false)
 
-	// There will only be a single item in the backingCollections
-	// for OneDrive
 	for item := range ec.backingCollection.Items(ctx, errs) {
 		itemUUID := item.ID()
 		if isMetadataFile(itemUUID, ec.backupVersion) {
@@ -81,7 +79,7 @@ func items(ctx context.Context, ec ExportCollection, ch chan<- export.Item) {
 
 	eitems, erecovereable := errs.ItemsAndRecovered()
 
-	// Return all the items that we failed to get from kopia at the end
+	// Return all the items that we failed to source from the persistence layer
 	for _, err := range eitems {
 		ch <- export.Item{
 			ID:    err.ID,

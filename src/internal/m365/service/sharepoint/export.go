@@ -42,7 +42,7 @@ func ProduceExportCollections(
 		driveName, ok := backupDriveIDNames.NameOf(drivePath.DriveID)
 		if !ok {
 			// This should not happen, but just in case
-			logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Warn("drive name not found, using drive id")
+			logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")
 			driveName = drivePath.DriveID
 		}
 
