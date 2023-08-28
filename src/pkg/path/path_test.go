@@ -432,6 +432,26 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	}
 }
 
+func (suite *PathUnitSuite) TestPrefixOrPathFromDataLayerPath() {
+	t := suite.T()
+	input := fmt.Sprintf(
+		"%s/%s/%s/%s",
+		"tenant",
+		ExchangeService.String(),
+		"user",
+		EmailCategory.String())
+
+	// Check that we can make a valid prefix path.
+	p, err := PrefixOrPathFromDataLayerPath(input, false)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, input, p.String())
+
+	// Check we can't make a regular path with the same input since it doesn't
+	// have enough segments.
+	p, err = FromDataLayerPath(input, false)
+	assert.Error(t, err)
+}
+
 func (suite *PathUnitSuite) TestBuildPrefix() {
 	table := []struct {
 		name      string

@@ -169,11 +169,7 @@ func BuildPrefix(
 	}, nil
 }
 
-// FromDataLayerPath parses the escaped path p, validates the elements in p
-// match a resource-specific path format, and returns a Path struct for that
-// resource-specific type. If p does not match any resource-specific paths or
-// is malformed returns an error.
-func FromDataLayerPath(p string, isItem bool) (Path, error) {
+func pathFromDataLayerPath(p string, isItem bool, minElements int) (Path, error) {
 	p = TrimTrailingSlash(p)
 	// If p was just the path separator then it will be empty now.
 	if len(p) == 0 {
@@ -186,8 +182,10 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}
 
-	if len(pb.elements) < 5 {
-		return nil, clues.New("path has too few segments").With("path_string", p)
+	if len(pb.elements) < minElements {
+		return nil, clues.New(
+			"missing required tenant, service, category, protected resource ID, or non-prefix segment").
+			With("path_string", pb)
 	}
 
 	service, category, err := validateServiceAndCategoryStrings(
@@ -195,7 +193,11 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		pb.elements[3],
 	)
 	if err != nil {
-		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
+		return nil, clues.Stack(errParsingPath, err).With("path_string", pb)
+	}
+
+	if err := verifyInputValues(pb.elements[0], pb.elements[2]); err != nil {
+		return nil, clues.Stack(err).With("path_string", pb)
 	}
 
 	return &dataLayerResourcePath{
@@ -204,6 +206,20 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		category: category,
 		hasItem:  isItem,
 	}, nil
+}
+
+func PrefixOrPathFromDataLayerPath(p string, isItem bool) (Path, error) {
+	res, err := pathFromDataLayerPath(p, isItem, 4)
+	return res, clues.Stack(err).OrNil()
+}
+
+// FromDataLayerPath parses the escaped path p, validates the elements in p
+// match a resource-specific path format, and returns a Path struct for that
+// resource-specific type. If p does not match any resource-specific paths or
+// is malformed returns an error.
+func FromDataLayerPath(p string, isItem bool) (Path, error) {
+	res, err := pathFromDataLayerPath(p, isItem, 5)
+	return res, clues.Stack(err).OrNil()
 }
 
 // TrimTrailingSlash takes an escaped path element and returns an escaped path
