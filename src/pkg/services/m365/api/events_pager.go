@@ -98,7 +98,7 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Eventable] = &eventsPageCtrl{}
+var _ Pager[models.Eventable] = &eventsPageCtrl{}
 
 type eventsPageCtrl struct {
 	gs      graph.Servicer
@@ -109,7 +109,7 @@ type eventsPageCtrl struct {
 func (c Events) NewEventsPager(
 	userID, containerID string,
 	selectProps ...string,
-) itemPager[models.Eventable] {
+) Pager[models.Eventable] {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
@@ -133,13 +133,11 @@ func (c Events) NewEventsPager(
 }
 
 //lint:ignore U1000 False Positive
-func (p *eventsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Eventable], error) {
+func (p *eventsPageCtrl) getPage(
+	ctx context.Context,
+) (LinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 //lint:ignore U1000 False Positive
@@ -204,13 +202,11 @@ func (c Events) NewEventIDsPager(
 	return &eventIDPager{c.Stable, builder, options}, nil
 }
 
-func (p *eventIDPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *eventIDPager) GetPage(
+	ctx context.Context,
+) (LinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
+	return EmptyDeltaLinker[models.Eventable]{LinkValuer: resp}, graph.Stack(ctx, err).OrNil()
 }
 
 func (p *eventIDPager) SetNext(nextLink string) {
@@ -218,11 +214,7 @@ func (p *eventIDPager) SetNext(nextLink string) {
 }
 
 // non delta pagers don't need reset
-func (p *eventIDPager) Reset(context.Context) {}
-
-func (p *eventIDPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Eventable](pl)
-}
+func (p *eventIDPager) Reset() {}
 
 // ---------------------------------------------------------------------------
 // delta item ID pager
@@ -253,7 +245,7 @@ func (c Events) NewEventDeltaIDsPager(
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 
 	if oldDelta == "" {
-		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID, options)
+		builder = getEventDeltaBuilder(c.Stable, userID, containerID, options)
 	} else {
 		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
 	}
@@ -262,7 +254,6 @@ func (c Events) NewEventDeltaIDsPager(
 }
 
 func getEventDeltaBuilder(
-	ctx context.Context,
 	gs graph.Servicer,
 	userID, containerID string,
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration,
@@ -281,25 +272,19 @@ func getEventDeltaBuilder(
 	return builder
 }
 
-func (p *eventDeltaIDPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *eventDeltaIDPager) GetPage(
+	ctx context.Context,
+) (DeltaLinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 func (p *eventDeltaIDPager) SetNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventDeltaIDPager) Reset(ctx context.Context) {
-	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
-}
-
-func (p *eventDeltaIDPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Eventable](pl)
+func (p *eventDeltaIDPager) Reset() {
+	p.builder = getEventDeltaBuilder(p.gs, p.userID, p.containerID, p.options)
 }
 
 func (c Events) GetAddedAndRemovedItemIDs(

@@ -90,7 +90,7 @@ func (c Contacts) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Contactable] = &contactsPageCtrl{}
+var _ Pager[models.Contactable] = &contactsPageCtrl{}
 
 type contactsPageCtrl struct {
 	gs      graph.Servicer
@@ -100,10 +100,11 @@ type contactsPageCtrl struct {
 
 func (c Contacts) NewContactsPager(
 	userID, containerID string,
+	immutableIDs bool,
 	selectProps ...string,
-) itemPager[models.Contactable] {
+) Pager[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -129,22 +130,98 @@ func (c Contacts) NewContactsPager(
 	return &contactsPageCtrl{c.Stable, builder, options}
 }
 
-//lint:ignore U1000 False Positive
-func (p *contactsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Contactable], error) {
+func (p *contactsPageCtrl) GetPage(ctx context.Context) (LinkValuer[models.Contactable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
+	return EmptyDeltaLinker[models.Contactable]{LinkValuer: resp}, nil
 }
 
-//lint:ignore U1000 False Positive
-func (p *contactsPageCtrl) setNext(nextLink string) {
+func (p *contactsPageCtrl) SetNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-//lint:ignore U1000 False Positive
+// ---------------------------------------------------------------------------
+// delta  pager
+// ---------------------------------------------------------------------------
+
+var _ DeltaPager[models.Contactable] = &contactDeltaPager{}
+
+type contactDeltaPager struct {
+	gs          graph.Servicer
+	userID      string
+	containerID string
+	builder     *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	options     *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func getContactDeltaBuilder(
+	ctx context.Context,
+	gs graph.Servicer,
+	userID, containerID string,
+	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
+) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
+	builder := gs.Client().
+		Users().
+		ByUserId(userID).
+		ContactFolders().
+		ByContactFolderId(containerID).
+		Contacts().
+		Delta()
+
+	return builder
+}
+
+func (c Contacts) NewContactsDeltaPager(
+	ctx context.Context,
+	userID, containerID, oldDelta string,
+	immutableIDs bool,
+	selectProps ...string,
+) DeltaPager[getIDAndAddtler] {
+	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
+		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
+		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
+			// do NOT set Top.  It limits the total items received.
+		},
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	if oldDelta != "" {
+		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
+	} else {
+		builder = getContactDeltaBuilder(ctx, c.Stable, userID, containerID, options)
+	}
+
+	return &contactDeltaPager{c.Stable, userID, containerID, builder, options}
+}
+
+func (p *contactDeltaPager) GetPage(ctx context.Context) (DeltaLinkValuer[models.Contactable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	return resp, nil
+}
+
+func (p *contactDeltaPager) SetNext(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *contactDeltaPager) Reset(ctx context.Context) {
+	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
+}
+
+// ---------------------------------------------------------------------------
+// runners
+// ---------------------------------------------------------------------------
+
 func (c Contacts) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
@@ -171,7 +248,7 @@ func (c Contacts) GetItemIDsInContainer(
 	userID, containerID string,
 ) (map[string]struct{}, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewContactsPager(userID, containerID, "id")
+	pager := c.NewContactsPager(userID, containerID, false, "id")
 
 	items, err := enumerateItems(ctx, pager)
 	if err != nil {
@@ -187,130 +264,6 @@ func (c Contacts) GetItemIDsInContainer(
 	return m, nil
 }
 
-// ---------------------------------------------------------------------------
-// item ID pager
-// ---------------------------------------------------------------------------
-
-var _ DeltaPager[getIDAndAddtler] = &contactIDPager{}
-
-type contactIDPager struct {
-	gs      graph.Servicer
-	builder *users.ItemContactFoldersItemContactsRequestBuilder
-	options *users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration
-}
-
-func (c Contacts) NewContactIDsPager(
-	ctx context.Context,
-	userID, containerID string,
-	immutableIDs bool,
-) DeltaPager[getIDAndAddtler] {
-	config := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
-			Select: idAnd(parentFolderID),
-			// do NOT set Top.  It limits the total items received.
-		},
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
-	}
-
-	builder := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		ContactFolders().
-		ByContactFolderId(containerID).
-		Contacts()
-
-	return &contactIDPager{c.Stable, builder, config}
-}
-
-func (p *contactIDPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
-}
-
-func (p *contactIDPager) SetNext(nextLink string) {
-	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
-}
-
-// non delta pagers don't need reset
-func (p *contactIDPager) Reset(context.Context) {}
-
-func (p *contactIDPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Contactable](pl)
-}
-
-// ---------------------------------------------------------------------------
-// delta item ID pager
-// ---------------------------------------------------------------------------
-
-var _ DeltaPager[getIDAndAddtler] = &contactDeltaIDPager{}
-
-type contactDeltaIDPager struct {
-	gs          graph.Servicer
-	userID      string
-	containerID string
-	builder     *users.ItemContactFoldersItemContactsDeltaRequestBuilder
-	options     *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
-}
-
-func getContactDeltaBuilder(
-	ctx context.Context,
-	gs graph.Servicer,
-	userID, containerID string,
-	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
-) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
-	builder := gs.Client().Users().ByUserId(userID).ContactFolders().ByContactFolderId(containerID).Contacts().Delta()
-	return builder
-}
-
-func (c Contacts) NewContactDeltaIDsPager(
-	ctx context.Context,
-	userID, containerID, oldDelta string,
-	immutableIDs bool,
-) DeltaPager[getIDAndAddtler] {
-	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
-			Select: idAnd(parentFolderID),
-			// do NOT set Top.  It limits the total items received.
-		},
-		Headers: newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
-	}
-
-	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
-	if oldDelta != "" {
-		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
-	} else {
-		builder = getContactDeltaBuilder(ctx, c.Stable, userID, containerID, options)
-	}
-
-	return &contactDeltaIDPager{c.Stable, userID, containerID, builder, options}
-}
-
-func (p *contactDeltaIDPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
-}
-
-func (p *contactDeltaIDPager) SetNext(nextLink string) {
-	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
-}
-
-func (p *contactDeltaIDPager) Reset(ctx context.Context) {
-	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
-}
-
-func (p *contactDeltaIDPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Contactable](pl)
-}
-
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, oldDelta string,
@@ -322,8 +275,14 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		"category", selectors.ExchangeContact,
 		"container_id", containerID)
 
-	pager := c.NewContactIDsPager(ctx, userID, containerID, immutableIDs)
-	deltaPager := c.NewContactDeltaIDsPager(ctx, userID, containerID, oldDelta, immutableIDs)
+	pager := c.NewContactsPager(userID, containerID, immutableIDs, idAnd(parentFolderID)...)
+	deltaPager := c.NewContactsDeltaPager(ctx, userID, containerID, oldDelta, immutableIDs, idAnd(parentFolderID)...)
 
-	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
+	return getAddedAndRemovedItemIDs[models.Contactable](
+		ctx,
+		c.Stable,
+		pager,
+		deltaPager,
+		oldDelta,
+		canMakeDeltaQueries)
 }

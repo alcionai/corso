@@ -85,7 +85,7 @@ func collectItems(
 			invalidPrevDelta = true
 			newPaths = map[string]string{}
 
-			pager.Reset(ctx)
+			pager.Reset()
 
 			continue
 		}
@@ -94,16 +94,11 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "getting page")
 		}
 
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "extracting items from response")
-		}
-
 		err = collector(
 			ctx,
 			driveID,
 			driveName,
-			vals,
+			page.GetValue(),
 			oldPaths,
 			newPaths,
 			excluded,

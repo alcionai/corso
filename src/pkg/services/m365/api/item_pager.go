@@ -17,46 +17,45 @@ import (
 // ---------------------------------------------------------------------------
 
 type DeltaPager[T any] interface {
-	DeltaGetPager
+	DeltaGetPager[T]
 	Resetter
 	SetNextLinker
-	ValuesInPageLinker[T]
 }
 
 type Pager[T any] interface {
-	GetPager
+	GetPager[T]
 	SetNextLinker
-	ValuesInPageLinker[T]
 }
 
-type DeltaGetPager interface {
-	GetPage(context.Context) (DeltaPageLinker, error)
+type DeltaGetPager[T any] interface {
+	GetPage(context.Context) (DeltaLinkValuer[T], error)
 }
 
-type GetPager interface {
-	GetPage(context.Context) (PageLinker, error)
+type GetPager[T any] interface {
+	GetPage(context.Context) (LinkValuer[T], error)
 }
 
 type Valuer[T any] interface {
 	GetValue() []T
 }
 
-type ValuesInPageLinker[T any] interface {
-	ValuesIn(PageLinker) ([]T, error)
-}
-
-type PageLinker interface {
+type GetNextLinker interface {
 	GetOdataNextLink() *string
 }
 
-type DeltaPageLinker interface {
-	PageLinker
+type GetDeltaLinker interface {
+	GetNextLinker
 	GetOdataDeltaLink() *string
 }
 
-type PageLinkValuer[T any] interface {
-	PageLinker
+type LinkValuer[T any] interface {
 	Valuer[T]
+	GetNextLinker
+}
+
+type DeltaLinkValuer[T any] interface {
+	LinkValuer[T]
+	GetDeltaLinker
 }
 
 type SetNextLinker interface {
@@ -64,7 +63,7 @@ type SetNextLinker interface {
 }
 
 type Resetter interface {
-	Reset(context.Context)
+	Reset()
 }
 
 // ---------------------------------------------------------------------------
@@ -76,17 +75,17 @@ func IsNextLinkValid(next string) bool {
 	return !strings.Contains(next, `users//`)
 }
 
-func NextLink(pl PageLinker) string {
-	return ptr.Val(pl.GetOdataNextLink())
+func NextLink(gnl GetNextLinker) string {
+	return ptr.Val(gnl.GetOdataNextLink())
 }
 
-func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
-	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
+func NextAndDeltaLink(gdl GetDeltaLinker) (string, string) {
+	return NextLink(gdl), ptr.Val(gdl.GetOdataDeltaLink())
 }
 
 // EmptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
 type EmptyDeltaLinker[T any] struct {
-	PageLinkValuer[T]
+	LinkValuer[T]
 }
 
 func (EmptyDeltaLinker[T]) GetOdataDeltaLink() *string {
@@ -94,23 +93,16 @@ func (EmptyDeltaLinker[T]) GetOdataDeltaLink() *string {
 }
 
 func (e EmptyDeltaLinker[T]) GetValue() []T {
-	return e.PageLinkValuer.GetValue()
+	return e.GetValue()
 }
 
 // ---------------------------------------------------------------------------
 // generic handler for non-delta item paging in a container
 // ---------------------------------------------------------------------------
 
-type itemPager[T any] interface {
-	// getPage get a page with the specified options from graph
-	getPage(context.Context) (PageLinkValuer[T], error)
-	// setNext is used to pass in the next url got from graph
-	setNext(string)
-}
-
 func enumerateItems[T any](
 	ctx context.Context,
-	pager itemPager[T],
+	pager Pager[T],
 ) ([]T, error) {
 	var (
 		result = make([]T, 0)
@@ -120,7 +112,7 @@ func enumerateItems[T any](
 
 	for len(nextLink) > 0 {
 		// get the next page of data, check for standard errors
-		resp, err := pager.getPage(ctx)
+		resp, err := pager.GetPage(ctx)
 		if err != nil {
 			return nil, graph.Stack(ctx, err)
 		}
@@ -128,7 +120,7 @@ func enumerateItems[T any](
 		result = append(result, resp.GetValue()...)
 		nextLink = NextLink(resp)
 
-		pager.setNext(nextLink)
+		pager.SetNext(nextLink)
 	}
 
 	logger.Ctx(ctx).Infow("completed enumeration", "count", len(result))
@@ -137,8 +129,36 @@ func enumerateItems[T any](
 }
 
 // ---------------------------------------------------------------------------
-// generic handler for delta-based ittem paging in a container
+// generic handler for delta-based item paging in a container
 // ---------------------------------------------------------------------------
+
+func enumerateDeltaItems[T any](
+	ctx context.Context,
+	pager DeltaPager[T],
+) ([]T, error) {
+	var (
+		result = make([]T, 0)
+		// stubbed initial value to ensure we enter the loop.
+		nextLink = "do-while"
+	)
+
+	for len(nextLink) > 0 {
+		// get the next page of data, check for standard errors
+		resp, err := pager.GetPage(ctx)
+		if err != nil {
+			return nil, graph.Stack(ctx, err)
+		}
+
+		result = append(result, resp.GetValue()...)
+		nextLink = NextLink(resp)
+
+		pager.SetNext(nextLink)
+	}
+
+	logger.Ctx(ctx).Infow("completed enumeration", "count", len(result))
+
+	return result, nil
+}
 
 // uses a models interface compliant with { GetValues() []T }
 // to transform its results into a slice of getIDer interfaces.
@@ -173,16 +193,16 @@ type getIDAndAddtler interface {
 	GetAdditionalData() map[string]any
 }
 
-func getAddedAndRemovedItemIDs(
+func getAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
 	service graph.Servicer,
-	pager DeltaPager[getIDAndAddtler],
-	deltaPager DeltaPager[getIDAndAddtler],
+	pager DeltaPager[T],
+	deltaPager DeltaPager[T],
 	oldDelta string,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	var (
-		pgr        DeltaPager[getIDAndAddtler]
+		pgr        DeltaPager[T]
 		resetDelta bool
 	)
 
@@ -211,7 +231,7 @@ func getAddedAndRemovedItemIDs(
 	}
 
 	// reset deltaPager
-	pgr.Reset(ctx)
+	pgr.Reset()
 
 	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
@@ -222,9 +242,9 @@ func getAddedAndRemovedItemIDs(
 }
 
 // generic controller for retrieving all item ids in a container.
-func getItemsAddedAndRemovedFromContainer(
+func getItemsAddedAndRemovedFromContainer[T any](
 	ctx context.Context,
-	pager DeltaPager[getIDAndAddtler],
+	pager DeltaPager[T],
 ) ([]string, []string, string, error) {
 	var (
 		addedIDs   = []string{}
@@ -243,10 +263,7 @@ func getItemsAddedAndRemovedFromContainer(
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
-		items, err := pager.ValuesIn(resp)
-		if err != nil {
-			return nil, nil, "", graph.Stack(ctx, err)
-		}
+		items := resp.GetValue()
 
 		itemCount += len(items)
 		page++

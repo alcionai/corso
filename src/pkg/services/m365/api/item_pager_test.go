@@ -57,41 +57,39 @@ func (v testPagerValue) GetAdditionalData() map[string]any {
 
 // mock page
 
-type testPage struct {
-	values []any
+type testPage[T any] struct {
+	values []T
 }
 
-func (p testPage) GetOdataNextLink() *string {
+func (p testPage[T]) GetOdataNextLink() *string {
 	// no next, just one page
 	return ptr.To("")
 }
 
-func (p testPage) GetOdataDeltaLink() *string {
+func (p testPage[T]) GetOdataDeltaLink() *string {
 	// delta is not tested here
 	return ptr.To("")
 }
 
-func (p testPage) GetValue() []any {
+func (p testPage[T]) GetValue() []T {
 	return p.values
 }
 
 // mock item pager
 
-var _ itemPager[any] = &testPager{}
+var _ Pager[any] = &testPager{}
 
 type testPager struct {
 	t       *testing.T
-	pager   testPage
+	pager   testPage[any]
 	pageErr error
 }
 
-//lint:ignore U1000 False Positive
-func (p *testPager) getPage(ctx context.Context) (PageLinkValuer[any], error) {
+func (p *testPager) GetPage(ctx context.Context) (LinkValuer[any], error) {
 	return p.pager, p.pageErr
 }
 
-//lint:ignore U1000 False Positive
-func (p *testPager) setNext(nextLink string) {}
+func (p *testPager) SetNext(nextLink string) {}
 
 // mock id pager
 
@@ -105,7 +103,7 @@ type testIDsPager struct {
 	needsReset bool
 }
 
-func (p *testIDsPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *testIDsPager) GetPage(ctx context.Context) (DeltaLinkValuer[getIDAndAddtler], error) {
 	if p.errorCode != "" {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
@@ -116,10 +114,10 @@ func (p *testIDsPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 		return nil, err
 	}
 
-	return testPage{}, nil
+	return testPage[getIDAndAddtler]{}, nil
 }
 func (p *testIDsPager) SetNext(string) {}
-func (p *testIDsPager) Reset(context.Context) {
+func (p *testIDsPager) Reset() {
 	if !p.needsReset {
 		require.Fail(p.t, "reset should not be called")
 	}
@@ -128,7 +126,7 @@ func (p *testIDsPager) Reset(context.Context) {
 	p.errorCode = ""
 }
 
-func (p *testIDsPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
+func (p *testIDsPager) ValuesIn(pl LinkValuer[getIDAndAddtler]) ([]getIDAndAddtler, error) {
 	items := []getIDAndAddtler{}
 
 	for _, id := range p.added {
@@ -157,7 +155,7 @@ func TestItemPagerUnitSuite(t *testing.T) {
 func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 	tests := []struct {
 		name      string
-		getPager  func(*testing.T, context.Context) itemPager[any]
+		getPager  func(*testing.T, context.Context) Pager[any]
 		expect    []any
 		expectErr require.ErrorAssertionFunc
 	}{
@@ -166,10 +164,10 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			getPager: func(
 				t *testing.T,
 				ctx context.Context,
-			) itemPager[any] {
+			) Pager[any] {
 				return &testPager{
 					t:     t,
-					pager: testPage{[]any{"foo", "bar"}},
+					pager: testPage[any]{[]any{"foo", "bar"}},
 				}
 			},
 			expect:    []any{"foo", "bar"},
@@ -180,7 +178,7 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			getPager: func(
 				t *testing.T,
 				ctx context.Context,
-			) itemPager[any] {
+			) Pager[any] {
 				return &testPager{
 					t:       t,
 					pageErr: assert.AnError,

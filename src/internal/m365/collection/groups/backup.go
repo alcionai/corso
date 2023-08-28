@@ -243,7 +243,7 @@ func populateCollections(
 
 func collectItems(
 	ctx context.Context,
-	pager api.ChannelMessageDeltaEnumerator,
+	pager api.DeltaPager[models.ChatMessageable],
 ) ([]models.ChatMessageable, error) {
 	items := []models.ChatMessageable{}
 
@@ -265,11 +265,7 @@ func collectItems(
 		// 	continue
 		// }
 
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting items in page")
-		}
-
+		vals := page.GetValue()
 		items = append(items, vals...)
 
 		nextLink, _ := api.NextAndDeltaLink(page)
