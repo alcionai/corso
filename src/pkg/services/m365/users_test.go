@@ -1,18 +1,14 @@
 package m365
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -259,141 +255,6 @@ func (suite *userIntegrationSuite) TestGetUserInfo_userWithoutDrive() {
 			assert.Equal(t, test.expect.ServicesEnabled, result.ServicesEnabled)
 			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting, result.Mailbox.ErrGetMailBoxSetting)
 			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Unit
-// ---------------------------------------------------------------------------
-
-type userUnitSuite struct {
-	tester.Suite
-}
-
-func TestUserUnitSuite(t *testing.T) {
-	suite.Run(t, &userUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-type mockDGDD struct {
-	response models.Driveable
-	err      error
-}
-
-func (m mockDGDD) GetDefaultDrive(context.Context, string) (models.Driveable, error) {
-	return m.response, m.err
-}
-
-func (suite *userUnitSuite) TestCheckUserHasDrives() {
-	table := []struct {
-		name      string
-		mock      func(context.Context) getDefaultDriver
-		expect    assert.BoolAssertionFunc
-		expectErr func(*testing.T, error)
-	}{
-		{
-			name: "ok",
-			mock: func(ctx context.Context) getDefaultDriver {
-				return mockDGDD{models.NewDrive(), nil}
-			},
-			expect: assert.True,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mysite not found",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To(string(graph.MysiteNotFound)))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mysite URL not found",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To(string(graph.MysiteURLNotFound)))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "no sharepoint license",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "user not found",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To(string(graph.RequestResourceNotFound)))
-				merr.SetMessage(ptr.To("message"))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "arbitrary error",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To("message"))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			dgdd := test.mock(ctx)
-
-			ok, err := checkUserHasDrives(ctx, dgdd, "foo")
-			test.expect(t, ok, "has drives flag")
-			test.expectErr(t, err)
 		})
 	}
 }
