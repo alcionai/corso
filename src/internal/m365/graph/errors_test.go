@@ -338,6 +338,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	}
 }
 
+// TODO: Test for IsErrExchangeMailFolderNotFound
 func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 	table := []struct {
 		name   string

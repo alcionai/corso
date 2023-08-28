@@ -84,6 +84,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 	return commonM365.IsExchangeServiceEnabled(ctx, ac.Users(), userID)
 }
 
+// Add tests for this
 func UserGetMailboxInfo(
 	ctx context.Context,
 	acct account.Account,

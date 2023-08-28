@@ -46,7 +46,7 @@ func (ctrl Controller) ProduceBackupCollections(
 	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
 }
 
-func (ctrl Controller) IsRunnable(
+func (ctrl Controller) IsServiceEnabled(
 	_ context.Context,
 	_ path.ServiceType,
 	_ string,

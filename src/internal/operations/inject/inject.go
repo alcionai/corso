@@ -24,7 +24,7 @@ type (
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 
-		IsRunnable(
+		IsServiceEnabled(
 			ctx context.Context,
 			service path.ServiceType,
 			resourceOwner string,
@@ -42,7 +42,7 @@ type (
 			ctr *count.Bus,
 		) (*details.Details, error)
 
-		IsRunnable(
+		IsServiceEnabled(
 			ctx context.Context,
 			service path.ServiceType,
 			resourceOwner string,

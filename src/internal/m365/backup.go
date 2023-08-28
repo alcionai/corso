@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -58,10 +59,18 @@ func (ctrl *Controller) ProduceBackupCollections(
 		colls                []data.BackupCollection
 		ssmb                 *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
-		canMakeDeltaQueries  bool
 	)
 
-	if !canMakeDeltaQueries {
+	useDeltaQueries, err := CanMakeDeltaQueries(
+		ctx,
+		service,
+		ctrl.AC.Users(),
+		bpc.ProtectedResource.ID())
+	if err != nil {
+		return nil, nil, false, clues.Stack(err)
+	}
+
+	if !useDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
 
 		bpc.Options.ToggleFeatures.DisableDelta = true
@@ -135,8 +144,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 	return colls, ssmb, canUsePreviousBackup, nil
 }
 
-// IsRunnable verifies that the provided resource has the services enabled.
-func (ctrl *Controller) IsRunnable(
+func (ctrl *Controller) IsServiceEnabled(
 	ctx context.Context,
 	service path.ServiceType,
 	resourceOwner string,
@@ -173,4 +181,32 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	return nil
+}
+
+type getMailboxInfoer interface {
+	GetMailboxInfo(ctx context.Context, userID string) (api.MailboxInfo, error)
+}
+
+func CanMakeDeltaQueries(
+	ctx context.Context,
+	service path.ServiceType,
+	gmi getMailboxInfoer,
+	resourceOwner string,
+) (bool, error) {
+	// We only need to check for delta queries for Exchange.
+	switch service {
+	case path.OneDriveService:
+	case path.SharePointService:
+	case path.GroupsService:
+		return true, nil
+	case path.ExchangeService:
+		mi, err := gmi.GetMailboxInfo(ctx, resourceOwner)
+		if err != nil {
+			return false, clues.Stack(err)
+		}
+
+		return !mi.QuotaExceeded, nil
+	}
+
+	return false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 }

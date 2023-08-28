@@ -229,8 +229,8 @@ func (op *RestoreOperation) do(
 		"restore_protected_resource_id", restoreToProtectedResource.ID(),
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
-	// IsRunnable checks if the resource has the service enabled to be able to restore.
-	runnable, err := op.rc.IsRunnable(
+	// IsServiceEnabled checks if the resource has the service enabled to be able to restore.
+	runnable, err := op.rc.IsServiceEnabled(
 		ctx,
 		op.Selectors.PathService(),
 		restoreToProtectedResource.ID())

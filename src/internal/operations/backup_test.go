@@ -1579,7 +1579,7 @@ func (mbp *mockBackupProducer) ProduceBackupCollections(
 	return mbp.colls, nil, true, nil
 }
 
-func (mbp *mockBackupProducer) IsRunnable(
+func (mbp *mockBackupProducer) IsServiceEnabled(
 	context.Context,
 	path.ServiceType,
 	string,
