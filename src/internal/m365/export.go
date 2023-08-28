@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -41,8 +42,7 @@ func (ctrl *Controller) ProduceExportCollections(
 	)
 
 	switch sels.Service {
-	case selectors.ServiceOneDrive, selectors.ServiceSharePoint:
-		// OneDrive and SharePoint can share the code to create collections
+	case selectors.ServiceOneDrive:
 		expCollections, err = onedrive.ProduceExportCollections(
 			ctx,
 			backupVersion,
@@ -51,6 +51,17 @@ func (ctrl *Controller) ProduceExportCollections(
 			dcs,
 			deets,
 			errs)
+	case selectors.ServiceSharePoint:
+		expCollections, err = sharepoint.ProduceExportCollections(
+			ctx,
+			backupVersion,
+			exportCfg,
+			opts,
+			dcs,
+			ctrl.backupDriveIDNames,
+			deets,
+			errs)
+
 	default:
 		err = clues.Wrap(clues.New(sels.Service.String()), "service not supported")
 	}

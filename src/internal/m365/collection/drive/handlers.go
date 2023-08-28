@@ -50,7 +50,7 @@ type BackupHandler interface {
 
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
-	NewItemPager(driveID, link string, fields []string) api.DriveItemDeltaEnumerator
+	NewItemPager(driveID, link string, fields []string) api.DeltaPager[models.DriveItemable]
 	// FormatDisplayPath creates a human-readable string to represent the
 	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
@@ -62,7 +62,7 @@ type BackupHandler interface {
 }
 
 type NewDrivePagerer interface {
-	NewDrivePager(resourceOwner string, fields []string) api.DrivePager
+	NewDrivePager(resourceOwner string, fields []string) api.Pager[models.Driveable]
 }
 
 type GetItemPermissioner interface {

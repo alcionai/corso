@@ -42,7 +42,7 @@ type itemCollector func(
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	pager api.DriveItemDeltaEnumerator,
+	pager api.DeltaPager[models.DriveItemable],
 	driveID, driveName string,
 	collector itemCollector,
 	oldPaths map[string]string,
@@ -85,7 +85,7 @@ func collectItems(
 			invalidPrevDelta = true
 			newPaths = map[string]string{}
 
-			pager.Reset()
+			pager.Reset(ctx)
 
 			continue
 		}

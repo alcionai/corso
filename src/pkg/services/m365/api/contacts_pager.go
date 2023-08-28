@@ -191,7 +191,7 @@ func (c Contacts) GetItemIDsInContainer(
 // item ID pager
 // ---------------------------------------------------------------------------
 
-var _ itemIDPager = &contactIDPager{}
+var _ DeltaPager[getIDAndAddtler] = &contactIDPager{}
 
 type contactIDPager struct {
 	gs      graph.Servicer
@@ -203,7 +203,7 @@ func (c Contacts) NewContactIDsPager(
 	ctx context.Context,
 	userID, containerID string,
 	immutableIDs bool,
-) itemIDPager {
+) DeltaPager[getIDAndAddtler] {
 	config := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
@@ -223,7 +223,7 @@ func (c Contacts) NewContactIDsPager(
 	return &contactIDPager{c.Stable, builder, config}
 }
 
-func (p *contactIDPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *contactIDPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -232,14 +232,14 @@ func (p *contactIDPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
 	return EmptyDeltaLinker[models.Contactable]{PageLinkValuer: resp}, nil
 }
 
-func (p *contactIDPager) setNext(nextLink string) {
+func (p *contactIDPager) SetNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 // non delta pagers don't need reset
-func (p *contactIDPager) reset(context.Context) {}
+func (p *contactIDPager) Reset(context.Context) {}
 
-func (p *contactIDPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
+func (p *contactIDPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
@@ -247,7 +247,7 @@ func (p *contactIDPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 // delta item ID pager
 // ---------------------------------------------------------------------------
 
-var _ itemIDPager = &contactDeltaIDPager{}
+var _ DeltaPager[getIDAndAddtler] = &contactDeltaIDPager{}
 
 type contactDeltaIDPager struct {
 	gs          graph.Servicer
@@ -271,7 +271,7 @@ func (c Contacts) NewContactDeltaIDsPager(
 	ctx context.Context,
 	userID, containerID, oldDelta string,
 	immutableIDs bool,
-) itemIDPager {
+) DeltaPager[getIDAndAddtler] {
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{
 			Select: idAnd(parentFolderID),
@@ -290,7 +290,7 @@ func (c Contacts) NewContactDeltaIDsPager(
 	return &contactDeltaIDPager{c.Stable, userID, containerID, builder, options}
 }
 
-func (p *contactDeltaIDPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *contactDeltaIDPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -299,15 +299,15 @@ func (p *contactDeltaIDPager) getPage(ctx context.Context) (DeltaPageLinker, err
 	return resp, nil
 }
 
-func (p *contactDeltaIDPager) setNext(nextLink string) {
+func (p *contactDeltaIDPager) SetNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactDeltaIDPager) reset(ctx context.Context) {
+func (p *contactDeltaIDPager) Reset(ctx context.Context) {
 	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
 }
 
-func (p *contactDeltaIDPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
+func (p *contactDeltaIDPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
