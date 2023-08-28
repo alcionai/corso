@@ -172,6 +172,7 @@ jobs:
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+          CORSO_ENABLE_GROUPS: true
         run: |
           set -euo pipefail
           go test       \
@@ -242,6 +243,7 @@ jobs:
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           S3_BUCKET: ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }}
+          CORSO_ENABLE_GROUPS: true
         run: |
           set -euo pipefail
           go test       \
@@ -275,6 +277,7 @@ jobs:
     env:
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-unit.log
       LOG_GRAPH_REQUESTS: true
+      CORSO_ENABLE_GROUPS: true
     steps:
       - uses: actions/checkout@v3
 
@@ -329,6 +332,7 @@ jobs:
     env:
       CORSO_LOG_FILE: ${{ github.workspace }}/testlog/run-fork.log
       LOG_GRAPH_REQUESTS: true
+      CORSO_ENABLE_GROUPS: true
     steps:
       - name: Fail check if not repository_dispatch
         if: github.event_name != 'repository_dispatch'
