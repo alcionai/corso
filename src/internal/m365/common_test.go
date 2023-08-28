@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
@@ -434,10 +433,6 @@ func (suite *CommonM365UnitSuite) TestGetMailboxInfo() {
 			mi, err := GetMailboxInfo(ctx, gmi, "resource_id")
 			test.expectErr(t, err)
 			assert.Equal(t, test.expect(t), mi)
-			// print mi.ErrGetMailBoxSetting
-			for _, e := range mi.ErrGetMailBoxSetting {
-				logger.CtxErr(ctx, e).Error("error")
-			}
 		})
 	}
 }
