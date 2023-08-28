@@ -1139,18 +1139,20 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			suite.T(),
 			[]string{testTenant, service, testUser, category, testArchiveDir},
 			false)
+
+		prefixDirs = []string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		}
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once.
 	getBaseSnapshot := func() fs.Entry {
 		return baseWithChildren(
-			[]string{
-				testTenant,
-				service,
-				testUser,
-				category,
-			},
+			prefixDirs,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxID)[0],
@@ -1178,12 +1180,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name:     testInboxID,
@@ -1203,12 +1200,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1238,12 +1230,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1272,12 +1259,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.BackupCollection{mc1, mc2}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1306,12 +1288,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.BackupCollection{mc1, mc2}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1345,12 +1322,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				return []data.BackupCollection{mc1}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1445,6 +1417,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		workFileName1 = testFileName3
 		workFileName2 = testFileName4
 		workFileData2 = testFileData
+
+		prefixDirs = []string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		}
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
@@ -1463,12 +1442,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//             - file3
 	getBaseSnapshot := func() fs.Entry {
 		return baseWithChildren(
-			[]string{
-				testTenant,
-				service,
-				testUser,
-				category,
-			},
+			prefixDirs,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxID)[0],
@@ -1518,12 +1492,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				},
 			}),
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1569,12 +1538,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID + "2",
@@ -1640,12 +1604,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID + "2",
@@ -1703,12 +1662,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: workID,
@@ -1735,12 +1689,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{personal, work}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1776,12 +1725,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{personal, newCol}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1826,12 +1770,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{oldInbox, newCol}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1867,12 +1806,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{personal, work}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -1927,12 +1861,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{personal}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -2012,12 +1941,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: personalID,
@@ -2079,12 +2003,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -2147,12 +2066,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, inbox2, personal}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -2196,12 +2110,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, personal}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -2243,12 +2152,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				return []data.BackupCollection{inbox, personal}
 			},
 			expected: expectedTreeWithChildren(
-				[]string{
-					testTenant,
-					service,
-					testUser,
-					category,
-				},
+				prefixDirs,
 				[]*expectedNode{
 					{
 						name: testInboxID,
@@ -2315,9 +2219,16 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	const (
+	var (
 		personalDir = "personal"
 		workDir     = "work"
+
+		prefixDirs = []string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		}
 	)
 
 	// baseSnapshot with the following layout:
@@ -2337,12 +2248,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	//             - file4
 	getBaseSnapshot := func() fs.Entry {
 		return baseWithChildren(
-			[]string{
-				testTenant,
-				service,
-				testUser,
-				category,
-			},
+			prefixDirs,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxID)[0],
@@ -2388,12 +2294,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	}
 
 	expected := expectedTreeWithChildren(
-		[]string{
-			testTenant,
-			service,
-			testUser,
-			category,
-		},
+		prefixDirs,
 		[]*expectedNode{
 			{
 				name: testArchiveID,
@@ -2504,7 +2405,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	expected := expectedTreeWithChildren(
 		[]string{
 			testTenant,
-			service,
+			path.ExchangeService.String(),
 			testUser,
 			category,
 		},
@@ -2601,6 +2502,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 
 		eventsFileName1 = testFileName5
 		eventsFileData1 = testFileData
+
+		prefixDirs = []string{
+			testTenant,
+			service,
+			testUser,
+		}
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
@@ -2617,11 +2524,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	//           - file2
 	getBaseSnapshot1 := func() fs.Entry {
 		return baseWithChildren(
-			[]string{
-				testTenant,
-				service,
-				testUser,
-			},
+			prefixDirs,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(category)[0],
@@ -2664,11 +2567,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	//           - file3
 	getBaseSnapshot2 := func() fs.Entry {
 		return baseWithChildren(
-			[]string{
-				testTenant,
-				service,
-				testUser,
-			},
+			prefixDirs,
 			[]fs.Entry{
 				virtualfs.NewStaticDirectory(
 					encodeElements(category)[0],
@@ -2719,11 +2618,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	//         - contacts
 	//           - file2
 	expected := expectedTreeWithChildren(
-		[]string{
-			testTenant,
-			service,
-			testUser,
-		},
+		prefixDirs,
 		[]*expectedNode{
 			{
 				name: category,
