@@ -667,6 +667,12 @@ type treeMap struct {
 	// be added to childDirs while building the hierarchy. They will be ignored
 	// when iterating through the directory to hand items to kopia.
 	baseDir fs.Directory
+
+	// subtreeChanged denotes whether any directories under this node have been
+	// moved, renamed, deleted, or added. If not then we should return both the
+	// kopia files and the kopia directories in the base entry because we're also
+	// doing selective subtree pruning during hierarchy merging.
+	subtreeChanged bool
 }
 
 func newTreeMap() *treeMap {
@@ -863,6 +869,50 @@ func inflateCollectionTree(
 	return roots, updatedPaths, nil
 }
 
+func subtreeChanged(
+	roots map[string]*treeMap,
+	updatedPaths map[string]path.Path,
+	oldDirPath *path.Builder,
+	currentPath *path.Builder,
+) bool {
+	// Can't combine with the inner if-block because go evaluates the assignment
+	// prior to all conditional checks.
+	if currentPath != nil {
+		// Either there's an input collection for this path or there's some
+		// descendant that has a collection with this path as a prefix.
+		//
+		// The base traversal code is single-threaded and this check is before
+		// processing child base directories so we don't have to worry about
+		// something else creating the in-memory subtree for unchanged things.
+		// Having only one base per Reason also means we haven't added this branch
+		// of the in-memory tree in a base processed before this one.
+		if node := maybeGetTreeNode(roots, currentPath.Elements()); node != nil &&
+			(node.collection != nil || len(node.childDirs) > 0) {
+			return true
+		}
+	}
+
+	oldPath := oldDirPath.String()
+
+	// We only need to check the old paths here because the check on the in-memory
+	// tree above will catch cases where the new path is in the subtree rooted at
+	// currentPath. We're mostly concerned with things being moved out of the
+	// subtree or deleted within the subtree in this block. Renames, moves within,
+	// and moves into the subtree will be caught by the above in-memory tree
+	// check.
+	//
+	// We can ignore exact matches on the old path because they would correspond
+	// to deleting the root of the subtree which we can handle as long as
+	// everything under the subtree root is also deleted.
+	for oldP := range updatedPaths {
+		if strings.HasPrefix(oldP, oldPath) && len(oldP) != len(oldPath) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // traverseBaseDir is an unoptimized function that reads items in a directory
 // and traverses subdirectories in the given directory. oldDirPath is the path
 // the directory would be at if the hierarchy was unchanged. expectedDirPath is the
@@ -946,34 +996,34 @@ func traverseBaseDir(
 
 	ctx = clues.Add(ctx, "new_path", currentPath)
 
-	// TODO(ashmrtn): If we can do prefix matching on elements in updatedPaths and
-	// we know that the tree node for this directory has no collection reference
-	// and no child nodes then we can skip traversing this directory. This will
-	// only work if we know what directory deleted items used to belong in (e.x.
-	// it won't work for OneDrive because we only know the ID of the deleted
-	// item).
+	// Figure out if the subtree rooted at this directory is either unchanged or
+	// completely deleted. We can accomplish this by checking the in-memory tree
+	// and the updatedPaths map.
+	changed := subtreeChanged(roots, updatedPaths, oldDirPath, currentPath)
 
 	var hasItems bool
 
-	err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
-		dEntry, ok := entry.(fs.Directory)
-		if !ok {
-			hasItems = true
-			return nil
-		}
+	if changed {
+		err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
+			dEntry, ok := entry.(fs.Directory)
+			if !ok {
+				hasItems = true
+				return nil
+			}
 
-		return traverseBaseDir(
-			innerCtx,
-			depth+1,
-			updatedPaths,
-			oldDirPath,
-			currentPath,
-			dEntry,
-			roots,
-			stats)
-	})
-	if err != nil {
-		return clues.Wrap(err, "traversing base directory").WithClues(ctx)
+			return traverseBaseDir(
+				innerCtx,
+				depth+1,
+				updatedPaths,
+				oldDirPath,
+				currentPath,
+				dEntry,
+				roots,
+				stats)
+		})
+		if err != nil {
+			return clues.Wrap(err, "traversing base directory").WithClues(ctx)
+		}
 	}
 
 	// We only need to add this base directory to the tree we're building if it
@@ -981,7 +1031,7 @@ func traverseBaseDir(
 	// subdirectories. This optimization will not be valid if we dynamically
 	// determine the subdirectories this directory has when handing items to
 	// kopia.
-	if currentPath != nil && hasItems {
+	if currentPath != nil && (hasItems || !changed) {
 		// Having this in the if-block has the effect of removing empty directories
 		// from backups that have a base snapshot. If we'd like to preserve empty
 		// directories across incremental backups, move getting the node outside of
@@ -1014,12 +1064,12 @@ func traverseBaseDir(
 			stats.Inc(statRecursiveMove)
 		}
 
-		curP, err := path.FromDataLayerPath(currentPath.String(), false)
+		curP, err := path.PrefixOrPathFromDataLayerPath(currentPath.String(), false)
 		if err != nil {
 			return clues.New("converting current path to path.Path").WithClues(ctx)
 		}
 
-		oldP, err := path.FromDataLayerPath(oldDirPath.String(), false)
+		oldP, err := path.PrefixOrPathFromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
 			return clues.New("converting old path to path.Path").WithClues(ctx)
 		}
@@ -1027,6 +1077,7 @@ func traverseBaseDir(
 		node.baseDir = dir
 		node.currentPath = curP
 		node.prevPath = oldP
+		node.subtreeChanged = changed
 	}
 
 	return nil
@@ -1070,6 +1121,9 @@ const (
 	// statSkipMerge denotes the number of directories that weren't merged because
 	// they were marked either DoNotMerge or New.
 	statSkipMerge = "directories_skipped_merging"
+	// statPruned denotes the number of subtree roots that selective subtree
+	// pruning applied to.
+	statPruned = "subtrees_pruned"
 )
 
 func inflateBaseTree(
@@ -1163,7 +1217,8 @@ func inflateBaseTree(
 			statRecursiveMove, stats.Get(statRecursiveMove),
 			statDel, stats.Get(statDel),
 			statRecursiveDel, stats.Get(statRecursiveDel),
-			statSkipMerge, stats.Get(statSkipMerge))
+			statSkipMerge, stats.Get(statSkipMerge),
+			statPruned, stats.Get(statPruned))
 	}
 
 	return nil
