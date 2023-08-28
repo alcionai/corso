@@ -80,6 +80,19 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 	return commonM365.IsOneDriveServiceEnabled(ctx, ac.Users(), userID)
 }
 
+func UserGetMailboxInfo(
+	ctx context.Context,
+	acct account.Account,
+	userID string,
+) (api.MailboxInfo, error) {
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
+	if err != nil {
+		return api.MailboxInfo{}, clues.Stack(err).WithClues(ctx)
+	}
+
+	return commonM365.GetMailboxInfo(ctx, ac.Users(), userID)
+}
+
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info
 // TODO: Remove this once we remove `Info` from `Users` and instead rely on the `GetUserInfo` API
 // to get user information
@@ -182,23 +195,4 @@ func GetUserInfo(
 	}
 
 	return ui, nil
-}
-
-// TODO(pandeyabs): Add tests for this
-func UserGetMailboxInfo(
-	ctx context.Context,
-	acct account.Account,
-	userID string,
-) (api.MailboxInfo, error) {
-	ac, err := makeAC(ctx, acct, path.ExchangeService)
-	if err != nil {
-		return api.MailboxInfo{}, clues.Stack(err).WithClues(ctx)
-	}
-
-	mi, err := ac.Users().GetMailboxInfo(ctx, userID)
-	if err != nil {
-		return api.MailboxInfo{}, clues.Stack(err)
-	}
-
-	return mi, nil
 }
