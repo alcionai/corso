@@ -36,6 +36,14 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 	return p
 }
 
+func newExpectedFile(name string, fileData []byte) *expectedNode {
+	return &expectedNode{
+		name:     name,
+		data:     fileData,
+		children: []*expectedNode{},
+	}
+}
+
 // baseWithChildren returns an fs.Entry hierarchy where the first len(basic)
 // levels are the encoded values of basic in order. All items in children are
 // used as the direct descendents of the final entry in basic.
@@ -2951,4 +2959,784 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	require.NoError(t, err, clues.ToCore(err))
 
 	expectTree(t, ctx, expected, dirTree)
+}
+
+func newMockStaticDirectory(
+	name string,
+	entries []fs.Entry,
+) (fs.Directory, *int) {
+	res := &mockStaticDirectory{
+		Directory: virtualfs.NewStaticDirectory(name, entries),
+	}
+
+	return res, &res.iterateCount
+}
+
+type mockStaticDirectory struct {
+	fs.Directory
+	iterateCount int
+}
+
+func (msd *mockStaticDirectory) IterateEntries(
+	ctx context.Context,
+	callback func(context.Context, fs.Entry) error,
+) error {
+	msd.iterateCount++
+	return msd.Directory.IterateEntries(ctx, callback)
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreePruning() {
+	var (
+		tenant   = "tenant-id"
+		service  = path.OneDriveService.String()
+		user     = "user-id"
+		category = path.FilesCategory.String()
+
+		// Not using drive/drive-id/root folders for brevity.
+		folderID1 = "folder1-id"
+		folderID2 = "folder2-id"
+		folderID3 = "folder3-id"
+		folderID4 = "folder4-id"
+
+		folderName1 = "folder1-name"
+		folderName2 = "folder2-name"
+		folderName3 = "folder3-name"
+		folderName4 = "folder4-name"
+
+		fileName1 = "file1"
+		fileName2 = "file2"
+		fileName3 = "file3"
+		fileName4 = "file4"
+		fileName5 = "file5"
+		fileName6 = "file6"
+		fileName7 = "file7"
+		fileName8 = "file8"
+
+		fileData1 = []byte("1")
+		fileData2 = []byte("2")
+		fileData3 = []byte("3")
+		fileData4 = []byte("4")
+		fileData5 = []byte("5")
+		fileData6 = []byte("6")
+		fileData7 = []byte("7")
+		fileData8 = []byte("8")
+	)
+
+	var (
+		folderPath1 = makePath(
+			suite.T(),
+			[]string{tenant, service, user, category, folderID1},
+			false)
+		folderLocPath1 = makePath(
+			suite.T(),
+			[]string{tenant, service, user, category, folderName1},
+			false)
+
+		folderPath2 = makePath(
+			suite.T(),
+			append(folderPath1.Elements(), folderID2),
+			false)
+		folderLocPath2 = makePath(
+			suite.T(),
+			append(folderLocPath1.Elements(), folderName2),
+			false)
+
+		folderPath3 = makePath(
+			suite.T(),
+			append(folderPath2.Elements(), folderID3),
+			false)
+
+		folderPath4 = makePath(
+			suite.T(),
+			[]string{tenant, service, user, category, folderID4},
+			false)
+		folderLocPath4 = makePath(
+			suite.T(),
+			[]string{tenant, service, user, category, folderName4},
+			false)
+
+		prefixFolders = []string{
+			tenant,
+			service,
+			user,
+			category,
+		}
+	)
+
+	folder4Unchanged := exchMock.NewCollection(folderPath4, folderLocPath4, 0)
+	folder4Unchanged.PrevPath = folderPath4
+	folder4Unchanged.ColState = data.NotMovedState
+
+	// Must be a function that returns a new instance each time as StreamingFile
+	// can only return its Reader once. Each directory below the prefix directory
+	// is also wrapped in a mock so we can count the number of times
+	// IterateEntries was called on it.
+	// baseSnapshot with the following layout:
+	// - tenant-id
+	//   - onedrive
+	//     - user-id
+	//       - files
+	//         - folder1-id
+	//           - file1
+	//           - file2
+	//           - folder2-id
+	//             - file3
+	//             - file4
+	//             - folder3-id
+	//               - file5
+	//               - file6
+	//         - folder4-id
+	//           - file7
+	//           - file8
+	getBaseSnapshot := func() (fs.Entry, map[string]*int) {
+		counters := map[string]*int{}
+
+		folder, count := newMockStaticDirectory(
+			encodeElements(folderID3)[0],
+			[]fs.Entry{
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName5)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData5))),
+				),
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName6)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData6))),
+				),
+			})
+		counters[folderID3] = count
+
+		folder, count = newMockStaticDirectory(
+			encodeElements(folderID2)[0],
+			[]fs.Entry{
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName3)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData3))),
+				),
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName4)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData4))),
+				),
+				folder,
+			})
+		counters[folderID2] = count
+
+		folder, count = newMockStaticDirectory(
+			encodeElements(folderID1)[0],
+			[]fs.Entry{
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName1)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData1))),
+				),
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName2)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData2))),
+				),
+				folder,
+			})
+		counters[folderID1] = count
+
+		folder2, count := newMockStaticDirectory(
+			encodeElements(folderID4)[0],
+			[]fs.Entry{
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName7)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData7))),
+				),
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(fileName8)[0],
+					time.Time{},
+					newBackupStreamReader(
+						serializationVersion,
+						io.NopCloser(bytes.NewReader(fileData8))),
+				),
+			})
+		counters[folderID4] = count
+
+		return baseWithChildren(
+				prefixFolders,
+				[]fs.Entry{
+					folder,
+					folder2,
+				},
+			),
+			counters
+	}
+
+	table := []struct {
+		name                  string
+		inputCollections      func(t *testing.T) []data.BackupCollection
+		inputExcludes         *pmMock.PrefixMap
+		expected              *expectedNode
+		expectedIterateCounts map[string]int
+	}{
+		{
+			// Test that even if files are excluded in the subtree selective subtree
+			// pruning skips traversing the it during hierarchy merging and the file
+			// is properly excluded during upload.
+			name: "NoDirectoryChanges ExcludedFile PrunesSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				return []data.BackupCollection{folder4Unchanged}
+			},
+			inputExcludes: pmMock.NewPrefixMap(map[string]map[string]struct{}{
+				"": {
+					fileName3: {},
+				},
+			}),
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName4, fileData4),
+									{
+										name: folderID3,
+										children: []*expectedNode{
+											newExpectedFile(fileName5, fileData5),
+											newExpectedFile(fileName6, fileData6),
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 0,
+				folderID2: 0,
+				folderID3: 0,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that if a subtree is deleted in its entirety selective subtree
+			// pruning skips traversing it during hierarchy merging.
+			name: "SubtreeDelete PrunesSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				mc := exchMock.NewCollection(nil, nil, 0)
+				mc.PrevPath = folderPath1
+				mc.ColState = data.DeletedState
+
+				return []data.BackupCollection{folder4Unchanged, mc}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				// Deleted collections aren't added to the in-memory tree.
+				folderID1: 0,
+				folderID2: 0,
+				folderID3: 0,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that if a directory is moved but the subtree rooted at the moved
+			// directory is unchanged selective subtree pruning skips traversing all
+			// directories under the moved directory during hierarchy merging even if
+			// a new directory is created at the path of one of the unchanged (pruned)
+			// subdirectories of the moved directory.
+			name: "ParentMoved NewFolderAtOldPath PrunesSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				newPath := makePath(
+					suite.T(),
+					[]string{tenant, service, user, category, "foo-id"},
+					false)
+				newLoc := makePath(
+					suite.T(),
+					[]string{tenant, service, user, category, "foo"},
+					false)
+
+				mc := exchMock.NewCollection(newPath, newLoc, 0)
+				mc.PrevPath = folderPath1
+				mc.ColState = data.MovedState
+
+				newMC := exchMock.NewCollection(folderPath2, folderLocPath2, 0)
+
+				return []data.BackupCollection{folder4Unchanged, mc, newMC}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: "foo-id",
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+									{
+										name: folderID3,
+										children: []*expectedNode{
+											newExpectedFile(fileName5, fileData5),
+											newExpectedFile(fileName6, fileData6),
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							{
+								name: folderID2,
+							},
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 1,
+				folderID2: 0,
+				folderID3: 0,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that if a directory and its subtree is deleted in its entirety
+			// selective subtree pruning skips traversing the subtree during hierarchy
+			// merging even if a new directory is created at the path of one of the
+			// deleted (pruned) directories.
+			name: "SubtreeDelete NewFolderAtOldPath PrunesSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				mc := exchMock.NewCollection(nil, nil, 0)
+				mc.PrevPath = folderPath2
+				mc.ColState = data.DeletedState
+
+				newMC := exchMock.NewCollection(folderPath2, folderLocPath2, 0)
+
+				return []data.BackupCollection{folder4Unchanged, mc, newMC}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+							},
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 1,
+				// Deleted collections aren't added to the in-memory tree.
+				folderID2: 0,
+				folderID3: 0,
+				folderID4: 1,
+			},
+		},
+		// These tests check that subtree pruning isn't triggered.
+		{
+			// Test that creating a new directory in an otherwise unchanged subtree
+			// doesn't trigger selective subtree merging for any subtree of the full
+			// hierarchy that includes the new directory but does trigger selective
+			// subtree pruning for unchanged subtrees without the new directory.
+			name: "NewDirectory DoesntPruneSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				newP, err := folderPath2.Append(false, "foo-id")
+				require.NoError(t, err, clues.ToCore(err))
+
+				newL, err := folderLocPath2.Append(false, "foo")
+				require.NoError(t, err, clues.ToCore(err))
+
+				newMC := exchMock.NewCollection(newP, newL, 0)
+
+				return []data.BackupCollection{folder4Unchanged, newMC}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+									{
+										name: "foo-id",
+									},
+									{
+										name: folderID3,
+										children: []*expectedNode{
+											newExpectedFile(fileName5, fileData5),
+											newExpectedFile(fileName6, fileData6),
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 1,
+				folderID2: 1,
+				// Folder 3 triggers pruning because it has nothing changed under it.
+				folderID3: 0,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that moving a directory within a subtree doesn't trigger selective
+			// subtree merging for any subtree of the full hierarchy that includes the
+			// moved directory.
+			name: "MoveWithinSubtree DoesntPruneSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				newP, err := folderPath1.Append(false, folderID3)
+				require.NoError(t, err, clues.ToCore(err))
+
+				newL, err := folderLocPath1.Append(false, folderName3)
+				require.NoError(t, err, clues.ToCore(err))
+
+				mc := exchMock.NewCollection(newP, newL, 0)
+				mc.PrevPath = folderPath3
+				mc.ColState = data.MovedState
+
+				return []data.BackupCollection{folder4Unchanged, mc}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+								},
+							},
+							{
+								name: folderID3,
+								children: []*expectedNode{
+									newExpectedFile(fileName5, fileData5),
+									newExpectedFile(fileName6, fileData6),
+								},
+							},
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 1,
+				// Folder 2 can't be pruned because there's subtree changes under it
+				// (folder3 move).
+				folderID2: 1,
+				// Folder 3 can't be pruned because it has a collection associated with
+				// it.
+				folderID3: 1,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that moving a directory out of a subtree doesn't trigger selective
+			// subtree merging for any subtree of the full hierarchy that includes the
+			// moved directory in the previous hierarchy.
+			name: "MoveOutOfSubtree DoesntPruneSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				newP := makePath(
+					suite.T(),
+					[]string{tenant, service, user, category, folderID3},
+					false)
+				newL := makePath(
+					suite.T(),
+					[]string{tenant, service, user, category, folderName3},
+					false)
+
+				mc := exchMock.NewCollection(newP, newL, 0)
+				mc.PrevPath = folderPath3
+				mc.ColState = data.MovedState
+
+				return []data.BackupCollection{folder4Unchanged, mc}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+								},
+							},
+						},
+					},
+					{
+						name: folderID3,
+						children: []*expectedNode{
+							newExpectedFile(fileName5, fileData5),
+							newExpectedFile(fileName6, fileData6),
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 1,
+				// Folder 2 can't be pruned because there's subtree changes under it
+				// (folder3 move).
+				folderID2: 1,
+				// Folder 3 can't be pruned because it has a collection associated with
+				// it.
+				folderID3: 1,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that deleting a directory in a subtree doesn't trigger selective
+			// subtree merging for any subtree of the full hierarchy that includes the
+			// deleted directory in the previous hierarchy.
+			name: "DeleteInSubtree DoesntPruneSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				mc := exchMock.NewCollection(nil, nil, 0)
+				mc.PrevPath = folderPath3
+				mc.ColState = data.DeletedState
+
+				return []data.BackupCollection{folder4Unchanged, mc}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+								},
+							},
+						},
+					},
+					{
+						name: folderID4,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				folderID1: 1,
+				// Folder 2 can't be pruned because there's subtree changes under it
+				// (folder3 delete).
+				folderID2: 1,
+				// Folder3 is pruned because there's no changes under it.
+				folderID3: 0,
+				folderID4: 1,
+			},
+		},
+		{
+			// Test that moving an existing directory into a subtree doesn't trigger
+			// selective subtree merging for any subtree of the full hierarchy that
+			// includes the moved directory in the current hierarchy.
+			name: "MoveIntoSubtree DoesntPruneSubtree",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				newP, err := folderPath1.Append(false, folderID4)
+				require.NoError(t, err, clues.ToCore(err))
+
+				newL, err := folderLocPath1.Append(false, folderName4)
+				require.NoError(t, err, clues.ToCore(err))
+
+				mc := exchMock.NewCollection(newP, newL, 0)
+				mc.PrevPath = folderPath4
+				mc.ColState = data.MovedState
+
+				return []data.BackupCollection{mc}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+									{
+										name: folderID3,
+										children: []*expectedNode{
+											newExpectedFile(fileName5, fileData5),
+											newExpectedFile(fileName6, fileData6),
+										},
+									},
+								},
+							},
+							{
+								name: folderID4,
+								children: []*expectedNode{
+									newExpectedFile(fileName7, fileData7),
+									newExpectedFile(fileName8, fileData8),
+								},
+							},
+						},
+					},
+				},
+			),
+			expectedIterateCounts: map[string]int{
+				// Folder 1 can't be pruned because there's subtree changes under it
+				// (folder4 move).
+				folderID1: 1,
+				// Folder 2 is pruned because nothing changes below it and it has no
+				// collection associated with it.
+				folderID2: 0,
+				folderID3: 0,
+				// Folder 4 can't be pruned because it has a collection associated with
+				// it.
+				folderID4: 1,
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			progress := &corsoProgress{
+				ctx:     ctx,
+				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
+				errs:    fault.New(true),
+			}
+			snapshotRoot, counters := getBaseSnapshot()
+			msw := &mockSnapshotWalker{
+				snapshotRoot: snapshotRoot,
+			}
+
+			ie := pmMock.NewPrefixMap(nil)
+			if test.inputExcludes != nil {
+				ie = test.inputExcludes
+			}
+
+			dirTree, err := inflateDirTree(
+				ctx,
+				msw,
+				[]ManifestEntry{
+					makeManifestEntry("", tenant, user, path.OneDriveService, path.FilesCategory),
+				},
+				test.inputCollections(t),
+				ie,
+				progress)
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Check iterate counts before checking tree content as checking tree
+			// content can disturb the counter values.
+			for name, count := range test.expectedIterateCounts {
+				c, ok := counters[name]
+				assert.True(t, ok, "unexpected counter %q", name)
+				assert.Equal(t, count, *c, "folder %q iterate count", name)
+			}
+
+			expectTree(t, ctx, test.expected, dirTree)
+		})
+	}
 }
