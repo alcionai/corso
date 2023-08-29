@@ -7,16 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.12.0] (beta) - 2023-08-28
+
 ### Added
+- Added `export` command to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
 - Restore commands now accept an optional resource override with the `--to-resource` flag.  This allows restores to recreate backup data within different mailboxes, sites, and users.  
+- Improve `--mask-sensitive-data` logging mode.
+- Reliability: Handle connection cancellation and resets observed when backing up or restoring large data sets.
+- Reliability: Recover from Graph SDK panics when the Graph API returns incomplete responses.
+- Performance: Improve backup delete performance by batching multiple storage operations into a single operation.
 
 ### Fixed
 - SharePoint document libraries deleted after the last backup can now be restored.
 - Restore requires the protected resource to have access to the service being restored.
 - SharePoint data from multiple document libraries are not merged in exports
+- `corso backup delete` was not removing the backup details data associated with that snapshot
+- Fix OneDrive restores could fail with a concurrent map write error
+- Fix backup list displaying backups that had errors
+- Fix OneDrive backup could fail if item was deleted during backup
 
-### Added
-- Added option to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
 
 ## [v0.11.1] (beta) - 2023-07-20
 
