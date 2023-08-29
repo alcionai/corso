@@ -238,7 +238,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 			return nil, clues.Stack(err)
 		}
 
-		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
+		mi.QuotaExceeded = graph.IsErrQuotaExceeded(err)
 	}
 
 	userInfo.Mailbox = mi
