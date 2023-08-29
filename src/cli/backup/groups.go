@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -27,6 +28,8 @@ import (
 // ------------------------------------------------------------------------------------------------
 // setup and globals
 // ------------------------------------------------------------------------------------------------
+
+const dataMessages = "messages"
 
 const (
 	groupsServiceCommand                 = "groups"
@@ -74,7 +77,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		flags.AddGroupFlag(c)
-		flags.AddDataFlag(c, []string{dataLibraries}, false)
+		flags.AddDataFlag(c, []string{dataLibraries, dataMessages}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -176,7 +179,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"Group", "group",
+		"Group",
 		selectorSet,
 		ins)
 }
@@ -315,19 +318,24 @@ func validateGroupsBackupCreateFlags(groups, cats []string) error {
 		)
 	}
 
-	// TODO(meain)
-	// for _, d := range cats {
-	// 	if d != dataLibraries {
-	// 		return clues.New(
-	// 			d + " is an unrecognized data type; only  " + dataLibraries + " is supported"
-	// 		)
-	// 	}
-	// }
+	msg := fmt.Sprintf(
+		" is an unrecognized data type; only %s and %s are supported",
+		dataLibraries, dataMessages)
+
+	allowedCats := map[string]struct{}{
+		dataLibraries: {},
+		dataMessages:  {},
+	}
+
+	for _, d := range cats {
+		if _, ok := allowedCats[d]; !ok {
+			return clues.New(d + msg)
+		}
+	}
 
 	return nil
 }
 
-// TODO: users might specify a data type, this only supports AllData().
 func groupsBackupCreateSelectors(
 	ctx context.Context,
 	ins idname.Cacher,
@@ -351,15 +359,14 @@ func addGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.
 		sel.Include(sel.AllData())
 	}
 
-	// TODO(meain): handle filtering
-	// for _, d := range cats {
-	// 	switch d {
-	// 	case dataLibraries:
-	// 		sel.Include(sel.LibraryFolders(selectors.Any()))
-	// 	case dataPages:
-	// 		sel.Include(sel.Pages(selectors.Any()))
-	// 	}
-	// }
+	for _, d := range cats {
+		switch d {
+		case dataLibraries:
+			sel.Include(sel.LibraryFolders(selectors.Any()))
+		case dataMessages:
+			sel.Include(sel.ChannelMessages(selectors.Any(), selectors.Any()))
+		}
+	}
 
 	return sel
 }

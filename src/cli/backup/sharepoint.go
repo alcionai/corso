@@ -193,7 +193,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"SharePoint", "site",
+		"SharePoint",
 		selectorSet,
 		ins)
 }

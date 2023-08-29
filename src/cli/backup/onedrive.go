@@ -172,7 +172,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"OneDrive", "user",
+		"OneDrive",
 		selectorSet,
 		ins)
 }

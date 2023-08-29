@@ -1,14 +1,24 @@
 package backup
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -134,11 +144,38 @@ func createTeamsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateTeamBackupCreateFlags(flags.TeamFV); err != nil {
+	if err := validateTeamsBackupCreateFlags(flags.TeamFV, flags.CategoryDataFV); err != nil {
+		return err
+	}
+
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	if err != nil {
 		return Only(ctx, err)
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	defer utils.CloseRepo(ctx, r)
+
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	ins, err := m365.GroupsMap(ctx, *acct, errs)
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 teams"))
+	}
+
+	sel := teamsBackupCreateSelectors(ctx, ins, flags.TeamFV, flags.CategoryDataFV)
+	selectorSet := []selectors.Selector{}
+
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
+		selectorSet = append(selectorSet, discSel.Selector)
+	}
+
+	return runBackups(
+		ctx,
+		r,
+		"Group",
+		selectorSet,
+		ins)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -208,7 +245,7 @@ func deleteTeamsCmd(cmd *cobra.Command, args []string) error {
 // helpers
 // ---------------------------------------------------------------------------
 
-func validateTeamBackupCreateFlags(teams []string) error {
+func validateTeamsBackupCreateFlags(teams, cats []string) error {
 	if len(teams) == 0 {
 		return clues.New(
 			"requires one or more --" +
@@ -217,14 +254,55 @@ func validateTeamBackupCreateFlags(teams []string) error {
 		)
 	}
 
-	// TODO(meain)
-	// for _, d := range cats {
-	// 	if d != dataLibraries {
-	// 		return clues.New(
-	// 			d + " is an unrecognized data type; only  " + dataLibraries + " is supported"
-	// 		)
-	// 	}
-	// }
+	msg := fmt.Sprintf(
+		" is an unrecognized data type; only %s and %s are supported",
+		dataLibraries, dataMessages)
+
+	allowedCats := map[string]struct{}{
+		dataLibraries: {},
+		dataMessages:  {},
+	}
+
+	for _, d := range cats {
+		if _, ok := allowedCats[d]; !ok {
+			return clues.New(d + msg)
+		}
+	}
 
 	return nil
+}
+
+func teamsBackupCreateSelectors(
+	ctx context.Context,
+	ins idname.Cacher,
+	team, cats []string,
+) *selectors.GroupsBackup {
+	if filters.PathContains(team).Compare(flags.Wildcard) {
+		return includeAllTeamWithCategories(ins, cats)
+	}
+
+	sel := selectors.NewGroupsBackup(slices.Clone(team))
+
+	return addTeamsCategories(sel, cats)
+}
+
+func includeAllTeamWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
+	return addTeamsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
+}
+
+func addTeamsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
+	if len(cats) == 0 {
+		sel.Include(sel.AllData())
+	}
+
+	for _, d := range cats {
+		switch d {
+		case dataLibraries:
+			sel.Include(sel.LibraryFolders(selectors.Any()))
+		case dataMessages:
+			sel.Include(sel.ChannelMessages(selectors.Any(), selectors.Any()))
+		}
+	}
+
+	return sel
 }
