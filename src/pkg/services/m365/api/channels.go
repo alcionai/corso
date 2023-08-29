@@ -125,7 +125,9 @@ func (c Channels) GetMessage(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	return message, ChannelMessageInfo(message, size), nil
+	info := ChannelMessageInfo(message, size, channelID, "")
+
+	return message, info, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -158,20 +160,22 @@ func (c Channels) GetReplies(
 // Helpers
 // ---------------------------------------------------------------------------
 
-func ChannelMessageInfo(msg models.ChatMessageable, size int64) *details.GroupsInfo {
+func ChannelMessageInfo(
+	msg models.ChatMessageable,
+	size int64,
+	channelID, channelName string,
+) *details.GroupsInfo {
 	created := ptr.Val(msg.GetCreatedDateTime())
 
 	return &details.GroupsInfo{
-		ItemType: details.TeamsChannelMessage,
-		Size:     size,
-		Created:  created,
-		Modified: ptr.OrNow(msg.GetLastModifiedDateTime()),
+		ItemType:    details.GroupsChannelMessage,
+		Size:        size,
+		Created:     created,
+		Modified:    ptr.OrNow(msg.GetLastModifiedDateTime()),
+		ChannelID:   channelID,
+		ChannelName: channelName,
 	}
 }
-
-// ---------------------------------------------------------------------------
-// helper funcs
-// ---------------------------------------------------------------------------
 
 // CheckIDAndName is a validator that ensures the ID
 // and name are populated and not zero valued.

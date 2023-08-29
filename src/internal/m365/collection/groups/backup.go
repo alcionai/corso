@@ -102,7 +102,7 @@ func populateCollections(
 	// the process have been deleted.
 	// tombstones = makeTombstones(dps)
 
-	logger.Ctx(ctx).Infow("filling collections")
+	logger.Ctx(ctx).Info("filling collections")
 	// , "len_deltapaths", len(dps))
 
 	el := errs.Local()
@@ -174,7 +174,9 @@ func populateCollections(
 			path.Builder{}.Append(cName),
 			qp.Category,
 			statusUpdater,
-			ctrlOpts)
+			ctrlOpts,
+			cID,
+			cName)
 
 		channelCollections[cID] = &edc
 
@@ -192,9 +194,7 @@ func populateCollections(
 		// currPaths[cID] = currPath.String()
 
 		// FIXME: normally this goes before removal, but the linters require no bottom comments
-		for _, item := range items {
-			edc.added[ptr.Val(item.GetId())] = struct{}{}
-		}
+		edc.added = append(edc.added, items...)
 	}
 
 	// TODO: handle tombstones here

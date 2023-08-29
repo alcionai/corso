@@ -23,8 +23,6 @@ type GroupsBackupIntgSuite struct {
 }
 
 func TestGroupsBackupIntgSuite(t *testing.T) {
-	t.Skip("enable when groups e2e v0 backup is complete")
-
 	suite.Run(t, &GroupsBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,

@@ -67,7 +67,7 @@ func (i GroupsInfo) Headers() []string {
 	switch i.ItemType {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
-	case TeamsChannelMessage:
+	case GroupsChannelMessage:
 		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Response"}
 	}
 
@@ -88,7 +88,7 @@ func (i GroupsInfo) Values() []string {
 			dttm.FormatToTabularDisplay(i.Created),
 			dttm.FormatToTabularDisplay(i.Modified),
 		}
-	case TeamsChannelMessage:
+	case GroupsChannelMessage:
 		return []string{
 			i.MessagePreview,
 			i.ChannelName,
@@ -115,6 +115,12 @@ func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 
 		if len(i.DriveID) == 0 {
 			return nil, clues.New("empty drive ID")
+		}
+	case GroupsChannelMessage:
+		category = path.ChannelMessagesCategory
+
+		if len(i.ChannelID) == 0 {
+			return nil, clues.New("empty channel ID")
 		}
 	}
 
