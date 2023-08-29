@@ -158,10 +158,6 @@ func (p *channelPageCtrl) GetPage(
 	return resp, graph.Stack(ctx, err).OrNil()
 }
 
-func (p *channelPageCtrl) GetOdataNextLink() *string {
-	return p.GetOdataNextLink()
-}
-
 func (p *channelPageCtrl) ValuesIn(l PageLinker) ([]models.Channelable, error) {
 	return getValues[models.Channelable](l)
 }
