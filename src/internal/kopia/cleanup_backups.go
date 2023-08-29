@@ -130,13 +130,12 @@ func cleanupOrphanedData(
 
 	var (
 		// assistBackups is the set of backups that have a
-		//   * a label denoting they're an assist backup
+		//   * label denoting they're an assist backup
 		//   * item data snapshot
 		//   * details snapshot
 		assistBackups []*backup.Backup
-		// mostRecentMergeBase holds the creation time of the most recent merge base
-		// for the given Reason. The Reason -> key translation is done by
-		// keysForBackup.
+		// mostRecentMergeBase maps the reason to its most recent merge base's
+		// creation time. The map key is created using keysForBackup.
 		mostRecentMergeBase = map[string]time.Time{}
 	)
 
@@ -173,7 +172,7 @@ func cleanupOrphanedData(
 			// This isn't expected to really pop up, but it's possible if this
 			// function is run concurrently with either a backup delete or another
 			// instance of this function.
-			logger.Ctx(ctx).Debugw(
+			logger.Ctx(ctx).Infow(
 				"backup model not found",
 				"search_backup_id", bup.ModelStoreID)
 
@@ -202,7 +201,7 @@ func cleanupOrphanedData(
 			// checking if assist backups should be garbage collected a bit easier
 			// because now they only have to source data from backup models.
 			if err := transferTags(d, &bm); err != nil {
-				logger.CtxErr(ctx, err).Errorw(
+				logger.CtxErr(ctx, err).Infow(
 					"transferring legacy tags to backup model",
 					"snapshot_id", d.ID,
 					"backup_id", bup.ID)
@@ -232,13 +231,13 @@ func cleanupOrphanedData(
 			// later if we should remove all assist bases or not.
 			tags, err := keysForBackup(&bm)
 			if err != nil {
-				logger.CtxErr(ctx, err).Error(
-					"getting Reason keys for merge base. May keep an additional assist base")
+				logger.CtxErr(ctx, err).
+					Info("getting Reason keys for merge base. May keep an additional assist base")
 			}
 
 			for _, tag := range tags {
-				t, ok := mostRecentMergeBase[tag]
-				if ok && t.After(bm.CreationTime) {
+				t := mostRecentMergeBase[tag]
+				if t.After(bm.CreationTime) {
 					// Don't update the merge base time if we've already seen a newer
 					// merge base.
 					continue
