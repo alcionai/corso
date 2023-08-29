@@ -252,7 +252,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 	}
 }
 
-func (suite *UsersIntgSuite) TestUsers_GetInfo_QuotaExceeded() {
+func (suite *UsersIntgSuite) TestUsers_GetInfo_quotaExceeded() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 

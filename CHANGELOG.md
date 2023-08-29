@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Fixed
-- Exchange backups would fail attemptting to use delta tokens even if the user was over quota
+- Exchange backups would fail attempting to use delta tokens even if the user was over quota
 
 ## [v0.12.0] (beta) - 2023-08-28
 
