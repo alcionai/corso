@@ -7,6 +7,7 @@ import (
 	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -249,4 +250,30 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 			test.expectErr(t, err)
 		})
 	}
+}
+
+func (suite *UsersIntgSuite) TestUsers_GetInfo_QuotaExceeded() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+
+	defer flush()
+	defer gock.Off()
+
+	gock.EnableNetworking()
+	gock.New(graphAPIHostURL).
+		// Wildcard match on the inbox folder ID.
+		Get(v1APIURLPath("users", suite.its.userID, "mailFolders", "(.*)", "messages", "delta")).
+		Reply(403).
+		SetHeaders(
+			map[string]string{
+				"Content-Type": "application/json; odata.metadata=minimal; " +
+					"odata.streaming=true; IEEE754Compatible=false; charset=utf-8",
+			},
+		).
+		BodyString(`{"error":{"code":"ErrorQuotaExceeded","message":"The process failed to get the correct properties."}}`)
+
+	output, err := suite.its.gockAC.Users().GetInfo(ctx, suite.its.userID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.True(t, output.Mailbox.QuotaExceeded)
 }
