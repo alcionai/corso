@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/clues"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -21,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var (
@@ -45,11 +43,11 @@ type Collection struct {
 	stream            chan data.Item
 
 	// added is a list of existing item IDs that were added to a container
-	added []models.ChatMessageable
+	added map[string]struct{}
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	// getter itemGetter
+	getter getChannelMessager
 
 	category      path.CategoryType
 	statusUpdater support.StatusUpdater
@@ -80,6 +78,7 @@ type Collection struct {
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
 func NewCollection(
+	getter getChannelMessager,
 	protectedResource string,
 	curr, prev path.Path,
 	location *path.Builder,
@@ -92,17 +91,18 @@ func NewCollection(
 	collection := Collection{
 		chanID:   chanID,
 		chanName: chanName,
-		added:    make([]models.ChatMessageable, 0),
+		added:    map[string]struct{}{},
 		category: category,
 		ctrl:     ctrlOpts,
-		stream:   make(chan data.Item, collectionChannelBufferSize),
 		// doNotMergeItems:   doNotMergeItems,
 		fullPath:          curr,
+		getter:            getter,
 		locationPath:      location,
 		prevPath:          prev,
 		removed:           make(map[string]struct{}, 0),
 		state:             data.StateOf(prev, curr),
 		statusUpdater:     statusUpdater,
+		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
 	}
 
@@ -206,6 +206,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		totalBytes    int64
 		wg            sync.WaitGroup
 		colProgress   chan<- struct{}
+		el            = errs.Local()
 	)
 
 	ctx = clues.Add(ctx, "category", col.category.String())
@@ -252,20 +253,30 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	// }
 
 	// add any new items
-	for _, item := range col.added {
-		if errs.Failure() != nil {
+	for id := range col.added {
+		if el.Failure() != nil {
 			break
 		}
 
 		wg.Add(1)
 		semaphoreCh <- struct{}{}
 
-		go func(item models.ChatMessageable) {
+		go func(id string) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
+
+			item, info, err := col.getter.getChannelMessage(
+				ctx,
+				col.protectedResource,
+				col.chanID,
+				id)
+			if err != nil {
+				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
+				return
+			}
 
 			if err := writer.WriteObjectValue("", item); err != nil {
 				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
@@ -280,7 +291,8 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 			// TODO: the item getter should provide this func when we switch
 			// to a lookup-id-then-item pattern.
-			info := api.ChannelMessageInfo(item, int64(len(data)), col.chanID, col.chanName)
+			info.ChannelID = col.chanID
+			info.ChannelName = col.chanName
 			info.ParentPath = col.LocationPath().String()
 
 			col.stream <- &Item{
@@ -296,7 +308,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			if colProgress != nil {
 				colProgress <- struct{}{}
 			}
-		}(item)
+		}(id)
 	}
 
 	wg.Wait()

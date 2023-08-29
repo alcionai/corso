@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -104,12 +103,10 @@ func (c Channels) GetChannelByName(
 // message
 // ---------------------------------------------------------------------------
 
-// GetMessage retrieves a ChannelMessage item.
-func (c Channels) GetMessage(
+func (c Channels) GetChannelMessage(
 	ctx context.Context,
 	teamID, channelID, itemID string,
-	errs *fault.Bus,
-) (serialization.Parsable, *details.GroupsInfo, error) {
+) (models.ChatMessageable, *details.GroupsInfo, error) {
 	var size int64
 
 	message, err := c.Stable.

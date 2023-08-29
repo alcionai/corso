@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -147,7 +148,7 @@ func populateCollections(
 
 		// ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		items, _, err := bh.getChannelMessagesDelta(ctx, cID, "")
+		items, _, err := bh.getChannelMessageIDsDelta(ctx, cID, "")
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
@@ -168,6 +169,7 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			bh,
 			qp.ProtectedResource.ID(),
 			currPath,
 			prevPath,
@@ -194,7 +196,7 @@ func populateCollections(
 		// currPaths[cID] = currPath.String()
 
 		// FIXME: normally this goes before removal, but the linters require no bottom comments
-		edc.added = append(edc.added, items...)
+		maps.Copy(edc.added, items)
 	}
 
 	// TODO: handle tombstones here
