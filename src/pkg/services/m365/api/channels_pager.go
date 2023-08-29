@@ -51,7 +51,7 @@ func (p *channelMessageDeltaPageCtrl) ValuesIn(l PageLinker) ([]models.ChatMessa
 }
 
 func (c Channels) NewChannelMessageDeltaPager(
-	teamID, channelID string,
+	teamID, channelID, prevDelta string,
 ) *channelMessageDeltaPageCtrl {
 	builder := c.Stable.
 		Client().
@@ -61,6 +61,10 @@ func (c Channels) NewChannelMessageDeltaPager(
 		ByChannelId(channelID).
 		Messages().
 		Delta()
+
+	if len(prevDelta) > 0 {
+		builder = teams.NewItemChannelsItemMessagesDeltaRequestBuilder(prevDelta, c.Stable.Adapter())
+	}
 
 	options := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
@@ -82,7 +86,7 @@ func (c Channels) GetChannelMessagesDelta(
 ) ([]models.ChatMessageable, DeltaUpdate, error) {
 	var (
 		vs               = []models.ChatMessageable{}
-		pager            = c.NewChannelMessageDeltaPager(teamID, channelID)
+		pager            = c.NewChannelMessageDeltaPager(teamID, channelID, prevDelta)
 		invalidPrevDelta = len(prevDelta) == 0
 		newDeltaLink     string
 	)
