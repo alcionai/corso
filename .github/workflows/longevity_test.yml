@@ -104,7 +104,7 @@ jobs:
           ./corso repo init s3 \
             --no-stats \
             --hide-progress \
-            --retention-mode ${{ env.RETENTION_MODE }} \
+            --retention-mode $(echo "${{ env.RETENTION_MODE }}" | tr '[:upper:]' '[:lower:]') \
             --retention-duration "${{ env.RETENTION_DURATION }}h" \
             --extend-retention \
             --prefix ${{ env.PREFIX }} \
