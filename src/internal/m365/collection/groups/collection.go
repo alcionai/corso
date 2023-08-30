@@ -35,10 +35,6 @@ const (
 )
 
 type Collection struct {
-	// TODO(keepers): figure out a better way of handing these down
-	chanID   string
-	chanName string
-
 	protectedResource string
 	stream            chan data.Item
 
@@ -86,11 +82,8 @@ func NewCollection(
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	// doNotMergeItems bool,
-	chanID, chanName string,
 ) Collection {
 	collection := Collection{
-		chanID:   chanID,
-		chanName: chanName,
 		added:    map[string]struct{}{},
 		category: category,
 		ctrl:     ctrlOpts,
@@ -268,10 +261,13 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
 
+			flds := col.fullPath.Folders()
+			parentFolderID := flds[len(flds)-1]
+
 			item, info, err := col.getter.getChannelMessage(
 				ctx,
 				col.protectedResource,
-				col.chanID,
+				parentFolderID,
 				id)
 			if err != nil {
 				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
@@ -289,10 +285,6 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				return
 			}
 
-			// TODO: the item getter should provide this func when we switch
-			// to a lookup-id-then-item pattern.
-			info.ChannelID = col.chanID
-			info.ChannelName = col.chanName
 			info.ParentPath = col.LocationPath().String()
 
 			col.stream <- &Item{

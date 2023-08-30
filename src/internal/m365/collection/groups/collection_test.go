@@ -125,9 +125,7 @@ func (suite *CollectionSuite) TestNewCollection_state() {
 				test.curr, test.prev, test.loc,
 				0,
 				nil,
-				control.DefaultOptions(),
-				"chanID",
-				"chanName")
+				control.DefaultOptions())
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
 			assert.Equal(t, test.prev, c.prevPath, "prev path")

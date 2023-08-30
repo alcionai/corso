@@ -47,8 +47,6 @@ type GroupsInfo struct {
 	Size       int64     `json:"size,omitempty"`
 
 	// Channels Specific
-	ChannelName    string    `json:"channelName,omitempty"`
-	ChannelID      string    `json:"channelID,omitempty"`
 	LastReplyAt    time.Time `json:"lastResponseAt,omitempty"`
 	MessageCreator string    `json:"messageCreator,omitempty"`
 	MessagePreview string    `json:"messagePreview,omitempty"`
@@ -91,7 +89,7 @@ func (i GroupsInfo) Values() []string {
 	case GroupsChannelMessage:
 		return []string{
 			i.MessagePreview,
-			i.ChannelName,
+			i.ParentPath,
 			strconv.Itoa(i.ReplyCount),
 			i.MessageCreator,
 			dttm.FormatToTabularDisplay(i.Created),
@@ -103,33 +101,24 @@ func (i GroupsInfo) Values() []string {
 }
 
 func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
-	i.ParentPath = newLocPath.PopFront().String()
+	i.ParentPath = newLocPath.String()
 }
 
 func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	var (
-		category path.CategoryType
-		loc      uniqueLoc
-		err      error
+		loc uniqueLoc
+		err error
 	)
 
 	switch i.ItemType {
 	case SharePointLibrary:
-		category = path.LibrariesCategory
-
 		if len(i.DriveID) == 0 {
 			return nil, clues.New("empty drive ID")
 		}
 
-		loc, err = NewGroupsLocationIDer(category, i.DriveID, baseLoc.Elements()...)
+		loc, err = NewGroupsLocationIDer(path.LibrariesCategory, i.DriveID, baseLoc.Elements()...)
 	case GroupsChannelMessage:
-		category = path.ChannelMessagesCategory
-
-		if len(i.ChannelID) == 0 {
-			return nil, clues.New("empty channel ID")
-		}
-
-		loc, err = NewGroupsLocationIDer(category, "", baseLoc.Elements()...)
+		loc, err = NewGroupsLocationIDer(path.ChannelMessagesCategory, "", baseLoc.Elements()...)
 	}
 
 	return &loc, err
