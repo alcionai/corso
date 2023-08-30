@@ -97,68 +97,71 @@ func (suite *BackupBasesUnitSuite) TestMakeAssistBase() {
 		makeManifest("3", "", ""),
 	}
 
-	expected := &backupBases{
-		backups:     []BackupEntry{backups[0], backups[1]},
-		mergeBases:  []ManifestEntry{merges[0], merges[1]},
-		assistBases: []ManifestEntry{merges[0], merges[1]},
-	}
-
 	delID := manifest.ID("3")
 
 	table := []struct {
 		name string
 		// Below indices specify which items to add from the defined sets above.
-		backup []int
-		merge  []int
-		assist []int
+		backup       []int
+		merge        []int
+		assist       []int
+		expectAssist []int
 	}{
 		{
-			name:   "Not In Bases",
-			backup: []int{0, 1},
-			merge:  []int{0, 1},
-			assist: []int{0, 1},
+			name:         "Not In Bases",
+			backup:       []int{0, 1},
+			merge:        []int{0, 1},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1},
 		},
 		{
-			name:   "Different Indexes",
-			backup: []int{2, 0, 1},
-			merge:  []int{0, 2, 1},
-			assist: []int{0, 1, 2},
+			name:         "Different Indexes",
+			backup:       []int{2, 0, 1},
+			merge:        []int{0, 2, 1},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1, 2},
 		},
 		{
-			name:   "First Item",
-			backup: []int{2, 0, 1},
-			merge:  []int{2, 0, 1},
-			assist: []int{2, 0, 1},
+			name:         "First Item",
+			backup:       []int{2, 0, 1},
+			merge:        []int{2, 0, 1},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1, 2},
 		},
 		{
-			name:   "Middle Item",
-			backup: []int{0, 2, 1},
-			merge:  []int{0, 2, 1},
-			assist: []int{0, 2, 1},
+			name:         "Middle Item",
+			backup:       []int{0, 2, 1},
+			merge:        []int{0, 2, 1},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1, 2},
 		},
 		{
-			name:   "Final Item",
-			backup: []int{0, 1, 2},
-			merge:  []int{0, 1, 2},
-			assist: []int{0, 1, 2},
+			name:         "Final Item",
+			backup:       []int{0, 1, 2},
+			merge:        []int{0, 1, 2},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1, 2},
 		},
 		{
-			name:   "Only In Backups",
-			backup: []int{0, 1, 2},
-			merge:  []int{0, 1},
-			assist: []int{0, 1},
+			name:         "Only In Backups",
+			backup:       []int{0, 1, 2},
+			merge:        []int{0, 1},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1},
 		},
 		{
-			name:   "Only In Merges",
-			backup: []int{0, 1},
-			merge:  []int{0, 1, 2},
-			assist: []int{0, 1},
+			name:         "Only In Merges",
+			backup:       []int{0, 1},
+			merge:        []int{0, 1, 2},
+			assist:       []int{0, 1},
+			expectAssist: []int{0, 1},
 		},
 		{
-			name:   "Only In Assists",
-			backup: []int{0, 1},
-			merge:  []int{0, 1},
-			assist: []int{0, 1, 2},
+			name:         "Only In Assists Noops",
+			backup:       []int{0, 1},
+			merge:        []int{0, 1},
+			assist:       []int{0, 1, 2},
+			expectAssist: []int{0, 1, 2},
 		},
 	}
 
@@ -177,6 +180,17 @@ func (suite *BackupBasesUnitSuite) TestMakeAssistBase() {
 
 			for _, i := range test.assist {
 				bb.assistBases = append(bb.assistBases, merges[i])
+				bb.assistBackups = append(bb.assistBackups, backups[i])
+			}
+
+			expected := &backupBases{
+				backups:    []BackupEntry{backups[0], backups[1]},
+				mergeBases: []ManifestEntry{merges[0], merges[1]},
+			}
+
+			for _, i := range test.expectAssist {
+				expected.assistBases = append(expected.assistBases, merges[i])
+				expected.assistBackups = append(expected.assistBackups, backups[i])
 			}
 
 			bb.MakeAssistBase(delID)
@@ -246,7 +260,6 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			}
 
 			m := makeManifest(baseID, "", "b"+baseID, reasons...)
-			res.assistBases = append(res.assistBases, m)
 
 			b := BackupEntry{
 				Backup: &backup.Backup{
@@ -592,7 +605,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
-				res.assistBases = res.mergeBases
+				res.assistBases = nil
 				res.assistBackups = nil
 
 				return res
@@ -624,7 +637,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
-				res.assistBases = res.mergeBases
+				res.assistBases = nil
 				res.assistBackups = nil
 
 				return res
@@ -655,14 +668,9 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 			}(),
 		},
 		{
-			name: "Single Valid Entry",
-			bb:   validMail1(),
-			expect: func() *backupBases {
-				res := validMail1()
-				res.assistBases = append(res.mergeBases, res.assistBases...)
-
-				return res
-			}(),
+			name:   "Single Valid Entry",
+			bb:     validMail1(),
+			expect: validMail1(),
 		},
 		{
 			name: "Single Valid Entry With Incomplete Assist With Same Reason",
@@ -674,12 +682,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 
 				return res
 			}(),
-			expect: func() *backupBases {
-				res := validMail1()
-
-				res.assistBases = append(res.mergeBases, res.assistBases...)
-				return res
-			}(),
+			expect: validMail1(),
 		},
 		{
 			name: "Single Valid Entry With Backup With Old Deets ID",
@@ -700,8 +703,6 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 
 				res.assistBackups[0].DetailsID = res.assistBackups[0].StreamStoreID
 				res.assistBackups[0].StreamStoreID = ""
-
-				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
@@ -729,8 +730,6 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
 					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
-
-				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
@@ -795,7 +794,6 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.mergeBases = append(
 					res.mergeBases,
 					makeMan(path.EventsCategory, "id4", "", "bid4"))
-				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
@@ -848,8 +846,6 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.assistBases = append(
 					res.assistBases,
 					makeMan(path.EventsCategory, "id4", "", "bid4"))
-
-				res.assistBases = append(res.mergeBases, res.assistBases...)
 
 				return res
 			}(),
