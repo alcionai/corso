@@ -105,6 +105,9 @@ jobs:
           ./corso repo init s3 \
             --no-stats \
             --hide-progress \
+            --retention-mode ${{ env.RETENTION_MODE}} \
+            --retention-duration ${{ env.RETENTION_DURATION}} \
+            --extend-retention \
             --prefix ${{ env.PREFIX }} \
             --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
             --succeed-if-exists \
