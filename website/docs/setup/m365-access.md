@@ -59,8 +59,6 @@ then click **Add permissions**.
 | Sites.FullControl.All | Application | Have full control of all site collections |
 | User.Read.All | Application | Read all users' full profiles |
 
-
-
 <!-- vale Microsoft.Spacing = YES -->
 
 ### Grant admin consent
