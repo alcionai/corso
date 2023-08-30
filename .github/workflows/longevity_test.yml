@@ -47,8 +47,8 @@ jobs:
       run:
         working-directory: src
         
-##########################################################################################################################################
-# setup
+    ############################################################################
+    # setup
     steps:
       - uses: actions/checkout@v3
         with:
@@ -89,9 +89,8 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
-##########################################################################################################################################
-
-# Repository commands
+      ##########################################################################
+      # Repository commands
 
       - name: Version Test
         run: |
@@ -105,8 +104,8 @@ jobs:
           ./corso repo init s3 \
             --no-stats \
             --hide-progress \
-            --retention-mode ${{ env.RETENTION_MODE}} \
-            --retention-duration ${{ env.RETENTION_DURATION}} \
+            --retention-mode ${{ env.RETENTION_MODE }} \
+            --retention-duration ${{ env.RETENTION_DURATION }} \
             --extend-retention \
             --prefix ${{ env.PREFIX }} \
             --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
@@ -136,9 +135,8 @@ jobs:
             exit 1
           fi
 
-##########################################################################################################################################
-
-# Exchange
+      ##########################################################################
+      # Exchange
 
       - name: Backup exchange test
         id: exchange-test
@@ -161,8 +159,8 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
  
-##########################################################################################################################################
-# Onedrive
+      ##########################################################################
+      # Onedrive
 
       - name: Backup onedrive test
         id: onedrive-test
@@ -186,9 +184,8 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
 
-##########################################################################################################################################
-
-# Sharepoint test
+      ##########################################################################
+      # Sharepoint test
       - name: Backup sharepoint test
         id: sharepoint-test
         run: |
@@ -212,9 +209,8 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
 
-##########################################################################################################################################
-
-# Backup Exchange Deletion test
+      ##########################################################################
+      # Backup Exchange Deletion test
       - name: Backup Delete exchange test
         id: delete-exchange-test
         env:
@@ -225,9 +221,8 @@ jobs:
           echo -e "\nDelete Backup exchange \n" >> ${CORSO_LOG_FILE}
           ./longevity-test
 
-##########################################################################################################################################
-
-# Backup Onedrive Deletion test
+      ##########################################################################
+      # Backup Onedrive Deletion test
       - name: Backup Delete onedrive test
         id: delete-onedrive-test
         env:
@@ -238,9 +233,8 @@ jobs:
           echo -e "\nDelete Backup onedrive \n" >> ${CORSO_LOG_FILE}
           ./longevity-test
 
-##########################################################################################################################################
-
-# Backup Sharepoint Deletion test
+      ##########################################################################
+      # Backup Sharepoint Deletion test
       - name: Backup Delete Sharepoint test
         id: delete-sharepoint-test
         env:
@@ -251,65 +245,62 @@ jobs:
           echo -e "\nDelete Backup sharepoint \n" >> ${CORSO_LOG_FILE}
           ./longevity-test
 
-##########################################################################################################################################
+      ##########################################################################
+      # Export OneDrive Test
+      - name: OneDrive Export test
+        run: |
+          set -euo pipefail
+          echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
 
-# Export OneDrive Test
-       - name: OneDrive Export test
-         run: |
-           set -euo pipefail
-           echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export onedrive \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
+              done
 
-           echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
-           ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
-               while read -r line; do
-                   ./corso export onedrive \
-                     "/tmp/corso-export--$line" \
-                     --no-stats \
-                     --backup "$line" \
-                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
-               done
+          echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export onedrive \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
+              done
 
-           echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
-           ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
-               while read -r line; do
-                   ./corso export onedrive \
-                     "/tmp/corso-export--$line" \
-                     --no-stats \
-                     --backup "$line" \
-                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
-               done
+      ##########################################################################
+      # Export SharePoint Test
+      - name: SharePoint Export test
+        run: |
+          set -euo pipefail
+          echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
 
-##########################################################################################################################################
+          echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export sharepoint \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
+              done
 
-# Export SharePoint Test
-       - name: SharePoint Export test
-         run: |
-           set -euo pipefail
-           echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
+          echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export sharepoint \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
+              done
 
-           echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
-           ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
-               while read -r line; do
-                   ./corso export sharepoint \
-                     "/tmp/corso-export--$line" \
-                     --no-stats \
-                     --backup "$line" \
-                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
-               done
-
-           echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
-           ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
-               while read -r line; do
-                   ./corso export sharepoint \
-                     "/tmp/corso-export--$line" \
-                     --no-stats \
-                     --backup "$line" \
-                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
-               done
-
-##########################################################################################################################################
-
-# Maintenance test
+      ##########################################################################
+      # Maintenance test
       - name: Maintenance test Daily
         id: maintenance-test-daily
         run: |
@@ -371,10 +362,8 @@ jobs:
               --prefix "x"
           fi
 
-##########################################################################################################################################
-
-# Logging & Notifications
-
+      ##########################################################################
+      # Logging & Notifications
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: always()
