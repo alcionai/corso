@@ -59,7 +59,7 @@ func (h libraryBackupHandler) PathPrefix(
 
 func (h libraryBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID, resourceOwner string,
+	tenantID string,
 ) (path.Path, error) {
 	return folders.ToDataLayerPath(tenantID, h.siteID, h.service, path.LibrariesCategory, false)
 }

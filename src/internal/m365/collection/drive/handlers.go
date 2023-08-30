@@ -43,10 +43,7 @@ type BackupHandler interface {
 
 	// CanonicalPath constructs the service and category specific path for
 	// the given values.
-	CanonicalPath(
-		folders *path.Builder,
-		tenantID, resourceOwner string,
-	) (path.Path, error)
+	CanonicalPath(folders *path.Builder, tenantID string) (path.Path, error)
 
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
