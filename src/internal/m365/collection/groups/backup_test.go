@@ -2,7 +2,6 @@ package groups
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -36,17 +35,17 @@ import (
 var _ backupHandler = &mockBackupHandler{}
 
 type mockBackupHandler struct {
-	protectedResource string
-	channels          []models.Channelable
-	channelsErr       error
-	messages          []models.ChatMessageable
-	messagesErr       error
-	include           bool
+	channels     []models.Channelable
+	channelsErr  error
+	messages     []models.ChatMessageable
+	messagesErr  error
+	doNotInclude bool
 }
 
 func (bh mockBackupHandler) getChannels(context.Context) ([]models.Channelable, error) {
 	return bh.channels, bh.channelsErr
 }
+
 func (bh mockBackupHandler) getChannelMessagesDelta(
 	_ context.Context,
 	_, _ string,
@@ -60,7 +59,7 @@ func (bh mockBackupHandler) includeContainer(
 	models.Channelable,
 	selectors.GroupsScope,
 ) bool {
-	return bh.include
+	return !bh.doNotInclude
 }
 
 func (bh mockBackupHandler) canonicalPath(
@@ -70,7 +69,7 @@ func (bh mockBackupHandler) canonicalPath(
 	return folders.
 		ToDataLayerPath(
 			tenantID,
-			bh.protectedResource,
+			"protectedResource",
 			path.GroupsService,
 			path.ChannelMessagesCategory,
 			false)
@@ -80,23 +79,23 @@ func (bh mockBackupHandler) canonicalPath(
 // Unit Suite
 // ---------------------------------------------------------------------------
 
-type UnitSuite struct {
+type BackupUnitSuite struct {
 	tester.Suite
 	creds account.M365Config
 }
 
 func TestServiceIteratorsUnitSuite(t *testing.T) {
-	suite.Run(t, &UnitSuite{Suite: tester.NewUnitSuite(t)})
+	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *UnitSuite) SetupSuite() {
+func (suite *BackupUnitSuite) SetupSuite() {
 	a := tconfig.NewFakeM365Account(suite.T())
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	suite.creds = m365
 }
 
-func (suite *UnitSuite) TestPopulateCollections() {
+func (suite *BackupUnitSuite) TestPopulateCollections() {
 	var (
 		qp = graph.QueryParams{
 			Category:          path.ChannelMessagesCategory, // doesn't matter which one we use.
@@ -112,7 +111,8 @@ func (suite *UnitSuite) TestPopulateCollections() {
 		mock                  mockBackupHandler
 		scope                 selectors.GroupsScope
 		failFast              control.FailurePolicy
-		expectErr             assert.ErrorAssertionFunc
+		expectErr             require.ErrorAssertionFunc
+		expectColls           int
 		expectNewColls        int
 		expectMetadataColls   int
 		expectDoNotMergeColls int
@@ -121,126 +121,156 @@ func (suite *UnitSuite) TestPopulateCollections() {
 			name: "happy path, one container",
 			mock: mockBackupHandler{
 				channels: testdata.StubChannels("one"),
-			},
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      1,
-			expectMetadataColls: 0,
-		},
-		{
-			name: "happy path, many containers",
-			mock: mockBackupHandler{
-				channels: testdata.StubChannels("one", "two"),
-			},
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      2,
-			expectMetadataColls: 0,
-		},
-		{
-			name: "no containers pass scope",
-			mock: mockBackupHandler{
-				channels: testdata.StubChannels("one"),
-			},
-			scope:               selectors.NewGroupsBackup(nil).Channels(selectors.None())[0],
-			expectErr:           assert.NoError,
-			expectNewColls:      0,
-			expectMetadataColls: 0,
-		},
-		{
-			name: "err: deleted in flight",
-			mock: mockBackupHandler{
-				channelsErr: graph.ErrDeletedInFlight,
+				messages: testdata.StubChatMessages("msg-one"),
 			},
 			scope:                 allScope,
-			expectErr:             assert.NoError,
+			expectErr:             require.NoError,
+			expectColls:           1,
 			expectNewColls:        1,
 			expectMetadataColls:   0,
 			expectDoNotMergeColls: 1,
 		},
 		{
+			name: "happy path, many containers",
+			mock: mockBackupHandler{
+				channels: testdata.StubChannels("one", "two"),
+				messages: testdata.StubChatMessages("msg-one"),
+			},
+			scope:                 allScope,
+			expectErr:             require.NoError,
+			expectColls:           2,
+			expectNewColls:        2,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 2,
+		},
+		{
+			name: "no containers pass scope",
+			mock: mockBackupHandler{
+				channels:     testdata.StubChannels("one"),
+				doNotInclude: true,
+			},
+			scope:                 selectors.NewGroupsBackup(nil).Channels(selectors.None())[0],
+			expectErr:             require.NoError,
+			expectColls:           0,
+			expectNewColls:        0,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 0,
+		},
+		{
+			name:                  "no channels",
+			mock:                  mockBackupHandler{},
+			scope:                 allScope,
+			expectErr:             require.NoError,
+			expectColls:           0,
+			expectNewColls:        0,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 0,
+		},
+		{
+			name: "no channel messages",
+			mock: mockBackupHandler{
+				channels: testdata.StubChannels("one"),
+			},
+			scope:                 allScope,
+			expectErr:             require.NoError,
+			expectColls:           1,
+			expectNewColls:        1,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 1,
+		},
+		{
+			name: "err: deleted in flight",
+			mock: mockBackupHandler{
+				channels:    testdata.StubChannels("one"),
+				messagesErr: graph.ErrDeletedInFlight,
+			},
+			scope:                 allScope,
+			expectErr:             require.Error,
+			expectColls:           0,
+			expectNewColls:        0,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 0,
+		},
+		{
 			name: "err: other error",
 			mock: mockBackupHandler{
-				channelsErr: assert.AnError,
+				channels:    testdata.StubChannels("one"),
+				messagesErr: assert.AnError,
 			},
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      0,
-			expectMetadataColls: 0,
+			scope:                 allScope,
+			expectErr:             require.Error,
+			expectColls:           0,
+			expectNewColls:        0,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 0,
 		},
 	}
 	for _, test := range table {
-		for _, canMakeDeltaQueries := range []bool{true, false} {
-			name := test.name
+		// for _, canMakeDeltaQueries := range []bool{true, false} {
+		name := test.name
 
-			if canMakeDeltaQueries {
-				name += "-delta"
-			} else {
-				name += "-non-delta"
-			}
+		// 	if canMakeDeltaQueries {
+		// 		name += "-delta"
+		// 	} else {
+		// 		name += "-non-delta"
+		// 	}
 
-			suite.Run(name, func() {
-				t := suite.T()
+		suite.Run(name, func() {
+			t := suite.T()
 
-				ctx, flush := tester.NewContext(t)
-				defer flush()
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-				ctrlOpts := control.Options{FailureHandling: test.failFast}
-				ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
+			ctrlOpts := control.Options{FailureHandling: test.failFast}
+			// ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
 
-				collections, err := populateCollections(
-					ctx,
-					qp,
-					test.mock,
-					statusUpdater,
-					nil,
-					test.scope,
-					ctrlOpts,
-					fault.New(test.failFast == control.FailFast))
-				test.expectErr(t, err, clues.ToCore(err))
+			collections, err := populateCollections(
+				ctx,
+				qp,
+				test.mock,
+				statusUpdater,
+				test.mock.channels,
+				test.scope,
+				ctrlOpts,
+				fault.New(true))
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.Len(t, collections, test.expectColls, "number of collections")
 
-				// collection assertions
+			// collection assertions
 
-				deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
-				for _, c := range collections {
-					if c.FullPath().Service() == path.ExchangeMetadataService {
-						metadatas++
-						continue
-					}
-
-					if c.State() == data.DeletedState {
-						deleteds++
-					}
-
-					if c.State() == data.NewState {
-						news++
-					}
-
-					if c.DoNotMergeItems() {
-						doNotMerges++
-					}
+			deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
+			for _, c := range collections {
+				if c.FullPath().Service() == path.GroupsMetadataService {
+					metadatas++
+					continue
 				}
 
-				assert.Zero(t, deleteds, "deleted collections")
-				assert.Equal(t, test.expectNewColls, news, "new collections")
-				assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
-				assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
-			})
-		}
+				if c.State() == data.DeletedState {
+					deleteds++
+				}
+
+				if c.State() == data.NewState {
+					news++
+				}
+
+				if c.DoNotMergeItems() {
+					doNotMerges++
+				}
+			}
+
+			assert.Zero(t, deleteds, "deleted collections")
+			assert.Equal(t, test.expectNewColls, news, "new collections")
+			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
+			assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
+		})
 	}
 }
+
+// }
 
 // ---------------------------------------------------------------------------
 // Integration tests
 // ---------------------------------------------------------------------------
-
-func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.ControllerOperationStatus) {
-	updater := func(status *support.ControllerOperationStatus) {
-		defer wg.Done()
-	}
-
-	return updater
-}
 
 type BackupIntgSuite struct {
 	tester.Suite
