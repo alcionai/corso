@@ -54,10 +54,12 @@ then click **Add permissions**.
 | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
 | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
 | Files.ReadWrite.All | Application | Read and write files in all site collections |
-| Mail.ReadWrite | Application | Read and write mail in all mailboxes |
-| User.Read.All | Application | Read all users' full profiles |
-| Sites.FullControl.All | Application | Have full control of all site collections |
 | MailboxSettings.Read | Application | Read all user mailbox settings |
+| Mail.ReadWrite | Application | Read and write mail in all mailboxes |
+| Sites.FullControl.All | Application | Have full control of all site collections |
+| User.Read.All | Application | Read all users' full profiles |
+
+
 
 <!-- vale Microsoft.Spacing = YES -->
 
