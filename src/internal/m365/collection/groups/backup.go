@@ -243,7 +243,7 @@ func populateCollections(
 
 func collectItems(
 	ctx context.Context,
-	pager api.ChannelMessageDeltaEnumerator,
+	pager api.DeltaPager[models.ChatMessageable],
 ) ([]models.ChatMessageable, error) {
 	items := []models.ChatMessageable{}
 
