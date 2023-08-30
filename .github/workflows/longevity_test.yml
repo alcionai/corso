@@ -250,61 +250,59 @@ jobs:
 
 ##########################################################################################################################################
 
-# skipped until supported
 # Export OneDrive Test
-      # - name: OneDrive Export test
-      #   run: |
-      #     set -euo pipefail
-      #     echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
+       - name: OneDrive Export test
+         run: |
+           set -euo pipefail
+           echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
 
-      #     echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
-      #     ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
-      #         while read -r line; do
-      #             ./corso export onedrive \
-      #               "/tmp/corso-export--$line" \
-      #               --no-stats \
-      #               --backup "$line" \
-      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
-      #         done
+           echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
+           ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+               while read -r line; do
+                   ./corso export onedrive \
+                     "/tmp/corso-export--$line" \
+                     --no-stats \
+                     --backup "$line" \
+                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
+               done
 
-      #     echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
-      #     ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
-      #         while read -r line; do
-      #             ./corso export onedrive \
-      #               "/tmp/corso-export--$line" \
-      #               --no-stats \
-      #               --backup "$line" \
-      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
-      #         done
+           echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
+           ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
+               while read -r line; do
+                   ./corso export onedrive \
+                     "/tmp/corso-export--$line" \
+                     --no-stats \
+                     --backup "$line" \
+                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
+               done
 
 ##########################################################################################################################################
 
-# skipped until supported
 # Export SharePoint Test
-      # - name: SharePoint Export test
-      #   run: |
-      #     set -euo pipefail
-      #     echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
+       - name: SharePoint Export test
+         run: |
+           set -euo pipefail
+           echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
 
-      #     echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
-      #     ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
-      #         while read -r line; do
-      #             ./corso export sharepoint \
-      #               "/tmp/corso-export--$line" \
-      #               --no-stats \
-      #               --backup "$line" \
-      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
-      #         done
+           echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
+           ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+               while read -r line; do
+                   ./corso export sharepoint \
+                     "/tmp/corso-export--$line" \
+                     --no-stats \
+                     --backup "$line" \
+                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
+               done
 
-      #     echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
-      #     ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
-      #         while read -r line; do
-      #             ./corso export sharepoint \
-      #               "/tmp/corso-export--$line" \
-      #               --no-stats \
-      #               --backup "$line" \
-      #               2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
-      #         done
+           echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
+           ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
+               while read -r line; do
+                   ./corso export sharepoint \
+                     "/tmp/corso-export--$line" \
+                     --no-stats \
+                     --backup "$line" \
+                     2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
+               done
 
 ##########################################################################################################################################
 
