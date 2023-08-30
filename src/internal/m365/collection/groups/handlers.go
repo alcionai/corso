@@ -24,7 +24,7 @@ type backupHandler interface {
 	) ([]models.ChatMessageable, api.DeltaUpdate, error)
 
 	// includeContainer evaluates whether the channel is included
-	// in he provided scope.
+	// in the provided scope.
 	includeContainer(
 		ctx context.Context,
 		qp graph.QueryParams,
