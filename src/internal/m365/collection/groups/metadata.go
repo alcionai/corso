@@ -1,4 +1,4 @@
-package exchange
+package groups
 
 import (
 	"context"
@@ -13,37 +13,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// MetadataFileNames produces the category-specific set of filenames used to
-// store graph metadata such as delta tokens and folderID->path references.
-func MetadataFileNames(cat path.CategoryType) []string {
-	switch cat {
-	// TODO: should this include events?
-	case path.EmailCategory, path.ContactsCategory:
-		return []string{metadata.DeltaURLsFileName, metadata.PreviousPathFileName}
-	default:
-		return []string{metadata.PreviousPathFileName}
-	}
-}
-
 // ParseMetadataCollections produces a map of structs holding delta
 // and path lookup maps.
-func ParseMetadataCollections(
+func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
 ) (metadata.CatDeltaPaths, bool, error) {
 	// cdp stores metadata
 	cdp := metadata.CatDeltaPaths{
-		path.ContactsCategory: {},
-		path.EmailCategory:    {},
-		path.EventsCategory:   {},
+		path.ChannelMessagesCategory: {},
 	}
 
 	// found tracks the metadata we've loaded, to make sure we don't
 	// fetch overlapping copies.
 	found := map[path.CategoryType]map[string]struct{}{
-		path.ContactsCategory: {},
-		path.EmailCategory:    {},
-		path.EventsCategory:   {},
+		path.ChannelMessagesCategory: {},
 	}
 
 	// errors from metadata items should not stop the backup,
@@ -69,9 +53,14 @@ func ParseMetadataCollections(
 				}
 
 				var (
-					m    = map[string]string{}
-					cdps = cdp[category]
+					m                    = map[string]string{}
+					cdps, wantedCategory = cdp[category]
 				)
+
+				// avoid sharepoint site deltapaths
+				if !wantedCategory {
+					continue
+				}
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
@@ -80,15 +69,7 @@ func ParseMetadataCollections(
 
 				switch item.ID() {
 				case metadata.PreviousPathFileName:
-					if _, ok := found[category][metadata.PathKey]; ok {
-						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
-					}
-
-					for k, p := range m {
-						cdps.AddPath(k, p)
-					}
-
-					found[category][metadata.PathKey] = struct{}{}
+					// no-op at this time, previous paths not needed
 
 				case metadata.DeltaURLsFileName:
 					if _, ok := found[category][metadata.DeltaKey]; ok {
@@ -115,22 +96,35 @@ func ParseMetadataCollections(
 		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
 
 		return metadata.CatDeltaPaths{
-			path.ContactsCategory: {},
-			path.EmailCategory:    {},
-			path.EventsCategory:   {},
+			path.ChannelMessagesCategory: {},
 		}, false, nil
 	}
 
-	// Remove any entries that contain a path or a delta, but not both.
-	// That metadata is considered incomplete, and needs to incur a
-	// complete backup on the next run.
-	for _, dps := range cdp {
-		for k, dp := range dps {
-			if len(dp.Path) == 0 {
-				delete(dps, k)
-			}
-		}
-	}
+	// Do not remove entries that contain only a path or a delta, but not both.
+	// This condition is expected.  Channels only record their path.  Messages
+	// only record their deltas.
 
 	return cdp, true, nil
+}
+
+// produces a set of id:path pairs from the deltapaths map.
+// Each entry in the set will, if not removed, produce a collection
+// that will delete the tombstone by path.
+func makeTombstones(dps metadata.DeltaPaths) map[string]string {
+	r := make(map[string]string, len(dps))
+
+	for id, v := range dps {
+		r[id] = v.Path
+	}
+
+	return r
+}
+
+func pathFromPrevString(ps string) (path.Path, error) {
+	p, err := path.FromDataLayerPath(ps, false)
+	if err != nil {
+		return nil, clues.Wrap(err, "parsing previous path string")
+	}
+
+	return p, nil
 }
