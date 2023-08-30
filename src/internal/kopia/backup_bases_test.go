@@ -84,7 +84,7 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 	}
 }
 
-func (suite *BackupBasesUnitSuite) TestRemoveMergeBaseByManifestID() {
+func (suite *BackupBasesUnitSuite) TestMakeAssistBase() {
 	backups := []BackupEntry{
 		{Backup: &backup.Backup{SnapshotID: "1"}},
 		{Backup: &backup.Backup{SnapshotID: "2"}},
@@ -179,7 +179,7 @@ func (suite *BackupBasesUnitSuite) TestRemoveMergeBaseByManifestID() {
 				bb.assistBases = append(bb.assistBases, merges[i])
 			}
 
-			bb.RemoveMergeBaseByManifestID(delID)
+			bb.MakeAssistBase(delID)
 			AssertBackupBasesEqual(t, expected, bb)
 		})
 	}

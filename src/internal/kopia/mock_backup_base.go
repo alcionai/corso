@@ -52,8 +52,6 @@ func (bb *MockBackupBases) WithBackups(b ...BackupEntry) *MockBackupBases {
 
 func (bb *MockBackupBases) WithMergeBases(m ...ManifestEntry) *MockBackupBases {
 	bb.backupBases.mergeBases = append(bb.MergeBases(), m...)
-	bb.backupBases.assistBases = append(bb.UniqueAssistBases(), m...)
-
 	return bb
 }
 
@@ -67,7 +65,12 @@ func (bb *MockBackupBases) WithAssistBases(m ...ManifestEntry) *MockBackupBases 
 	return bb
 }
 
-func (bb *MockBackupBases) ClearMockAssistBases() *MockBackupBases {
-	bb.backupBases.DisableAssistBases()
+func (bb *MockBackupBases) MockDisableAssistBases() *MockBackupBases {
+	bb.DisableAssistBases()
+	return bb
+}
+
+func (bb *MockBackupBases) MockDisableMergeBases() *MockBackupBases {
+	bb.DisableMergeBases()
 	return bb
 }
