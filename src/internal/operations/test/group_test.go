@@ -23,8 +23,6 @@ type GroupsBackupIntgSuite struct {
 }
 
 func TestGroupsBackupIntgSuite(t *testing.T) {
-	t.Skip("todo: enable")
-
 	suite.Run(t, &GroupsBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
