@@ -354,7 +354,7 @@ jobs:
               --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
               --bucket-prefix ${{ env.PREFIX }} \
               --retention-mode ${{ env.RETENTION_MODE }} \
-              --live-retention-duration "$((${{ env.RETENTION_DURATION}}-1))h" \
+              --live-retention-duration "$((${{ env.RETENTION_DURATION }}-1))h" \
               --prefix "kopia.blobcfg" \
               --prefix "kopia.repository" \
               --prefix "p" \
