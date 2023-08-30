@@ -413,7 +413,7 @@ func (c *Collections) Get(
 
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.resourceOwner, driveID)
+		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}

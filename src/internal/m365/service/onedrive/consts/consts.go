@@ -3,6 +3,7 @@ package onedrive
 import "github.com/alcionai/corso/src/pkg/path"
 
 const (
+	SitesPathDir = "sites"
 	// const used as the root dir for the drive portion of a path prefix.
 	// eg: tid/onedrive/ro/files/drives/driveid/...
 	DrivesPathDir = "drives"

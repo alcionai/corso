@@ -39,7 +39,7 @@ type BackupHandler interface {
 
 	// PathPrefix constructs the service and category specific path prefix for
 	// the given values.
-	PathPrefix(tenantID, resourceOwner, driveID string) (path.Path, error)
+	PathPrefix(tenantID, driveID string) (path.Path, error)
 
 	// CanonicalPath constructs the service and category specific path for
 	// the given values.

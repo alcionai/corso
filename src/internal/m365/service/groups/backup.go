@@ -80,7 +80,12 @@ func ProduceBackupCollections(
 			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				sbpc,
-				drive.NewGroupBackupHandler(bpc.ProtectedResource.ID(), ac.Drives(), scope),
+				drive.NewGroupBackupHandler(
+					bpc.ProtectedResource.ID(),
+					ptr.Val(resp.GetId()),
+					ac.Drives(),
+					scope,
+				),
 				creds.AzureTenantID,
 				ssmb,
 				su,
