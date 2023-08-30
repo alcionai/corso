@@ -124,6 +124,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	bh := itemBackupHandler{
 		suite.service.ac.Drives(),
+		suite.user,
 		(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
 	}
 

@@ -1,11 +1,10 @@
 package drive
 
 import (
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 )
 
 var _ BackupHandler = &groupBackupHandler{}
@@ -53,9 +52,8 @@ func (h groupBackupHandler) PathPrefix(
 
 func (h groupBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID, resourceOwner string,
+	tenantID string,
 ) (path.Path, error) {
-	// TODO: drop resourceOwner
 	return folders.ToDataLayerPath(
 		tenantID,
 		h.groupID,

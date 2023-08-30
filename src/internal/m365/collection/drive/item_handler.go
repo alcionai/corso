@@ -56,9 +56,9 @@ func (h itemBackupHandler) PathPrefix(
 
 func (h itemBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID, resourceOwner string,
+	tenantID string,
 ) (path.Path, error) {
-	return folders.ToDataLayerOneDrivePath(tenantID, resourceOwner, false)
+	return folders.ToDataLayerOneDrivePath(tenantID, h.userID, false)
 }
 
 func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {

@@ -182,9 +182,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			folderPath, err := pb.ToDataLayerOneDrivePath("tenant", "owner", false)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			if test.service == path.SharePointService {
-				mbh = mock.DefaultSharePointBH()
+				mbh = mock.DefaultSharePointBH("a-site")
 				mbh.ItemInfo.SharePoint.Modified = now
 				mbh.ItemInfo.SharePoint.ItemName = stubItemName
 			} else {
@@ -301,7 +301,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mbh := mock.DefaultOneDriveBH()
+	mbh := mock.DefaultOneDriveBH("a-user")
 	mbh.GI = mock.GetsItem{Err: assert.AnError}
 	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{
@@ -378,7 +378,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err)
 
-	mbh := mock.DefaultOneDriveBH()
+	mbh := mock.DefaultOneDriveBH("a-user")
 	mbh.GI = mock.GetsItem{Item: stubItem}
 	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{
@@ -436,7 +436,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mbh := mock.DefaultOneDriveBH()
+	mbh := mock.DefaultOneDriveBH("a-user")
 	mbh.ItemInfo = details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}}
 	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{{
@@ -587,7 +587,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 				true,
 				false)
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = mock.GetsItem{Item: stubItem}
 			mbh.GetResps = []*http.Response{{StatusCode: http.StatusOK}}
 			mbh.GetErrs = []error{test.err}
@@ -766,7 +766,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 				}
 			}
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = test.mgi
 			mbh.ItemInfo = test.itemInfo
 			mbh.GetResps = resps
@@ -932,7 +932,7 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 
 			wg.Add(1)
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = mock.GetsItem{Err: assert.AnError}
 			mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 			mbh.GetResps = []*http.Response{

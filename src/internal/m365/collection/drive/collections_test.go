@@ -40,7 +40,7 @@ type statePath struct {
 func getExpectedStatePathGenerator(
 	t *testing.T,
 	bh BackupHandler,
-	tenant, user, base string,
+	tenant, base string,
 ) func(data.CollectionState, ...string) statePath {
 	return func(state data.CollectionState, pths ...string) statePath {
 		var (
@@ -56,12 +56,12 @@ func getExpectedStatePathGenerator(
 		} else {
 			require.Len(t, pths, 2, "invalid number of paths to getExpectedStatePathGenerator")
 			pb := path.Builder{}.Append(path.Split(base + pths[1])...)
-			p2, err = bh.CanonicalPath(pb, tenant, user)
+			p2, err = bh.CanonicalPath(pb, tenant)
 			require.NoError(t, err, clues.ToCore(err))
 		}
 
 		pb := path.Builder{}.Append(path.Split(base + pths[0])...)
-		p1, err = bh.CanonicalPath(pb, tenant, user)
+		p1, err = bh.CanonicalPath(pb, tenant)
 		require.NoError(t, err, clues.ToCore(err))
 
 		switch state {
@@ -88,11 +88,11 @@ func getExpectedStatePathGenerator(
 func getExpectedPathGenerator(
 	t *testing.T,
 	bh BackupHandler,
-	tenant, user, base string,
+	tenant, base string,
 ) func(string) string {
 	return func(p string) string {
 		pb := path.Builder{}.Append(path.Split(base + p)...)
-		cp, err := bh.CanonicalPath(pb, tenant, user)
+		cp, err := bh.CanonicalPath(pb, tenant)
 		require.NoError(t, err, clues.ToCore(err))
 
 		return cp.String()
@@ -129,10 +129,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		pkg       = "/package"
 	)
 
-	bh := itemBackupHandler{}
+	bh := itemBackupHandler{userID: user}
 	testBaseDrivePath := odConsts.DriveFolderPrefixBuilder("driveID1").String()
-	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
-	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
+	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
+	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
 
 	tests := []struct {
 		testCase               string
@@ -744,7 +744,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				&itemBackupHandler{api.Drives{}, tt.scope},
+				&itemBackupHandler{api.Drives{}, user, tt.scope},
 				tenant,
 				user,
 				nil,
@@ -1208,13 +1208,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	drive2.SetName(&driveID2)
 
 	var (
-		bh = itemBackupHandler{}
+		bh = itemBackupHandler{userID: user}
 
 		driveBasePath1 = odConsts.DriveFolderPrefixBuilder(driveID1).String()
 		driveBasePath2 = odConsts.DriveFolderPrefixBuilder(driveID2).String()
 
-		expectedPath1 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath1)
-		expectedPath2 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath2)
+		expectedPath1 = getExpectedPathGenerator(suite.T(), bh, tenant, driveBasePath1)
+		expectedPath2 = getExpectedPathGenerator(suite.T(), bh, tenant, driveBasePath2)
 
 		rootFolderPath1 = expectedPath1("")
 		folderPath1     = expectedPath1("/folder")
@@ -2279,7 +2279,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 			}
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.DrivePagerV = mockDrivePager
 			mbh.ItemPagerV = itemPagers
 
@@ -2650,7 +2650,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			itemPagers := map[string]api.DeltaPager[models.DriveItemable]{}
 			itemPagers[driveID] = &apiMock.DeltaPager[models.DriveItemable]{}
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("test-user")
 			mbh.ItemPagerV = itemPagers
 
 			c := NewCollections(
@@ -2667,7 +2667,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			// Add a few collections
 			for i := 0; i < collCount; i++ {
 				coll, err := NewCollection(
-					&itemBackupHandler{api.Drives{}, anyFolder},
+					&itemBackupHandler{api.Drives{}, "test-user", anyFolder},
 					nil,
 					nil,
 					driveID,
