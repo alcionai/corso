@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -17,40 +17,12 @@ import (
 // store graph metadata such as delta tokens and folderID->path references.
 func MetadataFileNames(cat path.CategoryType) []string {
 	switch cat {
+	// TODO: should this include events?
 	case path.EmailCategory, path.ContactsCategory:
-		return []string{graph.DeltaURLsFileName, graph.PreviousPathFileName}
+		return []string{metadata.DeltaURLsFileName, metadata.PreviousPathFileName}
 	default:
-		return []string{graph.PreviousPathFileName}
+		return []string{metadata.PreviousPathFileName}
 	}
-}
-
-type CatDeltaPaths map[path.CategoryType]DeltaPaths
-
-type DeltaPaths map[string]DeltaPath
-
-func (dps DeltaPaths) AddDelta(k, d string) {
-	dp, ok := dps[k]
-	if !ok {
-		dp = DeltaPath{}
-	}
-
-	dp.Delta = d
-	dps[k] = dp
-}
-
-func (dps DeltaPaths) AddPath(k, p string) {
-	dp, ok := dps[k]
-	if !ok {
-		dp = DeltaPath{}
-	}
-
-	dp.Path = p
-	dps[k] = dp
-}
-
-type DeltaPath struct {
-	Delta string
-	Path  string
 }
 
 // ParseMetadataCollections produces a map of structs holding delta
@@ -58,9 +30,9 @@ type DeltaPath struct {
 func ParseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
-) (CatDeltaPaths, bool, error) {
+) (metadata.CatDeltaPaths, bool, error) {
 	// cdp stores metadata
-	cdp := CatDeltaPaths{
+	cdp := metadata.CatDeltaPaths{
 		path.ContactsCategory: {},
 		path.EmailCategory:    {},
 		path.EventsCategory:   {},
@@ -107,7 +79,7 @@ func ParseMetadataCollections(
 				}
 
 				switch item.ID() {
-				case graph.PreviousPathFileName:
+				case metadata.PreviousPathFileName:
 					if _, ok := found[category]["path"]; ok {
 						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
 					}
@@ -118,7 +90,7 @@ func ParseMetadataCollections(
 
 					found[category]["path"] = struct{}{}
 
-				case graph.DeltaURLsFileName:
+				case metadata.DeltaURLsFileName:
 					if _, ok := found[category]["delta"]; ok {
 						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
 					}
@@ -142,7 +114,7 @@ func ParseMetadataCollections(
 	if errs.Failure() != nil {
 		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
 
-		return CatDeltaPaths{
+		return metadata.CatDeltaPaths{
 			path.ContactsCategory: {},
 			path.EmailCategory:    {},
 			path.EventsCategory:   {},
