@@ -262,7 +262,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_quotaExceeded() {
 	gock.EnableNetworking()
 	gock.New(graphAPIHostURL).
 		// Wildcard match on the inbox folder ID.
-		Get(v1APIURLPath("users", suite.its.userID, "mailFolders", "(.*)", "messages", "delta")).
+		Get(v1APIURLPath("users", suite.its.user.id, "mailFolders", "(.*)", "messages", "delta")).
 		Reply(403).
 		SetHeaders(
 			map[string]string{
@@ -272,7 +272,7 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_quotaExceeded() {
 		).
 		BodyString(`{"error":{"code":"ErrorQuotaExceeded","message":"The process failed to get the correct properties."}}`)
 
-	output, err := suite.its.gockAC.Users().GetInfo(ctx, suite.its.userID)
+	output, err := suite.its.gockAC.Users().GetInfo(ctx, suite.its.user.id)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.True(t, output.Mailbox.QuotaExceeded)
