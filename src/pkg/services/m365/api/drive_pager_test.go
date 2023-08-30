@@ -39,13 +39,13 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 	}{
 		{
 			name:         "user drive",
-			driveID:      suite.its.userDriveID,
-			rootFolderID: suite.its.userDriveRootFolderID,
+			driveID:      suite.its.user.driveID,
+			rootFolderID: suite.its.user.driveRootFolderID,
 		},
 		{
 			name:         "site drive",
-			driveID:      suite.its.siteDriveID,
-			rootFolderID: suite.its.siteDriveRootFolderID,
+			driveID:      suite.its.site.driveID,
+			rootFolderID: suite.its.site.driveRootFolderID,
 		},
 	}
 	for _, test := range table {
@@ -75,7 +75,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 				t,
 				ims,
 				"need at least one item to compare in user %s drive %s folder %s",
-				suite.its.userID, test.driveID, test.rootFolderID)
+				suite.its.user.id, test.driveID, test.rootFolderID)
 
 			results, err := suite.its.ac.
 				Drives().
@@ -113,13 +113,13 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemIDsInContainer() {
 	}{
 		{
 			name:         "user drive",
-			driveID:      suite.its.userDriveID,
-			rootFolderID: suite.its.userDriveRootFolderID,
+			driveID:      suite.its.user.driveID,
+			rootFolderID: suite.its.user.driveRootFolderID,
 		},
 		{
 			name:         "site drive",
-			driveID:      suite.its.siteDriveID,
-			rootFolderID: suite.its.siteDriveRootFolderID,
+			driveID:      suite.its.site.driveID,
+			rootFolderID: suite.its.site.driveRootFolderID,
 		},
 	}
 	for _, test := range table {
@@ -149,7 +149,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemIDsInContainer() {
 				t,
 				igv,
 				"need at least one item to compare in user %s drive %s folder %s",
-				suite.its.userID, test.driveID, test.rootFolderID)
+				suite.its.user.id, test.driveID, test.rootFolderID)
 
 			for _, itm := range igv {
 				expect[ptr.Val(itm.GetId())] = api.DriveItemIDType{
