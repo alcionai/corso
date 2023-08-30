@@ -47,6 +47,7 @@ func ProduceExportCollections(
 		}
 
 		baseDir := path.Builder{}.
+			Append("Libraries").
 			Append(driveName).
 			Append(drivePath.Folders...)
 
