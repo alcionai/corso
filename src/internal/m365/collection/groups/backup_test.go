@@ -138,9 +138,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 allScope,
 			expectErr:             require.NoError,
-			expectColls:           1,
+			expectColls:           2,
 			expectNewColls:        1,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 1,
 		},
 		{
@@ -151,9 +151,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 allScope,
 			expectErr:             require.NoError,
-			expectColls:           1,
+			expectColls:           2,
 			expectNewColls:        1,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 1,
 		},
 		{
@@ -164,9 +164,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 allScope,
 			expectErr:             require.NoError,
-			expectColls:           2,
+			expectColls:           3,
 			expectNewColls:        2,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 2,
 		},
 		{
@@ -177,9 +177,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 selectors.NewGroupsBackup(nil).Channels(selectors.None())[0],
 			expectErr:             require.NoError,
-			expectColls:           0,
+			expectColls:           1,
 			expectNewColls:        0,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 0,
 		},
 		{
@@ -187,9 +187,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			mock:                  mockBackupHandler{},
 			scope:                 allScope,
 			expectErr:             require.NoError,
-			expectColls:           0,
+			expectColls:           1,
 			expectNewColls:        0,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 0,
 		},
 		{
@@ -199,9 +199,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 allScope,
 			expectErr:             require.NoError,
-			expectColls:           1,
+			expectColls:           2,
 			expectNewColls:        1,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 1,
 		},
 		{
@@ -212,9 +212,9 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 allScope,
 			expectErr:             require.Error,
-			expectColls:           0,
+			expectColls:           1,
 			expectNewColls:        0,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 0,
 		},
 		{
@@ -225,74 +225,73 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			},
 			scope:                 allScope,
 			expectErr:             require.Error,
-			expectColls:           0,
+			expectColls:           1,
 			expectNewColls:        0,
-			expectMetadataColls:   0,
+			expectMetadataColls:   1,
 			expectDoNotMergeColls: 0,
 		},
 	}
 	for _, test := range table {
-		// for _, canMakeDeltaQueries := range []bool{true, false} {
-		name := test.name
+		for _, canMakeDeltaQueries := range []bool{true, false} {
+			name := test.name
 
-		// 	if canMakeDeltaQueries {
-		// 		name += "-delta"
-		// 	} else {
-		// 		name += "-non-delta"
-		// 	}
-
-		suite.Run(name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			ctrlOpts := control.Options{FailureHandling: test.failFast}
-			// ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
-
-			collections, err := populateCollections(
-				ctx,
-				qp,
-				test.mock,
-				statusUpdater,
-				test.mock.channels,
-				test.scope,
-				ctrlOpts,
-				fault.New(true))
-			test.expectErr(t, err, clues.ToCore(err))
-			assert.Len(t, collections, test.expectColls, "number of collections")
-
-			// collection assertions
-
-			deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
-			for _, c := range collections {
-				if c.FullPath().Service() == path.GroupsMetadataService {
-					metadatas++
-					continue
-				}
-
-				if c.State() == data.DeletedState {
-					deleteds++
-				}
-
-				if c.State() == data.NewState {
-					news++
-				}
-
-				if c.DoNotMergeItems() {
-					doNotMerges++
-				}
+			if canMakeDeltaQueries {
+				name += "-delta"
+			} else {
+				name += "-non-delta"
 			}
 
-			assert.Zero(t, deleteds, "deleted collections")
-			assert.Equal(t, test.expectNewColls, news, "new collections")
-			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
-			assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
-		})
+			suite.Run(name, func() {
+				t := suite.T()
+
+				ctx, flush := tester.NewContext(t)
+				defer flush()
+
+				ctrlOpts := control.Options{FailureHandling: test.failFast}
+				// ctrlOpts.ToggleFeatures.DisableDelta = !canMakeDeltaQueries
+
+				collections, err := populateCollections(
+					ctx,
+					qp,
+					test.mock,
+					statusUpdater,
+					test.mock.channels,
+					test.scope,
+					ctrlOpts,
+					fault.New(true))
+				test.expectErr(t, err, clues.ToCore(err))
+				assert.Len(t, collections, test.expectColls, "number of collections")
+
+				// collection assertions
+
+				deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
+				for _, c := range collections {
+					if c.FullPath().Service() == path.GroupsMetadataService {
+						metadatas++
+						continue
+					}
+
+					if c.State() == data.DeletedState {
+						deleteds++
+					}
+
+					if c.State() == data.NewState {
+						news++
+					}
+
+					if c.DoNotMergeItems() {
+						doNotMerges++
+					}
+				}
+
+				assert.Zero(t, deleteds, "deleted collections")
+				assert.Equal(t, test.expectNewColls, news, "new collections")
+				assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
+				assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
+			})
+		}
 	}
 }
-
-// }
 
 // ---------------------------------------------------------------------------
 // Integration tests

@@ -26,7 +26,7 @@ const (
 	LibrariesCategory       CategoryType = 6 // libraries
 	PagesCategory           CategoryType = 7 // pages
 	DetailsCategory         CategoryType = 8 // details
-	ChannelMessagesCategory CategoryType = 9 // channel messages
+	ChannelMessagesCategory CategoryType = 9 // channelMessages
 )
 
 func ToCategoryType(category string) CategoryType {

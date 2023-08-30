@@ -124,8 +124,10 @@ func (suite *CollectionSuite) TestNewCollection_state() {
 				"g",
 				test.curr, test.prev, test.loc,
 				0,
+				nil, nil,
 				nil,
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				false)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
 			assert.Equal(t, test.prev, c.prevPath, "prev path")

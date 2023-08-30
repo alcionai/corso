@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -92,16 +91,17 @@ func populateCollections(
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
-	// channel ID -> BackupCollection.
-	channelCollections := map[string]data.BackupCollection{}
-
-	// channel ID -> delta url or folder path lookups
-	// deltaURLs = map[string]string{}
-	// currPaths = map[string]string{}
-	// copy of previousPaths.  every channel present in the slice param
-	// gets removed from this map; the remaining channels at the end of
-	// the process have been deleted.
-	// tombstones = makeTombstones(dps)
+	var (
+		// channel ID -> BackupCollection.
+		channelCollections = map[string]data.BackupCollection{}
+		// channel ID -> delta url or folder path lookups
+		deltaURLs = map[string]string{}
+		currPaths = map[string]string{}
+		// copy of previousPaths.  every channel present in the slice param
+		// gets removed from this map; the remaining channels at the end of
+		// the process have been deleted.
+		// tombstones = makeTombstones(dps)
+	)
 
 	logger.Ctx(ctx).Info("filling collections")
 	// , "len_deltapaths", len(dps))
@@ -148,17 +148,17 @@ func populateCollections(
 
 		// ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, _, err := bh.getChannelMessageIDsDelta(ctx, cID, "")
+		added, removed, du, err := bh.getChannelMessageIDsDelta(ctx, cID, "")
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
 
-		// if len(newDelta.URL) > 0 {
-		// 	deltaURLs[cID] = newDelta.URL
-		// } else if !newDelta.Reset {
-		// 	logger.Ctx(ictx).Info("missing delta url")
-		// }
+		if len(du.URL) > 0 {
+			deltaURLs[cID] = du.URL
+		} else if !du.Reset {
+			logger.Ctx(ictx).Info("missing delta url")
+		}
 
 		var prevPath path.Path
 
@@ -168,6 +168,13 @@ func populateCollections(
 			continue
 		}
 
+		// Remove any deleted IDs from the set of added IDs because items that are
+		// deleted and then restored will have a different ID than they did
+		// originally.
+		for remove := range removed {
+			delete(added, remove)
+		}
+
 		edc := NewCollection(
 			bh,
 			qp.ProtectedResource.ID(),
@@ -175,26 +182,17 @@ func populateCollections(
 			prevPath,
 			path.Builder{}.Append(cName),
 			qp.Category,
+			added,
+			removed,
 			statusUpdater,
-			ctrlOpts)
+			ctrlOpts,
+			du.Reset)
 
 		channelCollections[cID] = &edc
 
-		// Remove any deleted IDs from the set of added IDs because items that are
-		// deleted and then restored will have a different ID than they did
-		// originally.
-		for remove := range removed {
-			delete(edc.added, remove)
-			edc.removed[remove] = struct{}{}
-		}
-
-		// // add the current path for the container ID to be used in the next backup
-		// // as the "previous path", for reference in case of a rename or relocation.
-		// currPaths[cID] = currPath.String()
-
-		// FIXME: normally this goes before removal, but the linters require no bottom comments
-		maps.Copy(edc.added, added)
-		maps.Copy(edc.removed, removed)
+		// add the current path for the container ID to be used in the next backup
+		// as the "previous path", for reference in case of a rename or relocation.
+		currPaths[cID] = currPath.String()
 	}
 
 	// TODO: handle tombstones here
@@ -204,21 +202,21 @@ func populateCollections(
 		// "num_deltas_entries", len(deltaURLs),
 		"num_paths_entries", len(channelCollections))
 
-	// col, err := graph.MakeMetadataCollection(
-	// 	qp.TenantID,
-	// 	qp.ProtectedResource.ID(),
-	// 	path.ExchangeService,
-	// 	qp.Category,
-	// 	[]graph.MetadataCollectionEntry{
-	// 		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
-	// 		graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
-	// 	},
-	// 	statusUpdater)
-	// if err != nil {
-	// 	return nil, clues.Wrap(err, "making metadata collection")
-	// }
+	col, err := graph.MakeMetadataCollection(
+		qp.TenantID,
+		qp.ProtectedResource.ID(),
+		path.GroupsService,
+		qp.Category,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
+			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+		},
+		statusUpdater)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata collection")
+	}
 
-	// channelCollections["metadata"] = col
+	channelCollections["metadata"] = col
 
 	return channelCollections, el.Failure()
 }
