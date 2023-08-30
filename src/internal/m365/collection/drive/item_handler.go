@@ -54,6 +54,22 @@ func (h itemBackupHandler) PathPrefix(
 		odConsts.RootPathDir)
 }
 
+func (h itemBackupHandler) MetadataPathPrefix(
+	tenantID string,
+) (path.Path, error) {
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenantID,
+		h.userID,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	return p, nil
+}
+
 func (h itemBackupHandler) CanonicalPath(
 	folders *path.Builder,
 	tenantID string,
