@@ -148,7 +148,7 @@ func populateCollections(
 
 		// ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		items, _, err := bh.getChannelMessageIDsDelta(ctx, cID, "")
+		added, removed, _, err := bh.getChannelMessageIDsDelta(ctx, cID, "")
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
@@ -180,21 +180,21 @@ func populateCollections(
 
 		channelCollections[cID] = &edc
 
-		// TODO: handle deleted items for v1 backup.
-		// // Remove any deleted IDs from the set of added IDs because items that are
-		// // deleted and then restored will have a different ID than they did
-		// // originally.
-		// for _, remove := range removed {
-		// 	delete(edc.added, remove)
-		// 	edc.removed[remove] = struct{}{}
-		// }
+		// Remove any deleted IDs from the set of added IDs because items that are
+		// deleted and then restored will have a different ID than they did
+		// originally.
+		for remove := range removed {
+			delete(edc.added, remove)
+			edc.removed[remove] = struct{}{}
+		}
 
 		// // add the current path for the container ID to be used in the next backup
 		// // as the "previous path", for reference in case of a rename or relocation.
 		// currPaths[cID] = currPath.String()
 
 		// FIXME: normally this goes before removal, but the linters require no bottom comments
-		maps.Copy(edc.added, items)
+		maps.Copy(edc.added, added)
+		maps.Copy(edc.removed, removed)
 	}
 
 	// TODO: handle tombstones here

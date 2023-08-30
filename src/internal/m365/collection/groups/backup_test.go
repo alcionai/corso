@@ -40,6 +40,7 @@ type mockBackupHandler struct {
 	channels      []models.Channelable
 	channelsErr   error
 	messageIDs    map[string]struct{}
+	deletedMsgIDs map[string]struct{}
 	messagesErr   error
 	messages      map[string]models.ChatMessageable
 	info          map[string]*details.GroupsInfo
@@ -54,8 +55,8 @@ func (bh mockBackupHandler) getChannels(context.Context) ([]models.Channelable, 
 func (bh mockBackupHandler) getChannelMessageIDsDelta(
 	_ context.Context,
 	_, _ string,
-) (map[string]struct{}, api.DeltaUpdate, error) {
-	return bh.messageIDs, api.DeltaUpdate{}, bh.messagesErr
+) (map[string]struct{}, map[string]struct{}, api.DeltaUpdate, error) {
+	return bh.messageIDs, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(
@@ -134,6 +135,19 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			mock: mockBackupHandler{
 				channels:   testdata.StubChannels("one"),
 				messageIDs: map[string]struct{}{"msg-one": {}},
+			},
+			scope:                 allScope,
+			expectErr:             require.NoError,
+			expectColls:           1,
+			expectNewColls:        1,
+			expectMetadataColls:   0,
+			expectDoNotMergeColls: 1,
+		},
+		{
+			name: "happy path, one container, only deleted messages",
+			mock: mockBackupHandler{
+				channels:      testdata.StubChannels("one"),
+				deletedMsgIDs: map[string]struct{}{"msg-one": {}},
 			},
 			scope:                 allScope,
 			expectErr:             require.NoError,
