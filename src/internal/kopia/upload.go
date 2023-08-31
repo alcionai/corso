@@ -877,8 +877,8 @@ func traverseBaseDir(
 	stats *count.Bus,
 ) error {
 	ctx = clues.Add(ctx,
-		"old_dir_path", oldDirPath,
-		"expected_dir_path", expectedDirPath)
+		"old_parent_dir_path", oldDirPath,
+		"expected_parent_dir_path", expectedDirPath)
 
 	if depth >= maxInflateTraversalDepth {
 		return clues.New("base snapshot tree too tall").WithClues(ctx)

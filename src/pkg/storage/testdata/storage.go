@@ -2,7 +2,6 @@ package testdata
 
 import (
 	"os"
-	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
@@ -28,7 +27,7 @@ var AWSStorageCredEnvs = []string{
 // Uses t.TempDir() to generate a unique config storage and caching directory for this
 // test.  Suites that need to identify this value can retrieve it again from the common
 // configs.
-func NewPrefixedS3Storage(t *testing.T) storage.Storage {
+func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
 
 	cfg, err := tconfig.ReadTestConfig()

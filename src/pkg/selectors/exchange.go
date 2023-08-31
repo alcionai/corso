@@ -335,7 +335,7 @@ func (s *exchange) AllData() []ExchangeScope {
 }
 
 // -------------------
-// Info Factories
+// ItemInfo Factories
 
 // ContactName produces one or more exchange contact name info scopes.
 // Matches any contact whose name contains the provided string.
@@ -352,7 +352,7 @@ func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 	}
 }
 
-// EventSubject produces one or more exchange event subject info scopes.
+// EventOrganizer produces one or more exchange event subject info scopes.
 // Matches any event where the event subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]

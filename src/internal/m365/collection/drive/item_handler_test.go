@@ -36,10 +36,10 @@ func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{}
+			h := itemBackupHandler{userID: resourceOwner}
 			p := path.Builder{}.Append("prefix")
 
-			result, err := h.CanonicalPath(p, tenantID, resourceOwner)
+			result, err := h.CanonicalPath(p, tenantID)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {

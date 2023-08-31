@@ -4,64 +4,70 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 )
 
-type ChannelPagerIntgSuite struct {
+type ChannelsPagerIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
 }
 
 func TestChannelPagerIntgSuite(t *testing.T) {
-	suite.Run(t, &ChannelPagerIntgSuite{
+	suite.Run(t, &ChannelsPagerIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *ChannelPagerIntgSuite) SetupSuite() {
+func (suite *ChannelsPagerIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-// This will be added once 'pager' is implemented
-// func (suite *ChannelPagerIntgSuite) TestChannels_GetPage() {
-// 	t := suite.T()
-
-// 	ctx, flush := tester.NewContext(t)
-// 	defer flush()
-
-// 	teamID := tconfig.M365TeamID(t)
-// 	channelID := tconfig.M365ChannelID(t)
-// 	pager := suite.its.ac.Channels().NewMessagePager(teamID, channelID, []string{})
-// 	a, err := pager.GetPage(ctx)
-// 	assert.NoError(t, err, clues.ToCore(err))
-// 	assert.NotNil(t, a)
-// }
-
-func (suite *ChannelPagerIntgSuite) TestChannels_Get() {
-	t := suite.T()
-	ctx, flush := tester.NewContext(t)
-
-	defer flush()
-
+func (suite *ChannelsPagerIntgSuite) TestEnumerateChannels() {
 	var (
-		containerName = "General"
-		teamID        = tconfig.M365TeamID(t)
-		chanClient    = suite.its.ac.Channels()
+		t  = suite.T()
+		ac = suite.its.ac.Channels()
 	)
 
-	// GET channel -should be found
-	channel, err := chanClient.GetChannelByName(ctx, teamID, containerName)
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, ptr.Val(channel.GetDisplayName()), containerName)
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-	// GET channel -should be found
-	_, err = chanClient.GetChannel(ctx, teamID, ptr.Val(channel.GetId()))
-	assert.NoError(t, err, clues.ToCore(err))
+	chans, err := ac.GetChannels(ctx, suite.its.group.id)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotEmpty(t, chans)
+}
+
+func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
+	var (
+		t  = suite.T()
+		ac = suite.its.ac.Channels()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	msgs, du, err := ac.GetChannelMessagesDelta(
+		ctx,
+		suite.its.group.id,
+		suite.its.group.testContainerID,
+		"")
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotEmpty(t, msgs)
+	require.NotZero(t, du.URL, "delta link")
+	require.True(t, du.Reset, "reset due to empty prev delta link")
+
+	msgs, du, err = ac.GetChannelMessagesDelta(
+		ctx,
+		suite.its.group.id,
+		suite.its.group.testContainerID,
+		du.URL)
+	require.NoError(t, err, clues.ToCore(err))
+	require.Empty(t, msgs, "should have no new messages from delta")
+	require.NotZero(t, du.URL, "delta link")
+	require.False(t, du.Reset, "prev delta link should be valid")
 }

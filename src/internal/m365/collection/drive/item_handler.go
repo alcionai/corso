@@ -23,12 +23,13 @@ import (
 var _ BackupHandler = &itemBackupHandler{}
 
 type itemBackupHandler struct {
-	ac    api.Drives
-	scope selectors.OneDriveScope
+	ac     api.Drives
+	userID string
+	scope  selectors.OneDriveScope
 }
 
-func NewItemBackupHandler(ac api.Drives, scope selectors.OneDriveScope) *itemBackupHandler {
-	return &itemBackupHandler{ac, scope}
+func NewItemBackupHandler(ac api.Drives, userID string, scope selectors.OneDriveScope) *itemBackupHandler {
+	return &itemBackupHandler{ac, userID, scope}
 }
 
 func (h itemBackupHandler) Get(
@@ -40,11 +41,11 @@ func (h itemBackupHandler) Get(
 }
 
 func (h itemBackupHandler) PathPrefix(
-	tenantID, resourceOwner, driveID string,
+	tenantID, driveID string,
 ) (path.Path, error) {
 	return path.Build(
 		tenantID,
-		resourceOwner,
+		h.userID,
 		path.OneDriveService,
 		path.FilesCategory,
 		false,
@@ -55,9 +56,9 @@ func (h itemBackupHandler) PathPrefix(
 
 func (h itemBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID, resourceOwner string,
+	tenantID string,
 ) (path.Path, error) {
-	return folders.ToDataLayerOneDrivePath(tenantID, resourceOwner, false)
+	return folders.ToDataLayerOneDrivePath(tenantID, h.userID, false)
 }
 
 func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
@@ -66,14 +67,14 @@ func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 
 func (h itemBackupHandler) NewDrivePager(
 	resourceOwner string, fields []string,
-) api.DrivePager {
+) api.Pager[models.Driveable] {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
 func (h itemBackupHandler) NewItemPager(
 	driveID, link string,
 	fields []string,
-) api.DriveItemDeltaEnumerator {
+) api.DeltaPager[models.DriveItemable] {
 	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
 }
 
@@ -145,7 +146,7 @@ func (h itemRestoreHandler) PostDrive(
 
 func (h itemRestoreHandler) NewDrivePager(
 	resourceOwner string, fields []string,
-) api.DrivePager {
+) api.Pager[models.Driveable] {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 

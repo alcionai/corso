@@ -367,3 +367,39 @@ func (suite *BuilderUnitSuite) TestPIIHandling() {
 		})
 	}
 }
+
+func (suite *BuilderUnitSuite) TestToDataLayerPath() {
+	location := Builder{}.Append("foo", "bar")
+
+	table := []struct {
+		name   string
+		extra  []string
+		expect string
+	}{
+		{
+			name:   "no extra",
+			extra:  []string{},
+			expect: "t/onedrive/u/files/foo/bar",
+		},
+		{
+			name:   "single extra",
+			extra:  []string{"oof"},
+			expect: "t/onedrive/u/files/oof/foo/bar",
+		},
+		{
+			name:   "multi extra",
+			extra:  []string{"oof", "rab"},
+			expect: "t/onedrive/u/files/oof/rab/foo/bar",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			dlp, err := location.ToDataLayerPath("t", "u", OneDriveService, FilesCategory, false, test.extra...)
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.expect, dlp.PlainString())
+		})
+	}
+}

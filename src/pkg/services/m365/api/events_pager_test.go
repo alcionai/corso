@@ -39,13 +39,13 @@ func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.userID, "calendar")
+	container, err := ac.GetContainerByID(ctx, suite.its.user.id, "calendar")
 	require.NoError(t, err, clues.ToCore(err))
 
 	evts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.userID).
+		ByUserId(suite.its.user.id).
 		Calendars().
 		ByCalendarId(ptr.Val(container.GetId())).
 		Events().
@@ -63,7 +63,7 @@ func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey(
 
 	results, err := suite.its.ac.
 		Events().
-		GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "calendar")
+		GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, "calendar")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 

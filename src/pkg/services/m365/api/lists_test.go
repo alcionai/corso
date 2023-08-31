@@ -41,7 +41,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostDrive() {
 	var (
 		acl       = suite.its.ac.Lists()
 		driveName = testdata.DefaultRestoreConfig("list_api_post_drive").Location
-		siteID    = suite.its.siteID
+		siteID    = suite.its.site.id
 	)
 
 	// first post, should have no errors
