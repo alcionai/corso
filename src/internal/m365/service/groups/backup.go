@@ -92,16 +92,9 @@ func ProduceBackupCollections(
 			}
 
 		case path.ChannelMessagesCategory:
-			mbpc := inject.BackupProducerConfig{
-				LastBackupVersion: bpc.LastBackupVersion,
-				Options:           bpc.Options,
-				ProtectedResource: bpc.ProtectedResource,
-				Selector:          bpc.Selector,
-			}
-
 			dbcs, err = groups.CreateCollections(
 				ctx,
-				mbpc,
+				bpc,
 				groups.NewGroupBackupHandler(bpc.ProtectedResource.ID(), ac.Channels(), scope),
 				creds.AzureTenantID,
 				scope,

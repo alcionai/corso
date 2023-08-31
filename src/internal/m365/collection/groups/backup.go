@@ -180,7 +180,6 @@ func populateCollections(
 
 		// ictx = clues.Add(ictx, "previous_path", prevPath)
 		// TODO: the handler should provide this implementation.
-		// TODO: if we doing this messages are items for us.
 		items, err := collectItems(
 			ctx,
 			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId())))
