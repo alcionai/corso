@@ -39,13 +39,13 @@ func produceManifestsAndMetadata(
 	if !useMergeBases || !getMetadata {
 		logger.Ctx(ctx).Debug("full backup requested, dropping merge bases")
 
-		bb.ClearMergeBases()
+		bb.DisableMergeBases()
 	}
 
 	if dropAssistBases {
 		logger.Ctx(ctx).Debug("no caching requested, dropping assist bases")
 
-		bb.ClearAssistBases()
+		bb.DisableAssistBases()
 	}
 
 	return bb, meta, useMergeBases, nil
