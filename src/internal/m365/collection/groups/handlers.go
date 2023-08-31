@@ -17,7 +17,7 @@ type backupHandler interface {
 		ctx context.Context,
 	) ([]models.Channelable, error)
 
-	// gets all messages by delta in the channel
+	// gets all messages by delta in the channel.
 	getChannelMessagesDelta(
 		ctx context.Context,
 		channelID, prevDelta string,
