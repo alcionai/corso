@@ -28,6 +28,11 @@ type BackupBases interface {
 		other BackupBases,
 		reasonToKey func(identity.Reasoner) string,
 	) BackupBases
+	// SnapshotAssistBases returns the set of bases to use for kopia assisted
+	// incremental snapshot operations. It consists of the union of merge bases
+	// and assist bases. If DisableAssistBases has been called then it returns
+	// nil.
+	SnapshotAssistBases() []ManifestEntry
 }
 
 type backupBases struct {
@@ -44,6 +49,14 @@ type backupBases struct {
 	// disableMergeBases denotes whether any bases should be returned from calls
 	// to MergeBases().
 	disableMergeBases bool
+}
+
+func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
+	if bb.disableAssistBases {
+		return nil
+	}
+
+	return append(bb.UniqueAssistBases(), bb.MergeBases()...)
 }
 
 func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {

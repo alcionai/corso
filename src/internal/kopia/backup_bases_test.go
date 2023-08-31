@@ -201,6 +201,9 @@ func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 	// Assist base set should be unchanged.
 	assert.Len(t, bb.UniqueAssistBackups(), 2)
 	assert.Len(t, bb.UniqueAssistBases(), 2)
+	// Merge bases should still appear in the assist base set passed in for kopia
+	// snapshots.
+	assert.Len(t, bb.SnapshotAssistBases(), 4)
 }
 
 func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
@@ -215,6 +218,7 @@ func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
 	bb.DisableAssistBases()
 	assert.Empty(t, bb.UniqueAssistBases())
 	assert.Empty(t, bb.UniqueAssistBackups())
+	assert.Empty(t, bb.SnapshotAssistBases())
 
 	// Merge base should be unchanged.
 	assert.Len(t, bb.Backups(), 2)
