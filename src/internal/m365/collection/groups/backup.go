@@ -63,7 +63,7 @@ func CreateCollections(
 	// chanPager := handler.NewChannelsPager(qp.ProtectedResource.ID())
 
 	//  enumerating channels
-	pager := handler.NewChannelsPager(qp.ProtectedResource.ID(), []string{})
+	pager := handler.NewChannelsPager(qp.ProtectedResource.ID())
 
 	// Loop through all pages returned by Graph API.
 	for {
@@ -179,13 +179,11 @@ func populateCollections(
 		// }
 
 		// ictx = clues.Add(ictx, "previous_path", prevPath)
-		// TODO: Neha check this
-		var fields []string
 		// TODO: the handler should provide this implementation.
 		// TODO: if we doing this messages are items for us.
 		items, err := collectItems(
 			ctx,
-			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId()), fields))
+			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId())))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue

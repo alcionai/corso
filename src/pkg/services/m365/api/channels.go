@@ -107,7 +107,7 @@ func (c Channels) GetChannelByName(
 func (c Channels) GetMessage(
 	ctx context.Context,
 	teamID, channelID, itemID string,
-) (serialization.Parsable, *details.GroupsInfo, error) {
+) (models.ChatMessageable, *details.GroupsInfo, error) {
 	var size int64
 
 	message, err := c.Stable.
@@ -124,27 +124,6 @@ func (c Channels) GetMessage(
 	}
 
 	return message, ChannelMessageInfo(message, size), nil
-}
-
-// GetMessage retrieves a ChannelMessage item.
-func (c Channels) GetMessageByID(
-	ctx context.Context,
-	teamID, channelID, itemID string,
-) (models.ChatMessageable, error) {
-	message, err := c.Stable.
-		Client().
-		Teams().
-		ByTeamId(teamID).
-		Channels().
-		ByChannelId(channelID).
-		Messages().
-		ByChatMessageId(itemID).
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return message, nil
 }
 
 // ---------------------------------------------------------------------------

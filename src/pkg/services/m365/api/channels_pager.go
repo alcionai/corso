@@ -32,17 +32,10 @@ type MessagePageCtrl struct {
 func (c Channels) NewMessagePager(
 	teamID,
 	channelID string,
-	fields []string,
 ) *MessagePageCtrl {
-	requestConfig := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{
-			Select: fields,
-		},
-	}
-
 	res := &MessagePageCtrl{
 		gs:      c.Stable,
-		options: requestConfig,
+		options: nil,
 		builder: c.Stable.
 			Client().
 			Teams().
@@ -100,17 +93,10 @@ type channelPageCtrl struct {
 
 func (c Channels) NewChannelPager(
 	teamID string,
-	fields []string,
 ) *channelPageCtrl {
-	requestConfig := &teams.ItemChannelsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &teams.ItemChannelsRequestBuilderGetQueryParameters{
-			Select: fields,
-		},
-	}
-
 	res := &channelPageCtrl{
 		gs:      c.Stable,
-		options: requestConfig,
+		options: nil,
 		builder: c.Stable.
 			Client().
 			Teams().
