@@ -438,10 +438,10 @@ func (c *Collections) Get(
 	// add metadata collections
 	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
 	if err != nil {
-		// Technically it's safe to continue here because the logic for starting an
+		// It's safe to return here because the logic for starting an
 		// incremental backup should eventually find that the metadata files are
 		// empty/missing and default to a full backup.
-		logger.CtxErr(ctx, err).Info("making metadata collection for future incremental backups")
+		logger.CtxErr(ctx, err).Info("making metadata collection path prefixes")
 
 		return collections, canUsePreviousBackup, nil
 	}
