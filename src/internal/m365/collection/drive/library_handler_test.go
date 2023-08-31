@@ -19,6 +19,64 @@ func TestLibraryBackupHandlerUnitSuite(t *testing.T) {
 	suite.Run(t, &LibraryBackupHandlerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *LibraryBackupHandlerUnitSuite) TestPathPrefix() {
+	tenantID, resourceOwner := "tenant", "resourceOwner"
+
+	table := []struct {
+		name      string
+		expect    string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "sharepoint",
+			expect:    "tenant/sharepoint/resourceOwner/libraries/drives/driveID/root:",
+			expectErr: assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			h := libraryBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+
+			result, err := h.PathPrefix(tenantID, "driveID")
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if result != nil {
+				assert.Equal(t, test.expect, result.String())
+			}
+		})
+	}
+}
+
+func (suite *LibraryBackupHandlerUnitSuite) TestMetadataPathPrefix() {
+	tenantID, resourceOwner := "tenant", "resourceOwner"
+
+	table := []struct {
+		name      string
+		expect    string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "sharepoint",
+			expect:    "tenant/sharepointMetadata/resourceOwner/libraries",
+			expectErr: assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			h := libraryBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+
+			result, err := h.MetadataPathPrefix(tenantID)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if result != nil {
+				assert.Equal(t, test.expect, result.String())
+			}
+		})
+	}
+}
+
 func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 

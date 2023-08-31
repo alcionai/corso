@@ -20,6 +20,64 @@ func TestGroupBackupHandlerUnitSuite(t *testing.T) {
 	suite.Run(t, &GroupBackupHandlerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *GroupBackupHandlerUnitSuite) TestPathPrefix() {
+	tenantID, resourceOwner := "tenant", "resourceOwner"
+
+	table := []struct {
+		name      string
+		expect    string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "group",
+			expect:    "tenant/groups/resourceOwner/libraries/sites/site-id/drives/drive-id/root:",
+			expectErr: assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
+
+			result, err := h.PathPrefix(tenantID, "drive-id")
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if result != nil {
+				assert.Equal(t, test.expect, result.String())
+			}
+		})
+	}
+}
+
+func (suite *GroupBackupHandlerUnitSuite) TestMetadataPathPrefix() {
+	tenantID, resourceOwner := "tenant", "resourceOwner"
+
+	table := []struct {
+		name      string
+		expect    string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "group",
+			expect:    "tenant/groupsMetadata/resourceOwner/libraries",
+			expectErr: assert.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
+
+			result, err := h.MetadataPathPrefix(tenantID)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if result != nil {
+				assert.Equal(t, test.expect, result.String())
+			}
+		})
+	}
+}
+
 func (suite *GroupBackupHandlerUnitSuite) TestCanonicalPath() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
