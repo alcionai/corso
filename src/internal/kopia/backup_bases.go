@@ -17,11 +17,11 @@ import (
 type BackupBases interface {
 	RemoveMergeBaseByManifestID(manifestID manifest.ID)
 	Backups() []BackupEntry
-	AssistBackups() []BackupEntry
+	UniqueAssistBackups() []BackupEntry
 	MinBackupVersion() int
 	MergeBases() []ManifestEntry
 	DisableMergeBases()
-	AssistBases() []ManifestEntry
+	UniqueAssistBases() []ManifestEntry
 	DisableAssistBases()
 	MergeBackupBases(
 		ctx context.Context,
@@ -85,7 +85,7 @@ func (bb backupBases) Backups() []BackupEntry {
 	return slices.Clone(bb.backups)
 }
 
-func (bb backupBases) AssistBackups() []BackupEntry {
+func (bb backupBases) UniqueAssistBackups() []BackupEntry {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -121,7 +121,7 @@ func (bb *backupBases) DisableMergeBases() {
 	bb.disableMergeBases = true
 }
 
-func (bb backupBases) AssistBases() []ManifestEntry {
+func (bb backupBases) UniqueAssistBases() []ManifestEntry {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -156,11 +156,11 @@ func (bb *backupBases) MergeBackupBases(
 	other BackupBases,
 	reasonToKey func(reason identity.Reasoner) string,
 ) BackupBases {
-	if other == nil || (len(other.MergeBases()) == 0 && len(other.AssistBases()) == 0) {
+	if other == nil || (len(other.MergeBases()) == 0 && len(other.UniqueAssistBases()) == 0) {
 		return bb
 	}
 
-	if bb == nil || (len(bb.MergeBases()) == 0 && len(bb.AssistBases()) == 0) {
+	if bb == nil || (len(bb.MergeBases()) == 0 && len(bb.UniqueAssistBases()) == 0) {
 		return other
 	}
 
@@ -211,11 +211,11 @@ func (bb *backupBases) MergeBackupBases(
 	res := &backupBases{
 		backups:     bb.Backups(),
 		mergeBases:  bb.MergeBases(),
-		assistBases: bb.AssistBases(),
+		assistBases: bb.UniqueAssistBases(),
 		// Note that assistBackups are a new feature and don't exist
 		// in prior versions where we were using UPN based reasons i.e.
 		// other won't have any assistBackups.
-		assistBackups: bb.AssistBackups(),
+		assistBackups: bb.UniqueAssistBackups(),
 	}
 
 	// Add new mergeBases and backups.
