@@ -349,7 +349,7 @@ func (c *Collections) Get(
 				continue
 			}
 
-			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID, c.resourceOwner)
+			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
 			if err != nil {
 				return nil, false, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
@@ -413,7 +413,7 @@ func (c *Collections) Get(
 
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.resourceOwner, driveID)
+		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}
@@ -642,7 +642,7 @@ func (c *Collections) getCollectionPath(
 		pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
 	}
 
-	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID, c.resourceOwner)
+	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
 	if err != nil {
 		return nil, clues.Wrap(err, "making item path")
 	}

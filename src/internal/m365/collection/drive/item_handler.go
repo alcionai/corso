@@ -23,12 +23,13 @@ import (
 var _ BackupHandler = &itemBackupHandler{}
 
 type itemBackupHandler struct {
-	ac    api.Drives
-	scope selectors.OneDriveScope
+	ac     api.Drives
+	userID string
+	scope  selectors.OneDriveScope
 }
 
-func NewItemBackupHandler(ac api.Drives, scope selectors.OneDriveScope) *itemBackupHandler {
-	return &itemBackupHandler{ac, scope}
+func NewItemBackupHandler(ac api.Drives, userID string, scope selectors.OneDriveScope) *itemBackupHandler {
+	return &itemBackupHandler{ac, userID, scope}
 }
 
 func (h itemBackupHandler) Get(
@@ -40,11 +41,11 @@ func (h itemBackupHandler) Get(
 }
 
 func (h itemBackupHandler) PathPrefix(
-	tenantID, resourceOwner, driveID string,
+	tenantID, driveID string,
 ) (path.Path, error) {
 	return path.Build(
 		tenantID,
-		resourceOwner,
+		h.userID,
 		path.OneDriveService,
 		path.FilesCategory,
 		false,
@@ -55,9 +56,9 @@ func (h itemBackupHandler) PathPrefix(
 
 func (h itemBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID, resourceOwner string,
+	tenantID string,
 ) (path.Path, error) {
-	return folders.ToDataLayerOneDrivePath(tenantID, resourceOwner, false)
+	return folders.ToDataLayerOneDrivePath(tenantID, h.userID, false)
 }
 
 func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
