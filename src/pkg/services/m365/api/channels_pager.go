@@ -129,7 +129,7 @@ func (c Channels) GetChannelMessageIDsDelta(
 		}
 
 		for _, v := range vals {
-			if v.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
+			if v.GetDeletedDateTime() == nil {
 				added[ptr.Val(v.GetId())] = struct{}{}
 			} else {
 				deleted[ptr.Val(v.GetId())] = struct{}{}
