@@ -306,6 +306,7 @@ func (pb Builder) ToDataLayerPath(
 	service ServiceType,
 	category CategoryType,
 	isItem bool,
+	elems ...string,
 ) (Path, error) {
 	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
@@ -315,12 +316,15 @@ func (pb Builder) ToDataLayerPath(
 		return nil, err
 	}
 
+	prefixItems := append([]string{
+		tenant,
+		service.String(),
+		user,
+		category.String(),
+	}, elems...)
+
 	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			service.String(),
-			user,
-			category.String()),
+		Builder:  *pb.withPrefix(prefixItems...),
 		service:  service,
 		category: category,
 		hasItem:  isItem,
