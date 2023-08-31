@@ -20,9 +20,9 @@ type BackupBases interface {
 	AssistBackups() []BackupEntry
 	MinBackupVersion() int
 	MergeBases() []ManifestEntry
-	ClearMergeBases()
+	DisableMergeBases()
 	AssistBases() []ManifestEntry
-	ClearAssistBases()
+	DisableAssistBases()
 	MergeBackupBases(
 		ctx context.Context,
 		other BackupBases,
@@ -37,6 +37,13 @@ type backupBases struct {
 	mergeBases    []ManifestEntry
 	assistBackups []BackupEntry
 	assistBases   []ManifestEntry
+
+	// disableAssistBases denote whether any assist bases should be returned to
+	// kopia during snapshot operation.
+	disableAssistBases bool
+	// disableMergeBases denotes whether any bases should be returned from calls
+	// to MergeBases().
+	disableMergeBases bool
 }
 
 func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
@@ -71,10 +78,18 @@ func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
 }
 
 func (bb backupBases) Backups() []BackupEntry {
+	if bb.disableMergeBases {
+		return nil
+	}
+
 	return slices.Clone(bb.backups)
 }
 
 func (bb backupBases) AssistBackups() []BackupEntry {
+	if bb.disableAssistBases {
+		return nil
+	}
+
 	return slices.Clone(bb.assistBackups)
 }
 
@@ -95,20 +110,27 @@ func (bb *backupBases) MinBackupVersion() int {
 }
 
 func (bb backupBases) MergeBases() []ManifestEntry {
+	if bb.disableMergeBases {
+		return nil
+	}
+
 	return slices.Clone(bb.mergeBases)
 }
 
-func (bb *backupBases) ClearMergeBases() {
-	bb.mergeBases = nil
-	bb.backups = nil
+func (bb *backupBases) DisableMergeBases() {
+	bb.disableMergeBases = true
 }
 
 func (bb backupBases) AssistBases() []ManifestEntry {
+	if bb.disableAssistBases {
+		return nil
+	}
+
 	return slices.Clone(bb.assistBases)
 }
 
-func (bb *backupBases) ClearAssistBases() {
-	bb.assistBases = nil
+func (bb *backupBases) DisableAssistBases() {
+	bb.disableAssistBases = true
 }
 
 // MergeBackupBases reduces the two BackupBases into a single BackupBase.
