@@ -41,6 +41,9 @@ type BackupHandler interface {
 	// the given values.
 	PathPrefix(tenantID, driveID string) (path.Path, error)
 
+	// MetadataPathPrefix returns the prefix path for metadata
+	MetadataPathPrefix(tenantID string) (path.Path, error)
+
 	// CanonicalPath constructs the service and category specific path for
 	// the given values.
 	CanonicalPath(folders *path.Builder, tenantID string) (path.Path, error)

@@ -63,24 +63,12 @@ func (mce MetadataCollectionEntry) toMetadataItem() (MetadataItem, error) {
 // containing all the provided metadata as a single json object. Returns
 // nil if the map does not have any entries.
 func MakeMetadataCollection(
-	tenant, resourceOwner string,
-	service path.ServiceType,
-	cat path.CategoryType,
+	pathPrefix path.Path,
 	metadata []MetadataCollectionEntry,
 	statusUpdater support.StatusUpdater,
 ) (data.BackupCollection, error) {
 	if len(metadata) == 0 {
 		return nil, nil
-	}
-
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
-		tenant,
-		resourceOwner,
-		service,
-		cat,
-		false)
-	if err != nil {
-		return nil, clues.Wrap(err, "making metadata path")
 	}
 
 	items := make([]MetadataItem, 0, len(metadata))
@@ -94,7 +82,7 @@ func MakeMetadataCollection(
 		items = append(items, item)
 	}
 
-	coll := NewMetadataCollection(p, items, statusUpdater)
+	coll := NewMetadataCollection(pathPrefix, items, statusUpdater)
 
 	return coll, nil
 }
