@@ -185,22 +185,40 @@ func (suite *BackupBasesUnitSuite) TestRemoveMergeBaseByManifestID() {
 	}
 }
 
-func (suite *BackupBasesUnitSuite) TestClearMergeBases() {
+func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
+	t := suite.T()
 	bb := &backupBases{
-		backups:    make([]BackupEntry, 2),
-		mergeBases: make([]ManifestEntry, 2),
+		backups:       make([]BackupEntry, 2),
+		mergeBases:    make([]ManifestEntry, 2),
+		assistBackups: make([]BackupEntry, 2),
+		assistBases:   make([]ManifestEntry, 2),
 	}
 
-	bb.ClearMergeBases()
-	assert.Empty(suite.T(), bb.Backups())
-	assert.Empty(suite.T(), bb.MergeBases())
+	bb.DisableMergeBases()
+	assert.Empty(t, bb.Backups())
+	assert.Empty(t, bb.MergeBases())
+
+	// Assist base set should be unchanged.
+	assert.Len(t, bb.UniqueAssistBackups(), 2)
+	assert.Len(t, bb.UniqueAssistBases(), 2)
 }
 
-func (suite *BackupBasesUnitSuite) TestClearAssistBases() {
-	bb := &backupBases{assistBases: make([]ManifestEntry, 2)}
+func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
+	t := suite.T()
+	bb := &backupBases{
+		backups:       make([]BackupEntry, 2),
+		mergeBases:    make([]ManifestEntry, 2),
+		assistBases:   make([]ManifestEntry, 2),
+		assistBackups: make([]BackupEntry, 2),
+	}
 
-	bb.ClearAssistBases()
-	assert.Empty(suite.T(), bb.AssistBases())
+	bb.DisableAssistBases()
+	assert.Empty(t, bb.UniqueAssistBases())
+	assert.Empty(t, bb.UniqueAssistBackups())
+
+	// Merge base should be unchanged.
+	assert.Len(t, bb.Backups(), 2)
+	assert.Len(t, bb.MergeBases(), 2)
 }
 
 func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
