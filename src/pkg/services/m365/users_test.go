@@ -214,6 +214,48 @@ func (suite *userIntegrationSuite) TestGetUserInfo() {
 	}
 }
 
+func (suite *userIntegrationSuite) TestGetMailboxInfo() {
+	table := []struct {
+		name      string
+		user      string
+		expect    *api.MailboxInfo
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "standard test user",
+			user: tconfig.M365UserID(suite.T()),
+			expect: &api.MailboxInfo{
+				Purpose:              "user",
+				ErrGetMailBoxSetting: nil,
+			},
+			expectErr: require.NoError,
+		},
+		{
+			name:      "user does not exist",
+			user:      uuid.NewString(),
+			expect:    &api.MailboxInfo{},
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result, err := GetMailboxInfo(ctx, suite.acct, test.user)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
 func (suite *userIntegrationSuite) TestGetUserInfo_userWithoutDrive() {
 	userID := tconfig.M365UserID(suite.T())
 

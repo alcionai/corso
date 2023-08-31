@@ -209,3 +209,21 @@ func GetUserInfo(
 
 	return ui, nil
 }
+
+func GetMailboxInfo(ctx context.Context, acct account.Account, userID string) (*api.MailboxInfo, error) {
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	info, err := ac.Users().GetMailboxInfo(ctx, userID)
+	if err != nil {
+		if err := api.EvaluateMailboxError(err); err != nil {
+			return nil, clues.Stack(err)
+		}
+
+		return nil, nil
+	}
+
+	return info, nil
+}

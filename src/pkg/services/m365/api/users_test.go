@@ -252,6 +252,73 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
 	}
 }
 
+func (suite *UsersIntgSuite) TestUsers_GetMailboxinfo_errors() {
+	table := []struct {
+		name      string
+		setGocks  func(t *testing.T)
+		expectErr func(t *testing.T, err error)
+	}{
+		{
+			name: "mail inbox err - user not found",
+			setGocks: func(t *testing.T) {
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
+					Reply(400).
+					JSON(parseableToMap(t, odErr(string(graph.RequestResourceNotFound))))
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - user not found",
+			setGocks: func(t *testing.T) {
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
+					Reply(400).
+					JSON(parseableToMap(t, odErr(string(graph.MailboxNotEnabledForRESTAPI))))
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - authenticationError",
+			setGocks: func(t *testing.T) {
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
+					Reply(400).
+					JSON(parseableToMap(t, odErr(string(graph.AuthenticationError))))
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+		},
+		{
+			name: "mail inbox err - other error",
+			setGocks: func(t *testing.T) {
+				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
+					Reply(400).
+					JSON(parseableToMap(t, odErrMsg("somecode", "somemessage")))
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			ctx, flush := tester.NewContext(t)
+
+			defer flush()
+			defer gock.Off()
+
+			test.setGocks(t)
+
+			_, err := suite.its.gockAC.Users().GetMailInbox(ctx, "user")
+			test.expectErr(t, err)
+		})
+	}
+}
+
 func (suite *UsersIntgSuite) TestUsers_GetInfo_quotaExceeded() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
@@ -276,4 +343,30 @@ func (suite *UsersIntgSuite) TestUsers_GetInfo_quotaExceeded() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.True(t, output.Mailbox.QuotaExceeded)
+}
+
+func (suite *UsersIntgSuite) TestUsers_GetMailboxInfo_quotaExceeded() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+
+	defer flush()
+	defer gock.Off()
+
+	gock.EnableNetworking()
+	gock.New(graphAPIHostURL).
+		// Wildcard match on the inbox folder ID.
+		Get(v1APIURLPath("users", suite.its.user.id, "mailFolders", "(.*)", "messages", "delta")).
+		Reply(403).
+		SetHeaders(
+			map[string]string{
+				"Content-Type": "application/json; odata.metadata=minimal; " +
+					"odata.streaming=true; IEEE754Compatible=false; charset=utf-8",
+			},
+		).
+		BodyString(`{"error":{"code":"ErrorQuotaExceeded","message":"The process failed to get the correct properties."}}`)
+
+	output, err := suite.its.gockAC.Users().GetMailboxInfo(ctx, suite.its.user.id)
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.True(t, output.QuotaExceeded)
 }

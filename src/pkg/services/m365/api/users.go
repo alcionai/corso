@@ -350,6 +350,45 @@ func (c Users) getFirstInboxMessage(
 	return nil
 }
 
+func (c Users) GetMailboxInfo(ctx context.Context, userID string) (*MailboxInfo, error) {
+	mi := MailboxInfo{}
+
+	// get the mailbox. on not found, we return nil
+	inbx, err := c.GetMailInbox(ctx, userID)
+	if err != nil {
+		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
+			logger.CtxErr(ctx, err).Error("getting user's mail folder")
+			return nil, err
+		}
+
+		return nil, nil
+	}
+
+	mboxSettings, err := c.getMailboxSettings(ctx, userID)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("err getting user's mailbox settings")
+
+		if !graph.IsErrAccessDenied(err) {
+			return nil, graph.Wrap(ctx, err, "getting user's mailbox settings")
+		}
+
+		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, clues.New("access denied"))
+	} else {
+		mi = parseMailboxSettings(mboxSettings, mi)
+	}
+
+	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
+	if err != nil {
+		if !graph.IsErrQuotaExceeded(err) {
+			return nil, clues.Stack(err)
+		}
+
+		mi.QuotaExceeded = graph.IsErrQuotaExceeded(err)
+	}
+
+	return &mi, nil
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
