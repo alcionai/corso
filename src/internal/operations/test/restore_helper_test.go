@@ -108,8 +108,12 @@ func prepNewTestRestoreOp(
 	rod.sw = store.NewWrapper(rod.kms)
 
 	connectorResource := resource.Users
-	if sel.Service == selectors.ServiceSharePoint {
+
+	switch sel.Service {
+	case selectors.ServiceSharePoint:
 		connectorResource = resource.Sites
+	case selectors.ServiceGroups:
+		connectorResource = resource.Groups
 	}
 
 	rod.ctrl, rod.sel = ControllerWithSelector(
