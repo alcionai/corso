@@ -582,10 +582,8 @@ type ids struct {
 }
 
 type gids struct {
-	ID                        string
-	RootSiteID                string
-	RootSiteDriveID           string
-	RootSiteDriveRootFolderID string
+	ID       string
+	RootSite ids
 }
 
 type intgTesterSetup struct {
@@ -674,17 +672,17 @@ func groupIDs(t *testing.T, id string, ac api.Client) gids {
 	site, err := ac.Groups().GetRootSite(ctx, id)
 	require.NoError(t, err, clues.ToCore(err))
 
-	r.RootSiteID = ptr.Val(site.GetId())
+	r.RootSite.ID = ptr.Val(site.GetId())
 
-	drive, err := ac.Sites().GetDefaultDrive(ctx, r.RootSiteID)
+	drive, err := ac.Sites().GetDefaultDrive(ctx, r.RootSite.ID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	r.RootSiteDriveID = ptr.Val(drive.GetId())
+	r.RootSite.DriveID = ptr.Val(drive.GetId())
 
-	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.RootSiteDriveID)
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.RootSite.DriveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	r.RootSiteDriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+	r.RootSite.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
 
 	return r
 }
