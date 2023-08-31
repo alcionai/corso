@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -340,10 +341,14 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 			ctrlOpts := control.DefaultOptions()
 			ctrlOpts.ToggleFeatures.DisableDelta = !test.canMakeDeltaQueries
 
+			sel := selectors.NewGroupsBackup([]string{protectedResource})
+			sel.Include(selTD.GroupsBackupChannelScope(sel))
+
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           ctrlOpts,
 				ProtectedResource: inMock.NewProvider(protectedResource, protectedResource),
+				Selector:          sel.Selector,
 			}
 
 			collections, err := CreateCollections(
@@ -355,6 +360,7 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
+			require.NotEmpty(t, collections, "must have at least one collection")
 
 			for _, c := range collections {
 				if c.FullPath().Service() == path.GroupsMetadataService {
@@ -363,6 +369,8 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 
 				require.NotEmpty(t, c.FullPath().Folder(false))
 
+				fmt.Printf("\n-----\nfolder %+v\n-----\n", c.FullPath().Folder(false))
+
 				// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
 				// interface.
 				if !assert.Implements(t, (*data.LocationPather)(nil), c) {
@@ -370,6 +378,8 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 				}
 
 				loc := c.(data.LocationPather).LocationPath().String()
+
+				fmt.Printf("\n-----\nloc %+v\n-----\n", c.(data.LocationPather).LocationPath().String())
 
 				require.NotEmpty(t, loc)
 

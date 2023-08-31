@@ -229,14 +229,17 @@ func (s *groups) AllData() []GroupsScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *groups) Channels(channels []string) []GroupsScope {
-	return []GroupsScope{
-		makeInfoScope[GroupsScope](
-			GroupsChannel,
-			GroupsInfoChannel,
-			channels,
-			filters.Equal),
-	}
+func (s *groups) Channels(channels []string, opts ...option) []GroupsScope {
+	var (
+		scopes = []GroupsScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsChannel, channels, os...))
+
+	return scopes
 }
 
 // ChannelMessages produces one or more Groups channel message scopes.
