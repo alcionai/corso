@@ -79,7 +79,8 @@ const sidebars = {
             'cli/corso-backup-list-onedrive',
             'cli/corso-backup-details-onedrive',
             'cli/corso-backup-delete-onedrive',
-            'cli/corso-restore-onedrive']
+            'cli/corso-restore-onedrive',
+            'cli/corso-export-onedrive']
         },
         {
           type: 'category',
@@ -93,7 +94,8 @@ const sidebars = {
             'cli/corso-backup-list-sharepoint',
             'cli/corso-backup-details-sharepoint',
             'cli/corso-backup-delete-sharepoint',
-            'cli/corso-restore-sharepoint']
+            'cli/corso-restore-sharepoint',
+            'cli/corso-export-sharepoint']
         }
       ]
     },

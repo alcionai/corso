@@ -9,17 +9,18 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type ItemBackupHandlerUnitSuite struct {
+type GroupBackupHandlerUnitSuite struct {
 	tester.Suite
 }
 
-func TestItemBackupHandlerUnitSuite(t *testing.T) {
-	suite.Run(t, &ItemBackupHandlerUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestGroupBackupHandlerUnitSuite(t *testing.T) {
+	suite.Run(t, &GroupBackupHandlerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ItemBackupHandlerUnitSuite) TestPathPrefix() {
+func (suite *GroupBackupHandlerUnitSuite) TestPathPrefix() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -28,17 +29,17 @@ func (suite *ItemBackupHandlerUnitSuite) TestPathPrefix() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "onedrive",
-			expect:    "tenant/onedrive/resourceOwner/files/drives/driveID/root:",
+			name:      "group",
+			expect:    "tenant/groups/resourceOwner/libraries/sites/site-id/drives/drive-id/root:",
 			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{userID: resourceOwner}
+			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
 
-			result, err := h.PathPrefix(tenantID, "driveID")
+			result, err := h.PathPrefix(tenantID, "drive-id")
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -48,7 +49,7 @@ func (suite *ItemBackupHandlerUnitSuite) TestPathPrefix() {
 	}
 }
 
-func (suite *ItemBackupHandlerUnitSuite) TestMetadataPathPrefix() {
+func (suite *GroupBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -57,15 +58,15 @@ func (suite *ItemBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "onedrive",
-			expect:    "tenant/onedriveMetadata/resourceOwner/files",
+			name:      "group",
+			expect:    "tenant/groupsMetadata/resourceOwner/libraries",
 			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{userID: resourceOwner}
+			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
 
 			result, err := h.MetadataPathPrefix(tenantID)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -77,7 +78,7 @@ func (suite *ItemBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	}
 }
 
-func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
+func (suite *GroupBackupHandlerUnitSuite) TestCanonicalPath() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -86,15 +87,15 @@ func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "onedrive",
-			expect:    "tenant/onedrive/resourceOwner/files/prefix",
+			name:      "group",
+			expect:    "tenant/groups/resourceOwner/libraries/sites/site-id/prefix",
 			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{userID: resourceOwner}
+			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
 			p := path.Builder{}.Append("prefix")
 
 			result, err := h.CanonicalPath(p, tenantID)
@@ -107,10 +108,12 @@ func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
 	}
 }
 
-func (suite *ItemBackupHandlerUnitSuite) TestServiceCat() {
+func (suite *GroupBackupHandlerUnitSuite) TestServiceCat() {
 	t := suite.T()
 
-	s, c := itemBackupHandler{}.ServiceCat()
-	assert.Equal(t, path.OneDriveService, s)
-	assert.Equal(t, path.FilesCategory, c)
+	s, c := groupBackupHandler{
+		libraryBackupHandler: libraryBackupHandler{service: path.GroupsService},
+	}.ServiceCat()
+	assert.Equal(t, path.GroupsService, s)
+	assert.Equal(t, path.LibrariesCategory, c)
 }

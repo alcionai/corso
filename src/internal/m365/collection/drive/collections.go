@@ -349,7 +349,7 @@ func (c *Collections) Get(
 				continue
 			}
 
-			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID, c.resourceOwner)
+			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
 			if err != nil {
 				return nil, false, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
@@ -413,7 +413,7 @@ func (c *Collections) Get(
 
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, c.resourceOwner, driveID)
+		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}
@@ -436,12 +436,18 @@ func (c *Collections) Get(
 	}
 
 	// add metadata collections
-	service, category := c.handler.ServiceCat()
+	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
+	if err != nil {
+		// It's safe to return here because the logic for starting an
+		// incremental backup should eventually find that the metadata files are
+		// empty/missing and default to a full backup.
+		logger.CtxErr(ctx, err).Info("making metadata collection path prefixes")
+
+		return collections, canUsePreviousBackup, nil
+	}
+
 	md, err := graph.MakeMetadataCollection(
-		c.tenantID,
-		c.resourceOwner,
-		service,
-		category,
+		pathPrefix,
 		[]graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(graph.PreviousPathFileName, folderPaths),
 			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
@@ -642,7 +648,7 @@ func (c *Collections) getCollectionPath(
 		pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
 	}
 
-	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID, c.resourceOwner)
+	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
 	if err != nil {
 		return nil, clues.Wrap(err, "making item path")
 	}

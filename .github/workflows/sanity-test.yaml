@@ -39,6 +39,7 @@ jobs:
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
       RESTORE_DEST_PFX: Corso_Test_Sanity_
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      CORSO_ENABLE_GROUPS: true
 
     defaults:
       run:

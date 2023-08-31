@@ -408,7 +408,7 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_AddDrive() {
 type mockGDPARF struct {
 	err        error
 	rootFolder models.DriveItemable
-	pager      *apiMock.DrivePager
+	pager      *apiMock.Pager[models.Driveable]
 }
 
 func (m *mockGDPARF) GetRootFolder(
@@ -421,7 +421,7 @@ func (m *mockGDPARF) GetRootFolder(
 func (m *mockGDPARF) NewDrivePager(
 	string,
 	[]string,
-) api.DrivePager {
+) api.Pager[models.Driveable] {
 	return m.pager
 }
 
@@ -439,16 +439,16 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 
 	table := []struct {
 		name        string
-		mock        *apiMock.DrivePager
+		mock        *apiMock.Pager[models.Driveable]
 		expectErr   require.ErrorAssertionFunc
 		expectLen   int
 		checkValues bool
 	}{
 		{
 			name: "no results",
-			mock: &apiMock.DrivePager{
-				ToReturn: []apiMock.PagerResult{
-					{Drives: []models.Driveable{}},
+			mock: &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
+					{Values: []models.Driveable{}},
 				},
 			},
 			expectErr: require.NoError,
@@ -456,9 +456,9 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 		},
 		{
 			name: "one result",
-			mock: &apiMock.DrivePager{
-				ToReturn: []apiMock.PagerResult{
-					{Drives: []models.Driveable{md}},
+			mock: &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
+					{Values: []models.Driveable{md}},
 				},
 			},
 			expectErr:   require.NoError,
@@ -467,8 +467,8 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 		},
 		{
 			name: "error",
-			mock: &apiMock.DrivePager{
-				ToReturn: []apiMock.PagerResult{
+			mock: &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
 					{Err: assert.AnError},
 				},
 			},

@@ -39,18 +39,18 @@ type BackupHandler interface {
 
 	// PathPrefix constructs the service and category specific path prefix for
 	// the given values.
-	PathPrefix(tenantID, resourceOwner, driveID string) (path.Path, error)
+	PathPrefix(tenantID, driveID string) (path.Path, error)
+
+	// MetadataPathPrefix returns the prefix path for metadata
+	MetadataPathPrefix(tenantID string) (path.Path, error)
 
 	// CanonicalPath constructs the service and category specific path for
 	// the given values.
-	CanonicalPath(
-		folders *path.Builder,
-		tenantID, resourceOwner string,
-	) (path.Path, error)
+	CanonicalPath(folders *path.Builder, tenantID string) (path.Path, error)
 
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
-	NewItemPager(driveID, link string, fields []string) api.DriveItemDeltaEnumerator
+	NewItemPager(driveID, link string, fields []string) api.DeltaPager[models.DriveItemable]
 	// FormatDisplayPath creates a human-readable string to represent the
 	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
@@ -62,7 +62,7 @@ type BackupHandler interface {
 }
 
 type NewDrivePagerer interface {
-	NewDrivePager(resourceOwner string, fields []string) api.DrivePager
+	NewDrivePager(resourceOwner string, fields []string) api.Pager[models.Driveable]
 }
 
 type GetItemPermissioner interface {

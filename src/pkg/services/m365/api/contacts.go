@@ -82,13 +82,10 @@ func (c Contacts) DeleteContainer(
 	return nil
 }
 
-// prefer GetContainerByID where possible.
-// use this only in cases where the models.ContactFolderable
-// is required.
-func (c Contacts) GetFolder(
+func (c Contacts) GetContainerByID(
 	ctx context.Context,
 	userID, containerID string,
-) (models.ContactFolderable, error) {
+) (graph.Container, error) {
 	config := &users.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemContactFoldersContactFolderItemRequestBuilderGetQueryParameters{
 			Select: idAnd(displayName, parentFolderID),
@@ -107,14 +104,6 @@ func (c Contacts) GetFolder(
 	}
 
 	return resp, nil
-}
-
-// interface-compliant wrapper of GetFolder
-func (c Contacts) GetContainerByID(
-	ctx context.Context,
-	userID, containerID string,
-) (graph.Container, error) {
-	return c.GetFolder(ctx, userID, containerID)
 }
 
 // GetContainerByName fetches a folder by name
