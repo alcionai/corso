@@ -16,7 +16,7 @@ type BackupHandler interface {
 	) (models.Channelable, error)
 	NewChannelsPager(
 		teamID string,
-	) api.ChannelDeltaEnumerator
+	) api.ChannelEnumerator
 
 	GetMessageByID(
 		ctx context.Context,
