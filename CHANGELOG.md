@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Changed
+- Switched to Go 1.21
 - SharePoint exported libraries are now exported with a `Libraries` prefix.
 
 ## [v0.12.0] (beta) - 2023-08-29
