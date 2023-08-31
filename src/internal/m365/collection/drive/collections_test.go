@@ -1129,11 +1129,16 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
-				mc, err := graph.MakeMetadataCollection(
+				pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
 					tenant,
 					user,
 					path.OneDriveService,
 					path.FilesCategory,
+					false)
+				require.NoError(t, err, clues.ToCore(err))
+
+				mc, err := graph.MakeMetadataCollection(
+					pathPrefix,
 					c(),
 					func(*support.ControllerOperationStatus) {})
 				require.NoError(t, err, clues.ToCore(err))
@@ -2291,11 +2296,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				control.Options{ToggleFeatures: control.Toggles{}})
 
 			prevDelta := "prev-delta"
+
+			pathPrefix, err := mbh.MetadataPathPrefix(tenant)
+			require.NoError(t, err, clues.ToCore(err))
+
 			mc, err := graph.MakeMetadataCollection(
-				tenant,
-				user,
-				path.OneDriveService,
-				path.FilesCategory,
+				pathPrefix,
 				[]graph.MetadataCollectionEntry{
 					graph.NewMetadataEntry(
 						graph.DeltaURLsFileName,

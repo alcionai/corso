@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -55,6 +56,22 @@ func (h libraryBackupHandler) PathPrefix(
 		odConsts.DrivesPathDir,
 		driveID,
 		odConsts.RootPathDir)
+}
+
+func (h libraryBackupHandler) MetadataPathPrefix(
+	tenantID string,
+) (path.Path, error) {
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenantID,
+		h.siteID,
+		h.service,
+		path.LibrariesCategory,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	return p, nil
 }
 
 func (h libraryBackupHandler) CanonicalPath(
