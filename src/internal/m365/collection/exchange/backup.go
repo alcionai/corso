@@ -266,11 +266,18 @@ func populateCollections(
 		"num_paths_entries", len(currPaths),
 		"num_deltas_entries", len(deltaURLs))
 
-	col, err := graph.MakeMetadataCollection(
+	pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
 		qp.TenantID,
 		qp.ProtectedResource.ID(),
 		path.ExchangeService,
 		qp.Category,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	col, err := graph.MakeMetadataCollection(
+		pathPrefix,
 		[]graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
