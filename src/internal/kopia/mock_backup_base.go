@@ -16,7 +16,6 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 		assert.Empty(t, got.MergeBases(), "merge bases")
 		assert.Empty(t, got.UniqueAssistBackups(), "assist backups")
 		assert.Empty(t, got.UniqueAssistBases(), "assist bases")
-		assert.Empty(t, got.SnapshotAssistBases(), "snapshot assist bases")
 
 		return
 	}
@@ -25,8 +24,7 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 		if len(expect.Backups()) > 0 ||
 			len(expect.MergeBases()) > 0 ||
 			len(expect.UniqueAssistBackups()) > 0 ||
-			len(expect.UniqueAssistBases()) > 0 ||
-			len(expect.SnapshotAssistBases()) > 0 {
+			len(expect.UniqueAssistBases()) > 0 {
 			assert.Fail(t, "got was nil but expected non-nil result %v", expect)
 		}
 
@@ -37,7 +35,6 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 	assert.ElementsMatch(t, expect.MergeBases(), got.MergeBases(), "merge bases")
 	assert.ElementsMatch(t, expect.UniqueAssistBackups(), got.UniqueAssistBackups(), "assist backups")
 	assert.ElementsMatch(t, expect.UniqueAssistBases(), got.UniqueAssistBases(), "assist bases")
-	assert.ElementsMatch(t, expect.SnapshotAssistBases(), got.SnapshotAssistBases(), "snapshot assist bases")
 }
 
 func NewMockBackupBases() *MockBackupBases {
