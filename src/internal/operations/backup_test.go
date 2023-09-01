@@ -1871,11 +1871,16 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			cs := test.collFunc()
 
-			mc, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
@@ -2184,11 +2189,16 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 			cs := test.collFunc()
 
-			mc, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))

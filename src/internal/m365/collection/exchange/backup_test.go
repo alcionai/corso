@@ -299,10 +299,15 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					graph.NewMetadataEntry(d.fileName, map[string]string{"key": d.value}))
 			}
 
-			coll, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
 				"t", "u",
 				path.ExchangeService,
 				path.EmailCategory,
+				false)
+			require.NoError(t, err, "path prefix")
+
+			coll, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				entries,
 				func(cos *support.ControllerOperationStatus) {},
 			)

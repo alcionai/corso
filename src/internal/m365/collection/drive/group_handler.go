@@ -1,6 +1,8 @@
 package drive
 
 import (
+	"github.com/alcionai/clues"
+
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -48,6 +50,20 @@ func (h groupBackupHandler) PathPrefix(
 		odConsts.DrivesPathDir,
 		driveID,
 		odConsts.RootPathDir)
+}
+
+func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, error) {
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenantID,
+		h.groupID,
+		h.service,
+		path.LibrariesCategory,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	return p, nil
 }
 
 func (h groupBackupHandler) CanonicalPath(
