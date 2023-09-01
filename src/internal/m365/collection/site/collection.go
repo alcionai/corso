@@ -149,8 +149,8 @@ func (sd Item) Deleted() bool {
 	return sd.deleted
 }
 
-func (sd *Item) Info() details.ItemInfo {
-	return details.ItemInfo{SharePoint: sd.info}
+func (sd *Item) Info() (details.ItemInfo, error) {
+	return details.ItemInfo{SharePoint: sd.info}, nil
 }
 
 func (sd *Item) ModTime() time.Time {

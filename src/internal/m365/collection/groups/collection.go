@@ -169,8 +169,8 @@ func (i Item) Deleted() bool {
 	return i.deleted
 }
 
-func (i *Item) Info() details.ItemInfo {
-	return details.ItemInfo{Groups: i.info}
+func (i *Item) Info() (details.ItemInfo, error) {
+	return details.ItemInfo{Groups: i.info}, nil
 }
 
 func (i *Item) ModTime() time.Time {

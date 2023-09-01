@@ -412,11 +412,7 @@ func collectionEntries(
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
 				d := &itemDetails{
-					// TODO(ashmrtn): Update API in data package to return an error and
-					// then remove this wrapper.
-					infoFunc: func() (details.ItemInfo, error) {
-						return ei.Info(), nil
-					},
+					infoFunc: ei.Info,
 					repoPath: itemPath,
 					// Also use the current path as the previous path for this item. This
 					// is so that if the item is marked as cached and we need to merge
