@@ -48,9 +48,6 @@ type backupBases struct {
 	// disableAssistBases denote whether any assist bases should be returned to
 	// kopia during snapshot operation.
 	disableAssistBases bool
-	// disableMergeBases denotes whether any bases should be returned from calls
-	// to MergeBases().
-	disableMergeBases bool
 }
 
 func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
@@ -99,10 +96,6 @@ func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
 }
 
 func (bb backupBases) Backups() []BackupEntry {
-	if bb.disableMergeBases {
-		return nil
-	}
-
 	return slices.Clone(bb.backups)
 }
 
@@ -131,15 +124,20 @@ func (bb *backupBases) MinBackupVersion() int {
 }
 
 func (bb backupBases) MergeBases() []ManifestEntry {
-	if bb.disableMergeBases {
-		return nil
-	}
-
 	return slices.Clone(bb.mergeBases)
 }
 
 func (bb *backupBases) DisableMergeBases() {
-	bb.disableMergeBases = true
+	// Turn all merge bases into assist bases. We don't want to remove them
+	// completely because we still want to allow kopia assisted incrementals
+	// unless that's also explicitly disabled. However, we can't just leave them
+	// in the merge set since then we won't return the bases when merging backup
+	// details.
+	bb.assistBases = append(bb.assistBases, bb.mergeBases...)
+	bb.assistBackups = append(bb.assistBackups, bb.backups...)
+
+	bb.mergeBases = nil
+	bb.backups = nil
 }
 
 func (bb backupBases) UniqueAssistBases() []ManifestEntry {
