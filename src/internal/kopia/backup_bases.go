@@ -138,6 +138,9 @@ func (bb *backupBases) DisableAssistBases() {
 // some migration that disrupts lookup), and that the BackupBases used to call
 // this function contains the current version.
 //
+// This call should be made prior to Disable*Bases being called on either the
+// called BackupBases or the passed in BackupBases.
+//
 // reasonToKey should be a function that, given a Reasoner, will produce some
 // string that represents Reasoner in the context of the merge operation. For
 // example, to merge BackupBases across a ProtectedResource migration, the
