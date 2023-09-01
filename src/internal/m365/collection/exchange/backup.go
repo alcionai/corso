@@ -124,7 +124,6 @@ func populateCollections(
 		}
 
 		cID := ptr.Val(c.GetId())
-		delete(tombstones, cID)
 
 		var (
 			err         error
@@ -147,6 +146,8 @@ func populateCollections(
 		if !ok {
 			continue
 		}
+
+		delete(tombstones, cID)
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
