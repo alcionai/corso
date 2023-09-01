@@ -2,6 +2,7 @@ package restore
 
 import (
 	"context"
+	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -20,6 +21,9 @@ var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
 	addSharePointCommands,
+	// awaiting release
+	// addGroupsCommands,
+	// addTeamsCommands,
 }
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
@@ -29,6 +33,12 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, addRestoreTo := range restoreCommands {
 		addRestoreTo(restoreC)
+	}
+
+	// delete after release
+	if len(os.Getenv("CORSO_ENABLE_GROUPS")) > 0 {
+		addGroupsCommands(restoreC)
+		addTeamsCommands(restoreC)
 	}
 }
 

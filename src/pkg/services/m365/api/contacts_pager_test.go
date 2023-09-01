@@ -39,13 +39,13 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.userID, "contacts")
+	container, err := ac.GetContainerByID(ctx, suite.its.user.id, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 
 	conts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.userID).
+		ByUserId(suite.its.user.id).
 		ContactFolders().
 		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
@@ -61,7 +61,7 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 
 	expect := maps.Keys(expectM)
 
-	results, err := suite.its.ac.Contacts().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, "contacts")
+	results, err := suite.its.ac.Contacts().GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 
@@ -91,13 +91,13 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.userID, api.DefaultContacts)
+	container, err := ac.GetContainerByID(ctx, suite.its.user.id, api.DefaultContacts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.userID).
+		ByUserId(suite.its.user.id).
 		ContactFolders().
 		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
@@ -112,7 +112,7 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 	}
 
 	results, err := suite.its.ac.Contacts().
-		GetItemIDsInContainer(ctx, suite.its.userID, api.DefaultContacts)
+		GetItemIDsInContainer(ctx, suite.its.user.id, api.DefaultContacts)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 	require.Equal(t, len(expect), len(results), "must have same count of items")

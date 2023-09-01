@@ -91,13 +91,10 @@ func (c Events) DeleteContainer(
 	return nil
 }
 
-// prefer GetContainerByID where possible.
-// use this only in cases where the models.Calendarable
-// is required.
-func (c Events) GetCalendar(
+func (c Events) GetContainerByID(
 	ctx context.Context,
 	userID, containerID string,
-) (models.Calendarable, error) {
+) (graph.Container, error) {
 	config := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
 			Select: idAnd("name", "owner"),
@@ -115,20 +112,7 @@ func (c Events) GetCalendar(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return resp, nil
-}
-
-// interface-compliant wrapper of GetCalendar
-func (c Events) GetContainerByID(
-	ctx context.Context,
-	userID, containerID string,
-) (graph.Container, error) {
-	cal, err := c.GetCalendar(ctx, userID, containerID)
-	if err != nil {
-		return nil, err
-	}
-
-	return graph.CalendarDisplayable{Calendarable: cal}, nil
+	return graph.CalendarDisplayable{Calendarable: resp}, nil
 }
 
 // GetContainerByName fetches a calendar by name

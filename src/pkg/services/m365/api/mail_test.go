@@ -383,7 +383,7 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 
 	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
 	msgs := suite.its.ac.Mail()
-	mailfolder, err := msgs.CreateMailFolder(ctx, userID, folderName)
+	mailfolder, err := msgs.CreateContainer(ctx, userID, api.MsgFolderRoot, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msg := models.NewMessage()
@@ -414,7 +414,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	parent, err := acm.CreateContainer(ctx, suite.its.userID, "msgfolderroot", rc.Location)
+	parent, err := acm.CreateContainer(ctx, suite.its.user.id, "msgfolderroot", rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
@@ -448,7 +448,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := acm.GetContainerByName(ctx, suite.its.userID, test.parentContainerID, test.name)
+			_, err := acm.GetContainerByName(ctx, suite.its.user.id, test.parentContainerID, test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
@@ -460,10 +460,10 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 		ctx, flush := tester.NewContext(t)
 		defer flush()
 
-		child, err := acm.CreateContainer(ctx, suite.its.userID, pid, rc.Location)
+		child, err := acm.CreateContainer(ctx, suite.its.user.id, pid, rc.Location)
 		require.NoError(t, err, clues.ToCore(err))
 
-		result, err := acm.GetContainerByName(ctx, suite.its.userID, pid, rc.Location)
+		result, err := acm.GetContainerByName(ctx, suite.its.user.id, pid, rc.Location)
 		assert.NoError(t, err, clues.ToCore(err))
 		assert.Equal(t, ptr.Val(child.GetId()), ptr.Val(result.GetId()))
 	})

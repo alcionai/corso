@@ -41,46 +41,6 @@ type Mail struct {
 // containers
 // ---------------------------------------------------------------------------
 
-// CreateMailFolder makes a mail folder iff a folder of the same name does not exist
-// Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
-func (c Mail) CreateMailFolder(
-	ctx context.Context,
-	userID, containerName string,
-) (models.MailFolderable, error) {
-	isHidden := false
-	body := models.NewMailFolder()
-	body.SetDisplayName(&containerName)
-	body.SetIsHidden(&isHidden)
-
-	mdl, err := c.Stable.Client().
-		Users().
-		ByUserId(userID).
-		MailFolders().
-		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating mail folder")
-	}
-
-	return mdl, nil
-}
-
-func (c Mail) DeleteMailFolder(
-	ctx context.Context,
-	userID, id string,
-) error {
-	err := c.Stable.Client().
-		Users().
-		ByUserId(userID).
-		MailFolders().
-		ByMailFolderId(id).
-		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting mail folder")
-	}
-
-	return nil
-}
-
 func (c Mail) CreateContainer(
 	ctx context.Context,
 	userID, parentContainerID, containerName string,
@@ -131,13 +91,10 @@ func (c Mail) DeleteContainer(
 	return nil
 }
 
-// prefer GetContainerByID where possible.
-// use this only in cases where the models.MailFolderable
-// is required.
-func (c Mail) GetFolder(
+func (c Mail) GetContainerByID(
 	ctx context.Context,
 	userID, containerID string,
-) (models.MailFolderable, error) {
+) (graph.Container, error) {
 	config := &users.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersMailFolderItemRequestBuilderGetQueryParameters{
 			Select: idAnd(displayName, parentFolderID),
@@ -156,14 +113,6 @@ func (c Mail) GetFolder(
 	}
 
 	return resp, nil
-}
-
-// interface-compliant wrapper of GetFolder
-func (c Mail) GetContainerByID(
-	ctx context.Context,
-	userID, containerID string,
-) (graph.Container, error) {
-	return c.GetFolder(ctx, userID, containerID)
 }
 
 // GetContainerByName fetches a folder by name

@@ -36,10 +36,10 @@ func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := libraryBackupHandler{service: path.SharePointService}
+			h := libraryBackupHandler{service: path.SharePointService, siteID: resourceOwner}
 			p := path.Builder{}.Append("prefix")
 
-			result, err := h.CanonicalPath(p, tenantID, resourceOwner)
+			result, err := h.CanonicalPath(p, tenantID)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -52,7 +52,7 @@ func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 func (suite *LibraryBackupHandlerUnitSuite) TestServiceCat() {
 	t := suite.T()
 
-	s, c := libraryBackupHandler{}.ServiceCat()
+	s, c := libraryBackupHandler{service: path.SharePointService}.ServiceCat()
 	assert.Equal(t, path.SharePointService, s)
 	assert.Equal(t, path.LibrariesCategory, c)
 }

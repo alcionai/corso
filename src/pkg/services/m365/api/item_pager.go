@@ -16,9 +16,29 @@ import (
 // common interfaces
 // ---------------------------------------------------------------------------
 
-// TODO(keepers): replace all matching uses of GetPage with this.
+type DeltaPager[T any] interface {
+	DeltaGetPager
+	Resetter
+	SetNextLinker
+	ValuesInPageLinker[T]
+}
+
+type Pager[T any] interface {
+	GetPager
+	SetNextLinker
+	ValuesInPageLinker[T]
+}
+
 type DeltaGetPager interface {
 	GetPage(context.Context) (DeltaPageLinker, error)
+}
+
+type GetPager interface {
+	GetPage(context.Context) (PageLinker, error)
+}
+
+type Valuer[T any] interface {
+	GetValue() []T
 }
 
 type ValuesInPageLinker[T any] interface {
@@ -34,8 +54,17 @@ type DeltaPageLinker interface {
 	GetOdataDeltaLink() *string
 }
 
+type PageLinkValuer[T any] interface {
+	PageLinker
+	Valuer[T]
+}
+
 type SetNextLinker interface {
 	SetNext(nextLink string)
+}
+
+type Resetter interface {
+	Reset(context.Context)
 }
 
 // ---------------------------------------------------------------------------
@@ -53,15 +82,6 @@ func NextLink(pl PageLinker) string {
 
 func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
 	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
-}
-
-type Valuer[T any] interface {
-	GetValue() []T
-}
-
-type PageLinkValuer[T any] interface {
-	PageLinker
-	Valuer[T]
 }
 
 // EmptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
@@ -148,19 +168,6 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	return r, nil
 }
 
-type itemIDPager interface {
-	// getPage get a page with the specified options from graph
-	getPage(context.Context) (DeltaPageLinker, error)
-	// setNext is used to pass in the next url got from graph
-	setNext(string)
-	// reset is used to clear delta url in delta pagers. When
-	// reset is called, we reset the state(delta url) that we
-	// currently have and start a new delta query without the token.
-	reset(context.Context)
-	// valuesIn gets us the values in a page
-	valuesIn(PageLinker) ([]getIDAndAddtler, error)
-}
-
 type getIDAndAddtler interface {
 	GetId() *string
 	GetAdditionalData() map[string]any
@@ -169,13 +176,13 @@ type getIDAndAddtler interface {
 func getAddedAndRemovedItemIDs(
 	ctx context.Context,
 	service graph.Servicer,
-	pager itemIDPager,
-	deltaPager itemIDPager,
+	pager DeltaPager[getIDAndAddtler],
+	deltaPager DeltaPager[getIDAndAddtler],
 	oldDelta string,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
 	var (
-		pgr        itemIDPager
+		pgr        DeltaPager[getIDAndAddtler]
 		resetDelta bool
 	)
 
@@ -204,7 +211,7 @@ func getAddedAndRemovedItemIDs(
 	}
 
 	// reset deltaPager
-	pgr.reset(ctx)
+	pgr.Reset(ctx)
 
 	added, removed, deltaURL, err = getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
@@ -217,7 +224,7 @@ func getAddedAndRemovedItemIDs(
 // generic controller for retrieving all item ids in a container.
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
-	pager itemIDPager,
+	pager DeltaPager[getIDAndAddtler],
 ) ([]string, []string, string, error) {
 	var (
 		addedIDs   = []string{}
@@ -229,14 +236,14 @@ func getItemsAddedAndRemovedFromContainer(
 
 	for {
 		// get the next page of data, check for standard errors
-		resp, err := pager.getPage(ctx)
+		resp, err := pager.GetPage(ctx)
 		if err != nil {
 			return nil, nil, deltaURL, graph.Stack(ctx, err)
 		}
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
-		items, err := pager.valuesIn(resp)
+		items, err := pager.ValuesIn(resp)
 		if err != nil {
 			return nil, nil, "", graph.Stack(ctx, err)
 		}
@@ -278,7 +285,7 @@ func getItemsAddedAndRemovedFromContainer(
 			break
 		}
 
-		pager.setNext(nextLink)
+		pager.SetNext(nextLink)
 	}
 
 	logger.Ctx(ctx).Infow("completed enumeration", "count", itemCount)

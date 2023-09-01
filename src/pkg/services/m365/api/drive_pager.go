@@ -121,19 +121,10 @@ func (c Drives) GetItemIDsInContainer(
 }
 
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // delta item pager
 // ---------------------------------------------------------------------------
 
-type DriveItemDeltaEnumerator interface {
-	GetPage(context.Context) (DeltaPageLinker, error)
-	SetNext(nextLink string)
-	Reset()
-	ValuesIn(DeltaPageLinker) ([]models.DriveItemable, error)
-}
-
-var _ DriveItemDeltaEnumerator = &DriveItemDeltaPageCtrl{}
+var _ DeltaPager[models.DriveItemable] = &DriveItemDeltaPageCtrl{}
 
 type DriveItemDeltaPageCtrl struct {
 	gs      graph.Servicer
@@ -198,7 +189,7 @@ func (p *DriveItemDeltaPageCtrl) SetNext(link string) {
 	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *DriveItemDeltaPageCtrl) Reset() {
+func (p *DriveItemDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.Client().
 		Drives().
 		ByDriveId(p.driveID).
@@ -207,7 +198,7 @@ func (p *DriveItemDeltaPageCtrl) Reset() {
 		Delta()
 }
 
-func (p *DriveItemDeltaPageCtrl) ValuesIn(l DeltaPageLinker) ([]models.DriveItemable, error) {
+func (p *DriveItemDeltaPageCtrl) ValuesIn(l PageLinker) ([]models.DriveItemable, error) {
 	return getValues[models.DriveItemable](l)
 }
 
@@ -215,7 +206,7 @@ func (p *DriveItemDeltaPageCtrl) ValuesIn(l DeltaPageLinker) ([]models.DriveItem
 // user's drives pager
 // ---------------------------------------------------------------------------
 
-var _ DrivePager = &userDrivePager{}
+var _ Pager[models.Driveable] = &userDrivePager{}
 
 type userDrivePager struct {
 	userID  string
@@ -305,7 +296,7 @@ func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 // site's libraries pager
 // ---------------------------------------------------------------------------
 
-var _ DrivePager = &siteDrivePager{}
+var _ Pager[models.Driveable] = &siteDrivePager{}
 
 type siteDrivePager struct {
 	gs      graph.Servicer
@@ -367,17 +358,10 @@ func (p *siteDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 // drive pager
 // ---------------------------------------------------------------------------
 
-// DrivePager pages through different types of drive owners
-type DrivePager interface {
-	GetPage(context.Context) (PageLinker, error)
-	SetNext(nextLink string)
-	ValuesIn(PageLinker) ([]models.Driveable, error)
-}
-
 // GetAllDrives fetches all drives for the given pager
 func GetAllDrives(
 	ctx context.Context,
-	pager DrivePager,
+	pager Pager[models.Driveable],
 	retry bool,
 	maxRetryCount int,
 ) ([]models.Driveable, error) {

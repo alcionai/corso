@@ -16,7 +16,7 @@ type BackupHandler interface {
 	) (models.Channelable, error)
 	NewChannelsPager(
 		teamID string,
-	) api.ChannelDeltaEnumerator
+	) api.Pager[models.Channelable]
 
 	GetMessageByID(
 		ctx context.Context,
@@ -24,7 +24,7 @@ type BackupHandler interface {
 	) (models.ChatMessageable, error)
 	NewMessagePager(
 		teamID, channelID string,
-	) api.ChannelMessageDeltaEnumerator
+	) api.DeltaPager[models.ChatMessageable]
 
 	GetMessageReplies(
 		ctx context.Context,

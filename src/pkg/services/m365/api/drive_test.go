@@ -76,8 +76,8 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	// generate a parent for the test data
 	parent, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.userDriveID,
-		suite.its.userDriveRootFolderID,
+		suite.its.user.driveID,
+		suite.its.user.driveRootFolderID,
 		newItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
@@ -86,7 +86,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	folder := newItem("collision", true)
 	origFolder, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.userDriveID,
+		suite.its.user.driveID,
 		ptr.Val(parent.GetId()),
 		folder,
 		control.Copy)
@@ -96,7 +96,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	file := newItem("collision.txt", false)
 	origFile, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.userDriveID,
+		suite.its.user.driveID,
 		ptr.Val(parent.GetId()),
 		file,
 		control.Copy)
@@ -211,7 +211,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 			t := suite.T()
 			i, err := acd.PostItemInContainer(
 				ctx,
-				suite.its.userDriveID,
+				suite.its.user.driveID,
 				ptr.Val(parent.GetId()),
 				test.postItem,
 				test.onCollision)
@@ -239,8 +239,8 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 	// generate a folder for the test data
 	folder, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.userDriveID,
-		suite.its.userDriveRootFolderID,
+		suite.its.user.driveID,
+		suite.its.user.driveRootFolderID,
 		newItem(rc.Location, true),
 		// skip instead of replace here to get
 		// an ErrItemAlreadyExistsConflict, just in case.
@@ -252,7 +252,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		file := newItem(fmt.Sprintf("collision_%d.txt", i), false)
 		f, err := acd.PostItemInContainer(
 			ctx,
-			suite.its.userDriveID,
+			suite.its.user.driveID,
 			ptr.Val(folder.GetId()),
 			file,
 			control.Copy)
@@ -263,7 +263,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 
 	resultFolder, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.userDriveID,
+		suite.its.user.driveID,
 		ptr.Val(folder.GetParentReference().GetId()),
 		newItem(rc.Location, true),
 		control.Replace)
@@ -274,7 +274,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 	resultFileColl, err := acd.Stable.
 		Client().
 		Drives().
-		ByDriveId(suite.its.userDriveID).
+		ByDriveId(suite.its.user.driveID).
 		Items().
 		ByDriveItemId(ptr.Val(resultFolder.GetId())).
 		Children().
