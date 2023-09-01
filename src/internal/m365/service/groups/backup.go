@@ -74,7 +74,7 @@ func ProduceBackupCollections(
 				LastBackupVersion: bpc.LastBackupVersion,
 				Options:           bpc.Options,
 				ProtectedResource: pr,
-				Selector:          bpc.Selector,
+				Selector:          bpc.Selector, // TODO(meain): add metadata collections
 			}
 
 			dbcs, canUsePreviousBackup, err = site.CollectLibraries(

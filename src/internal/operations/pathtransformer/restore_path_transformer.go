@@ -2,6 +2,7 @@ package pathtransformer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -26,7 +27,8 @@ func locationRef(
 
 	// We could get an empty LocationRef either because it wasn't populated or it
 	// was in the root of the data type.
-	elems := repoRef.Folders()
+	elems := repoRef.Folders() // TODO(meain): problem here?
+	fmt.Println("restore_path_transformer.go:30 elems:", elems)
 
 	if ent.OneDrive != nil || ent.SharePoint != nil {
 		dp, err := path.ToDrivePath(repoRef)
@@ -73,6 +75,8 @@ func drivePathMerge(
 
 	if ent.SharePoint != nil {
 		driveID = ent.SharePoint.DriveID
+	} else if ent.Groups != nil {
+		driveID = ent.Groups.DriveID
 	} else if ent.OneDrive != nil {
 		driveID = ent.OneDrive.DriveID
 	}
