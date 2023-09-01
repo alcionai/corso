@@ -980,7 +980,9 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 
 			ei, ok := collItem.(data.ItemInfo)
 			assert.True(t, ok)
-			itemInfo := ei.Info()
+
+			itemInfo, err := ei.Info()
+			require.NoError(t, err, clues.ToCore(err))
 
 			_, err = io.ReadAll(collItem.ToReader())
 			test.expectReadErr(t, err, clues.ToCore(err))
