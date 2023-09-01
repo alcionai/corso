@@ -99,14 +99,6 @@ func restoreContact(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.ExchangeInfo, error) {
-	// contacts has a weird relationship with its default
-	// folder, which is that the folder is treated as invisible
-	// in many cases.  If we're restoring to a blank location,
-	// we can interpret that as the root.
-	if len(destinationID) == 0 {
-		destinationID = api.DefaultContacts
-	}
-
 	contact, err := api.BytesToContactable(body)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
