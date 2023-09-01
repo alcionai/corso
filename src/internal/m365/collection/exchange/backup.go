@@ -141,8 +141,8 @@ func populateCollections(
 				})
 		)
 
-		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		// Only create a collection if the path matches the scope.
+		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
 			continue
 		}
@@ -335,8 +335,8 @@ func includeContainer(
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
-	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == api.DefaultContacts {
-		loc = loc.Append(api.DefaultContacts)
+	if category == path.ContactsCategory && len(loc.Elements()) == 0 {
+		loc = loc.Append(ptr.Val(c.GetDisplayName()))
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(

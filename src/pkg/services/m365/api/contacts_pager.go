@@ -112,12 +112,6 @@ func (c Contacts) NewContactsPager(
 		options.QueryParameters.Select = selectProps
 	}
 
-	// if we have no container ID, we need to fetch the
-	// base contacts container ID.
-	if len(containerID) == 0 {
-		containerID = DefaultContacts
-	}
-
 	builder := c.Stable.
 		Client().
 		Users().
