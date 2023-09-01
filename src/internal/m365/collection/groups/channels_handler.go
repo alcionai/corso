@@ -33,7 +33,7 @@ func (gHandler groupBackupHandler) GetChannelByID(
 
 func (gHandler groupBackupHandler) NewChannelsPager(
 	teamID string,
-) api.ChannelDeltaEnumerator {
+) api.Pager[models.Channelable] {
 	return gHandler.ac.NewChannelPager(teamID)
 }
 
@@ -46,9 +46,9 @@ func (gHandler groupBackupHandler) GetMessageByID(
 }
 
 func (gHandler groupBackupHandler) NewMessagePager(
-	teamID, channelID string,
-) api.ChannelMessageDeltaEnumerator {
-	return gHandler.ac.NewMessagePager(teamID, channelID)
+	teamID, channelID, prevDelta string,
+) api.DeltaPager[models.ChatMessageable] {
+	return gHandler.ac.NewChannelMessageDeltaPager(teamID, channelID, prevDelta)
 }
 
 func (gHandler groupBackupHandler) GetMessageReplies(

@@ -23,7 +23,7 @@ type BackupHandler interface {
 		teamID, channelID, itemID string,
 	) (models.ChatMessageable, error)
 	NewMessagePager(
-		teamID, channelID string,
+		teamID, channelID, prevDelta string,
 	) api.DeltaPager[models.ChatMessageable]
 
 	GetMessageReplies(

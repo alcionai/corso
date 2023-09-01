@@ -51,13 +51,6 @@ func (p *channelMessageDeltaPageCtrl) ValuesIn(l PageLinker) ([]models.ChatMessa
 	return getValues[models.ChatMessageable](l)
 }
 
-type ChannelDeltaEnumerator interface {
-	PageLinker
-	ValuesInPageLinker[models.Channelable]
-	SetNextLinker
-	GetPage(ctx context.Context) (PageLinker, error)
-}
-
 func (c Channels) NewChannelMessageDeltaPager(
 	teamID, channelID, prevDelta string,
 ) *channelMessageDeltaPageCtrl {
@@ -85,57 +78,6 @@ func (c Channels) NewChannelMessageDeltaPager(
 		gs:         c.Stable,
 		options:    options,
 	}
-}
-
-// var _ ChannelMessageDeltaEnumerator = &ChannelMessageDeltaPageCtrl{}
-var _ Pager[models.Channelable] = &channelPageCtrl{}
-
-type ChannelMessageDeltaPageCtrl struct {
-	gs      graph.Servicer
-	builder *teams.ItemChannelsItemMessagesDeltaRequestBuilder
-	options *teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration
-}
-
-func (c Channels) NewMessagePager(
-	teamID, channelID string,
-	fields []string,
-) *ChannelMessageDeltaPageCtrl {
-	res := &ChannelMessageDeltaPageCtrl{
-		gs:      c.Stable,
-		options: nil,
-		builder: c.Stable.
-			Client().
-			Teams().
-			ByTeamId(teamID).
-			Channels().
-			ByChannelId(channelID).
-			Messages().
-			Delta(),
-	}
-
-	return res
-}
-
-func (p *ChannelMessageDeltaPageCtrl) SetNext(nextLink string) {
-	p.builder = teams.NewItemChannelsItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
-}
-
-func (p *ChannelMessageDeltaPageCtrl) GetPage(ctx context.Context) (DeltaPageLinker, error) {
-	var (
-		resp DeltaPageLinker
-		err  error
-	)
-
-	resp, err = p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
-}
-
-func (p *ChannelMessageDeltaPageCtrl) ValuesIn(l PageLinker) ([]models.ChatMessageable, error) {
-	return getValues[models.ChatMessageable](l)
 }
 
 // ---------------------------------------------------------------------------

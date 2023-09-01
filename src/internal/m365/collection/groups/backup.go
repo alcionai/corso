@@ -153,7 +153,9 @@ func populateCollections(
 			// prevDelta   = dp.Delta
 			// prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			// prevPath    path.Path
-			ictx = clues.Add(
+			// TODO: update this path
+			previousPath string
+			ictx         = clues.Add(
 				ctx,
 				"channel_id", cID)
 			// "previous_delta", pii.SafeURL{
@@ -182,7 +184,7 @@ func populateCollections(
 		// TODO: the handler should provide this implementation.
 		items, err := collectItems(
 			ctx,
-			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId())))
+			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId()), previousPath))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
