@@ -719,16 +719,15 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 	}
 
 	tests := []struct {
-		name, folderInCache, root, basePath string
-		resolverFunc                        func(t *testing.T) graph.ContainerResolver
-		canFind                             assert.BoolAssertionFunc
+		name, folderInCache, root string
+		resolverFunc              func(t *testing.T) graph.ContainerResolver
+		canFind                   assert.BoolAssertionFunc
 	}{
 		{
 			name: "Default Event Cache",
 			// Fine as long as this isn't running against a migrated Exchange server.
 			folderInCache: api.DefaultCalendar,
 			root:          api.DefaultCalendar,
-			basePath:      api.DefaultCalendar,
 			resolverFunc:  eventFunc,
 			canFind:       assert.True,
 		},
@@ -750,7 +749,6 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 			name:          "Default Contact Cache",
 			folderInCache: api.DefaultContacts,
 			root:          api.DefaultContacts,
-			basePath:      api.DefaultContacts,
 			canFind:       assert.True,
 			resolverFunc:  contactFunc,
 		},
@@ -778,7 +776,7 @@ func (suite *ContainerResolverSuite) TestPopulate() {
 
 			resolver := test.resolverFunc(t)
 
-			err := resolver.Populate(ctx, fault.New(true), test.root, test.basePath)
+			err := resolver.Populate(ctx, fault.New(true), test.root)
 			require.NoError(t, err, clues.ToCore(err))
 
 			_, isFound := resolver.LocationInCache(test.folderInCache)

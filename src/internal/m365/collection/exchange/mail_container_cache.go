@@ -94,7 +94,6 @@ func (mc *mailContainerCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,
-	baseContainerPath ...string,
 ) error {
 	if err := mc.init(ctx); err != nil {
 		return clues.Wrap(err, "initializing")
@@ -110,4 +109,8 @@ func (mc *mailContainerCache) Populate(
 	}
 
 	return nil
+}
+
+func (mc *mailContainerCache) DefaultRootLocation() string {
+	return ""
 }

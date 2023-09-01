@@ -64,7 +64,6 @@ func (ecc *eventContainerCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,
-	baseContainerPath ...string,
 ) error {
 	if err := ecc.init(ctx); err != nil {
 		return clues.Wrap(err, "initializing")
@@ -111,4 +110,8 @@ func (ecc *eventContainerCache) AddToCache(ctx context.Context, f graph.Containe
 	}
 
 	return nil
+}
+
+func (ecc *eventContainerCache) DefaultRootLocation() string {
+	return ""
 }

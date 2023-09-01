@@ -91,12 +91,10 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 
 var _ graph.ContainerResolver = &mockResolver{}
 
-type (
-	mockResolver struct {
-		items []graph.CachedContainer
-		added map[string]string
-	}
-)
+type mockResolver struct {
+	items []graph.CachedContainer
+	added map[string]string
+}
 
 func newMockResolver(items ...mockContainer) mockResolver {
 	is := make([]graph.CachedContainer, 0, len(items))
@@ -125,9 +123,10 @@ func (m mockResolver) DestinationNameToID(dest string) string { return m.added[d
 func (m mockResolver) IDToPath(context.Context, string) (*path.Builder, *path.Builder, error) {
 	return nil, nil, nil
 }
-func (m mockResolver) PathInCache(string) (string, bool)                             { return "", false }
-func (m mockResolver) LocationInCache(string) (string, bool)                         { return "", false }
-func (m mockResolver) Populate(context.Context, *fault.Bus, string, ...string) error { return nil }
+func (m mockResolver) PathInCache(string) (string, bool)                  { return "", false }
+func (m mockResolver) LocationInCache(string) (string, bool)              { return "", false }
+func (m mockResolver) Populate(context.Context, *fault.Bus, string) error { return nil }
+func (m mockResolver) DefaultRootLocation() string                        { return "" }
 
 // ---------------------------------------------------------------------------
 // Unit tests

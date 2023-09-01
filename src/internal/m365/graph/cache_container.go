@@ -64,7 +64,7 @@ type ContainerResolver interface {
 	// @param ctx is necessary param for Graph API tracing
 	// @param baseFolderID represents the M365ID base that the resolver will
 	// conclude its search. Default input is "".
-	Populate(ctx context.Context, errs *fault.Bus, baseFolderID string, baseContainerPath ...string) error
+	Populate(ctx context.Context, errs *fault.Bus, baseFolderID string) error
 
 	// PathInCache performs a look up of a path representation
 	// and returns the m365ID of directory iff the pathString
@@ -81,6 +81,11 @@ type ContainerResolver interface {
 
 	// Items returns the containers in the cache.
 	Items() []CachedContainer
+
+	// DefaultRootLocation provides implementations which hard-code a parent
+	// folder root in their location path with a way to give downstream comparators
+	// that same location name.
+	DefaultRootLocation() string
 }
 
 // ======================================

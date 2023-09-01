@@ -69,11 +69,6 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			name: "Node Root",
 			root: topFolderID,
 		},
-		{
-			name: "Node Root Non-empty Path",
-			root: topFolderID,
-			path: []string{"some", "leading", "path"},
-		},
 	}
 	userID := tconfig.M365UserID(suite.T())
 
@@ -95,7 +90,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 				getter: acm,
 			}
 
-			err = mfc.Populate(ctx, fault.New(true), test.root, test.path...)
+			err = mfc.Populate(ctx, fault.New(true), test.root)
 			require.NoError(t, err, clues.ToCore(err))
 
 			p, l, err := mfc.IDToPath(ctx, testFolderID)

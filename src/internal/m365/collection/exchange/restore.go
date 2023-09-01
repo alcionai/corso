@@ -135,10 +135,14 @@ func CreateDestination(
 	errs *fault.Bus,
 ) (string, graph.ContainerResolver, error) {
 	var (
-		cache             = gcr
-		restoreLoc        = &path.Builder{}
-		containerParentID string
+		restoreLoc          = &path.Builder{}
+		containerParentID   string
+		defaultRootLocation = gcr.DefaultRootLocation()
 	)
+
+	if len(defaultRootLocation) > 0 {
+		restoreLoc = restoreLoc.Append(defaultRootLocation)
+	}
 
 	for _, container := range destination.Elements() {
 		restoreLoc = restoreLoc.Append(container)
@@ -152,14 +156,14 @@ func CreateDestination(
 		containerID, err := getOrPopulateContainer(
 			ictx,
 			ca,
-			cache,
+			gcr,
 			restoreLoc,
 			resourceID,
 			containerParentID,
 			container,
 			errs)
 		if err != nil {
-			return "", cache, clues.Stack(err)
+			return "", gcr, clues.Stack(err)
 		}
 
 		containerParentID = containerID
@@ -167,7 +171,7 @@ func CreateDestination(
 
 	// containerParentID now identifies the last created container,
 	// not its parent.
-	return containerParentID, cache, nil
+	return containerParentID, gcr, nil
 }
 
 func getOrPopulateContainer(

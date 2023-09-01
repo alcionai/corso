@@ -37,25 +37,27 @@ func (r *contactRefresher) refreshContainer(
 
 type contactContainerCache struct {
 	*containerResolver
-	enumer containersEnumerator
-	getter containerGetter
-	userID string
+	enumer       containersEnumerator
+	getter       containerGetter
+	userID       string
+	rootLocation string
 }
 
 func (cfc *contactContainerCache) populateContactRoot(
 	ctx context.Context,
 	directoryID string,
-	baseContainerPath []string,
 ) error {
 	f, err := cfc.getter.GetContainerByID(ctx, cfc.userID, directoryID)
 	if err != nil {
 		return clues.Wrap(err, "fetching root folder")
 	}
 
+	cfc.rootLocation = ptr.Val(f.GetDisplayName())
+
 	temp := graph.NewCacheFolder(
 		f,
-		path.Builder{}.Append(ptr.Val(f.GetId())),   // path of IDs
-		path.Builder{}.Append(baseContainerPath...)) // display location
+		path.Builder{}.Append(ptr.Val(f.GetId())), // path of IDs
+		path.Builder{}.Append(cfc.rootLocation))   // display location
 	if err := cfc.addFolder(&temp); err != nil {
 		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 	}
@@ -71,9 +73,8 @@ func (cfc *contactContainerCache) Populate(
 	ctx context.Context,
 	errs *fault.Bus,
 	baseID string,
-	baseContainerPath ...string,
 ) error {
-	if err := cfc.init(ctx, baseID, baseContainerPath); err != nil {
+	if err := cfc.init(ctx, baseID); err != nil {
 		return clues.Wrap(err, "initializing")
 	}
 
@@ -92,7 +93,6 @@ func (cfc *contactContainerCache) Populate(
 func (cfc *contactContainerCache) init(
 	ctx context.Context,
 	baseNode string,
-	baseContainerPath []string,
 ) error {
 	if len(baseNode) == 0 {
 		return clues.New("m365 folderID required for base contact folder").WithClues(ctx)
@@ -105,5 +105,9 @@ func (cfc *contactContainerCache) init(
 		})
 	}
 
-	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
+	return cfc.populateContactRoot(ctx, baseNode)
+}
+
+func (cfc *contactContainerCache) DefaultRootLocation() string {
+	return cfc.rootLocation
 }
