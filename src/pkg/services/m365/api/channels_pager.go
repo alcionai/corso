@@ -39,9 +39,9 @@ func (p *channelMessageDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.
 		Client().
 		Teams().
-		ByTeamId(p.resourceID).
+		ByTeamIdString(p.resourceID).
 		Channels().
-		ByChannelId(p.channelID).
+		ByChannelIdString(p.channelID).
 		Messages().
 		Delta()
 }
@@ -56,9 +56,9 @@ func (c Channels) NewChannelMessageDeltaPager(
 	builder := c.Stable.
 		Client().
 		Teams().
-		ByTeamId(teamID).
+		ByTeamIdString(teamID).
 		Channels().
-		ByChannelId(channelID).
+		ByChannelIdString(channelID).
 		Messages().
 		Delta()
 
@@ -179,7 +179,7 @@ func (c Channels) NewChannelPager(
 		builder: c.Stable.
 			Client().
 			Teams().
-			ByTeamId(teamID).
+			ByTeamIdString(teamID).
 			Channels(),
 	}
 

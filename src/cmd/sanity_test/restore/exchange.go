@@ -29,7 +29,7 @@ func CheckEmailRestoration(
 		restoreFolder    models.MailFolderable
 		itemCount        = make(map[string]int32)
 		restoreItemCount = make(map[string]int32)
-		builder          = client.Users().ByUserId(testUser).MailFolders()
+		builder          = client.Users().ByUserIdString(testUser).MailFolders()
 	)
 
 	for {
@@ -73,9 +73,9 @@ func CheckEmailRestoration(
 
 	childFolder, err := client.
 		Users().
-		ByUserId(testUser).
+		ByUserIdString(testUser).
 		MailFolders().
-		ByMailFolderId(folderID).
+		ByMailFolderIdString(folderID).
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
@@ -136,9 +136,9 @@ func getAllMailSubFolders(
 
 	childFolder, err := client.
 		Users().
-		ByUserId(testUser).
+		ByUserIdString(testUser).
 		MailFolders().
-		ByMailFolderId(folderID).
+		ByMailFolderIdString(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -188,9 +188,9 @@ func checkAllSubFolder(
 
 	childFolder, err := client.
 		Users().
-		ByUserId(testUser).
+		ByUserIdString(testUser).
 		MailFolders().
-		ByMailFolderId(folderID).
+		ByMailFolderIdString(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {

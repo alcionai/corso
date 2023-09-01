@@ -74,7 +74,7 @@ func (c Drives) GetRootFolder(
 	root, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Root().
 		Get(ctx, nil)
 	if err != nil {
@@ -96,9 +96,9 @@ func (c Drives) GetItem(
 	di, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting item")
@@ -116,9 +116,9 @@ func (c Drives) NewItemContentUpload(
 	r, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
@@ -180,9 +180,9 @@ func (c Drives) PatchItem(
 	_, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Patch(ctx, item, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching drive item")
@@ -199,9 +199,9 @@ func (c Drives) PutItemContent(
 	_, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Content().
 		Put(ctx, content, nil)
 	if err != nil {
@@ -227,9 +227,9 @@ func (c Drives) DeleteItem(
 	err = srv.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
@@ -249,9 +249,9 @@ func (c Drives) GetItemPermission(
 	perm, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
@@ -271,9 +271,9 @@ func (c Drives) PostItemPermissionUpdate(
 	itm, err := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Invite().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -297,11 +297,11 @@ func (c Drives) DeleteItemPermission(
 	err = srv.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Permissions().
-		ByPermissionId(permissionID).
+		ByPermissionIdString(permissionID).
 		Delete(graph.ConsumeNTokens(ctx, graph.PermissionsLC), nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting drive item permission")
