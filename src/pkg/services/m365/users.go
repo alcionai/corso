@@ -7,7 +7,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	commonM365 "github.com/alcionai/corso/src/internal/m365"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -66,18 +67,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	return commonM365.IsExchangeServiceEnabled(ctx, ac.Users(), userID)
-}
-
-// UserHasDrives returns true if the user has any drives
-// false otherwise, and a nil pointer and an error in case of error
-func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(ctx, acct, path.OneDriveService)
-	if err != nil {
-		return false, clues.Stack(err).WithClues(ctx)
-	}
-
-	return commonM365.IsOneDriveServiceEnabled(ctx, ac.Users(), userID)
+	return exchange.IsExchangeServiceEnabled(ctx, ac.Users(), userID)
 }
 
 func UserGetMailboxInfo(
@@ -90,7 +80,18 @@ func UserGetMailboxInfo(
 		return api.MailboxInfo{}, clues.Stack(err).WithClues(ctx)
 	}
 
-	return commonM365.GetMailboxInfo(ctx, ac.Users(), userID)
+	return exchange.GetMailboxInfo(ctx, ac.Users(), userID)
+}
+
+// UserHasDrives returns true if the user has any drives
+// false otherwise, and a nil pointer and an error in case of error
+func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
+	ac, err := makeAC(ctx, acct, path.OneDriveService)
+	if err != nil {
+		return false, clues.Stack(err).WithClues(ctx)
+	}
+
+	return onedrive.IsOneDriveServiceEnabled(ctx, ac.Users(), userID)
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info
