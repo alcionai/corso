@@ -88,36 +88,118 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 	}
 }
 
+// TODO: Add integ tests for mailbox info
 func (suite *userIntegrationSuite) TestUserHasMailbox() {
 	t := suite.T()
+	acct := tconfig.NewM365Account(t)
+	userID := tconfig.M365UserID(t)
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+	table := []struct {
+		name   string
+		user   string
+		expect bool
+	}{
+		{
+			name:   "user with no mailbox",
+			user:   "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: false,
+		},
+		{
+			name:   "user with mailbox",
+			user:   userID,
+			expect: true,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	var (
-		acct = tconfig.NewM365Account(t)
-		uid  = tconfig.M365UserID(t)
-	)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	enabled, err := UserHasMailbox(ctx, acct, uid)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, enabled)
+			enabled, err := UserHasMailbox(ctx, acct, test.user)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect, enabled)
+		})
+	}
 }
 
 func (suite *userIntegrationSuite) TestUserHasDrive() {
 	t := suite.T()
+	acct := tconfig.NewM365Account(t)
+	userID := tconfig.M365UserID(t)
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+	table := []struct {
+		name   string
+		user   string
+		expect bool
+	}{
+		{
+			name:   "user without drive",
+			user:   "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: false,
+		},
+		{
+			name:   "user with drive",
+			user:   userID,
+			expect: true,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	var (
-		acct = tconfig.NewM365Account(t)
-		uid  = tconfig.M365UserID(t)
-	)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	enabled, err := UserHasDrives(ctx, acct, uid)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, enabled)
+			enabled, err := UserHasDrives(ctx, acct, test.user)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect, enabled)
+		})
+	}
+}
+
+func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
+	t := suite.T()
+	acct := tconfig.NewM365Account(t)
+
+	table := []struct {
+		name      string
+		user      string
+		expect    func(t *testing.T, info api.MailboxInfo)
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "shared mailbox",
+			user: "bb1a2049-3fc1-4fdc-93b8-7a14f63dd0db", // User: neha-test-shared-mailbox@10rqc2.onmicrosoft.com
+			expect: func(t *testing.T, info api.MailboxInfo) {
+				require.NotNil(t, info)
+				assert.Equal(t, "shared", info.Purpose)
+			},
+			expectErr: require.NoError,
+		},
+		{
+			name: "user with no mailbox",
+			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: func(t *testing.T, info api.MailboxInfo) {
+				require.NotNil(t, info)
+				assert.Contains(t, info.ErrGetMailBoxSetting, api.ErrMailBoxSettingsNotFound)
+			},
+			expectErr: require.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			info, err := UserGetMailboxInfo(ctx, acct, test.user)
+			test.expectErr(t, err, clues.ToCore(err))
+			test.expect(t, info)
+		})
+	}
 }
 
 func (suite *userIntegrationSuite) TestUsers_InvalidCredentials() {
