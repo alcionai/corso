@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -41,6 +42,7 @@ func ProduceBackupCollections(
 		categories           = map[path.CategoryType]struct{}{}
 		ssmb                 = prefixmatcher.NewStringSetBuilder()
 		canUsePreviousBackup bool
+		sites                = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -69,6 +71,8 @@ func ProduceBackupCollections(
 			if err != nil {
 				return nil, nil, false, err
 			}
+
+			sites[ptr.Val(resp.GetId())] = ptr.Val(resp.GetName())
 
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
 			sbpc := inject.BackupProducerConfig{
@@ -132,6 +136,36 @@ func ProduceBackupCollections(
 
 		collections = append(collections, baseCols...)
 	}
+
+	// Add metadata about sites
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		creds.AzureTenantID,
+		bpc.ProtectedResource.ID(),
+		path.GroupsService,
+		path.LibrariesCategory,
+		false)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "making metadata path")
+	}
+
+	// TODO(meain): Should we store this one level above?
+	p, err = p.Append(false, odConsts.SitesPathDir)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "appending sites to metadata path")
+	}
+
+	md, err := graph.MakeMetadataCollection(
+		p,
+		[]graph.MetadataCollectionEntry{
+			// TODO(meain): Finalize on the name for file. If we are
+			// storing it one level about, we will not be able to use
+			// this name as it will be taken up by the folder.
+			// TODO(meain): Or should this be previouspath file?
+			graph.NewMetadataEntry(graph.SitesFileName, sites),
+		},
+		su)
+
+	collections = append(collections, md)
 
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
