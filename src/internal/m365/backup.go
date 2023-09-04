@@ -161,7 +161,7 @@ func (ctrl *Controller) IsServiceEnabled(
 	case path.SharePointService:
 		return sharepoint.IsServiceEnabled(ctx, ctrl.AC.Users().Sites(), resourceOwner)
 	case path.GroupsService:
-		return true, nil
+		return groups.IsServiceEnabled(ctx, ctrl.AC.Groups(), resourceOwner)
 	}
 
 	return false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
