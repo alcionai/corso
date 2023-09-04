@@ -88,7 +88,6 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 	}
 }
 
-// TODO: Add integ tests for mailbox info
 func (suite *userIntegrationSuite) TestUserHasMailbox() {
 	t := suite.T()
 	acct := tconfig.NewM365Account(t)
