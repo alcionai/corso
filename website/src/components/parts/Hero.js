@@ -24,13 +24,12 @@ export default function Hero() {
       >
         <div className="grid !z-10 grid-cols-1 mt-24 text-center">
           <div className="wow !z-10 animate__animated animate__fadeIn">
-            <h4 className="font-bold !text-white !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
-              Free, Secure, and Open-Source
-              <br /> Backup for Microsoft 365
-            </h4>
-            <p className="text-slate-300 !z-10 text-xl max-w-xl mx-auto">
+            <h1 className="font-bold !text-white !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
+              Free, Secure, and Open-Source Backup for Microsoft 365
+            </h1>
+            <h2 className="text-slate-300 !z-10 text-xl max-w-xl mx-auto">
               The #1 open-source backup tool for Microsoft 365
-            </p>
+            </h2>
           </div>
 
           <div className="mt-12 !z-10 mb-6 flex flex-col 2xs:flex-row items-center justify-center 2xs:space-y-0 space-y-4 2xs:space-x-4">
