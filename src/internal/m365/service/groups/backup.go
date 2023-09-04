@@ -42,7 +42,7 @@ func ProduceBackupCollections(
 		categories           = map[path.CategoryType]struct{}{}
 		ssmb                 = prefixmatcher.NewStringSetBuilder()
 		canUsePreviousBackup bool
-		sites                = map[string]string{}
+		sitesPreviousPaths   = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -72,8 +72,6 @@ func ProduceBackupCollections(
 				return nil, nil, false, err
 			}
 
-			sites[ptr.Val(resp.GetId())] = ptr.Val(resp.GetName())
-
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
 			sbpc := inject.BackupProducerConfig{
 				LastBackupVersion: bpc.LastBackupVersion,
@@ -82,15 +80,24 @@ func ProduceBackupCollections(
 				Selector:          bpc.Selector,
 			}
 
+			bh := drive.NewGroupBackupHandler(
+				bpc.ProtectedResource.ID(),
+				ptr.Val(resp.GetId()),
+				ac.Drives(),
+				scope,
+			)
+
+			cp, err := bh.SitePathPrefix(creds.AzureTenantID)
+			if err != nil {
+				return nil, nil, false, clues.Wrap(err, "getting canonical path")
+			}
+
+			sitesPreviousPaths[ptr.Val(resp.GetId())] = cp.String()
+
 			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				sbpc,
-				drive.NewGroupBackupHandler(
-					bpc.ProtectedResource.ID(),
-					ptr.Val(resp.GetId()),
-					ac.Drives(),
-					scope,
-				),
+				bh,
 				creds.AzureTenantID,
 				ssmb,
 				su,
@@ -138,34 +145,48 @@ func ProduceBackupCollections(
 	}
 
 	// Add metadata about sites
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	md, err := getSitesMetadataCollection(
 		creds.AzureTenantID,
 		bpc.ProtectedResource.ID(),
+		sitesPreviousPaths,
+		su)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	collections = append(collections, md)
+
+	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+}
+
+func getSitesMetadataCollection(
+	tenantID, groupID string,
+	sites map[string]string,
+	su support.StatusUpdater,
+) (data.BackupCollection, error) {
+	// TODO(meain): Should we store this one level above? If so, how would we
+	// separate different resources? Use different name for each resource?
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenantID,
+		groupID,
 		path.GroupsService,
 		path.LibrariesCategory,
 		false)
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "making metadata path")
+		return nil, clues.Wrap(err, "making metadata path")
 	}
 
-	// TODO(meain): Should we store this one level above?
 	p, err = p.Append(false, odConsts.SitesPathDir)
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "appending sites to metadata path")
+		return nil, clues.Wrap(err, "appending sites to metadata path")
 	}
 
 	md, err := graph.MakeMetadataCollection(
 		p,
 		[]graph.MetadataCollectionEntry{
-			// TODO(meain): Finalize on the name for file. If we are
-			// storing it one level about, we will not be able to use
-			// this name as it will be taken up by the folder.
-			// TODO(meain): Or should this be previouspath file?
-			graph.NewMetadataEntry(graph.SitesFileName, sites),
+			graph.NewMetadataEntry(graph.PreviousPathFileName, sites),
 		},
 		su)
 
-	collections = append(collections, md)
-
-	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+	return md, err
 }

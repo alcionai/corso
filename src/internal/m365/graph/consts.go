@@ -46,9 +46,6 @@ const (
 	// PreviousPathFileName is the name of the file containing previous path(s) for a
 	// given endpoint.
 	PreviousPathFileName = "previouspath"
-
-	// SitesFileName is the file containing information about sites within a group
-	SitesFileName = "sites"
 )
 
 // ---------------------------------------------------------------------------

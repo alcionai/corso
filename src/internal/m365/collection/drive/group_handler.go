@@ -86,6 +86,17 @@ func (h groupBackupHandler) CanonicalPath(
 	)
 }
 
+func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {
+	return path.Build(
+		tenantID,
+		h.groupID,
+		h.service,
+		path.LibrariesCategory,
+		false,
+		odConsts.SitesPathDir,
+		h.siteID)
+}
+
 func (h groupBackupHandler) IsAllPass() bool {
 	return h.scope.IsAny(selectors.GroupsLibraryFolder)
 }
