@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
@@ -34,6 +35,7 @@ import (
 func (ctrl *Controller) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
+	rp kinject.RestoreProducer,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	service := bpc.Selector.PathService()
@@ -121,6 +123,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		colls, ssmb, canUsePreviousBackup, err = groups.ProduceBackupCollections(
 			ctx,
 			bpc,
+			rp,
 			ctrl.AC,
 			ctrl.credentials,
 			ctrl.UpdateStatus,

@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -36,6 +37,7 @@ type Controller struct {
 func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
 	_ inject.BackupProducerConfig,
+	_ kinject.RestoreProducer,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,

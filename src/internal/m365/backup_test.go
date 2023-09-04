@@ -2,6 +2,7 @@ package m365
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
@@ -249,6 +252,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 				ctx,
 				bpc,
+				nil,
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.False(t, canUsePreviousBackup, "can use previous backup")
@@ -397,6 +401,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		nil,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -447,6 +452,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		nil,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -504,6 +510,18 @@ func (suite *GroupsCollectionIntgSuite) SetupSuite() {
 	tester.LogTimeOfTest(t)
 }
 
+type mockRestoreProducer struct{}
+
+func (mockRestoreProducer) ProduceRestoreCollections(
+	_ context.Context,
+	_ string,
+	_ []path.RestorePaths,
+	_ kopia.ByteCounter,
+	_ *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	return nil, nil
+}
+
 func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() {
 	t := suite.T()
 
@@ -526,6 +544,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	sel.SetDiscreteOwnerIDName(id, name)
 
 	bpc := inject.BackupProducerConfig{
+		Mans:              kopia.NewMockBackupBases(),
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
 		ProtectedResource: inMock.NewProvider(id, name),
@@ -535,6 +554,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		mockRestoreProducer{},
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")

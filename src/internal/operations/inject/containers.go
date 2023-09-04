@@ -3,6 +3,7 @@ package inject
 import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -22,6 +23,7 @@ type RestoreConsumerConfig struct {
 // configurations from various packages, all of which are widely used by
 // backup producers independent of service or data category.
 type BackupProducerConfig struct {
+	Mans                kopia.BackupBases
 	LastBackupVersion   int
 	MetadataCollections []data.RestoreCollection
 	Options             control.Options

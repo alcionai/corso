@@ -9,6 +9,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
@@ -16,6 +18,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -26,6 +29,7 @@ import (
 func ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
+	rp kinject.RestoreProducer,
 	ac api.Client,
 	creds account.M365Config,
 	su support.StatusUpdater,
@@ -73,11 +77,32 @@ func ProduceBackupCollections(
 			}
 
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
+
+			var colls []data.RestoreCollection
+			for _, man := range bpc.Mans.MergeBases() {
+				mctx := clues.Add(ctx, "manifest_id", man.ID)
+
+				fb := fault.New(true)
+
+				colls, err = collectSiteMetadata(
+					mctx,
+					rp,
+					man,
+					creds.AzureTenantID,
+					bpc.ProtectedResource.ID(),
+					ptr.Val(resp.GetId()),
+					fb)
+
+				// Backup is always best effort and we don't error out even if this fails
+				operations.LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+			}
+
 			sbpc := inject.BackupProducerConfig{
-				LastBackupVersion: bpc.LastBackupVersion,
-				Options:           bpc.Options,
-				ProtectedResource: pr,
-				Selector:          bpc.Selector,
+				LastBackupVersion:   bpc.LastBackupVersion,
+				Options:             bpc.Options,
+				ProtectedResource:   pr,
+				Selector:            bpc.Selector,
+				MetadataCollections: colls,
 			}
 
 			bh := drive.NewGroupBackupHandler(
@@ -188,4 +213,50 @@ func getSitesMetadataCollection(
 		su)
 
 	return md, err
+}
+
+func collectSiteMetadata(
+	ctx context.Context,
+	r kinject.RestoreProducer,
+	man kopia.ManifestEntry,
+	tenantID, groupID, siteID string,
+	errs *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	paths := []path.RestorePaths{}
+	fileNames := graph.AllMetadataFileNames()
+
+	for _, fn := range fileNames {
+		p, err := path.Builder{}.
+			Append(odConsts.SitesPathDir, siteID, fn).
+			ToServiceCategoryMetadataPath(
+				tenantID,
+				groupID,
+				path.GroupsService,
+				path.LibrariesCategory,
+				true)
+		if err != nil {
+			return nil, clues.
+				Wrap(err, "building metadata path for site").
+				With("metadata_file", fn)
+		}
+
+		dir, err := p.Dir()
+		if err != nil {
+			return nil, clues.
+				Wrap(err, "building metadata collection path for site").
+				With("metadata_file", fn)
+		}
+
+		paths = append(paths, path.RestorePaths{StoragePath: p, RestorePath: dir})
+	}
+
+	dcs, err := r.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, errs)
+	if err != nil {
+		// Restore is best-effort and we want to keep it that way since we want to
+		// return as much metadata as we can to reduce the work we'll need to do.
+		// Just wrap the error here for better reporting/debugging.
+		return dcs, clues.Wrap(err, "collecting prior metadata for site")
+	}
+
+	return dcs, nil
 }

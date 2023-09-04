@@ -376,8 +376,10 @@ func (op *BackupOperation) do(
 	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
+		op.kopia,
 		op.ResourceOwner,
 		op.Selectors,
+		mans,
 		mdColls,
 		lastBackupVersion,
 		op.Options,
@@ -454,8 +456,10 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp inject.BackupProducer,
+	rp kinject.RestoreProducer,
 	protectedResource idname.Provider,
 	sel selectors.Selector,
+	mans kopia.BackupBases,
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
@@ -465,6 +469,7 @@ func produceBackupDataCollections(
 	defer close(progressBar)
 
 	bpc := inject.BackupProducerConfig{
+		Mans:                mans,
 		LastBackupVersion:   lastBackupVersion,
 		MetadataCollections: metadata,
 		Options:             ctrlOpts,
@@ -472,7 +477,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, rp, errs)
 }
 
 // ---------------------------------------------------------------------------

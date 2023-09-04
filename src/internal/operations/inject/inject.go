@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -21,6 +22,7 @@ type (
 		ProduceBackupCollections(
 			ctx context.Context,
 			bpc BackupProducerConfig,
+			rp inject.RestoreProducer,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
