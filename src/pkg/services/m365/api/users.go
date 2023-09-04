@@ -21,7 +21,7 @@ import (
 // Variables
 var (
 	ErrMailBoxSettingsNotFound     = clues.New("mailbox settings not found")
-	ErrMailBoxSettingsAccessDenied = clues.New("access denied")
+	ErrMailBoxSettingsAccessDenied = clues.New("mailbox settings access denied")
 )
 
 // ---------------------------------------------------------------------------
