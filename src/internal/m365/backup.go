@@ -64,7 +64,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 	// Exchange can only make delta queries if the mailbox is not over quota.
 	canMakeDeltaQueries := true
 	if service == path.ExchangeService {
-		canMakeDeltaQueries, err = canExchangeMakeDeltaQueries(
+		canMakeDeltaQueries, err = exchange.CanMakeDeltaQueries(
 			ctx,
 			service,
 			ctrl.AC.Users(),
@@ -155,11 +155,11 @@ func (ctrl *Controller) IsServiceEnabled(
 ) (bool, error) {
 	switch service {
 	case path.ExchangeService:
-		return IsExchangeServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
+		return exchange.IsServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
 	case path.OneDriveService:
-		return IsOneDriveServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
+		return onedrive.IsServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
 	case path.SharePointService:
-		return IsSharePointServiceEnabled(ctx, ctrl.AC.Users().Sites(), resourceOwner)
+		return sharepoint.IsServiceEnabled(ctx, ctrl.AC.Users().Sites(), resourceOwner)
 	case path.GroupsService:
 		return true, nil
 	}
@@ -185,18 +185,4 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	return nil
-}
-
-func canExchangeMakeDeltaQueries(
-	ctx context.Context,
-	service path.ServiceType,
-	gmi getMailboxer,
-	resourceOwner string,
-) (bool, error) {
-	mi, err := GetMailboxInfo(ctx, gmi, resourceOwner)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	return !mi.QuotaExceeded, nil
 }

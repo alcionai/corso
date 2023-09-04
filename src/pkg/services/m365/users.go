@@ -67,7 +67,7 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	return exchange.IsExchangeServiceEnabled(ctx, ac.Users(), userID)
+	return exchange.IsServiceEnabled(ctx, ac.Users(), userID)
 }
 
 func UserGetMailboxInfo(
@@ -91,7 +91,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	return onedrive.IsOneDriveServiceEnabled(ctx, ac.Users(), userID)
+	return onedrive.IsServiceEnabled(ctx, ac.Users(), userID)
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info

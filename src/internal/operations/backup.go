@@ -202,7 +202,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
-	// IsServiceEnabled checks if the user has the service enabled to run a backup.
+	// Check if the user has the service enabled in order for us to run a backup.
 	runnable, err := op.bp.IsServiceEnabled(
 		ctx,
 		op.Selectors.PathService(),
