@@ -44,7 +44,7 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	return odErr
 }
 
-func (suite *EnabledUnitSuite) TestIsOneDriveServiceEnabled() {
+func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 	table := []struct {
 		name      string
 		mock      func(context.Context) getDefaultDriver
@@ -126,7 +126,7 @@ func (suite *EnabledUnitSuite) TestIsOneDriveServiceEnabled() {
 
 			dgdd := test.mock(ctx)
 
-			ok, err := IsOneDriveServiceEnabled(ctx, dgdd, "resource_id")
+			ok, err := IsServiceEnabled(ctx, dgdd, "resource_id")
 			test.expect(t, ok, "has drives flag")
 			test.expectErr(t, err)
 		})

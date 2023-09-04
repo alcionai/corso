@@ -13,7 +13,7 @@ type getSiteRooter interface {
 	GetRoot(ctx context.Context) (models.Siteable, error)
 }
 
-func IsSharePointServiceEnabled(
+func IsServiceEnabled(
 	ctx context.Context,
 	gsr getSiteRooter,
 	resource string,

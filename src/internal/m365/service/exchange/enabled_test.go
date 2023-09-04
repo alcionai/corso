@@ -59,7 +59,7 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	return odErr
 }
 
-func (suite *EnabledUnitSuite) TestIsExchangeServiceEnabled() {
+func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 	table := []struct {
 		name      string
 		mock      func(context.Context) getMailInboxer
@@ -144,7 +144,7 @@ func (suite *EnabledUnitSuite) TestIsExchangeServiceEnabled() {
 
 			gmi := test.mock(ctx)
 
-			ok, err := IsExchangeServiceEnabled(ctx, gmi, "resource_id")
+			ok, err := IsServiceEnabled(ctx, gmi, "resource_id")
 			test.expect(t, ok, "has mailbox flag")
 			test.expectErr(t, err)
 		})

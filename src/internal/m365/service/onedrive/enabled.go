@@ -13,7 +13,7 @@ type getDefaultDriver interface {
 	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
 }
 
-func IsOneDriveServiceEnabled(
+func IsServiceEnabled(
 	ctx context.Context,
 	gdd getDefaultDriver,
 	resource string,

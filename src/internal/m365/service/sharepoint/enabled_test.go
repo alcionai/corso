@@ -43,7 +43,7 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	return odErr
 }
 
-func (suite *EnabledUnitSuite) TestIsSharePointServiceEnabled() {
+func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 	table := []struct {
 		name      string
 		mock      func(context.Context) getSiteRooter
@@ -94,7 +94,7 @@ func (suite *EnabledUnitSuite) TestIsSharePointServiceEnabled() {
 
 			gsr := test.mock(ctx)
 
-			ok, err := IsSharePointServiceEnabled(ctx, gsr, "resource_id")
+			ok, err := IsServiceEnabled(ctx, gsr, "resource_id")
 			test.expect(t, ok, "has sites flag")
 			test.expectErr(t, err)
 		})

@@ -16,7 +16,7 @@ type getMailInboxer interface {
 	GetMailInbox(ctx context.Context, userID string) (models.MailFolderable, error)
 }
 
-func IsExchangeServiceEnabled(
+func IsServiceEnabled(
 	ctx context.Context,
 	gmi getMailInboxer,
 	resource string,
