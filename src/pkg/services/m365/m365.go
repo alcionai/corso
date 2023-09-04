@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -15,6 +16,10 @@ import (
 // ---------------------------------------------------------------------------
 // interfaces & structs
 // ---------------------------------------------------------------------------
+
+type getDefaultDriver interface {
+	GetDefaultDrive(ctx context.Context, userID string) (models.Driveable, error)
+}
 
 type getAller[T any] interface {
 	GetAll(ctx context.Context, errs *fault.Bus) ([]T, error)
