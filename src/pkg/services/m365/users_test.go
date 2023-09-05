@@ -46,6 +46,7 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	acct := tconfig.NewM365Account(suite.T())
 
 	users, err := UsersCompatNoInfo(ctx, acct)
