@@ -361,6 +361,7 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 	sharePointLegacy1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary, path.SharePointService)
 	sharePointLegacy1.SharePoint.ItemType = OneDriveItem
 	group1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary, path.GroupsService)
+
 	// Sleep for a little so we get a larger difference in mod times between the
 	// earlier and later entries.
 	time.Sleep(100 * time.Millisecond)
