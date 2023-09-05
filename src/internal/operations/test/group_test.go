@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"

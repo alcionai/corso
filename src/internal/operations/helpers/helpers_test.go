@@ -1,4 +1,4 @@
-package operations
+package helpers
 
 import (
 	"context"
@@ -97,7 +97,7 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 
 			errs := test.errs(ctx)
 
-			finalizeErrorHandling(ctx, test.opts, errs, "test")
+			FinalizeErrorHandling(ctx, test.opts, errs, "test")
 			test.expectErr(t, errs.Failure())
 		})
 	}

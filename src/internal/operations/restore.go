@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/helpers"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/operations/pathtransformer"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -177,8 +178,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running restore")
-	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
+	helpers.FinalizeErrorHandling(ctx, op.Options, op.Errors, "running restore")
+	helpers.LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
 	logger.Ctx(ctx).With("total_counts", op.Counter.Values()).Info("restore stats")
 
 	// -----

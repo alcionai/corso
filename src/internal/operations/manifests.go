@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/operations/helpers"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -103,7 +104,7 @@ func getManifestsAndMetadata(
 		fb := fault.New(true)
 
 		colls, err := collectMetadata(mctx, rp, man, metadataFiles, tenantID, fb)
-		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+		helpers.LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
 
 		// TODO(ashmrtn): It should be alright to relax this condition a little. We
 		// should be able to just remove the offending manifest and backup from the

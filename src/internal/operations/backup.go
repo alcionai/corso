@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/helpers"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -285,7 +286,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
-	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
+	helpers.LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
 	// -----
 	// Persistence
@@ -309,7 +310,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return op.Errors.Failure()
 	}
 
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
+	helpers.FinalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 
 	if op.Errors.Failure() == nil {
 		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)

@@ -19,8 +19,10 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
+	"github.com/alcionai/corso/src/internal/m365/mock/collection"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
@@ -1570,6 +1572,7 @@ type mockBackupProducer struct {
 func (mbp *mockBackupProducer) ProduceBackupCollections(
 	context.Context,
 	inject.BackupProducerConfig,
+	kinject.RestoreProducer,
 	*fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	if mbp.injectNonRecoverableErr {
@@ -1602,7 +1605,7 @@ func makeBackupCollection(
 		streams[i] = &items[i]
 	}
 
-	return &mock.BackupCollection{
+	return &collection.BackupCollection{
 		Path:    p,
 		Loc:     locPath,
 		Streams: streams,

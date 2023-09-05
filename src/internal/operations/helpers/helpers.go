@@ -1,4 +1,4 @@
-package operations
+package helpers
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-// finalizeErrorHandling ensures the operation follows the
+// FinalizeErrorHandling ensures the operation follows the
 // failure policy requirements.
-func finalizeErrorHandling(
+func FinalizeErrorHandling(
 	ctx context.Context,
 	opts control.Options,
 	errs *fault.Bus,

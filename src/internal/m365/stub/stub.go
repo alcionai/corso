@@ -9,7 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/mock"
+	"github.com/alcionai/corso/src/internal/m365/mock/collection"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -139,7 +139,7 @@ func CollectionsForInfo(
 			totalItems++
 		}
 
-		c := mock.RestoreCollection{
+		c := collection.RestoreCollection{
 			Collection: mc,
 			AuxItems:   map[string]data.Item{},
 		}

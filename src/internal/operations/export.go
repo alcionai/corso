@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/helpers"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -176,8 +177,8 @@ func (op *ExportOperation) Run(ctx context.Context) (
 		op.Errors.Fail(clues.Wrap(err, "running export"))
 	}
 
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running export")
-	LogFaultErrors(ctx, op.Errors.Errors(), "running export")
+	helpers.FinalizeErrorHandling(ctx, op.Options, op.Errors, "running export")
+	helpers.LogFaultErrors(ctx, op.Errors.Errors(), "running export")
 
 	// -----
 	// Persistence

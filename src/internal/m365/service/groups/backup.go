@@ -18,10 +18,11 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/operations/helpers"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -79,6 +80,7 @@ func ProduceBackupCollections(
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
 
 			var colls []data.RestoreCollection
+
 			for _, man := range bpc.Mans.MergeBases() {
 				ictx := clues.Add(ctx, "manifest_id", man.ID)
 
@@ -94,7 +96,8 @@ func ProduceBackupCollections(
 					fb)
 
 				// Backup is always best effort and we don't error out even if this fails
-				operations.LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+				helpers.LogFaultErrors(ctx, fb.Errors(), "collecting site metadata")
+				logger.CtxErr(ctx, err).Info("collecting site metadata")
 			}
 
 			sbpc := inject.BackupProducerConfig{

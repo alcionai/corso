@@ -5,6 +5,12 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -12,11 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/kopia/kopia/repo/manifest"
-	"github.com/kopia/kopia/snapshot"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
 // mockRestoreProducer copied from operations/backup_tet.go
