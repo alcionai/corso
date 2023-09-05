@@ -373,6 +373,11 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 			expectLimiter: driveLimiter,
 		},
 		{
+			name:          "groups",
+			service:       path.GroupsService,
+			expectLimiter: driveLimiter,
+		},
+		{
 			name:          "unknownService",
 			service:       path.UnknownService,
 			expectLimiter: defaultLimiter,
