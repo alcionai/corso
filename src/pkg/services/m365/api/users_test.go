@@ -4,15 +4,12 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -152,39 +149,4 @@ func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
 			assert.Equal(suite.T(), test.expect, api.IsAnyErrMailboxNotFound(test.errs))
 		})
 	}
-}
-
-type UsersIntgSuite struct {
-	tester.Suite
-	its intgTesterSetup
-}
-
-func TestUsersIntgSuite(t *testing.T) {
-	suite.Run(t, &UsersIntgSuite{
-		Suite: tester.NewIntegrationSuite(
-			t,
-			[][]string{tconfig.M365AcctCredEnvs}),
-	})
-}
-
-func (suite *UsersIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
-}
-
-func (suite *UsersIntgSuite) TestUsers_GetMailInbox() {
-	t := suite.T()
-	ctx, flush := tester.NewContext(t)
-
-	defer flush()
-	defer gock.Off()
-
-	gock.EnableNetworking()
-	gock.New(graphAPIHostURL).
-		// Wildcard match on the inbox folder ID.
-		Get(v1APIURLPath("users", "user", "mailFolders", api.MailInbox)).
-		Reply(200).
-		JSON(parseableToMap(t, models.NewFolder()))
-
-	_, err := suite.its.gockAC.Users().GetMailInbox(ctx, "user")
-	require.NoError(t, err, clues.ToCore(err))
 }

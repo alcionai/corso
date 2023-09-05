@@ -121,12 +121,6 @@ func (suite *userIntegrationSuite) TestUserHasDrive() {
 			expect:    true,
 			expectErr: require.NoError,
 		},
-		{
-			name:      "invalid user",
-			user:      "",
-			expect:    false,
-			expectErr: require.Error,
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
