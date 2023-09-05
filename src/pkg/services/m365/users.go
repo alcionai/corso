@@ -15,15 +15,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// User is the minimal information required to identify and display a user.
-// type User struct {
-// 	PrincipalName string
-// 	ID            string
-// 	Name          string
-// }
-
 // UserNoInfo is the minimal information required to identify and display a user.
-// TODO: Remove this once `UsersCompatNoInfo` is removed
+// TODO(pandeyabs): Rename this to User now that `Info` support has been removed.
 type UserNoInfo struct {
 	PrincipalName string
 	ID            string
@@ -31,8 +24,8 @@ type UserNoInfo struct {
 }
 
 // UsersCompatNoInfo returns a list of users in the specified M365 tenant.
-// TODO: Remove this once `Info` is removed from the `User` struct and callers
-// have switched over
+// TODO(pandeyabs): Rename this to Users now that `Info` support has been removed. Would
+// need corresponding changes in SDK consumers.
 func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo, error) {
 	errs := fault.New(true)
 
