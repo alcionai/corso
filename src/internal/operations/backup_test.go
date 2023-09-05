@@ -218,7 +218,7 @@ func makeMetadataBasePath(
 ) path.Path {
 	t.Helper()
 
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenant,
 		resourceOwner,
 		service,
@@ -1871,7 +1871,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			cs := test.collFunc()
 
-			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
@@ -2189,7 +2189,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 			cs := test.collFunc()
 
-			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,

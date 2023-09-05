@@ -1129,7 +1129,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
-				pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+				pathPrefix, err := path.BuildMetadata(
 					tenant,
 					user,
 					path.OneDriveService,
@@ -1194,7 +1194,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		delta2 = "delta2"
 	)
 
-	metadataPath, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	metadataPath, err := path.BuildMetadata(
 		tenant,
 		user,
 		path.OneDriveService,

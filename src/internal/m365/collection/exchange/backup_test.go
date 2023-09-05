@@ -299,7 +299,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					graph.NewMetadataEntry(d.fileName, map[string]string{"key": d.value}))
 			}
 
-			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+			pathPrefix, err := path.BuildMetadata(
 				"t", "u",
 				path.ExchangeService,
 				path.EmailCategory,

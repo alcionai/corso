@@ -146,6 +146,22 @@ func Build(
 		hasItem)
 }
 
+// BuildMetadata is a shorthand for Builder{}.Append(...).ToServiceCategoryMetadataPath(...)
+func BuildMetadata(
+	tenant, resourceOwner string,
+	service ServiceType,
+	category CategoryType,
+	hasItem bool,
+	elements ...string,
+) (Path, error) {
+	return Builder{}.
+		Append(elements...).
+		ToServiceCategoryMetadataPath(
+			tenant, resourceOwner,
+			service, category,
+			hasItem)
+}
+
 func BuildPrefix(
 	tenant, resourceOwner string,
 	s ServiceType,

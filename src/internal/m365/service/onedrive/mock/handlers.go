@@ -191,7 +191,7 @@ var defaultOneDrivePathPrefixer = func(tID, ro, driveID string) (path.Path, erro
 }
 
 var defaultOneDriveMetadataPathPrefixer = func(tID, ro string) (path.Path, error) {
-	return path.Builder{}.ToServiceCategoryMetadataPath(
+	return path.BuildMetadata(
 		tID,
 		ro,
 		path.OneDriveService,
@@ -212,7 +212,7 @@ var defaultSharePointPathPrefixer = func(tID, ro, driveID string) (path.Path, er
 }
 
 var defaultSharePointMetadataPathPrefixer = func(tID, ro string) (path.Path, error) {
-	return path.Builder{}.ToServiceCategoryMetadataPath(
+	return path.BuildMetadata(
 		tID,
 		ro,
 		path.SharePointService,
