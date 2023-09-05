@@ -132,22 +132,22 @@ func prepNewTestBackupOp(
 
 	bod.sw = store.NewWrapper(bod.kms)
 
-	connectorResource := resource.Users
+	var connectorResource resource.Category
 
-	switch sel.Service {
-	case selectors.ServiceSharePoint:
+	switch sel.PathService() {
+	case path.SharePointService:
 		connectorResource = resource.Sites
-	case selectors.ServiceGroups:
+	case path.GroupsService:
 		connectorResource = resource.Groups
+	default:
+		connectorResource = resource.Users
 	}
 
 	bod.ctrl, bod.sel = ControllerWithSelector(
 		t,
 		ctx,
 		bod.acct,
-		connectorResource,
-		sel,
-		nil,
+		connectorResource, sel, nil,
 		bod.close)
 
 	bo := newTestBackupOp(
@@ -543,12 +543,12 @@ func ControllerWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
-	cr resource.Category,
+	rc resource.Category,
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.DefaultOptions())
+	ctrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)

@@ -1,50 +1,19 @@
-package exchange
+package groups
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
-
-type mockItemer struct {
-	getCount       int
-	serializeCount int
-	getErr         error
-	serializeErr   error
-}
-
-func (mi *mockItemer) GetItem(
-	context.Context,
-	string, string,
-	bool,
-	*fault.Bus,
-) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mi.getCount++
-	return nil, nil, mi.getErr
-}
-
-func (mi *mockItemer) Serialize(
-	context.Context,
-	serialization.Parsable,
-	string, string,
-) ([]byte, error) {
-	mi.serializeCount++
-	return nil, mi.serializeErr
-}
 
 type CollectionSuite struct {
 	tester.Suite
@@ -84,31 +53,31 @@ func (suite *CollectionSuite) TestReader_Empty() {
 func (suite *CollectionSuite) TestCollection_NewCollection() {
 	t := suite.T()
 	tenant := "a-tenant"
-	user := "a-user"
+	protectedResource := "a-protectedResource"
 	folder := "a-folder"
-	name := "User"
+	name := "protectedResource"
 
 	fullPath, err := path.Build(
 		tenant,
-		user,
-		path.ExchangeService,
-		path.EmailCategory,
+		protectedResource,
+		path.GroupsService,
+		path.ChannelMessagesCategory,
 		false,
 		folder)
 	require.NoError(t, err, clues.ToCore(err))
 
 	edc := Collection{
-		user:     name,
-		fullPath: fullPath,
+		protectedResource: name,
+		fullPath:          fullPath,
 	}
-	assert.Equal(t, name, edc.user)
+	assert.Equal(t, name, edc.protectedResource)
 	assert.Equal(t, fullPath, edc.FullPath())
 }
 
 func (suite *CollectionSuite) TestNewCollection_state() {
-	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
+	fooP, err := path.Build("t", "u", path.GroupsService, path.ChannelMessagesCategory, false, "foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
-	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
+	barP, err := path.Build("t", "u", path.GroupsService, path.ChannelMessagesCategory, false, "bar")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	locPB := path.Builder{}.Append("human-readable")
@@ -151,64 +120,16 @@ func (suite *CollectionSuite) TestNewCollection_state() {
 			t := suite.T()
 
 			c := NewCollection(
-				"u",
+				nil,
+				"g",
 				test.curr, test.prev, test.loc,
 				0,
-				&mockItemer{}, nil,
-				control.DefaultOptions(),
-				false)
+				nil,
+				control.DefaultOptions())
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
 			assert.Equal(t, test.prev, c.prevPath, "prev path")
 			assert.Equal(t, test.loc, c.locationPath, "location path")
-		})
-	}
-}
-
-func (suite *CollectionSuite) TestGetItemWithRetries() {
-	table := []struct {
-		name           string
-		items          *mockItemer
-		expectErr      func(*testing.T, error)
-		expectGetCalls int
-	}{
-		{
-			name:  "happy",
-			items: &mockItemer{},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-			expectGetCalls: 1,
-		},
-		{
-			name:  "an error",
-			items: &mockItemer{getErr: assert.AnError},
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-			expectGetCalls: 3,
-		},
-		{
-			name: "deleted in flight",
-			items: &mockItemer{
-				getErr: graph.ErrDeletedInFlight,
-			},
-			expectErr: func(t *testing.T, err error) {
-				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")
-			},
-			expectGetCalls: 1,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := test.items.GetItem(ctx, "userID", "itemID", false, fault.New(true))
-			test.expectErr(t, err)
 		})
 	}
 }

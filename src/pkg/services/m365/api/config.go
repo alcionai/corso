@@ -87,7 +87,13 @@ func newEventualConsistencyHeaders() *abstractions.RequestHeaders {
 
 // makes a slice with []string{"id", s...}
 func idAnd(ss ...string) []string {
-	return append([]string{"id"}, ss...)
+	id := []string{"id"}
+
+	if len(ss) == 0 {
+		return id
+	}
+
+	return append(id, ss...)
 }
 
 // ---------------------------------------------------------------------------

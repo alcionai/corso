@@ -39,7 +39,7 @@ const (
 	FolderItem ItemType = 306
 
 	// Groups/Teams(40x)
-	TeamsChannelMessage ItemType = 401
+	GroupsChannelMessage ItemType = 401
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
@@ -59,6 +59,8 @@ func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 		item.SharePoint.UpdateParentPath(newLocPath)
 	} else if item.OneDrive != nil {
 		item.OneDrive.UpdateParentPath(newLocPath)
+	} else if item.Groups != nil {
+		item.Groups.UpdateParentPath(newLocPath)
 	}
 }
 
@@ -93,6 +95,9 @@ func (i ItemInfo) infoType() ItemType {
 
 	case i.OneDrive != nil:
 		return i.OneDrive.ItemType
+
+	case i.Groups != nil:
+		return i.Groups.ItemType
 	}
 
 	return UnknownType
@@ -108,6 +113,9 @@ func (i ItemInfo) size() int64 {
 
 	case i.SharePoint != nil:
 		return i.SharePoint.Size
+
+	case i.Groups != nil:
+		return i.Groups.Size
 
 	case i.Folder != nil:
 		return i.Folder.Size
@@ -126,6 +134,9 @@ func (i ItemInfo) Modified() time.Time {
 
 	case i.SharePoint != nil:
 		return i.SharePoint.Modified
+
+	case i.Groups != nil:
+		return i.Groups.Modified
 
 	case i.Folder != nil:
 		return i.Folder.Modified

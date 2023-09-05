@@ -861,8 +861,6 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = false
 
-			fmt.Printf("\n-----\nrcfg %+v\n-----\n", restoreCfg.IncludePermissions)
-
 			runRestoreBackupTestVersions(
 				t,
 				testData,
