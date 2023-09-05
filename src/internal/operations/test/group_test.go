@@ -1,11 +1,18 @@
 package test_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -14,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -36,9 +44,56 @@ func (suite *GroupsBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-// TODO(v1 backup): Incremental backup
 // TODO(v0,v1 restore): Library restore
 // TODO(v0 export): Channels export
+
+// TODO(v1 backup): Incremental backup
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
+	suite.T().Skip("enable once we have restore (needed for updating test data)")
+
+	sel := selectors.NewGroupsRestore([]string{suite.its.site.ID})
+
+	ic := func(cs []string) selectors.Selector {
+		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
+		return sel.Selector
+	}
+
+	gtdi := func(
+		t *testing.T,
+		ctx context.Context,
+	) string {
+		d, err := suite.its.ac.Sites().GetDefaultDrive(ctx, suite.its.site.ID)
+		if err != nil {
+			err = graph.Wrap(ctx, err, "retrieving default site drive").
+				With("site", suite.its.site.ID)
+		}
+
+		require.NoError(t, err, clues.ToCore(err))
+
+		id := ptr.Val(d.GetId())
+		require.NotEmpty(t, id, "drive ID")
+
+		return id
+	}
+
+	// TODO(meain): Will have to support restore for us to be able to
+	// populate drive items to do incremental tests
+	grh := func(ac api.Client) drive.RestoreHandler {
+		return drive.NewLibraryRestoreHandler(ac, path.GroupsService)
+	}
+
+	runDriveIncrementalTest(
+		suite,
+		suite.its.site.ID,
+		suite.its.user.ID,
+		resource.Sites,
+		path.GroupsService,
+		path.LibrariesCategory,
+		ic,
+		gtdi,
+		grh,
+		true)
+}
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	t := suite.T()
