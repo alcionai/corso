@@ -56,3 +56,27 @@ func First(vs ...string) string {
 
 	return ""
 }
+
+// Preview reduces the string to the specified size.
+// If the string is longer than the size, the last three
+// characters are replaced with an ellipsis.  Size < 4
+// will default to 4.
+// ex:
+// Preview("123", 6) => "123"
+// Preview("1234567", 6) "123..."
+func Preview(s string, size int) string {
+	if size < 4 {
+		size = 4
+	}
+
+	if len(s) < size {
+		return s
+	}
+
+	ss := s[:size]
+	if len(s) > size {
+		ss = s[:size-3] + "..."
+	}
+
+	return ss
+}

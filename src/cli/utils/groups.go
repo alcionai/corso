@@ -19,6 +19,30 @@ type GroupsOpts struct {
 	Populated flags.PopulatedFlags
 }
 
+func GroupsAllowedCategories() map[string]struct{} {
+	return map[string]struct{}{
+		flags.DataLibraries: {},
+		flags.DataMessages:  {},
+	}
+}
+
+func AddGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
+	if len(cats) == 0 {
+		sel.Include(sel.AllData())
+	}
+
+	for _, d := range cats {
+		switch d {
+		case flags.DataLibraries:
+			sel.Include(sel.LibraryFolders(selectors.Any()))
+		case flags.DataMessages:
+			sel.Include(sel.ChannelMessages(selectors.Any(), selectors.Any()))
+		}
+	}
+
+	return sel
+}
+
 func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 	return GroupsOpts{
 		Groups: flags.UserFV,
