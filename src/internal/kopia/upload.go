@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"runtime/trace"
@@ -249,10 +248,12 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	for i := range sl {
 		rdt, err := base64.StdEncoding.DecodeString(sl[i])
 		if err != nil {
-			fmt.Println("f did not decode")
+			logger.Ctx(cp.ctx).Infow(
+				"unable to decode base64 path segment",
+				"segment", sl[i])
+		} else {
+			sl[i] = string(rdt)
 		}
-
-		sl[i] = string(rdt)
 	}
 
 	logger.Ctx(cp.ctx).Debugw(

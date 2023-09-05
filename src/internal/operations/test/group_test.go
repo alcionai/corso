@@ -48,13 +48,13 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 
 	var (
 		mb   = evmock.NewBus()
-		sel  = selectors.NewGroupsBackup([]string{suite.its.site.ID})
+		sel  = selectors.NewGroupsBackup([]string{suite.its.group.ID})
 		opts = control.DefaultOptions()
 	)
 
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
+		selTD.GroupsBackupChannelScope(sel)) // FIXME: channel backups are not ready
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
@@ -79,7 +79,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 
 	var (
 		mb    = evmock.NewBus()
-		sel   = selectors.NewGroupsBackup([]string{suite.its.site.ID})
+		sel   = selectors.NewGroupsBackup([]string{suite.its.group.ID})
 		opts  = control.DefaultOptions()
 		tenID = tconfig.M365TenantID(t)
 		svc   = path.GroupsService

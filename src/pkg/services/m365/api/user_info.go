@@ -35,12 +35,12 @@ type AutomaticRepliesSettings struct {
 	ExternalAudience       string
 	ExternalReplyMessage   string
 	InternalReplyMessage   string
-	ScheduledEndDateTime   timeInfo
-	ScheduledStartDateTime timeInfo
+	ScheduledEndDateTime   TimeInfo
+	ScheduledStartDateTime TimeInfo
 	Status                 string
 }
 
-type timeInfo struct {
+type TimeInfo struct {
 	DateTime string
 	Timezone string
 }
@@ -86,7 +86,7 @@ func (ui *UserInfo) CanMakeDeltaQueries() bool {
 	return !ui.Mailbox.QuotaExceeded
 }
 
-func parseMailboxSettings(
+func ParseMailboxSettings(
 	settings models.Userable,
 	mi MailboxInfo,
 ) MailboxInfo {

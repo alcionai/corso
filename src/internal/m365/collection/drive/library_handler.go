@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -21,16 +22,18 @@ var _ BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
 	ac      api.Drives
+	siteID  string
 	scope   selectors.SharePointScope
 	service path.ServiceType
 }
 
 func NewLibraryBackupHandler(
 	ac api.Drives,
+	siteID string,
 	scope selectors.SharePointScope,
 	service path.ServiceType,
 ) libraryBackupHandler {
-	return libraryBackupHandler{ac, scope, service}
+	return libraryBackupHandler{ac, siteID, scope, service}
 }
 
 func (h libraryBackupHandler) Get(
@@ -42,11 +45,11 @@ func (h libraryBackupHandler) Get(
 }
 
 func (h libraryBackupHandler) PathPrefix(
-	tenantID, resourceOwner, driveID string,
+	tenantID, driveID string,
 ) (path.Path, error) {
 	return path.Build(
 		tenantID,
-		resourceOwner,
+		h.siteID,
 		h.service,
 		path.LibrariesCategory,
 		false,
@@ -55,15 +58,31 @@ func (h libraryBackupHandler) PathPrefix(
 		odConsts.RootPathDir)
 }
 
+func (h libraryBackupHandler) MetadataPathPrefix(
+	tenantID string,
+) (path.Path, error) {
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenantID,
+		h.siteID,
+		h.service,
+		path.LibrariesCategory,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	return p, nil
+}
+
 func (h libraryBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID, resourceOwner string,
+	tenantID string,
 ) (path.Path, error) {
-	return folders.ToDataLayerPath(tenantID, resourceOwner, h.service, path.LibrariesCategory, false)
+	return folders.ToDataLayerPath(tenantID, h.siteID, h.service, path.LibrariesCategory, false)
 }
 
 func (h libraryBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
-	return path.SharePointService, path.LibrariesCategory
+	return h.service, path.LibrariesCategory
 }
 
 func (h libraryBackupHandler) NewDrivePager(
