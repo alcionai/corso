@@ -348,7 +348,7 @@ func ensureAllUsersInDetails(
 				continue
 			}
 
-			ro := p.ResourceOwner()
+			ro := p.ProtectedResource()
 			if !assert.NotEmpty(t, ro, "resource owner in path: "+rr) {
 				continue
 			}

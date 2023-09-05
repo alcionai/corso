@@ -21,7 +21,7 @@ var (
 // Resource-specific paths allow access to more information like segments in the
 // path. Builders that are turned into resource paths later on do not need to
 // manually add prefixes for items that normally appear in the data layer (ex.
-// tenant ID, service, user ID, etc).
+// tenant ID, service, resource ID, etc).
 type Builder struct {
 	// Unescaped version of elements.
 	elements Elements
@@ -258,7 +258,7 @@ func (pb Builder) ToStreamStorePath(
 }
 
 func (pb Builder) ToServiceCategoryMetadataPath(
-	tenant, protectedResource string,
+	tenant, resource string,
 	service ServiceType,
 	category CategoryType,
 	isItem bool,
@@ -267,7 +267,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		return nil, err
 	}
 
-	if err := verifyInputValues(tenant, protectedResource); err != nil {
+	if err := verifyInputValues(tenant, resource); err != nil {
 		return nil, err
 	}
 
@@ -292,7 +292,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		Builder: *pb.withPrefix(
 			tenant,
 			metadataService.String(),
-			protectedResource,
+			resource,
 			category.String()),
 		service:  metadataService,
 		category: category,
@@ -303,7 +303,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 }
 
 func (pb Builder) ToDataLayerPath(
-	tenant, user string,
+	tenant, resource string,
 	service ServiceType,
 	category CategoryType,
 	isItem bool,
@@ -313,14 +313,14 @@ func (pb Builder) ToDataLayerPath(
 		return nil, err
 	}
 
-	if err := pb.verifyPrefix(tenant, user); err != nil {
+	if err := pb.verifyPrefix(tenant, resource); err != nil {
 		return nil, err
 	}
 
 	prefixItems := append([]string{
 		tenant,
 		service.String(),
-		user,
+		resource,
 		category.String(),
 	}, elems...)
 
@@ -333,18 +333,18 @@ func (pb Builder) ToDataLayerPath(
 }
 
 func (pb Builder) ToDataLayerExchangePathForCategory(
-	tenant, user string,
+	tenant, resource string,
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	return pb.ToDataLayerPath(tenant, user, ExchangeService, category, isItem)
+	return pb.ToDataLayerPath(tenant, resource, ExchangeService, category, isItem)
 }
 
 func (pb Builder) ToDataLayerOneDrivePath(
-	tenant, user string,
+	tenant, resource string,
 	isItem bool,
 ) (Path, error) {
-	return pb.ToDataLayerPath(tenant, user, OneDriveService, FilesCategory, isItem)
+	return pb.ToDataLayerPath(tenant, resource, OneDriveService, FilesCategory, isItem)
 }
 
 func (pb Builder) ToDataLayerSharePointPath(
