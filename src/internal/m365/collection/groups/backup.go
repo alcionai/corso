@@ -258,7 +258,7 @@ func populateCollections(
 		qp.Category,
 		false)
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata path")
+		return nil, clues.Wrap(err, "making metadata path prefix")
 	}
 
 	col, err := graph.MakeMetadataCollection(
