@@ -47,14 +47,16 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		opts    = control.DefaultOptions()
+		whatSet = deeTD.CategoryFromRepoRef
 	)
 
 	sel.Include(
-		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel)) // FIXME: channel backups are not ready
+		// TODO(abin): ensure implementation succeeds
+		// selTD.GroupsBackupLibraryFolderScope(sel),
+		selTD.GroupsBackupChannelScope(sel))
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
@@ -68,7 +70,27 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		&bo,
 		bod.sel,
 		bod.sel.ID(),
-		path.LibrariesCategory)
+		path.ChannelMessagesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.GroupsService,
+		whatSet,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		whatSet,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
