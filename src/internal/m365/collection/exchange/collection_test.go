@@ -81,29 +81,6 @@ func (suite *CollectionSuite) TestReader_Empty() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *CollectionSuite) TestColleciton_FullPath() {
-	t := suite.T()
-	tenant := "a-tenant"
-	user := "a-user"
-	folder := "a-folder"
-
-	fullPath, err := path.Build(
-		tenant,
-		user,
-		path.ExchangeService,
-		path.EmailCategory,
-		false,
-		folder)
-	require.NoError(t, err, clues.ToCore(err))
-
-	edc := Collection{
-		user:     user,
-		fullPath: fullPath,
-	}
-
-	assert.Equal(t, fullPath, edc.FullPath())
-}
-
 func (suite *CollectionSuite) TestCollection_NewCollection() {
 	t := suite.T()
 	tenant := "a-tenant"

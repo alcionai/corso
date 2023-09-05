@@ -107,7 +107,11 @@ func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
 }
 
 func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
-	var category path.CategoryType
+	var (
+		category path.CategoryType
+		loc      uniqueLoc
+		err      error
+	)
 
 	switch i.ItemType {
 	case SharePointLibrary:
@@ -116,15 +120,17 @@ func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 		if len(i.DriveID) == 0 {
 			return nil, clues.New("empty drive ID")
 		}
+
+		loc, err = NewGroupsLocationIDer(category, i.DriveID, baseLoc.Elements()...)
 	case GroupsChannelMessage:
 		category = path.ChannelMessagesCategory
 
 		if len(i.ChannelID) == 0 {
 			return nil, clues.New("empty channel ID")
 		}
-	}
 
-	loc, err := NewGroupsLocationIDer(category, i.DriveID, baseLoc.Elements()...)
+		loc, err = NewGroupsLocationIDer(category, "", baseLoc.Elements()...)
+	}
 
 	return &loc, err
 }

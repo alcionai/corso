@@ -217,7 +217,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.fullPath.Category().String(),
+			col.FullPath().Category().String(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
@@ -281,7 +281,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			// TODO: the item getter should provide this func when we switch
 			// to a lookup-id-then-item pattern.
 			info := api.ChannelMessageInfo(item, int64(len(data)), col.chanID, col.chanName)
-			info.ParentPath = col.locationPath.String()
+			info.ParentPath = col.LocationPath().String()
 
 			col.stream <- &Item{
 				id:      ptr.Val(item.GetId()),
@@ -302,7 +302,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	wg.Wait()
 }
 
-// terminatePopulateSequence is a utility function used to close a Collection's data channel
+// finishPopulation is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
 func (col *Collection) finishPopulation(
 	ctx context.Context,
@@ -312,7 +312,8 @@ func (col *Collection) finishPopulation(
 	close(col.stream)
 
 	attempted := len(col.added) + len(col.removed)
-	status := support.CreateStatus(ctx,
+	status := support.CreateStatus(
+		ctx,
 		support.Backup,
 		1,
 		support.CollectionMetrics{
@@ -320,7 +321,7 @@ func (col *Collection) finishPopulation(
 			Successes: int(streamedItems),
 			Bytes:     totalBytes,
 		},
-		col.fullPath.Folder(false))
+		col.FullPath().Folder(false))
 
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 

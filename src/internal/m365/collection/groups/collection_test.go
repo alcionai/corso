@@ -50,29 +50,6 @@ func (suite *CollectionSuite) TestReader_Empty() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *CollectionSuite) TestColleciton_FullPath() {
-	t := suite.T()
-	tenant := "a-tenant"
-	protectedResource := "a-protectedResource"
-	folder := "a-folder"
-
-	fullPath, err := path.Build(
-		tenant,
-		protectedResource,
-		path.GroupsService,
-		path.ChannelMessagesCategory,
-		false,
-		folder)
-	require.NoError(t, err, clues.ToCore(err))
-
-	edc := Collection{
-		protectedResource: protectedResource,
-		fullPath:          fullPath,
-	}
-
-	assert.Equal(t, fullPath, edc.FullPath())
-}
-
 func (suite *CollectionSuite) TestCollection_NewCollection() {
 	t := suite.T()
 	tenant := "a-tenant"
