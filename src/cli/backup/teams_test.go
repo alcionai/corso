@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type TeamsUnitSuite struct {
@@ -112,17 +111,17 @@ func (suite *TeamsUnitSuite) TestValidateTeamsBackupCreateFlags() {
 		},
 		{
 			name:   "libraries",
-			cats:   []string{dataLibraries},
+			cats:   []string{flags.DataLibraries},
 			expect: assert.NoError,
 		},
 		{
 			name:   "messages",
-			cats:   []string{dataMessages},
+			cats:   []string{flags.DataMessages},
 			expect: assert.NoError,
 		},
 		{
 			name:   "all allowed",
-			cats:   []string{dataLibraries, dataMessages},
+			cats:   []string{flags.DataLibraries, flags.DataMessages},
 			expect: assert.NoError,
 		},
 		{
@@ -135,47 +134,6 @@ func (suite *TeamsUnitSuite) TestValidateTeamsBackupCreateFlags() {
 		suite.Run(test.name, func() {
 			err := validateTeamsBackupCreateFlags([]string{"*"}, test.cats)
 			test.expect(suite.T(), err, clues.ToCore(err))
-		})
-	}
-}
-
-func (suite *TeamsUnitSuite) TestAddTeamsCategories() {
-	table := []struct {
-		name           string
-		cats           []string
-		expectScopeLen int
-	}{
-		{
-			name:           "none",
-			cats:           []string{},
-			expectScopeLen: 2,
-		},
-		{
-			name:           "libraries",
-			cats:           []string{dataLibraries},
-			expectScopeLen: 1,
-		},
-		{
-			name:           "messages",
-			cats:           []string{dataMessages},
-			expectScopeLen: 1,
-		},
-		{
-			name:           "all allowed",
-			cats:           []string{dataLibraries, dataMessages},
-			expectScopeLen: 2,
-		},
-		{
-			name:           "bad inputs",
-			cats:           []string{"foo"},
-			expectScopeLen: 0,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			sel := addTeamsCategories(selectors.NewGroupsBackup(selectors.Any()), test.cats)
-			scopes := sel.Scopes()
-			assert.Len(suite.T(), scopes, test.expectScopeLen)
 		})
 	}
 }

@@ -256,12 +256,9 @@ func validateTeamsBackupCreateFlags(teams, cats []string) error {
 
 	msg := fmt.Sprintf(
 		" is an unrecognized data type; only %s and %s are supported",
-		dataLibraries, dataMessages)
+		flags.DataLibraries, flags.DataMessages)
 
-	allowedCats := map[string]struct{}{
-		dataLibraries: {},
-		dataMessages:  {},
-	}
+	allowedCats := utils.GroupsAllowedCategories()
 
 	for _, d := range cats {
 		if _, ok := allowedCats[d]; !ok {
@@ -283,26 +280,9 @@ func teamsBackupCreateSelectors(
 
 	sel := selectors.NewGroupsBackup(slices.Clone(team))
 
-	return addTeamsCategories(sel, cats)
+	return utils.AddGroupsCategories(sel, cats)
 }
 
 func includeAllTeamWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
-	return addTeamsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
-}
-
-func addTeamsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
-	if len(cats) == 0 {
-		sel.Include(sel.AllData())
-	}
-
-	for _, d := range cats {
-		switch d {
-		case dataLibraries:
-			sel.Include(sel.LibraryFolders(selectors.Any()))
-		case dataMessages:
-			sel.Include(sel.ChannelMessages(selectors.Any(), selectors.Any()))
-		}
-	}
-
-	return sel
+	return utils.AddGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
 }
