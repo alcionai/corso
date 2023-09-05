@@ -5,17 +5,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
-	"github.com/alcionai/corso/src/pkg/path"
 )
-
-// ---------------------------------------------------------------------------
-// User Info
-// ---------------------------------------------------------------------------
-
-type UserInfo struct {
-	ServicesEnabled map[path.ServiceType]struct{}
-	Mailbox         MailboxInfo
-}
 
 type MailboxInfo struct {
 	Purpose                    string
@@ -56,15 +46,6 @@ type WorkingHours struct {
 	EndTime    string
 	TimeZone   struct {
 		Name string
-	}
-}
-
-func newUserInfo() *UserInfo {
-	return &UserInfo{
-		ServicesEnabled: map[path.ServiceType]struct{}{
-			path.ExchangeService: {},
-			path.OneDriveService: {},
-		},
 	}
 }
 
