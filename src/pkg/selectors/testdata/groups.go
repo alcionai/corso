@@ -4,7 +4,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const TestChannelName = "test"
+const TestChannelName = "Test"
 
 // GroupsBackupFolderScope is the standard folder scope that should be used
 // in integration backups with groups when interacting with libraries.
@@ -15,5 +15,5 @@ func GroupsBackupLibraryFolderScope(sel *selectors.GroupsBackup) []selectors.Gro
 // GroupsBackupChannelScope is the standard folder scope that should be used
 // in integration backups with groups when interacting with channels.
 func GroupsBackupChannelScope(sel *selectors.GroupsBackup) []selectors.GroupsScope {
-	return sel.Channel(TestChannelName)
+	return sel.Channels([]string{TestChannelName})
 }
