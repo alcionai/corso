@@ -3,13 +3,14 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -105,7 +106,7 @@ func (c Channels) GetChannelByName(
 
 func (c Channels) GetChannelMessage(
 	ctx context.Context,
-	teamID, channelID, itemID string,
+	teamID, channelID, messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	var size int64
 
@@ -116,41 +117,15 @@ func (c Channels) GetChannelMessage(
 		Channels().
 		ByChannelIdString(channelID).
 		Messages().
-		ByChatMessageIdString(itemID).
+		ByChatMessageIdString(messageID).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	info := ChannelMessageInfo(message, size, channelID, "")
+	info := ChannelMessageInfo(message, size)
 
 	return message, info, nil
-}
-
-// ---------------------------------------------------------------------------
-// replies
-// ---------------------------------------------------------------------------
-
-// GetReplies retrieves all replies to a Channel Message.
-func (c Channels) GetReplies(
-	ctx context.Context,
-	teamID, channelID, messageID string,
-) (serialization.Parsable, error) {
-	replies, err := c.Stable.
-		Client().
-		Teams().
-		ByTeamIdString(teamID).
-		Channels().
-		ByChannelIdString(channelID).
-		Messages().
-		ByChatMessageIdString(messageID).
-		Replies().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return replies, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -160,17 +135,47 @@ func (c Channels) GetReplies(
 func ChannelMessageInfo(
 	msg models.ChatMessageable,
 	size int64,
-	channelID, channelName string,
 ) *details.GroupsInfo {
-	created := ptr.Val(msg.GetCreatedDateTime())
+	var (
+		lastReply  time.Time
+		modTime    = ptr.OrNow(msg.GetLastModifiedDateTime())
+		msgCreator string
+	)
+
+	for _, r := range msg.GetReplies() {
+		cdt := ptr.Val(r.GetCreatedDateTime())
+		if cdt.After(lastReply) {
+			lastReply = cdt
+		}
+	}
+
+	// if the message hasn't been modified since before the most recent
+	// reply, set the modified time to the most recent reply.  This ensures
+	// we update the message contents to match changes in replies.
+	if modTime.Before(lastReply) {
+		modTime = lastReply
+	}
+
+	from := msg.GetFrom()
+
+	switch true {
+	case from.GetApplication() != nil:
+		msgCreator = ptr.Val(from.GetApplication().GetDisplayName())
+	case from.GetDevice() != nil:
+		msgCreator = ptr.Val(from.GetDevice().GetDisplayName())
+	case from.GetUser() != nil:
+		msgCreator = ptr.Val(from.GetUser().GetDisplayName())
+	}
 
 	return &details.GroupsInfo{
-		ItemType:    details.GroupsChannelMessage,
-		Size:        size,
-		Created:     created,
-		Modified:    ptr.OrNow(msg.GetLastModifiedDateTime()),
-		ChannelID:   channelID,
-		ChannelName: channelName,
+		ItemType:       details.GroupsChannelMessage,
+		Created:        ptr.Val(msg.GetCreatedDateTime()),
+		LastReplyAt:    lastReply,
+		Modified:       modTime,
+		MessageCreator: msgCreator,
+		MessagePreview: str.Preview(ptr.Val(msg.GetBody().GetContent()), 16),
+		ReplyCount:     len(msg.GetReplies()),
+		Size:           size,
 	}
 }
 

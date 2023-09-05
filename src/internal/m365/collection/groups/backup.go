@@ -176,9 +176,7 @@ func populateCollections(
 			path.Builder{}.Append(cName),
 			qp.Category,
 			statusUpdater,
-			ctrlOpts,
-			cID,
-			cName)
+			ctrlOpts)
 
 		channelCollections[cID] = &edc
 

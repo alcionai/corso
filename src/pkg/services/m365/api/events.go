@@ -212,9 +212,10 @@ func (c Events) GetItem(
 	// cancelledOccurrences end up in AdditionalData
 	// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-beta#properties
 	rawURL := fmt.Sprintf(eventExceptionsBetaURLTemplate, userID, itemID)
-	builder := users.NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
 
-	event, err = builder.Get(ctx, config)
+	event, err = users.
+		NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter()).
+		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
