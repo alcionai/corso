@@ -84,8 +84,7 @@ func ProduceBackupCollections(
 				bpc.ProtectedResource.ID(),
 				ptr.Val(resp.GetId()),
 				ac.Drives(),
-				scope,
-			)
+				scope)
 
 			cp, err := bh.SitePathPrefix(creds.AzureTenantID)
 			if err != nil {
@@ -164,8 +163,8 @@ func getSitesMetadataCollection(
 	sites map[string]string,
 	su support.StatusUpdater,
 ) (data.BackupCollection, error) {
-	// TODO(meain): Should we store this one level above? If so, how would we
-	// separate different resources? Use different name for each resource?
+	// TODO(meain): Switch to using BuildMetadata
+	// https://github.com/alcionai/corso/pull/4184#discussion_r1316139701
 	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
 		tenantID,
 		groupID,
