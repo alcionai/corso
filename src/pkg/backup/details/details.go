@@ -46,11 +46,7 @@ func (d *Details) add(
 
 	// Use the item name and the path for the ShortRef. This ensures that renames
 	// within a directory generate unique ShortRefs.
-	if info.infoType() == OneDriveItem || info.infoType() == SharePointLibrary {
-		if info.OneDrive == nil && info.SharePoint == nil && info.Groups == nil {
-			return entry, clues.New("item is not Groups, SharePoint or OneDrive type")
-		}
-
+	if info.isDriveItem() {
 		// clean metadata suffixes from item refs
 		entry.ItemRef = withoutMetadataSuffix(entry.ItemRef)
 	}
