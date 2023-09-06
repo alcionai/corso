@@ -59,7 +59,7 @@ func (suite *GroupBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	}{
 		{
 			name:      "group",
-			expect:    "tenant/groupsMetadata/resourceOwner/libraries",
+			expect:    "tenant/groupsMetadata/resourceOwner/libraries/sites/site-id",
 			expectErr: assert.NoError,
 		},
 	}
