@@ -182,7 +182,7 @@ func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
 			expect: func(t *testing.T, info api.MailboxInfo) {
 				require.NotNil(t, info)
-				assert.Contains(t, info.ErrGetMailBoxSetting, api.ErrMailBoxSettingsNotFound)
+				assert.Contains(t, info.ErrGetMailBoxSetting, api.ErrMailBoxNotFound)
 			},
 			expectErr: require.NoError,
 		},
@@ -305,7 +305,7 @@ func (suite *userIntegrationSuite) TestGetUserInfo_userWithoutDrive() {
 			expect: &api.UserInfo{
 				ServicesEnabled: map[path.ServiceType]struct{}{},
 				Mailbox: api.MailboxInfo{
-					ErrGetMailBoxSetting: []error{api.ErrMailBoxSettingsNotFound},
+					ErrGetMailBoxSetting: []error{api.ErrMailBoxNotFound},
 				},
 			},
 		},

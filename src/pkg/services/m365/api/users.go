@@ -20,7 +20,7 @@ import (
 
 // Variables
 var (
-	ErrMailBoxSettingsNotFound     = clues.New("mailbox settings not found")
+	ErrMailBoxNotFound             = clues.New("mailbox not found")
 	ErrMailBoxSettingsAccessDenied = clues.New("mailbox settings access denied")
 )
 
@@ -215,7 +215,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	}
 
 	if !mailFolderFound {
-		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxSettingsNotFound)
+		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxNotFound)
 		userInfo.Mailbox = mi
 
 		return userInfo, nil
