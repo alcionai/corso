@@ -182,3 +182,14 @@ func (i ItemInfo) updateFolder(f *FolderInfo) error {
 		return clues.New("unsupported type")
 	}
 }
+
+// true if the info represents an item backed by the drive api.
+func (i ItemInfo) isDriveItem() bool {
+	iit := i.infoType()
+
+	if !(iit == OneDriveItem || iit == SharePointLibrary) {
+		return false
+	}
+
+	return !(i.OneDrive == nil && i.SharePoint == nil && i.Groups == nil)
+}
