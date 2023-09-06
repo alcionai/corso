@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
@@ -121,7 +120,6 @@ func generateAndRestoreItems(
 
 func getControllerAndVerifyResourceOwner(
 	ctx context.Context,
-	resourceCat resource.Category,
 	resourceOwner string,
 	pst path.ServiceType,
 ) (
@@ -147,7 +145,7 @@ func getControllerAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "finding m365 account details")
 	}
 
-	ctrl, err := m365.NewController(ctx, acct, resourceCat, pst, control.Options{})
+	ctrl, err := m365.NewController(ctx, acct, pst, control.Options{})
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
@@ -430,7 +428,6 @@ func generateAndRestoreDriveItems(
 
 	config := m365Stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       resource.Users,
 		Service:        service,
 		Tenant:         tenantID,
 		ResourceOwners: []string{protectedResource.ID()},

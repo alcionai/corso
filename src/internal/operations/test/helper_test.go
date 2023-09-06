@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
@@ -132,22 +131,12 @@ func prepNewTestBackupOp(
 
 	bod.sw = store.NewWrapper(bod.kms)
 
-	var connectorResource resource.Category
-
-	switch sel.PathService() {
-	case path.SharePointService:
-		connectorResource = resource.Sites
-	case path.GroupsService:
-		connectorResource = resource.Groups
-	default:
-		connectorResource = resource.Users
-	}
-
 	bod.ctrl, bod.sel = ControllerWithSelector(
 		t,
 		ctx,
 		bod.acct,
-		connectorResource, sel, nil,
+		sel,
+		nil,
 		bod.close)
 
 	bo := newTestBackupOp(
@@ -543,12 +532,11 @@ func ControllerWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
-	rc resource.Category,
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.DefaultOptions())
+	ctrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
