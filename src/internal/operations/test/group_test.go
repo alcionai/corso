@@ -51,7 +51,7 @@ func (suite *GroupsBackupIntgSuite) SetupSuite() {
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 	suite.T().Skip("enable once we have restore (needed for updating test data)")
 
-	sel := selectors.NewGroupsRestore([]string{suite.its.site.ID})
+	sel := selectors.NewGroupsRestore([]string{suite.its.group.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))

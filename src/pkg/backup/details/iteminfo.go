@@ -57,8 +57,6 @@ func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
 		}
 
 		item.SharePoint.UpdateParentPath(newLocPath)
-	} else if item.Groups != nil {
-		item.Groups.UpdateParentPath(newLocPath)
 	} else if item.OneDrive != nil {
 		item.OneDrive.UpdateParentPath(newLocPath)
 	} else if item.Groups != nil {
@@ -94,9 +92,6 @@ func (i ItemInfo) infoType() ItemType {
 
 	case i.SharePoint != nil:
 		return i.SharePoint.ItemType
-
-	case i.Groups != nil:
-		return i.Groups.ItemType
 
 	case i.OneDrive != nil:
 		return i.OneDrive.ItemType

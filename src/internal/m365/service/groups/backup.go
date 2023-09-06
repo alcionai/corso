@@ -80,12 +80,12 @@ func ProduceBackupCollections(
 
 			var colls []data.RestoreCollection
 			for _, man := range bpc.Mans.MergeBases() {
-				mctx := clues.Add(ctx, "manifest_id", man.ID)
+				ictx := clues.Add(ctx, "manifest_id", man.ID)
 
 				fb := fault.New(true)
 
 				colls, err = collectSiteMetadata(
-					mctx,
+					ictx,
 					rp,
 					man,
 					creds.AzureTenantID,
