@@ -230,22 +230,18 @@ func (op *RestoreOperation) do(
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
 	// Check if the resource has the service enabled to be able to restore.
-	runnable, err := op.rc.IsServiceEnabled(
+	enabled, err := op.rc.IsServiceEnabled(
 		ctx,
 		op.Selectors.PathService(),
 		restoreToProtectedResource.ID())
 	if err != nil {
-		logger.CtxErr(ctx, err).Error("verifying restore is runnable")
-		op.Errors.Fail(clues.Wrap(err, "verifying restore is runnable"))
-
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Wrap(err, "verifying service restore is enabled").WithClues(ctx)
 	}
 
-	if !runnable {
-		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if restore is enabled")
-		op.Errors.Fail(clues.Wrap(err, "checking if restore is enabled"))
-
-		return nil, clues.Stack(graph.ErrServiceNotEnabled).WithClues(ctx)
+	if !enabled {
+		return nil, clues.Wrap(
+			graph.ErrServiceNotEnabled,
+			"service not enabled for restore").WithClues(ctx)
 	}
 
 	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))

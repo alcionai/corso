@@ -15,12 +15,7 @@ func IsServiceEnabled(
 	gbi getByIDer,
 	resource string,
 ) (bool, error) {
-	_, err := gbi.GetByID(ctx, resource)
-	if err != nil {
-		// TODO(meain): check for error message in case groups are
-		// not enabled at all similar to sharepoint
-		return false, err
-	}
-
+	// TODO(meain): check for error message in case groups are
+	// not enabled at all similar to sharepoint
 	return true, nil
 }
