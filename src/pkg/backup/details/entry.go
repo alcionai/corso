@@ -159,6 +159,10 @@ func (de Entry) Headers() []string {
 		hs = append(hs, de.ItemInfo.OneDrive.Headers()...)
 	}
 
+	if de.ItemInfo.Groups != nil {
+		hs = append(hs, de.ItemInfo.Groups.Headers()...)
+	}
+
 	return hs
 }
 
@@ -180,6 +184,10 @@ func (de Entry) Values() []string {
 
 	if de.ItemInfo.OneDrive != nil {
 		vs = append(vs, de.ItemInfo.OneDrive.Values()...)
+	}
+
+	if de.ItemInfo.Groups != nil {
+		vs = append(vs, de.ItemInfo.Groups.Values()...)
 	}
 
 	return vs

@@ -3,6 +3,7 @@ package backup
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,6 +94,46 @@ func (suite *TeamsUnitSuite) TestAddTeamsCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+		})
+	}
+}
+
+func (suite *TeamsUnitSuite) TestValidateTeamsBackupCreateFlags() {
+	table := []struct {
+		name   string
+		cats   []string
+		expect assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "none",
+			cats:   []string{},
+			expect: assert.NoError,
+		},
+		{
+			name:   "libraries",
+			cats:   []string{flags.DataLibraries},
+			expect: assert.NoError,
+		},
+		{
+			name:   "messages",
+			cats:   []string{flags.DataMessages},
+			expect: assert.NoError,
+		},
+		{
+			name:   "all allowed",
+			cats:   []string{flags.DataLibraries, flags.DataMessages},
+			expect: assert.NoError,
+		},
+		{
+			name:   "bad inputs",
+			cats:   []string{"foo"},
+			expect: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			err := validateTeamsBackupCreateFlags([]string{"*"}, test.cats)
+			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }

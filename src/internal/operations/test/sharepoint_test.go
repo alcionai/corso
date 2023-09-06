@@ -305,7 +305,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		md, err = graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Patch(ctx, patchBody, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
@@ -330,9 +330,9 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		resp, err := graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(rootFolderID).
+			ByDriveItemIdString(rootFolderID).
 			Children().
 			Get(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
@@ -356,7 +356,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		err = graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Delete(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
@@ -407,9 +407,9 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		resp, err := graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(rootFolderID).
+			ByDriveItemIdString(rootFolderID).
 			Children().
 			Get(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
@@ -450,9 +450,9 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		resp, err := graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(rootFolderID).
+			ByDriveItemIdString(rootFolderID).
 			Children().
 			Get(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))

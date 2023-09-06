@@ -425,9 +425,9 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithA
 	ec, err := handler.ac.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(calendarID).
+		ByCalendarIdString(calendarID).
 		Events().
 		Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))

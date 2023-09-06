@@ -39,15 +39,15 @@ const (
 // Collection implements the interface from data.Collection
 // Structure holds data for an Exchange application for a single user
 type Collection struct {
-	user string
-	data chan data.Item
+	user   string
+	stream chan data.Item
 
 	// added is a list of existing item IDs that were added to a container
 	added map[string]struct{}
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	items itemGetterSerializer
+	getter itemGetterSerializer
 
 	category      path.CategoryType
 	statusUpdater support.StatusUpdater
@@ -91,10 +91,10 @@ func NewCollection(
 		added:           make(map[string]struct{}, 0),
 		category:        category,
 		ctrl:            ctrlOpts,
-		data:            make(chan data.Item, collectionChannelBufferSize),
+		stream:          make(chan data.Item, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
 		fullPath:        curr,
-		items:           items,
+		getter:          items,
 		locationPath:    location,
 		prevPath:        prev,
 		removed:         make(map[string]struct{}, 0),
@@ -110,7 +110,7 @@ func NewCollection(
 // M365 exchange objects and returns the data channel
 func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
-	return col.data
+	return col.stream
 }
 
 // FullPath returns the Collection's fullPath []string
@@ -164,7 +164,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.fullPath.Category().String(),
+			col.FullPath().Category().String(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
@@ -182,7 +182,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			col.data <- &Item{
+			col.stream <- &Item{
 				id:      id,
 				modTime: time.Now().UTC(), // removed items have no modTime entry.
 				deleted: true,
@@ -211,7 +211,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			item, info, err := col.items.GetItem(
+			item, info, err := col.getter.GetItem(
 				ctx,
 				user,
 				id,
@@ -232,7 +232,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				return
 			}
 
-			data, err := col.items.Serialize(ctx, item, user, id)
+			data, err := col.getter.Serialize(ctx, item, user, id)
 			if err != nil {
 				errs.AddRecoverable(ctx, clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation))
 				return
@@ -244,9 +244,9 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				info.Size = int64(len(data))
 			}
 
-			info.ParentPath = col.locationPath.String()
+			info.ParentPath = col.LocationPath().String()
 
-			col.data <- &Item{
+			col.stream <- &Item{
 				id:      id,
 				message: data,
 				info:    info,
@@ -265,7 +265,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	wg.Wait()
 }
 
-// terminatePopulateSequence is a utility function used to close a Collection's data channel
+// finishPopulation is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
 func (col *Collection) finishPopulation(
 	ctx context.Context,
@@ -273,10 +273,11 @@ func (col *Collection) finishPopulation(
 	totalBytes int64,
 	err error,
 ) {
-	close(col.data)
+	close(col.stream)
 
 	attempted := len(col.added) + len(col.removed)
-	status := support.CreateStatus(ctx,
+	status := support.CreateStatus(
+		ctx,
 		support.Backup,
 		1,
 		support.CollectionMetrics{
@@ -284,7 +285,7 @@ func (col *Collection) finishPopulation(
 			Successes: success,
 			Bytes:     totalBytes,
 		},
-		col.fullPath.Folder(false))
+		col.FullPath().Folder(false))
 
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 
