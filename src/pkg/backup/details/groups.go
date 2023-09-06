@@ -17,7 +17,6 @@ func NewGroupsLocationIDer(
 	driveID string,
 	escapedFolders ...string,
 ) (uniqueLoc, error) {
-	// TODO(meain): path fixes
 	if err := path.ValidateServiceAndCategory(path.GroupsService, category); err != nil {
 		return uniqueLoc{}, clues.Wrap(err, "making groups LocationIDer")
 	}
@@ -26,12 +25,12 @@ func NewGroupsLocationIDer(
 	prefixElems := 1
 
 	if driveID != "" { // non sp paths don't have driveID
-		pb.Append(driveID)
+		pb = pb.Append(driveID)
 
 		prefixElems = 2
 	}
 
-	pb.Append(escapedFolders...)
+	pb = pb.Append(escapedFolders...)
 
 	return uniqueLoc{pb, prefixElems}, nil
 }
@@ -125,7 +124,6 @@ func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 }
 
 func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
-	// TODO(meain): path updates if any
 	if i.ItemType == SharePointLibrary {
 		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
 	}
