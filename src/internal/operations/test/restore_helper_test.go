@@ -13,7 +13,6 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -107,20 +106,10 @@ func prepNewTestRestoreOp(
 
 	rod.sw = store.NewWrapper(rod.kms)
 
-	connectorResource := resource.Users
-
-	switch sel.Service {
-	case selectors.ServiceSharePoint:
-		connectorResource = resource.Sites
-	case selectors.ServiceGroups:
-		connectorResource = resource.Groups
-	}
-
 	rod.ctrl, rod.sel = ControllerWithSelector(
 		t,
 		ctx,
 		rod.acct,
-		connectorResource,
 		sel,
 		nil,
 		rod.close)

@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -91,7 +90,6 @@ type suiteInfo interface {
 	// also be a site.
 	ResourceOwner() string
 	Service() path.ServiceType
-	Resource() resource.Category
 }
 
 type oneDriveSuite interface {
@@ -100,17 +98,16 @@ type oneDriveSuite interface {
 }
 
 type suiteInfoImpl struct {
-	ac               api.Client
-	controller       *Controller
-	resourceOwner    string
-	resourceCategory resource.Category
-	secondaryUser    string
-	secondaryUserID  string
-	service          path.ServiceType
-	tertiaryUser     string
-	tertiaryUserID   string
-	user             string
-	userID           string
+	ac              api.Client
+	controller      *Controller
+	resourceOwner   string
+	secondaryUser   string
+	secondaryUserID string
+	service         path.ServiceType
+	tertiaryUser    string
+	tertiaryUserID  string
+	user            string
+	userID          string
 }
 
 func NewSuiteInfoImpl(
@@ -119,22 +116,16 @@ func NewSuiteInfoImpl(
 	resourceOwner string,
 	service path.ServiceType,
 ) suiteInfoImpl {
-	rsc := resource.Users
-	if service == path.SharePointService {
-		rsc = resource.Sites
-	}
-
-	ctrl := newController(ctx, t, rsc, path.OneDriveService)
+	ctrl := newController(ctx, t, path.OneDriveService)
 
 	return suiteInfoImpl{
-		ac:               ctrl.AC,
-		controller:       ctrl,
-		resourceOwner:    resourceOwner,
-		resourceCategory: rsc,
-		secondaryUser:    tconfig.SecondaryM365UserID(t),
-		service:          service,
-		tertiaryUser:     tconfig.TertiaryM365UserID(t),
-		user:             tconfig.M365UserID(t),
+		ac:            ctrl.AC,
+		controller:    ctrl,
+		resourceOwner: resourceOwner,
+		secondaryUser: tconfig.SecondaryM365UserID(t),
+		service:       service,
+		tertiaryUser:  tconfig.TertiaryM365UserID(t),
+		user:          tconfig.M365UserID(t),
 	}
 }
 
@@ -164,10 +155,6 @@ func (si suiteInfoImpl) ResourceOwner() string {
 
 func (si suiteInfoImpl) Service() path.ServiceType {
 	return si.service
-}
-
-func (si suiteInfoImpl) Resource() resource.Category {
-	return si.resourceCategory
 }
 
 // ---------------------------------------------------------------------------
@@ -512,7 +499,6 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -761,7 +747,6 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -851,7 +836,6 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1056,7 +1040,6 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1251,7 +1234,6 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1368,7 +1350,6 @@ func testRestoreFolderNamedFolderRegression(
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             suite.Service(),
-				resourceCat:         suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
