@@ -22,7 +22,7 @@ func CheckOneDriveExport(
 ) {
 	drive, err := client.
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {

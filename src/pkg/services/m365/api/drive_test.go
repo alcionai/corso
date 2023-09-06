@@ -274,9 +274,9 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 	resultFileColl, err := acd.Stable.
 		Client().
 		Drives().
-		ByDriveId(suite.its.user.driveID).
+		ByDriveIdString(suite.its.user.driveID).
 		Items().
-		ByDriveItemId(ptr.Val(resultFolder.GetId())).
+		ByDriveItemIdString(ptr.Val(resultFolder.GetId())).
 		Children().
 		Get(ctx, nil)
 	err = graph.Stack(ctx, err).OrNil()

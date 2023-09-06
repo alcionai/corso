@@ -196,7 +196,7 @@ var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 func runBackups(
 	ctx context.Context,
 	r repository.Repository,
-	serviceName, resourceOwnerType string,
+	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
 ) error {

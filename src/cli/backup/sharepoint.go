@@ -29,11 +29,6 @@ import (
 // ------------------------------------------------------------------------------------------------
 
 const (
-	dataLibraries = "libraries"
-	dataPages     = "pages"
-)
-
-const (
 	sharePointServiceCommand                 = "sharepoint"
 	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + flags.Wildcard + "'"
 	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
@@ -90,7 +85,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
-		flags.AddDataFlag(c, []string{dataLibraries}, true)
+		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
 		flags.AddForceItemDataDownloadFlag(c)
@@ -193,7 +188,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"SharePoint", "site",
+		"SharePoint",
 		selectorSet,
 		ins)
 }
@@ -208,9 +203,9 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	}
 
 	for _, d := range cats {
-		if d != dataLibraries && d != dataPages {
+		if d != flags.DataLibraries && d != flags.DataPages {
 			return clues.New(
-				d + " is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
+				d + " is an unrecognized data type; either  " + flags.DataLibraries + "or " + flags.DataPages,
 			)
 		}
 	}
@@ -253,9 +248,9 @@ func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.Sh
 
 	for _, d := range cats {
 		switch d {
-		case dataLibraries:
+		case flags.DataLibraries:
 			sel.Include(sel.LibraryFolders(selectors.Any()))
-		case dataPages:
+		case flags.DataPages:
 			sel.Include(sel.Pages(selectors.Any()))
 		}
 	}

@@ -46,9 +46,9 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.user.id).
+		ByUserIdString(suite.its.user.id).
 		MailFolders().
-		ByMailFolderId(ptr.Val(container.GetId())).
+		ByMailFolderIdString(ptr.Val(container.GetId())).
 		Messages().
 		Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -101,9 +101,9 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsIDsInContainer() {
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.user.id).
+		ByUserIdString(suite.its.user.id).
 		MailFolders().
-		ByMailFolderId(api.MailInbox).
+		ByMailFolderIdString(api.MailInbox).
 		Messages().
 		Get(ctx, config)
 	require.NoError(t, err, clues.ToCore(err))
