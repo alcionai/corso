@@ -8,6 +8,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
@@ -185,4 +187,63 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	return nil
+}
+
+func (ctrl *Controller) CollectMetadata(
+	ctx context.Context,
+	r kinject.RestoreProducer,
+	man kopia.ManifestEntry,
+	tenantID string,
+	errs *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	var (
+		paths = []path.RestorePaths{}
+		err   error
+	)
+
+	for _, reason := range man.Reasons {
+		// TODO(meain): remove channel filtering
+		if reason.Category() == path.ChannelMessagesCategory {
+			continue
+		}
+
+		filePaths := [][]string{}
+
+		switch reason.Service() {
+		case path.GroupsService:
+			filePaths, err = groups.MetadataFiles(ctx, tenantID, reason, r, man, errs)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			for _, fn := range graph.AllMetadataFileNames() {
+				filePaths = append(filePaths, []string{fn})
+			}
+		}
+
+		for _, fp := range filePaths {
+			rp, err := path.BuildRestorePaths(
+				tenantID,
+				reason.ProtectedResource(),
+				reason.Service(),
+				reason.Category(),
+				fp,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			paths = append(paths, rp)
+		}
+	}
+
+	dcs, err := r.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, errs)
+	if err != nil {
+		// Restore is best-effort and we want to keep it that way since we want to
+		// return as much metadata as we can to reduce the work we'll need to do.
+		// Just wrap the error here for better reporting/debugging.
+		return dcs, clues.Wrap(err, "collecting prior metadata")
+	}
+
+	return dcs, nil
 }

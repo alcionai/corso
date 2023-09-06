@@ -6,6 +6,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -25,6 +27,14 @@ type (
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 
 		IsServiceEnableder
+
+		CollectMetadata(
+			ctx context.Context,
+			r inject.RestoreProducer,
+			man kopia.ManifestEntry,
+			tenantID string,
+			errs *fault.Bus,
+		) ([]data.RestoreCollection, error)
 
 		Wait() *data.CollectionStats
 	}

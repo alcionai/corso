@@ -122,10 +122,10 @@ func deserializeMetadata(
 
 				switch item.ID() {
 				case bupMD.PreviousPathFileName:
-					err = deserializeMap(item.ToReader(), prevFolders)
+					err = DeserializeMap(item.ToReader(), prevFolders)
 
 				case bupMD.DeltaURLsFileName:
-					err = deserializeMap(item.ToReader(), prevDeltas)
+					err = DeserializeMap(item.ToReader(), prevDeltas)
 
 				default:
 					logger.Ctx(ictx).Infow(
@@ -191,11 +191,11 @@ func deserializeMetadata(
 
 var errExistingMapping = clues.New("mapping already exists for same drive ID")
 
-// deserializeMap takes an reader and a map of already deserialized items and
+// DeserializeMap takes an reader and a map of already deserialized items and
 // adds the newly deserialized items to alreadyFound. Items are only added to
 // alreadyFound if none of the keys in the freshly deserialized map already
 // exist in alreadyFound. reader is closed at the end of this function.
-func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) error {
+func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) error {
 	defer reader.Close()
 
 	tmp := map[string]T{}
