@@ -224,8 +224,11 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := sitesAPI.GetByID(ctx, test.id)
+			site, err := sitesAPI.GetByID(ctx, test.id)
 			test.expectErr(t, err)
+			require.NotEmpty(t, ptr.Val(site.GetId()), "must have an id")
+			require.NotNil(t, site.GetDrive(), "must have drive info")
+			require.NotNil(t, site.GetDrive().GetOwner(), "must have drive owner info")
 		})
 	}
 }
@@ -240,4 +243,6 @@ func (suite *SitesIntgSuite) TestGetRoot() {
 	require.NoError(t, err)
 	require.NotNil(t, result, "must find the root site")
 	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")
+	require.NotNil(t, result.GetDrive(), "must have drive info")
+	require.NotNil(t, result.GetDrive().GetOwner(), "must have drive owner info")
 }
