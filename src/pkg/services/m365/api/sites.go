@@ -36,11 +36,17 @@ type Sites struct {
 // ---------------------------------------------------------------------------
 
 func (c Sites) GetRoot(ctx context.Context) (models.Siteable, error) {
+	options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
+			Expand: []string{"drive"},
+		},
+	}
+
 	resp, err := c.Stable.
 		Client().
 		Sites().
 		BySiteIdString("root").
-		Get(ctx, nil)
+		Get(ctx, options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting root site")
 	}
