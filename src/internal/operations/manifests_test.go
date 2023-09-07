@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -104,13 +105,12 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		name        string
 		manID       string
 		reasons     []identity.Reasoner
-		fileNames   []string
 		expectPaths func(*testing.T, []string) []path.Path
 		expectErr   error
 	}{
 		{
-			name:  "single reason, single file",
-			manID: "single single",
+			name:  "single reason",
+			manID: "single",
 			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 			},
@@ -125,30 +125,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				return ps
 			},
-			fileNames: []string{"a"},
 		},
 		{
-			name:  "single reason, multiple files",
-			manID: "single multi",
-			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
-			},
-			expectPaths: func(t *testing.T, files []string) []path.Path {
-				ps := make([]path.Path, 0, len(files))
-
-				for _, f := range files {
-					p, err := emailPath.AppendItem(f)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-				}
-
-				return ps
-			},
-			fileNames: []string{"a", "b"},
-		},
-		{
-			name:  "multiple reasons, single file",
-			manID: "multi single",
+			name:  "multiple reasons",
+			manID: "multi",
 			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
@@ -167,30 +147,6 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				return ps
 			},
-			fileNames: []string{"a"},
-		},
-		{
-			name:  "multiple reasons, multiple file",
-			manID: "multi multi",
-			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
-				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
-			},
-			expectPaths: func(t *testing.T, files []string) []path.Path {
-				ps := make([]path.Path, 0, len(files))
-
-				for _, f := range files {
-					p, err := emailPath.AppendItem(f)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-					p, err = contactPath.AppendItem(f)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-				}
-
-				return ps
-			},
-			fileNames: []string{"a", "b"},
 		},
 	}
 	for _, test := range table {
@@ -200,7 +156,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			paths := test.expectPaths(t, test.fileNames)
+			paths := test.expectPaths(t, []string{"delta", "previouspath"})
 
 			mr := mockRestoreProducer{err: test.expectErr}
 			mr.buildRestoreFunc(t, test.manID, paths)
@@ -210,7 +166,8 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				Reasons:  test.reasons,
 			}
 
-			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
+			controller := m365.Controller{}
+			_, err := controller.CollectMetadata(ctx, &mr, man, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 		})
 	}
