@@ -20,6 +20,7 @@ RUN apt-get -y update && apt-get -y install gpg emacs curl zip git make \
 WORKDIR /usr/src
 COPY package.json package-lock.json* ./
 RUN npm ci \
+  && npx update-browserslist-db@latest \
   && npm cache clean --force \
   && rm -f package.json package-lock.json*
 ENV PATH /usr/src/node_modules/.bin:$PATH
