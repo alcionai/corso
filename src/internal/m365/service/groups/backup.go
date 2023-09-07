@@ -99,13 +99,12 @@ func ProduceBackupCollections(
 				return nil, nil, false, err
 			}
 
-			siteMetadataCollection := []data.RestoreCollection{}
+			siteMetadataCollection := map[string][]data.RestoreCollection{}
 
+			// Once we have metadata collections for chat as well, we will have to filter those out
 			for _, c := range bpc.MetadataCollections {
 				siteID := c.FullPath().Elements().Last()
-				if ptr.Val(resp.GetId()) == siteID {
-					siteMetadataCollection = append(siteMetadataCollection, c)
-				}
+				siteMetadataCollection[siteID] = append(siteMetadataCollection[siteID], c)
 			}
 
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
@@ -114,7 +113,7 @@ func ProduceBackupCollections(
 				Options:             bpc.Options,
 				ProtectedResource:   pr,
 				Selector:            bpc.Selector,
-				MetadataCollections: siteMetadataCollection,
+				MetadataCollections: siteMetadataCollection[ptr.Val(resp.GetId())],
 			}
 
 			bh := drive.NewGroupBackupHandler(
