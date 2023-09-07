@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -106,14 +105,12 @@ type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
 	collections []m365Stub.ColInfo
-	resourceCat resource.Category
 }
 
 type restoreBackupInfoMultiVersion struct {
 	service             path.ServiceType
 	collectionsLatest   []m365Stub.ColInfo
 	collectionsPrevious []m365Stub.ColInfo
-	resourceCat         resource.Category
 	backupVersion       int
 }
 
@@ -1197,12 +1194,11 @@ func getSelectorWith(
 func newController(
 	ctx context.Context,
 	t *testing.T,
-	r resource.Category,
 	pst path.ServiceType,
 ) *Controller {
 	a := tconfig.NewM365Account(t)
 
-	controller, err := NewController(ctx, a, r, pst, control.Options{})
+	controller, err := NewController(ctx, a, pst, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return controller
