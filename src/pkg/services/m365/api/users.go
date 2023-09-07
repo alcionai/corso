@@ -172,6 +172,7 @@ func appendIfErr(errs []error, err error) []error {
 // Info
 // ---------------------------------------------------------------------------
 
+// TODO(pandeyabs): Remove this once the SDK users have migrated to new APIs
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		// Assume all services are enabled

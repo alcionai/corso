@@ -23,7 +23,8 @@ type (
 			bpc BackupProducerConfig,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
-		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
+
+		IsServiceEnableder
 
 		Wait() *data.CollectionStats
 	}
@@ -37,10 +38,22 @@ type (
 			ctr *count.Bus,
 		) (*details.Details, error)
 
+		IsServiceEnableder
+
 		Wait() *data.CollectionStats
 
 		CacheItemInfoer
 		PopulateProtectedResourceIDAndNamer
+	}
+
+	IsServiceEnableder interface {
+		// IsServiceEnabled checks if the service is enabled for backup/restore
+		// for the provided resource owner.
+		IsServiceEnabled(
+			ctx context.Context,
+			service path.ServiceType,
+			resourceOwner string,
+		) (bool, error)
 	}
 
 	CacheItemInfoer interface {
