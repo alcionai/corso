@@ -211,7 +211,7 @@ func (ctrl *Controller) CollectMetadata(
 
 		switch reason.Service() {
 		case path.GroupsService:
-			filePaths, err = groups.MetadataFiles(ctx, tenantID, reason, r, man, errs)
+			filePaths, err = groups.MetadataFiles(ctx, reason, r, man.ID, errs)
 			if err != nil {
 				return nil, err
 			}

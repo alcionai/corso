@@ -489,3 +489,65 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) TestBuildRestorePaths() {
+	type args struct {
+		tenantID          string
+		protectedResource string
+		service           ServiceType
+		category          CategoryType
+		fp                []string
+	}
+
+	tests := []struct {
+		name        string
+		args        args
+		restorePath string
+		storagePath string
+		expectErr   require.ErrorAssertionFunc
+	}{
+		{
+			name: "single",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			expectErr:   require.NoError,
+		},
+		{
+			name: "multi",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a", "b"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a/b",
+			expectErr:   require.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := BuildRestorePaths(
+				test.args.tenantID,
+				test.args.protectedResource,
+				test.args.service,
+				test.args.category,
+				test.args.fp,
+			)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.restorePath, r.RestorePath.String(), "restore path")
+			assert.Equal(t, test.storagePath, r.StoragePath.String(), "storage path")
+		})
+	}
+}

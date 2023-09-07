@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo/manifest"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
@@ -226,14 +226,13 @@ func getSitesMetadataCollection(
 
 func MetadataFiles(
 	ctx context.Context,
-	tenantID string,
 	reason identity.Reasoner,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	manID manifest.ID,
 	errs *fault.Bus,
 ) ([][]string, error) {
 	rp, err := path.BuildRestorePaths(
-		tenantID,
+		reason.Tenant(),
 		reason.ProtectedResource(),
 		reason.Service(),
 		reason.Category(),
@@ -244,7 +243,7 @@ func MetadataFiles(
 
 	dcs, err := r.ProduceRestoreCollections(
 		ctx,
-		string(man.ID),
+		string(manID),
 		[]path.RestorePaths{rp},
 		nil,
 		errs,
@@ -253,7 +252,7 @@ func MetadataFiles(
 		return nil, err
 	}
 
-	sites, err := DeserializeSiteMetadata(ctx, dcs)
+	sites, err := deserializeSiteMetadata(ctx, dcs)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +267,7 @@ func MetadataFiles(
 	return filePaths, nil
 }
 
-func DeserializeSiteMetadata(
+func deserializeSiteMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
 ) (map[string]string, error) {
