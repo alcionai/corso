@@ -14,6 +14,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+type SiteOwner string
+
+const (
+	SiteOwnerUnknown SiteOwner = ""
+	SiteOwnerUser    SiteOwner = "user"
+	SiteOwnerGroup   SiteOwner = "group"
+)
+
 // Site is the minimal information required to identify and display a SharePoint site.
 type Site struct {
 	// WebURL is the url for the site, works as an alias for the user name.
@@ -27,6 +35,8 @@ type Site struct {
 	// user provided when they created the site, though it can be changed across time.
 	// Ex: webUrl: https://host.com/sites/TestingSite, displayName: "Testing Site"
 	DisplayName string
+
+	Owner SiteOwner
 }
 
 // Sites returns a list of Sites in a specified M365 tenant
@@ -55,26 +65,32 @@ func getAllSites(
 	ret := make([]*Site, 0, len(sites))
 
 	for _, s := range sites {
-		ps, err := parseSite(s)
-		if err != nil {
-			return nil, clues.Wrap(err, "parsing siteable")
-		}
-
-		ret = append(ret, ps)
+		ret = append(ret, ParseSite(s))
 	}
 
 	return ret, nil
 }
 
-// parseSite extracts the information from `models.Siteable` we care about
-func parseSite(item models.Siteable) (*Site, error) {
+// ParseSite extracts the information from `models.Siteable` we care about
+func ParseSite(item models.Siteable) *Site {
 	s := &Site{
 		ID:          ptr.Val(item.GetId()),
 		WebURL:      ptr.Val(item.GetWebUrl()),
 		DisplayName: ptr.Val(item.GetDisplayName()),
+		Owner:       SiteOwnerUnknown,
 	}
 
-	return s, nil
+	if item.GetDrive() != nil &&
+		item.GetDrive().GetOwner() != nil &&
+		item.GetDrive().GetOwner().GetUser() != nil {
+		s.Owner = SiteOwnerUser
+	}
+
+	if _, ok := item.GetAdditionalData()["group"]; ok {
+		s.Owner = SiteOwnerGroup
+	}
+
+	return s
 }
 
 // SitesMap retrieves all sites in the tenant, and returns two maps: one id-to-webURL,
