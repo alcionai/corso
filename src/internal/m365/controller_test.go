@@ -1269,7 +1269,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = newController(ctx, t, path.ExchangeService)
+				backupCtrl = newController(ctx, t, test.service)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()
