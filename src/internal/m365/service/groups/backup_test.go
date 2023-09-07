@@ -58,12 +58,15 @@ func (mi mockItem) Deleted() bool           { return false }
 
 func (mc mockCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	ch := make(chan data.Item)
+
 	go func() {
 		defer close(ch)
+
 		for _, item := range mc.items {
 			ch <- item
 		}
 	}()
+
 	return ch
 }
 func (mc mockCollection) FullPath() path.Path { panic("unimplemented") }

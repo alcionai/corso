@@ -10,10 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
@@ -174,6 +177,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 }
 
 func buildReasons(
+	tenant string,
 	ro string,
 	service path.ServiceType,
 	cats ...path.CategoryType,
@@ -183,10 +187,36 @@ func buildReasons(
 	for _, cat := range cats {
 		reasons = append(
 			reasons,
-			kopia.NewReason("", ro, service, cat))
+			kopia.NewReason(tenant, ro, service, cat))
 	}
 
 	return reasons
+}
+
+type mockBackupProduer struct{}
+
+func (mbp mockBackupProduer) ProduceBackupCollections(
+	context.Context,
+	inject.BackupProducerConfig,
+	*fault.Bus,
+) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+	panic("unimplemented")
+}
+func (mbp mockBackupProduer) Wait() *data.CollectionStats { panic("unimplemented") }
+func (mbp mockBackupProduer) IsServiceEnabled(context.Context, path.ServiceType, string) (bool, error) {
+	panic("unimplemented")
+}
+
+func (mbp mockBackupProduer) CollectMetadata(
+	ctx context.Context,
+	r kinject.RestoreProducer,
+	man kopia.ManifestEntry,
+	errs *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	// Since the controller does not need anything special, we can
+	// directly use it
+	ctrl := m365.Controller{}
+	return ctrl.CollectMetadata(ctx, r, man, errs)
 }
 
 func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
@@ -202,7 +232,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				ID:               manifest.ID(id),
 				IncompleteReason: incmpl,
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -222,6 +252,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	table := []struct {
 		name        string
 		bf          *mockBackupFinder
+		bp          mockBackupProduer
 		rp          mockRestoreProducer
 		reasons     []identity.Reasoner
 		getMeta     bool
@@ -437,6 +468,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
+				test.bp,
 				&test.rp,
 				test.reasons, nil,
 				tid,
@@ -502,7 +534,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				IncompleteReason: incmpl,
 				Tags:             map[string]string{"tag:" + kopia.TagBackupID: id + "bup"},
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -515,7 +547,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				SnapshotID:    snapID,
 				StreamStoreID: snapID + "store",
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -889,6 +921,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
+				&mockBackupProduer{},
 				&test.rp,
 				test.reasons, test.fallbackReasons,
 				tid,

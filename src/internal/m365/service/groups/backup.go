@@ -100,6 +100,7 @@ func ProduceBackupCollections(
 			}
 
 			siteMetadataCollection := []data.RestoreCollection{}
+
 			for _, c := range bpc.MetadataCollections {
 				siteID := c.FullPath().Elements().Last()
 				if ptr.Val(resp.GetId()) == siteID {
@@ -258,6 +259,7 @@ func MetadataFiles(
 	}
 
 	filePaths := [][]string{}
+
 	for k := range sites {
 		for _, fn := range graph.AllMetadataFileNames() {
 			filePaths = append(filePaths, []string{odConsts.SitesPathDir, k, fn})
