@@ -19,6 +19,7 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
@@ -1585,6 +1586,16 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 	return &mbp.dcs
 }
 
+func (mbp mockBackupProducer) CollectMetadata(
+	ctx context.Context,
+	r kinject.RestoreProducer,
+	man kopia.ManifestEntry,
+	tenantID string,
+	errs *fault.Bus,
+) ([]data.RestoreCollection, error) {
+	return nil, clues.New("not implemented")
+}
+
 func makeBackupCollection(
 	p path.Path,
 	locPath *path.Builder,
@@ -1596,7 +1607,7 @@ func makeBackupCollection(
 		streams[i] = &items[i]
 	}
 
-	return &mock.BackupCollection{
+	return &dataMock.BackupCollection{
 		Path:    p,
 		Loc:     locPath,
 		Streams: streams,

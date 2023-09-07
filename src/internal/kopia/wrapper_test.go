@@ -26,7 +26,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	m365Mock "github.com/alcionai/corso/src/internal/m365/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -1126,7 +1125,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					streams = append(streams, ms)
 				}
 
-				mc := &m365Mock.BackupCollection{
+				mc := &dataMock.BackupCollection{
 					Path:    storePath,
 					Loc:     locPath,
 					Streams: streams,
@@ -1153,7 +1152,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					ItemInfo: details.ItemInfo{OneDrive: &info},
 				}
 
-				mc := &m365Mock.BackupCollection{
+				mc := &dataMock.BackupCollection{
 					Path:    storePath,
 					Loc:     locPath,
 					Streams: []data.Item{ms},
@@ -1296,7 +1295,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	collections := []data.BackupCollection{
-		&m365Mock.BackupCollection{
+		&dataMock.BackupCollection{
 			Path: suite.storePath1,
 			Loc:  loc1,
 			Streams: []data.Item{
@@ -1312,7 +1311,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 				},
 			},
 		},
-		&m365Mock.BackupCollection{
+		&dataMock.BackupCollection{
 			Path: suite.storePath2,
 			Loc:  loc2,
 			Streams: []data.Item{
@@ -1555,7 +1554,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
 		loc := path.Builder{}.Append(parent.Folders()...)
-		collection := &m365Mock.BackupCollection{Path: parent, Loc: loc}
+		collection := &dataMock.BackupCollection{Path: parent, Loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
 			collection.Streams = append(
