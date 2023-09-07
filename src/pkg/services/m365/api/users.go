@@ -9,6 +9,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -266,6 +267,18 @@ func EvaluateMailboxError(err error) error {
 	}
 
 	return err
+}
+
+// IsErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
+// determines whether the resource has a mailbox.
+func IsErrMailboxNotFound(errs []error) bool {
+	for _, err := range errs {
+		if errors.Is(err, ErrMailBoxNotFound) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c Users) GetMailboxSettings(
