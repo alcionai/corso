@@ -8,18 +8,20 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type SiteOwner string
+type SiteOwnerType string
 
 const (
-	SiteOwnerUnknown SiteOwner = ""
-	SiteOwnerUser    SiteOwner = "user"
-	SiteOwnerGroup   SiteOwner = "group"
+	SiteOwnerUnknown SiteOwnerType = ""
+	SiteOwnerUser    SiteOwnerType = "user"
+	SiteOwnerGroup   SiteOwnerType = "group"
 )
 
 // Site is the minimal information required to identify and display a SharePoint site.
@@ -36,7 +38,13 @@ type Site struct {
 	// Ex: webUrl: https://host.com/sites/TestingSite, displayName: "Testing Site"
 	DisplayName string
 
-	Owner SiteOwner
+	OwnerType SiteOwnerType
+	// OwnerID may or may not contain the site owner's ID.
+	// Requires:
+	// * a discoverable site owner type
+	// * getByID (the drive expansion doesn't work on paginated data)
+	// * lucky chance (not all responses contain an owner ID)
+	OwnerID string
 }
 
 // Sites returns a list of Sites in a specified M365 tenant
@@ -77,17 +85,28 @@ func ParseSite(item models.Siteable) *Site {
 		ID:          ptr.Val(item.GetId()),
 		WebURL:      ptr.Val(item.GetWebUrl()),
 		DisplayName: ptr.Val(item.GetDisplayName()),
-		Owner:       SiteOwnerUnknown,
+		OwnerType:   SiteOwnerUnknown,
 	}
 
 	if item.GetDrive() != nil &&
 		item.GetDrive().GetOwner() != nil &&
 		item.GetDrive().GetOwner().GetUser() != nil {
-		s.Owner = SiteOwnerUser
+		s.OwnerType = SiteOwnerUser
+		s.OwnerID = ptr.Val(item.GetDrive().GetOwner().GetUser().GetId())
 	}
 
 	if _, ok := item.GetAdditionalData()["group"]; ok {
-		s.Owner = SiteOwnerGroup
+		s.OwnerType = SiteOwnerGroup
+
+		group, err := tform.AnyValueToT[map[string]any]("group", item.GetAdditionalData())
+		if err != nil {
+			return s
+		}
+
+		s.OwnerID, err = str.AnyValueToString("id", group)
+		if err != nil {
+			return s
+		}
 	}
 
 	return s
