@@ -202,23 +202,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
-	var runnable bool
-
-	// IsBackupRunnable checks if the user has services enabled to run a backup.
-	// it also checks for conditions like mailbox full.
-	runnable, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
+	// Check if the protected resource has the service enabled in order for us
+	// to run a backup.
+	enabled, err := op.bp.IsServiceEnabled(
+		ctx,
+		op.Selectors.PathService(),
+		op.ResourceOwner.ID())
 	if err != nil {
-		logger.CtxErr(ctx, err).Error("verifying backup is runnable")
-		op.Errors.Fail(clues.Wrap(err, "verifying backup is runnable"))
+		logger.CtxErr(ctx, err).Error("verifying service backup is enabled")
+		op.Errors.Fail(clues.Wrap(err, "verifying service backup is enabled"))
 
-		return
+		return err
 	}
 
-	if !runnable {
-		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if backup is enabled")
-		op.Errors.Fail(clues.Wrap(err, "checking if backup is enabled"))
+	if !enabled {
+		// Return named error so that we can check for it in caller.
+		err = clues.Wrap(graph.ErrServiceNotEnabled, "service not enabled for backup")
+		op.Errors.Fail(err)
 
-		return
+		return err
 	}
 
 	// -----

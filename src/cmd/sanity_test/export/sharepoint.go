@@ -22,7 +22,7 @@ func CheckSharePointExport(
 ) {
 	drive, err := client.
 		Sites().
-		BySiteId(siteID).
+		BySiteIdString(siteID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {

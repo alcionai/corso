@@ -121,7 +121,7 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 		err  error
 	)
 
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
+	resp, err = c.Stable.Client().Users().ByUserIdString(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -172,6 +172,7 @@ func appendIfErr(errs []error, err error) []error {
 // Info
 // ---------------------------------------------------------------------------
 
+// TODO(pandeyabs): Remove this once the SDK users have migrated to new APIs
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	var (
 		// Assume all services are enabled
@@ -291,9 +292,9 @@ func (c Users) GetMailInbox(
 	inbox, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(MailInbox).
+		ByMailFolderIdString(MailInbox).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")
@@ -309,7 +310,7 @@ func (c Users) GetDefaultDrive(
 	d, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -338,9 +339,9 @@ func (c Users) GetFirstInboxMessage(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(inboxID).
+		ByMailFolderIdString(inboxID).
 		Messages().
 		Delta().
 		Get(ctx, config)

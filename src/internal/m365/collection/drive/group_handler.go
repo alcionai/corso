@@ -63,6 +63,11 @@ func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, erro
 		return nil, clues.Wrap(err, "making metadata path")
 	}
 
+	p, err = p.Append(false, odConsts.SitesPathDir, h.siteID)
+	if err != nil {
+		return nil, clues.Wrap(err, "appending sites to metadata path")
+	}
+
 	return p, nil
 }
 

@@ -4,9 +4,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	GroupFN = "group"
-)
+const DataMessages = "messages"
+
+const GroupFN = "group"
 
 var GroupFV []string
 
