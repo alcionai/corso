@@ -10,6 +10,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ---------------------------------------------------------------------------
+// Collections
+// ---------------------------------------------------------------------------
+
 // A Collection represents the set of data within a single logical location
 // denoted by FullPath.
 type Collection interface {
@@ -56,12 +60,9 @@ type RestoreCollection interface {
 	FetchItemByNamer
 }
 
-type FetchItemByNamer interface {
-	// Fetch retrieves an item with the given name from the Collection if it
-	// exists. Items retrieved with Fetch may still appear in the channel returned
-	// by Items().
-	FetchItemByName(ctx context.Context, name string) (Item, error)
-}
+// ---------------------------------------------------------------------------
+// Items
+// ---------------------------------------------------------------------------
 
 // Item represents a single item within a Collection
 type Item interface {
@@ -72,23 +73,6 @@ type Item interface {
 	// Deleted returns true if the item represented by this Stream has been
 	// deleted and should be removed from the current in-progress backup.
 	Deleted() bool
-}
-
-// LocationPather provides a LocationPath describing the path with Display Names
-// instead of canonical IDs
-type LocationPather interface {
-	LocationPath() *path.Builder
-}
-
-// PreviousLocationPather provides both the current location of the collection
-// as well as the location of the item in the previous backup.
-//
-// TODO(ashmrtn): If we guarantee that we persist the location of collections in
-// addition to the path of the item then we could just have a single
-// *LocationPather interface with current and previous location functions.
-type PreviousLocationPather interface {
-	LocationPather
-	PreviousLocationPath() details.LocationIDer
 }
 
 // ItemInfo returns the details.ItemInfo for the item.
@@ -107,4 +91,32 @@ type ItemSize interface {
 // value here as in item.Info().Modified().
 type ItemModTime interface {
 	ModTime() time.Time
+}
+
+type FetchItemByNamer interface {
+	// Fetch retrieves an item with the given name from the Collection if it
+	// exists. Items retrieved with Fetch may still appear in the channel returned
+	// by Items().
+	FetchItemByName(ctx context.Context, name string) (Item, error)
+}
+
+// ---------------------------------------------------------------------------
+// Paths
+// ---------------------------------------------------------------------------
+
+// LocationPather provides a LocationPath describing the path with Display Names
+// instead of canonical IDs
+type LocationPather interface {
+	LocationPath() *path.Builder
+}
+
+// PreviousLocationPather provides both the current location of the collection
+// as well as the location of the item in the previous backup.
+//
+// TODO(ashmrtn): If we guarantee that we persist the location of collections in
+// addition to the path of the item then we could just have a single
+// *LocationPather interface with current and previous location functions.
+type PreviousLocationPather interface {
+	LocationPather
+	PreviousLocationPath() details.LocationIDer
 }
