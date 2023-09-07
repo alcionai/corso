@@ -165,7 +165,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+			pathPrefix, err := path.BuildMetadata(
 				tenant,
 				user,
 				test.service,

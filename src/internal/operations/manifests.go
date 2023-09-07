@@ -141,14 +141,13 @@ func collectMetadata(
 
 	for _, fn := range fileNames {
 		for _, reason := range man.Reasons {
-			p, err := path.Builder{}.
-				Append(fn).
-				ToServiceCategoryMetadataPath(
-					tenantID,
-					reason.ProtectedResource(),
-					reason.Service(),
-					reason.Category(),
-					true)
+			p, err := path.BuildMetadata(
+				tenantID,
+				reason.ProtectedResource(),
+				reason.Service(),
+				reason.Category(),
+				true,
+				fn)
 			if err != nil {
 				return nil, clues.
 					Wrap(err, "building metadata path").

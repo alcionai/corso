@@ -344,14 +344,13 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			test.category.String(),
 		}, "_"), func() {
 			t := suite.T()
-			pb := path.Builder{}.Append(test.postfix...)
-
-			p, err := pb.ToServiceCategoryMetadataPath(
+			p, err := path.BuildMetadata(
 				tenant,
 				user,
 				test.service,
 				test.category,
-				false)
+				false,
+				test.postfix...)
 			test.check(t, err, clues.ToCore(err))
 
 			if err != nil {

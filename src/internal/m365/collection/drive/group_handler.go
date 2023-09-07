@@ -53,7 +53,7 @@ func (h groupBackupHandler) PathPrefix(
 }
 
 func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, error) {
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		h.groupID,
 		h.service,

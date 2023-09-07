@@ -267,7 +267,7 @@ func populateCollections(
 		"num_paths_entries", len(currPaths),
 		"num_deltas_entries", len(deltaURLs))
 
-	pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	pathPrefix, err := path.BuildMetadata(
 		qp.TenantID,
 		qp.ProtectedResource.ID(),
 		path.ExchangeService,
