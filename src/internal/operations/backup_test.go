@@ -20,6 +20,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
+	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
@@ -1592,7 +1593,8 @@ func (mbp mockBackupProducer) CollectMetadata(
 	man kopia.ManifestEntry,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	return nil, clues.New("not implemented")
+	ctrl := m365.Controller{}
+	return ctrl.CollectMetadata(ctx, r, man, errs)
 }
 
 func makeBackupCollection(
