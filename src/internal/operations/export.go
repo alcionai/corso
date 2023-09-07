@@ -105,7 +105,7 @@ type exportStats struct {
 
 // Run begins a synchronous export operation.
 func (op *ExportOperation) Run(ctx context.Context) (
-	expColl []export.Collection,
+	expColl []export.Collectioner,
 	err error,
 ) {
 	defer func() {
@@ -199,7 +199,7 @@ func (op *ExportOperation) do(
 	opStats *exportStats,
 	detailsStore streamstore.Reader,
 	start time.Time,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	logger.Ctx(ctx).
 		With("control_options", op.Options, "selectors", op.Selectors).
 		Info("exporting selection")
@@ -281,7 +281,7 @@ func (op *ExportOperation) do(
 			return nil, clues.Wrap(err, "zipping export collections")
 		}
 
-		return []export.Collection{zc}, nil
+		return []export.Collectioner{zc}, nil
 	}
 
 	return expCollections, nil
@@ -334,7 +334,7 @@ func exportRestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	complete := observe.MessageWithCompletion(ctx, "Preparing export")
 	defer func() {
 		complete <- struct{}{}

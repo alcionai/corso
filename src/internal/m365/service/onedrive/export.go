@@ -24,10 +24,10 @@ func ProduceExportCollections(
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
 	errs *fault.Bus,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	var (
 		el = errs.Local()
-		ec = make([]export.Collection, 0, len(dcs))
+		ec = make([]export.Collectioner, 0, len(dcs))
 	)
 
 	for _, dc := range dcs {

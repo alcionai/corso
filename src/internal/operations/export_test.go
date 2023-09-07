@@ -166,18 +166,18 @@ func (r *ReadSeekCloser) Close() error {
 func (suite *ExportOpSuite) TestZipExports() {
 	table := []struct {
 		name       string
-		collection []export.Collection
+		collection []export.Collectioner
 		shouldErr  bool
 		readErr    bool
 	}{
 		{
 			name:       "nothing",
-			collection: []export.Collection{},
+			collection: []export.Collectioner{},
 			shouldErr:  true,
 		},
 		{
 			name: "empty",
-			collection: []export.Collection{
+			collection: []export.Collectioner{
 				expCol{
 					base:  "",
 					items: []export.Item{},
@@ -186,16 +186,14 @@ func (suite *ExportOpSuite) TestZipExports() {
 		},
 		{
 			name: "one item",
-			collection: []export.Collection{
+			collection: []export.Collectioner{
 				expCol{
 					base: "",
 					items: []export.Item{
 						{
-							ID: "id1",
-							Data: export.ItemData{
-								Name: "test",
-								Body: NewReadSeekCloser([]byte("test")),
-							},
+							ID:   "id1",
+							Name: "test",
+							Body: NewReadSeekCloser([]byte("test")),
 						},
 					},
 				},
@@ -203,16 +201,14 @@ func (suite *ExportOpSuite) TestZipExports() {
 		},
 		{
 			name: "multiple items",
-			collection: []export.Collection{
+			collection: []export.Collectioner{
 				expCol{
 					base: "",
 					items: []export.Item{
 						{
-							ID: "id1",
-							Data: export.ItemData{
-								Name: "test",
-								Body: NewReadSeekCloser([]byte("test")),
-							},
+							ID:   "id1",
+							Name: "test",
+							Body: NewReadSeekCloser([]byte("test")),
 						},
 					},
 				},
@@ -220,11 +216,9 @@ func (suite *ExportOpSuite) TestZipExports() {
 					base: "/fold",
 					items: []export.Item{
 						{
-							ID: "id2",
-							Data: export.ItemData{
-								Name: "test2",
-								Body: NewReadSeekCloser([]byte("test2")),
-							},
+							ID:   "id2",
+							Name: "test2",
+							Body: NewReadSeekCloser([]byte("test2")),
 						},
 					},
 				},
@@ -232,7 +226,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 		},
 		{
 			name: "one item with err",
-			collection: []export.Collection{
+			collection: []export.Collectioner{
 				expCol{
 					base: "",
 					items: []export.Item{
@@ -264,14 +258,14 @@ func (suite *ExportOpSuite) TestZipExports() {
 			require.NoError(t, err, "error")
 			assert.Empty(t, zc.BasePath(), "base path")
 
-			zippedItems := []export.ItemData{}
+			zippedItems := []export.Item{}
 
 			count := 0
 			for item := range zc.Items(ctx) {
-				assert.True(t, strings.HasPrefix(item.Data.Name, "Corso_Export_"), "name prefix")
-				assert.True(t, strings.HasSuffix(item.Data.Name, ".zip"), "name suffix")
+				assert.True(t, strings.HasPrefix(item.Name, "Corso_Export_"), "name prefix")
+				assert.True(t, strings.HasSuffix(item.Name, ".zip"), "name suffix")
 
-				data, err := io.ReadAll(item.Data.Body)
+				data, err := io.ReadAll(item.Body)
 				if test.readErr {
 					assert.Error(t, err, "read error")
 					return
@@ -279,7 +273,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 
 				size := int64(len(data))
 
-				item.Data.Body.Close()
+				item.Body.Close()
 
 				reader, err := zip.NewReader(bytes.NewReader(data), size)
 				require.NoError(t, err, "zip reader")
@@ -293,7 +287,7 @@ func (suite *ExportOpSuite) TestZipExports() {
 
 					rc.Close()
 
-					zippedItems = append(zippedItems, export.ItemData{
+					zippedItems = append(zippedItems, export.Item{
 						Name: f.Name,
 						Body: NewReadSeekCloser([]byte(data)),
 					})
@@ -304,15 +298,15 @@ func (suite *ExportOpSuite) TestZipExports() {
 
 			assert.Equal(t, 1, count, "single item")
 
-			expectedZippedItems := []export.ItemData{}
+			expectedZippedItems := []export.Item{}
 			for _, col := range test.collection {
 				for item := range col.Items(ctx) {
 					if col.BasePath() != "" {
-						item.Data.Name = strings.Join([]string{col.BasePath(), item.Data.Name}, "/")
+						item.Name = strings.Join([]string{col.BasePath(), item.Name}, "/")
 					}
-					_, err := item.Data.Body.(io.ReadSeeker).Seek(0, io.SeekStart)
+					_, err := item.Body.(io.ReadSeeker).Seek(0, io.SeekStart)
 					require.NoError(t, err, "seek")
-					expectedZippedItems = append(expectedZippedItems, item.Data)
+					expectedZippedItems = append(expectedZippedItems, item)
 				}
 			}
 			assert.Equal(t, expectedZippedItems, zippedItems, "items")
