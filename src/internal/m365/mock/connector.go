@@ -54,7 +54,6 @@ func (ctrl *Controller) CollectMetadata(
 	ctx context.Context,
 	r kinject.RestoreProducer,
 	man kopia.ManifestEntry,
-	tenantID string,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	return nil, clues.New("not implemented")

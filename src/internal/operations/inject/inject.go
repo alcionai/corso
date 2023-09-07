@@ -32,7 +32,6 @@ type (
 			ctx context.Context,
 			r inject.RestoreProducer,
 			man kopia.ManifestEntry,
-			tenantID string,
 			errs *fault.Bus,
 		) ([]data.RestoreCollection, error)
 

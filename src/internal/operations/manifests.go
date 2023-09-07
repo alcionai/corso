@@ -103,7 +103,7 @@ func getManifestsAndMetadata(
 		// spread around.  Need to find more idiomatic handling.
 		fb := fault.New(true)
 
-		colls, err := bp.CollectMetadata(mctx, rp, man, tenantID, fb)
+		colls, err := bp.CollectMetadata(mctx, rp, man, fb)
 		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
 
 		// TODO(ashmrtn): It should be alright to relax this condition a little. We

@@ -193,7 +193,6 @@ func (ctrl *Controller) CollectMetadata(
 	ctx context.Context,
 	r kinject.RestoreProducer,
 	man kopia.ManifestEntry,
-	tenantID string,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	var (
@@ -223,7 +222,7 @@ func (ctrl *Controller) CollectMetadata(
 
 		for _, fp := range filePaths {
 			rp, err := path.BuildRestorePaths(
-				tenantID,
+				reason.Tenant(),
 				reason.ProtectedResource(),
 				reason.Service(),
 				reason.Category(),
