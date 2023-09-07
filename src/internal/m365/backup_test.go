@@ -13,6 +13,7 @@ import (
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -473,6 +474,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 type GroupsCollectionIntgSuite struct {
 	tester.Suite
 	connector *Controller
+	tenantID  string
 	user      string
 }
 
@@ -485,13 +487,21 @@ func TestGroupsCollectionIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsCollectionIntgSuite) SetupSuite() {
-	ctx, flush := tester.NewContext(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.connector = newController(ctx, suite.T(), resource.Sites, path.GroupsService)
-	suite.user = tconfig.M365UserID(suite.T())
+	suite.connector = newController(ctx, t, resource.Sites, path.GroupsService)
+	suite.user = tconfig.M365UserID(t)
 
-	tester.LogTimeOfTest(suite.T())
+	acct := tconfig.NewM365Account(t)
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.tenantID = creds.AzureTenantID
+
+	tester.LogTimeOfTest(t)
 }
 
 func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() {
@@ -535,13 +545,36 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	// but it should be more than one.
 	assert.Greater(t, len(collections), 1)
 
+	// TODO(meain): Switch to using BuildMetadata
+	// https://github.com/alcionai/corso/pull/4184#discussion_r1316139701
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	p, err = p.Append(false, odConsts.SitesPathDir)
+	require.NoError(t, err, clues.ToCore(err))
+
+	foundSitesMetadata := false
+
 	for _, coll := range collections {
+		sitesMetadataCollection := coll.FullPath().String() == p.String()
+
 		for object := range coll.Items(ctx, fault.New(true)) {
+			if object.ID() == "previouspath" && sitesMetadataCollection {
+				foundSitesMetadata = true
+			}
+
 			buf := &bytes.Buffer{}
 			_, err := buf.ReadFrom(object.ToReader())
 			assert.NoError(t, err, "reading item", clues.ToCore(err))
 		}
 	}
+
+	assert.True(t, foundSitesMetadata, "missing sites metadata")
 
 	status := ctrl.Wait()
 	assert.NotZero(t, status.Successes)
