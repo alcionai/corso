@@ -201,11 +201,6 @@ func (ctrl *Controller) CollectMetadata(
 	)
 
 	for _, reason := range man.Reasons {
-		// TODO(meain): remove channel filtering
-		if reason.Category() == path.ChannelMessagesCategory {
-			continue
-		}
-
 		filePaths := [][]string{}
 
 		switch reason.Service() {
